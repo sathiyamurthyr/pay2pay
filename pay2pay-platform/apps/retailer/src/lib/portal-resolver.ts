@@ -27,31 +27,30 @@ export const PORTAL_CONFIGS: Record<UserPortalRole, PortalConfig> = {
     login: "/sd/login",
   },
   ADMIN: {
-    portal: "ADMIN",
-    prefix: "/admin",
-    dashboard: "/admin/dashboard",
-    login: "/admin/login",
+    portal: "RETAILER",
+    prefix: "/retailer",
+    dashboard: "/retailer/dashboard",
+    login: "/retailer/login",
   },
   SUPER_ADMIN: {
-    portal: "SUPER_ADMIN",
-    prefix: "/super-admin",
-    dashboard: "/super-admin/dashboard",
-    login: "/super-admin/login",
+    portal: "RETAILER",
+    prefix: "/retailer",
+    dashboard: "/retailer/dashboard",
+    login: "/retailer/login",
   },
 };
 
 /**
- * Normalizes raw role string into authoritative UserPortalRole
+ * Normalizes raw role string into authoritative UserPortalRole for the Retailer App.
+ * In apps/retailer, any admin role safely normalizes to RETAILER to prevent routing to non-existent admin routes.
  */
 export function normalizeUserRole(rawRole?: string | null): UserPortalRole {
   if (!rawRole) return "RETAILER";
   const upper = rawRole.trim().toUpperCase();
 
-  if (upper === "SUPER_ADMIN" || upper === "SUPERADMIN" || upper === "SUPER-ADMIN") {
-    return "SUPER_ADMIN";
-  }
-  if (upper === "ADMIN") {
-    return "ADMIN";
+  // In the Retailer application, Admin/Super-Admin roles from cross-domain cookies must not hijack routing
+  if (upper === "SUPER_ADMIN" || upper === "SUPERADMIN" || upper === "SUPER-ADMIN" || upper === "ADMIN") {
+    return "RETAILER";
   }
   if (upper === "SD" || upper === "SUPER_DISTRIBUTOR" || upper === "SUPER DISTRIBUTOR") {
     return "SD";
@@ -63,11 +62,12 @@ export function normalizeUserRole(rawRole?: string | null): UserPortalRole {
 }
 
 /**
- * Authoritative portal route resolver based on authenticated user role
+ * Authoritative portal route resolver based on authenticated user role.
+ * In apps/retailer, always falls back safely to RETAILER portal routes.
  */
 export function resolvePortalRoute(rawRole?: string | null): PortalConfig {
   const role = normalizeUserRole(rawRole);
-  return PORTAL_CONFIGS[role];
+  return PORTAL_CONFIGS[role] || PORTAL_CONFIGS.RETAILER;
 }
 
 /**
@@ -75,15 +75,15 @@ export function resolvePortalRoute(rawRole?: string | null): PortalConfig {
  */
 export function isPathAllowedForRole(pathname: string, rawRole?: string | null): boolean {
   const role = normalizeUserRole(rawRole);
-  const config = PORTAL_CONFIGS[role];
+  const config = PORTAL_CONFIGS[role] || PORTAL_CONFIGS.RETAILER;
 
   // Legacy retailer-dashboard redirect is handled separately
   if (pathname === "/retailer-dashboard") {
-    return role === "RETAILER";
+    return true;
   }
 
   // Check if pathname starts with any portal prefix
-  const allPrefixes = Object.values(PORTAL_CONFIGS).map((c) => c.prefix);
+  const allPrefixes = ["/retailer", "/dist", "/sd"];
   const targetPrefix = allPrefixes.find((prefix) => pathname.startsWith(prefix));
 
   if (!targetPrefix) {

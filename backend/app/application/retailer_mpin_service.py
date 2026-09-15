@@ -337,11 +337,10 @@ class RetailerMpinService:
                         is_valid = True
                         retailer.mpin_hash = user_sec.security_pin_hash
                 else:
-                    # If not initialized, initialize with current MPIN
-                    retailer.mpin_hash = hashed_input
-                    retailer.mpin_failed_attempts = 0
-                    retailer.mpin_locked = False
-                    is_valid = True
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Retailer MPIN has not been configured. Please complete MPIN setup before authenticating."
+                    )
 
         now = datetime.now(timezone.utc)
 

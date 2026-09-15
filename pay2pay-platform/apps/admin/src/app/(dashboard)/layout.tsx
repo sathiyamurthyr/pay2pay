@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/layout/navbar";
 import { Sidebar } from "@/components/layout/sidebar";
 
-const DEV_BYPASS = process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
+const DEV_BYPASS = false;
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();

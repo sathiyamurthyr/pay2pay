@@ -320,7 +320,9 @@ async def finalize_customer_onboarding(
     import time
     from app.application.aadhaar_ekyc_workflow import AadhaarEkycWorkflowService
     ref_val = req.ref_id or req.ref_number or f"CF-AADHAAR-{int(time.time())}"
-    mpin_val = req.mpin or req.pin or "1234"
+    mpin_val = req.mpin or req.pin
+    if not mpin_val:
+        raise HTTPException(status_code=400, detail="MPIN is required to finalize customer onboarding.")
     mobile_val = req.mobile_number
     if not mobile_val:
         raise HTTPException(status_code=400, detail="Mobile number is required to finalize customer onboarding.")

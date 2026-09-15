@@ -697,9 +697,45 @@ async def generate_upi_topup_qr(
     short_hex = uuid.uuid4().hex[:6].upper()
     request_id = f"UPI-{now_str}-{short_hex}"
 
-    # Dynamic UPI URI conforming to user static spec:
-    # upi://pay?ver=01&mode=01&pa=Mswipe.1430101325004413@mswipesbm&pn=MSWIPE&tr=&cu=INR
-    upi_url = f"upi://pay?ver=01&mode=01&pa={STATIC_UPI_PA}&pn={STATIC_UPI_PN}&tr={request_id}&am={req.amount:.2f}&cu=INR"
+    # 0. Check Platform Service Configuration for UPI
+    svc_check = await db.execute(
+        text("SELECT is_enabled FROM customer_service_configuration WHERE service_code = 'UPI' AND is_deleted = false;")
+    )
+    if svc_check.scalar_one_or_none() is False:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="UPI Top-Up is currently disabled by administrator. Please use POS settlement or contact support."
+        )
+
+    # 1. Dynamically lookup active UPI Vendor configuration from DB
+    comp_id = getattr(retailer, "company_id", None)
+    active_v_res = await db.execute(
+        text("SELECT public.sp_get_active_retailer_upi_vendor_config(:comp_id) AS result;"),
+        {"comp_id": comp_id}
+    )
+    active_vendor = active_v_res.scalar_one_or_none()
+
+    if not active_vendor or active_vendor.get("vendor_status") != "ACTIVE" or active_vendor.get("qr_status") != "ENABLED":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="UPI Top-Up is currently unavailable or disabled by administrator. Please use POS settlement or contact support."
+        )
+
+    upi_pa = active_vendor.get("upi_id")
+    if not upi_pa:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Active UPI vendor is missing UPI ID configuration. Please contact administrator."
+        )
+    upi_pn = active_vendor.get("payee_name") or active_vendor.get("vendor_name") or "Pay2Pay"
+    vendor_display_name = active_vendor.get("vendor_name") or "Pay2Pay UPI"
+    retailer_mdr_rate = float(active_vendor.get("retailer_mdr", 0))
+    company_mdr_rate = float(active_vendor.get("company_mdr", 0))
+    static_qr_url = active_vendor.get("qr_image_url")
+
+    # Dynamic UPI URI generated using configured active vendor details:
+    import urllib.parse
+    upi_url = f"upi://pay?ver=01&mode=01&pa={upi_pa}&pn={urllib.parse.quote(upi_pn)}&tr={request_id}&am={req.amount:.2f}&cu=INR"
 
     # Generate QR Code in memory as base64 PNG data URL
     import base64
@@ -725,9 +761,15 @@ async def generate_upi_topup_qr(
         "success": True,
         "request_id": request_id,
         "amount": float(req.amount),
-        "upi_id": STATIC_UPI_PA,
-        "payee_name": STATIC_UPI_PN,
-        "company_name": STATIC_COMPANY_NAME,
+        "upi_id": upi_pa,
+        "payee_name": upi_pn,
+        "company_name": vendor_display_name,
+        "vendor_name": vendor_display_name,
+        "vendor_code": active_vendor.get("vendor_code"),
+        "vendor_id": active_vendor.get("vendor_id"),
+        "retailer_mdr": retailer_mdr_rate,
+        "company_mdr": company_mdr_rate,
+        "static_qr_image_url": static_qr_url,
         "upi_url": upi_url,
         "qr_data_url": qr_data_url,
         "expires_at": expires_at,
@@ -891,15 +933,47 @@ async def create_topup_request(
     resolved_slip_url = _resolve_slip_url(req.slip_url, req.slip_id)
 
     if is_upi:
-        # UPI Top-Up bypasses POS machine MDR and charges 0 fees
-        selected_mode = "UPI Top-Up"
-        mdr_charge_val = 0.0
+        # Check platform service availability for UPI
+        svc_check = await db.execute(
+            text("SELECT is_enabled FROM customer_service_configuration WHERE service_code = 'UPI' AND is_deleted = false;")
+        )
+        if svc_check.scalar_one_or_none() is False:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="UPI Top-Up is currently disabled by administrator. Please use POS settlement or contact support."
+            )
+
+        # Dynamic UPI Vendor MDR lookup and calculation
+        comp_id = getattr(retailer, "company_id", None)
+        v_stmt = text("SELECT public.sp_get_active_retailer_upi_vendor_config(:comp_id) AS result;")
+        v_res = await db.execute(v_stmt, {"comp_id": comp_id})
+        act_vendor = v_res.scalar_one_or_none()
+
+        if not act_vendor or act_vendor.get("vendor_status") != "ACTIVE" or act_vendor.get("qr_status") != "ENABLED":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="UPI Top-Up is currently disabled by administrator. Please use POS settlement or contact support."
+            )
+
+        retailer_mdr_pct = float(act_vendor.get("retailer_mdr", 0))
+        company_mdr_pct = float(act_vendor.get("company_mdr", 0))
+        vendor_name_str = act_vendor.get("vendor_name", "UPI")
+
+        selected_mode = f"UPI Top-Up ({vendor_name_str})"
+        mdr_charge_val = round(req.requested_amount * (retailer_mdr_pct / 100.0), 2)
         gst_amount_val = 0.0
-        charges_val = 0.0
-        received_amount_val = req.requested_amount
+        charges_val = mdr_charge_val
+        received_amount_val = round(req.requested_amount - mdr_charge_val, 2)
         mdr_config_uuid = None
         vendor_calc_meta = {
             "payment_type": "UPI",
+            "vendor_id": act_vendor.get("vendor_id"),
+            "vendor_name": vendor_name_str,
+            "vendor_code": act_vendor.get("vendor_code"),
+            "retailer_mdr_pct": retailer_mdr_pct,
+            "company_mdr_pct": company_mdr_pct,
+            "mdr_charge": mdr_charge_val,
+            "received_amount": received_amount_val,
             "payment_app": req.payment_app or "UPI",
             "payer_name": req.payer_name,
             "payer_upi_id": req.payer_upi_id,

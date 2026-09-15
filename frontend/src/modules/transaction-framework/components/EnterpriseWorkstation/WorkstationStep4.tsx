@@ -566,7 +566,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
       setViewState("PIN_ENTRY");
       inputRefs.current[0]?.focus();
     } else {
-      setSupervisorError("Invalid Supervisor PIN. Enter '9999' to override.");
+      setSupervisorError("Invalid Supervisor PIN. Please contact system administrator.");
     }
   };
 

@@ -73,63 +73,12 @@ const KPI_THEMES: { id: KpiTheme; label: string; swatch: string }[] = [
   { id: "corporate-white", label: "Corporate White", swatch: "#FFFFFF" },
 ];
 
-let cachedHeaderWalletData: any = null;
-let lastHeaderWalletFetchTime = 0;
-let inFlightHeaderWalletPromise: Promise<any> | null = null;
+import {
+  getCachedHeaderWalletData,
+  isInitialLayoutFetchCompleted,
+  markInitialLayoutFetchCompleted,
+} from "@/services/header-wallet-service";
 
-async function getCachedHeaderWalletData(forceRefresh = false): Promise<any> {
-  const now = Date.now();
-  if (!forceRefresh && cachedHeaderWalletData && now - lastHeaderWalletFetchTime < 30000) {
-    return cachedHeaderWalletData;
-  }
-  if (inFlightHeaderWalletPromise) {
-    return inFlightHeaderWalletPromise;
-  }
-
-  inFlightHeaderWalletPromise = (async () => {
-    try {
-      // Call /header-wallet with NO query params.
-      // The backend resolves the authenticated retailer from the JWT cookie or Authorization header.
-      // Zero localStorage reads — identity comes from the server session only.
-      const res = await apiClient.get(`/api/v1/payout/dashboard/retailer/header-wallet`);
-      const data = res.data;
-      cachedHeaderWalletData = data;
-      lastHeaderWalletFetchTime = Date.now();
-
-      // Sync into useRetailerStore in-memory state ONLY — NO localStorage write
-      const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : (data.wallet?.main_balance ?? 0.0);
-      const avail = typeof data.available_balance === "number" ? data.available_balance : bal;
-      const rInfo = data.retailer_info || data;
-      const retCode = data.retailer_code || data.retailer_id || rInfo.retailer_code || rInfo.retailer_id || "";
-      const photoUrl = data.photo_url || data.avatar_url || rInfo.photo_url || rInfo.avatar_url || "";
-
-      useRetailerStore.getState().updateWallet({
-        mainBalance: bal,
-        availableBalance: avail,
-        commissionBalance: data.todays_commission || 0.0,
-        todayMargin: data.todays_commission || 0.0,
-        todaySettlement: data.settlement_pending_amount || 0.0,
-      });
-      useRetailerStore.getState().updateOutlet({
-        code: retCode || useRetailerStore.getState().outlet.code,
-        name: rInfo.company_name || rInfo.retailer_name || data.retailer_name || useRetailerStore.getState().outlet.name,
-        ownerName: rInfo.owner_name || data.owner_name || useRetailerStore.getState().outlet.ownerName,
-        avatar: photoUrl || useRetailerStore.getState().outlet.avatar,
-        photo_url: photoUrl || useRetailerStore.getState().outlet.photo_url,
-        status: (rInfo.status || data.status || (rInfo.approval_status === "ACTIVE" ? "ACTIVE" : undefined)) || useRetailerStore.getState().outlet.status,
-        kycStatus: (rInfo.kyc_status || data.kyc_status) || useRetailerStore.getState().outlet.kycStatus,
-        approvalStatus: (rInfo.approval_status || data.approval_status || (rInfo.approve_status ? "APPROVED" : undefined)) || useRetailerStore.getState().outlet.approvalStatus,
-        location: rInfo.location || data.location || useRetailerStore.getState().outlet.location,
-      });
-
-      return data;
-    } finally {
-      inFlightHeaderWalletPromise = null;
-    }
-  })();
-
-  return inFlightHeaderWalletPromise;
-}
 
 
 export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -142,7 +91,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   const { openContactSupportModal } = useContactSupportModal();
   const { lockSession } = useSessionSecurity();
 
-  // ── P0 Session Security Check ──────────────────────────────
+  // ── P0 Session Security Check (Strictly via secure cookies, zero localStorage) ──
   const checkSessionToken = useCallback(() => {
     if (typeof document === "undefined") return false;
     const cookies = document.cookie.split("; ");
@@ -151,17 +100,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       row.startsWith("pay2pay_access_token=") ||
       row.startsWith("pay2pay_auth_token=")
     );
-    if (tokenCookie && tokenCookie.split("=")[1]?.trim().length > 10) {
-      return true;
-    }
-    if (typeof localStorage !== "undefined") {
-      const lsToken =
-        localStorage.getItem("p2p_access_token") ||
-        localStorage.getItem("pay2pay_access_token") ||
-        localStorage.getItem("access_token");
-      if (lsToken && lsToken.trim().length > 10) return true;
-    }
-    return false;
+    return Boolean(tokenCookie && tokenCookie.split("=")[1]?.trim().length > 10);
   }, []);
 
   const [isAuthenticatedSession, setIsAuthenticatedSession] = useState<boolean>(() => {
@@ -188,17 +127,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
 
   useEffect(() => {
     verifyAndEnforceSession();
-
-    const handlePageShow = () => {
-      verifyAndEnforceSession();
-    };
-
-    window.addEventListener("pageshow", handlePageShow);
-    window.addEventListener("focus", handlePageShow);
-    return () => {
-      window.removeEventListener("pageshow", handlePageShow);
-      window.removeEventListener("focus", handlePageShow);
-    };
+    // Intentionally NO window 'focus' listener to prevent aggressive auto-refresh and re-render loops
   }, [verifyAndEnforceSession]);
 
   const [lockedModalItem, setLockedModalItem] = useState<{ label: string; path: string } | null>(null);
@@ -237,18 +166,19 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       if (rInfo.approval_status && typeof setApprovalStatus === "function") {
         setApprovalStatus(rInfo.approval_status as any);
       }
-      const resolvedCode = rInfo.retailer_code || data.retailer_code || rInfo.retailer_id || data.retailer_id || outlet.code || "";
-      const photoUrl = rInfo.photo_url || rInfo.avatar_url || data.photo_url || data.avatar_url || outlet.avatar || outlet.photo_url || "";
+      const storeOutlet = useRetailerStore.getState().outlet;
+      const resolvedCode = rInfo.retailer_code || data.retailer_code || rInfo.retailer_id || data.retailer_id || storeOutlet.code || "";
+      const photoUrl = rInfo.photo_url || rInfo.avatar_url || data.photo_url || data.avatar_url || storeOutlet.avatar || storeOutlet.photo_url || "";
 
       setProfileDetails((prev) => ({
         ...prev,
-        owner_name: rInfo.owner_name || data.owner_name || outlet.ownerName || "",
-        retailer_name: rInfo.company_name || rInfo.retailer_name || data.company_name || data.retailer_name || outlet.name || "",
+        owner_name: rInfo.owner_name || data.owner_name || storeOutlet.ownerName || "",
+        retailer_name: rInfo.company_name || rInfo.retailer_name || data.company_name || data.retailer_name || storeOutlet.name || "",
         retailer_code: resolvedCode,
         photo_url: photoUrl,
-        approval_status: rInfo.approval_status || data.approval_status || (rInfo.approve_status ? "ACTIVE" : "") || outlet.approvalStatus || "",
-        kyc_status: rInfo.kyc_status || data.kyc_status || outlet.kycStatus || "",
-        location: rInfo.location || data.location || outlet.location || "",
+        approval_status: rInfo.approval_status || data.approval_status || (rInfo.approve_status ? "ACTIVE" : "") || storeOutlet.approvalStatus || "",
+        kyc_status: rInfo.kyc_status || data.kyc_status || storeOutlet.kycStatus || "",
+        location: rInfo.location || data.location || storeOutlet.location || "",
         last_login_at: data.quick_stats?.last_login_at || data.last_login_at || null,
         plan_name: rInfo.plan_name || data.plan_name || "",
         loading: false,
@@ -258,36 +188,28 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       console.warn("Profile details fetch error:", err);
       setProfileDetails((prev) => ({ ...prev, loading: false, error: true }));
     }
-  }, [setApprovalStatus, outlet.code, outlet.avatar, outlet.photo_url, outlet.ownerName, outlet.name, outlet.location, outlet.approvalStatus, outlet.kycStatus]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setApprovalStatus]);
 
+  // Fire strictly once across the application lifecycle on initial mount
   useEffect(() => {
     if (!isAuthenticatedSession) return;
-    fetchProfileDetails(true);
-    syncBalance();
+    if (isInitialLayoutFetchCompleted()) return;
+    markInitialLayoutFetchCompleted();
 
+    // Load initial profile & wallet strictly once using cached promise
+    fetchProfileDetails(false);
+
+    // Explicit wallet update event listener (triggered only on user-initiated actions)
     const handleWalletUpdate = () => {
-      syncBalance();
+      fetchProfileDetails(true);
     };
     window.addEventListener("p2p_wallet_update", handleWalletUpdate);
-
-    // Also load verified profile photo directly from profile endpoint
-    const loadVerifiedPhoto = async () => {
-      try {
-        const res = await retailerApi.getProfile();
-        const pUrl = res?.data?.photo?.photo_url;
-        if (pUrl) {
-          setProfileDetails((prev) => ({ ...prev, photo_url: pUrl }));
-        }
-      } catch (e) {
-        console.warn("Verified photo fetch notice:", e);
-      }
-    };
-    loadVerifiedPhoto();
-
     return () => {
       window.removeEventListener("p2p_wallet_update", handleWalletUpdate);
     };
-  }, [isAuthenticatedSession, fetchProfileDetails, syncBalance]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticatedSession]);
 
   const formatLastLogin = (isoString?: string | null) => {
     if (!isoString) return "Not available";
@@ -1126,6 +1048,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   size="small"
                   onClick={(e) => {
                     e.stopPropagation();
+                    fetchProfileDetails(true);
                     syncBalance();
                   }}
                   disabled={isSyncing}

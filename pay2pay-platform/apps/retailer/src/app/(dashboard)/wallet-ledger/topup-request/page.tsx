@@ -86,12 +86,29 @@ interface PaymentModeOption {
   is_active?: boolean;
 }
 
+interface UpiVendorConfig {
+  vendor_id: string;
+  vendor_name: string;
+  vendor_code: string;
+  qr_image_url: string;
+  upi_id: string;
+  payee_name?: string;
+  company_mdr: number;
+  retailer_mdr: number;
+  qr_status: string;
+  vendor_status: string;
+}
+
 interface UpiQrData {
   request_id: string;
   amount: number;
   upi_id: string;
   payee_name: string;
   company_name: string;
+  vendor_name?: string;
+  vendor_code?: string;
+  retailer_mdr?: number;
+  static_qr_image_url?: string;
   upi_url: string;
   qr_data_url: string;
   expires_at: string;
@@ -133,6 +150,10 @@ export default function RetailerTopupRequestPage() {
   const [upiQrData, setUpiQrData] = useState<UpiQrData | null>(null);
   const [qrSecondsLeft, setQrSecondsLeft] = useState<number>(900);
   const [isQrExpired, setIsQrExpired] = useState<boolean>(false);
+
+  // Dynamic UPI Vendor Configuration from Admin
+  const [upiVendorConfig, setUpiVendorConfig] = useState<UpiVendorConfig | null>(null);
+  const [loadingUpiVendor, setLoadingUpiVendor] = useState<boolean>(true);
 
   // Screenshot Upload & OCR State
   const [upiSlipFile, setUpiSlipFile] = useState<File | null>(null);
@@ -275,6 +296,32 @@ export default function RetailerTopupRequestPage() {
     };
     fetchPaymentModesAndCardTypes();
   }, []);
+
+  // ── Dynamic UPI Vendor Configuration (Admin Controlled) ─────────────────────
+  useEffect(() => {
+    let isMounted = true;
+    const loadUpiConfig = async () => {
+      try {
+        setLoadingUpiVendor(true);
+        const res = await api.get("/api/v1/upi/vendor-config");
+        if (isMounted) {
+          if (res.data?.success && res.data?.data) {
+            setUpiVendorConfig(res.data.data);
+          } else {
+            setUpiVendorConfig(null);
+          }
+        }
+      } catch (err) {
+        if (isMounted) setUpiVendorConfig(null);
+      } finally {
+        if (isMounted) setLoadingUpiVendor(false);
+      }
+    };
+    loadUpiConfig();
+    return () => {
+      isMounted = false;
+    };
+  }, [topupMode]);
 
   // POS MDR Calculation
   useEffect(() => {
@@ -521,6 +568,10 @@ export default function RetailerTopupRequestPage() {
     try {
       setSubmittingUpi(true);
 
+      const upiMdrPct = upiVendorConfig?.retailer_mdr ?? 0;
+      const calcMdrCharge = Math.round((amt * (upiMdrPct / 100)) * 100) / 100;
+      const calcReceivedAmt = Math.max(0, Math.round((amt - calcMdrCharge) * 100) / 100);
+
       const payload = {
         requested_amount: amt,
         payment_reference: verifiedUtr.trim(),
@@ -537,7 +588,10 @@ export default function RetailerTopupRequestPage() {
         payer_name: verifiedPayerName.trim() || undefined,
         payer_upi_id: verifiedUpiId.trim() || undefined,
         qr_request_id: upiQrData?.request_id,
-        ocr_extracted_data: ocrData || undefined
+        ocr_extracted_data: ocrData || undefined,
+        mdr_charge: calcMdrCharge,
+        charges: calcMdrCharge,
+        received_amount: calcReceivedAmt
       };
 
       let userRefId: any = null;
@@ -584,7 +638,9 @@ export default function RetailerTopupRequestPage() {
         slip_url: uploadedUpiSlip.slip_url,
         status: "PENDING",
         submitted_at: new Date().toISOString(),
-        received_amount: amt
+        received_amount: calcReceivedAmt,
+        mdr_charge: calcMdrCharge,
+        charges: calcMdrCharge
       };
       setMyRequests((prev) => [newClaim, ...prev.filter(r => r.topup_request_id !== newReqId)]);
 
@@ -886,11 +942,6 @@ export default function RetailerTopupRequestPage() {
         >
           <QrCode className="h-4 w-4" />
           <span>UPI Top-Up (Dynamic QR)</span>
-          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold uppercase ${
-            topupMode === "UPI" ? "bg-slate-950/20 text-slate-950" : "bg-amber-500/10 text-amber-400 border border-amber-500/30"
-          }`}>
-            0% Fee
-          </span>
         </button>
 
         <button
@@ -1016,22 +1067,107 @@ export default function RetailerTopupRequestPage() {
                     </div>
                   </div>
 
-                  {/* Features Banner */}
-                  <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-2 text-xs text-slate-400">
-                    <div className="flex items-center gap-2 text-slate-300 font-semibold">
-                      <ShieldCheck className="h-4 w-4 text-amber-400" />
-                      <span>Zero Processing Fees (0% MDR)</span>
-                    </div>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">
-                      Instant verification with any UPI app including Google Pay, PhonePe, Paytm, BHIM, CRED and Amazon Pay.
-                    </p>
-                  </div>
+                  {/* ── Dynamic UPI MDR Live Breakdown Card (Referenced from POS Settlement tab) ── */}
+                  {(() => {
+                    const upiAmtNum = parseFloat(upiAmount || "0");
+                    const upiMdrPct = upiVendorConfig?.retailer_mdr ?? 0;
+                    const upiMdrAmount = upiAmtNum > 0 ? Math.round((upiAmtNum * (upiMdrPct / 100)) * 100) / 100 : 0;
+                    const upiReceivedAmount = upiAmtNum > 0 ? Math.max(0, Math.round((upiAmtNum - upiMdrAmount) * 100) / 100) : 0;
+
+                    if (!loadingUpiVendor && (!upiVendorConfig || upiVendorConfig.vendor_status !== "ACTIVE" || upiVendorConfig.qr_status !== "ENABLED")) {
+                      return (
+                        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
+                          <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+                          <div className="space-y-1">
+                            <h5 className="text-xs font-bold text-amber-300">UPI Top-Up Service Unavailable</h5>
+                            <p className="text-[11px] text-slate-300 leading-relaxed">
+                              UPI Top-Up is currently disabled by administrator. Please use POS Settlement or contact support.
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (upiAmtNum > 0 && upiVendorConfig) {
+                      return (
+                        <div className="rounded-2xl border border-amber-500/20 bg-slate-950/90 p-4.5 space-y-3.5 shadow-xl relative overflow-hidden">
+                          <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                            <span className="text-xs font-bold text-white flex items-center gap-2">
+                              <Calculator className="h-4 w-4 text-amber-400" />
+                              Live Fee & Settlement Breakdown
+                            </span>
+                            <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30 font-mono font-bold uppercase tracking-wider">
+                              {upiVendorConfig.vendor_name}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-y-2 text-xs">
+                            <span className="text-slate-400">Payment Mode</span>
+                            <span className="text-right font-semibold text-white">
+                              UPI Top-Up ({upiVendorConfig.vendor_name})
+                            </span>
+
+                            <span className="text-slate-400">Transaction Amount</span>
+                            <span className="text-right font-black text-amber-400">
+                              ₹{upiAmtNum.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+
+                            <span className="text-slate-400">MDR ({upiMdrPct}%)</span>
+                            <span className="text-right font-semibold text-amber-300">
+                              ₹{upiMdrAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+
+                            <span className="text-slate-400">Charges</span>
+                            <span className="text-right font-semibold text-slate-300">
+                              ₹{upiMdrAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+
+                            <div className="col-span-2 pt-3 mt-1 border-t border-slate-800/80 flex items-center justify-between">
+                              <div>
+                                <span className="text-xs font-bold text-white block">Received Amount</span>
+                                <span className="text-[10px] text-emerald-400/80">Credited to Retailer Wallet</span>
+                              </div>
+                              <span className="text-xl font-black text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]">
+                                ₹{upiReceivedAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-2 text-xs text-slate-400">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-slate-300 font-semibold">
+                            <ShieldCheck className="h-4 w-4 text-amber-400" />
+                            <span>Configured MDR: {upiMdrPct}%</span>
+                          </div>
+                          {upiVendorConfig && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/20 font-mono font-medium">
+                              {upiVendorConfig.vendor_name}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                          Instant verification with any UPI app including Google Pay, PhonePe, Paytm, BHIM, CRED and Amazon Pay.
+                        </p>
+                      </div>
+                    );
+                  })()}
 
                   {/* Generate QR Button */}
                   <button
                     type="button"
                     onClick={handleGenerateUpiQr}
-                    disabled={generatingQr || !upiAmount || parseFloat(upiAmount) < 100}
+                    disabled={
+                      generatingQr ||
+                      !upiAmount ||
+                      parseFloat(upiAmount) < 100 ||
+                      !upiVendorConfig ||
+                      upiVendorConfig.vendor_status !== "ACTIVE" ||
+                      upiVendorConfig.qr_status !== "ENABLED"
+                    }
                     className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-sm rounded-2xl shadow-xl shadow-amber-500/20 transition-all flex items-center justify-center gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {generatingQr ? (

@@ -15,7 +15,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setMounted(true);
   }, []);
 
-  // Back-button bfcache handler & session verification
+  // Back-button bfcache handler & session verification (Strictly session cookies, zero localStorage)
   useEffect(() => {
     const checkSessionOnShow = () => {
       const cookies = document.cookie.split("; ");
@@ -25,31 +25,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         row.startsWith("pay2pay_auth_token=")
       );
       const cookieToken = tokenCookie ? tokenCookie.split("=")[1]?.trim() : null;
-      const lsToken =
-        typeof window !== "undefined"
-          ? localStorage.getItem("p2p_access_token") ||
-            localStorage.getItem("pay2pay_access_token") ||
-            localStorage.getItem("pay2pay_auth_token") ||
-            localStorage.getItem("access_token")
-          : null;
 
-      const token = cookieToken || (lsToken ? lsToken.trim() : null);
-
-      if (!token || token.length < 10) {
+      if (!cookieToken || cookieToken.length < 10) {
         if (!window.location.pathname.includes("/login")) {
           window.location.replace(`/retailer/login?redirect=${encodeURIComponent(window.location.pathname)}`);
         }
-      } else if (!cookieToken && token) {
-        document.cookie = `p2p_access_token=${token}; path=/; max-age=2592000; SameSite=Lax`;
-        document.cookie = `pay2pay_access_token=${token}; path=/; max-age=2592000; SameSite=Lax`;
       }
     };
 
     window.addEventListener("pageshow", checkSessionOnShow);
-    window.addEventListener("focus", checkSessionOnShow);
     return () => {
       window.removeEventListener("pageshow", checkSessionOnShow);
-      window.removeEventListener("focus", checkSessionOnShow);
     };
   }, []);
 
@@ -70,8 +56,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     // Check Retailer Authoritative Approval & Active Status
     const isBothTrue =
-      (user?.approve_status === true && user?.active_status === true) ||
-      (user?.is_approved === true && (user?.status === "ACTIVE" || user?.approval_status === "APPROVED"));
+      user?.is_approved === true ||
+      user?.approval_status === "APPROVED" ||
+      user?.status === "ACTIVE" ||
+      (user?.approve_status === true && user?.active_status === true);
 
     const statusStr = (user?.status || user?.approval_status || "").toUpperCase();
 

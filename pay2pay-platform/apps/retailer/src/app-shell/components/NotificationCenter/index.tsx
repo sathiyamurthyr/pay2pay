@@ -75,39 +75,23 @@ export const NotificationCenter: React.FC<{
   const prevUnreadRef = useRef<number>(0);
 
   const getResolvedUserId = useCallback(() => {
-    if (userId) return userId;
-    if (typeof window !== "undefined") {
-      try {
-        const uStr =
-          localStorage.getItem("user_info") ||
-          localStorage.getItem("user") ||
-          localStorage.getItem("pay2pay_user_data");
-        if (uStr) {
-          const u = JSON.parse(uStr);
-          if (u.id || u.public_id || u.retailer_id) return u.id || u.public_id || u.retailer_id;
-        }
-      } catch {}
-      return (
-        localStorage.getItem("p2p_active_retailer_id") ||
-        localStorage.getItem("p2p_retailer_code") ||
-        localStorage.getItem("p2p_user_id") ||
-        ""
-      );
-    }
-    return "";
+    return userId || "";
   }, [userId]);
 
   const getAuthHeaders = useCallback(() => {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (typeof window !== "undefined") {
-      const token =
-        localStorage.getItem("p2p_access_token") ||
-        localStorage.getItem("pay2pay_access_token") ||
-        localStorage.getItem("pay2pay_auth_token") ||
-        localStorage.getItem("access_token") ||
-        "";
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
+    if (typeof document !== "undefined") {
+      const cookies = document.cookie ? document.cookie.split("; ") : [];
+      const tokenCookie = cookies.find((row) =>
+        row.startsWith("p2p_access_token=") ||
+        row.startsWith("pay2pay_access_token=") ||
+        row.startsWith("pay2pay_auth_token=")
+      );
+      if (tokenCookie) {
+        const token = tokenCookie.split("=")[1]?.trim();
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
       }
     }
     return headers;
@@ -129,6 +113,7 @@ export const NotificationCenter: React.FC<{
         const res = await fetch(`/api/v1/notifications/recent?${queryParams.toString()}`, {
           method: "GET",
           headers: getAuthHeaders(),
+          credentials: "include",
         });
 
         if (!res.ok) {
@@ -176,13 +161,9 @@ export const NotificationCenter: React.FC<{
     [getResolvedUserId, getAuthHeaders, tenantId]
   );
 
-  // Load initial notification status on mount & set up background live polling
+  // Load initial notification status on mount (no auto-polling; refreshes on user click or action event)
   useEffect(() => {
     fetchNotifications();
-
-    const intervalId = setInterval(() => {
-      fetchNotifications();
-    }, refreshIntervalMs);
 
     const handleCustomRefresh = () => {
       fetchNotifications(true);
@@ -194,13 +175,12 @@ export const NotificationCenter: React.FC<{
     }
 
     return () => {
-      clearInterval(intervalId);
       if (typeof window !== "undefined") {
         window.removeEventListener("pay2pay:notification_refresh", handleCustomRefresh);
         window.removeEventListener("p2p:wallet_update", handleCustomRefresh);
       }
     };
-  }, [fetchNotifications, refreshIntervalMs]);
+  }, [fetchNotifications]);
 
   const handleOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);

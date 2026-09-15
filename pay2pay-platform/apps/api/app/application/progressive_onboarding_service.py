@@ -717,7 +717,7 @@ class ProgressiveOnboardingService:
 
         draft_data = dict(draft.draft_data or {})
         draft_data["password_hash"] = hash_password(password)
-        draft_data["mpin"] = mpin
+        draft_data.pop("mpin", None)
         draft_data["mpin_hash"] = hash_password(mpin)
         draft.draft_data = draft_data
         draft.current_step = max(draft.current_step, 6)

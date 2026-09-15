@@ -374,6 +374,14 @@ app.include_router(daily_statements.router, prefix="/api")
 app.include_router(daily_statements.router, prefix="")
 app.include_router(daily_statements.router, prefix=f"{settings.API_V1_STR}/admin")
 app.include_router(daily_statements.router, prefix="/admin")
+from app.presentation.api.v1 import reconciliation_router
+app.include_router(reconciliation_router.router, prefix=settings.API_V1_STR)
+app.include_router(reconciliation_router.router, prefix="/v1")
+app.include_router(reconciliation_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(reconciliation_router.router, prefix="/api")
+app.include_router(reconciliation_router.router, prefix="")
+app.include_router(reconciliation_router.router, prefix=f"{settings.API_V1_STR}/admin")
+app.include_router(reconciliation_router.router, prefix="/admin")
 
 
 @app.get("/health", tags=["Health"])

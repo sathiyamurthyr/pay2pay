@@ -40,7 +40,7 @@ class UnlockPinRequest(BaseModel):
 
 class PinSetupRequest(BaseModel):
     pin: str = Field(..., min_length=4, max_length=4, description="Exactly 4-digit security PIN")
-    confirm_pin: str = Field(..., min_length=4, max_length=4, description="Confirm 4-digit security PIN")
+    confirm_pin: Optional[str] = Field(None, description="Confirm 4-digit security PIN")
 
 class SecuritySettingsUpdateRequest(BaseModel):
     retailer_id: Optional[str] = None
@@ -192,22 +192,19 @@ async def unlock_screen_session(
             )
 
         mpin_hash = view_row["mpin_hash"]
-        raw_pin = view_row["onboarding_raw_pin"]
 
-        is_pin_valid = False
-        if mpin_hash:
-            is_pin_valid = verify_password(clean_pin, mpin_hash) or (_hash_mpin(clean_pin, str(r_id)) == mpin_hash)
-        if not is_pin_valid and raw_pin:
-            is_pin_valid = (clean_pin == str(raw_pin).strip())
+        if not mpin_hash:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Security PIN has not been configured. Please complete PIN setup before unlocking."
+            )
+
+        is_pin_valid = verify_password(clean_pin, mpin_hash) or (_hash_mpin(clean_pin, str(r_id)) == mpin_hash)
 
         if is_pin_valid:
             # Stored Procedure: Record successful PIN attempt
             try:
                 await db.execute(text("SELECT public.sp_record_retailer_pin_attempt(:rid, TRUE)"), {"rid": r_id})
-                # If mpin_hash was missing or only plain raw_pin matched, store new hash via Stored Procedure
-                if not mpin_hash or mpin_hash == raw_pin:
-                    new_h = hash_password(clean_pin)
-                    await db.execute(text("SELECT public.sp_update_retailer_mpin(:rid, :nh, 'ONBOARDING_VERIFY')"), {"rid": r_id, "nh": new_h})
                 await db.commit()
             except Exception as sp_err:
                 logger.warning(f"Error calling sp_record_retailer_pin_attempt: {sp_err}")
@@ -267,30 +264,65 @@ async def unlock_screen_session(
 # ------------------------------------------------------------------------------
 
 @router.post("/auth/security/pin/setup", summary="Setup or Update Security PIN")
+@router.post("/auth/security/pin", summary="Setup or Update Security PIN Alias")
 async def setup_security_pin(
     req: PinSetupRequest,
     payload: dict = Depends(get_current_token_payload),
     db: AsyncSession = Depends(get_db)
 ):
-    if not req.pin.isdigit() or len(req.pin) != 4:
+    from app.application.mpin_service import _hash_mpin
+
+    clean_pin = req.pin.strip()
+    clean_confirm = (req.confirm_pin or req.pin).strip()
+    if not clean_pin.isdigit() or len(clean_pin) != 4:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="PIN must be exactly 4 numeric digits.")
-    if req.pin != req.confirm_pin:
+    if clean_pin != clean_confirm:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="PIN and Confirm PIN do not match.")
 
-    user_sub = payload.get("sub", "00000000-0000-0000-0000-000000000000")
+    user_sub = payload.get("sub")
+    if not user_sub:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user authentication session.")
     try:
         user_id = uuid.UUID(str(user_sub))
     except Exception:
-        user_id = uuid.UUID("1072b5d2-0fd1-4323-a02a-03809d58b005")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user identifier.")
 
-    tenant_id = uuid.UUID(payload.get("tenant_id", "00000000-0000-0000-0000-000000000001"))
+    tenant_sub = payload.get("tenant_id")
+    try:
+        tenant_id = uuid.UUID(str(tenant_sub)) if tenant_sub else uuid.UUID("00000000-0000-0000-0000-000000000001")
+    except Exception:
+        tenant_id = uuid.UUID("00000000-0000-0000-0000-000000000001")
+
+    argon_hash = hash_password(clean_pin)
 
     sec = await get_or_create_user_security_settings(db, user_id, tenant_id)
-    sec.security_pin_hash = hash_password(req.pin)
+    sec.security_pin_hash = argon_hash
     sec.pin_enabled = True
     sec.failed_attempt_count = 0
     sec.locked_until = None
     sec.last_pin_verified_at = datetime.now(timezone.utc)
+
+    # Sync RetailerModel and invoke stored procedure sp_update_retailer_mpin
+    ret_stmt = select(RetailerModel).where(
+        or_(
+            RetailerModel.public_id == user_id,
+            RetailerModel.retailer_code == str(user_sub)
+        ),
+        RetailerModel.is_deleted == False
+    )
+    retailer = (await db.execute(ret_stmt)).scalars().first()
+    if retailer:
+        retailer.mpin_hash = argon_hash
+        retailer.mpin_failed_attempts = 0
+        retailer.mpin_locked = False
+        retailer.updated_date = datetime.now(timezone.utc)
+        try:
+            await db.execute(
+                text("SELECT public.sp_update_retailer_mpin(:rid, :nh, 'SESSION_SECURITY')"),
+                {"rid": retailer.public_id, "nh": argon_hash}
+            )
+        except Exception as sp_err:
+            logger.warning(f"Error executing sp_update_retailer_mpin in setup_security_pin: {sp_err}")
 
     # Also sync customer record if mobile exists
     mobile = payload.get("mobile_number") or payload.get("mobile") or payload.get("phone")
@@ -300,8 +332,10 @@ async def setup_security_pin(
         c_stmt = select(CustomerModel).where(CustomerModel.mobile_number.in_(mobile_variants))
         cust = (await db.execute(c_stmt)).scalars().first()
         if cust:
-            cust.mpin_hash = _hash_mpin(req.pin, str(cust.public_id))
+            cust.mpin_hash = _hash_mpin(clean_pin, str(cust.public_id))
             cust.mpin_enabled = True
+            cust.failed_attempts = 0
+            cust.is_locked = False
             cust.mpin_last_changed_at = datetime.now(timezone.utc)
 
     await db.commit()

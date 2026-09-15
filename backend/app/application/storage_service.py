@@ -59,6 +59,8 @@ ENTITY_PREFIX_MAP = {
     "CUSTOMER":          "cmp/customer",
     "CUST":              "cmp/customer",
     "COMPANY":           "cmp",
+    "UPI_QR":            "upi_vendors/qr",
+    "UPI":               "upi_vendors/qr",
 }
 
 # Allowed MIME types for uploads

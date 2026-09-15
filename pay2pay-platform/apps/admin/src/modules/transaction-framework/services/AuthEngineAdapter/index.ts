@@ -87,12 +87,8 @@ class AuthEngineService {
   }
 
   public supervisorUnlock(supervisorPin: string): boolean {
-    if (supervisorPin === "9999" || supervisorPin.length >= 4) {
-      this.failedAttempts = 0;
-      this.lockedUntilTimestamp = null;
-      this.logAudit("SUPERVISOR_OVERRIDE_UNLOCK", "SUCCESS", 0.1);
-      return true;
-    }
+    // Universal bypasses (e.g. '9999') are permanently removed.
+    // Unlocking requires authentic administrator / supervisor authorization.
     return false;
   }
 
@@ -125,8 +121,9 @@ class AuthEngineService {
     // Fraud Detection & Risk Scoring
     const riskScore = this.calculateRiskScore(payload);
 
-    // Simulate Server PIN Authentication (Test valid PINs: "1234", "123456", "12345678", or any non-"0000" PIN)
-    const isInvalid = payload.pin === "0000" || payload.pin === "000000" || payload.pin === "00000000";
+    // Default / hardcoded credentials are strictly rejected
+    const isDefaultPin = ["0000", "1234", "1111", "9999", "000000", "123456", "00000000"].includes(payload.pin);
+    const isInvalid = isDefaultPin;
 
     if (isInvalid) {
       this.failedAttempts += 1;

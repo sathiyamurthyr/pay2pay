@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
 import {
   Sliders, RefreshCw, CheckCircle2, AlertTriangle, X,
-  CreditCard, Smartphone, Send, Receipt, Fingerprint, Power, ShieldCheck
+  CreditCard, Smartphone, Send, Receipt, Fingerprint, Power, ShieldCheck, QrCode
 } from "lucide-react";
 
 // Web Audio API Synthesizers for Feedback
@@ -328,6 +328,8 @@ export default function ServicesConfigurationPage() {
                           <Receipt className="w-4 h-4 text-[#D97706]" />
                         ) : svc.code === "AEPS" ? (
                           <Fingerprint className="w-4 h-4 text-[#9333EA]" />
+                        ) : svc.code === "UPI" ? (
+                          <QrCode className="w-4 h-4 text-[#2563EB]" />
                         ) : (
                           <CreditCard className="w-4 h-4 text-[#2563EB]" />
                         )}
@@ -348,6 +350,8 @@ export default function ServicesConfigurationPage() {
                         ? "Bharat Bill Payment System (Electricity, Water, Gas, Fastag)"
                         : svc.code === "AEPS"
                         ? "Aadhaar Enabled Payment System (Cash withdrawal & inquiry)"
+                        : svc.code === "UPI"
+                        ? "Dynamic UPI QR code wallet top-up & instant verification"
                         : "POS Card swipe settlement top-up working capital"}
                     </td>
                     <td className="py-3.5 px-4">

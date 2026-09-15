@@ -29,21 +29,30 @@ apiClient.interceptors.request.use((config) => {
     if (tokenCookie) {
       token = tokenCookie.split("=")[1]?.trim() || "";
     }
-    if (!token) {
+
+    if (!token && typeof localStorage !== "undefined") {
       try {
         token =
           localStorage.getItem("p2p_access_token") ||
-          localStorage.getItem("access_token") ||
           localStorage.getItem("pay2pay_access_token") ||
-          localStorage.getItem("pay2pay_auth_token") ||
-          localStorage.getItem("retailer_token") ||
           localStorage.getItem("token") ||
+          localStorage.getItem("access_token") ||
           "";
       } catch {}
     }
 
     if (token && token.trim().length > 10) {
       config.headers.Authorization = `Bearer ${token.trim()}`;
+    }
+
+    const activeRetailerId = resolveActiveRetailerId();
+    if (activeRetailerId) {
+      if (!config.headers["x-retailer-code"]) {
+        config.headers["x-retailer-code"] = activeRetailerId;
+      }
+      if (!config.headers["x-retailer-id"]) {
+        config.headers["x-retailer-id"] = activeRetailerId;
+      }
     }
   }
   return config;
@@ -60,18 +69,21 @@ apiClient.interceptors.response.use(
         ""
       ).toLowerCase();
 
-      // IMPORTANT: Do NOT log out the user if the 401 error is from a wrong PIN / MPIN / password or screen unlock!
+      // IMPORTANT: Do NOT log out the user if the 401 error is from a wrong PIN / MPIN / password, screen unlock, or transactional payout identity!
       const isPinOrCredentialError =
         url.includes("/mpin") ||
         url.includes("/unlock") ||
         url.includes("/security") ||
         url.includes("/pin") ||
         url.includes("/payout") ||
+        url.includes("/bulkpe") ||
         url.includes("/transfer") ||
         url.includes("/dmt") ||
         errorDetail.includes("pin") ||
         errorDetail.includes("mpin") ||
-        errorDetail.includes("password");
+        errorDetail.includes("password") ||
+        errorDetail.includes("retailer identity") ||
+        errorDetail.includes("authenticated retailer");
 
       if (isPinOrCredentialError) {
         return Promise.reject(error);
@@ -246,24 +258,43 @@ export function classifyApiError(err: any, endpoint: string) {
 
 export function resolveActiveRetailerId(): string {
   if (typeof document !== "undefined") {
-    const cookies = document.cookie ? document.cookie.split("; ") : [];
-    const retCookie = cookies.find((row) =>
-      row.startsWith("p2p_active_retailer_id=") ||
-      row.startsWith("p2p_retailer_code=")
-    );
-    if (retCookie) {
-      const val = retCookie.split("=")[1]?.trim();
-      if (val) return val;
-    }
+    try {
+      const cookies = document.cookie ? document.cookie.split("; ") : [];
+      // Prefer p2p_retailer_code (the human-readable code like P2P-R815722)
+      const retCodeCookie = cookies.find((row) => row.startsWith("p2p_retailer_code="));
+      if (retCodeCookie) {
+        const val = retCodeCookie.split("=")[1]?.trim();
+        if (val && !val.includes("-".repeat(4))) return val; // not a UUID
+      }
+      const retIdCookie = cookies.find((row) =>
+        row.startsWith("p2p_active_retailer_id=")
+      );
+      if (retIdCookie) {
+        const val = retIdCookie.split("=")[1]?.trim();
+        if (val) return val;
+      }
+    } catch {}
   }
   if (typeof window !== "undefined") {
     try {
-      const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
+      const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user") || localStorage.getItem("pay2pay_user_data");
       if (userStr) {
         const u = JSON.parse(userStr);
-        if (u.retailer_id || u.id) return u.retailer_id || u.id;
+        // Always prefer retailer_code (alphanumeric, not UUID) for identity
+        if (u.retailer_code && !u.retailer_code.includes("-".repeat(4))) return u.retailer_code;
+        if (u.code && !u.code.includes("-".repeat(4))) return u.code;
+        if (u.retailer_id) return u.retailer_id;
+        if (u.public_id) return u.public_id;
+        if (u.id) return u.id;
       }
-      return localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+      // Dedicated localStorage keys
+      const rCodeKey =
+        localStorage.getItem("p2p_retailer_code") ||
+        localStorage.getItem("p2p_active_retailer_id") ||
+        localStorage.getItem("retailer_code") ||
+        localStorage.getItem("pay2pay_reg_id") ||
+        "";
+      if (rCodeKey) return rCodeKey;
     } catch {}
   }
   return "";
@@ -1021,47 +1052,16 @@ export const retailerApi = {
     }
   },
 
-  executePayout: async (payload: { customer_id: string; beneficiary_id: string; amount: number; mode?: string; transfer_mode?: string; customer_pin?: string; wallet_balance?: number }) => {
-    try {
-      const res = await apiClient.post("/payout/bulkpe/initiate", payload);
-      return res.data;
-    } catch {
-      const now = new Date();
-      const dd = String(now.getDate()).padStart(2, "0");
-      const mm = String(now.getMonth() + 1).padStart(2, "0");
-      const yy = String(now.getFullYear()).slice(-2);
-      const rand = Math.floor(10000 + Math.random() * 90000);
-      const txnNum = `PO${dd}${mm}${yy}${rand}`;
-      const ref = `PAY2PAY-${now.toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(100000 + Math.random() * 900000)}`;
-      const utr = `${yy}${Math.floor(1000000000 + Math.random() * 9000000000)}`;
-      const charges = payload.amount > 500000 ? 75 : 20;
-      const gst = Math.round(charges * 0.18);
-      const netDebit = payload.amount + charges + gst;
-      return {
-        status: "SUCCESS",
-        data: {
-          transaction_id: txnNum,
-          transaction_number: txnNum,
-          reference_number: ref,
-          utr_number: utr,
-          status: "SUCCESS",
-          amount: payload.amount,
-          charges,
-          gst,
-          commission: 0,
-          net_debit: netDebit,
-          wallet_before: payload.wallet_balance || 0,
-          wallet_after: Math.max(0, (payload.wallet_balance || 0) - netDebit),
-          beneficiary_name: "Beneficiary Account",
-          account_number: "50100998822",
-          bank_name: "HDFC Bank",
-          ifsc_code: "HDFC0000123",
-          mode: payload.mode || "IMPS",
-          timestamp: new Date().toISOString(),
-          message: "Payout dispatched successfully"
-        }
-      };
-    }
+  executePayout: async (payload: { customer_id: string; beneficiary_id: string; amount: number; mode?: string; transfer_mode?: string; customer_pin?: string; mpin?: string; wallet_balance?: number; retailer_id?: string; retailer_code?: string }) => {
+    const effectiveMpin = payload.mpin || payload.customer_pin || "";
+    const activeRetailerId = payload.retailer_id || payload.retailer_code || resolveActiveRetailerId();
+    const res = await apiClient.post("/payout/bulkpe/initiate", {
+      ...payload,
+      retailer_id: payload.retailer_id || activeRetailerId || undefined,
+      retailer_code: payload.retailer_code || activeRetailerId || undefined,
+      mpin: effectiveMpin,
+    });
+    return res.data;
   },
 
   checkDuplicateBeneficiaryAccount: async (payload: {

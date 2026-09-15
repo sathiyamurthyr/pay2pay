@@ -236,59 +236,10 @@ class AuthService:
                 )
 
         if not user:
-            acc_info = known_demo_accounts.get(key)
-            if acc_info and len(req.password) >= 3:
-                t_stmt = select(TenantModel).where(TenantModel.is_deleted == False)
-                tenant = (await db.execute(t_stmt)).scalars().first()
-                c_stmt = select(CompanyModel).where(CompanyModel.is_deleted == False)
-                company = (await db.execute(c_stmt)).scalars().first()
-                if tenant:
-                    tenant_id = tenant.public_id
-                    company_id = company.public_id if company else None
-                    email = acc_info.get("email", key if "@" in key else f"{key}@pay2pay.in")
-                    username = acc_info.get("username", key.split("@")[0])
-                    user = AdminUserModel(
-                        public_id=uuid.uuid4(),
-                        tenant_id=tenant_id,
-                        company_id=company_id,
-                        email=email,
-                        username=username,
-                        hashed_password=hash_password(req.password),
-                        full_name=acc_info["full_name"],
-                        user_type=acc_info["user_type"],
-                        status="ACTIVE",
-                        mfa_enabled=False,
-                    )
-                    db.add(user)
-                    await db.flush()
-
-                    role_stmt = select(RoleModel).where(RoleModel.tenant_id == tenant_id, RoleModel.code == acc_info.get("role_code", "OPERATIONS_ADMIN"))
-                    role_obj = (await db.execute(role_stmt)).scalars().first()
-                    if role_obj:
-                        ur = UserRoleModel(
-                            public_id=uuid.uuid4(),
-                            tenant_id=tenant_id,
-                            user_id=user.id,
-                            role_id=role_obj.id
-                        )
-                        db.add(ur)
-                    await db.commit()
-
-                    # Reload created user with relationships
-                    res = await db.execute(stmt)
-                    user = res.scalars().first()
-
-        if not user:
             raise UnauthorizedException("Invalid email/username or password")
 
         if not verify_password(req.password, user.hashed_password):
-            # For demo accounts, update password hash on login attempt if valid password provided
-            if key in known_demo_accounts and len(req.password) >= 3:
-                user.hashed_password = hash_password(req.password)
-                await db.commit()
-                await db.refresh(user)
-            else:
-                raise UnauthorizedException("Invalid email/username or password")
+            raise UnauthorizedException("Invalid email/username or password")
 
         if user.status != "ACTIVE":
             raise ForbiddenException("Account is inactive or disabled")

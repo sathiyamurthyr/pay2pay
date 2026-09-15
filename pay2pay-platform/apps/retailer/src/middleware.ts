@@ -30,16 +30,16 @@ export const PORTAL_CONFIGS: Record<UserPortalRole, PortalConfig> = {
     login: "/sd/login",
   },
   ADMIN: {
-    portal: "ADMIN",
-    prefix: "/admin",
-    dashboard: "/admin/dashboard",
-    login: "/admin/login",
+    portal: "RETAILER",
+    prefix: "/retailer",
+    dashboard: "/retailer/dashboard",
+    login: "/retailer/login",
   },
   SUPER_ADMIN: {
-    portal: "SUPER_ADMIN",
-    prefix: "/super-admin",
-    dashboard: "/super-admin/dashboard",
-    login: "/super-admin/login",
+    portal: "RETAILER",
+    prefix: "/retailer",
+    dashboard: "/retailer/dashboard",
+    login: "/retailer/login",
   },
 };
 
@@ -47,11 +47,9 @@ export function normalizeUserRole(rawRole?: string | null): UserPortalRole {
   if (!rawRole) return "RETAILER";
   const upper = rawRole.trim().toUpperCase();
 
-  if (upper === "SUPER_ADMIN" || upper === "SUPERADMIN" || upper === "SUPER-ADMIN") {
-    return "SUPER_ADMIN";
-  }
-  if (upper === "ADMIN") {
-    return "ADMIN";
+  // In the Retailer application, Admin/Super-Admin roles from cross-domain cookies must not hijack routing
+  if (upper === "SUPER_ADMIN" || upper === "SUPERADMIN" || upper === "SUPER-ADMIN" || upper === "ADMIN") {
+    return "RETAILER";
   }
   if (upper === "SD" || upper === "SUPER_DISTRIBUTOR" || upper === "SUPER DISTRIBUTOR") {
     return "SD";
@@ -64,7 +62,7 @@ export function normalizeUserRole(rawRole?: string | null): UserPortalRole {
 
 export function resolvePortalRoute(rawRole?: string | null): PortalConfig {
   const role = normalizeUserRole(rawRole);
-  return PORTAL_CONFIGS[role];
+  return PORTAL_CONFIGS[role] || PORTAL_CONFIGS.RETAILER;
 }
 
 export function middleware(request: NextRequest) {
@@ -93,6 +91,13 @@ export function middleware(request: NextRequest) {
     res.headers.set("Expires", "0");
     res.headers.set("X-Content-Type-Options", "nosniff");
     res.headers.set("X-Frame-Options", "DENY");
+
+    // Cleanse cross-domain admin role cookie if detected on the retailer app
+    const upperRaw = (rawRole || "").trim().toUpperCase();
+    if (upperRaw === "SUPER_ADMIN" || upperRaw === "ADMIN" || upperRaw === "SUPERADMIN" || upperRaw === "SUPER-ADMIN") {
+      res.cookies.set("p2p_user_role", "RETAILER", { path: "/" });
+      res.cookies.set("pay2pay_user_role", "RETAILER", { path: "/" });
+    }
     return res;
   };
 
@@ -120,9 +125,7 @@ export function middleware(request: NextRequest) {
     pathname === "/retailer/login" ||
     pathname === "/login" ||
     pathname === "/dist/login" ||
-    pathname === "/sd/login" ||
-    pathname === "/admin/login" ||
-    pathname === "/super-admin/login";
+    pathname === "/sd/login";
 
   const isPublicRoute =
     isReceiptRoute ||
@@ -134,9 +137,33 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/api/public") ||
     pathname === "/403";
 
-  // If user is already authenticated and visits a login page, redirect to active dashboard
+  // If user visits a login route:
   if (isLoginRoute) {
-    if (isAuthenticated) {
+    // 1a. Explicit Retailer Login: allow viewing login page unless already logged in AS RETAILER
+    if (pathname === "/retailer/login") {
+      if (isAuthenticated && userRole === "RETAILER" && !request.nextUrl.searchParams.has("logout")) {
+        return applySecurityHeaders(
+          NextResponse.redirect(new URL("/retailer/dashboard", request.url))
+        );
+      }
+      // Unauthenticated, or has foreign/admin cookie: show retailer login page cleanly!
+      return applySecurityHeaders(NextResponse.next());
+    }
+
+    // 1b. Generic /login: redirect directly to /retailer/login (or dashboard if already retailer)
+    if (pathname === "/login") {
+      if (isAuthenticated && userRole === "RETAILER" && !request.nextUrl.searchParams.has("logout")) {
+        return applySecurityHeaders(
+          NextResponse.redirect(new URL("/retailer/dashboard", request.url))
+        );
+      }
+      return applySecurityHeaders(
+        NextResponse.redirect(new URL("/retailer/login", request.url))
+      );
+    }
+
+    // 1c. Other portal logins (e.g. /sd/login, /dist/login)
+    if (isAuthenticated && portalConfig.login === pathname && !request.nextUrl.searchParams.has("logout")) {
       return applySecurityHeaders(
         NextResponse.redirect(new URL(portalConfig.dashboard, request.url))
       );
@@ -164,24 +191,18 @@ export function middleware(request: NextRequest) {
   }
 
   // 3. Authenticated Root/Dashboard aliases -> redirect to canonical portal dashboard
-  if (pathname === "/" || pathname === "/dashboard" || pathname === "/retailer-dashboard") {
+  if (pathname === "/" || pathname === "/dashboard" || pathname === "/retailer-dashboard" || pathname === "/admin-dashboard") {
     return applySecurityHeaders(
       NextResponse.redirect(new URL(portalConfig.dashboard, request.url))
     );
   }
 
-  if (pathname === "/admin-dashboard") {
-    return applySecurityHeaders(
-      NextResponse.redirect(new URL(PORTAL_CONFIGS.ADMIN.dashboard, request.url))
-    );
-  }
-
   // 4. Role-based prefix boundary checks
-  const allPrefixes = Object.values(PORTAL_CONFIGS).map((c) => c.prefix);
+  const allPrefixes = ["/retailer", "/dist", "/sd"];
   const targetPrefix = allPrefixes.find((prefix) => pathname.startsWith(prefix));
 
   if (targetPrefix && targetPrefix !== portalConfig.prefix) {
-    // If accessing another portal's prefixed routes (e.g. Retailer trying /admin/*), redirect to own dashboard
+    // If accessing another portal's prefixed routes, redirect to own dashboard
     return applySecurityHeaders(
       NextResponse.redirect(new URL(portalConfig.dashboard, request.url))
     );

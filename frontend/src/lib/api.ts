@@ -48,6 +48,36 @@ apiClient.interceptors.request.use(
           const uType = u.user_type_ref_id || 2;
           if (uRef) config.headers["x-user-ref-id"] = String(uRef);
           if (uType) config.headers["x-user-type-ref-id"] = String(uType);
+          // Inject retailer identity headers for cross-subdomain resolution
+          const rCode = u.retailer_code || u.code || "";
+          const rId = u.public_id || u.retailer_id || u.id || "";
+          if (rCode && !config.headers["x-retailer-code"]) {
+            config.headers["x-retailer-code"] = rCode;
+          }
+          if (rId && !config.headers["x-retailer-id"]) {
+            config.headers["x-retailer-id"] = rId;
+          }
+          // Inject mobile for backend Strategy 7 fallback
+          const mob = u.mobile_number || u.mobile || u.phone || "";
+          if (mob && !config.headers["x-mobile"]) {
+            config.headers["x-mobile"] = mob;
+          }
+        }
+        // Fallback: read retailer identifier from dedicated localStorage keys
+        if (!config.headers["x-retailer-code"]) {
+          const rCodeFallback =
+            localStorage.getItem("p2p_active_retailer_id") ||
+            localStorage.getItem("p2p_retailer_code") ||
+            localStorage.getItem("retailer_code") ||
+            "";
+          if (rCodeFallback) config.headers["x-retailer-code"] = rCodeFallback;
+        }
+        if (!config.headers["x-retailer-id"]) {
+          const rIdFallback =
+            localStorage.getItem("p2p_retailer_public_id") ||
+            localStorage.getItem("retailer_id") ||
+            "";
+          if (rIdFallback) config.headers["x-retailer-id"] = rIdFallback;
         }
       } catch {}
     }
@@ -68,23 +98,31 @@ apiClient.interceptors.response.use(
         ""
       ).toLowerCase();
 
-      // IMPORTANT: Do NOT log out the user if the 401 error is from a wrong PIN / MPIN / password or screen unlock!
+      // IMPORTANT: Do NOT log out the user if the 401 error is from:
+      // - a wrong PIN / MPIN / password / screen unlock
+      // - payout / bulkpe / transfer calls (retailer identity errors)
       const isPinOrCredentialError =
         url.includes("/mpin") ||
         url.includes("/unlock") ||
         url.includes("/security") ||
         url.includes("/pin") ||
         url.includes("/payout") ||
+        url.includes("/bulkpe") ||
         url.includes("/transfer") ||
         url.includes("/dmt") ||
+        url.includes("/initiate") ||
         errorDetail.includes("pin") ||
         errorDetail.includes("mpin") ||
-        errorDetail.includes("password");
+        errorDetail.includes("password") ||
+        errorDetail.includes("retailer identity") ||
+        errorDetail.includes("authenticated retailer");
 
       if (isPinOrCredentialError) {
+        // DO NOT clear session — this is a transactional auth error, not a session expiry
         return Promise.reject(error);
       }
 
+      // For genuine session-expiry 401s, clear cookies and session storage
       if (typeof document !== "undefined") {
         const cookieNames = [
           "p2p_access_token",
@@ -100,12 +138,17 @@ apiClient.interceptors.response.use(
         ];
         cookieNames.forEach((name) => {
           document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
+          try {
+            document.cookie = `${name}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
+          } catch {}
         });
       }
 
+      // Only wipe session-specific keys, NOT retailer identity or access tokens
       if (typeof localStorage !== "undefined") {
         try {
-          localStorage.clear();
+          localStorage.removeItem("p2p_session_locked");
+          localStorage.removeItem("p2p_session_locked_at");
         } catch {}
       }
 

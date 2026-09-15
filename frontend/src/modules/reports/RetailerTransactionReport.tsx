@@ -58,6 +58,9 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
+import { useRetailerStore } from "@/stores/use-retailer-store";
+
 export const formatToIstYmd = (dateObj: Date = new Date()): string => {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
@@ -163,6 +166,9 @@ export const getTransactionComments = (row: TransactionReportItem): string => {
 };
 
 export const RetailerTransactionReport: React.FC = () => {
+  const branding = useCompanyBranding();
+  const { outlet } = useRetailerStore();
+
   // State: Authoritative Data
   const [items, setItems] = useState<TransactionReportItem[]>([]);
   const [summary, setSummary] = useState<TransactionReportSummary | null>(null);
@@ -319,6 +325,20 @@ export const RetailerTransactionReport: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Prevent background page scrolling and double scrollbars when drawer is open
+  useEffect(() => {
+    if (drawerOpen) {
+      const mainEl = document.querySelector("main");
+      if (mainEl) {
+        const prevOverflow = mainEl.style.overflowY;
+        mainEl.style.overflowY = "hidden";
+        return () => {
+          mainEl.style.overflowY = prevOverflow;
+        };
+      }
+    }
+  }, [drawerOpen]);
 
   const openDetailsDrawer = (item: TransactionReportItem) => {
     setSelectedTxn(item);
@@ -498,6 +518,431 @@ export const RetailerTransactionReport: React.FC = () => {
   const handleExportPdf = () => {
     window.print();
     setExportAnchorEl(null);
+  };
+
+  const handlePrintReceipt = (txn?: TransactionReportItem | null) => {
+    const t = txn || selectedTxn;
+    if (!t) return;
+
+    const txnId = t.txn_id || "N/A";
+    const refId = t.ref_id || t.client_ref_id || "N/A";
+    const amt = Number(t.amount ?? t.txn_amt ?? 0);
+    const openingBal = Number(t.opening_bal ?? t.pre_bal ?? t.previous_balance ?? 0);
+    const closingBal = Number(t.closing_bal ?? t.cls_bal ?? t.current_balance ?? 0);
+    const entry = (t.entry || t.entry_type || t.cr_dr || t.type || "").toUpperCase();
+    const isCr = entry === "CR" || entry === "CREDIT" || (t.cr_amt || t.cr || 0) > 0 || (closingBal > openingBal && amt > 0);
+    const dt = formatDateTime(t.date_time || t.transaction_datetime || t.created_at);
+    const status = (t.status || "SUCCESS").toUpperCase();
+    const service = t.service || "General";
+    const narration = getTransactionComments(t);
+
+    const compLogo = branding?.logo_url || "/branding/logo.png";
+    const compName = branding?.company_name || branding?.legal_name || "SUPER REX PRODUCTS PRIVATE LIMITED";
+    const compLegal = branding?.legal_name || compName;
+    const retailerShop = outlet?.name || "Pay2Pay Retail Point";
+    const retailerOwner = outlet?.ownerName || t.retailer || "Authorized Agent";
+    const retailerCode = outlet?.code || "RET-P2P";
+    const retailerMobile = outlet?.mobile || "";
+    const retailerCity = outlet?.location || "";
+
+    const statusBadgeClass =
+      status === "SUCCESS"
+        ? "badge-success"
+        : status === "PENDING"
+        ? "badge-pending"
+        : status === "REVERSED"
+        ? "badge-reversed"
+        : "badge-failed";
+
+    const statusText =
+      status === "SUCCESS"
+        ? "● TRANSACTION SUCCESSFUL"
+        : status === "PENDING"
+        ? "● TRANSACTION PENDING"
+        : status === "REVERSED"
+        ? "● TRANSACTION REVERSED"
+        : "● TRANSACTION FAILED";
+
+    const printWindow = window.open("", "_blank", "width=850,height=950");
+    if (!printWindow) {
+      showToast("Please allow popups in your browser to view and print the transaction receipt.");
+      return;
+    }
+
+    const receiptHtml = `
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Transaction_Receipt_${txnId}</title>
+          <style>
+            @page { size: A4 portrait; margin: 12mm; }
+            * { box-sizing: border-box; }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+              background: #F1F5F9;
+              color: #0F172A;
+              margin: 0;
+              padding: 24px;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            .actions-bar {
+              max-width: 680px;
+              margin: 0 auto 16px auto;
+              display: flex;
+              gap: 12px;
+              justify-content: flex-end;
+            }
+            .btn {
+              padding: 10px 18px;
+              border-radius: 8px;
+              font-size: 13px;
+              font-weight: 700;
+              cursor: pointer;
+              border: none;
+              transition: all 0.2s;
+            }
+            .btn-print {
+              background: linear-gradient(135deg, #FBBF24 0%, #D97706 100%);
+              color: #000;
+              box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+            }
+            .btn-download {
+              background: #0F172A;
+              color: #FFF;
+              border: 1px solid #334155;
+            }
+            .btn-close {
+              background: #E2E8F0;
+              color: #334155;
+            }
+            .receipt-wrapper {
+              max-width: 680px;
+              margin: 0 auto;
+              background: #FFFFFF;
+              border: 1px solid #CBD5E1;
+              border-radius: 16px;
+              padding: 32px;
+              box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
+            }
+            .brand-header {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              border-bottom: 2px solid #E2E8F0;
+              padding-bottom: 20px;
+              margin-bottom: 20px;
+            }
+            .brand-left {
+              display: flex;
+              align-items: center;
+              gap: 14px;
+            }
+            .brand-logo {
+              width: 52px;
+              height: 52px;
+              object-fit: contain;
+              border-radius: 8px;
+            }
+            .brand-name {
+              font-size: 18px;
+              font-weight: 900;
+              color: #0F172A;
+              line-height: 1.2;
+            }
+            .brand-legal {
+              font-size: 11px;
+              color: #64748B;
+              font-weight: 600;
+              margin-top: 2px;
+            }
+            .receipt-badge-title {
+              text-align: right;
+            }
+            .receipt-type-tag {
+              display: inline-block;
+              font-size: 11px;
+              font-weight: 800;
+              text-transform: uppercase;
+              letter-spacing: 0.8px;
+              color: #B45309;
+              background: #FEF3C7;
+              border: 1px solid #FDE68A;
+              padding: 4px 10px;
+              border-radius: 6px;
+            }
+            .retailer-box {
+              background: #F8FAFC;
+              border: 1px solid #E2E8F0;
+              border-radius: 12px;
+              padding: 14px 18px;
+              margin-bottom: 20px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            }
+            .retailer-title {
+              font-size: 10.5px;
+              font-weight: 800;
+              color: #64748B;
+              text-transform: uppercase;
+              letter-spacing: 0.6px;
+              margin-bottom: 4px;
+            }
+            .retailer-name {
+              font-size: 14px;
+              font-weight: 800;
+              color: #0F172A;
+            }
+            .retailer-meta {
+              font-size: 12px;
+              color: #475569;
+              font-weight: 600;
+              margin-top: 2px;
+            }
+            .status-banner {
+              padding: 12px 18px;
+              border-radius: 10px;
+              font-size: 13px;
+              font-weight: 800;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              margin-bottom: 24px;
+            }
+            .badge-success { background: #DCFCE7; color: #15803D; border: 1px solid #86EFAC; }
+            .badge-pending { background: #FEF3C7; color: #B45309; border: 1px solid #FDE68A; }
+            .badge-failed { background: #FEE2E2; color: #B91C1C; border: 1px solid #FCA5A5; }
+            .badge-reversed { background: #F3E8FF; color: #7E22CE; border: 1px solid #D8B4FE; }
+            .amount-hero {
+              text-align: center;
+              background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%);
+              border: 1px solid #E2E8F0;
+              border-radius: 14px;
+              padding: 20px;
+              margin-bottom: 24px;
+            }
+            .amount-label {
+              font-size: 11px;
+              font-weight: 800;
+              color: #64748B;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+            }
+            .amount-value {
+              font-size: 36px;
+              font-weight: 900;
+              color: ${isCr ? "#15803D" : "#B91C1C"};
+              margin: 4px 0;
+            }
+            .amount-mode {
+              font-size: 12px;
+              font-weight: 700;
+              color: #2563EB;
+            }
+            .balance-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 12px;
+              margin-top: 14px;
+              padding-top: 14px;
+              border-top: 1px dashed #CBD5E1;
+            }
+            .bal-box {
+              background: #FFFFFF;
+              border: 1px solid #E2E8F0;
+              border-radius: 8px;
+              padding: 8px 12px;
+              text-align: center;
+            }
+            .bal-label {
+              font-size: 10.5px;
+              color: #64748B;
+              font-weight: 600;
+            }
+            .bal-value {
+              font-size: 14px;
+              font-weight: 800;
+              color: #0F172A;
+              margin-top: 2px;
+            }
+            .section-title {
+              font-size: 11.5px;
+              font-weight: 800;
+              text-transform: uppercase;
+              letter-spacing: 0.8px;
+              color: #475569;
+              border-bottom: 1px solid #E2E8F0;
+              padding-bottom: 6px;
+              margin: 20px 0 12px 0;
+            }
+            .grid-2 {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 12px;
+              margin-bottom: 12px;
+            }
+            .item-cell {
+              background: #FFFFFF;
+              border: 1px solid #F1F5F9;
+              padding: 10px 14px;
+              border-radius: 8px;
+            }
+            .item-label {
+              font-size: 11px;
+              color: #64748B;
+              font-weight: 600;
+              margin-bottom: 3px;
+            }
+            .item-val {
+              font-size: 13px;
+              font-weight: 700;
+              color: #0F172A;
+              word-break: break-all;
+            }
+            .item-val-mono {
+              font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+              color: #1E293B;
+            }
+            .footer-info {
+              margin-top: 28px;
+              padding-top: 16px;
+              border-top: 1px dashed #CBD5E1;
+              text-align: center;
+              font-size: 11px;
+              color: #64748B;
+              line-height: 1.5;
+            }
+            @media print {
+              body { background: #FFF; padding: 0; }
+              .actions-bar { display: none !important; }
+              .receipt-wrapper { border: none; box-shadow: none; padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="actions-bar no-print">
+            <button class="btn btn-print" onclick="window.print()">🖨 Print Voucher / Save PDF</button>
+            <button class="btn btn-download" onclick="downloadReceiptHtml()">📥 Download Receipt (.html)</button>
+            <button class="btn btn-close" onclick="window.close()">✕ Close</button>
+          </div>
+
+          <div class="receipt-wrapper" id="receiptContent">
+            <!-- Header with Company Branding -->
+            <div class="brand-header">
+              <div class="brand-left">
+                <img src="${compLogo}" alt="${compName}" class="brand-logo" onerror="this.style.display='none'" />
+                <div>
+                  <div class="brand-name">${compName}</div>
+                  <div class="brand-legal">${compLegal}</div>
+                </div>
+              </div>
+              <div class="receipt-badge-title">
+                <span class="receipt-type-tag">Settlement Voucher</span>
+                <div style="font-size: 11px; color: #64748B; margin-top: 4px; font-weight: 600;">
+                  ${dt.date} · ${dt.time}
+                </div>
+              </div>
+            </div>
+
+            <!-- Retailer Store Identification -->
+            <div class="retailer-box">
+              <div>
+                <div class="retailer-title">Issued Through Authorized Retail Point</div>
+                <div class="retailer-name">${retailerShop}</div>
+                <div class="retailer-meta">Agent: ${retailerOwner} ${retailerMobile ? `(${retailerMobile})` : ""}</div>
+              </div>
+              <div style="text-align: right;">
+                <div class="retailer-title">Agent Code</div>
+                <div class="retailer-name item-val-mono" style="color: #2563EB;">${retailerCode}</div>
+                ${retailerCity ? `<div class="retailer-meta">${retailerCity}</div>` : ""}
+              </div>
+            </div>
+
+            <!-- Status Banner -->
+            <div class="status-banner ${statusBadgeClass}">
+              <span>${statusText}</span>
+              <span>UTR / REF: ${refId !== "N/A" ? refId : txnId}</span>
+            </div>
+
+            <!-- Amount Hero -->
+            <div class="amount-hero">
+              <div class="amount-label">${isCr ? "Wallet Inflow / Credit" : "Service Debit / Payout"}</div>
+              <div class="amount-value">${isCr ? "+" : "-"}₹${amt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</div>
+              <div class="amount-mode">${service} · Settlement Ledger</div>
+
+              <div class="balance-grid">
+                <div class="bal-box">
+                  <div class="bal-label">Opening Balance</div>
+                  <div class="bal-value">₹${openingBal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</div>
+                </div>
+                <div class="bal-box">
+                  <div class="bal-label">Closing Balance</div>
+                  <div class="bal-value" style="color: #047857;">₹${closingBal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Transaction Audit Info -->
+            <div class="section-title">Audit Information</div>
+            <div class="grid-2">
+              <div class="item-cell">
+                <div class="item-label">Transaction ID</div>
+                <div class="item-val item-val-mono">${txnId}</div>
+              </div>
+              <div class="item-cell">
+                <div class="item-label">Client Reference ID</div>
+                <div class="item-val item-val-mono">${refId}</div>
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="item-cell">
+                <div class="item-label">Service Category</div>
+                <div class="item-val">${service}</div>
+              </div>
+              <div class="item-cell">
+                <div class="item-label">Transaction Timestamp</div>
+                <div class="item-val">${dt.date} ${dt.time}</div>
+              </div>
+            </div>
+
+            <!-- Narration / Description -->
+            <div class="item-cell" style="margin-bottom: 12px;">
+              <div class="item-label">Narration / Description</div>
+              <div class="item-val" style="font-weight: 600; color: #1E293B;">${narration}</div>
+            </div>
+
+            <!-- Footer Compliance Notice -->
+            <div class="footer-info">
+              This is a computer-generated transaction settlement voucher issued by ${compName}.<br />
+              Authorized retail banking agent network · 256-bit SSL encrypted & audit-compliant.<br />
+              Generated on ${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} IST
+            </div>
+          </div>
+
+          <script>
+            function downloadReceiptHtml() {
+              const htmlContent = document.documentElement.outerHTML;
+              const blob = new Blob([htmlContent], { type: 'text/html' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'Receipt_${txnId}.html';
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            }
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(receiptHtml);
+    printWindow.document.close();
   };
 
   const formatDateTime = (dtStr?: string) => {
@@ -1878,24 +2323,33 @@ export const RetailerTransactionReport: React.FC = () => {
         anchor="right"
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
+        sx={{
+          zIndex: (theme) => theme.zIndex.modal + 100,
+        }}
         slotProps={{
           backdrop: {
             sx: {
               bgcolor: "rgba(8, 11, 17, 0.75)",
               backdropFilter: "blur(8px)",
+              zIndex: (theme) => theme.zIndex.modal + 99,
             },
           },
         }}
         PaperProps={{
           sx: {
-            width: { xs: "100%", sm: 480, md: 500 },
+            width: { xs: "100%", sm: 480, md: 520 },
+            maxWidth: "100vw",
             bgcolor: "#0B0F17",
             color: "#F8FAFC",
             borderLeft: "1px solid rgba(254, 240, 138, 0.25)",
-            boxShadow: "-8px 0 40px rgba(0, 0, 0, 0.6)",
+            boxShadow: "-12px 0 50px rgba(0, 0, 0, 0.7)",
             p: 0,
             display: "flex",
             flexDirection: "column",
+            height: "100%",
+            maxHeight: "100vh",
+            overflow: "hidden",
+            zIndex: (theme) => theme.zIndex.modal + 100,
           },
         }}
       >
@@ -1910,12 +2364,13 @@ export const RetailerTransactionReport: React.FC = () => {
           const svcBadge = SERVICE_BADGES[svc] || { label: svc, bg: "rgba(59, 130, 246, 0.15)", text: "#60A5FA", border: "rgba(59, 130, 246, 0.35)" };
 
           return (
-            <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+            <Box sx={{ display: "flex", flexDirection: "column", height: "100%", maxHeight: "100vh", overflow: "hidden" }}>
               {/* Drawer Header */}
               <Box
                 sx={{
+                  flexShrink: 0,
                   p: 2.2,
-                  bgcolor: "rgba(15, 23, 42, 0.85)",
+                  bgcolor: "rgba(15, 23, 42, 0.95)",
                   backdropFilter: "blur(20px)",
                   borderBottom: "1px solid rgba(254, 240, 138, 0.15)",
                   display: "flex",
@@ -1963,7 +2418,24 @@ export const RetailerTransactionReport: React.FC = () => {
               </Box>
 
               {/* Content Body */}
-              <Box sx={{ flex: 1, overflowY: "auto", p: 2.5, scrollbarWidth: "thin" }}>
+              <Box
+                sx={{
+                  flex: 1,
+                  minHeight: 0,
+                  overflowY: "auto",
+                  p: 2.5,
+                  pb: 4,
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "rgba(254, 240, 138, 0.3) transparent",
+                  "&::-webkit-scrollbar": { width: "6px" },
+                  "&::-webkit-scrollbar-track": { background: "transparent" },
+                  "&::-webkit-scrollbar-thumb": {
+                    background: "rgba(254, 240, 138, 0.25)",
+                    borderRadius: "10px",
+                    "&:hover": { background: "rgba(254, 240, 138, 0.45)" },
+                  },
+                }}
+              >
                 {/* Hero Box */}
                 <Paper
                   elevation={0}
@@ -2115,14 +2587,20 @@ export const RetailerTransactionReport: React.FC = () => {
               </Box>
 
               {/* Drawer Footer Actions */}
-              <Box sx={{ p: 2, bgcolor: "rgba(15, 23, 42, 0.85)", backdropFilter: "blur(20px)", borderTop: "1px solid rgba(254, 240, 138, 0.15)" }}>
+              <Box
+                sx={{
+                  flexShrink: 0,
+                  p: 2,
+                  bgcolor: "rgba(15, 23, 42, 0.95)",
+                  backdropFilter: "blur(20px)",
+                  borderTop: "1px solid rgba(254, 240, 138, 0.15)",
+                }}
+              >
                 <Stack spacing={1}>
                   <Button
                     fullWidth
                     variant="contained"
-                    onClick={() => {
-                      window.print();
-                    }}
+                    onClick={() => handlePrintReceipt(selectedTxn)}
                     startIcon={<PrintIcon sx={{ fontSize: 17 }} />}
                     sx={{
                       height: "40px",

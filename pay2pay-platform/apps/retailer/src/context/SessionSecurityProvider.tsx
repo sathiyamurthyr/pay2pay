@@ -49,13 +49,8 @@ const DEFAULT_SETTINGS: SecuritySettings = {
 export const getAuthToken = (): string | null => {
   if (typeof window === "undefined") return null;
   try {
-    const lsToken =
-      localStorage.getItem("p2p_access_token") ||
-      localStorage.getItem("pay2pay_access_token") ||
-      localStorage.getItem("pay2pay_auth_token") ||
-      localStorage.getItem("access_token");
-    if (lsToken && lsToken.trim() !== "") return lsToken.trim();
-
+    // Check HTTP cookies FIRST — this is the authoritative session source.
+    // localStorage is a fallback only for environments where cookies are unavailable.
     const cookies = document.cookie.split("; ");
     for (const c of cookies) {
       if (
@@ -63,10 +58,19 @@ export const getAuthToken = (): string | null => {
         c.startsWith("pay2pay_access_token=") ||
         c.startsWith("pay2pay_auth_token=")
       ) {
-        const val = c.split("=")[1]?.trim();
-        if (val) return val;
+        const val = c.split("=").slice(1).join("=").trim();
+        if (val && val.length > 10) return val;
       }
     }
+
+    // Fallback: localStorage (only present in older sessions or non-cookie environments)
+    const lsToken =
+      localStorage.getItem("p2p_access_token") ||
+      localStorage.getItem("pay2pay_access_token") ||
+      localStorage.getItem("pay2pay_auth_token") ||
+      localStorage.getItem("access_token");
+    if (lsToken && lsToken.trim().length > 10) return lsToken.trim();
+
     return null;
   } catch (e) {
     return null;
@@ -145,7 +149,16 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
     soundSystem.playWarningSound();
     logAuditEvent("SESSION_TERMINATED", { reason });
 
-    const role = (typeof window !== "undefined" ? localStorage.getItem("pay2pay_user_role") : null) || "RETAILER";
+    // Read role from cookie (not localStorage) — cookies are the authoritative session source
+    let role = "RETAILER";
+    try {
+      const roleCookie = document.cookie.split("; ").find(
+        (c) => c.startsWith("p2p_user_role=") || c.startsWith("pay2pay_user_role=")
+      );
+      if (roleCookie) {
+        role = roleCookie.split("=")[1]?.trim() || "RETAILER";
+      }
+    } catch (e) {}
     const loginPath = PORTAL_LOGIN_MAP[role.toUpperCase()] || "/retailer/login";
     window.location.replace(`${loginPath}?reason=${reason}`);
   };

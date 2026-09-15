@@ -51,6 +51,7 @@ BEGIN
                 jsonb_build_object('label', 'KYC', 'href', '/retailers', 'icon', 'Users')
             )),
             jsonb_build_object('category', 'Transactions', 'items', jsonb_build_array(
+                jsonb_build_object('label', 'Consolidated Reconciliation', 'href', '/operations/reconciliation', 'icon', 'Scale', 'badge', 'New'),
                 jsonb_build_object('label', 'Status Update', 'href', '/operations/transaction-status-update', 'icon', 'RefreshCw', 'badge', 'Pending'),
                 jsonb_build_object('label', 'All Transactions', 'href', '/admin/reports/transactions', 'icon', 'Receipt', 'badge', 'Master'),
                 jsonb_build_object('label', 'Payout', 'href', '/admin/reports/payout-transactions', 'icon', 'ArrowLeftRight'),
@@ -81,6 +82,7 @@ BEGIN
                 jsonb_build_object('label', 'Settlement Reports', 'href', '/settlement-processing/batches', 'icon', 'FileText')
             )),
             jsonb_build_object('category', 'Configuration', 'items', jsonb_build_array(
+                jsonb_build_object('label', 'UPI Vendors', 'href', '/configuration/upi-vendors', 'icon', 'QrCode', 'badge', 'New'),
                 jsonb_build_object('label', 'Charges', 'href', '/financial-config/approvals', 'icon', 'Scale'),
                 jsonb_build_object('label', 'MDR', 'href', '/configuration/payout-slabs', 'icon', 'Layers'),
                 jsonb_build_object('label', 'GST', 'href', '/financial-config/rules', 'icon', 'BookOpen'),
@@ -167,6 +169,7 @@ BEGIN
                 jsonb_build_object('label', 'Top-Up Requests', 'href', '/operations/topup-requests', 'icon', 'ArrowLeftRight', 'badge', 'Live')
             )),
             jsonb_build_object('category', 'Transactions', 'items', jsonb_build_array(
+                jsonb_build_object('label', 'Consolidated Reconciliation', 'href', '/operations/reconciliation', 'icon', 'Scale', 'badge', 'New'),
                 jsonb_build_object('label', 'Status Update', 'href', '/operations/transaction-status-update', 'icon', 'RefreshCw', 'badge', 'Pending'),
                 jsonb_build_object('label', 'All Transactions', 'href', '/admin/reports/transactions', 'icon', 'Receipt', 'badge', 'Master')
             )),

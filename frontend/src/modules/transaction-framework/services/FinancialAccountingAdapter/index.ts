@@ -259,14 +259,49 @@ class FinancialAccountingService {
     let transactionId = "";
     let referenceNo = "";
 
-    const token = typeof window !== "undefined" ? (localStorage.getItem("p2p_access_token") || localStorage.getItem("token") || "") : "";
+    let token = "";
     let userRefId: any = null;
     let userTypeRefId: any = 2;
     let retailerCode: string = "";
     let retailerPublicId: string = "";
 
+    if (typeof document !== "undefined") {
+      try {
+        const cookies = document.cookie ? document.cookie.split("; ") : [];
+        const tokenCookie = cookies.find((row) =>
+          row.startsWith("p2p_access_token=") ||
+          row.startsWith("pay2pay_access_token=") ||
+          row.startsWith("pay2pay_auth_token=") ||
+          row.startsWith("access_token=") ||
+          row.startsWith("token=")
+        );
+        if (tokenCookie) {
+          token = tokenCookie.split("=")[1]?.trim() || "";
+        }
+        const retCookie = cookies.find((row) =>
+          row.startsWith("p2p_active_retailer_id=") ||
+          row.startsWith("p2p_retailer_code=") ||
+          row.startsWith("retailer_code=") ||
+          row.startsWith("retailer_id=")
+        );
+        if (retCookie) {
+          retailerCode = retCookie.split("=")[1]?.trim() || "";
+        }
+      } catch {}
+    }
+
     if (typeof window !== "undefined") {
       try {
+        if (!token) {
+          token =
+            localStorage.getItem("p2p_access_token") ||
+            localStorage.getItem("pay2pay_access_token") ||
+            localStorage.getItem("pay2pay_auth_token") ||
+            localStorage.getItem("token") ||
+            localStorage.getItem("access_token") ||
+            localStorage.getItem("retailer_token") ||
+            "";
+        }
         const userStr =
           localStorage.getItem("user_info") ||
           localStorage.getItem("user") ||
@@ -276,18 +311,27 @@ class FinancialAccountingService {
           const u = JSON.parse(userStr);
           userRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
           userTypeRefId = u.user_type_ref_id || 2;
-          retailerCode = u.retailer_code || u.code || "";
-          retailerPublicId = u.public_id || u.id || "";
+          if (!retailerCode) {
+            retailerCode = u.retailer_code || u.code || "";
+          }
+          if (!retailerPublicId) {
+            retailerPublicId = u.public_id || u.id || "";
+          }
         }
       } catch {}
       if (!retailerCode) {
-        retailerCode = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("p2p_retailer_code") || "";
+        retailerCode =
+          localStorage.getItem("p2p_active_retailer_id") ||
+          localStorage.getItem("p2p_retailer_code") ||
+          localStorage.getItem("retailer_code") ||
+          localStorage.getItem("retailer_id") ||
+          localStorage.getItem("pay2pay_reg_id") ||
+          "";
       }
       if (!retailerPublicId) {
         retailerPublicId = localStorage.getItem("p2p_retailer_public_id") || "";
       }
       if (!userRefId && !retailerCode) {
-        // No session found — cannot proceed with payout
         userRefId = null;
       }
     }
@@ -311,12 +355,12 @@ class FinancialAccountingService {
         amount: amount,
         mpin: params.pin,
         mode: mode,
-        retailer_id: retailerCode || retailerPublicId || null,
+        retailer_id: retailerPublicId || retailerCode || null,
         retailer_code: retailerCode || null,
         user_ref_id: userRefId ? Number(userRefId) : null,
         user_type_ref_id: Number(userTypeRefId || 2),
         retailer_ref_id: userRefId ? Number(userRefId) : null,
-        tenant_id: localStorage.getItem("p2p_tenant_id") || null
+        tenant_id: (typeof localStorage !== "undefined" ? localStorage.getItem("p2p_tenant_id") : null) || null
       };
 
       const reqHeaders: Record<string, string> = {
@@ -325,8 +369,8 @@ class FinancialAccountingService {
       if (retailerCode) {
         reqHeaders["x-retailer-code"] = retailerCode;
       }
-      if (retailerPublicId) {
-        reqHeaders["x-retailer-id"] = retailerPublicId;
+      if (retailerPublicId || retailerCode) {
+        reqHeaders["x-retailer-id"] = retailerPublicId || retailerCode;
       }
       if (userRefId) {
         reqHeaders["x-user-ref-id"] = String(userRefId);

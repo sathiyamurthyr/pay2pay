@@ -379,14 +379,22 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         normalizedUser.roles = [normalizedUser.role || role];
       }
 
-      // Cookies with SameSite=Lax and 30-day expiry
+      // Cookies with SameSite=Lax and 30-day expiry (set both host-only and domain-wide for pay2pay.in)
+      const domainAttr = typeof window !== "undefined" && window.location.hostname.endsWith("pay2pay.in") ? "; domain=.pay2pay.in" : "";
+      document.cookie = `p2p_user_role=${role}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
+      document.cookie = `pay2pay_user_role=${role}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
+      document.cookie = `p2p_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
+      document.cookie = `pay2pay_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
+      document.cookie = `pay2pay_auth_token=${validToken}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
+      document.cookie = `p2p_destination=${isBothTrue ? "DASHBOARD" : "ACCOUNT_UNDER_REVIEW"}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
+      document.cookie = `p2p_account_access=${isBothTrue ? "ALLOWED" : "RESTRICTED"}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
+
+      // Also set standard host cookies for immediate local/subdomain consumption
       document.cookie = `p2p_user_role=${role}; path=/; max-age=2592000; SameSite=Lax`;
       document.cookie = `pay2pay_user_role=${role}; path=/; max-age=2592000; SameSite=Lax`;
       document.cookie = `p2p_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
       document.cookie = `pay2pay_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
       document.cookie = `pay2pay_auth_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
-      document.cookie = `p2p_destination=${isBothTrue ? "DASHBOARD" : "ACCOUNT_UNDER_REVIEW"}; path=/; max-age=2592000; SameSite=Lax`;
-      document.cookie = `p2p_account_access=${isBothTrue ? "ALLOWED" : "RESTRICTED"}; path=/; max-age=2592000; SameSite=Lax`;
 
       // Set retailer identifier cookies if resolved
       const isUuid = (val?: string | null) => Boolean(val && val.length === 36 && (val.match(/-/g) || []).length === 4);
@@ -395,20 +403,30 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         rCode = normalizedUser.retailer_id || normalizedUser.public_id || normalizedUser.id || "";
       }
       if (rCode) {
+        document.cookie = `p2p_active_retailer_id=${rCode}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
+        document.cookie = `p2p_retailer_code=${rCode}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
         document.cookie = `p2p_active_retailer_id=${rCode}; path=/; max-age=2592000; SameSite=Lax`;
         document.cookie = `p2p_retailer_code=${rCode}; path=/; max-age=2592000; SameSite=Lax`;
       }
 
-      // Zero localStorage storage for auth/session per user directive ("dont store in local .")
+      // Authoritatively persist active auth credentials into localStorage
       try {
-        const authKeys = [
-          "pay2pay_user_role", "p2p_user_role", "pay2pay_active_role",
-          "pay2pay_access_token", "p2p_access_token", "access_token", "pay2pay_auth_token",
-          "pay2pay_user_data", "user_info", "p2p_session_start_time", "p2p_session_last_active",
-          "p2p_active_retailer_id", "p2p_retailer_code", "retailer_token", "token",
-          "p2p_session_locked", "p2p_session_locked_at"
-        ];
-        authKeys.forEach((k) => localStorage.removeItem(k));
+        if (validToken && !validToken.startsWith("p2p_sess_")) {
+          localStorage.setItem("p2p_access_token", validToken);
+          localStorage.setItem("pay2pay_access_token", validToken);
+          localStorage.setItem("token", validToken);
+        }
+        if (normalizedUser) {
+          localStorage.setItem("user_info", JSON.stringify(normalizedUser));
+          localStorage.setItem("pay2pay_user_data", JSON.stringify(normalizedUser));
+        }
+        if (rCode) {
+          localStorage.setItem("p2p_active_retailer_id", rCode);
+          localStorage.setItem("p2p_retailer_code", rCode);
+          localStorage.setItem("retailer_id", rCode);
+        }
+        localStorage.removeItem("p2p_session_locked");
+        localStorage.removeItem("p2p_session_locked_at");
       } catch {
         // Safe fallback
       }
