@@ -123,20 +123,21 @@ export function useBeneficiary(selectedCustomer: CustomerData | null) {
 
     const fetchBeneficiaries = async () => {
       try {
-        // Multi-tenant parameters: tenant_id, company_id, store_id, customer_id
-        const tenantId = typeof window !== "undefined" ? localStorage.getItem("p2p_tenant_id") || "tenant_default" : "tenant_default";
-        const companyId = typeof window !== "undefined" ? localStorage.getItem("p2p_company_id") || "company_default" : "company_default";
-        const storeId = typeof window !== "undefined" ? localStorage.getItem("p2p_store_id") || "store_default" : "store_default";
+        const tenantId = typeof window !== "undefined" ? localStorage.getItem("p2p_tenant_id") || undefined : undefined;
+        const companyId = typeof window !== "undefined" ? localStorage.getItem("p2p_company_id") || undefined : undefined;
+        const storeId = typeof window !== "undefined" ? localStorage.getItem("p2p_store_id") || undefined : undefined;
+
+        const queryParams: Record<string, any> = {
+          customer_id: customerLookupId,
+          status: "ACTIVE",
+          is_deleted: false,
+        };
+        if (tenantId) queryParams.tenant_id = tenantId;
+        if (companyId) queryParams.company_id = companyId;
+        if (storeId) queryParams.store_id = storeId;
 
         const response = await apiClient.get("/beneficiaries", {
-          params: {
-            tenant_id: tenantId,
-            company_id: companyId,
-            store_id: storeId,
-            customer_id: customerLookupId,
-            status: "ACTIVE",
-            is_deleted: false,
-          },
+          params: queryParams,
         });
 
         const resData = response.data?.data || response.data;

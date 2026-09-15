@@ -928,19 +928,14 @@ export const retailerApi = {
     try {
       const res = await apiClient.get(`/beneficiaries/reverse-penny-drop/status/${verification_id}`);
       return res.data;
-    } catch (err) {
+    } catch (err: any) {
+      const errMsg = err?.response?.data?.detail || err?.response?.data?.message || err?.message || "Verification check failed";
       return {
-        success: true,
+        success: false,
         verification_id,
-        status: "SUCCESS",
-        account_status: "VALID",
-        account_holder_name: "SATHUS TECHNOLOGY PRIVATE LIMITED",
-        account_number: "10198918757",
-        ifsc_code: "IDFB0080106",
-        bank_name: "IDFC FIRST BANK LTD",
-        vpa: `sathus.tech@cashfree`,
-        utr: `UTR-RPD-${Date.now()}`,
-        message: "Verified successfully via Reverse Penny Drop"
+        status: "FAILED",
+        account_status: "INVALID",
+        message: errMsg
       };
     }
   },
@@ -1173,29 +1168,7 @@ export const retailerApi = {
         });
         return fallbackRes.data;
       } catch {
-        const mockBanks = [
-          { bank_id: 1, bank_name: "HDFC BANK LTD", ifsc: "HDFC0000001", ifsc_code: "HDFC0000001", ifsc_prefix: "HDFC", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/hdfcbank.com", is_top: true },
-          { bank_id: 2, bank_name: "STATE BANK OF INDIA", ifsc: "SBIN0000001", ifsc_code: "SBIN0000001", ifsc_prefix: "SBIN", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/sbi.co.in", is_top: true },
-          { bank_id: 3, bank_name: "ICICI BANK LTD", ifsc: "ICIC0000001", ifsc_code: "ICIC0000001", ifsc_prefix: "ICIC", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/icicibank.com", is_top: true },
-          { bank_id: 4, bank_name: "AXIS BANK LTD", ifsc: "UTIB0000001", ifsc_code: "UTIB0000001", ifsc_prefix: "UTIB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/axisbank.com", is_top: true },
-          { bank_id: 5, bank_name: "KOTAK MAHINDRA BANK LTD", ifsc: "KKBK0000001", ifsc_code: "KKBK0000001", ifsc_prefix: "KKBK", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/kotak.com", is_top: true },
-          { bank_id: 6, bank_name: "PUNJAB NATIONAL BANK", ifsc: "PUNB0000001", ifsc_code: "PUNB0000001", ifsc_prefix: "PUNB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/pnbindia.in", is_top: true },
-          { bank_id: 7, bank_name: "BANK OF BARODA", ifsc: "BARB0000001", ifsc_code: "BARB0000001", ifsc_prefix: "BARB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/bankofbaroda.in", is_top: false },
-          { bank_id: 8, bank_name: "CANARA BANK", ifsc: "CNRB0000001", ifsc_code: "CNRB0000001", ifsc_prefix: "CNRB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/canarabank.com", is_top: false },
-          { bank_id: 9, bank_name: "UNION BANK OF INDIA", ifsc: "UBIN0000001", ifsc_code: "UBIN0000001", ifsc_prefix: "UBIN", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/unionbankofindia.co.in", is_top: false },
-          { bank_id: 10, bank_name: "INDUSIND BANK LTD", ifsc: "INDB0000001", ifsc_code: "INDB0000001", ifsc_prefix: "INDB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/indusind.com", is_top: false },
-          { bank_id: 11, bank_name: "IDBI BANK LTD", ifsc: "IBKL0000001", ifsc_code: "IBKL0000001", ifsc_prefix: "IBKL", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/idbibank.com", is_top: true },
-          { bank_id: 12, bank_name: "YES BANK LTD", ifsc: "YESB0000001", ifsc_code: "YESB0000001", ifsc_prefix: "YESB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/yesbank.in", is_top: false },
-          { bank_id: 13, bank_name: "IDFC FIRST BANK LTD", ifsc: "IDFB0000001", ifsc_code: "IDFB0000001", ifsc_prefix: "IDFB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/idfcfirstbank.com", is_top: false },
-          { bank_id: 14, bank_name: "FEDERAL BANK LTD", ifsc: "FDRL0000001", ifsc_code: "FDRL0000001", ifsc_prefix: "FDRL", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/federalbank.co.in", is_top: false },
-          { bank_id: 15, bank_name: "BANK OF INDIA", ifsc: "BKID0000001", ifsc_code: "BKID0000001", ifsc_prefix: "BKID", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/bankofindia.co.in", is_top: false },
-        ];
-        if (query) {
-          const q = query.toLowerCase();
-          const filtered = mockBanks.filter(b => b.bank_name.toLowerCase().includes(q) || b.ifsc.toLowerCase().includes(q) || b.ifsc_prefix.toLowerCase().includes(q));
-          return { status: "SUCCESS", data: filtered };
-        }
-        return { status: "SUCCESS", data: mockBanks };
+        return { status: "SUCCESS", data: [] };
       }
     }
   },
@@ -1219,15 +1192,11 @@ export const retailerApi = {
         sessionStorage.setItem("p2p_ben_session_token", res.data.session_token);
       }
       return res.data;
-    } catch {
-      const mockToken = "ben_token_" + Math.random().toString(36).substring(2);
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem("p2p_ben_session_token", mockToken);
-      }
+    } catch (err: any) {
+      console.error("Failed to create beneficiary session:", err);
       return {
-        status: "SUCCESS",
-        session_token: mockToken,
-        expires_at: new Date(Date.now() + 30 * 60000).toISOString(),
+        status: "FAILED",
+        message: err?.response?.data?.detail || err?.message || "Failed to create beneficiary session"
       };
     }
   },
@@ -1253,10 +1222,7 @@ export const retailerApi = {
         const postRes = await apiClient.post(`/beneficiaries/${beneficiaryId}/remove`);
         return postRes.data;
       } catch (err2: any) {
-        return {
-          status: "SUCCESS",
-          message: "Beneficiary deactivated successfully"
-        };
+        throw err2;
       }
     }
   },

@@ -450,11 +450,14 @@ async def get_bulkpe_dashboard_counters(
     Fetches real-time dashboard statistics: Wallet Balance, Today's Payouts,
     Success/Failed/Pending/Refund counts and transaction metrics.
     """
-    ret_id = retailer_id or uuid.UUID("a46ec999-57db-4138-a79b-a208a6d75109")
+    ret_id = retailer_id
+    if not ret_id:
+        stmt_first = select(RetailerModel.public_id).where(RetailerModel.is_deleted == False).order_by(RetailerModel.created_date.desc()).limit(1)
+        ret_id = (await db.execute(stmt_first)).scalars().first()
 
     # Fetch wallet balance
-    stmt_w = select(RetailerWalletModel).where(RetailerWalletModel.retailer_id == ret_id)
-    wallet = (await db.execute(stmt_w)).scalars().first()
+    stmt_w = select(RetailerWalletModel).where(RetailerWalletModel.retailer_id == ret_id) if ret_id else None
+    wallet = (await db.execute(stmt_w)).scalars().first() if stmt_w is not None else None
     wallet_balance = wallet.wallet_balance if wallet else 0.0
 
     # Aggregate counts by status

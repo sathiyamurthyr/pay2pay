@@ -76,9 +76,6 @@ interface FooterTotals {
   pending_settlement_amount: number;
 }
 
-const DEFAULT_RETAILER_ID = "f89239b5-4dbb-41a9-9ba7-0f97580c9368";
-const DEFAULT_TENANT_ID = "93538c98-0b19-493c-a247-4cdb02a46c68";
-
 export const SwipeMachineSettlementReport: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [summary, setSummary] = useState<SummaryKPIs>({

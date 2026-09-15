@@ -257,7 +257,7 @@ def build_admin_transactions_query(
             'SUCCESS' AS status,
             COALESCE(l.narration, 'Direct Ledger Top-up') AS narration,
             l.tenant_id,
-            COALESCE(r2.company_id, '0bf4371b-4c74-4916-a817-61c203b353e8'::uuid) AS company_id,
+            r2.company_id AS company_id,
             COALESCE(c2.company_name, 'Pay2Pay') AS company_name,
             COALESCE(c2.company_code, 'P2P') AS company_code,
             r2.public_id AS retailer_id,

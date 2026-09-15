@@ -106,10 +106,6 @@ export interface GridItem {
   is_reversed: boolean;
 }
 
-const DEFAULT_RETAILER_ID = "f89239b5-4dbb-41a9-9ba7-0f97580c9368";
-const DEFAULT_TENANT_ID = "93538c98-0b19-493c-a247-4cdb02a46c68";
-const DEFAULT_COMPANY_ID = "8899aabb-1122-3344-5566-77889900aabb";
-
 const API_BASE_URL = getApiBaseUrl();
 
 const REPORT_TABS = [
@@ -238,6 +234,8 @@ export const EnterpriseReportCenter: React.FC = () => {
   const getUserRefs = () => {
     let userRefId: any = null;
     let userTypeRefId: any = 2;
+    let retailerId: any = null;
+    let tenantId: any = null;
     if (typeof window !== "undefined") {
       try {
         const userStr =
@@ -249,10 +247,15 @@ export const EnterpriseReportCenter: React.FC = () => {
           const u = JSON.parse(userStr);
           userRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
           userTypeRefId = u.user_type_ref_id || 2;
+          retailerId = u.retailer_id || u.id || null;
+          tenantId = u.tenant_id || null;
         }
       } catch {}
+      if (!retailerId) {
+        retailerId = localStorage.getItem("p2p_active_retailer_id") || null;
+      }
     }
-    return { userRefId, userTypeRefId };
+    return { userRefId, userTypeRefId, retailerId, tenantId };
   };
 
   // Fetch Summary Metrics
@@ -461,6 +464,7 @@ export const EnterpriseReportCenter: React.FC = () => {
     if (!selectedItem) return;
     setIsSubmittingComplaint(true);
     const txId = selectedItem.transaction_details?.transaction_id || selectedItem.id;
+    const { retailerId, tenantId } = getUserRefs();
     try {
       const res = await fetch(`${API_BASE_URL}/report-center/complaint`, {
         method: "POST",
@@ -469,8 +473,8 @@ export const EnterpriseReportCenter: React.FC = () => {
           transaction_id: txId,
           reason: complaintReason,
           description: complaintDesc,
-          retailer_id: DEFAULT_RETAILER_ID,
-          tenant_id: DEFAULT_TENANT_ID,
+          retailer_id: retailerId,
+          tenant_id: tenantId,
         }),
       });
       if (res.ok) {

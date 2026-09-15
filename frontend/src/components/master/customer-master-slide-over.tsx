@@ -38,6 +38,7 @@ import { M3Button } from "@/components/ui/m3-components";
 import { retailerApi } from "@/services/retailer-api";
 import { notificationEngine } from "@/services/notification-engine";
 import { useTransactionMemoryStore } from "@/stores/use-transaction-memory-store";
+import { useRetailerStore } from "@/stores/use-retailer-store";
 
 interface CustomerMasterSlideOverProps {
   open: boolean;
@@ -397,13 +398,28 @@ export function CustomerMasterSlideOver({
     setPinError("");
     setStep4Loading(true);
 
+    const outlet = useRetailerStore.getState().outlet;
+    let activeRetId = outlet?.id || outlet?.code || "";
+    if (!activeRetId && typeof window !== "undefined") {
+      try {
+        const uStr = localStorage.getItem("user_info") || localStorage.getItem("pay2pay_user_data");
+        if (uStr) {
+          const u = JSON.parse(uStr);
+          activeRetId = u.retailer_code || u.retailer_id || u.user_ref_id || "";
+        }
+      } catch {}
+      if (!activeRetId) {
+        activeRetId = localStorage.getItem("p2p_active_retailer_id") || "";
+      }
+    }
+
     const res = await retailerApi.finalizeCustomerOnboarding({
       ref_id: aadhaarRefNum,
       mobile_number: mobileNumber,
       mpin: pin,
       first_name: firstName,
       last_name: lastName,
-      retailer_id: "RET-8849"
+      retailer_id: activeRetId || undefined
     });
     setStep4Loading(false);
 

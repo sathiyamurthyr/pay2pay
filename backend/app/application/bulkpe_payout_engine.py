@@ -443,15 +443,15 @@ class BulkPePayoutEngine:
         stmt_r_info = select(RetailerModel).where(RetailerModel.public_id == retailer_id)
         ret_info = (await db.execute(stmt_r_info)).scalars().first()
 
-        eff_retailer_ref_id = getattr(ret_info, "retailer_ref_id", None) or 24
+        eff_retailer_ref_id = getattr(ret_info, "retailer_ref_id", None)
         eff_user_ref_id = eff_retailer_ref_id
         eff_user_type_ref_id = 2
-        eff_tenant_ref_id = getattr(ret_info, "tenant_ref_id", None) or 1
-        eff_company_ref_id = getattr(ret_info, "company_ref_id", None) or 2
-        eff_company_id = getattr(ret_info, "company_id", None) or uuid.UUID("0bf4371b-4c74-4916-a817-61c203b353e8")
-        eff_retailer_name = getattr(ret_info, "store_name", None) or getattr(ret_info, "business_name", None) or getattr(ret_info, "legal_name", None) or "Sathus Pay Store"
+        eff_tenant_ref_id = getattr(ret_info, "tenant_ref_id", None)
+        eff_company_ref_id = getattr(ret_info, "company_ref_id", None)
+        eff_company_id = getattr(ret_info, "company_id", None) or getattr(ret_info, "tenant_id", None) or tenant_id
+        eff_retailer_name = getattr(ret_info, "store_name", None) or getattr(ret_info, "business_name", None) or getattr(ret_info, "legal_name", None) or getattr(ret_info, "owner_name", None) or getattr(ret_info, "retailer_code", None) or ""
 
-        eff_customer_ref_id = getattr(customer, "customer_ref_id", None) or 11
+        eff_customer_ref_id = getattr(customer, "customer_ref_id", None)
         eff_bene_master_ref_id = getattr(beneficiary, "beneficiary_master_ref_id", None) or getattr(bank_account, "beneficiary_master_ref_id", None)
         if not eff_bene_master_ref_id and final_acc_num:
             stmt_bm_acc = select(BeneficiaryMasterModel).where(BeneficiaryMasterModel.account_number == str(final_acc_num).strip())

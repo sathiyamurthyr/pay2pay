@@ -498,11 +498,11 @@ export const RetailerPayoutReport: React.FC = () => {
     const mode = t.mode || t.payment_mode || "IMPS";
 
     const compLogo = branding.logo_url || "/branding/logo.png";
-    const compName = branding.company_name || branding.legal_name || "SUPER REX PRODUCTS PRIVATE LIMITED";
+    const compName = branding.company_name || branding.legal_name || "";
     const compLegal = branding.legal_name || compName;
-    const retailerShop = outlet?.name || "Pay2Pay Retail Point";
-    const retailerOwner = outlet?.ownerName || t.retailer || "Authorized Agent";
-    const retailerCode = outlet?.code || "RET-P2P";
+    const retailerShop = outlet?.name || "";
+    const retailerOwner = outlet?.ownerName || t.retailer || "";
+    const retailerCode = outlet?.code || "";
     const retailerMobile = outlet?.mobile || "";
     const retailerCity = outlet?.location || "";
 

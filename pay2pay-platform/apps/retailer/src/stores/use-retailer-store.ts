@@ -176,9 +176,6 @@ interface RetailerStoreState {
 // It is always synced live from the API via syncBalance() or WalletSyncProvider.
 // This prevents stale cached balances from misleading users or transaction logic.
 
-const DEFAULT_RETAILER_ID = "";
-const DEFAULT_TENANT_ID = "93538c98-0b19-493c-a247-4cdb02a46c68";
-
 const getInitialApprovalStatus = (): "APPROVED" | "PENDING" | "REJECTED" | "UNDER_REVIEW" => {
   // Authoritative status comes directly from live PostgreSQL DB API
   return "APPROVED";

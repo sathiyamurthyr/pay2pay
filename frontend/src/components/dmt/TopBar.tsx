@@ -24,10 +24,10 @@ export interface TopBarProps {
 }
 
 export function TopBar({
-  walletBalance = 48250,
-  retailerName = "Ramesh Kumar",
-  retailerId = "RET-91827",
-  unreadNotifications = 3,
+  walletBalance = 0,
+  retailerName = "",
+  retailerId = "",
+  unreadNotifications = 0,
 }: TopBarProps) {
   return (
     <Paper
