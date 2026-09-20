@@ -2081,7 +2081,7 @@ export default function MachinesPage() {
                   <div className="p-3 bg-[#F8FAFC] rounded-lg border border-[#E2E8F0]">
                     <span className="text-[11px] text-[#64748B] block font-medium">Vendor Commission</span>
                     <span className="font-mono font-bold text-[#2563EB]">
-                      {selectedMachineDetails.machine.vendor_id || selectedMachineDetails.machine.vendor_name
+                      {(selectedMachineDetails.machine.vendor_commission_value !== null && selectedMachineDetails.machine.vendor_commission_value !== undefined && Number(selectedMachineDetails.machine.vendor_commission_value) > 0) || selectedMachineDetails.machine.vendor_id || selectedMachineDetails.machine.vendor_name
                         ? `${selectedMachineDetails.machine.vendor_commission_value ?? 0}% (${selectedMachineDetails.machine.vendor_commission_type || "PERCENTAGE"})`
                         : "0.00% (N/A)"}
                     </span>
