@@ -336,3 +336,43 @@ async def get_transactions(
         service_name=service_name
     )
     return {"success": True, **data}
+
+
+# ─── WALLET & LEDGER ENDPOINTS ───────────────────────────────────────────────
+
+@router.get("/wallet", summary="Super Distributor Wallet Summary")
+async def get_wallet_summary(
+    sd: SuperDistributorModel = Depends(get_current_super_distributor),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Returns the authoritative wallet summary and balance for the authenticated Super Distributor.
+    """
+    data = await SuperDistributorService.get_wallet_summary(db=db, sd=sd)
+    return {"success": True, "data": data}
+
+
+@router.get("/wallet/ledger", summary="Super Distributor Wallet Ledger History")
+async def get_wallet_ledger(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    entry_type: Optional[str] = Query(None, description="Filter by entry type (CREDIT, DEBIT)"),
+    service_name: Optional[str] = Query(None, description="Filter by service name (e.g. POS_COMMISSION)"),
+    date_from: Optional[str] = Query(None, description="Date from (YYYY-MM-DD)"),
+    date_to: Optional[str] = Query(None, description="Date to (YYYY-MM-DD)"),
+    sd: SuperDistributorModel = Depends(get_current_super_distributor),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Returns the paginated double-entry wallet transaction ledger for the authenticated Super Distributor.
+    All records are strictly scoped to the SD's wallet and include enriched commission metadata.
+    """
+    data = await SuperDistributorService.get_wallet_ledger(
+        db=db, sd=sd,
+        page=page, page_size=page_size,
+        date_from=date_from, date_to=date_to,
+        entry_type=entry_type,
+        service_name=service_name
+    )
+    return {"success": True, **data}
+

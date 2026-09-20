@@ -255,4 +255,64 @@ export const SuperDistributorAPI = {
     const res = await apiClient.get("/super-distributor/transactions", { params });
     return res.data;
   },
+
+  // 9. Wallet Summary
+  getWalletSummary: async (): Promise<SuperDistributorWalletSummary> => {
+    const res = await apiClient.get("/super-distributor/wallet");
+    return res.data?.data || res.data;
+  },
+
+  // 10. Wallet Ledger History
+  getWalletLedger: async (params?: {
+    page?: number;
+    page_size?: number;
+    entry_type?: string;
+    service_name?: string;
+    date_from?: string;
+    date_to?: string;
+  }): Promise<{
+    items: SuperDistributorWalletLedgerItem[];
+    total: number;
+    page: number;
+    page_size: number;
+    pages: number;
+  }> => {
+    const res = await apiClient.get("/super-distributor/wallet/ledger", { params });
+    return res.data;
+  },
 };
+
+export interface SuperDistributorWalletSummary {
+  super_distributor_ref_id: number;
+  super_distributor_code?: string;
+  business_name: string;
+  wallet_id?: number;
+  available_balance: number;
+  locked_amount: number;
+  currency: string;
+  status: string;
+  total_credits: number;
+  total_debits: number;
+  last_updated: string;
+}
+
+export interface SuperDistributorWalletLedgerItem {
+  id: number;
+  txn_id: string;
+  ref_id?: string;
+  pos_transaction_ref?: string;
+  is_commission: boolean;
+  service_name: string;
+  entry_type: string;
+  amount: number;
+  balance_before: number;
+  balance_after: number;
+  status: string;
+  narration?: string;
+  retailer_ref_id?: number;
+  retailer_name?: string;
+  distributor_ref_id?: number;
+  distributor_name?: string;
+  created_at: string;
+}
+

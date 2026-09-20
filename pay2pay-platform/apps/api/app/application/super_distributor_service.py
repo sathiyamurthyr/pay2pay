@@ -882,3 +882,191 @@ class SuperDistributorService:
             "wallet_balance": wallet_balance,
             "credit_limit": float(sd.credit_limit or 0.0),
         }
+
+    # ── Wallet & Ledger ───────────────────────────────────────────────────────
+
+    @staticmethod
+    async def get_or_create_wallet(
+        db: AsyncSession,
+        sd: SuperDistributorModel
+    ) -> SdWalletModel:
+        """
+        Authoritative Super Distributor Wallet retrieval.
+        Creates an sd_wallet record with 0.00 default balance if not already present.
+        """
+        sd_ref = sd.super_distributor_ref_id or sd.id
+        stmt = select(SdWalletModel).where(
+            SdWalletModel.super_distributor_ref_id == sd_ref
+        )
+        wallet = (await db.execute(stmt)).scalars().first()
+        if not wallet:
+            tenant_uuid = sd.tenant_id or uuid.UUID("00000000-0000-0000-0000-000000000001")
+            company_uuid = sd.company_id or uuid.UUID("00000000-0000-0000-0000-000000000001")
+            init_bal = Decimal(str(sd.wallet_balance or 0.0))
+            wallet = SdWalletModel(
+                super_distributor_ref_id=sd_ref,
+                tenant_id=tenant_uuid,
+                company_id=company_uuid,
+                balance=init_bal,
+                currency="INR",
+                status="ACTIVE",
+                is_active=True
+            )
+            db.add(wallet)
+            await db.flush()
+        return wallet
+
+    @staticmethod
+    async def get_wallet_summary(
+        db: AsyncSession,
+        sd: SuperDistributorModel
+    ) -> Dict[str, Any]:
+        """
+        Retrieves authoritative wallet details, live balance, total credits, and total debits.
+        """
+        sd_ref = sd.super_distributor_ref_id or sd.id
+        wallet = await SuperDistributorService.get_or_create_wallet(db, sd)
+
+        # Calculate totals from transactions ledger
+        cr_stmt = select(func.coalesce(func.sum(text("amount")), 0)).select_from(text("public.transactions")).where(
+            or_(
+                and_(text("user_ref_id = :sd_ref"), text("user_type_ref_id = 4")),
+                and_(text("super_distributor_ref_id = :sd_ref"), text("user_type = 'SD'"))
+            ),
+            text("entry_type = 'CREDIT'"),
+            text("status = 'SUCCESS'"),
+            text("is_deleted = FALSE")
+        )
+        total_credits = float((await db.execute(cr_stmt, {"sd_ref": sd_ref})).scalar() or 0.0)
+
+        dr_stmt = select(func.coalesce(func.sum(text("amount")), 0)).select_from(text("public.transactions")).where(
+            or_(
+                and_(text("user_ref_id = :sd_ref"), text("user_type_ref_id = 4")),
+                and_(text("super_distributor_ref_id = :sd_ref"), text("user_type = 'SD'"))
+            ),
+            text("entry_type = 'DEBIT'"),
+            text("status = 'SUCCESS'"),
+            text("is_deleted = FALSE")
+        )
+        total_debits = float((await db.execute(dr_stmt, {"sd_ref": sd_ref})).scalar() or 0.0)
+
+        return {
+            "super_distributor_ref_id": sd_ref,
+            "super_distributor_code": sd.super_distributor_code,
+            "business_name": sd.business_name,
+            "wallet_id": getattr(wallet, "sd_wallet_ref_id", getattr(wallet, "wallet_id", None)),
+            "available_balance": float(wallet.balance),
+            "locked_amount": float(wallet.locked_amount) if hasattr(wallet, "locked_amount") else 0.0,
+            "currency": wallet.currency if hasattr(wallet, "currency") else "INR",
+            "status": wallet.status if hasattr(wallet, "status") else "ACTIVE",
+            "total_credits": total_credits,
+            "total_debits": total_debits,
+            "last_updated": wallet.updated_at.isoformat() if hasattr(wallet, "updated_at") and wallet.updated_at else datetime.now(timezone.utc).isoformat()
+        }
+
+    @staticmethod
+    async def get_wallet_ledger(
+        db: AsyncSession,
+        sd: SuperDistributorModel,
+        page: int = 1,
+        page_size: int = 20,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
+        entry_type: Optional[str] = None,
+        service_name: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Retrieves paginated ledger entries specifically for the SD's wallet with enriched commission details.
+        """
+        sd_ref = sd.super_distributor_ref_id or sd.id
+        conditions = [
+            """((user_ref_id = :sd_ref AND user_type_ref_id = 4) OR (super_distributor_ref_id = :sd_ref AND user_type = 'SD'))""",
+            "is_deleted = FALSE"
+        ]
+        params: Dict[str, Any] = {"sd_ref": sd_ref}
+
+        if entry_type:
+            conditions.append("entry_type = :entry_type")
+            params["entry_type"] = entry_type.upper()
+
+        if service_name:
+            conditions.append("service_name = :service_name")
+            params["service_name"] = service_name
+
+        if date_from:
+            conditions.append("created_at >= :date_from::timestamp")
+            params["date_from"] = f"{date_from} 00:00:00"
+
+        if date_to:
+            conditions.append("created_at <= :date_to::timestamp")
+            params["date_to"] = f"{date_to} 23:59:59"
+
+        where_clause = " AND ".join(conditions)
+
+        count_res = await db.execute(text(f"""
+            SELECT COUNT(*) FROM public.transactions
+            WHERE {where_clause}
+        """), params)
+        total = count_res.scalar() or 0
+
+        offset = (page - 1) * page_size
+        params["limit"] = page_size
+        params["offset"] = offset
+
+        rows_res = await db.execute(text(f"""
+            SELECT
+                id,
+                txn_id,
+                ref_id,
+                service_name,
+                entry_type,
+                amount,
+                balance_before,
+                balance_after,
+                status,
+                narration,
+                retailer_ref_id,
+                retailer_name,
+                distributor_ref_id,
+                dist_name,
+                created_at
+            FROM public.transactions
+            WHERE {where_clause}
+            ORDER BY created_at DESC
+            LIMIT :limit OFFSET :offset
+        """), params)
+
+        items = []
+        for row in rows_res.mappings().all():
+            ref_id_val = row["ref_id"] or ""
+            is_commission = ref_id_val.startswith("COMM_SD_") or row["service_name"] == "POS_COMMISSION"
+            pos_ref = ref_id_val.replace("COMM_SD_", "") if ref_id_val.startswith("COMM_SD_") else None
+
+            items.append({
+                "id": row["id"],
+                "txn_id": row["txn_id"],
+                "ref_id": row["ref_id"],
+                "pos_transaction_ref": pos_ref,
+                "is_commission": is_commission,
+                "service_name": row["service_name"],
+                "entry_type": row["entry_type"],
+                "amount": float(row["amount"] or 0),
+                "balance_before": float(row["balance_before"] or 0),
+                "balance_after": float(row["balance_after"] or 0),
+                "status": row["status"],
+                "narration": row["narration"],
+                "retailer_ref_id": row["retailer_ref_id"],
+                "retailer_name": row["retailer_name"],
+                "distributor_ref_id": row["distributor_ref_id"],
+                "distributor_name": row["dist_name"],
+                "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+            })
+
+        return {
+            "items": items,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "pages": (total + page_size - 1) // page_size if page_size > 0 else 1
+        }
+

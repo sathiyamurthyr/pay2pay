@@ -82,6 +82,7 @@ export function SuperDistributorLayout({ children }: SuperDistributorLayoutProps
 
   const navItems = [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { label: "Wallet & Ledger", href: "/wallet", icon: Wallet },
     { label: "Distributors", href: "/distributors", icon: Users },
     { label: "Onboard Partner", href: "/distributors/onboard", icon: UserPlus },
     { label: "MDR Setup", href: "/mdr", icon: Percent },
