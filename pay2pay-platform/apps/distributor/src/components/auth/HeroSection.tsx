@@ -32,7 +32,15 @@ import {
   shimmerVariants
 } from "./motion/animationVariants";
 
-export const HeroSection: React.FC = () => {
+interface HeroSectionProps {
+  darkMode?: boolean;
+  portalRole?: string;
+}
+
+export const HeroSection: React.FC<HeroSectionProps> = ({
+  darkMode = true,
+  portalRole = "DISTRIBUTOR"
+}) => {
   const shouldReduceMotion = useReducedMotion();
 
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
@@ -45,32 +53,34 @@ export const HeroSection: React.FC = () => {
   };
 
   const BENEFITS = [
+    { title: "Network Management", icon: Building2 },
     { title: "Instant Settlement", icon: Zap },
-    { title: "NPCI BBPS", icon: Building2 },
-    { title: "UPI Enabled", icon: QrCode },
+    { title: "MDR Commission", icon: TrendingUp },
+    { title: "NPCI BBPS Hub", icon: ShieldCheck },
+    { title: "UPI QR Network", icon: QrCode },
     { title: "AEPS Banking", icon: Smartphone },
-    { title: "Secure Wallet", icon: CreditCard },
-    { title: "PCI DSS Certified", icon: ShieldCheck },
-    { title: "ISO 27001", icon: Lock },
-    { title: "AI Fraud Detection", icon: Sparkles }
+    { title: "Distributor Wallet", icon: CreditCard },
+    { title: "AI Risk Radar", icon: Sparkles }
   ];
 
   const TICKER_ITEMS = [
-    "⚡ Money Transfer ₹15,000 → HDFC Bank",
-    "✓ UPI Success ₹500 → Merchant QR",
-    "💳 Wallet Auto-Loaded ₹50,000",
-    "🏦 AEPS Cash Withdrawal ₹10,000 → SBI",
-    "✨ T+0 Settlement ₹2,50,000 → ICICI",
-    "📄 BBPS Bill Paid ₹2,450 → TNEB Power",
-    "🔐 Fraud Alert Blocked — AI Shield",
-    "📱 UPI QR Payout ₹8,500 → Merchant"
+    "⚡ Commission Credited ₹45,200 → Main Wallet",
+    "✓ Retailer Onboarded #RT-9876 → Active",
+    "💳 Bulk Float Pool Loaded ₹5,00,000 → ICICI",
+    "🏦 Instant Payout Settled ₹1,20,000 → SBI",
+    "✨ T+0 MDR Commission Verified — Pay2Pay Hub",
+    "📄 BBPS Commission Shared ₹12,450 → Distributor",
+    "🔐 Security Shield Active — AI Risk Radar",
+    "📱 Retailer Volume Alert ₹15,80,000 Today"
   ];
 
   // Duplicate for seamless infinite scroll
   const TICKER_DOUBLED = [...TICKER_ITEMS, ...TICKER_ITEMS];
 
   return (
-    <div className="relative w-full h-full bg-slate-950 text-white overflow-hidden flex flex-col justify-between select-none">
+    <div className={`relative w-full h-full text-white overflow-hidden flex flex-col justify-between select-none transition-colors duration-300 ${
+      darkMode ? "bg-slate-950" : "bg-[#0B1120]"
+    }`}>
 
       {/* Background Effects */}
       <AnimatedAuroraBackground />
@@ -86,20 +96,20 @@ export const HeroSection: React.FC = () => {
               variants={logoSpringVariants}
               initial="hidden"
               animate="visible"
-              className="w-10 h-10 2xl:w-13 2xl:h-13 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-cyan-400 p-0.5 shadow-lg shadow-blue-500/30 shrink-0"
+              className="w-10 h-10 2xl:w-13 2xl:h-13 rounded-2xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-600 p-0.5 shadow-lg shadow-amber-500/20 shrink-0"
             >
               <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
-                <span className="text-base 2xl:text-xl font-black tracking-tighter bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400 bg-clip-text text-transparent">
+                <span className="text-base 2xl:text-xl font-black tracking-tighter bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 bg-clip-text text-transparent">
                   P2P
                 </span>
               </div>
             </motion.div>
             <div>
               <h1 className="text-base 2xl:text-xl font-extrabold tracking-tight text-white leading-tight">
-                Pay2Pay Enterprise
+                Pay2Pay Distributor Enterprise
               </h1>
-              <p className="text-[11px] 2xl:text-xs font-semibold text-slate-400 mt-0.5">
-                Retailer Authentication Portal
+              <p className="text-[11px] 2xl:text-xs font-semibold text-amber-400/90 mt-0.5">
+                Distributor Operations & Management Portal
               </p>
             </div>
           </div>
@@ -108,12 +118,12 @@ export const HeroSection: React.FC = () => {
           <motion.div
             variants={neonPulseVariants}
             animate="animate"
-            className="flex items-center gap-1.5 px-3 py-1.5 2xl:px-4 2xl:py-2 rounded-full bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 text-xs font-bold backdrop-blur-md shadow-lg shadow-emerald-500/10"
+            className="flex items-center gap-1.5 px-3 py-1.5 2xl:px-4 2xl:py-2 rounded-full bg-amber-500/10 border border-amber-500/40 text-amber-400 text-xs font-bold backdrop-blur-md shadow-lg shadow-amber-500/10"
           >
-            <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-            <span className="hidden sm:inline">AI Fraud Shield</span>
-            <span className="sm:hidden">AI Shield</span>
-            <span className="inline-flex w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+            <Sparkles className="w-3.5 h-3.5 animate-pulse text-amber-400" />
+            <span className="hidden sm:inline">Enterprise Shield</span>
+            <span className="sm:hidden">Shield</span>
+            <span className="inline-flex w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
           </motion.div>
         </div>
 
@@ -127,14 +137,14 @@ export const HeroSection: React.FC = () => {
             animate="visible"
             className="mb-3 2xl:mb-5"
           >
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-blue-500/15 via-indigo-500/10 to-blue-500/15 border border-blue-500/30 text-blue-400 text-[10px] 2xl:text-xs font-black uppercase tracking-wider backdrop-blur-md relative overflow-hidden">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] 2xl:text-xs font-black uppercase tracking-wider backdrop-blur-md relative overflow-hidden">
               <motion.div
                 variants={shimmerVariants}
                 animate="animate"
                 className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none"
               />
-              <ShieldCheck className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-              <span>RBI Compliant FinTech Infrastructure</span>
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span>RBI Compliant Financial Infrastructure</span>
             </div>
           </motion.div>
 
@@ -147,18 +157,18 @@ export const HeroSection: React.FC = () => {
           >
             <div className="text-3xl xl:text-4xl 2xl:text-6xl font-black tracking-tight text-white leading-tight">
               <div className="overflow-hidden">
-                {["Power", "Every"].map((word, i) => (
+                {["Manage", "Your"].map((word, i) => (
                   <motion.span key={i} variants={wordChildVariants} className="inline-block mr-3">
                     {word}
                   </motion.span>
                 ))}
               </div>
               <div className="overflow-hidden">
-                {["Retail", "Business"].map((word, i) => (
+                {["Distributor", "Network"].map((word, i) => (
                   <motion.span
                     key={i}
                     variants={wordChildVariants}
-                    className="inline-block mr-3 bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400 bg-clip-text text-transparent"
+                    className="inline-block mr-3 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 bg-clip-text text-transparent"
                   >
                     {word}
                   </motion.span>
@@ -174,9 +184,9 @@ export const HeroSection: React.FC = () => {
             animate="visible"
             className="text-slate-300 text-sm xl:text-base 2xl:text-xl font-medium leading-relaxed mb-4 2xl:mb-6 max-w-lg 2xl:max-w-2xl"
           >
-            Transfer Money · Accept UPI · AEPS Banking · BBPS · Wallet
+            Map Retailers · MDR Commission · Float Management · T+0 Settlement
             <span className="block text-slate-400 text-xs xl:text-sm 2xl:text-base font-normal mt-1">
-              All from one secure enterprise workstation platform.
+              Centralized enterprise workstation to empower your distribution network.
             </span>
           </motion.p>
 

@@ -36,6 +36,8 @@ const ZERO_SETTLEMENT_METRICS = {
   hourly_trend: [] as { hour: string; volume: number }[],
 };
 
+const MOCK_METRICS = ZERO_SETTLEMENT_METRICS;
+
 const MODE_COLORS = [
   { bar: "bg-violet-400", dot: "bg-violet-400", text: "text-violet-400" },
   { bar: "bg-blue-400",   dot: "bg-blue-400",   text: "text-blue-400"   },

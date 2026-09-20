@@ -81,7 +81,12 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
       const res = await fetch("/api/v1/onboarding/verify-mobile-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ registration_id: registrationId, otp_code: otpValue })
+        body: JSON.stringify({
+          registration_id: registrationId,
+          otp_code: otpValue,
+          user_type: "DISTRIBUTOR",
+          portal_role: "DISTRIBUTOR"
+        })
       });
       setLoading(false);
 

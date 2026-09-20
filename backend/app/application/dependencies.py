@@ -92,21 +92,21 @@ async def get_current_tenant_id(
     Each request automatically resolves TenantId strictly from JWT.
     Never trust TenantId from request payload or query string.
     """
-    tenant_id_str = payload.get("tenant_id", "547aa7bb-a790-4fe2-bd5b-27214ed176c8")
+    tenant_id_str = payload.get("tenant_id", "fa480c2d-2725-43bd-a7ba-6fc60a89a1cb")
     try:
         return uuid.UUID(tenant_id_str)
     except (ValueError, TypeError):
-        return uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8")
+        return uuid.UUID("fa480c2d-2725-43bd-a7ba-6fc60a89a1cb")
 
 
 async def get_optional_tenant_id(
     payload: dict = Depends(get_optional_token_payload)
 ) -> uuid.UUID:
-    tenant_id_str = payload.get("tenant_id", "547aa7bb-a790-4fe2-bd5b-27214ed176c8") if payload else "547aa7bb-a790-4fe2-bd5b-27214ed176c8"
+    tenant_id_str = payload.get("tenant_id", "fa480c2d-2725-43bd-a7ba-6fc60a89a1cb") if payload else "fa480c2d-2725-43bd-a7ba-6fc60a89a1cb"
     try:
         return uuid.UUID(tenant_id_str)
     except (ValueError, TypeError):
-        return uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8")
+        return uuid.UUID("fa480c2d-2725-43bd-a7ba-6fc60a89a1cb")
 
 
 async def get_optional_current_user(

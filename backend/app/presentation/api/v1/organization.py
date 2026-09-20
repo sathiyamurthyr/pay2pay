@@ -54,11 +54,13 @@ async def list_regional_managers(
     status: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    tenant_id: uuid.UUID = Depends(get_current_tenant_id),
+    tenant_id: Optional[uuid.UUID] = Query(None),
+    default_tenant_id: uuid.UUID = Depends(get_current_tenant_id),
     current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    rms, total = await OrganizationManagementService.list_rms(db, tenant_id, search=search, status=status, page=page, page_size=page_size)
+    target_tenant_id = tenant_id or default_tenant_id
+    rms, total = await OrganizationManagementService.list_rms(db, target_tenant_id, search=search, status=status, page=page, page_size=page_size)
     items = [
         {
             "public_id": str(r.public_id),
@@ -121,11 +123,13 @@ async def list_super_distributors(
     status: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    tenant_id: uuid.UUID = Depends(get_current_tenant_id),
+    tenant_id: Optional[uuid.UUID] = Query(None),
+    default_tenant_id: uuid.UUID = Depends(get_current_tenant_id),
     current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    sds, total = await OrganizationManagementService.list_super_distributors(db, tenant_id, search=search, status=status, page=page, page_size=page_size)
+    target_tenant_id = tenant_id or default_tenant_id
+    sds, total = await OrganizationManagementService.list_super_distributors(db, target_tenant_id, search=search, status=status, page=page, page_size=page_size)
     items = [
         {
             "public_id": str(s.public_id),
@@ -188,11 +192,13 @@ async def list_distributors(
     status: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    tenant_id: uuid.UUID = Depends(get_current_tenant_id),
+    tenant_id: Optional[uuid.UUID] = Query(None),
+    default_tenant_id: uuid.UUID = Depends(get_current_tenant_id),
     current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    dists, total = await OrganizationManagementService.list_distributors(db, tenant_id, search=search, status=status, page=page, page_size=page_size)
+    target_tenant_id = tenant_id or default_tenant_id
+    dists, total = await OrganizationManagementService.list_distributors(db, target_tenant_id, search=search, status=status, page=page, page_size=page_size)
     items = [
         {
             "public_id": str(dt.public_id),
@@ -243,76 +249,12 @@ async def list_transfers(
         for t in transfers
     ]
 
-    # Sample data fallback for development when database is empty
-    if total == 0:
-        import datetime
-        sample_uuid_prefix = "00000000-0000-0000-0000-"
-        items = [
-            {
-                "public_id": f"{sample_uuid_prefix}000000000001",
-                "entity_type": "SUPER_DISTRIBUTOR",
-                "entity_id": f"{sample_uuid_prefix}000000000010",
-                "old_parent_type": "REGIONAL_MANAGER",
-                "old_parent_id": f"{sample_uuid_prefix}000000000020",
-                "new_parent_type": "REGIONAL_MANAGER",
-                "new_parent_id": f"{sample_uuid_prefix}000000000021",
-                "effective_date": "2025-01-15T00:00:00",
-                "reason": "Territory realignment — Chennai zone expansion",
-                "status": "APPROVED",
-                "approved_by": "admin@pay2pay.com",
-                "created_date": "2025-01-10T09:00:00",
-            },
-            {
-                "public_id": f"{sample_uuid_prefix}000000000002",
-                "entity_type": "DISTRIBUTOR",
-                "entity_id": f"{sample_uuid_prefix}000000000030",
-                "old_parent_type": "SUPER_DISTRIBUTOR",
-                "old_parent_id": f"{sample_uuid_prefix}000000000010",
-                "new_parent_type": "SUPER_DISTRIBUTOR",
-                "new_parent_id": f"{sample_uuid_prefix}000000000011",
-                "effective_date": "2025-03-01T00:00:00",
-                "reason": "Business transfer due to SD merger in Tamil Nadu",
-                "status": "PENDING_APPROVAL",
-                "approved_by": None,
-                "created_date": "2025-02-25T11:30:00",
-            },
-            {
-                "public_id": f"{sample_uuid_prefix}000000000003",
-                "entity_type": "SUPER_DISTRIBUTOR",
-                "entity_id": f"{sample_uuid_prefix}000000000012",
-                "old_parent_type": "REGIONAL_MANAGER",
-                "old_parent_id": f"{sample_uuid_prefix}000000000022",
-                "new_parent_type": "REGIONAL_MANAGER",
-                "new_parent_id": f"{sample_uuid_prefix}000000000023",
-                "effective_date": "2025-04-10T00:00:00",
-                "reason": "RM retirement — handover to new Bangalore region manager",
-                "status": "APPROVED",
-                "approved_by": "admin@pay2pay.com",
-                "created_date": "2025-04-01T08:00:00",
-            },
-            {
-                "public_id": f"{sample_uuid_prefix}000000000004",
-                "entity_type": "DISTRIBUTOR",
-                "entity_id": f"{sample_uuid_prefix}000000000031",
-                "old_parent_type": "SUPER_DISTRIBUTOR",
-                "old_parent_id": f"{sample_uuid_prefix}000000000011",
-                "new_parent_type": "SUPER_DISTRIBUTOR",
-                "new_parent_id": f"{sample_uuid_prefix}000000000012",
-                "effective_date": "2025-06-01T00:00:00",
-                "reason": "Geographic zone rebalancing for South India corridor",
-                "status": "PENDING_APPROVAL",
-                "approved_by": None,
-                "created_date": "2025-05-28T14:15:00",
-            },
-        ]
-        total = len(items)
-
     return PaginatedResponse(
         items=items,
         total=total,
         page=page,
         page_size=page_size,
-        total_pages=(total + page_size - 1) // page_size
+        total_pages=(total + page_size - 1) // page_size if total > 0 else 0
     )
 
 
@@ -376,11 +318,13 @@ async def approve_transfer(
 
 @router.get("/tree", response_model=List[OrganizationTreeNode])
 async def get_organization_tree(
-    tenant_id: uuid.UUID = Depends(get_current_tenant_id),
+    tenant_id: Optional[uuid.UUID] = Query(None),
+    default_tenant_id: uuid.UUID = Depends(get_current_tenant_id),
     current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    return await OrganizationManagementService.get_organization_tree(db, tenant_id)
+    target_tenant_id = tenant_id or default_tenant_id
+    return await OrganizationManagementService.get_organization_tree(db, target_tenant_id, current_user)
 
 
 @router.get("/dashboard/metrics", response_model=OrganizationDashboardMetricsResponse)

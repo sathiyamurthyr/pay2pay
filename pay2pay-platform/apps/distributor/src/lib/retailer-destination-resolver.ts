@@ -136,10 +136,10 @@ export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Pr
             : normalizedDest === "ONBOARDING"
             ? "/register"
             : normalizedDest === "ACCOUNT_RESTRICTED"
-            ? "/retailer/account-restricted"
+            ? "/account-restricted"
             : normalizedDest === "ACCOUNT_UNDER_REVIEW"
-            ? "/retailer/account-under-review"
-            : "/retailer/dashboard";
+            ? "/account-under-review"
+            : "/dashboard";
 
         const resolved: AuthoritativeAccountStatus = {
           retailer_id: d.retailer_id || null,
@@ -215,7 +215,7 @@ export async function verifyAndRoutePostLogin(
 
   // 1. Synchronously persist credentials & role
   if (typeof window !== "undefined") {
-    const role = "RETAILER";
+    const role = "DISTRIBUTOR";
     const validToken =
       options?.token ||
       localStorage.getItem("pay2pay_access_token") ||
@@ -250,7 +250,7 @@ export async function verifyAndRoutePostLogin(
   try {
     const status = await fetchAuthoritativeRetailerStatus(true);
     const redirectTarget = (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("redirect") : null);
-    const targetDashboard = redirectTarget || "/retailer/dashboard";
+    const targetDashboard = redirectTarget || "/dashboard";
 
     if (status) {
       const isApproved = status.is_approved === true || status.approval_status === "APPROVED" || status.account_status === "ACTIVE";
@@ -275,14 +275,14 @@ export async function verifyAndRoutePostLogin(
       }
 
       if (status.destination === "ACCOUNT_RESTRICTED") {
-        const dest = status.redirect_url || "/retailer/account-restricted";
+        const dest = status.redirect_url || "/account-restricted";
         if (typeof window !== "undefined") window.location.href = dest;
         else router.replace(dest);
         return { success: true, destination: "ACCOUNT_RESTRICTED" };
       }
 
       if (status.destination === "ACCOUNT_UNDER_REVIEW" || !isApproved) {
-        const dest = status.redirect_url || "/retailer/account-under-review";
+        const dest = status.redirect_url || "/account-under-review";
         if (typeof window !== "undefined") window.location.href = dest;
         else router.replace(dest);
         return { success: true, destination: "ACCOUNT_UNDER_REVIEW" };
@@ -297,7 +297,7 @@ export async function verifyAndRoutePostLogin(
     }
     return { success: true, destination: "DASHBOARD" };
   } catch (err) {
-    const targetDashboard = "/retailer/account-under-review";
+    const targetDashboard = "/account-under-review";
     if (typeof window !== "undefined") {
       window.location.href = targetDashboard;
     } else {
@@ -329,26 +329,26 @@ export function enforceAuthoritativeRouting(
         return true;
       }
     } else if (status.destination === "ACCOUNT_RESTRICTED") {
-      if (currentPathname !== "/retailer/account-restricted" && currentPathname !== "/account-restricted") {
+      if (currentPathname !== "/account-restricted") {
         isRedirecting = true;
-        router.replace("/retailer/account-restricted");
+        router.replace("/account-restricted");
         setTimeout(() => { isRedirecting = false; }, 500);
         return true;
       }
     } else {
       // Pending Admin Approval / Under Review
-      if (currentPathname !== "/retailer/account-under-review" && currentPathname !== "/account-under-review") {
+      if (currentPathname !== "/account-under-review") {
         isRedirecting = true;
-        router.replace("/retailer/account-under-review");
+        router.replace("/account-under-review");
         setTimeout(() => { isRedirecting = false; }, 500);
         return true;
       }
     }
   } else {
-    // Approved retailer on under-review page should be routed to dashboard
-    if (currentPathname === "/retailer/account-under-review" || currentPathname === "/account-under-review") {
+    // Approved distributor on under-review page should be routed to dashboard
+    if (currentPathname === "/account-under-review") {
       isRedirecting = true;
-      router.replace("/retailer/dashboard");
+      router.replace("/dashboard");
       setTimeout(() => { isRedirecting = false; }, 500);
       return true;
     }
