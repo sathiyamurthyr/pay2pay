@@ -144,6 +144,19 @@ class HierarchyMappingService:
         }
 
     @classmethod
+    async def resolve_default_company(
+        cls,
+        db: AsyncSession,
+        company_id: Optional[uuid.UUID] = None
+    ) -> Optional[CompanyModel]:
+        """
+        Convenience method to resolve the active CompanyModel.
+        """
+        hierarchy = await cls.resolve_default_hierarchy(db, company_id=company_id)
+        return hierarchy.get("company")
+
+
+    @classmethod
     async def apply_default_retailer_hierarchy(
         cls,
         db: AsyncSession,
