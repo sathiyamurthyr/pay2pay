@@ -36,7 +36,8 @@ class TopupRequestModel(BaseEntity, EnterpriseBaseMixin):
 
     # Core Identifiers
     topup_request_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
-    retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("retailer.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    retailer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("retailer.public_id", ondelete="CASCADE"), nullable=True, index=True)
+    distributor_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
     wallet_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
 
     # Standardized Multi-Tenant User Ownership References
@@ -46,6 +47,8 @@ class TopupRequestModel(BaseEntity, EnterpriseBaseMixin):
     user_type_ref_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=2, index=True)
     retailer_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     retailer_wallet_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    distributor_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    dist_wallet_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
 
     # Financial Amounts & POS MDR Snapshot
     requested_amount: Mapped[float] = mapped_column(Numeric(18, 2), nullable=False)

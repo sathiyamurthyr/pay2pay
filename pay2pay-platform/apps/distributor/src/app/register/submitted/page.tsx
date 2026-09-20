@@ -19,7 +19,7 @@ export default function RegisterSubmittedPage() {
           Application Submitted Successfully!
         </h2>
         <p className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-400 mt-1">
-          Your retailer registration application has been created & submitted to Admin Review.
+          Your distributor registration application has been created & submitted to Admin Review.
         </p>
       </div>
 

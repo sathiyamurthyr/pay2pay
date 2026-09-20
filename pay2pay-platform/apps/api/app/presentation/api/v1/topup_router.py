@@ -2203,6 +2203,104 @@ async def approve_topup_request(
     admin_id = str(raw_admin_id).strip()
     now_utc = datetime.now(timezone.utc)
 
+    # 4a. Distributor Top-Up Approval (Isolated additive branch)
+    if topup_record.distributor_ref_id is not None and topup_record.retailer_id is None:
+        from app.infrastructure.db.distributor_models import DistWalletModel
+        from decimal import Decimal
+
+        dist_w_stmt = select(DistWalletModel).where(
+            DistWalletModel.distributor_ref_id == topup_record.distributor_ref_id
+        ).with_for_update()
+        dist_w_res = await db.execute(dist_w_stmt)
+        dist_wallet = dist_w_res.scalars().first()
+
+        if not dist_wallet:
+            dist_wallet = DistWalletModel(
+                distributor_ref_id=topup_record.distributor_ref_id,
+                tenant_id=topup_record.tenant_id,
+                company_id=topup_record.company_id,
+                balance=Decimal("0.00"),
+                currency="INR",
+                status="ACTIVE",
+                is_active=True
+            )
+            db.add(dist_wallet)
+            await db.flush()
+
+        prev_bal = float(dist_wallet.balance)
+        new_bal = float(Decimal(str(prev_bal)) + Decimal(str(final_approved_amount)))
+        dist_wallet.balance = Decimal(str(new_bal))
+
+        now_date_str = now_utc.strftime("%Y%m%d")
+        txn_ref = f"TOP-DIST-{now_date_str}-{uuid.uuid4().hex[:6].upper()}"
+
+        try:
+            from sqlalchemy import text
+            await db.execute(text("""
+                INSERT INTO public.transactions (
+                    public_id, tenant_id, company_id,
+                    user_ref_id, user_type_ref_id, user_type, distributor_ref_id,
+                    txn_id, ref_id, service_name, entry_type,
+                    amount, balance_before, balance_after,
+                    wallet_type, status, narration,
+                    partition_year, partition_month, partition_day,
+                    is_active, is_deleted, created_at, updated_at
+                ) VALUES (
+                    :public_id, :tenant_id, :company_id,
+                    :user_ref_id, 3, 'DISTRIBUTOR', :dist_ref_id,
+                    :txn_id, :ref_id, 'TOPUP', 'CREDIT',
+                    :amount, :bal_before, :bal_after,
+                    'MAIN', 'SUCCESS', :narration,
+                    :pyear, :pmonth, :pday,
+                    true, false, :now, :now
+                )
+            """), {
+                "public_id": uuid.uuid4(),
+                "tenant_id": topup_record.tenant_id,
+                "company_id": topup_record.company_id,
+                "user_ref_id": topup_record.distributor_ref_id,
+                "dist_ref_id": topup_record.distributor_ref_id,
+                "txn_id": txn_ref,
+                "ref_id": topup_record.payment_reference or txn_ref,
+                "amount": final_approved_amount,
+                "bal_before": prev_bal,
+                "bal_after": new_bal,
+                "narration": f"Distributor Topup Approved by Admin ({admin_email}) for Req {topup_record.topup_request_id} [UTR: {topup_record.payment_reference or 'N/A'}]",
+                "pyear": now_utc.year,
+                "pmonth": now_utc.month,
+                "pday": now_utc.day,
+                "now": now_utc
+            })
+        except Exception as t_err:
+            logger.warning(f"Could not record central transaction for distributor topup: {t_err}")
+
+        topup_record.status = "APPROVED"
+        topup_record.approved_amount = final_approved_amount
+        topup_record.received_amount = final_approved_amount
+        topup_record.approved_by = admin_email
+        topup_record.approved_at = now_utc
+        topup_record.transaction_reference = txn_ref
+        topup_record.admin_notes = req.admin_notes
+        topup_record.updated_date = now_utc
+
+        await db.commit()
+
+        return {
+            "success": True,
+            "message": f"Distributor topup request {topup_record.topup_request_id} successfully approved. ₹{final_approved_amount:,.2f} credited to distributor wallet.",
+            "data": {
+                "topup_request_id": topup_record.topup_request_id,
+                "distributor_ref_id": topup_record.distributor_ref_id,
+                "transaction_reference": txn_ref,
+                "approved_amount": final_approved_amount,
+                "previous_balance": prev_bal,
+                "current_balance": new_bal,
+                "status": "APPROVED",
+                "approved_by": admin_email,
+                "approved_at": now_utc.isoformat()
+            }
+        }
+
     # 4. Attempt Direct Atomic Execution via Stored Procedure: public.sp_approve_pos_topup_request
     try:
         sp_query = text("SELECT public.sp_approve_pos_topup_request(:topup_id, :amount, :email, :notes);")

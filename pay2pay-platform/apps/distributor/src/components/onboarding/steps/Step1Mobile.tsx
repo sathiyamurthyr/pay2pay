@@ -36,7 +36,11 @@ export const Step1Mobile: React.FC<Step1Props> = ({ onSuccess }) => {
       const valRes = await fetch("/api/v1/onboarding/validate-mobile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mobile_number: clean })
+        body: JSON.stringify({
+          mobile_number: clean,
+          user_type: "DISTRIBUTOR",
+          portal_role: "DISTRIBUTOR"
+        })
       });
       const valData = await valRes.json();
 
@@ -84,7 +88,12 @@ export const Step1Mobile: React.FC<Step1Props> = ({ onSuccess }) => {
       const sendRes = await fetch("/api/v1/onboarding/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mobile_number: cleanMobile, validation_token: token })
+        body: JSON.stringify({
+          mobile_number: cleanMobile,
+          validation_token: token,
+          user_type: "DISTRIBUTOR",
+          portal_role: "DISTRIBUTOR"
+        })
       });
       const sendData = await sendRes.json();
       setLoading(false);
@@ -113,12 +122,12 @@ export const Step1Mobile: React.FC<Step1Props> = ({ onSuccess }) => {
             Mobile number already registered.
           </h2>
           <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto">
-            Your registration is already completed. Please login to continue accessing your retailer portal.
+            Your distributor registration is already completed. Please login to continue accessing your distributor portal.
           </p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/30 text-left space-y-1">
-          <p className="text-xs font-extrabold text-blue-600 dark:text-blue-400">
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-left space-y-1">
+          <p className="text-xs font-extrabold text-amber-600 dark:text-amber-400">
             Registered Mobile: +91 {mobileNumber}
           </p>
           <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
@@ -129,10 +138,10 @@ export const Step1Mobile: React.FC<Step1Props> = ({ onSuccess }) => {
         <button
           type="button"
           onClick={() => router.push("/login")}
-          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 cursor-pointer"
+          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 text-sm font-extrabold shadow-lg shadow-amber-500/25 hover:brightness-110 transition-all flex items-center justify-center gap-2 cursor-pointer"
         >
           <LogIn className="w-4 h-4" />
-          <span>Go to Login</span>
+          <span>Go to Distributor Login</span>
         </button>
 
         <p className="text-xs font-bold text-slate-500">
@@ -140,7 +149,7 @@ export const Step1Mobile: React.FC<Step1Props> = ({ onSuccess }) => {
           <button
             type="button"
             onClick={() => router.push("/login")}
-            className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+            className="text-amber-500 hover:underline cursor-pointer"
           >
             Login here
           </button>
@@ -162,7 +171,7 @@ export const Step1Mobile: React.FC<Step1Props> = ({ onSuccess }) => {
             Registration Already Started.
           </h2>
           <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto">
-            Your registration is incomplete. Verify your mobile to continue from step {incompleteState.currentStep}.
+            Your distributor registration is incomplete. Verify your mobile to continue from step {incompleteState.currentStep}.
           </p>
         </div>
 
@@ -173,7 +182,7 @@ export const Step1Mobile: React.FC<Step1Props> = ({ onSuccess }) => {
           </div>
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Current Progress:</span>
-            <span className="text-xs font-black text-blue-600 dark:text-blue-400">Step {incompleteState.currentStep}</span>
+            <span className="text-xs font-black text-amber-500">Step {incompleteState.currentStep}</span>
           </div>
         </div>
 
@@ -181,7 +190,7 @@ export const Step1Mobile: React.FC<Step1Props> = ({ onSuccess }) => {
           type="button"
           disabled={loading}
           onClick={() => triggerSendOtp(mobileNumber.replace(/\D/g, ""), incompleteState.token, true, incompleteState.currentStep)}
-          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 text-sm font-extrabold shadow-lg shadow-amber-500/25 hover:brightness-110 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
         >
           {loading ? (
             <>
@@ -203,7 +212,7 @@ export const Step1Mobile: React.FC<Step1Props> = ({ onSuccess }) => {
     <div className="space-y-5 select-none">
       <div className="text-center">
         <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-          Create Your Retailer Account
+          Create Your Distributor Account
         </h2>
         <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
           Let's start with your 10-digit mobile number.

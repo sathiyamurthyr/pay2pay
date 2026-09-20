@@ -101,6 +101,8 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Settings,
   CheckSquare,
   RefreshCw,
+  Network,
+  Building2,
 };
 
 // ─── ADMIN PORTAL MENU STRUCTURE (Strict Governance & Administration - Section 20) ───
@@ -109,6 +111,13 @@ const ADMIN_NAV: NavCategory[] = [
     category: "Dashboard",
     items: [
       { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    ],
+  },
+  {
+    category: "Organization",
+    items: [
+      { label: "Organization Mapping", href: "/admin/mapping", icon: Network, badge: "Master" },
+      { label: "Company Hierarchy", href: "/organization", icon: Building2 },
     ],
   },
   {
