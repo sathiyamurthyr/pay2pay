@@ -217,14 +217,14 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       ? "/register"
       : normalizedRole === "SD"
       ? "/sd/onboarding"
-      : "/dist/onboarding";
+      : "/register";
 
   const portalDashboardUrl =
     normalizedRole === "RETAILER"
       ? "/retailer/dashboard"
       : normalizedRole === "SD"
       ? "/sd/dashboard"
-      : "/dist/dashboard";
+      : "/dashboard";
 
   const [selectedLanguage, setSelectedLanguage] = useState<LanguageKey>("English");
   const t = TRANSLATIONS[selectedLanguage] || TRANSLATIONS.English;
@@ -415,18 +415,18 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     }
 
     // 3. Strict Authoritative Routing Rule:
-    let target = "/retailer/dashboard";
+    let target = portalDashboardUrl || "/dashboard";
     if (destination === "APPLICATION_REJECTED") {
       target = "/application-rejected";
       setSuccessMsg("✓ Application Rejected.");
     } else if (destination === "ONBOARDING") {
-      target = customRedirect || "/register";
+      target = customRedirect || portalRegisterUrl || "/register";
       setSuccessMsg("✓ Redirecting to registration...");
     } else if (isBothTrue) {
-      target = "/retailer/dashboard";
+      target = portalDashboardUrl || "/dashboard";
       setSuccessMsg("✓ Authentication Successful! Redirecting to dashboard...");
     } else {
-      target = "/retailer/account-under-review";
+      target = "/account-under-review";
       setSuccessMsg(statusMessage || "✓ Authentication successful. Redirecting to verification status...");
     }
 
@@ -482,7 +482,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         const approveStatus = data.approve_status !== undefined ? data.approve_status : data.data?.approve_status;
         const activeStatus = data.active_status !== undefined ? data.active_status : data.data?.active_status;
         const destination = data.data?.destination || (approveStatus && activeStatus ? "DASHBOARD" : "ACCOUNT_UNDER_REVIEW");
-        const redirectUrl = data.data?.redirect_url || (destination === "DASHBOARD" ? "/retailer/dashboard" : "/retailer/account-under-review");
+        const redirectUrl = data.data?.redirect_url || (destination === "DASHBOARD" ? portalDashboardUrl : "/account-under-review");
         await handleAuthSuccessRedirect(
           data.data?.access_token,
           data.data?.user,
@@ -571,7 +571,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         const activeStatus = data.active_status !== undefined ? data.active_status : data.data?.active_status;
         const destination = data.data?.destination || (approveStatus && activeStatus ? "DASHBOARD" : "ACCOUNT_UNDER_REVIEW");
         const isNewOnboarding = flow === "NEW_ONBOARDING" || flow === "RESUME_ONBOARDING" || destination === "ONBOARDING";
-        const redirectUrl = data.data?.redirect_url || (destination === "APPLICATION_REJECTED" ? "/application-rejected" : isNewOnboarding ? "/register" : approveStatus && activeStatus ? "/retailer/dashboard" : "/retailer/account-under-review");
+        const redirectUrl = data.data?.redirect_url || (destination === "APPLICATION_REJECTED" ? "/application-rejected" : isNewOnboarding ? portalRegisterUrl || "/register" : approveStatus && activeStatus ? portalDashboardUrl : "/account-under-review");
 
         if (isNewOnboarding) {
           setSuccessMsg("✓ Mobile verified successfully. Taking you to onboarding...");

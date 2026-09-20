@@ -40,7 +40,7 @@ export const Step6AGst: React.FC<Step6AProps> = ({ registrationId, onSuccess }) 
       }
     } catch {
       setLoading(false);
-      onSuccess({ gst_number: clean, trade_name: "Pay2Pay Enterprise Retailer" });
+      onSuccess({ gst_number: clean, trade_name: "Pay2Pay Enterprise Distributor" });
     }
   };
 

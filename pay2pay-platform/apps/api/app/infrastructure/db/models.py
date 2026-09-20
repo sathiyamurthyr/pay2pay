@@ -14,6 +14,7 @@ from app.domain.entities.base import BaseEntity, EnterpriseBaseMixin, Base
 class TenantModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "tenant"
 
+    tenant_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(30), default="ACTIVE", nullable=False)
@@ -35,6 +36,8 @@ class CompanyModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "company"
 
     # Core Identifiers & Names
+    company_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    tenant_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenant.public_id", ondelete="CASCADE"), nullable=False, index=True)
     company_code: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     company_name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -417,6 +420,9 @@ class RegionalManagerModel(BaseEntity, EnterpriseBaseMixin):
 class SuperDistributorModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "super_distributor"
 
+    super_distributor_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    tenant_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    company_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     super_distributor_code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
     business_name: Mapped[str] = mapped_column(String(255), nullable=False)
     owner_name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -444,6 +450,10 @@ class SuperDistributorModel(BaseEntity, EnterpriseBaseMixin):
 class DistributorModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "distributor"
 
+    distributor_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, server_default=FetchedValue(), nullable=True, index=True)
+    super_distributor_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    company_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    tenant_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     distributor_code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
     business_name: Mapped[str] = mapped_column(String(255), nullable=False)
     owner_name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -537,6 +547,7 @@ class RetailerModel(BaseEntity, EnterpriseBaseMixin):
     tenant_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     company_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     distributor_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    super_distributor_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     regional_manager_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
 
     retailer_code: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
@@ -548,6 +559,7 @@ class RetailerModel(BaseEntity, EnterpriseBaseMixin):
     website: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     status: Mapped[str] = mapped_column(String(30), default="PENDING_APPROVAL", nullable=False, index=True)  # DRAFT, PENDING_KYC, PENDING_APPROVAL, ACTIVE, SUSPENDED, BLOCKED, CLOSED
     mapped_distributor_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("distributor.public_id", ondelete="SET NULL"), nullable=True, index=True)
+    mapped_super_distributor_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("super_distributor.public_id", ondelete="SET NULL"), nullable=True, index=True)
     rm_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("regional_manager.public_id", ondelete="SET NULL"), nullable=True, index=True)
 
     # MPIN Security & Lockout Management

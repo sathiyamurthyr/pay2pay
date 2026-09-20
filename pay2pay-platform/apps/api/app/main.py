@@ -17,6 +17,7 @@ import app.infrastructure.db.enterprise_payout_models as _enterprise_payout_mode
 import app.infrastructure.db.swipe_settlement_models as _swipe_settlement_models
 import app.infrastructure.db.registration_models  # Registration Draft & KYC tables for progressive onboarding
 import app.infrastructure.db.session_security_models  # Session security & PIN authentication tables
+import app.infrastructure.db.upi_vendor_models  # UPI Vendor Configuration & Audit models
 from app.presentation.api.v1 import beneficiary_verification
 from app.presentation.api.v1 import enterprise_payout_execution_router
 from app.presentation.api.v1 import payout_report_router
@@ -296,6 +297,27 @@ app.include_router(pos_mdr_router.router, prefix=f"{settings.API_V1_STR}/api/v1"
 app.include_router(pos_mdr_router.router, prefix="/api")
 app.include_router(pos_mdr_router.router, prefix="")
 
+from app.presentation.api.v1 import upi_vendor_router
+app.include_router(upi_vendor_router.admin_router, prefix=settings.API_V1_STR)
+app.include_router(upi_vendor_router.admin_router, prefix="/v1")
+app.include_router(upi_vendor_router.admin_router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(upi_vendor_router.admin_router, prefix="/api")
+app.include_router(upi_vendor_router.admin_router, prefix="")
+
+app.include_router(upi_vendor_router.retailer_router, prefix=settings.API_V1_STR)
+app.include_router(upi_vendor_router.retailer_router, prefix="/v1")
+app.include_router(upi_vendor_router.retailer_router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(upi_vendor_router.retailer_router, prefix="/api")
+app.include_router(upi_vendor_router.retailer_router, prefix="")
+
+from app.presentation.api.v1 import reconciliation_router
+app.include_router(reconciliation_router.router, prefix=settings.API_V1_STR)
+app.include_router(reconciliation_router.router, prefix="/v1")
+app.include_router(reconciliation_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(reconciliation_router.router, prefix="/api")
+app.include_router(reconciliation_router.router, prefix="")
+
+
 from app.presentation.api.v1 import wallet_adjustment_router
 app.include_router(wallet_adjustment_router.router, prefix=settings.API_V1_STR)
 app.include_router(wallet_adjustment_router.router, prefix="/v1")
@@ -373,7 +395,6 @@ app.include_router(daily_statements.router, prefix=f"{settings.API_V1_STR}/api/v
 app.include_router(daily_statements.router, prefix="/api")
 app.include_router(daily_statements.router, prefix="")
 app.include_router(daily_statements.router, prefix=f"{settings.API_V1_STR}/admin")
-app.include_router(daily_statements.router, prefix="/admin")
 from app.presentation.api.v1 import reconciliation_router
 app.include_router(reconciliation_router.router, prefix=settings.API_V1_STR)
 app.include_router(reconciliation_router.router, prefix="/v1")
@@ -383,6 +404,20 @@ app.include_router(reconciliation_router.router, prefix="")
 app.include_router(reconciliation_router.router, prefix=f"{settings.API_V1_STR}/admin")
 app.include_router(reconciliation_router.router, prefix="/admin")
 
+import app.infrastructure.db.distributor_models as _distributor_models
+from app.presentation.api.v1 import distributor_router as _distributor_router
+app.include_router(_distributor_router.router, prefix=settings.API_V1_STR)
+app.include_router(_distributor_router.router, prefix="/v1")
+app.include_router(_distributor_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(_distributor_router.router, prefix="/api")
+app.include_router(_distributor_router.router, prefix="")
+
+from app.presentation.api.v1 import admin_org_mapping_router
+app.include_router(admin_org_mapping_router.router, prefix=settings.API_V1_STR)
+app.include_router(admin_org_mapping_router.router, prefix="/v1")
+app.include_router(admin_org_mapping_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(admin_org_mapping_router.router, prefix="/api")
+app.include_router(admin_org_mapping_router.router, prefix="")
 
 @app.get("/health", tags=["Health"])
 @app.get(f"{settings.API_V1_STR}/health", tags=["Health"])

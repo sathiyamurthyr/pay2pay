@@ -1,668 +1,399 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
-import React, { useEffect, useState, useCallback, Suspense } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import api from "@/lib/api";
-import { ResetPasswordModal } from "@/components/ui/reset-password-modal";
 import {
-  Store,
-  Building2,
   Users,
-  Plus,
+  UserCheck,
+  UserPlus,
   Search,
-  ChevronRight,
-  RefreshCw,
-  ShieldCheck,
-  Network,
-  CheckCircle2,
-  KeyRound,
   Filter,
-  AlignJustify,
-  Columns3,
-  Download,
-  ChevronDown,
-  Maximize2,
-  RefreshCcw,
+  RefreshCw,
+  ExternalLink,
+  CheckCircle2,
   Clock,
-  FileText,
-  Hash,
-  Tag,
-  MapPin,
-  Phone,
+  XCircle,
+  Copy,
+  Check,
+  AlertCircle,
+  Send,
+  X
 } from "lucide-react";
+import { DistributorAPI, MappedRetailerItem } from "@/services/distributor-api";
 
-type Tab = "retailers" | "distributors" | "super_distributors";
+export default function MappedRetailersPage() {
+  const [retailers, setRetailers] = useState<MappedRetailerItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [search, setSearch] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [refreshing, setRefreshing] = useState<boolean>(false);
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    ACTIVE: "bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]",
-    APPROVED: "bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]",
-    PENDING_APPROVAL: "bg-[#FEF9C3] text-[#854D0E] border-[#FDE68A]",
-    PENDING_KYC: "bg-[#FEF9C3] text-[#854D0E] border-[#FDE68A]",
-    SUSPENDED: "bg-[#FEE2E2] text-[#991B1B] border-[#FECACA]",
-    BLOCKED: "bg-[#FEE2E2] text-[#991B1B] border-[#FECACA]",
-    INACTIVE: "bg-[#F1F5F9] text-[#475569] border-[#E2E8F0]",
-  };
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold border ${
-        map[status] || map.INACTIVE
-      }`}
-    >
-      {status}
-    </span>
-  );
-}
+  // Invitation Modal State
+  const [inviteModalOpen, setInviteModalOpen] = useState<boolean>(false);
+  const [inviteMobile, setInviteMobile] = useState<string>("");
+  const [inviteName, setInviteName] = useState<string>("");
+  const [inviteEmail, setInviteEmail] = useState<string>("");
+  const [inviteSubmitting, setInviteSubmitting] = useState<boolean>(false);
+  const [inviteSuccessData, setInviteSuccessData] = useState<any | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState<boolean>(false);
 
-function OnboardingHubContent() {
-  const searchParams = useSearchParams();
-  const initialTab = searchParams.get("tab");
-
-  const [activeTab, setActiveTab] = useState<Tab>(
-    initialTab === "sd" ? "super_distributors" :
-    initialTab === "distributors" ? "distributors" : "retailers"
-  );
-
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
-  const [showExportDropdown, setShowExportDropdown] = useState(false);
-  const [density, setDensity] = useState<"compact" | "medium" | "spacious">("medium");
-
-  // Data
-  const [retailers, setRetailers] = useState<any[]>([]);
-  const [distributors, setDistributors] = useState<any[]>([]);
-  const [superDistributors, setSuperDistributors] = useState<any[]>([]);
-  const [resetTarget, setResetTarget] = useState<{ type: string; item: any } | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
-
-  useEffect(() => {
-    if (searchParams.get("onboarded") === "true") {
-      setShowSuccessBanner(true);
-      const timer = setTimeout(() => setShowSuccessBanner(false), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [searchParams]);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchRetailers = async () => {
     try {
-      const [retRes, distRes, sdRes] = await Promise.allSettled([
-        api.get("/api/v1/retailers", {
-          params: {
-            ...(search ? { search } : {}),
-            ...(statusFilter ? { status: statusFilter } : {}),
-          },
-        }),
-        api.get("/api/v1/organization/distributors"),
-        api.get("/api/v1/organization/super-distributors"),
-      ]);
-
-      if (retRes.status === "fulfilled") {
-        const d = retRes.value.data;
-        const items = Array.isArray(d) ? d : (d?.items || d?.retailers || d?.data || []);
-        setRetailers(items);
-      } else {
-        console.error("Failed to fetch retailers:", retRes.reason);
-      }
-
-      if (distRes.status === "fulfilled") {
-        const d = distRes.value.data;
-        const items = Array.isArray(d) ? d : (d?.items || d?.distributors || d?.data || []);
-        setDistributors(items);
-      } else {
-        console.error("Failed to fetch distributors:", distRes.reason);
-      }
-
-      if (sdRes.status === "fulfilled") {
-        const d = sdRes.value.data;
-        const items = Array.isArray(d) ? d : (d?.items || d?.super_distributors || d?.data || []);
-        setSuperDistributors(items);
-      } else {
-        console.error("Failed to fetch super distributors:", sdRes.reason);
-      }
-    } catch (err) {
-      console.error("Failed to fetch onboarding directory data", err);
+      setRefreshing(true);
+      const res = await DistributorAPI.getRetailers({
+        search: search || undefined,
+        status: statusFilter !== "ALL" ? statusFilter : undefined
+      });
+      setRetailers(res?.data || []);
+    } catch (err: any) {
+      console.error("Fetch retailers error:", err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, [search, statusFilter]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  const tabs = [
-    { id: "super_distributors" as Tab, label: "Super Distributors", icon: Building2, count: superDistributors.length, color: "#F59E0B", bg: "#FEF9C3" },
-    { id: "distributors" as Tab, label: "Distributors", icon: Users, count: distributors.length, color: "#3B82F6", bg: "#DBEAFE" },
-    { id: "retailers" as Tab, label: "Retailers", icon: Store, count: retailers.length, color: "#6C63FF", bg: "#EDE9FE" },
-  ];
-
-  const activeData =
-    activeTab === "retailers" ? retailers :
-    activeTab === "distributors" ? distributors :
-    superDistributors;
-
-  const filteredData = search
-    ? activeData.filter((item) =>
-        JSON.stringify(item).toLowerCase().includes(search.toLowerCase())
-      )
-    : activeData;
-
-  const handleExportCSV = () => {
-    if (!filteredData.length) return;
-    let headers: string[] = [];
-    let rows: string[][] = [];
-
-    if (activeTab === "retailers") {
-      headers = ["Retailer Code", "Store Name", "Legal Name", "Owner Name", "Category", "Status"];
-      rows = filteredData.map((item) => [
-        `"${item.retailer_code || ""}"`,
-        `"${item.store_name || ""}"`,
-        `"${item.legal_name || ""}"`,
-        `"${item.owner_name || ""}"`,
-        `"${item.business_category || ""}"`,
-        `"${item.status || ""}"`,
-      ]);
-    } else {
-      headers = ["Business Name", "Owner Name", "Mobile", "Email", "City", "State", "Status"];
-      rows = filteredData.map((item) => [
-        `"${item.business_name || ""}"`,
-        `"${item.owner_name || ""}"`,
-        `"${item.mobile || ""}"`,
-        `"${item.email || ""}"`,
-        `"${item.city || ""}"`,
-        `"${item.state || ""}"`,
-        `"${item.status || "ACTIVE"}"`,
-      ]);
-    }
-
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute(
-      "download",
-      `${activeTab}_directory_export_${new Date().toISOString().slice(0, 10)}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setShowExportDropdown(false);
   };
 
-  const addButtonConfig = {
-    super_distributors: {
-      label: "Onboard Super Distributor",
-      href: "/retailers/onboard-sd",
-      color: "bg-[#F59E0B] hover:bg-[#D97706]",
-    },
-    distributors: {
-      label: "Onboard Distributor",
-      href: "/retailers/onboard-distributor",
-      color: "bg-[#3B82F6] hover:bg-[#2563EB]",
-    },
-    retailers: {
-      label: "Onboard Retailer Outlet",
-      href: "/retailers/onboard",
-      color: "bg-[#6C63FF] hover:bg-[#5B52E5]",
-    },
-  }[activeTab];
+  useEffect(() => {
+    fetchRetailers();
+  }, [statusFilter]);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    fetchRetailers();
+  };
+
+  const handleInviteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteMobile || inviteMobile.trim().length < 10) {
+      setInviteError("Please enter a valid 10-digit mobile number.");
+      return;
+    }
+    try {
+      setInviteSubmitting(true);
+      setInviteError(null);
+      const res = await DistributorAPI.inviteRetailer({
+        retailer_mobile: inviteMobile.trim(),
+        retailer_name: inviteName.trim() || undefined,
+        retailer_email: inviteEmail.trim() || undefined
+      });
+      setInviteSuccessData(res?.data);
+    } catch (err: any) {
+      setInviteError(err?.response?.data?.detail || "Failed to create invitation. Please try again.");
+    } finally {
+      setInviteSubmitting(false);
+    }
+  };
+
+  const handleCopyLink = (link: string) => {
+    navigator.clipboard.writeText(link);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  const resetInviteModal = () => {
+    setInviteModalOpen(false);
+    setInviteMobile("");
+    setInviteName("");
+    setInviteEmail("");
+    setInviteSuccessData(null);
+    setInviteError(null);
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-6 animate-in fade-in duration-300">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/[0.06]">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#0F172A] tracking-tight flex items-center gap-3">
-            <ShieldCheck className="w-7 h-7 text-[#6C63FF]" /> Onboarding Hub
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 bg-clip-text text-transparent">
+            Mapped Retailers
           </h1>
-          <p className="mt-1 text-sm font-medium text-[#64748B]">
-            Multi-tier onboarding for Super Distributors, Distributors & Retailers with Backblaze B2 KYC verification
+          <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
+            Manage retailers assigned to your network, monitor live verification status, and configure MDR.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/organization"
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#E2E8F0] bg-white text-xs font-extrabold text-[#475569] hover:bg-[#F8FAFC] transition-all"
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={fetchRetailers}
+            disabled={refreshing}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] text-xs font-semibold text-slate-300 transition-colors"
           >
-            <Network className="w-4 h-4" /> View Org Topology
-          </Link>
-          <Link
-            href={addButtonConfig.href}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-extrabold text-white shadow-md transition-all cursor-pointer ${addButtonConfig.color}`}
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-amber-400" : ""}`} />
+            Refresh
+          </button>
+          <button
+            onClick={() => setInviteModalOpen(true)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 font-bold text-xs hover:brightness-110 shadow-md shadow-amber-500/20 transition-all"
           >
-            <Plus className="w-4 h-4" /> {addButtonConfig.label}
-          </Link>
+            <UserPlus className="w-4 h-4" />
+            Invite Retailer
+          </button>
         </div>
       </div>
 
-      {showSuccessBanner && (
-        <div className="flex items-center gap-3 rounded-xl border border-[#BBF7D0] bg-[#F0FDF4] p-4 text-xs font-bold text-[#166534] shadow-xs">
-          <CheckCircle2 className="w-5 h-5 text-[#16A34A] shrink-0" />
-          <span>Onboarding profile created successfully! Document uploads stored securely in Backblaze B2.</span>
-        </div>
-      )}
+      {/* Filters & Search Toolbar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 rounded-2xl bg-[#111827]/80 backdrop-blur-xl border border-white/[0.08]">
+        <form onSubmit={handleSearchSubmit} className="relative w-full sm:w-80">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search by name, code, or mobile..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/50 transition-colors"
+          />
+        </form>
 
-      {/* Hierarchy Banner */}
-      <div className="rounded-xl border border-[#E2E8F0] bg-gradient-to-r from-[#FAFBFF] to-[#EFF6FF] p-4 flex items-center gap-4 overflow-x-auto">
-        <Network className="w-5 h-5 text-[#2563EB] shrink-0" />
-        {["Company", "→ Regional Manager", "→ Super Distributor", "→ Distributor", "→ Retailer"].map((tier, i) => (
-          <span
-            key={i}
-            className={`text-xs font-extrabold whitespace-nowrap ${
-              i === 0
-                ? "text-[#1E40AF]"
-                : i === 2
-                ? "text-[#92400E]"
-                : i === 3
-                ? "text-[#0369A1]"
-                : i === 4
-                ? "text-[#6D28D9]"
-                : "text-[#475569]"
-            }`}
-          >
-            {tier}
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <span className="text-xs text-slate-400 flex items-center gap-1">
+            <Filter className="w-3.5 h-3.5" />
+            Status:
           </span>
-        ))}
-      </div>
-
-      {/* KPI / Tab Selector */}
-      <div className="grid grid-cols-3 gap-4">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`rounded-xl border-2 p-5 text-left transition-all cursor-pointer ${
-                isActive
-                  ? "border-[#2563EB] bg-white shadow-md"
-                  : "border-[#E2E8F0] bg-white hover:border-[#BFDBFE] hover:bg-[#F8FAFF]"
-              }`}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: tab.bg }}>
-                  <Icon style={{ color: tab.color, width: 20, height: 20 }} />
-                </div>
-                {isActive && <div className="w-3 h-3 rounded-full bg-[#2563EB]" />}
-              </div>
-              <div className="font-mono text-[28px] font-extrabold text-[#0F172A] tabular-nums">{tab.count}</div>
-              <p className="text-[11px] font-semibold text-[#64748B] uppercase tracking-wider mt-1">{tab.label}</p>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ── DataGrid Toolbar ── */}
-      <div className="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-xl border border-[#E2E8F0] shadow-xs">
-        {/* Left Group */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94A3B8]" />
-            <input
-              type="text"
-              placeholder={`Search ${tabs.find((t) => t.id === activeTab)?.label}…`}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 pr-3 py-1.5 w-52 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[12px] font-medium text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#6C63FF] focus:ring-2 focus:ring-[#6C63FF]/15 transition-all"
-            />
-          </div>
-
-          {/* Divider */}
-          <div className="h-6 w-px bg-[#E2E8F0] mx-0.5" />
-
-          {/* Filter button */}
-          <div className="relative">
-            <button
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E2E8F0] bg-white text-[12px] font-semibold text-[#374151] hover:bg-[#F8FAFC] hover:border-[#6C63FF] transition cursor-pointer"
-              onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-            >
-              <Filter className="w-3.5 h-3.5 text-[#6C63FF]" />
-              <span>Filter</span>
-              {statusFilter !== "" && (
-                <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-[#6C63FF] text-white text-[9px] font-extrabold">
-                  1
-                </span>
-              )}
-            </button>
-            {/* Inline status filter flyout */}
-            {showFilterDropdown && (
-              <div className="absolute top-9 left-0 z-30 bg-white border border-[#E2E8F0] rounded-xl shadow-xl p-1.5 min-w-[170px]">
-                <div className="text-[10px] font-extrabold text-[#94A3B8] uppercase px-2 py-1">Filter Status</div>
-                {[
-                  { id: "", label: "All Statuses" },
-                  { id: "ACTIVE", label: "Active" },
-                  { id: "PENDING_APPROVAL", label: "Pending Approval" },
-                  { id: "SUSPENDED", label: "Suspended" },
-                ].map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => {
-                      setStatusFilter(s.id);
-                      setShowFilterDropdown(false);
-                    }}
-                    className={`w-full text-left px-3 py-1.5 text-[11px] font-bold rounded-lg transition cursor-pointer ${
-                      statusFilter === s.id
-                        ? "bg-[#6C63FF]/10 text-[#6C63FF]"
-                        : "text-[#374151] hover:bg-[#F8FAFC]"
-                    }`}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Density toggle */}
-          <button
-            onClick={() => setDensity((d) => (d === "compact" ? "medium" : d === "medium" ? "spacious" : "compact"))}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E2E8F0] bg-white text-[12px] font-semibold text-[#374151] hover:bg-[#F8FAFC] transition cursor-pointer"
-            title="Toggle Row Density"
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs text-slate-200 focus:outline-none focus:border-amber-500/50"
           >
-            <AlignJustify className="w-3.5 h-3.5 text-[#6C63FF]" />
-            <span className="capitalize">{density}</span>
-          </button>
-
-          {/* Columns */}
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E2E8F0] bg-white text-[12px] font-semibold text-[#374151] hover:bg-[#F8FAFC] transition cursor-pointer">
-            <Columns3 className="w-3.5 h-3.5 text-[#6C63FF]" />
-            <span>Columns</span>
-          </button>
-
-          {/* Export */}
-          <div className="relative">
-            <button
-              onClick={() => setShowExportDropdown(!showExportDropdown)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E2E8F0] bg-white text-[12px] font-semibold text-[#374151] hover:bg-[#F8FAFC] transition cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5 text-[#6C63FF]" />
-              <span>Export</span>
-              <ChevronDown className="w-3 h-3 text-[#94A3B8]" />
-            </button>
-            {showExportDropdown && (
-              <div className="absolute top-9 left-0 z-30 bg-white border border-[#E2E8F0] rounded-xl shadow-xl p-1.5 min-w-[150px]">
-                <button
-                  onClick={handleExportCSV}
-                  className="w-full text-left px-3 py-1.5 text-[11px] font-bold text-[#374151] hover:bg-[#F8FAFC] rounded-lg transition cursor-pointer flex items-center gap-2"
-                >
-                  <FileText className="w-3.5 h-3.5 text-[#16A34A]" /> Export as CSV
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Divider */}
-          <div className="h-6 w-px bg-[#E2E8F0] mx-0.5" />
-
-          {/* Refresh */}
-          <button
-            onClick={fetchData}
-            className="p-1.5 rounded-lg border border-[#E2E8F0] bg-white text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#6C63FF] transition cursor-pointer"
-            title="Refresh"
-          >
-            <RefreshCcw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-[#6C63FF]" : ""}`} />
-          </button>
-
-          {/* Expand / Fullscreen */}
-          <button
-            className="p-1.5 rounded-lg border border-[#E2E8F0] bg-white text-[#64748B] hover:bg-[#F8FAFC] transition cursor-pointer"
-            title="Fullscreen"
-          >
-            <Maximize2 className="w-3.5 h-3.5" />
-          </button>
+            <option value="ALL" className="bg-[#111827]">All Statuses</option>
+            <option value="ACTIVE" className="bg-[#111827]">Active</option>
+            <option value="PENDING" className="bg-[#111827]">Pending</option>
+            <option value="INACTIVE" className="bg-[#111827]">Inactive</option>
+          </select>
         </div>
-
-        {/* Right Group: record count */}
-        <span className="text-[12px] font-semibold text-[#64748B] whitespace-nowrap shrink-0">
-          {filteredData.length} record{filteredData.length !== 1 ? "s" : ""}
-        </span>
       </div>
 
-      {/* Data Grid */}
-      <div className="rounded-2xl border border-[#E2E8F0] bg-white shadow-sm overflow-hidden">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="bg-gradient-to-r from-[#F8FAFC] to-[#EEF2FF] border-b-2 border-[#E2E8F0]">
-              {activeTab === "retailers" ? (
-                <>
-                  <th className="px-5 py-3.5 text-left whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-[#EFF6FF] border border-[#BFDBFE]">
-                        <Hash className="w-3.5 h-3.5 text-[#2563EB]" />
-                      </div>
-                      <span className="text-[11px] font-extrabold text-[#374151] uppercase tracking-wider">Retailer Code</span>
-                    </div>
-                  </th>
-                  <th className="px-5 py-3.5 text-left whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-[#F5F3FF] border border-[#DDD6FE]">
-                        <Store className="w-3.5 h-3.5 text-[#7C3AED]" />
-                      </div>
-                      <span className="text-[11px] font-extrabold text-[#374151] uppercase tracking-wider">Store &amp; Legal Name</span>
-                    </div>
-                  </th>
-                  <th className="px-5 py-3.5 text-left whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-[#F0FDF4] border border-[#BBF7D0]">
-                        <Users className="w-3.5 h-3.5 text-[#16A34A]" />
-                      </div>
-                      <span className="text-[11px] font-extrabold text-[#374151] uppercase tracking-wider">Owner</span>
-                    </div>
-                  </th>
-                  <th className="px-5 py-3.5 text-left whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-[#FFFBEB] border border-[#FDE68A]">
-                        <Tag className="w-3.5 h-3.5 text-[#D97706]" />
-                      </div>
-                      <span className="text-[11px] font-extrabold text-[#374151] uppercase tracking-wider">Category</span>
-                    </div>
-                  </th>
-                  <th className="px-5 py-3.5 text-left whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-[#FDF4FF] border border-[#E9D5FF]">
-                        <ShieldCheck className="w-3.5 h-3.5 text-[#9333EA]" />
-                      </div>
-                      <span className="text-[11px] font-extrabold text-[#374151] uppercase tracking-wider">Status</span>
-                    </div>
-                  </th>
-                  <th className="px-5 py-3.5 text-right whitespace-nowrap">
-                    <div className="flex items-center justify-end gap-2">
-                      <div className="p-1.5 rounded-lg bg-[#FEF2F2] border border-[#FCA5A5]">
-                        <FileText className="w-3.5 h-3.5 text-[#DC2626]" />
-                      </div>
-                      <span className="text-[11px] font-extrabold text-[#374151] uppercase tracking-wider">Actions</span>
-                    </div>
-                  </th>
-                </>
-              ) : (
-                <>
-                  <th className="px-5 py-3.5 text-left whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-[#EFF6FF] border border-[#BFDBFE]">
-                        <Building2 className="w-3.5 h-3.5 text-[#2563EB]" />
-                      </div>
-                      <span className="text-[11px] font-extrabold text-[#374151] uppercase tracking-wider">Business Name</span>
-                    </div>
-                  </th>
-                  <th className="px-5 py-3.5 text-left whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-[#F5F3FF] border border-[#DDD6FE]">
-                        <Users className="w-3.5 h-3.5 text-[#7C3AED]" />
-                      </div>
-                      <span className="text-[11px] font-extrabold text-[#374151] uppercase tracking-wider">Owner</span>
-                    </div>
-                  </th>
-                  <th className="px-5 py-3.5 text-left whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-[#F0FDF4] border border-[#BBF7D0]">
-                        <Phone className="w-3.5 h-3.5 text-[#16A34A]" />
-                      </div>
-                      <span className="text-[11px] font-extrabold text-[#374151] uppercase tracking-wider">Mobile / Email</span>
-                    </div>
-                  </th>
-                  <th className="px-5 py-3.5 text-left whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-[#FFFBEB] border border-[#FDE68A]">
-                        <MapPin className="w-3.5 h-3.5 text-[#D97706]" />
-                      </div>
-                      <span className="text-[11px] font-extrabold text-[#374151] uppercase tracking-wider">City / State</span>
-                    </div>
-                  </th>
-                  <th className="px-5 py-3.5 text-left whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-[#FDF4FF] border border-[#E9D5FF]">
-                        <ShieldCheck className="w-3.5 h-3.5 text-[#9333EA]" />
-                      </div>
-                      <span className="text-[11px] font-extrabold text-[#374151] uppercase tracking-wider">Status</span>
-                    </div>
-                  </th>
-                  <th className="px-5 py-3.5 text-right whitespace-nowrap">
-                    <div className="flex items-center justify-end gap-2">
-                      <div className="p-1.5 rounded-lg bg-[#FEF2F2] border border-[#FCA5A5]">
-                        <FileText className="w-3.5 h-3.5 text-[#DC2626]" />
-                      </div>
-                      <span className="text-[11px] font-extrabold text-[#374151] uppercase tracking-wider">Actions</span>
-                    </div>
-                  </th>
-                </>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              [...Array(4)].map((_, i) => (
-                <tr key={i} className="animate-pulse border-b border-[#F1F5F9]">
-                  {[...Array(6)].map((_, j) => (
-                    <td key={j} className="px-5 py-3.5">
-                      <div className="h-4 bg-[#F1F5F9] rounded w-3/4" />
-                    </td>
-                  ))}
+      {/* Retailers Data Table or Empty State */}
+      <div className="rounded-2xl bg-[#111827]/80 backdrop-blur-xl border border-white/[0.08] overflow-hidden shadow-xl">
+        {loading ? (
+          <div className="py-20 text-center text-slate-400 text-xs">
+            <RefreshCw className="w-6 h-6 animate-spin text-amber-400 mx-auto mb-2" />
+            Loading network retailers...
+          </div>
+        ) : retailers.length === 0 ? (
+          <div className="text-center py-16 px-4">
+            <div className="h-16 w-16 rounded-2xl bg-amber-500/[0.08] border border-amber-500/20 flex items-center justify-center mx-auto mb-3">
+              <Users className="w-8 h-8 text-amber-400" />
+            </div>
+            <h3 className="text-base font-bold text-white mb-1">No retailers mapped yet</h3>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto mb-4">
+              You do not have any retailers mapped to your distributor network yet. Invite retailers to join Pay2Pay and they will appear here once registered.
+            </p>
+            <button
+              onClick={() => setInviteModalOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 font-bold text-xs hover:brightness-110 shadow-md shadow-amber-500/20 transition-all"
+            >
+              <UserPlus className="w-4 h-4" />
+              Invite your first retailer
+            </button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="text-[11px] uppercase tracking-wider text-slate-400 border-b border-white/[0.08] bg-white/[0.02]">
+                <tr>
+                  <th className="py-3 px-4 font-semibold">Retailer</th>
+                  <th className="py-3 px-4 font-semibold">Retailer Code</th>
+                  <th className="py-3 px-4 font-semibold">Mobile Number</th>
+                  <th className="py-3 px-4 font-semibold text-center">Account Status</th>
+                  <th className="py-3 px-4 font-semibold text-right">Wallet Balance</th>
+                  <th className="py-3 px-4 font-semibold text-right">Volume</th>
+                  <th className="py-3 px-4 font-semibold">Created Date</th>
+                  <th className="py-3 px-4 font-semibold text-center">Action</th>
                 </tr>
-              ))
-            ) : filteredData.length === 0 ? (
-              <tr>
-                <td colSpan={6}>
-                  <div className="flex flex-col items-center justify-center py-16 gap-3">
-                    <div className="w-12 h-12 rounded-full bg-[#F1F5F9] flex items-center justify-center">
-                      <Store className="w-5 h-5 text-[#94A3B8]" />
-                    </div>
-                    <p className="text-sm font-semibold text-[#334155]">No records found</p>
-                    <Link
-                      href={addButtonConfig.href}
-                      className={`mt-1 flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold text-white ${addButtonConfig.color}`}
-                    >
-                      <Plus className="w-3.5 h-3.5" /> {addButtonConfig.label}
-                    </Link>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              filteredData.map((item, idx) => (
-                <tr key={item.public_id || idx} className="border-b border-[#F1F5F9] hover:bg-[#FAFBFF] transition-colors">
-                  {activeTab === "retailers" ? (
-                    <>
-                      <td className="px-5 py-3.5">
-                        <span className="font-mono text-[12px] font-bold text-[#6C63FF]">{item.retailer_code}</span>
+              </thead>
+              <tbody className="divide-y divide-white/[0.04] text-slate-200">
+                {retailers.map((ret) => {
+                  const isActive = ret.status === "ACTIVE" && ret.is_active;
+                  return (
+                    <tr key={ret.retailer_ref_id} className="hover:bg-white/[0.03] transition-colors">
+                      <td className="py-3.5 px-4 font-bold text-white">
+                        <div>{ret.owner_name || ret.store_name}</div>
+                        {ret.store_name && ret.store_name !== ret.owner_name && (
+                          <div className="text-[10px] text-slate-400 font-normal">{ret.store_name}</div>
+                        )}
                       </td>
-                      <td className="px-5 py-3.5">
-                        <div className="font-semibold text-[#0F172A]">{item.store_name}</div>
-                        <div className="text-[11px] text-[#64748B]">{item.legal_name}</div>
+                      <td className="py-3.5 px-4 font-mono text-amber-300 font-semibold">
+                        {ret.retailer_code}
                       </td>
-                      <td className="px-5 py-3.5 text-[#334155] font-medium">{item.owner_name}</td>
-                      <td className="px-5 py-3.5">
-                        <span className="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold bg-[#F3F4F6] text-[#374151] border border-[#E5E7EB]">
-                          {item.business_category}
+                      <td className="py-3.5 px-4 font-mono text-slate-300">
+                        {ret.mobile}
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                            isActive
+                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                              : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                          }`}
+                        >
+                          {isActive ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                          {ret.status}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5">
-                        <StatusBadge status={item.status} />
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-white">
+                        ₹{Number(ret.wallet_balance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="px-5 py-3.5 text-right flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setResetTarget({ type: "retailer", item })}
-                          className="p-2 rounded-xl border border-[#CBD5E1] bg-white text-[#475569] hover:bg-[#EFF6FF] hover:text-[#2563EB] hover:border-[#BFDBFE] transition-all cursor-pointer shadow-2xs"
-                          title="Reset Retailer Password"
-                        >
-                          <KeyRound className="w-3.5 h-3.5" />
-                        </button>
+                      <td className="py-3.5 px-4 text-right font-mono text-slate-300">
+                        ₹{Number(ret.total_volume || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="py-3.5 px-4 text-slate-400 text-[11px]">
+                        {ret.created_at ? new Date(ret.created_at).toLocaleDateString("en-IN") : "—"}
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
                         <Link
-                          href={`/retailers/${item.public_id}`}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#E2E8F0] bg-white text-[11px] font-bold text-[#374151] hover:bg-[#F8FAFC] hover:border-[#6C63FF] hover:text-[#6C63FF] transition-all"
+                          href={`/retailers/${ret.retailer_ref_id}`}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.05] border border-white/[0.08] hover:bg-amber-500/20 hover:border-amber-500/40 text-amber-300 text-[11px] font-semibold transition-colors"
                         >
-                          View Profile <ChevronRight className="w-3 h-3" />
+                          Details
+                          <ExternalLink className="w-3 h-3" />
                         </Link>
                       </td>
-                    </>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Invite Retailer Modal */}
+      {inviteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={resetInviteModal}
+          />
+          <div className="relative w-full max-w-md rounded-2xl bg-[#111827] border border-amber-500/30 p-6 shadow-2xl z-10 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-white/[0.08] mb-4">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <UserPlus className="w-5 h-5 text-amber-400" />
+                Invite Retailer to Network
+              </h3>
+              <button
+                onClick={resetInviteModal}
+                className="p-1 rounded-lg text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {inviteSuccessData ? (
+              <div className="space-y-4 text-center">
+                <div className="h-12 w-12 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center mx-auto text-emerald-400">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-white">Invitation Created Successfully!</h4>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Share this exclusive registration link with the retailer. Once they register, they will be mapped directly to your distributor account.
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.08] text-left">
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block mb-1">
+                    Registration Deep Link
+                  </span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-amber-300 font-mono truncate">
+                      {inviteSuccessData.invitation_url}
+                    </span>
+                    <button
+                      onClick={() => handleCopyLink(inviteSuccessData.invitation_url)}
+                      className="p-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-slate-200 text-xs shrink-0 flex items-center gap-1"
+                    >
+                      {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedLink ? "Copied" : "Copy"}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-slate-400 p-2 rounded-lg bg-amber-500/[0.05] border border-amber-500/20">
+                  <span>Invite Code:</span>
+                  <span className="font-mono font-bold text-amber-300">{inviteSuccessData.invite_code}</span>
+                </div>
+
+                <button
+                  onClick={resetInviteModal}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 font-bold text-xs hover:brightness-110 shadow-sm transition-all"
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleInviteSubmit} className="space-y-4 text-left">
+                {inviteError && (
+                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                    <span>{inviteError}</span>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Retailer Mobile Number *
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    maxLength={10}
+                    placeholder="10-digit mobile number"
+                    value={inviteMobile}
+                    onChange={(e) => setInviteMobile(e.target.value.replace(/\D/g, ""))}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.1] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/60"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Retailer Name / Business (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter owner or shop name"
+                    value={inviteName}
+                    onChange={(e) => setInviteName(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.1] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/60"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Retailer Email (Optional)
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="name@business.com"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.1] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/60"
+                  />
+                </div>
+
+                <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] text-[11px] text-slate-400">
+                  The retailer will complete existing KYC and document verification. Retailer approval remains with Pay2Pay Admin.
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={inviteSubmitting}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 font-bold text-xs hover:brightness-110 shadow-md shadow-amber-500/20 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  {inviteSubmitting ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
                   ) : (
                     <>
-                      <td className="px-5 py-3.5 font-semibold text-[#0F172A]">{item.business_name}</td>
-                      <td className="px-5 py-3.5 text-[#334155]">{item.owner_name}</td>
-                      <td className="px-5 py-3.5">
-                        <div className="font-mono text-[11px] text-[#475569]">{item.mobile}</div>
-                        <div className="text-[11px] text-[#64748B]">{item.email}</div>
-                      </td>
-                      <td className="px-5 py-3.5 text-[11px] text-[#475569]">
-                        {[item.city, item.state].filter(Boolean).join(", ") || "—"}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <StatusBadge status={item.status || "ACTIVE"} />
-                      </td>
-                      <td className="px-5 py-3.5 text-right flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setResetTarget({ type: activeTab === "super_distributors" ? "sd" : "dist", item })}
-                          className="p-2 rounded-xl border border-[#CBD5E1] bg-white text-[#475569] hover:bg-[#EFF6FF] hover:text-[#2563EB] hover:border-[#BFDBFE] transition-all cursor-pointer shadow-2xs"
-                          title={`Reset ${activeTab === "super_distributors" ? "Super Distributor" : "Distributor"} Password`}
-                        >
-                          <KeyRound className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
+                      <Send className="w-3.5 h-3.5" />
+                      Generate & Send Invitation
                     </>
                   )}
-                </tr>
-              ))
+                </button>
+              </form>
             )}
-          </tbody>
-        </table>
-      </div>
-      {/* Reset Password Modal */}
-      {resetTarget && (
-        <ResetPasswordModal
-          isOpen={!!resetTarget}
-          onClose={() => setResetTarget(null)}
-          targetName={resetTarget.item.business_name || resetTarget.item.store_name || resetTarget.item.legal_name || "Partner"}
-          targetCodeOrEmail={resetTarget.item.retailer_code || resetTarget.item.email || "partner@pay2pay.com"}
-          onSubmit={async (newPassword) => {
-            const endpoint =
-              resetTarget.type === "retailer"
-                ? `/api/v1/retailers/${resetTarget.item.public_id}/reset-password`
-                : resetTarget.type === "sd"
-                ? `/api/v1/organization/super-distributors/${resetTarget.item.public_id}/reset-password`
-                : `/api/v1/organization/distributors/${resetTarget.item.public_id}/reset-password`;
-
-            await api.post(endpoint, { new_password: newPassword });
-          }}
-        />
+          </div>
+        </div>
       )}
     </div>
-  );
-}
-
-export default function OnboardingHubPage() {
-  return (
-    <Suspense fallback={<div className="p-8 text-center text-gray-500">Loading Onboarding Hub...</div>}>
-      <OnboardingHubContent />
-    </Suspense>
   );
 }

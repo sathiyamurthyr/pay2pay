@@ -32,6 +32,15 @@ import {
   TrendingUp,
 } from "lucide-react";
 
+const fmt = (n: number) => "₹" + Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function statusStyle(s: string) {
+  if (s === "SETTLED") return { bg: "bg-emerald-500/10 border-emerald-400/20 text-emerald-600", icon: CheckCircle2 };
+  if (s === "FAILED") return { bg: "bg-rose-500/10 border-rose-400/20 text-rose-600", icon: XCircle };
+  if (s === "PROCESSING") return { bg: "bg-blue-500/10 border-blue-400/20 text-blue-600", icon: RefreshCw };
+  return { bg: "bg-amber-500/10 border-amber-400/20 text-amber-600", icon: AlertTriangle };
+}
+
 export default function SettlementBatchesPage() {
   const [txns, setTxns]           = useState<any[]>([]);
   const [loading, setLoading]     = useState(true);
