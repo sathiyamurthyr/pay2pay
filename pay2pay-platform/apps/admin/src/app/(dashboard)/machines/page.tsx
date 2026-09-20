@@ -1636,25 +1636,33 @@ export default function MachinesPage() {
                             {5 - retailerDevices.length} slot{5 - retailerDevices.length !== 1 ? "s" : ""} remaining
                           </span>
                         </div>
-                        <div className="space-y-1.5">
+                        {/* Horizontal View of Existing Devices */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                           {retailerDevices.map((dev: any, idx: number) => (
                             <div
                               key={dev.public_id}
-                              className="flex items-center justify-between p-2 bg-white/80 rounded-lg border border-[#E2E8F0] text-xs"
+                              className="flex items-center justify-between gap-1.5 p-2 bg-white rounded-lg border border-[#E2E8F0] text-xs shadow-2xs hover:border-[#93C5FD] transition-all min-w-0"
                             >
-                              <div className="flex items-center gap-2">
-                                <span className="font-mono font-black text-[#2563EB]">
-                                  {idx + 1}. {dev.serial_number}
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="w-4 h-4 rounded bg-[#EFF6FF] text-[#2563EB] font-mono font-black text-[9px] flex items-center justify-center shrink-0">
+                                  {idx + 1}
                                 </span>
-                                <span className="text-[10px] text-[#64748B] font-medium">
-                                  TID: {dev.tid} | {dev.pos_model || "POS"}
-                                </span>
+                                <div className="min-w-0 leading-tight">
+                                  <span className="font-mono font-black text-xs text-[#0F172A] block truncate" title={dev.serial_number}>
+                                    {dev.serial_number}
+                                  </span>
+                                  <span className="text-[9px] text-[#64748B] block truncate" title={`TID: ${dev.tid || "—"} | ${dev.pos_model || "POS"}`}>
+                                    {dev.tid ? `TID: ${dev.tid}` : (dev.pos_model || "POS")}
+                                  </span>
+                                </div>
                               </div>
-                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black ${
-                                dev.status === "ACTIVE" || dev.status === "ASSIGNED"
-                                  ? "bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]"
-                                  : "bg-[#FEF2F2] text-[#991B1B] border border-[#FCA5A5]"
-                              }`}>
+                              <span
+                                className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase shrink-0 ${
+                                  dev.status === "ACTIVE" || dev.status === "ASSIGNED"
+                                    ? "bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]"
+                                    : "bg-[#FEF2F2] text-[#991B1B] border border-[#FCA5A5]"
+                                }`}
+                              >
                                 {dev.status}
                               </span>
                             </div>
@@ -2014,49 +2022,66 @@ export default function MachinesPage() {
                     </span>
                   </div>
 
-                  <div className="space-y-2">
-                    {(selectedMachineDetails.retailer_devices || retailerDevices).length > 0 ? (
-                      (selectedMachineDetails.retailer_devices || retailerDevices).map((dev: any, idx: number) => (
-                        <div
-                          key={dev.public_id}
-                          className={`p-3 rounded-xl border transition-all flex items-center justify-between ${
-                            dev.public_id === selectedMachineDetails.machine.public_id
-                              ? "bg-[#EFF6FF] border-[#BFDBFE] shadow-2xs"
-                              : "bg-[#F8FAFC] border-[#E2E8F0]"
-                          }`}
-                        >
-                          <div className="space-y-0.5">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs font-black text-[#2563EB]">
-                                {idx + 1}. {dev.serial_number}
-                              </span>
-                              {dev.public_id === selectedMachineDetails.machine.public_id && (
-                                <span className="px-1.5 py-0.2 rounded bg-[#2563EB] text-white text-[9px] font-black uppercase">
-                                  Current Unit
+                  {/* Horizontal Grid of Assigned Devices */}
+                  {(selectedMachineDetails.retailer_devices || retailerDevices).length > 0 ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      {(selectedMachineDetails.retailer_devices || retailerDevices).map((dev: any, idx: number) => {
+                        const isCurrent = dev.public_id === selectedMachineDetails.machine.public_id;
+                        return (
+                          <div
+                            key={dev.public_id}
+                            className={`p-2.5 rounded-xl border transition-all flex flex-col justify-between gap-1.5 min-w-0 ${
+                              isCurrent
+                                ? "bg-[#EFF6FF] border-[#2563EB] shadow-2xs ring-1 ring-[#2563EB]/20"
+                                : "bg-[#F8FAFC] border-[#E2E8F0] hover:bg-white hover:border-[#CBD5E1]"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-1">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span
+                                  className={`w-4 h-4 rounded font-mono font-black text-[9px] flex items-center justify-center shrink-0 ${
+                                    isCurrent ? "bg-[#2563EB] text-white" : "bg-[#E2E8F0] text-[#475569]"
+                                  }`}
+                                >
+                                  {idx + 1}
+                                </span>
+                                <span className="font-mono text-xs font-black text-[#0F172A] truncate" title={dev.serial_number}>
+                                  {dev.serial_number}
+                                </span>
+                              </div>
+                              {isCurrent ? (
+                                <span className="px-1.5 py-0.5 rounded bg-[#2563EB] text-white text-[9px] font-black uppercase shrink-0">
+                                  Current
+                                </span>
+                              ) : (
+                                <span
+                                  className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase shrink-0 ${
+                                    dev.status === "ACTIVE" || dev.status === "ASSIGNED"
+                                      ? "bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]"
+                                      : "bg-[#FEF2F2] text-[#991B1B] border border-[#FCA5A5]"
+                                  }`}
+                                >
+                                  {dev.status}
                                 </span>
                               )}
                             </div>
-                            <div className="text-[11px] text-[#64748B] font-medium">
-                              TID: <span className="font-mono font-bold text-[#0F172A]">{dev.tid}</span> | Model: {dev.pos_model || "POS"}
+                            <div className="flex items-center justify-between text-[10px] text-[#64748B] pt-1 border-t border-[#E2E8F0]/60">
+                              <span className="truncate font-mono font-semibold" title={`TID: ${dev.tid || "—"}`}>
+                                TID: {dev.tid || "—"}
+                              </span>
+                              <span className="truncate text-[#94A3B8] max-w-[85px] text-right font-medium" title={dev.pos_model || "POS"}>
+                                {dev.pos_model || "POS"}
+                              </span>
                             </div>
                           </div>
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black ${
-                              dev.status === "ACTIVE" || dev.status === "ASSIGNED"
-                                ? "bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]"
-                                : "bg-[#FEF2F2] text-[#991B1B] border border-[#FCA5A5]"
-                            }`}
-                          >
-                            {dev.status}
-                          </span>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="p-3 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] text-xs text-[#64748B] text-center font-medium">
-                        No other devices assigned to this retailer
-                      </div>
-                    )}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] text-xs text-[#64748B] text-center font-medium">
+                      No other devices assigned to this retailer
+                    </div>
+                  )}
                 </div>
               )}
 
