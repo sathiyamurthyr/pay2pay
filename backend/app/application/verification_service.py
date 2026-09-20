@@ -759,22 +759,30 @@ class VerificationService:
                     )
 
                     # Also update RetailerKycModel and RetailerBankModel
-                    target_ret_stmt = select(RetailerModel.public_id).where(or_(*r_conds))
-                    ret_uuids = (await db.execute(target_ret_stmt)).scalars().all()
-                    for r_u in ret_uuids:
+                    target_ret_stmt = select(RetailerModel).where(or_(*r_conds))
+                    ret_models = (await db.execute(target_ret_stmt)).scalars().all()
+                    from app.application.hierarchy_mapping_service import HierarchyMappingService
+                    for r_model in ret_models:
                         try:
                             await db.execute(
                                 update(RetailerKycModel)
-                                .where(RetailerKycModel.retailer_id == r_u)
+                                .where(RetailerKycModel.retailer_id == r_model.public_id)
                                 .values(verification_status="VERIFIED", is_active=True)
                             )
                             await db.execute(
                                 update(RetailerBankModel)
-                                .where(RetailerBankModel.retailer_id == r_u)
+                                .where(RetailerBankModel.retailer_id == r_model.public_id)
                                 .values(verification_status="VERIFIED", is_active=True)
                             )
-                        except Exception:
-                            pass
+                            # Automatic Hierarchy Mapping: COMPANY -> SD -> DISTRIBUTOR -> RETAILER
+                            await HierarchyMappingService.apply_default_retailer_hierarchy(
+                                db=db,
+                                retailer=r_model,
+                                actor_email=admin_id or "admin@pay2pay.in",
+                                force_if_unmapped=True
+                            )
+                        except Exception as map_err:
+                            logger.warning(f"Error ensuring retailer hierarchy mapping on approval: {map_err}")
             except Exception as r_err:
                 logger.warning(f"RetailerModel update error during approval: {r_err}")
 

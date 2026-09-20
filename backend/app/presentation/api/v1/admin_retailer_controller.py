@@ -421,6 +421,21 @@ async def update_retailer_status_controller(
                 a_vals["locked_until"] = None
 
             await db.execute(update(AuthUserModel).where(or_(*a_conds)).values(**a_vals))
+
+            # Synchronize 4-tier hierarchy mapping: COMPANY -> SD -> DISTRIBUTOR -> RETAILER
+            if action in ["APPROVE", "REACTIVATE"] and r_obj:
+                try:
+                    from app.application.hierarchy_mapping_service import HierarchyMappingService
+                    actor_email = getattr(current_user, "email", "admin@pay2pay.in") if current_user else "admin@pay2pay.in"
+                    await HierarchyMappingService.apply_default_retailer_hierarchy(
+                        db=db,
+                        retailer=r_obj,
+                        actor_email=actor_email,
+                        force_if_unmapped=True
+                    )
+                except Exception as map_err:
+                    pass
+
             await db.commit()
     except Exception as upd_err:
         pass

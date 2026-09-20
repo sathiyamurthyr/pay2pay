@@ -309,6 +309,38 @@ class PosMdrService:
             if retailer_mdr:
                 return retailer_mdr
 
+            # Priority 1b: Check Active Distributor-Configured MDR under current dynamic hierarchy
+            try:
+                from app.infrastructure.db.distributor_models import DistributorMdrModel
+                ret_stmt = select(RetailerModel).where(
+                    RetailerModel.public_id == retailer_uuid,
+                    RetailerModel.is_deleted == False
+                )
+                ret_obj = (await db.execute(ret_stmt)).scalars().first()
+
+                if ret_obj and ret_obj.distributor_ref_id and ret_obj.retailer_ref_id:
+                    dist_mdr_stmt = select(DistributorMdrModel).where(
+                        DistributorMdrModel.distributor_ref_id == ret_obj.distributor_ref_id,
+                        DistributorMdrModel.retailer_ref_id == ret_obj.retailer_ref_id,
+                        DistributorMdrModel.payment_mode.in_(allowed_modes),
+                        DistributorMdrModel.status == "ACTIVE"
+                    ).order_by(DistributorMdrModel.created_at.desc()).limit(1)
+                    dist_mdr = (await db.execute(dist_mdr_stmt)).scalars().first()
+                    if dist_mdr:
+                        return PosMdrConfigurationModel(
+                            public_id=uuid.uuid4(),
+                            tenant_id=dist_mdr.tenant_id,
+                            company_id=dist_mdr.company_id,
+                            retailer_id=retailer_uuid,
+                            payment_mode=dist_mdr.payment_mode,
+                            mdr=float(dist_mdr.mdr),
+                            mdr_type=dist_mdr.mdr_type,
+                            gst_rate=float(dist_mdr.gst_rate),
+                            is_active=True
+                        )
+            except Exception:
+                pass
+
         # Priority 2: Check for Default MDR (retailer_id IS NULL)
         def_stmt = (
             select(PosMdrConfigurationModel)

@@ -193,50 +193,62 @@ class DistributorService:
         total_tx_volume = 0.0
         service_breakdown: List[Dict[str, Any]] = []
 
-        if mapped_ret_refs:
-            # Business summary across mapped retailers
-            biz_stmt = (
-                select(
-                    func.count(CentralTransactionModel.transactions_ref_id).label("tx_count"),
-                    func.coalesce(func.sum(CentralTransactionModel.amount), 0).label("tx_volume")
-                )
-                .where(
-                    CentralTransactionModel.retailer_ref_id.in_(mapped_ret_refs),
-                    CentralTransactionModel.status == "SUCCESS",
-                    CentralTransactionModel.is_deleted == False
-                )
+        # 3. Dynamic Transaction Attribution:
+        # Strictly preserves historical transaction attribution based on immutable transaction snapshot
+        # (distributor_ref_id == d_ref or dist_id == distributor.public_id).
+        # Ensures that historical transactions are NEVER recalculated or stolen upon remapping.
+        tx_dist_filter = or_(
+            CentralTransactionModel.distributor_ref_id == d_ref,
+            CentralTransactionModel.dist_id == distributor.public_id,
+            and_(
+                CentralTransactionModel.distributor_ref_id == None,
+                CentralTransactionModel.dist_id == None,
+                CentralTransactionModel.retailer_ref_id.in_(mapped_ret_refs) if mapped_ret_refs else False
             )
-            biz_res = (await db.execute(biz_stmt)).first()
-            if biz_res:
-                total_tx_count = biz_res.tx_count or 0
-                total_tx_volume = float(biz_res.tx_volume or 0.0)
+        )
 
-            # Service-wise Business Breakdown
-            svc_stmt = (
-                select(
-                    CentralTransactionModel.service_name,
-                    func.count(CentralTransactionModel.transactions_ref_id).label("count"),
-                    func.coalesce(func.sum(CentralTransactionModel.amount), 0).label("amount"),
-                    func.count(func.nullif(CentralTransactionModel.status == "SUCCESS", False)).label("success_count"),
-                    func.count(func.nullif(CentralTransactionModel.status == "PENDING", False)).label("pending_count"),
-                    func.count(func.nullif(CentralTransactionModel.status == "FAILED", False)).label("failed_count")
-                )
-                .where(
-                    CentralTransactionModel.retailer_ref_id.in_(mapped_ret_refs),
-                    CentralTransactionModel.is_deleted == False
-                )
-                .group_by(CentralTransactionModel.service_name)
+        biz_stmt = (
+            select(
+                func.count(CentralTransactionModel.transactions_ref_id).label("tx_count"),
+                func.coalesce(func.sum(CentralTransactionModel.amount), 0).label("tx_volume")
             )
-            svc_rows = (await db.execute(svc_stmt)).fetchall()
-            for r in svc_rows:
-                service_breakdown.append({
-                    "service": r.service_name,
-                    "transaction_count": r.count,
-                    "transaction_amount": float(r.amount or 0.0),
-                    "success": r.success_count,
-                    "pending": r.pending_count,
-                    "failed": r.failed_count
-                })
+            .where(
+                tx_dist_filter,
+                CentralTransactionModel.status == "SUCCESS",
+                CentralTransactionModel.is_deleted == False
+            )
+        )
+        biz_res = (await db.execute(biz_stmt)).first()
+        if biz_res:
+            total_tx_count = biz_res.tx_count or 0
+            total_tx_volume = float(biz_res.tx_volume or 0.0)
+
+        # Service-wise Business Breakdown
+        svc_stmt = (
+            select(
+                CentralTransactionModel.service_name,
+                func.count(CentralTransactionModel.transactions_ref_id).label("count"),
+                func.coalesce(func.sum(CentralTransactionModel.amount), 0).label("amount"),
+                func.count(func.nullif(CentralTransactionModel.status == "SUCCESS", False)).label("success_count"),
+                func.count(func.nullif(CentralTransactionModel.status == "PENDING", False)).label("pending_count"),
+                func.count(func.nullif(CentralTransactionModel.status == "FAILED", False)).label("failed_count")
+            )
+            .where(
+                tx_dist_filter,
+                CentralTransactionModel.is_deleted == False
+            )
+            .group_by(CentralTransactionModel.service_name)
+        )
+        svc_rows = (await db.execute(svc_stmt)).fetchall()
+        for r in svc_rows:
+            service_breakdown.append({
+                "service": r.service_name,
+                "transaction_count": r.count,
+                "transaction_amount": float(r.amount or 0.0),
+                "success": r.success_count,
+                "pending": r.pending_count,
+                "failed": r.failed_count
+            })
 
         # 4. MDR Configured Retailers
         mdr_stmt = select(func.count(func.distinct(DistributorMdrModel.retailer_ref_id))).where(

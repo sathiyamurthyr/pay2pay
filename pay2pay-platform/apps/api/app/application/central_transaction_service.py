@@ -252,26 +252,102 @@ class CentralTransactionService:
         user_type_ref_id_val = 2
         tenant_ref_id_val = 1
         company_ref_id_val = 1
+
+        # Snapshot dynamic 4-tier hierarchy for immutable auditability
+        active_company_id = company_id
+        active_company_ref_id = None
+        active_tenant_ref_id = None
+        active_retailer_ref_id = None
+        active_retailer_name = None
+        active_dist_id = None
+        active_dist_name = None
+        active_distributor_ref_id = None
+        active_sd_id = None
+        active_sd_name = None
+        active_super_distributor_ref_id = None
+        active_rm_id = None
+        active_rm_name = None
+        active_regional_manager_ref_id = None
+
         if retailer_id:
-            from app.infrastructure.db.models import RetailerModel
-            stmt_ret = select(RetailerModel).where(RetailerModel.public_id == retailer_id)
-            ret_obj = (await db.execute(stmt_ret)).scalars().first()
-            if ret_obj:
-                user_ref_id_val = ret_obj.retailer_ref_id
-                tenant_ref_id_val = ret_obj.tenant_ref_id or 1
-                company_ref_id_val = ret_obj.company_ref_id or 1
+            try:
+                from app.infrastructure.db.models import (
+                    RetailerModel, DistributorModel, SuperDistributorModel, RegionalManagerModel
+                )
+                stmt_ret = select(RetailerModel).where(
+                    RetailerModel.public_id == retailer_id,
+                    RetailerModel.is_deleted == False
+                )
+                ret_obj = (await db.execute(stmt_ret)).scalars().first()
+                if ret_obj:
+                    user_ref_id_val = ret_obj.retailer_ref_id
+                    tenant_ref_id_val = ret_obj.tenant_ref_id or 1
+                    company_ref_id_val = ret_obj.company_ref_id or 1
+
+                    active_retailer_ref_id = ret_obj.retailer_ref_id
+                    active_retailer_name = ret_obj.store_name or ret_obj.owner_name or ret_obj.legal_name
+                    active_company_id = active_company_id or ret_obj.company_id
+                    active_company_ref_id = ret_obj.company_ref_id
+                    active_tenant_ref_id = ret_obj.tenant_ref_id
+                    active_dist_id = ret_obj.mapped_distributor_id
+                    active_distributor_ref_id = ret_obj.distributor_ref_id
+                    active_sd_id = ret_obj.mapped_super_distributor_id
+                    active_super_distributor_ref_id = ret_obj.super_distributor_ref_id
+                    active_rm_id = ret_obj.rm_id
+                    active_regional_manager_ref_id = ret_obj.regional_manager_ref_id
+
+                    # Resolve distributor name if mapped
+                    if active_dist_id:
+                        d_stmt = select(DistributorModel).where(
+                            DistributorModel.public_id == active_dist_id,
+                            DistributorModel.is_deleted == False
+                        )
+                        dist_obj = (await db.execute(d_stmt)).scalars().first()
+                        if dist_obj:
+                            active_dist_name = dist_obj.business_name or dist_obj.owner_name
+                            if not active_distributor_ref_id:
+                                active_distributor_ref_id = dist_obj.distributor_ref_id
+                            if not active_sd_id:
+                                active_sd_id = dist_obj.mapped_super_distributor_id
+                            if not active_super_distributor_ref_id:
+                                active_super_distributor_ref_id = dist_obj.super_distributor_ref_id
+
+                    # Resolve super distributor name if mapped
+                    if active_sd_id:
+                        sd_stmt = select(SuperDistributorModel).where(
+                            SuperDistributorModel.public_id == active_sd_id,
+                            SuperDistributorModel.is_deleted == False
+                        )
+                        sd_obj = (await db.execute(sd_stmt)).scalars().first()
+                        if sd_obj:
+                            active_sd_name = sd_obj.business_name or sd_obj.owner_name
+                            if not active_super_distributor_ref_id:
+                                active_super_distributor_ref_id = sd_obj.super_distributor_ref_id
+            except Exception as e:
+                logger.warning(f"Could not snapshot hierarchy for retailer {retailer_id}: {e}")
 
         now_dt = datetime.now(timezone.utc)
         k = compute_transaction_date_and_partition_keys(now_dt)
         tx = CentralTransactionModel(
             public_id=tx_public_id,
             tenant_id=tid,
-            company_id=company_id or tid,
-            tenant_ref_id=tenant_ref_id_val,
-            company_ref_id=company_ref_id_val,
+            company_id=active_company_id or tid,
+            tenant_ref_id=active_tenant_ref_id or tenant_ref_id_val,
+            company_ref_id=active_company_ref_id or company_ref_id_val,
             user_ref_id=user_ref_id_val,
             user_type_ref_id=user_type_ref_id_val,
             retailer_id=retailer_id or tid,
+            retailer_name=active_retailer_name,
+            retailer_ref_id=active_retailer_ref_id,
+            dist_id=active_dist_id,
+            dist_name=active_dist_name,
+            distributor_ref_id=active_distributor_ref_id,
+            sd_id=active_sd_id,
+            sd_name=active_sd_name,
+            super_distributor_ref_id=active_super_distributor_ref_id,
+            rm_id=active_rm_id,
+            rm_name=active_rm_name,
+            regional_manager_ref_id=active_regional_manager_ref_id,
             txn_id=txn_ref,
             ref_id=request_id or txn_ref,
             table_ref_id=customer_id or beneficiary_id,

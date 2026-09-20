@@ -719,40 +719,13 @@ class AdminOrgMappingService:
 
             old_parent_id = str(dist.mapped_super_distributor_id) if dist.mapped_super_distributor_id else None
 
-            # Update distributor
-            dist.mapped_super_distributor_id = sd.public_id
-            dist.super_distributor_ref_id = sd.super_distributor_ref_id
-            dist.company_id = sd.company_id
-            dist.company_ref_id = sd.company_ref_id
-            dist.tenant_id = sd.tenant_id
-            dist.tenant_ref_id = sd.tenant_ref_id
-            dist.updated_date = datetime.now(timezone.utc)
-            dist.updated_by = actor_email
-
-            # Cascade update child retailers under this distributor
-            await db.execute(
-                text("""
-                    UPDATE public.retailer
-                    SET super_distributor_ref_id = :sd_ref,
-                        mapped_super_distributor_id = :sd_id,
-                        company_id = :comp_id,
-                        company_ref_id = :comp_ref,
-                        tenant_id = :ten_id,
-                        tenant_ref_id = :ten_ref,
-                        updated_date = NOW(),
-                        updated_by = :actor
-                    WHERE mapped_distributor_id = :dist_id
-                """),
-                {
-                    "sd_ref": sd.super_distributor_ref_id,
-                    "sd_id": str(sd.public_id),
-                    "comp_id": str(sd.company_id),
-                    "comp_ref": sd.company_ref_id,
-                    "ten_id": str(sd.tenant_id),
-                    "ten_ref": sd.tenant_ref_id,
-                    "actor": actor_email,
-                    "dist_id": str(dist.public_id)
-                }
+            from app.application.hierarchy_mapping_service import HierarchyMappingService
+            await HierarchyMappingService.sync_distributor_remapping(
+                db=db,
+                distributor=dist,
+                new_sd=sd,
+                actor_email=actor_email,
+                reason=req.reason
             )
 
             action_name = "DISTRIBUTOR_MAPPED" if not old_parent_id else "DISTRIBUTOR_REASSIGNED"
@@ -811,17 +784,14 @@ class AdminOrgMappingService:
 
             old_parent_id = str(ret.mapped_distributor_id) if ret.mapped_distributor_id else None
 
-            # Update retailer
-            ret.mapped_distributor_id = dist.public_id
-            ret.distributor_ref_id = dist.distributor_ref_id
-            ret.mapped_super_distributor_id = dist.mapped_super_distributor_id
-            ret.super_distributor_ref_id = dist.super_distributor_ref_id
-            ret.company_id = dist.company_id
-            ret.company_ref_id = dist.company_ref_id
-            ret.tenant_id = dist.tenant_id
-            ret.tenant_ref_id = dist.tenant_ref_id
-            ret.updated_date = datetime.now(timezone.utc)
-            ret.updated_by = actor_email
+            from app.application.hierarchy_mapping_service import HierarchyMappingService
+            await HierarchyMappingService.sync_retailer_remapping(
+                db=db,
+                retailer=ret,
+                new_distributor=dist,
+                actor_email=actor_email,
+                reason=req.reason
+            )
 
             action_name = "RETAILER_MAPPED" if not old_parent_id else "RETAILER_REASSIGNED"
 

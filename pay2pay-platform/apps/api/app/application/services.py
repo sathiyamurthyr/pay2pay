@@ -1753,10 +1753,17 @@ class OrganizationManagementService:
             raise ConflictException("Email or Mobile already registered for Super Distributor.")
 
         sd_id = uuid.uuid4()
+        final_company_id = req.company_id
+        if not final_company_id:
+            from app.application.hierarchy_mapping_service import HierarchyMappingService
+            h = await HierarchyMappingService.resolve_default_hierarchy(db, tenant_id=tenant_id)
+            if h.get("company"):
+                final_company_id = h["company"].public_id
+
         sd = SuperDistributorModel(
             public_id=sd_id,
             tenant_id=tenant_id,
-            company_id=req.company_id,
+            company_id=final_company_id,
             business_name=req.business_name,
             owner_name=req.owner_name,
             mobile=req.mobile,
@@ -1780,7 +1787,7 @@ class OrganizationManagementService:
         hierarchy = OrganizationHierarchyModel(
             public_id=uuid.uuid4(),
             tenant_id=tenant_id,
-            company_id=req.company_id,
+            company_id=final_company_id,
             parent_entity_type="REGIONAL_MANAGER",
             parent_entity_id=req.mapped_rm_id,
             child_entity_type="SUPER_DISTRIBUTOR",
@@ -1796,7 +1803,7 @@ class OrganizationManagementService:
         await AuditLogger.log_action(
             db=db,
             tenant_id=tenant_id,
-            company_id=req.company_id,
+            company_id=final_company_id,
             actor_id=actor_user.public_id,
             actor_email=actor_user.email,
             action="CREATE",
@@ -1864,10 +1871,20 @@ class OrganizationManagementService:
             raise ConflictException("Email or Mobile already registered for Distributor.")
 
         d_id = uuid.uuid4()
+        final_sd_id = req.mapped_super_distributor_id
+        final_company_id = req.company_id
+        if not final_sd_id or not final_company_id:
+            from app.application.hierarchy_mapping_service import HierarchyMappingService
+            h = await HierarchyMappingService.resolve_default_hierarchy(db, company_id=final_company_id, tenant_id=tenant_id)
+            if not final_sd_id and h.get("super_distributor"):
+                final_sd_id = h["super_distributor"].public_id
+            if not final_company_id and h.get("company"):
+                final_company_id = h["company"].public_id
+
         dist = DistributorModel(
             public_id=d_id,
             tenant_id=tenant_id,
-            company_id=req.company_id,
+            company_id=final_company_id,
             business_name=req.business_name,
             owner_name=req.owner_name,
             mobile=req.mobile,
@@ -1881,7 +1898,7 @@ class OrganizationManagementService:
             city=req.city,
             address=req.address,
             pincode=req.pincode,
-            mapped_super_distributor_id=req.mapped_super_distributor_id,
+            mapped_super_distributor_id=final_sd_id,
             status="ACTIVE",
             created_by=actor_user.email
         )
@@ -1891,9 +1908,9 @@ class OrganizationManagementService:
         hierarchy = OrganizationHierarchyModel(
             public_id=uuid.uuid4(),
             tenant_id=tenant_id,
-            company_id=req.company_id,
+            company_id=final_company_id,
             parent_entity_type="SUPER_DISTRIBUTOR",
-            parent_entity_id=req.mapped_super_distributor_id,
+            parent_entity_id=final_sd_id,
             child_entity_type="DISTRIBUTOR",
             child_entity_id=d_id,
             status="ACTIVE",
@@ -1907,13 +1924,13 @@ class OrganizationManagementService:
         await AuditLogger.log_action(
             db=db,
             tenant_id=tenant_id,
-            company_id=req.company_id,
+            company_id=final_company_id,
             actor_id=actor_user.public_id,
             actor_email=actor_user.email,
             action="CREATE",
             resource_type="DISTRIBUTOR",
             resource_id=str(d_id),
-            details={"business_name": dist.business_name, "mapped_super_distributor_id": str(req.mapped_super_distributor_id)}
+            details={"business_name": dist.business_name, "mapped_super_distributor_id": str(final_sd_id)}
         )
         return dist
 

@@ -281,66 +281,20 @@ class RetailerMappingService:
         old_distributor_id = retailer.mapped_distributor_id
         old_rm_id = retailer.rm_id
 
-        # 5. Update Retailer row
-        retailer.company_id = c_uuid
-        retailer.mapped_distributor_id = d_uuid
+        actor_email = actor_user.email if actor_user and hasattr(actor_user, "email") else "admin@pay2pay.com"
+
+        # 5. Synchronize authoritative 4-tier hierarchy: COMPANY -> SD -> DISTRIBUTOR -> RETAILER
+        from app.application.hierarchy_mapping_service import HierarchyMappingService
+        await HierarchyMappingService.sync_retailer_remapping(
+            db=db,
+            retailer=retailer,
+            new_distributor=distributor,
+            actor_email=actor_email,
+            reason=reason or "Admin updated retailer organizational hierarchy mapping"
+        )
         retailer.rm_id = r_uuid
 
         now_ts = datetime.now(timezone.utc)
-        actor_email = actor_user.email if actor_user and hasattr(actor_user, "email") else "admin@pay2pay.com"
-
-        # 6. Close previous active assignment
-        close_stmt = select(RetailerAssignmentModel).where(
-            RetailerAssignmentModel.retailer_id == retailer.public_id,
-            RetailerAssignmentModel.is_active == True,
-            RetailerAssignmentModel.is_deleted == False
-        )
-        existing_assignments = (await db.execute(close_stmt)).scalars().all()
-        for assign in existing_assignments:
-            assign.is_active = False
-            assign.effective_to = now_ts
-            assign.updated_by = actor_email
-
-        # 7. Insert new active assignment
-        new_assignment = RetailerAssignmentModel(
-            public_id=uuid.uuid4(),
-            tenant_id=retailer.tenant_id,
-            company_id=c_uuid,
-            retailer_id=retailer.public_id,
-            distributor_id=d_uuid,
-            rm_id=r_uuid,
-            effective_from=now_ts,
-            is_active=True,
-            reason=reason or "Admin updated retailer organizational hierarchy mapping",
-            created_by=actor_email
-        )
-        db.add(new_assignment)
-
-        # 8. Sync Organization Hierarchy Graph Edges
-        # Edge: DISTRIBUTOR -> RETAILER
-        dist_edge_stmt = select(OrganizationHierarchyModel).where(
-            OrganizationHierarchyModel.child_entity_type == "RETAILER",
-            OrganizationHierarchyModel.child_entity_id == retailer.public_id,
-            OrganizationHierarchyModel.parent_entity_type == "DISTRIBUTOR",
-            OrganizationHierarchyModel.is_deleted == False
-        )
-        dist_edge = (await db.execute(dist_edge_stmt)).scalars().first()
-        if dist_edge:
-            dist_edge.parent_entity_id = d_uuid
-            dist_edge.company_id = c_uuid
-            dist_edge.updated_by = actor_email
-        else:
-            db.add(OrganizationHierarchyModel(
-                public_id=uuid.uuid4(),
-                tenant_id=retailer.tenant_id,
-                company_id=c_uuid,
-                parent_entity_type="DISTRIBUTOR",
-                parent_entity_id=d_uuid,
-                child_entity_type="RETAILER",
-                child_entity_id=retailer.public_id,
-                status="ACTIVE",
-                created_by=actor_email
-            ))
 
         # Edge: REGIONAL_MANAGER -> RETAILER (if rm_id provided)
         if r_uuid:
