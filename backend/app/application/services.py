@@ -3967,6 +3967,56 @@ class MachineManagementService:
         return telemetry
 
     @staticmethod
+    async def get_retailer_machines(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        retailer_id: str
+    ) -> List[Dict[str, Any]]:
+        from app.infrastructure.db.models import RetailerModel
+
+        target_ret_uuid = None
+        if retailer_id:
+            try:
+                target_ret_uuid = uuid.UUID(str(retailer_id).strip())
+            except Exception:
+                r_stmt = select(RetailerModel.public_id).where(
+                    or_(
+                        RetailerModel.retailer_code == str(retailer_id).strip(),
+                        RetailerModel.id.cast(String) == str(retailer_id).strip()
+                    ),
+                    RetailerModel.is_deleted == False
+                )
+                target_ret_uuid = (await db.execute(r_stmt)).scalar_one_or_none()
+
+        if not target_ret_uuid:
+            return []
+
+        stmt = select(SwipeMachineModel).where(
+            SwipeMachineModel.tenant_id == tenant_id,
+            SwipeMachineModel.mapped_retailer_id == target_ret_uuid,
+            SwipeMachineModel.is_deleted == False
+        ).order_by(SwipeMachineModel.created_date.desc())
+
+        res = await db.execute(stmt)
+        machines = res.scalars().all()
+
+        result = []
+        for m in machines:
+            result.append({
+                "public_id": str(m.public_id),
+                "serial_number": m.serial_number,
+                "mobile_number": m.mobile_number,
+                "tid": m.tid,
+                "mid": m.mid,
+                "pos_model": m.pos_model,
+                "status": m.status,
+                "mapped_retailer_id": str(m.mapped_retailer_id),
+                "assigned_at": m.assigned_at.isoformat() if m.assigned_at else None,
+                "created_date": m.created_date.isoformat() if m.created_date else None
+            })
+        return result
+
+    @staticmethod
     async def get_machine_details(db: AsyncSession, tenant_id: uuid.UUID, machine_id: uuid.UUID) -> Dict[str, Any]:
         from app.infrastructure.db.models import RetailerModel, CompanyModel
 
@@ -3985,6 +4035,7 @@ class MachineManagementService:
             raise NotFoundException("POS Terminal not found.")
 
         ret_info = {}
+        retailer_devices = []
         if m.mapped_retailer_id:
             from app.infrastructure.db.models import RetailerContactModel
             r_stmt = select(RetailerModel).where(RetailerModel.public_id == m.mapped_retailer_id)
@@ -4001,6 +4052,24 @@ class MachineManagementService:
                     "mobile": c_mob
                 }
 
+            dev_stmt = select(SwipeMachineModel).where(
+                SwipeMachineModel.tenant_id == tenant_id,
+                SwipeMachineModel.mapped_retailer_id == m.mapped_retailer_id,
+                SwipeMachineModel.is_deleted == False
+            ).order_by(SwipeMachineModel.created_date.desc())
+            dev_res = await db.execute(dev_stmt)
+            for d in dev_res.scalars().all():
+                retailer_devices.append({
+                    "public_id": str(d.public_id),
+                    "serial_number": d.serial_number,
+                    "mobile_number": d.mobile_number,
+                    "tid": d.tid,
+                    "mid": d.mid,
+                    "pos_model": d.pos_model,
+                    "status": d.status,
+                    "assigned_at": d.assigned_at.isoformat() if d.assigned_at else None
+                })
+
         company_name = "Pay2Pay Enterprise"
         if m.company_id:
             c_stmt = select(CompanyModel).where(CompanyModel.public_id == m.company_id)
@@ -4016,9 +4085,9 @@ class MachineManagementService:
             "serial_number": m.serial_number,
             "mobile_number": m.mobile_number,
             "vendor_id": m.vendor_id,
-            "vendor_name": m.vendor_name or "Standard POS",
+            "vendor_name": m.vendor_name or ("Standard POS" if m.vendor_id else None),
             "vendor_commission_type": m.vendor_commission_type or "PERCENTAGE",
-            "vendor_commission_value": float(m.vendor_commission_value or 0.50),
+            "vendor_commission_value": float(m.vendor_commission_value or 0.50) if (m.vendor_id or m.vendor_name) else 0.0,
             "tid": m.tid,
             "mid": m.mid,
             "pos_model": m.pos_model,
@@ -4072,7 +4141,8 @@ class MachineManagementService:
             "telemetry": telemetry,
             "key_profile": key_profile,
             "maintenances": maintenances,
-            "status_history": history
+            "status_history": history,
+            "retailer_devices": retailer_devices
         }
 
     @staticmethod
