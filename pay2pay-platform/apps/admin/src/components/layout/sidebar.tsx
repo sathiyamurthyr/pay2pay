@@ -10,7 +10,7 @@ import {
   Sliders, UploadCloud, Cpu, BookOpen, Wallet, Scale, Send, BarChart3, Activity,
   Ticket, Landmark, GitMerge, CheckSquare, Bell, Zap, Fingerprint, Volume2, Music,
   Globe, Sparkles, Search, X, PanelLeftClose, PanelLeftOpen, AlertTriangle, Layers,
-  Megaphone, Terminal, Star, Pin, MessageSquare, QrCode, RefreshCw
+  Megaphone, Terminal, Star, Pin, MessageSquare, QrCode, RefreshCw, Crown, CheckCircle2
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth";
@@ -129,12 +129,13 @@ const ADMIN_NAV: NavCategory[] = [
     ],
   },
   {
-    category: "Retailers",
+    category: "Partners & Hierarchy",
     items: [
-      { label: "Retailer Management", href: "/retailers", icon: Store },
+      { label: "Partner Hub", href: "/retailers", icon: Store },
+      { label: "Distributor Approvals", href: "/retailers/distributor-approvals", icon: CheckCircle2, badge: "Pending" },
+      { label: "Master Dist Approvals", href: "/retailers/sd-approvals", icon: Crown, badge: "Pending" },
       { label: "Verification", href: "/admin/retailer-verification", icon: ShieldCheck, badge: "Live" },
       { label: "Approval", href: "/approvals", icon: CheckSquare },
-      { label: "KYC", href: "/retailers", icon: Users },
     ],
   },
   {

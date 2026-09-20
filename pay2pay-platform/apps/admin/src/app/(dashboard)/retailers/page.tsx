@@ -237,16 +237,28 @@ function OnboardingHubContent() {
             Multi-tier onboarding for Super Distributors, Distributors & Retailers with Backblaze B2 KYC verification
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link
+            href="/retailers/distributor-approvals"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-blue-200 bg-blue-50/70 text-xs font-bold text-blue-700 hover:bg-blue-100 transition-all"
+          >
+            <CheckCircle2 className="w-4 h-4 text-blue-600" /> Distributor Approvals
+          </Link>
+          <Link
+            href="/retailers/sd-approvals"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-amber-200 bg-amber-50/70 text-xs font-bold text-amber-800 hover:bg-amber-100 transition-all"
+          >
+            <Building2 className="w-4 h-4 text-amber-600" /> Master Dist Approvals
+          </Link>
           <Link
             href="/organization"
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#E2E8F0] bg-white text-xs font-extrabold text-[#475569] hover:bg-[#F8FAFC] transition-all"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-[#E2E8F0] bg-white text-xs font-extrabold text-[#475569] hover:bg-[#F8FAFC] transition-all"
           >
             <Network className="w-4 h-4" /> View Org Topology
           </Link>
           <Link
             href={addButtonConfig.href}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-extrabold text-white shadow-md transition-all cursor-pointer ${addButtonConfig.color}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold text-white shadow-md transition-all cursor-pointer ${addButtonConfig.color}`}
           >
             <Plus className="w-4 h-4" /> {addButtonConfig.label}
           </Link>
