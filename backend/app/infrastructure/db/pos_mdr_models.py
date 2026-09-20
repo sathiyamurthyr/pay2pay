@@ -77,3 +77,58 @@ class PosMdrConfigurationModel(BaseEntity, EnterpriseBaseMixin):
     # Status & Audit
     remarks: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     metadata_json: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+
+
+class PosCardTypeModel(Base):
+    """
+    Master registry of dynamic POS Card Types (e.g. VISA, MASTER, RUPAY, AMEX / DINERS).
+    """
+    __tablename__ = "pos_card_types"
+    __table_args__ = (
+        Index("idx_pos_card_type_code", "code"),
+        {"extend_existing": True}
+    )
+
+    card_type_ref_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    display_order: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
+class PosMdrCommissionConfigModel(Base):
+    """
+    Company-level default POS MDR and Hierarchy Commission Configuration.
+    Defaults:
+    - default_distributor_mdr = 0.0000%
+    - default_sd_mdr = 0.0000%
+    - distributor_commission = 0.0000%
+    - sd_commission = 0.0000%
+    """
+    __tablename__ = "pos_mdr_commission_config"
+    __table_args__ = (
+        Index("idx_pos_mdr_comm_comp", "company_id", "company_ref_id"),
+        Index("idx_pos_mdr_comm_mode", "payment_mode"),
+        {"extend_existing": True}
+    )
+
+    pos_mdr_commission_config_ref_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    tenant_ref_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    company_ref_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    card_type_ref_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    payment_mode: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    distributor_commission: Mapped[float] = mapped_column(Numeric(10, 4), nullable=False, default=0.0000)
+    sd_commission: Mapped[float] = mapped_column(Numeric(10, 4), nullable=False, default=0.0000)
+    default_distributor_mdr: Mapped[float] = mapped_column(Numeric(10, 4), nullable=False, default=0.0000)
+    default_sd_mdr: Mapped[float] = mapped_column(Numeric(10, 4), nullable=False, default=0.0000)
+    retailer_mdr_override: Mapped[Optional[float]] = mapped_column(Numeric(10, 4), nullable=True)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="ACTIVE")
+    effective_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    effective_to: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+

@@ -451,6 +451,196 @@ async def login_with_password(
     referer_header = request.headers.get("referer", "").lower()
     host_header = request.headers.get("host", "").lower()
 
+    # ── SUPER DISTRIBUTOR (MASTER DISTRIBUTOR) PORTAL DETECTION ──────────────
+    is_super_distributor_portal = (
+        req_portal in ("SUPER_DISTRIBUTOR", "MASTER_DISTRIBUTOR", "SD", "MSD")
+        or "sd." in origin_header
+        or "sd." in referer_header
+        or "/sd/" in referer_header
+        or "sd." in host_header
+        or "super-distributor." in origin_header
+        or "super-distributor." in referer_header
+        or "super-distributor." in host_header
+        or "master-distributor." in origin_header
+    )
+
+    # ── SUPER DISTRIBUTOR AUTHENTICATION VIA STORED PROCEDURE ────────────────
+    if is_super_distributor_portal:
+        sd_record = None
+        try:
+            sd_sp_res = await db.execute(
+                text("SELECT * FROM public.sp_super_distributor_login_lookup(:m)"),
+                {"m": clean_mobile}
+            )
+            sd_record = sd_sp_res.mappings().first()
+        except Exception as e:
+            logger.warning(f"Error executing sp_super_distributor_login_lookup: {e}")
+            sd_record = None
+
+        if not sd_record:
+            raise HTTPException(
+                status_code=401,
+                detail="Master Distributor account not found for this mobile number. Please check your number or contact support."
+            )
+
+        sd_stored_hash = sd_record.get("password_hash")
+        is_valid_sd_pass = False
+        if sd_stored_hash:
+            try:
+                if dynamic_verify_password(payload.password, sd_stored_hash):
+                    is_valid_sd_pass = True
+            except Exception:
+                is_valid_sd_pass = False
+
+        if not is_valid_sd_pass:
+            try:
+                failed_attempt = await EnterpriseAuthService.record_failed_attempt(
+                    db=db,
+                    mobile_number=clean_mobile,
+                    ip_address=request.client.host if request.client else "127.0.0.1"
+                )
+                if failed_attempt.get("is_locked", False):
+                    raise HTTPException(
+                        status_code=429,
+                        detail="Invalid mobile number or password. Account locked for 30 minutes."
+                    )
+            except HTTPException:
+                raise
+            except Exception:
+                pass
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid mobile number or password. Please verify your credentials and try again."
+            )
+
+        # Successful password match for Super Distributor
+        try:
+            await EnterpriseAuthService.reset_failed_attempts(db=db, mobile_number=clean_mobile)
+        except Exception:
+            pass
+
+        sd_public_id = str(sd_record["super_distributor_id"])
+        sd_ref_id = sd_record["super_distributor_ref_id"]
+        sd_code = sd_record["super_distributor_code"]
+        sd_full_name = sd_record["full_name"]
+        sd_business_name = sd_record["business_name"] or "Pay2Pay Master Distributor"
+        sd_email = sd_record["email"] or f"{clean_mobile}@pay2pay.in"
+        sd_tenant_str = str(sd_record["tenant_id"])
+        sd_company_str = str(sd_record["company_id"])
+        sd_ten_ref_id = sd_record["tenant_ref_id"] or 1
+        sd_comp_ref_id = sd_record["company_ref_id"] or 1
+
+        sd_approve_status = bool(sd_record["approve_status"])
+        sd_active_status = bool(sd_record["active_status"])
+
+        try:
+            sd_history = LoginHistoryModel(
+                tenant_id=sd_record["tenant_id"],
+                user_id=sd_record["super_distributor_id"],
+                session_id=session_id,
+                correlation_id=correlation_id,
+                trace_id=trace_id,
+                request_id=f"REQ-{uuid.uuid4().hex[:8]}",
+                login_method="PASSWORD",
+                success=True,
+                risk_score=risk_info.get("risk_score", 5),
+                risk_level=risk_info.get("risk_level", "LOW"),
+                public_ip=request.client.host if request.client else "127.0.0.1",
+                device_fingerprint=fp_hash,
+                browser=payload.telemetry.get("browser", {}).get("name", "Chrome") if payload.telemetry else "Chrome"
+            )
+            db.add(sd_history)
+            await db.commit()
+        except Exception:
+            pass
+
+        sd_access_token = create_access_token(
+            subject=sd_public_id,
+            tenant_id=sd_tenant_str,
+            company_id=sd_company_str,
+            roles=["SUPER_DISTRIBUTOR"],
+            expires_delta=timedelta(days=7),
+            super_distributor_code=sd_code,
+            super_distributor_id=sd_public_id,
+            super_distributor_ref_id=sd_ref_id,
+            company_ref_id=sd_comp_ref_id,
+            tenant_ref_id=sd_ten_ref_id,
+            user_type_ref_id=4,
+            mobile=clean_mobile,
+            approve_status=sd_approve_status,
+            active_status=sd_active_status
+        )
+
+        sd_destination = "DASHBOARD" if (sd_approve_status and sd_active_status) else "ACCOUNT_UNDER_REVIEW"
+        sd_redirect_url = "/sd/dashboard" if (sd_approve_status and sd_active_status) else "/sd/account-under-review"
+
+        set_auth_session_cookies(
+            response=response,
+            request=request,
+            access_token=sd_access_token,
+            user_role="SD",
+            destination=sd_destination,
+            approve_status=sd_approve_status,
+            active_status=sd_active_status,
+        )
+
+        sd_msg = (
+            "Master Distributor authentication successful"
+            if (sd_approve_status and sd_active_status)
+            else "Your Master Distributor account approval/activation is pending. Please contact admin."
+        )
+
+        return {
+            "success": True,
+            "status": "SUCCESS",
+            "approve_status": sd_approve_status,
+            "active_status": sd_active_status,
+            "message": sd_msg,
+            "data": {
+                "session_id": session_id,
+                "correlation_id": correlation_id,
+                "trace_id": trace_id,
+                "access_token": sd_access_token,
+                "token_type": "Bearer",
+                "destination": sd_destination,
+                "approve_status": sd_approve_status,
+                "active_status": sd_active_status,
+                "is_approved": sd_approve_status,
+                "account_status": sd_record["status"],
+                "user_ref_id": sd_ref_id,
+                "user_type_ref_id": 4,
+                "super_distributor_ref_id": sd_ref_id,
+                "tenant_ref_id": sd_ten_ref_id,
+                "company_ref_id": sd_comp_ref_id,
+                "user": {
+                    "id": sd_public_id,
+                    "public_id": sd_public_id,
+                    "user_ref_id": sd_ref_id,
+                    "user_type_ref_id": 4,
+                    "super_distributor_ref_id": sd_ref_id,
+                    "super_distributor_id": sd_public_id,
+                    "super_distributor_code": sd_code,
+                    "tenant_ref_id": sd_ten_ref_id,
+                    "company_ref_id": sd_comp_ref_id,
+                    "mobile_number": clean_mobile,
+                    "full_name": sd_full_name,
+                    "owner_name": sd_full_name,
+                    "business_name": sd_business_name,
+                    "role": "SUPER_DISTRIBUTOR",
+                    "roles": ["SUPER_DISTRIBUTOR"],
+                    "user_type": "SUPER_DISTRIBUTOR",
+                    "status": sd_record["status"],
+                    "approve_status": sd_approve_status,
+                    "active_status": sd_active_status,
+                    "is_approved": sd_approve_status,
+                    "wallet_balance": float(sd_record["wallet_balance"]),
+                },
+                "redirect_url": sd_redirect_url,
+                "risk_assessment": risk_info,
+                "require_otp": False
+            }
+        }
+
     is_distributor_portal = (
         req_portal in ("DIST", "DISTRIBUTOR")
         or "dist." in origin_header

@@ -241,7 +241,9 @@ class PosMdrService:
         retailer_id: Optional[Union[str, uuid.UUID]] = None,
         company_id: Optional[Union[str, uuid.UUID]] = None,
         tenant_id: Optional[Union[str, uuid.UUID]] = None,
-        effective_date: Optional[datetime] = None
+        effective_date: Optional[datetime] = None,
+        card_type: Optional[str] = None,
+        **kwargs
     ) -> PosMdrConfigurationModel:
         """
         Resolves the applicable MDR configuration following strict priority:
@@ -285,8 +287,73 @@ class PosMdrService:
         retailer_uuid = await cls.resolve_retailer_uuid(db, retailer_id) if retailer_id else None
 
         allowed_modes = list(dict.fromkeys([canonical_mode, raw_mode]))
+        if kwargs.get("card_type"):
+            ct = str(kwargs["card_type"]).strip().upper()
+            if ct:
+                allowed_modes = list(dict.fromkeys([ct, canonical_mode, raw_mode]))
 
-        # Priority 1: Check for Retailer-Specific MDR
+        # Load Retailer Entity if present for hierarchy references
+        ret_obj = None
+        if retailer_uuid:
+            ret_stmt = select(RetailerModel).where(
+                RetailerModel.public_id == retailer_uuid,
+                RetailerModel.is_deleted == False
+            )
+            ret_obj = (await db.execute(ret_stmt)).scalars().first()
+
+        # Priority 1: Check Authorized Distributor MDR Override
+        if ret_obj and ret_obj.distributor_ref_id and ret_obj.retailer_ref_id:
+            try:
+                from app.infrastructure.db.distributor_models import DistributorMdrModel
+                dist_mdr_stmt = select(DistributorMdrModel).where(
+                    DistributorMdrModel.distributor_ref_id == ret_obj.distributor_ref_id,
+                    DistributorMdrModel.retailer_ref_id == ret_obj.retailer_ref_id,
+                    DistributorMdrModel.payment_mode.in_(allowed_modes),
+                    DistributorMdrModel.status == "ACTIVE"
+                ).order_by(DistributorMdrModel.card_type_ref_id.desc().nullslast(), DistributorMdrModel.created_at.desc()).limit(1)
+                dist_mdr = (await db.execute(dist_mdr_stmt)).scalars().first()
+                if dist_mdr and dist_mdr.mdr is not None:
+                    return PosMdrConfigurationModel(
+                        public_id=uuid.uuid4(),
+                        tenant_id=dist_mdr.tenant_id,
+                        company_id=dist_mdr.company_id,
+                        retailer_id=retailer_uuid,
+                        payment_mode=dist_mdr.payment_mode,
+                        mdr=float(dist_mdr.mdr),
+                        mdr_type=dist_mdr.mdr_type,
+                        gst_rate=float(dist_mdr.gst_rate),
+                        is_active=True
+                    )
+            except Exception:
+                pass
+
+        # Priority 2: Check Authorized Super Distributor MDR Override
+        if ret_obj and ret_obj.super_distributor_ref_id and ret_obj.retailer_ref_id:
+            try:
+                from app.infrastructure.db.distributor_models import SuperDistributorMdrModel
+                sd_mdr_stmt = select(SuperDistributorMdrModel).where(
+                    SuperDistributorMdrModel.super_distributor_ref_id == ret_obj.super_distributor_ref_id,
+                    SuperDistributorMdrModel.retailer_ref_id == ret_obj.retailer_ref_id,
+                    SuperDistributorMdrModel.payment_mode.in_(allowed_modes),
+                    SuperDistributorMdrModel.status == "ACTIVE"
+                ).order_by(SuperDistributorMdrModel.card_type_ref_id.desc().nullslast(), SuperDistributorMdrModel.created_at.desc()).limit(1)
+                sd_mdr = (await db.execute(sd_mdr_stmt)).scalars().first()
+                if sd_mdr and sd_mdr.mdr is not None:
+                    return PosMdrConfigurationModel(
+                        public_id=uuid.uuid4(),
+                        tenant_id=sd_mdr.tenant_id,
+                        company_id=sd_mdr.company_id,
+                        retailer_id=retailer_uuid,
+                        payment_mode=sd_mdr.payment_mode,
+                        mdr=float(sd_mdr.mdr),
+                        mdr_type=sd_mdr.mdr_type,
+                        gst_rate=float(sd_mdr.gst_rate),
+                        is_active=True
+                    )
+            except Exception:
+                pass
+
+        # Priority 3: Fallback to Existing Retailer-Specific Admin MDR
         if retailer_uuid:
             ret_stmt = (
                 select(PosMdrConfigurationModel)
@@ -309,39 +376,7 @@ class PosMdrService:
             if retailer_mdr:
                 return retailer_mdr
 
-            # Priority 1b: Check Active Distributor-Configured MDR under current dynamic hierarchy
-            try:
-                from app.infrastructure.db.distributor_models import DistributorMdrModel
-                ret_stmt = select(RetailerModel).where(
-                    RetailerModel.public_id == retailer_uuid,
-                    RetailerModel.is_deleted == False
-                )
-                ret_obj = (await db.execute(ret_stmt)).scalars().first()
-
-                if ret_obj and ret_obj.distributor_ref_id and ret_obj.retailer_ref_id:
-                    dist_mdr_stmt = select(DistributorMdrModel).where(
-                        DistributorMdrModel.distributor_ref_id == ret_obj.distributor_ref_id,
-                        DistributorMdrModel.retailer_ref_id == ret_obj.retailer_ref_id,
-                        DistributorMdrModel.payment_mode.in_(allowed_modes),
-                        DistributorMdrModel.status == "ACTIVE"
-                    ).order_by(DistributorMdrModel.created_at.desc()).limit(1)
-                    dist_mdr = (await db.execute(dist_mdr_stmt)).scalars().first()
-                    if dist_mdr:
-                        return PosMdrConfigurationModel(
-                            public_id=uuid.uuid4(),
-                            tenant_id=dist_mdr.tenant_id,
-                            company_id=dist_mdr.company_id,
-                            retailer_id=retailer_uuid,
-                            payment_mode=dist_mdr.payment_mode,
-                            mdr=float(dist_mdr.mdr),
-                            mdr_type=dist_mdr.mdr_type,
-                            gst_rate=float(dist_mdr.gst_rate),
-                            is_active=True
-                        )
-            except Exception:
-                pass
-
-        # Priority 2: Check for Default MDR (retailer_id IS NULL)
+        # Priority 4: Fallback to Existing Default Admin Retailer MDR (retailer_id IS NULL)
         def_stmt = (
             select(PosMdrConfigurationModel)
             .where(
@@ -363,7 +398,7 @@ class PosMdrService:
         if default_mdr:
             return default_mdr
 
-        # Priority 3: Configuration Error (NEVER hardcode or invent an MDR)
+        # Priority 5: Configuration Error (NEVER hardcode or invent an MDR)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="MDR configuration is not available for this retailer and payment mode."
@@ -642,7 +677,8 @@ class PosMdrService:
         db: AsyncSession,
         amount: Union[Decimal, float, int, str],
         payment_mode: str,
-        retailer_id: Optional[Union[str, uuid.UUID]] = None
+        retailer_id: Optional[Union[str, uuid.UUID]] = None,
+        card_type: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Comprehensive POS calculation including MDR, GST, and Vendor Commission snapshot.
@@ -651,7 +687,8 @@ class PosMdrService:
         mdr_cfg = await cls.resolve_mdr_configuration(
             db=db,
             payment_mode=payment_mode,
-            retailer_id=retailer_id
+            retailer_id=retailer_id,
+            card_type=card_type
         )
         mdr_res = cls.calculate_mdr(amount=amount, mdr_config=mdr_cfg)
 

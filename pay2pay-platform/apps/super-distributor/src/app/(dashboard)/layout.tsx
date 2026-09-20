@@ -1,28 +1,30 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useAuth } from "@/lib/auth";
 import { useRouter } from "next/navigation";
-import { RetailerLayout } from "@/components/layout/retailer-layout";
-
-const DEV_BYPASS = false;
+import { SuperDistributorLayout } from "@/components/layout/super-distributor-layout";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    if (typeof window !== "undefined") {
+      const token =
+        localStorage.getItem("pay2pay_access_token") ||
+        localStorage.getItem("p2p_access_token") ||
+        localStorage.getItem("access_token");
+      const hasCookie =
+        document.cookie.includes("p2p_access_token") ||
+        document.cookie.includes("pay2pay_access_token");
 
-  // Authentication check
-  useEffect(() => {
-    if (DEV_BYPASS || !mounted) return;
-    if (!authLoading && !user) {
-      router.replace("/retailer/login");
+      if (!token && !hasCookie) {
+        // Unauthenticated -> redirect to login
+        router.replace("/login");
+      }
     }
-  }, [user, authLoading, router, mounted]);
+  }, [router]);
 
-  return <RetailerLayout>{children}</RetailerLayout>;
+  return <SuperDistributorLayout>{children}</SuperDistributorLayout>;
 }

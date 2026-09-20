@@ -609,3 +609,195 @@ async def adjust_retailer_wallet_controller(
         "message": f"Retailer wallet successfully {adj_type.lower()}ed by ₹{req.amount:,.2f}."
     }
 
+
+# ─── 10. HIERARCHY PARTNER APPROVALS (DISTRIBUTORS & SUPER DISTRIBUTORS) ───
+
+@router.get("/pending-approvals", summary="Get Pending Distributor and Super Distributor Approvals")
+async def get_pending_hierarchy_approvals(
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Returns list of pending Distributors and Super Distributors awaiting Admin KYC/approval.
+    """
+    from app.infrastructure.db.models import DistributorModel, SuperDistributorModel
+
+    # Pending Distributors
+    dist_stmt = select(DistributorModel).where(
+        DistributorModel.is_deleted == False,
+        or_(
+            DistributorModel.status.in_(["PENDING", "UNDER_REVIEW", "PENDING_APPROVAL"]),
+            DistributorModel.is_active == False
+        )
+    ).order_by(DistributorModel.created_date.desc().nullslast())
+    dist_res = await db.execute(dist_stmt)
+    pending_dists = dist_res.scalars().all()
+
+    # Pending Super Distributors
+    sd_stmt = select(SuperDistributorModel).where(
+        SuperDistributorModel.is_deleted == False,
+        or_(
+            SuperDistributorModel.status.in_(["PENDING", "UNDER_REVIEW", "PENDING_APPROVAL"]),
+            SuperDistributorModel.is_active == False
+        )
+    ).order_by(SuperDistributorModel.created_date.desc().nullslast())
+    sd_res = await db.execute(sd_stmt)
+    pending_sds = sd_res.scalars().all()
+
+    return {
+        "success": True,
+        "data": {
+            "distributors": [
+                {
+                    "distributor_id": str(d.public_id),
+                    "distributor_ref_id": d.distributor_ref_id,
+                    "distributor_code": d.distributor_code,
+                    "business_name": d.business_name,
+                    "owner_name": d.owner_name,
+                    "mobile": d.mobile,
+                    "email": d.email,
+                    "status": d.status,
+                    "is_active": d.is_active,
+                    "city": d.city,
+                    "state": d.state,
+                    "super_distributor_ref_id": d.super_distributor_ref_id,
+                    "created_at": d.created_date.isoformat() if d.created_date else None
+                }
+                for d in pending_dists
+            ],
+            "super_distributors": [
+                {
+                    "super_distributor_id": str(s.public_id),
+                    "super_distributor_ref_id": s.super_distributor_ref_id,
+                    "super_distributor_code": s.super_distributor_code,
+                    "business_name": s.business_name,
+                    "owner_name": s.owner_name,
+                    "mobile": s.mobile,
+                    "email": s.email,
+                    "status": s.status,
+                    "is_active": s.is_active,
+                    "city": s.city,
+                    "state": s.state,
+                    "created_at": s.created_date.isoformat() if s.created_date else None
+                }
+                for s in pending_sds
+            ]
+        }
+    }
+
+
+class PartnerApprovalActionRequest(BaseModel):
+    action: str = Field(..., description="APPROVE | REJECT | SUSPEND | REACTIVATE")
+    reason: Optional[str] = Field(None)
+    notes: Optional[str] = Field(None)
+
+
+@router.post("/distributor-approvals/{distributor_id}", summary="Approve/Reject Distributor")
+async def update_distributor_approval_status(
+    distributor_id: str,
+    req: PartnerApprovalActionRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    from app.infrastructure.db.models import DistributorModel
+    from app.application.hierarchy_mapping_service import HierarchyMappingService
+
+    stmt = select(DistributorModel).where(
+        or_(
+            DistributorModel.public_id == uuid.UUID(distributor_id) if len(distributor_id) == 36 else False,
+            DistributorModel.distributor_code == distributor_id,
+            DistributorModel.distributor_ref_id == int(distributor_id) if distributor_id.isdigit() else False
+        ),
+        DistributorModel.is_deleted == False
+    )
+    dist = (await db.execute(stmt)).scalars().first()
+    if not dist:
+        raise HTTPException(status_code=404, detail="Distributor not found.")
+
+    action = req.action.upper()
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+
+    if action in ("APPROVE", "APPROVED"):
+        dist.status = "ACTIVE"
+        dist.is_active = True
+        dist.updated_date = now_utc
+        # Apply default hierarchy mapping if unmapped
+        await HierarchyMappingService.apply_default_distributor_hierarchy(db, dist, actor_email="admin@pay2pay.in")
+    elif action in ("REJECT", "REJECTED"):
+        dist.status = "REJECTED"
+        dist.is_active = False
+        dist.updated_date = now_utc
+    elif action in ("SUSPEND", "SUSPENDED"):
+        dist.status = "SUSPENDED"
+        dist.is_active = False
+        dist.updated_date = now_utc
+    elif action in ("REACTIVATE", "ACTIVE"):
+        dist.status = "ACTIVE"
+        dist.is_active = True
+        dist.updated_date = now_utc
+    else:
+        raise HTTPException(status_code=400, detail=f"Invalid action '{req.action}'.")
+
+    await db.commit()
+    return {
+        "success": True,
+        "message": f"Distributor {dist.distributor_code} status updated to {dist.status}.",
+        "distributor_id": str(dist.public_id),
+        "status": dist.status,
+        "is_active": dist.is_active
+    }
+
+
+@router.post("/sd-approvals/{sd_id}", summary="Approve/Reject Super Distributor")
+async def update_super_distributor_approval_status(
+    sd_id: str,
+    req: PartnerApprovalActionRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    from app.infrastructure.db.models import SuperDistributorModel
+    from app.application.hierarchy_mapping_service import HierarchyMappingService
+
+    stmt = select(SuperDistributorModel).where(
+        or_(
+            SuperDistributorModel.public_id == uuid.UUID(sd_id) if len(sd_id) == 36 else False,
+            SuperDistributorModel.super_distributor_code == sd_id,
+            SuperDistributorModel.super_distributor_ref_id == int(sd_id) if sd_id.isdigit() else False
+        ),
+        SuperDistributorModel.is_deleted == False
+    )
+    sd = (await db.execute(stmt)).scalars().first()
+    if not sd:
+        raise HTTPException(status_code=404, detail="Super Distributor not found.")
+
+    action = req.action.upper()
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+
+    if action in ("APPROVE", "APPROVED"):
+        sd.status = "ACTIVE"
+        sd.is_active = True
+        sd.updated_date = now_utc
+        # Apply default hierarchy mapping if unmapped
+        await HierarchyMappingService.apply_default_sd_hierarchy(db, sd, actor_email="admin@pay2pay.in")
+    elif action in ("REJECT", "REJECTED"):
+        sd.status = "REJECTED"
+        sd.is_active = False
+        sd.updated_date = now_utc
+    elif action in ("SUSPEND", "SUSPENDED"):
+        sd.status = "SUSPENDED"
+        sd.is_active = False
+        sd.updated_date = now_utc
+    elif action in ("REACTIVATE", "ACTIVE"):
+        sd.status = "ACTIVE"
+        sd.is_active = True
+        sd.updated_date = now_utc
+    else:
+        raise HTTPException(status_code=400, detail=f"Invalid action '{req.action}'.")
+
+    await db.commit()
+    return {
+        "success": True,
+        "message": f"Super Distributor {sd.super_distributor_code} status updated to {sd.status}.",
+        "super_distributor_id": str(sd.public_id),
+        "status": sd.status,
+        "is_active": sd.is_active
+    }
+
+

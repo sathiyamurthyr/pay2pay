@@ -87,13 +87,48 @@ class DistributorMdrModel(Base):
     distributor_mdr_ref_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     distributor_ref_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
     retailer_ref_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
-    service_name: Mapped[str] = mapped_column(String(50), nullable=False)
+    service_name: Mapped[str] = mapped_column(String(50), nullable=False, default="POS_TOPUP")
     payment_mode: Mapped[str] = mapped_column(String(50), nullable=False)
+    card_type_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     mdr: Mapped[Decimal] = mapped_column(Numeric(10, 4), nullable=False)
     mdr_type: Mapped[str] = mapped_column(String(20), nullable=False, default="PERCENTAGE")
     gst_rate: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False, default=Decimal("18.00"))
     tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    tenant_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    company_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="ACTIVE")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
+class SuperDistributorMdrModel(Base):
+    """
+    Super Distributor Retailer-Specific MDR Configuration.
+    First column MUST be super_distributor_mdr_ref_id BIGINT AUTO_INCREMENT PRIMARY KEY.
+    Super Distributor can configure MDR ONLY for retailers within its authorized downstream hierarchy.
+    """
+    __tablename__ = "super_distributor_mdr"
+    __table_args__ = (
+        UniqueConstraint("super_distributor_ref_id", "retailer_ref_id", "service_name", "payment_mode", name="uq_super_distributor_mdr"),
+        Index("idx_sd_mdr_sd_ret", "super_distributor_ref_id", "retailer_ref_id"),
+        Index("idx_sd_mdr_card_type", "card_type_ref_id"),
+        {"extend_existing": True}
+    )
+
+    super_distributor_mdr_ref_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    super_distributor_ref_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    retailer_ref_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    service_name: Mapped[str] = mapped_column(String(50), nullable=False, default="POS_TOPUP")
+    payment_mode: Mapped[str] = mapped_column(String(50), nullable=False)
+    card_type_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    mdr: Mapped[Decimal] = mapped_column(Numeric(10, 4), nullable=False)
+    mdr_type: Mapped[str] = mapped_column(String(20), nullable=False, default="PERCENTAGE")
+    gst_rate: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False, default=Decimal("18.00"))
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    tenant_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    company_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="ACTIVE")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))

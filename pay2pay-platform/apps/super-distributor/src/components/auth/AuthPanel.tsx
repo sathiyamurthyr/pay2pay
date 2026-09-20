@@ -1206,8 +1206,11 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           </div>
           <p className={`text-[11px] whitespace-pre-line leading-relaxed ${darkMode ? "text-slate-500" : "text-slate-400"}`}>{t.rbiFooter}</p>
         </div>
-
       </div>
     </div>
   );
 };
+
+export default AuthPanel;
+
+

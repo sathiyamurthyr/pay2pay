@@ -2571,6 +2571,20 @@ async def approve_topup_request(
     await db.commit()
     await db.refresh(topup_record)
 
+    # 10. Automatically Process Hierarchy Commissions (Distributor & Super Distributor)
+    try:
+        from app.application.pos_commission_service import PosCommissionService
+        await PosCommissionService.process_and_post_pos_commissions(
+            db=db,
+            retailer_id=retailer.public_id,
+            transaction_amount=float(final_approved_amount),
+            orig_txn_ref=sp_result.txn_id or topup_record.topup_request_id,
+            payment_mode=topup_record.payment_method,
+            card_type=topup_record.card_type
+        )
+    except Exception as comm_err:
+        logger.error(f"Error processing POS hierarchy commissions: {comm_err}", exc_info=True)
+
 
     # 11. Send Automated Email Notification to Retailer
     recipient_email = None

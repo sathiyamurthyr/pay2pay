@@ -419,6 +419,14 @@ app.include_router(admin_org_mapping_router.router, prefix=f"{settings.API_V1_ST
 app.include_router(admin_org_mapping_router.router, prefix="/api")
 app.include_router(admin_org_mapping_router.router, prefix="")
 
+import app.infrastructure.db.super_distributor_models as _super_distributor_models
+from app.presentation.api.v1 import super_distributor_router as _super_distributor_router
+app.include_router(_super_distributor_router.router, prefix=settings.API_V1_STR)
+app.include_router(_super_distributor_router.router, prefix="/v1")
+app.include_router(_super_distributor_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(_super_distributor_router.router, prefix="/api")
+app.include_router(_super_distributor_router.router, prefix="")
+
 @app.get("/health", tags=["Health"])
 @app.get(f"{settings.API_V1_STR}/health", tags=["Health"])
 @app.get(f"{settings.API_V1_STR}/payout-workflow/health", tags=["Health"])

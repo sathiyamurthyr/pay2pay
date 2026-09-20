@@ -694,3 +694,91 @@ async def provision_all_approved_defaults(
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to provision default MDR: {str(e)}")
+
+
+# ==============================================================================
+# COMPANY COMMISSION & DEFAULT MDR CONFIGURATION ENDPOINTS
+# ==============================================================================
+
+class CompanyCommissionConfigRequest(BaseModel):
+    distributor_commission_pct: float = Field(0.0, ge=0.0, le=100.0, description="Distributor commission percentage")
+    sd_commission_pct: float = Field(0.0, ge=0.0, le=100.0, description="Super Distributor commission percentage")
+    default_distributor_mdr: Optional[float] = Field(0.0, ge=0.0, le=100.0, description="Company default Distributor MDR percentage")
+    default_sd_mdr: Optional[float] = Field(0.0, ge=0.0, le=100.0, description="Company default Super Distributor MDR percentage")
+    payment_mode: Optional[str] = Field("ALL", description="Payment mode e.g. ALL, POS - Instant, etc.")
+    company_id: Optional[str] = Field(None, description="Company UUID (optional; resolves default if omitted)")
+
+
+@router.get("/admin/company-commission-config", summary="Get Company Commission & Default MDR Configuration")
+async def get_company_commission_config(
+    company_id: Optional[str] = Query(None, description="Company UUID"),
+    payment_mode: Optional[str] = Query("ALL", description="Payment mode (default ALL)"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Returns the company-level default Distributor and Super Distributor commissions
+    and MDR settings (defaults to 0.00% dynamically if not configured).
+    """
+    from app.application.pos_commission_service import PosCommissionService
+    from app.application.hierarchy_mapping_service import HierarchyMappingService
+
+    c_uuid = None
+    if company_id:
+        try:
+            c_uuid = uuid.UUID(str(company_id).strip())
+        except Exception:
+            pass
+
+    if not c_uuid:
+        comp = await HierarchyMappingService.resolve_default_company(db)
+        if comp:
+            c_uuid = comp.public_id
+
+    data = await PosCommissionService.get_company_commission_config(
+        db=db,
+        company_id=c_uuid,
+        payment_mode=payment_mode
+    )
+    return {"success": True, "data": data}
+
+
+@router.post("/admin/company-commission-config", summary="Update Company Commission & Default MDR Configuration")
+async def update_company_commission_config(
+    req: CompanyCommissionConfigRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Admin updates the company-level default Distributor and Super Distributor commissions
+    and MDR settings.
+    """
+    from app.application.pos_commission_service import PosCommissionService
+    from app.application.hierarchy_mapping_service import HierarchyMappingService
+
+    c_uuid = None
+    if req.company_id:
+        try:
+            c_uuid = uuid.UUID(str(req.company_id).strip())
+        except Exception:
+            pass
+
+    if not c_uuid:
+        comp = await HierarchyMappingService.resolve_default_company(db)
+        if not comp:
+            raise HTTPException(status_code=404, detail="Default company could not be resolved.")
+        c_uuid = comp.public_id
+
+    result = await PosCommissionService.update_company_commission_config(
+        db=db,
+        company_id=c_uuid,
+        distributor_commission_pct=req.distributor_commission_pct,
+        sd_commission_pct=req.sd_commission_pct,
+        default_distributor_mdr=req.default_distributor_mdr or 0.0,
+        default_sd_mdr=req.default_sd_mdr or 0.0,
+        payment_mode=req.payment_mode or "ALL"
+    )
+    return {
+        "success": True,
+        "message": "Company commission and MDR configuration updated successfully.",
+        "data": result
+    }
+
