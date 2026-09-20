@@ -593,34 +593,46 @@ export default function MachinesPage() {
 
   // Open Edit Machine Modal
   const openEditMachine = (m: any) => {
-    setEditingMachine(m);
+    const raw = m?.machine ? m.machine : m;
+    setEditingMachine(raw);
+    const retId = raw.mapped_retailer_id || "";
     setMachineForm({
-      serial_number: m.serial_number || "",
-      mobile_number: m.mobile_number || "",
-      vendor_id: m.vendor_id || "",
-      vendor_name: m.vendor_name || "",
-      vendor_commission_type: m.vendor_commission_type || "PERCENTAGE",
-      vendor_commission_value: m.vendor_commission_value ?? 0.0,
-      pos_model: m.pos_model || "Android POS Terminal",
-      machine_type: m.machine_type || "ANDROID_POS",
-      os_version: m.os_version || "Android 11",
-      firmware_version: m.firmware_version || "v2.4.1",
-      sim_iccid: m.sim_iccid || "",
-      telecom_provider: m.telecom_provider || "Airtel M2M",
-      mapped_retailer_id: m.mapped_retailer_id || "",
-      company_id: m.company_id || (companies[0]?.public_id ?? ""),
-      status: m.status || "ACTIVE"
+      serial_number: raw.serial_number || "",
+      mobile_number: raw.mobile_number || "",
+      vendor_id: raw.vendor_id || "",
+      vendor_name: raw.vendor_name || "",
+      vendor_commission_type: raw.vendor_commission_type || "PERCENTAGE",
+      vendor_commission_value: raw.vendor_commission_value ?? 0.0,
+      pos_model: raw.pos_model || "Android POS Terminal",
+      machine_type: raw.machine_type || "ANDROID_POS",
+      os_version: raw.os_version || "Android 11",
+      firmware_version: raw.firmware_version || "v2.4.1",
+      sim_iccid: raw.sim_iccid || "",
+      telecom_provider: raw.telecom_provider || "Airtel M2M",
+      mapped_retailer_id: retId,
+      company_id: raw.company_id || (companies[0]?.public_id ?? ""),
+      status: raw.status || "ACTIVE"
     });
     setModalError("");
     setShowMachineModal(true);
+    if (retId) {
+      fetchRetailerDevices(retId);
+    }
   };
 
   // Open Details Drawer
   const openDetailsDrawer = async (m: any) => {
     try {
-      const res = await api.get(`/api/v1/machines/${m.public_id}`);
+      const targetId = m.public_id || m.id;
+      const res = await api.get(`/api/v1/machines/${targetId}`);
       setSelectedMachineDetails(res.data);
       setShowDetailsDrawer(true);
+      const retId = res.data?.machine?.mapped_retailer_id;
+      if (retId) {
+        fetchRetailerDevices(retId);
+      } else {
+        setRetailerDevices([]);
+      }
     } catch (e) {
       console.error("Failed to load machine details", e);
     }
@@ -1968,9 +1980,16 @@ export default function MachinesPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-[#64748B]">Assigned Retailer:</span>
-                  <span className="text-xs font-bold text-[#0F172A]">
-                    {selectedMachineDetails.machine.retailer_name || "Unassigned"}
-                  </span>
+                  <div className="text-right">
+                    <span className="text-xs font-bold text-[#0F172A] block">
+                      {selectedMachineDetails.machine.retailer_name || "Unassigned"}
+                    </span>
+                    {selectedMachineDetails.machine.retailer_code && (
+                      <span className="text-[11px] font-mono text-[#64748B] block">
+                        {selectedMachineDetails.machine.retailer_code} {selectedMachineDetails.machine.retailer_mobile ? `• ${selectedMachineDetails.machine.retailer_mobile}` : ""}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 {selectedMachineDetails.machine.assigned_at && (
                   <div className="flex items-center justify-between text-[11px] text-[#64748B]">
@@ -1981,6 +2000,65 @@ export default function MachinesPage() {
                   </div>
                 )}
               </div>
+
+              {/* Retailer Assigned POS Devices List (Max 5) */}
+              {selectedMachineDetails.machine.mapped_retailer_id && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-black uppercase text-[#0F172A] tracking-wider flex items-center gap-1.5">
+                      <Cpu className="w-4 h-4 text-[#2563EB]" />
+                      Retailer Assigned POS Devices
+                    </h4>
+                    <span className="px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#1D4ED8] border border-[#BFDBFE] text-[10px] font-black">
+                      {(selectedMachineDetails.retailer_devices || retailerDevices).length}/5 Allocated
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {(selectedMachineDetails.retailer_devices || retailerDevices).length > 0 ? (
+                      (selectedMachineDetails.retailer_devices || retailerDevices).map((dev: any, idx: number) => (
+                        <div
+                          key={dev.public_id}
+                          className={`p-3 rounded-xl border transition-all flex items-center justify-between ${
+                            dev.public_id === selectedMachineDetails.machine.public_id
+                              ? "bg-[#EFF6FF] border-[#BFDBFE] shadow-2xs"
+                              : "bg-[#F8FAFC] border-[#E2E8F0]"
+                          }`}
+                        >
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs font-black text-[#2563EB]">
+                                {idx + 1}. {dev.serial_number}
+                              </span>
+                              {dev.public_id === selectedMachineDetails.machine.public_id && (
+                                <span className="px-1.5 py-0.2 rounded bg-[#2563EB] text-white text-[9px] font-black uppercase">
+                                  Current Unit
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-[#64748B] font-medium">
+                              TID: <span className="font-mono font-bold text-[#0F172A]">{dev.tid}</span> | Model: {dev.pos_model || "POS"}
+                            </div>
+                          </div>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black ${
+                              dev.status === "ACTIVE" || dev.status === "ASSIGNED"
+                                ? "bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]"
+                                : "bg-[#FEF2F2] text-[#991B1B] border border-[#FCA5A5]"
+                            }`}
+                          >
+                            {dev.status}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-3 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] text-xs text-[#64748B] text-center font-medium">
+                        No other devices assigned to this retailer
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Hardware Spec Grid */}
               <div className="space-y-3">
@@ -2003,7 +2081,9 @@ export default function MachinesPage() {
                   <div className="p-3 bg-[#F8FAFC] rounded-lg border border-[#E2E8F0]">
                     <span className="text-[11px] text-[#64748B] block font-medium">Vendor Commission</span>
                     <span className="font-mono font-bold text-[#2563EB]">
-                      {selectedMachineDetails.machine.vendor_id ? `${selectedMachineDetails.machine.vendor_commission_value ?? 0}%` : "0.00% (N/A)"}
+                      {selectedMachineDetails.machine.vendor_id || selectedMachineDetails.machine.vendor_name
+                        ? `${selectedMachineDetails.machine.vendor_commission_value ?? 0}% (${selectedMachineDetails.machine.vendor_commission_type || "PERCENTAGE"})`
+                        : "0.00% (N/A)"}
                     </span>
                   </div>
                   <div className="p-3 bg-[#F8FAFC] rounded-lg border border-[#E2E8F0]">

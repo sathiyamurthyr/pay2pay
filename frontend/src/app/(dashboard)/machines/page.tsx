@@ -529,34 +529,46 @@ export default function MachinesPage() {
 
   // Open Edit Machine Modal
   const openEditMachine = (m: any) => {
-    setEditingMachine(m);
+    const raw = m?.machine ? m.machine : m;
+    setEditingMachine(raw);
+    const retId = raw.mapped_retailer_id || "";
     setMachineForm({
-      serial_number: m.serial_number || "",
-      mobile_number: m.mobile_number || "",
-      vendor_id: m.vendor_id || "",
-      vendor_name: m.vendor_name || "",
-      vendor_commission_type: m.vendor_commission_type || "PERCENTAGE",
-      vendor_commission_value: m.vendor_commission_value ?? 0.0,
-      pos_model: m.pos_model || "Android POS Terminal",
-      machine_type: m.machine_type || "ANDROID_POS",
-      os_version: m.os_version || "Android 11",
-      firmware_version: m.firmware_version || "v2.4.1",
-      sim_iccid: m.sim_iccid || "",
-      telecom_provider: m.telecom_provider || "Airtel M2M",
-      mapped_retailer_id: m.mapped_retailer_id || "",
-      company_id: m.company_id || (companies[0]?.public_id ?? ""),
-      status: m.status || "ACTIVE"
+      serial_number: raw.serial_number || "",
+      mobile_number: raw.mobile_number || "",
+      vendor_id: raw.vendor_id || "",
+      vendor_name: raw.vendor_name || "",
+      vendor_commission_type: raw.vendor_commission_type || "PERCENTAGE",
+      vendor_commission_value: raw.vendor_commission_value ?? 0.0,
+      pos_model: raw.pos_model || "Android POS Terminal",
+      machine_type: raw.machine_type || "ANDROID_POS",
+      os_version: raw.os_version || "Android 11",
+      firmware_version: raw.firmware_version || "v2.4.1",
+      sim_iccid: raw.sim_iccid || "",
+      telecom_provider: raw.telecom_provider || "Airtel M2M",
+      mapped_retailer_id: retId,
+      company_id: raw.company_id || (companies[0]?.public_id ?? ""),
+      status: raw.status || "ACTIVE"
     });
     setModalError("");
     setShowMachineModal(true);
+    if (retId) {
+      fetchRetailerDevices(retId);
+    }
   };
 
   // Open Details Drawer
   const openDetailsDrawer = async (m: any) => {
     try {
-      const res = await api.get(`/api/v1/machines/${m.public_id}`);
+      const targetId = m.public_id || m.id;
+      const res = await api.get(`/api/v1/machines/${targetId}`);
       setSelectedMachineDetails(res.data);
       setShowDetailsDrawer(true);
+      const retId = res.data?.machine?.mapped_retailer_id;
+      if (retId) {
+        fetchRetailerDevices(retId);
+      } else {
+        setRetailerDevices([]);
+      }
     } catch (e) {
       console.error("Failed to load machine details", e);
     }
