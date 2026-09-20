@@ -59,12 +59,14 @@ function SearchableRetailerSelect({
   retailers,
   value,
   onChange,
+  deviceCounts,
   allowClear = false,
   placeholder = "Select Retailer Outlet..."
 }: {
   retailers: any[];
   value: string;
   onChange: (val: string) => void;
+  deviceCounts?: Record<string, number>;
   allowClear?: boolean;
   placeholder?: string;
 }) {
@@ -92,8 +94,10 @@ function SearchableRetailerSelect({
     return text.includes(q);
   });
 
+  const selectedDevCount = selectedRetailer && deviceCounts ? deviceCounts[selectedRetailer.public_id] : (selectedRetailer?.device_count ?? selectedRetailer?.pos_device_count);
+
   const displayLabel = selectedRetailer
-    ? `${selectedRetailer.store_name || selectedRetailer.owner_name} (${selectedRetailer.retailer_code})${selectedRetailer.registered_mobile || selectedRetailer.mobile ? ` • ${selectedRetailer.registered_mobile || selectedRetailer.mobile}` : ""}`
+    ? `${selectedRetailer.store_name || selectedRetailer.owner_name} (${selectedRetailer.retailer_code})${selectedRetailer.registered_mobile || selectedRetailer.mobile ? ` • ${selectedRetailer.registered_mobile || selectedRetailer.mobile}` : ""}${selectedDevCount !== undefined && selectedDevCount !== null ? ` [${selectedDevCount}/5 Devices]` : ""}`
     : placeholder;
 
   return (
@@ -164,6 +168,7 @@ function SearchableRetailerSelect({
             ) : (
               filteredRetailers.map((r) => {
                 const isSelected = r.public_id === value || r.retailer_code === value;
+                const devCount = deviceCounts ? deviceCounts[r.public_id] : (r.device_count ?? r.pos_device_count);
                 return (
                   <button
                     key={r.public_id}
@@ -179,11 +184,22 @@ function SearchableRetailerSelect({
                         : "text-[#334155] font-semibold hover:bg-[#F8FAFC] hover:text-[#0F172A]"
                     }`}
                   >
-                    <div className="truncate pr-2">
-                      <div className="font-bold text-[#0F172A]">{r.store_name || r.owner_name} <span className="font-mono text-[11px] text-[#64748B]">({r.retailer_code})</span></div>
+                    <div className="truncate pr-2 flex-1">
+                      <div className="font-bold text-[#0F172A] flex items-center justify-between">
+                        <span>{r.store_name || r.owner_name} <span className="font-mono text-[11px] text-[#64748B]">({r.retailer_code})</span></span>
+                        {devCount !== undefined && devCount !== null && (
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-black shrink-0 ${
+                            devCount >= 5
+                              ? "bg-[#FEF2F2] text-[#DC2626] border border-[#FCA5A5]"
+                              : "bg-[#F0FDF4] text-[#16A34A] border border-[#BBF7D0]"
+                          }`}>
+                            {devCount}/5 POS
+                          </span>
+                        )}
+                      </div>
                       <div className="text-[11px] text-[#64748B] font-medium">{r.owner_name} {r.registered_mobile || r.mobile ? `| ${r.registered_mobile || r.mobile}` : ""}</div>
                     </div>
-                    {isSelected && <Check className="w-4 h-4 text-[#2563EB] shrink-0" />}
+                    {isSelected && <Check className="w-4 h-4 text-[#2563EB] shrink-0 ml-2" />}
                   </button>
                 );
               })
@@ -216,6 +232,8 @@ export default function MachinesPage() {
   const [vendors, setVendors] = useState<any[]>([]);
   const [retailers, setRetailers] = useState<any[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
+  const [retailerDevices, setRetailerDevices] = useState<any[]>([]);
+  const [loadingRetailerDevices, setLoadingRetailerDevices] = useState(false);
 
   // Tab 2: POS MDR Configuration State
   const [mdrConfigs, setMdrConfigs] = useState<any[]>([]);
@@ -241,6 +259,16 @@ export default function MachinesPage() {
     type: null,
     message: ""
   });
+
+  const retailerDeviceCountMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    machines.forEach((m: any) => {
+      if (m.mapped_retailer_id) {
+        map[m.mapped_retailer_id] = (map[m.mapped_retailer_id] || 0) + 1;
+      }
+    });
+    return map;
+  }, [machines]);
 
   // Machine Form Initial State
   const [machineForm, setMachineForm] = useState({
@@ -455,6 +483,42 @@ export default function MachinesPage() {
       fetchServicesAndModes();
     }
   }, [activeTab, searchMachine, statusFilter, vendorFilter, searchMdr, mdrScopeFilter]);
+
+  // Fetch devices assigned to selected retailer (for serial number display & 5-device limit)
+  const fetchRetailerDevices = async (retId: string) => {
+    if (!retId) {
+      setRetailerDevices([]);
+      return;
+    }
+    try {
+      setLoadingRetailerDevices(true);
+      const res = await api.get(`/api/v1/machines/retailer/${encodeURIComponent(retId)}/devices`);
+      setRetailerDevices(res.data.items || []);
+    } catch (e) {
+      console.error("Failed to fetch retailer devices", e);
+      setRetailerDevices([]);
+    } finally {
+      setLoadingRetailerDevices(false);
+    }
+  };
+
+  const selectedRetailer = useMemo(() => {
+    if (!machineForm.mapped_retailer_id) return null;
+    return retailers.find((r: any) =>
+      r.public_id === machineForm.mapped_retailer_id ||
+      r.retailer_code === machineForm.mapped_retailer_id ||
+      String(r.id) === machineForm.mapped_retailer_id
+    ) || null;
+  }, [retailers, machineForm.mapped_retailer_id]);
+
+  useEffect(() => {
+    const targetId = selectedRetailer?.public_id || selectedRetailer?.retailer_code || machineForm.mapped_retailer_id;
+    if (showMachineModal && targetId) {
+      fetchRetailerDevices(targetId);
+    } else {
+      setRetailerDevices([]);
+    }
+  }, [machineForm.mapped_retailer_id, showMachineModal, selectedRetailer]);
 
   const parseErrorMessage = (err: any): string => {
     if (!err.response?.data) return "Network error or operation failure.";
@@ -741,9 +805,18 @@ export default function MachinesPage() {
         <div>
           {m.mapped_retailer_id ? (
             <div className="font-sans text-xs">
-              <div className="font-bold text-[#0F172A] flex items-center gap-1.5">
+              <div className="font-bold text-[#0F172A] flex items-center gap-1.5 flex-wrap">
                 <Store className="w-3.5 h-3.5 text-[#2563EB]" />
                 {m.retailer_name || "Retailer Outlet"}
+                {m.retailer_device_count !== undefined && m.retailer_device_count !== null && (
+                  <span className={`px-1.5 py-0.2 rounded text-[10px] font-black ${
+                    m.retailer_device_count >= 5
+                      ? "bg-[#FEF2F2] text-[#991B1B] border border-[#FCA5A5]"
+                      : "bg-[#EFF6FF] text-[#1D4ED8] border border-[#BFDBFE]"
+                  }`}>
+                    {m.retailer_device_count}/5 POS
+                  </span>
+                )}
               </div>
               <span className="text-[11px] text-[#64748B] font-mono">
                 {m.retailer_code} {m.retailer_mobile ? `• ${m.retailer_mobile}` : ""}
@@ -1509,9 +1582,86 @@ export default function MachinesPage() {
                   retailers={retailers}
                   value={machineForm.mapped_retailer_id}
                   onChange={(val) => setMachineForm({ ...machineForm, mapped_retailer_id: val })}
+                  deviceCounts={retailerDeviceCountMap}
                   allowClear={true}
                   placeholder="Select Retailer Outlet or leave unassigned..."
                 />
+
+                {/* Existing Devices Panel — shows serial numbers for selected retailer */}
+                {(machineForm.mapped_retailer_id || selectedRetailer) && (
+                  <div className="mt-2 space-y-2">
+                    {loadingRetailerDevices ? (
+                      <div className="flex items-center gap-2 text-xs text-[#64748B] font-medium p-2">
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Loading existing devices...
+                      </div>
+                    ) : retailerDevices.length > 0 ? (
+                      <div className={`p-3 rounded-xl border shadow-2xs space-y-2 ${
+                        retailerDevices.length >= 5
+                          ? "bg-[#FEF2F2] border-[#FCA5A5]"
+                          : "bg-[#F0FDF4] border-[#BBF7D0]"
+                      }`}>
+                        <div className="flex items-center justify-between">
+                          <span className={`text-xs font-extrabold ${
+                            retailerDevices.length >= 5 ? "text-[#991B1B]" : "text-[#166534]"
+                          }`}>
+                            {retailerDevices.length >= 5 ? (
+                              <span className="flex items-center gap-1.5">
+                                <AlertTriangle className="w-3.5 h-3.5" />
+                                Maximum Limit Reached — {retailerDevices.length}/5 Devices
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1.5">
+                                <Cpu className="w-3.5 h-3.5" />
+                                Existing Devices — {retailerDevices.length}/5
+                              </span>
+                            )}
+                          </span>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                            retailerDevices.length >= 5
+                              ? "bg-[#DC2626] text-white"
+                              : "bg-[#16A34A] text-white"
+                          }`}>
+                            {5 - retailerDevices.length} slot{5 - retailerDevices.length !== 1 ? "s" : ""} remaining
+                          </span>
+                        </div>
+                        <div className="space-y-1.5">
+                          {retailerDevices.map((dev: any, idx: number) => (
+                            <div
+                              key={dev.public_id}
+                              className="flex items-center justify-between p-2 bg-white/80 rounded-lg border border-[#E2E8F0] text-xs"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-black text-[#2563EB]">
+                                  {idx + 1}. {dev.serial_number}
+                                </span>
+                                <span className="text-[10px] text-[#64748B] font-medium">
+                                  TID: {dev.tid} | {dev.pos_model || "POS"}
+                                </span>
+                              </div>
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black ${
+                                dev.status === "ACTIVE" || dev.status === "ASSIGNED"
+                                  ? "bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]"
+                                  : "bg-[#FEF2F2] text-[#991B1B] border border-[#FCA5A5]"
+                              }`}>
+                                {dev.status}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        {retailerDevices.length >= 5 && !editingMachine && (
+                          <p className="text-[11px] text-[#991B1B] font-bold mt-1">
+                            Cannot add another device. Please remove or reassign an existing device first.
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="p-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-xs font-medium text-[#64748B] flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
+                        No existing POS devices — 5/5 slots available
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Serial Number & Mobile */}
@@ -1633,8 +1783,8 @@ export default function MachinesPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting}
-                  className="rounded-lg bg-[#2563EB] px-5 py-2 text-xs font-extrabold text-white hover:bg-[#1D4ED8] transition-all shadow-2xs cursor-pointer flex items-center gap-2 disabled:opacity-50"
+                  disabled={submitting || Boolean(machineForm.mapped_retailer_id && retailerDevices.length >= 5 && (!editingMachine || editingMachine.mapped_retailer_id !== machineForm.mapped_retailer_id))}
+                  className="rounded-lg bg-[#2563EB] px-5 py-2 text-xs font-extrabold text-white hover:bg-[#1D4ED8] transition-all shadow-2xs cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {submitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                   {editingMachine ? "Update Machine Spec" : "Deploy POS Machine"}
@@ -1681,6 +1831,7 @@ export default function MachinesPage() {
                     retailers={retailers}
                     value={mdrForm.retailer_id}
                     onChange={(val) => setMdrForm({ ...mdrForm, retailer_id: val })}
+                    deviceCounts={retailerDeviceCountMap}
                     placeholder="Select retailer to override MDR..."
                   />
                 </div>
