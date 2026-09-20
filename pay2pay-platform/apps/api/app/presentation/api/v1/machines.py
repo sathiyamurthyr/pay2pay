@@ -94,6 +94,21 @@ async def get_machine_dashboard_metrics(
     return await MachineManagementService.get_dashboard_metrics(db, tenant_id)
 
 
+@router.get("/retailer/{retailer_id}/devices")
+async def get_retailer_devices(
+    retailer_id: str,
+    tenant_id: uuid.UUID = Depends(get_current_tenant_id),
+    current_user: AdminUserModel = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Returns all POS machines currently assigned to a specific retailer.
+    Used by the frontend to display existing device serial numbers and enforce the 5-device limit.
+    """
+    devices = await MachineManagementService.get_retailer_machines(db, tenant_id, retailer_id)
+    return {"items": devices, "total": len(devices), "max_devices": 5}
+
+
 @router.get("/{machine_id}")
 async def get_machine_details(
     machine_id: uuid.UUID,
