@@ -191,7 +191,7 @@ export default function RetailerTopupRequestPage() {
   // ── POS Settlement States (Existing Workflow) ─────────────────────────────────
   const [paymentModes, setPaymentModes] = useState<PaymentModeOption[]>([]);
   const [cardTypes, setCardTypes] = useState<CardTypeOption[]>([]);
-  const [selectedCardType, setSelectedCardType] = useState<string>("");
+  const [selectedCardType, setSelectedCardType] = useState<string>("VISA");
   const [cardLast4, setCardLast4] = useState<string>("");
   const [requestedAmount, setRequestedAmount] = useState<string>("");
   const [paymentReference, setPaymentReference] = useState<string>("");
@@ -276,10 +276,12 @@ export default function RetailerTopupRequestPage() {
         }
         if (res.data?.card_types && Array.isArray(res.data.card_types) && res.data.card_types.length > 0) {
           setCardTypes(res.data.card_types);
+          setSelectedCardType((prev) => prev || res.data.card_types[0]?.code || "VISA");
         } else {
           const cardRes = await api.get("/api/v1/pos/card-types");
           if (cardRes.data?.items && Array.isArray(cardRes.data.items)) {
             setCardTypes(cardRes.data.items);
+            setSelectedCardType((prev) => prev || cardRes.data.items[0]?.code || "VISA");
           }
         }
       } catch (err) {
@@ -288,6 +290,7 @@ export default function RetailerTopupRequestPage() {
           const cardRes = await api.get("/api/v1/pos/card-types");
           if (cardRes.data?.items && Array.isArray(cardRes.data.items)) {
             setCardTypes(cardRes.data.items);
+            setSelectedCardType((prev) => prev || cardRes.data.items[0]?.code || "VISA");
           }
         } catch (cardErr) {
           console.warn("Failed to load card types:", cardErr);
@@ -339,7 +342,8 @@ export default function RetailerTopupRequestPage() {
         const res = await api.post("/api/v1/pos/calculate-mdr", {
           payment_mode: paymentMethod,
           transaction_amount: amt,
-          retailer_id: activeCode || undefined
+          retailer_id: activeCode || undefined,
+          card_type: selectedCardType || undefined
         });
         if (isMounted && res.data) {
           setMdrBreakdown(res.data);
@@ -358,36 +362,13 @@ export default function RetailerTopupRequestPage() {
       isMounted = false;
       clearTimeout(timer);
     };
-  }, [requestedAmount, paymentMethod, retailerInfo, walletData]);
+  }, [requestedAmount, paymentMethod, selectedCardType, retailerInfo, walletData]);
 
   // Fetch Requests History
   const fetchMyTopups = useCallback(async (isSilent = false) => {
     try {
       if (!isSilent) setLoadingRequests(true);
-      let userRefId: any = null;
-      let userTypeRefId: any = 2;
-      let retailerCode: string = "";
-      if (typeof window !== "undefined") {
-        try {
-          const userStr =
-            localStorage.getItem("user_info") ||
-            localStorage.getItem("user") ||
-            localStorage.getItem("auth_user") ||
-            localStorage.getItem("pay2pay_user_data");
-          if (userStr) {
-            const u = JSON.parse(userStr);
-            userRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
-            userTypeRefId = u.user_type_ref_id || 2;
-            retailerCode = u.retailer_code || u.code || "";
-          }
-        } catch {}
-      }
-      const qParams = new URLSearchParams();
-      qParams.set("user_type_ref_id", String(userTypeRefId || 2));
-      if (userRefId) qParams.set("user_ref_id", String(userRefId));
-      if (retailerCode) qParams.set("retailer_id", retailerCode);
-
-      const res = await api.get(`/api/v1/topup/my-requests?${qParams.toString()}`);
+      const res = await api.get("/api/v1/topup/my-requests");
       setMyRequests(res.data?.items || []);
       if (res.data?.retailer) {
         setRetailerInfo((prev) => {
@@ -710,6 +691,16 @@ export default function RetailerTopupRequestPage() {
 
       if (uploadRes.data?.data) {
         setUploadedPosSlipData(uploadRes.data.data);
+        const extracted = uploadRes.data.data.extracted_details;
+        if (extracted?.transaction_id) {
+          setPaymentReference(extracted.transaction_id);
+        }
+        if (extracted?.amount && (!requestedAmount || parseFloat(requestedAmount) === 0)) {
+          setRequestedAmount(extracted.amount.toString());
+        }
+        if (extracted?.payment_date) {
+          setPaymentDate(extracted.payment_date);
+        }
       }
     } catch (err: any) {
       console.error("POS slip upload error:", err);
@@ -733,7 +724,7 @@ export default function RetailerTopupRequestPage() {
     }
 
     if (!selectedCardType) {
-      setErrorMessage("Please select a Card Type (VISA, MASTER, RUPAY, AMEX / DINERS).");
+      setErrorMessage("Please select a Card Type (VISA, MASTER, RUPAY, AMEX / DINERS, Business/corporate).");
       return;
     }
 
@@ -775,27 +766,7 @@ export default function RetailerTopupRequestPage() {
         mdr_config_id: mdrBreakdown?.mdr_config_id
       };
 
-      let userRefId: any = null;
-      let userTypeRefId: any = 2;
-      if (typeof window !== "undefined") {
-        try {
-          const userStr =
-            localStorage.getItem("user_info") ||
-            localStorage.getItem("user") ||
-            localStorage.getItem("auth_user") ||
-            localStorage.getItem("pay2pay_user_data");
-          if (userStr) {
-            const u = JSON.parse(userStr);
-            userRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
-            userTypeRefId = u.user_type_ref_id || 2;
-          }
-        } catch {}
-      }
-      const qParams = new URLSearchParams();
-      qParams.set("user_type_ref_id", String(userTypeRefId || 2));
-      if (userRefId) qParams.set("user_ref_id", String(userRefId));
-
-      const res = await api.post(`/api/v1/topup/request?${qParams.toString()}`, payload);
+      const res = await api.post("/api/v1/topup/request", payload);
 
       const newReqId = res.data.topup_request_id;
       setSuccessMessage(res.data.message || `Topup request ${newReqId} submitted successfully.`);
@@ -1733,185 +1704,76 @@ export default function RetailerTopupRequestPage() {
               </div>
 
               <form onSubmit={handlePosSubmit} className="space-y-5">
-                {/* Amount Field + Quick Presets with Gold Accent */}
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-300 flex justify-between">
-                    <span>Transaction Amount (₹) <span className="text-amber-400">*</span></span>
+                {/* 1. Settlement Mode * */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                    <span>Settlement Mode <span className="text-amber-400">*</span></span>
+                    <span className="text-[10px] text-slate-400 font-normal">Choose Instant or T+1</span>
                   </label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-black text-amber-400">
-                      ₹
-                    </span>
-                    <input
-                      type="number"
-                      step="1"
-                      min="100"
-                      placeholder="0.00"
-                      value={requestedAmount}
-                      onChange={(e) => setRequestedAmount(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3.5 bg-slate-950/90 border border-slate-700/80 focus:border-amber-500 rounded-2xl text-2xl font-black text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
-                      required
-                    />
-                  </div>
 
-                  {/* Quick Presets */}
-                  <div className="space-y-2 pt-1">
-                    <label className="text-xs font-medium text-slate-400">Quick Select Amount:</label>
-                    <div className="flex flex-wrap gap-2">
-                      {amountPresets.map((amt) => (
-                        <button
-                          type="button"
-                          key={amt}
-                          onClick={() => setRequestedAmount(amt.toString())}
-                          className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all ${
-                            requestedAmount === amt.toString()
-                              ? "bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm shadow-amber-500/20"
-                              : "bg-slate-950/60 hover:bg-slate-800 text-slate-300 border-slate-800"
-                          }`}
-                        >
-                          ₹{amt.toLocaleString("en-IN")}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Mode Selector & Date */}
-                <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
-                      <span>Settlement Mode <span className="text-amber-400">*</span></span>
-                      <span className="text-[10px] text-slate-400 font-normal">Choose Instant or T+1</span>
-                    </label>
-
-                    {/* Both Instant & T+1 Settlement Selector Cards */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      {paymentModes.length === 0 ? (
-                        <div className="col-span-2 p-3 text-center text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl">
-                          No settlement modes active
-                        </div>
-                      ) : (
-                        paymentModes.map((mode) => {
-                          const isInstant = mode.code.toLowerCase().includes("instant");
-                          const isSelected = paymentMethod === mode.code;
-                          const isActive = mode.is_active !== false;
-                          return (
-                            <button
-                              type="button"
-                              key={mode.code}
-                              onClick={() => setPaymentMethod(mode.code)}
-                              className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
-                                isSelected
-                                  ? "bg-gradient-to-br from-amber-500/20 via-yellow-500/10 to-transparent border-amber-500 shadow-md shadow-amber-500/10 ring-1 ring-amber-500/40"
-                                  : "bg-slate-950/70 border-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-200"
-                              }`}
-                            >
-                              <div className="flex items-center justify-between w-full mb-1">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-sm">{isInstant ? "⚡" : "📅"}</span>
-                                  <span className={`text-xs font-bold ${isSelected ? "text-amber-300" : "text-white"}`}>
-                                    {isInstant ? "POS - Instant" : "POS+T1"}
-                                  </span>
-                                </div>
-                                <span
-                                  className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1.5 ${
-                                    isSelected
-                                      ? "bg-amber-400 text-slate-950 shadow-sm font-black"
-                                      : isActive
-                                      ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
-                                      : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
-                                  }`}
-                                >
-                                  <span
-                                    className={`w-1.5 h-1.5 rounded-full ${
-                                      isSelected
-                                        ? "bg-slate-950"
-                                        : isActive
-                                        ? "bg-emerald-400"
-                                        : "bg-rose-400"
-                                    }`}
-                                  />
-                                  {isActive ? "Active" : "Inactive"}
+                  {/* Both Instant & T+1 Settlement Selector Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {paymentModes.length === 0 ? (
+                      <div className="col-span-2 p-3 text-center text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl">
+                        No settlement modes active
+                      </div>
+                    ) : (
+                      paymentModes.map((mode) => {
+                        const isInstant = mode.code.toLowerCase().includes("instant");
+                        const isSelected = paymentMethod === mode.code;
+                        const isActive = mode.is_active !== false;
+                        return (
+                          <button
+                            type="button"
+                            key={mode.code}
+                            onClick={() => setPaymentMethod(mode.code)}
+                            className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+                              isSelected
+                                ? "bg-gradient-to-br from-amber-500/20 via-yellow-500/10 to-transparent border-amber-500 shadow-md shadow-amber-500/10 ring-1 ring-amber-500/40"
+                                : "bg-slate-950/70 border-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-200"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between w-full mb-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-sm">{isInstant ? "⚡" : "📅"}</span>
+                                <span className={`text-xs font-bold ${isSelected ? "text-amber-300" : "text-white"}`}>
+                                  {isInstant ? "POS - Instant" : "POS+T1"}
                                 </span>
                               </div>
-                              <p className="text-[11px] text-slate-400 leading-tight">
-                                {isInstant
-                                  ? "Instant wallet credit upon verification"
-                                  : "T+1 Next business day wallet credit"}
-                              </p>
-                            </button>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-300">Payment Date</label>
-                    <input
-                      type="date"
-                      value={paymentDate}
-                      onChange={(e) => setPaymentDate(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-950/90 border border-slate-700/80 rounded-xl text-xs font-medium text-slate-200 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 transition-all"
-                    />
+                              <span
+                                className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                                  isSelected
+                                    ? "bg-amber-400 text-slate-950 shadow-sm font-black"
+                                    : isActive
+                                    ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                                    : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                                }`}
+                              >
+                                <span
+                                  className={`w-1.5 h-1.5 rounded-full ${
+                                    isSelected
+                                      ? "bg-slate-950"
+                                      : isActive
+                                      ? "bg-emerald-400"
+                                      : "bg-rose-400"
+                                  }`}
+                                />
+                                {isActive ? "Active" : "Inactive"}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-400 leading-tight">
+                              {isInstant
+                                ? "Instant wallet credit upon verification"
+                                : "T+1 Next business day wallet credit"}
+                            </p>
+                          </button>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
 
-                {/* MDR Breakdown Card with Amber Glow */}
-                {parseFloat(requestedAmount || "0") > 0 && (
-                  <div className="rounded-2xl border border-amber-500/20 bg-slate-950/90 p-4.5 space-y-3.5 shadow-xl relative overflow-hidden">
-                    <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
-                      <span className="text-xs font-bold text-white flex items-center gap-2">
-                        <Calculator className="h-4 w-4 text-amber-400" />
-                        Live Fee & Settlement Breakdown
-                      </span>
-                      <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30 font-mono font-bold uppercase tracking-wider">
-                        {paymentMethod.toLowerCase().includes("instant") ? "Instant" : "POS+T1"}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-y-2 text-xs">
-                      <span className="text-slate-400">Payment Mode</span>
-                      <span className="text-right font-semibold text-white">
-                        {paymentMethod.toLowerCase().includes("instant") ? "POS - Instant" : "POS+T1"}
-                      </span>
-
-                      <span className="text-slate-400">Transaction Amount</span>
-                      <span className="text-right font-black text-amber-400">
-                        ₹{parseFloat(requestedAmount || "0").toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                      </span>
-
-                      <span className="text-slate-400">MDR</span>
-                      <span className="text-right font-semibold text-amber-300">
-                        {mdrBreakdown ? `₹${mdrBreakdown.mdr.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : (calculatingMdr ? "..." : "₹0.00")}
-                      </span>
-
-                      <span className="text-slate-400">GST (18%)</span>
-                      <span className="text-right font-semibold text-amber-300/90">
-                        {mdrBreakdown ? `₹${mdrBreakdown.gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : (calculatingMdr ? "..." : "₹0.00")}
-                      </span>
-
-                      <span className="text-slate-400">Charges</span>
-                      <span className="text-right font-semibold text-slate-300">
-                        {mdrBreakdown ? `₹${mdrBreakdown.charges.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : (calculatingMdr ? "..." : "₹0.00")}
-                      </span>
-
-                      <div className="col-span-2 pt-3 mt-1 border-t border-slate-800/80 flex items-center justify-between">
-                        <div>
-                          <span className="text-xs font-bold text-white block">Received Amount</span>
-                          <span className="text-[10px] text-emerald-400/80">Credited to Retailer Wallet</span>
-                        </div>
-                        <span className="text-xl font-black text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]">
-                          {mdrBreakdown
-                            ? `₹${mdrBreakdown.received_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
-                            : (calculatingMdr ? "..." : `₹${parseFloat(requestedAmount || "0").toLocaleString("en-IN", { minimumFractionDigits: 2 })}`)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* ── POS Card Details (Card Type & Card Last 4 Digits) ── */}
+                {/* 2. Card Type * & Card Last 4 Digits */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80">
                   {/* Card Type */}
                   <div className="space-y-1.5">
@@ -1956,22 +1818,104 @@ export default function RetailerTopupRequestPage() {
                   </div>
                 </div>
 
-                {/* Bank Reference */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-300">
-                    Bank Reference / UTR Number <span className="text-amber-400">*</span>
+                {/* 3. Transaction Amount (₹) * */}
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-300 flex justify-between">
+                    <span>Transaction Amount (₹) <span className="text-amber-400">*</span></span>
                   </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-black text-amber-400">
+                      ₹
+                    </span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="1"
+                      placeholder="0.00"
+                      value={requestedAmount}
+                      onChange={(e) => setRequestedAmount(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3.5 bg-slate-950/90 border border-slate-700/80 focus:border-amber-500 rounded-2xl text-2xl font-black text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* 5. Payment Date */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-300">Payment Date</label>
                   <input
-                    type="text"
-                    placeholder="e.g. UTR123456789 or Terminal Txn Ref"
-                    value={paymentReference}
-                    onChange={(e) => setPaymentReference(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-950/90 border border-slate-700/80 rounded-xl text-xs font-mono font-semibold text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 transition-all"
-                    required
+                    type="date"
+                    value={paymentDate}
+                    onChange={(e) => setPaymentDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-950/90 border border-slate-700/80 rounded-xl text-xs font-medium text-slate-200 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 transition-all"
                   />
                 </div>
 
-                {/* Payment Slip Upload */}
+                {/* 6. Live Fee & Settlement Breakdown */}
+                <div className="rounded-2xl border border-amber-500/20 bg-slate-950/90 p-4.5 space-y-3.5 shadow-xl relative overflow-hidden">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                    <span className="text-xs font-bold text-white flex items-center gap-2">
+                      <Calculator className="h-4 w-4 text-amber-400" />
+                      Live Fee & Settlement Breakdown
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {calculatingMdr && (
+                        <RefreshCw className="h-3.5 w-3.5 text-amber-400 animate-spin" />
+                      )}
+                      <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30 font-mono font-bold uppercase tracking-wider">
+                        {paymentMethod.toLowerCase().includes("instant") ? "Instant" : "POS+T1"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {parseFloat(requestedAmount || "0") > 0 ? (
+                    <div className="grid grid-cols-2 gap-y-2 text-xs">
+                      <span className="text-slate-400">Payment Mode & Card</span>
+                      <span className="text-right font-semibold text-white">
+                        {paymentMethod.toLowerCase().includes("instant") ? "POS - Instant" : "POS+T1"} {selectedCardType ? `(${selectedCardType})` : ""}
+                      </span>
+
+                      <span className="text-slate-400">Transaction Amount</span>
+                      <span className="text-right font-black text-amber-400">
+                        ₹{parseFloat(requestedAmount || "0").toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </span>
+
+                      <span className="text-slate-400">MDR</span>
+                      <span className="text-right font-semibold text-amber-300">
+                        {mdrBreakdown ? `₹${mdrBreakdown.mdr.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : (calculatingMdr ? "..." : "₹0.00")}
+                      </span>
+
+                      <span className="text-slate-400">GST (18%)</span>
+                      <span className="text-right font-semibold text-amber-300/90">
+                        {mdrBreakdown ? `₹${mdrBreakdown.gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : (calculatingMdr ? "..." : "₹0.00")}
+                      </span>
+
+                      <span className="text-slate-400">Charges</span>
+                      <span className="text-right font-semibold text-slate-300">
+                        {mdrBreakdown ? `₹${mdrBreakdown.charges.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : (calculatingMdr ? "..." : "₹0.00")}
+                      </span>
+
+                      <div className="col-span-2 pt-3 mt-1 border-t border-slate-800/80 flex items-center justify-between">
+                        <div>
+                          <span className="text-xs font-bold text-white block">Received Amount</span>
+                          <span className="text-[10px] text-emerald-400/80">Credited to Retailer Wallet</span>
+                        </div>
+                        <span className="text-xl font-black text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]">
+                          {mdrBreakdown
+                            ? `₹${mdrBreakdown.received_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+                            : (calculatingMdr ? "..." : `₹${parseFloat(requestedAmount || "0").toLocaleString("en-IN", { minimumFractionDigits: 2 })}`)}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3 rounded-xl bg-slate-900/50 border border-slate-800 text-xs text-slate-400 flex items-center gap-2.5">
+                      <Info className="h-4 w-4 text-amber-400 shrink-0" />
+                      <span>Enter transaction amount above to see instant live fee & wallet credit breakdown.</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* 7. Upload Payment Slip / Receipt * */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-300 flex justify-between">
                     <span>Upload Payment Slip / Receipt <span className="text-amber-400">*</span></span>
@@ -2008,7 +1952,7 @@ export default function RetailerTopupRequestPage() {
                         ) : uploadedPosSlipData ? (
                           <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1 mt-1">
                             <Check className="h-3 w-3" />
-                            Receipt attached and ready
+                            Receipt attached & Transaction ID bound
                           </span>
                         ) : null}
                       </div>
@@ -2035,13 +1979,33 @@ export default function RetailerTopupRequestPage() {
                         Click or drag & drop payment receipt
                       </p>
                       <p className="text-[10px] text-slate-400 mt-0.5">
-                        Bank transfer slips & POS terminal receipts
+                        JPG, PNG, WEBP (Max 10MB) • Auto-reads Transaction ID / UTR
                       </p>
                     </label>
                   )}
                 </div>
 
-                {/* Remarks */}
+                {/* 8. Bank Reference / UTR Number * (Auto-bound from uploaded slip) */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                    <span>Bank Reference / UTR Number <span className="text-amber-400">*</span></span>
+                    {uploadedPosSlipData?.extracted_details?.transaction_id && (
+                      <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                        <Check className="h-3 w-3" /> Auto-filled from receipt
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. UTR123456789 or Terminal Txn Ref"
+                    value={paymentReference}
+                    onChange={(e) => setPaymentReference(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-950/90 border border-slate-700/80 rounded-xl text-xs font-mono font-semibold text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 transition-all"
+                    required
+                  />
+                </div>
+
+                {/* 9. Remarks / Note (Optional) */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-300">Remarks / Note (Optional)</label>
                   <textarea
@@ -2056,7 +2020,7 @@ export default function RetailerTopupRequestPage() {
                 {/* Submit Button with Yellow Gradient */}
                 <button
                   type="submit"
-                  disabled={submittingPos || uploadingPosSlip || paymentModes.length === 0 || !paymentMethod}
+                  disabled={submittingPos || uploadingPosSlip || paymentModes.length === 0 || !paymentMethod || !requestedAmount || parseFloat(requestedAmount) <= 0 || !paymentReference.trim()}
                   className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-sm rounded-2xl shadow-xl shadow-amber-500/20 transition-all flex items-center justify-center gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {submittingPos ? (

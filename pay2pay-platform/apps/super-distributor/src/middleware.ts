@@ -14,37 +14,37 @@ export const PORTAL_CONFIGS: Record<UserPortalRole, PortalConfig> = {
   RETAILER: {
     portal: "RETAILER",
     prefix: "/retailer",
-    dashboard: "/retailer/dashboard",
-    login: "/retailer/login",
+    dashboard: "/dashboard",
+    login: "/login",
   },
   DIST: {
     portal: "DIST",
     prefix: "/dist",
-    dashboard: "/dist/dashboard",
-    login: "/dist/login",
+    dashboard: "/dashboard",
+    login: "/login",
   },
   SD: {
     portal: "SD",
-    prefix: "/sd",
-    dashboard: "/sd/dashboard",
-    login: "/sd/login",
+    prefix: "",
+    dashboard: "/dashboard",
+    login: "/login",
   },
   ADMIN: {
     portal: "ADMIN",
     prefix: "/admin",
     dashboard: "/admin/dashboard",
-    login: "/admin/login",
+    login: "/login",
   },
   SUPER_ADMIN: {
     portal: "SUPER_ADMIN",
     prefix: "/super-admin",
     dashboard: "/super-admin/dashboard",
-    login: "/super-admin/login",
+    login: "/login",
   },
 };
 
 export function normalizeUserRole(rawRole?: string | null): UserPortalRole {
-  if (!rawRole) return "RETAILER";
+  if (!rawRole) return "SD";
   const upper = rawRole.trim().toUpperCase();
 
   if (upper === "SUPER_ADMIN" || upper === "SUPERADMIN" || upper === "SUPER-ADMIN") {
@@ -59,7 +59,7 @@ export function normalizeUserRole(rawRole?: string | null): UserPortalRole {
   if (upper === "DIST" || upper === "DISTRIBUTOR") {
     return "DIST";
   }
-  return "RETAILER";
+  return "SD";
 }
 
 export function resolvePortalRoute(rawRole?: string | null): PortalConfig {
@@ -73,7 +73,7 @@ export function middleware(request: NextRequest) {
   const rawRole =
     request.cookies.get("p2p_user_role")?.value ||
     request.cookies.get("pay2pay_user_role")?.value ||
-    "RETAILER";
+    "SD";
 
   const userRole = normalizeUserRole(rawRole);
   const portalConfig = resolvePortalRoute(userRole);
@@ -100,16 +100,17 @@ export function middleware(request: NextRequest) {
   const isLoginRoute =
     pathname === "/retailer/login" ||
     pathname === "/login" ||
-    pathname === "/dist/login" ||
     pathname === "/sd/login" ||
-    pathname === "/admin/login" ||
-    pathname === "/super-admin/login";
+    pathname === "/dist/login";
 
   const isPublicRoute =
     isLoginRoute ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/forgot-password") ||
     pathname.startsWith("/reset-password") ||
+    pathname.startsWith("/account-under-review") ||
+    pathname.startsWith("/account-restricted") ||
+    pathname.startsWith("/application-rejected") ||
     pathname.startsWith("/design-system") ||
     pathname === "/403";
 
@@ -117,47 +118,30 @@ export function middleware(request: NextRequest) {
   if (isLoginRoute) {
     if (isAuthenticated) {
       return applySecurityHeaders(
-        NextResponse.redirect(new URL(portalConfig.dashboard, request.url))
+        NextResponse.redirect(new URL("/dashboard", request.url))
       );
     }
     return applySecurityHeaders(NextResponse.next());
   }
 
-  // If visiting another public route (like /register), allow
+  // If visiting another public route, allow
   if (isPublicRoute) {
     return applySecurityHeaders(NextResponse.next());
   }
 
   // 2. Unauthenticated user accessing ANY protected route -> Fail-closed redirect to login
   if (!isAuthenticated) {
-    const loginUrl = new URL(portalConfig.login, request.url);
+    const loginUrl = new URL("/login", request.url);
     if (pathname !== "/" && pathname !== "/dashboard" && pathname !== "/retailer-dashboard") {
       loginUrl.searchParams.set("redirect", pathname);
     }
     return applySecurityHeaders(NextResponse.redirect(loginUrl));
   }
 
-  // 3. Authenticated Root/Dashboard aliases -> redirect to canonical portal dashboard
-  if (pathname === "/" || pathname === "/dashboard" || pathname === "/retailer-dashboard") {
+  // 3. Authenticated Root -> redirect to canonical portal dashboard
+  if (pathname === "/" || pathname === "/dashboard") {
     return applySecurityHeaders(
-      NextResponse.redirect(new URL(portalConfig.dashboard, request.url))
-    );
-  }
-
-  if (pathname === "/admin-dashboard") {
-    return applySecurityHeaders(
-      NextResponse.redirect(new URL(PORTAL_CONFIGS.ADMIN.dashboard, request.url))
-    );
-  }
-
-  // 4. Role-based prefix boundary checks
-  const allPrefixes = Object.values(PORTAL_CONFIGS).map((c) => c.prefix);
-  const targetPrefix = allPrefixes.find((prefix) => pathname.startsWith(prefix));
-
-  if (targetPrefix && targetPrefix !== portalConfig.prefix) {
-    // If accessing another portal's prefixed routes (e.g. Retailer trying /admin/*), redirect to own dashboard
-    return applySecurityHeaders(
-      NextResponse.redirect(new URL(portalConfig.dashboard, request.url))
+      NextResponse.redirect(new URL("/dashboard", request.url))
     );
   }
 

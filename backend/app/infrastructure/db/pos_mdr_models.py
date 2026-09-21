@@ -121,6 +121,7 @@ class PosMdrCommissionConfigModel(Base):
     company_ref_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     card_type_ref_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     payment_mode: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    company_mdr: Mapped[float] = mapped_column(Numeric(10, 4), nullable=False, default=0.0000)
     distributor_commission: Mapped[float] = mapped_column(Numeric(10, 4), nullable=False, default=0.0000)
     sd_commission: Mapped[float] = mapped_column(Numeric(10, 4), nullable=False, default=0.0000)
     default_distributor_mdr: Mapped[float] = mapped_column(Numeric(10, 4), nullable=False, default=0.0000)

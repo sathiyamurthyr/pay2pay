@@ -352,6 +352,7 @@ export default function SuperDistributorMdrPage() {
                   <option value="MASTER">MASTER</option>
                   <option value="RUPAY">RUPAY</option>
                   <option value="AMEX / DINERS">AMEX / DINERS</option>
+                  <option value="Business/corporate">Business/corporate</option>
                 </select>
               </div>
 

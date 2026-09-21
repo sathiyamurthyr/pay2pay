@@ -272,7 +272,7 @@ export const StepFinalReview: React.FC<StepFinalProps> = ({
     },
     {
       section: "Entity & Tax",
-      value: isBusiness ? "Business Entity (GST Registered)" : "Individual Retailer (PAN Verified)",
+      value: isBusiness ? "Business Entity (GST Registered)" : "Individual Super Distributor (PAN Verified)",
       sub: isBusiness ? "GST Verified ✓" : "Aadhaar eKYC ✓",
       step: 6,
       icon: isBusiness ? <Building2 className="w-3.5 h-3.5 text-purple-400" /> : <User className="w-3.5 h-3.5 text-blue-400" />,

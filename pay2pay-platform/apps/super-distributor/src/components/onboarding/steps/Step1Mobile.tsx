@@ -113,7 +113,7 @@ export const Step1Mobile: React.FC<Step1Props> = ({ onSuccess }) => {
             Mobile number already registered.
           </h2>
           <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto">
-            Your registration is already completed. Please login to continue accessing your retailer portal.
+            Your registration is already completed. Please login to continue accessing your super distributor portal.
           </p>
         </div>
 
@@ -203,7 +203,7 @@ export const Step1Mobile: React.FC<Step1Props> = ({ onSuccess }) => {
     <div className="space-y-5 select-none">
       <div className="text-center">
         <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-          Create Your Retailer Account
+          Create Your Super Distributor Account
         </h2>
         <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
           Let's start with your 10-digit mobile number.

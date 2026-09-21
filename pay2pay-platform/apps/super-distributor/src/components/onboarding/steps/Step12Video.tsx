@@ -36,7 +36,7 @@ export const Step12Video: React.FC<Step12Props> = ({
 
   const nameDisplay = merchantName || "YOUR NAME";
   const shopDisplay = shopName || "YOUR BUSINESS";
-  const scriptText = `"My name is ${nameDisplay}, and I am applying for Pay2Pay Retailer Merchant Onboarding for my business ${shopDisplay}."`;
+  const scriptText = `"My name is ${nameDisplay}, and I am applying for Pay2Pay Super Distributor Onboarding for my business ${shopDisplay}."`;
 
   // ── Open camera ─────────────────────────────────────────────────────
   const openCamera = useCallback(async () => {

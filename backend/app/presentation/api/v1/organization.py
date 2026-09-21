@@ -6,8 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.application.dtos import (
-    RMCreateRequest, RMResponse, SuperDistributorCreateRequest, SuperDistributorResponse,
-    DistributorCreateRequest, DistributorResponse, OrganizationTransferCreateRequest,
+    RMCreateRequest, RMResponse, SuperDistributorCreateRequest, SuperDistributorUpdateRequest, SuperDistributorResponse,
+    DistributorCreateRequest, DistributorUpdateRequest, DistributorResponse, OrganizationTransferCreateRequest,
     OrganizationTransferApprovalRequest, OrganizationTransferResponse, OrganizationTreeNode,
     OrganizationDashboardMetricsResponse, PaginatedResponse
 )
@@ -48,6 +48,19 @@ async def create_regional_manager(
     )
 
 
+def check_is_platform_admin(user: AdminUserModel) -> bool:
+    if not user:
+        return False
+    roles = []
+    if hasattr(user, "user_roles") and user.user_roles:
+        roles.extend([ur.role.code for ur in user.user_roles if ur.role and hasattr(ur.role, "code")])
+    if hasattr(user, "role") and user.role:
+        roles.append(user.role)
+    if hasattr(user, "user_type") and user.user_type:
+        roles.append(user.user_type)
+    return any(r in ["PLATFORM_ADMIN", "SUPER_ADMIN", "ADMIN", "COMPLIANCE_OFFICER"] for r in roles)
+
+
 @router.get("/rms", response_model=PaginatedResponse)
 async def list_regional_managers(
     search: Optional[str] = Query(None),
@@ -59,8 +72,11 @@ async def list_regional_managers(
     current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    target_tenant_id = tenant_id or default_tenant_id
-    rms, total = await OrganizationManagementService.list_rms(db, target_tenant_id, search=search, status=status, page=page, page_size=page_size)
+    is_admin = check_is_platform_admin(current_user)
+    target_tenant_id = tenant_id if tenant_id else (None if is_admin else default_tenant_id)
+    rms, total = await OrganizationManagementService.list_rms(
+        db, target_tenant_id, search=search, status=status, page=page, page_size=page_size, is_platform_admin=is_admin
+    )
     items = [
         {
             "public_id": str(r.public_id),
@@ -79,7 +95,7 @@ async def list_regional_managers(
         total=total,
         page=page,
         page_size=page_size,
-        total_pages=(total + page_size - 1) // page_size
+        total_pages=(total + page_size - 1) // page_size if total > 0 else 0
     )
 
 
@@ -128,15 +144,21 @@ async def list_super_distributors(
     current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    target_tenant_id = tenant_id or default_tenant_id
-    sds, total = await OrganizationManagementService.list_super_distributors(db, target_tenant_id, search=search, status=status, page=page, page_size=page_size)
+    is_admin = check_is_platform_admin(current_user)
+    target_tenant_id = tenant_id if tenant_id else (None if is_admin else default_tenant_id)
+    sds, total = await OrganizationManagementService.list_super_distributors(
+        db, target_tenant_id, search=search, status=status, page=page, page_size=page_size, is_platform_admin=is_admin
+    )
     items = [
         {
             "public_id": str(s.public_id),
+            "super_distributor_code": getattr(s, "super_distributor_code", None) or f"P2P-SD{str(s.public_id)[:6].upper()}",
             "business_name": s.business_name,
             "owner_name": s.owner_name,
             "mobile": s.mobile,
             "email": s.email,
+            "city": s.city,
+            "state": s.state,
             "mapped_rm_id": str(s.mapped_rm_id) if s.mapped_rm_id else None,
             "status": s.status,
             "created_date": s.created_date
@@ -148,7 +170,41 @@ async def list_super_distributors(
         total=total,
         page=page,
         page_size=page_size,
-        total_pages=(total + page_size - 1) // page_size
+        total_pages=(total + page_size - 1) // page_size if total > 0 else 0
+    )
+
+
+@router.patch("/super-distributors/{sd_id}", response_model=SuperDistributorResponse)
+@router.put("/super-distributors/{sd_id}", response_model=SuperDistributorResponse)
+async def update_super_distributor_profile(
+    sd_id: str,
+    req: SuperDistributorUpdateRequest,
+    current_user: Optional[AdminUserModel] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    sd = await OrganizationManagementService.update_super_distributor(db, sd_id, req, current_user)
+    return SuperDistributorResponse(
+        public_id=sd.public_id,
+        tenant_id=sd.tenant_id,
+        company_id=sd.company_id,
+        business_name=sd.business_name,
+        owner_name=sd.owner_name,
+        mobile=sd.mobile,
+        email=sd.email,
+        gst_number=sd.gst_number,
+        pan_number=sd.pan_number,
+        bank_account_number=sd.bank_account_number,
+        ifsc=sd.ifsc,
+        wallet_balance=sd.wallet_balance,
+        credit_limit=sd.credit_limit,
+        state=sd.state,
+        city=sd.city,
+        address=sd.address,
+        pincode=sd.pincode,
+        status=sd.status,
+        mapped_rm_id=sd.mapped_rm_id,
+        version_no=sd.version_no,
+        created_date=sd.created_date
     )
 
 
@@ -197,15 +253,21 @@ async def list_distributors(
     current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    target_tenant_id = tenant_id or default_tenant_id
-    dists, total = await OrganizationManagementService.list_distributors(db, target_tenant_id, search=search, status=status, page=page, page_size=page_size)
+    is_admin = check_is_platform_admin(current_user)
+    target_tenant_id = tenant_id if tenant_id else (None if is_admin else default_tenant_id)
+    dists, total = await OrganizationManagementService.list_distributors(
+        db, target_tenant_id, search=search, status=status, page=page, page_size=page_size, is_platform_admin=is_admin
+    )
     items = [
         {
             "public_id": str(dt.public_id),
+            "distributor_code": getattr(dt, "distributor_code", None) or f"P2P-D{str(dt.public_id)[:6].upper()}",
             "business_name": dt.business_name,
             "owner_name": dt.owner_name,
             "mobile": dt.mobile,
             "email": dt.email,
+            "city": dt.city,
+            "state": dt.state,
             "mapped_super_distributor_id": str(dt.mapped_super_distributor_id) if dt.mapped_super_distributor_id else None,
             "status": dt.status,
             "created_date": dt.created_date
@@ -217,7 +279,41 @@ async def list_distributors(
         total=total,
         page=page,
         page_size=page_size,
-        total_pages=(total + page_size - 1) // page_size
+        total_pages=(total + page_size - 1) // page_size if total > 0 else 0
+    )
+
+
+@router.patch("/distributors/{dist_id}", response_model=DistributorResponse)
+@router.put("/distributors/{dist_id}", response_model=DistributorResponse)
+async def update_distributor_profile(
+    dist_id: str,
+    req: DistributorUpdateRequest,
+    current_user: Optional[AdminUserModel] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    d = await OrganizationManagementService.update_distributor(db, dist_id, req, current_user)
+    return DistributorResponse(
+        public_id=d.public_id,
+        tenant_id=d.tenant_id,
+        company_id=d.company_id,
+        business_name=d.business_name,
+        owner_name=d.owner_name,
+        mobile=d.mobile,
+        email=d.email,
+        gst_number=d.gst_number,
+        pan_number=d.pan_number,
+        bank_account_number=d.bank_account_number,
+        ifsc=d.ifsc,
+        wallet_balance=d.wallet_balance,
+        credit_limit=d.credit_limit,
+        state=d.state,
+        city=d.city,
+        address=d.address,
+        pincode=d.pincode,
+        status=d.status,
+        mapped_super_distributor_id=d.mapped_super_distributor_id,
+        version_no=d.version_no,
+        created_date=d.created_date
     )
 
 

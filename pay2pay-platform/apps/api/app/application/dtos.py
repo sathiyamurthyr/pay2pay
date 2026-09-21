@@ -565,10 +565,19 @@ class SuperDistributorUpdateRequest(BaseModel):
     business_name: Optional[str] = None
     owner_name: Optional[str] = None
     mobile: Optional[str] = None
+    email: Optional[EmailStr] = None
+    gst_number: Optional[str] = None
+    pan_number: Optional[str] = None
+    bank_account_number: Optional[str] = None
+    ifsc: Optional[str] = None
+    state: Optional[str] = None
+    city: Optional[str] = None
+    address: Optional[str] = None
+    pincode: Optional[str] = None
     credit_limit: Optional[float] = None
     status: Optional[str] = None
     mapped_rm_id: Optional[uuid.UUID] = None
-    version_no: int = Field(..., description="Optimistic locking version")
+    version_no: Optional[int] = 1
 
 
 class SuperDistributorResponse(BaseModel):
@@ -617,10 +626,19 @@ class DistributorUpdateRequest(BaseModel):
     business_name: Optional[str] = None
     owner_name: Optional[str] = None
     mobile: Optional[str] = None
+    email: Optional[EmailStr] = None
+    gst_number: Optional[str] = None
+    pan_number: Optional[str] = None
+    bank_account_number: Optional[str] = None
+    ifsc: Optional[str] = None
+    state: Optional[str] = None
+    city: Optional[str] = None
+    address: Optional[str] = None
+    pincode: Optional[str] = None
     credit_limit: Optional[float] = None
     status: Optional[str] = None
     mapped_super_distributor_id: Optional[uuid.UUID] = None
-    version_no: int = Field(..., description="Optimistic locking version")
+    version_no: Optional[int] = 1
 
 
 class DistributorResponse(BaseModel):
@@ -1321,13 +1339,25 @@ class EnterpriseWalletResponse(BaseModel):
     wallet_number: str
     wallet_type: str
     owner_type: str
-    owner_id: uuid.UUID
+    owner_id: Optional[uuid.UUID] = None
     status: str
     currency: str
-    current_balance: float
-    available_balance: float
-    hold_balance: float
-    created_date: datetime
+    current_balance: float = 0.0
+    available_balance: float = 0.0
+    hold_balance: float = 0.0
+    created_date: Optional[datetime] = None
+    # Live Unified Entity Fields
+    entity_code: Optional[str] = None
+    entity_name: Optional[str] = None
+    owner_name: Optional[str] = None
+    mobile: Optional[str] = None
+    entity_type: Optional[str] = None
+    balance: Optional[float] = 0.0
+    pending_settlement: Optional[float] = 0.0
+    is_frozen: Optional[bool] = False
+    distributor_code: Optional[str] = None
+    sd_code: Optional[str] = None
+    last_txn_date: Optional[datetime] = None
 
 
 class WalletFreezeRequest(BaseModel):

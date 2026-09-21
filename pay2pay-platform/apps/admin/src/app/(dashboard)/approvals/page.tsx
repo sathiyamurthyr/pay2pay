@@ -193,7 +193,8 @@ export default function AdminApprovalsPage() {
         const detail = res.data;
         if (detail && detail.status === "SUCCESS") {
           const w = detail.wallet || {};
-          setWalletFloat(w.wallet_balance !== undefined ? String(w.wallet_balance) : "0.00");
+          const bal = w.wallet_balance !== undefined && w.wallet_balance !== null ? Number(w.wallet_balance) : 0.0;
+          setWalletFloat(bal.toFixed(2));
           setDailyLimit(w.daily_transaction_limit ? Number(w.daily_transaction_limit).toLocaleString("en-IN") : "50,00,000");
           setSingleLimit(w.single_transaction_limit ? Number(w.single_transaction_limit).toLocaleString("en-IN") : "5,00,000");
           setSelectedItem((prev: any) => ({

@@ -219,7 +219,7 @@ class WalletBalanceAdjustmentService:
             except Exception:
                 pass
 
-        user_ref_id_val = getattr(retailer, "retailer_ref_id", None) or dto.user_ref_id or 24
+        user_ref_id_val = getattr(retailer, "retailer_ref_id", None) or getattr(retailer, "user_ref_id", None) or getattr(retailer, "id", None) or dto.user_ref_id
         user_type_ref_id_val = dto.user_type_ref_id or 2
         tenant_ref_id_val = getattr(retailer, "tenant_ref_id", None) or 1
         company_ref_id_val = getattr(retailer, "company_ref_id", None) or 1
@@ -380,9 +380,44 @@ class WalletBalanceAdjustmentService:
         dto: WalletAdjustmentDTO
     ) -> Optional[RetailerModel]:
         """
-        Resolves RetailerModel by user_ref_id, retailer_code, or UUID.
+        Resolves RetailerModel strictly and unambiguously:
+        1. Exact UUID matching (dto.user_id or dto.retailer_id) - Highest Priority
+        2. Exact retailer_code matching
+        3. Exact retailer_ref_id matching
+        Never fallbacks to a random retailer.
         """
-        # 1. By user_ref_id / retailer_ref_id
+        # 1. By UUID public_id (Highest Priority & Globally Unique)
+        raw_uuid = dto.user_id or dto.retailer_id
+        if raw_uuid and cls._is_uuid(raw_uuid):
+            try:
+                u = uuid.UUID(str(raw_uuid))
+                stmt = select(RetailerModel).where(
+                    RetailerModel.public_id == u,
+                    RetailerModel.is_deleted == False
+                )
+                res = await db.execute(stmt)
+                ret = res.scalars().first()
+                if ret:
+                    return ret
+            except Exception:
+                pass
+
+        # 2. By retailer_code
+        target_code = dto.retailer_code
+        if target_code and not cls._is_uuid(target_code):
+            stmt = select(RetailerModel).where(
+                or_(
+                    RetailerModel.retailer_code == str(target_code).strip(),
+                    RetailerModel.retailer_code.ilike(str(target_code).strip())
+                ),
+                RetailerModel.is_deleted == False
+            )
+            res = await db.execute(stmt)
+            ret = res.scalars().first()
+            if ret:
+                return ret
+
+        # 3. By user_ref_id / retailer_ref_id
         if dto.user_ref_id:
             try:
                 ref_int = int(dto.user_ref_id)
@@ -399,59 +434,6 @@ class WalletBalanceAdjustmentService:
                     return ret
             except (ValueError, TypeError):
                 pass
-
-        # 2. By retailer_code
-        target_code = dto.retailer_code or dto.user_id or dto.retailer_id
-        if target_code and not cls._is_uuid(target_code):
-            stmt = select(RetailerModel).where(
-                or_(
-                    RetailerModel.retailer_code == str(target_code).strip(),
-                    RetailerModel.retailer_code.ilike(str(target_code).strip())
-                ),
-                RetailerModel.is_deleted == False
-            )
-            res = await db.execute(stmt)
-            ret = res.scalars().first()
-            if ret:
-                return ret
-
-        # 3. By UUID public_id
-        raw_uuid = dto.user_id or dto.retailer_id or dto.retailer_code
-        if raw_uuid and cls._is_uuid(raw_uuid):
-            try:
-                u = uuid.UUID(str(raw_uuid))
-                stmt = select(RetailerModel).where(
-                    RetailerModel.public_id == u,
-                    RetailerModel.is_deleted == False
-                )
-                res = await db.execute(stmt)
-                ret = res.scalars().first()
-                if ret:
-                    return ret
-
-                # Check if this UUID is an AdminUser acting on behalf of retailer
-                stmt_admin = select(AdminUserModel).where(
-                    AdminUserModel.public_id == u,
-                    AdminUserModel.is_deleted == False
-                )
-                admin_res = await db.execute(stmt_admin)
-                admin_user = admin_res.scalars().first()
-                if admin_user:
-                    stmt_ret = select(RetailerModel).where(
-                        RetailerModel.tenant_id == admin_user.tenant_id,
-                        RetailerModel.is_deleted == False
-                    ).order_by(RetailerModel.id.asc())
-                    ret = (await db.execute(stmt_ret)).scalars().first()
-                    if ret:
-                        return ret
-            except Exception:
-                pass
-
-        # 4. Fallback: First active retailer in system/tenant
-        stmt_fallback = select(RetailerModel).where(RetailerModel.is_deleted == False).order_by(RetailerModel.id.asc())
-        ret = (await db.execute(stmt_fallback)).scalars().first()
-        if ret:
-            return ret
 
         return None
 

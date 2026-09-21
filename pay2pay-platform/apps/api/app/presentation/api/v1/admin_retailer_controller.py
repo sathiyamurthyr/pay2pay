@@ -625,7 +625,7 @@ async def get_pending_hierarchy_approvals(
     dist_stmt = select(DistributorModel).where(
         DistributorModel.is_deleted == False,
         or_(
-            DistributorModel.status.in_(["PENDING", "UNDER_REVIEW", "PENDING_APPROVAL"]),
+            DistributorModel.status.in_(["PENDING", "UNDER_REVIEW", "PENDING_APPROVAL", "HOLD", "ON_HOLD"]),
             DistributorModel.is_active == False
         )
     ).order_by(DistributorModel.created_date.desc().nullslast())
@@ -636,7 +636,7 @@ async def get_pending_hierarchy_approvals(
     sd_stmt = select(SuperDistributorModel).where(
         SuperDistributorModel.is_deleted == False,
         or_(
-            SuperDistributorModel.status.in_(["PENDING", "UNDER_REVIEW", "PENDING_APPROVAL"]),
+            SuperDistributorModel.status.in_(["PENDING", "UNDER_REVIEW", "PENDING_APPROVAL", "HOLD", "ON_HOLD"]),
             SuperDistributorModel.is_active == False
         )
     ).order_by(SuperDistributorModel.created_date.desc().nullslast())
@@ -650,7 +650,7 @@ async def get_pending_hierarchy_approvals(
                 {
                     "distributor_id": str(d.public_id),
                     "distributor_ref_id": d.distributor_ref_id,
-                    "distributor_code": d.distributor_code,
+                    "distributor_code": d.distributor_code or f"DIST-{d.mobile}" or f"P2P-D{str(d.public_id)[:6].upper()}",
                     "business_name": d.business_name,
                     "owner_name": d.owner_name,
                     "mobile": d.mobile,
@@ -668,7 +668,7 @@ async def get_pending_hierarchy_approvals(
                 {
                     "super_distributor_id": str(s.public_id),
                     "super_distributor_ref_id": s.super_distributor_ref_id,
-                    "super_distributor_code": s.super_distributor_code,
+                    "super_distributor_code": s.super_distributor_code or f"SD-{s.mobile}" or f"P2P-SD{str(s.public_id)[:6].upper()}",
                     "business_name": s.business_name,
                     "owner_name": s.owner_name,
                     "mobile": s.mobile,
@@ -686,7 +686,7 @@ async def get_pending_hierarchy_approvals(
 
 
 class PartnerApprovalActionRequest(BaseModel):
-    action: str = Field(..., description="APPROVE | REJECT | SUSPEND | REACTIVATE")
+    action: str = Field(..., description="APPROVE | REJECT | SUSPEND | REACTIVATE | ON_HOLD")
     reason: Optional[str] = Field(None)
     notes: Optional[str] = Field(None)
 
@@ -704,6 +704,7 @@ async def update_distributor_approval_status(
         or_(
             DistributorModel.public_id == uuid.UUID(distributor_id) if len(distributor_id) == 36 else False,
             DistributorModel.distributor_code == distributor_id,
+            DistributorModel.mobile == distributor_id,
             DistributorModel.distributor_ref_id == int(distributor_id) if distributor_id.isdigit() else False
         ),
         DistributorModel.is_deleted == False
@@ -725,6 +726,10 @@ async def update_distributor_approval_status(
         dist.status = "REJECTED"
         dist.is_active = False
         dist.updated_date = now_utc
+    elif action in ("HOLD", "ON_HOLD", "ON-HOLD"):
+        dist.status = "HOLD"
+        dist.is_active = False
+        dist.updated_date = now_utc
     elif action in ("SUSPEND", "SUSPENDED"):
         dist.status = "SUSPENDED"
         dist.is_active = False
@@ -739,7 +744,7 @@ async def update_distributor_approval_status(
     await db.commit()
     return {
         "success": True,
-        "message": f"Distributor {dist.distributor_code} status updated to {dist.status}.",
+        "message": f"Distributor {dist.distributor_code or dist.business_name} status updated to {dist.status}.",
         "distributor_id": str(dist.public_id),
         "status": dist.status,
         "is_active": dist.is_active
@@ -759,6 +764,7 @@ async def update_super_distributor_approval_status(
         or_(
             SuperDistributorModel.public_id == uuid.UUID(sd_id) if len(sd_id) == 36 else False,
             SuperDistributorModel.super_distributor_code == sd_id,
+            SuperDistributorModel.mobile == sd_id,
             SuperDistributorModel.super_distributor_ref_id == int(sd_id) if sd_id.isdigit() else False
         ),
         SuperDistributorModel.is_deleted == False
@@ -780,6 +786,10 @@ async def update_super_distributor_approval_status(
         sd.status = "REJECTED"
         sd.is_active = False
         sd.updated_date = now_utc
+    elif action in ("HOLD", "ON_HOLD", "ON-HOLD"):
+        sd.status = "HOLD"
+        sd.is_active = False
+        sd.updated_date = now_utc
     elif action in ("SUSPEND", "SUSPENDED"):
         sd.status = "SUSPENDED"
         sd.is_active = False
@@ -794,7 +804,7 @@ async def update_super_distributor_approval_status(
     await db.commit()
     return {
         "success": True,
-        "message": f"Super Distributor {sd.super_distributor_code} status updated to {sd.status}.",
+        "message": f"Super Distributor {sd.super_distributor_code or sd.business_name} status updated to {sd.status}.",
         "super_distributor_id": str(sd.public_id),
         "status": sd.status,
         "is_active": sd.is_active

@@ -286,11 +286,12 @@ class PosMdrService:
 
         retailer_uuid = await cls.resolve_retailer_uuid(db, retailer_id) if retailer_id else None
 
+        ct_param = card_type or kwargs.get("card_type")
+        ct_clean = str(ct_param).strip().upper() if ct_param else None
+
         allowed_modes = list(dict.fromkeys([canonical_mode, raw_mode]))
-        if kwargs.get("card_type"):
-            ct = str(kwargs["card_type"]).strip().upper()
-            if ct:
-                allowed_modes = list(dict.fromkeys([ct, canonical_mode, raw_mode]))
+        if ct_clean:
+            allowed_modes = list(dict.fromkeys([ct_clean, canonical_mode, raw_mode]))
 
         # Load Retailer Entity if present for hierarchy references
         ret_obj = None
@@ -301,7 +302,36 @@ class PosMdrService:
             )
             ret_obj = (await db.execute(ret_stmt)).scalars().first()
 
-        # Priority 1: Check Authorized Distributor MDR Override
+        # Priority 1: Check Company MDR & Commission Matrix for (payment_mode + card_type)
+        try:
+            from app.application.pos_commission_service import PosCommissionService
+            comp_id = (ret_obj.company_id if ret_obj else None) or company_id
+            comp_ref_id = ret_obj.company_ref_id if ret_obj else None
+            comm_cfg = await PosCommissionService.get_company_commission_config(
+                db=db,
+                company_id=comp_id,
+                company_ref_id=comp_ref_id,
+                payment_mode=canonical_mode,
+                card_type=ct_clean
+            )
+            if comm_cfg and comm_cfg.get("retailer_mdr"):
+                ret_mdr_val = float(comm_cfg["retailer_mdr"])
+                if ret_mdr_val > 0:
+                    return PosMdrConfigurationModel(
+                        public_id=uuid.uuid4(),
+                        tenant_id=tenant_id or (ret_obj.tenant_id if ret_obj else None),
+                        company_id=comp_id,
+                        retailer_id=retailer_uuid,
+                        payment_mode=canonical_mode,
+                        mdr=ret_mdr_val,
+                        mdr_type="PERCENTAGE",
+                        gst_rate=18.0,
+                        is_active=True
+                    )
+        except Exception as e:
+            logger.warning(f"Error checking pos_commission_service for MDR: {e}")
+
+        # Priority 2: Check Authorized Distributor MDR Override
         if ret_obj and ret_obj.distributor_ref_id and ret_obj.retailer_ref_id:
             try:
                 from app.infrastructure.db.distributor_models import DistributorMdrModel
@@ -327,7 +357,7 @@ class PosMdrService:
             except Exception:
                 pass
 
-        # Priority 2: Check Authorized Super Distributor MDR Override
+        # Priority 3: Check Authorized Super Distributor MDR Override
         if ret_obj and ret_obj.super_distributor_ref_id and ret_obj.retailer_ref_id:
             try:
                 from app.infrastructure.db.distributor_models import SuperDistributorMdrModel
@@ -353,7 +383,7 @@ class PosMdrService:
             except Exception:
                 pass
 
-        # Priority 3: Fallback to Existing Retailer-Specific Admin MDR
+        # Priority 4: Fallback to Existing Retailer-Specific Admin MDR
         if retailer_uuid:
             ret_stmt = (
                 select(PosMdrConfigurationModel)
@@ -376,7 +406,7 @@ class PosMdrService:
             if retailer_mdr:
                 return retailer_mdr
 
-        # Priority 4: Fallback to Existing Default Admin Retailer MDR (retailer_id IS NULL)
+        # Priority 5: Fallback to Existing Default Admin Retailer MDR (retailer_id IS NULL)
         def_stmt = (
             select(PosMdrConfigurationModel)
             .where(

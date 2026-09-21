@@ -164,12 +164,13 @@ def get_retailer_display_name(retailer: Optional[RetailerModel]) -> str:
 from app.application.pos_mdr_service import PosMdrService
 
 # Dynamic POS Card Types Config
-ALLOWED_CARD_TYPES = ["VISA", "MASTER", "RUPAY", "AMEX / DINERS"]
+ALLOWED_CARD_TYPES = ["VISA", "MASTER", "RUPAY", "AMEX / DINERS", "Business/corporate"]
 CARD_TYPES_CONFIG = [
     {"code": "VISA", "name": "VISA", "display_order": 1},
     {"code": "MASTER", "name": "MASTER", "display_order": 2},
     {"code": "RUPAY", "name": "RUPAY", "display_order": 3},
     {"code": "AMEX / DINERS", "name": "AMEX / DINERS", "display_order": 4},
+    {"code": "Business/corporate", "name": "Business/corporate", "display_order": 5},
 ]
 
 # ==============================================================================
@@ -477,6 +478,17 @@ async def upload_payment_slip(
             detail=f"Failed to upload document to Backblaze B2 cloud storage: {str(ex)}"
         )
 
+    # Run OCR Extraction for automatic Transaction ID / UTR extraction
+    extracted_details = None
+    try:
+        from PIL import Image
+        import pytesseract
+        pil_img = Image.open(io.BytesIO(file_bytes))
+        raw_ocr_text = pytesseract.image_to_string(pil_img)
+        extracted_details = _extract_upi_payment_details(raw_ocr_text)
+    except Exception as ocr_err:
+        logger.warning(f"[Slip OCR Notice] OCR extraction skipped: {ocr_err}")
+
     return {
         "success": True,
         "message": "Payment slip uploaded successfully to Backblaze B2",
@@ -488,7 +500,8 @@ async def upload_payment_slip(
             "mime_type": content_type,
             "file_size_bytes": len(file_bytes),
             "checksum": checksum,
-            "uploaded_at": datetime.now(timezone.utc).isoformat()
+            "uploaded_at": datetime.now(timezone.utc).isoformat(),
+            "extracted_details": extracted_details
         }
     }
 
@@ -560,9 +573,10 @@ def _extract_upi_payment_details(raw_text: str, expected_amount: Optional[float]
     # 2. Extract UTR / Transaction ID (12-digit standard Indian UPI UTR or alphanumeric)
     txn_id = None
     kw_patterns = [
-        r"(?:UPI\s*transaction\s*ID|Google\s*transaction\s*ID|Transaction\s*(?:ID|Id|No|no)|Txn\s*ID|TXN\s*ID|UTR\s*(?:No|no)?|UPI\s*Ref\s*(?:No|no|ID|id)|Reference\s*(?:No|no|ID|id)|RRN)\s*[:=.-]?\s*([A-Za-z0-9]{8,24})",
+        r"(?:UPI\s*transaction\s*ID|Google\s*transaction\s*ID|Transaction\s*(?:ID|Id|No|no)|Txn\s*(?:ID|Id|No|no)|TXN\s*ID|UTR\s*(?:No|no)?|UPI\s*Ref\s*(?:No|no|ID|id)|Reference\s*(?:No|no|ID|id)|Ref\s*(?:No|no|ID|id|Num|Number)|RRN|Approval\s*(?:Code|No|no)|Appr\s*(?:Code|No|no))\s*[:=.-]?\s*([A-Za-z0-9]{6,24})",
         r"(?:UTR\s*[:=.-]?\s*)(\d{12})",
-        r"(?:Ref\s*No\.?\s*[:=.-]?\s*)(\d{12})"
+        r"(?:Ref\s*No\.?\s*[:=.-]?\s*)(\d{12})",
+        r"(?:Trace\s*(?:No|no)|Invoice\s*(?:No|no)|STAN)\s*[:=.-]?\s*([A-Za-z0-9]{4,24})"
     ]
     for pat in kw_patterns:
         m = re.search(pat, text_clean, re.IGNORECASE)
@@ -580,8 +594,9 @@ def _extract_upi_payment_details(raw_text: str, expected_amount: Optional[float]
     # 3. Extract Amount
     detected_amount = None
     amt_patterns = [
-        r"(?:₹|Rs\.?|INR)\s*([0-9]{1,3}(?:,[0-9]{2,3})*(?:\.[0-9]{2})?)",
-        r"(?:Paid|Amount|Transfer(?:red)?)\s*(?:of)?\s*(?:₹|Rs\.?|INR)?\s*([0-9]{1,3}(?:,[0-9]{2,3})*(?:\.[0-9]{2})?)",
+        r"(?:Total\s*Amount|Grand\s*Total|Txn\s*Amount)\s*[:=.-]?\s*(?:₹|Rs\.?|INR)?\s*([0-9]+(?:,[0-9]+)*(?:\.[0-9]{2})?)",
+        r"(?:Paid|Amount|Transfer(?:red)?)\s*(?:of)?\s*(?:₹|Rs\.?|INR)?\s*([0-9]+(?:,[0-9]+)*(?:\.[0-9]{2})?)",
+        r"(?:₹|Rs\.?|INR)\s*([0-9]+(?:,[0-9]+)*(?:\.[0-9]{2})?)",
         r"\b([0-9]{1,3}(?:,[0-9]{2,3})+(?:\.[0-9]{2})?)\b"
     ]
     for pat in amt_patterns:
@@ -634,12 +649,17 @@ def _extract_upi_payment_details(raw_text: str, expected_amount: Optional[float]
         status_val = "Pending"
 
     # 7. Extract Date & Time
-    date_match = re.search(r"\b(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4})\b", text_clean, re.IGNORECASE)
-    payment_date = date_match.group(1) if date_match else None
-    if not payment_date:
-        date_dmy = re.search(r"\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b", text_clean)
+    date_match = re.search(r"\b(\d{4}[-/]\d{1,2}[-/]\d{1,2})\b", text_clean)
+    if date_match:
+        payment_date = date_match.group(1).replace("/", "-")
+    else:
+        date_dmy = re.search(r"\b(\d{1,2})[-/](\d{1,2})[-/](\d{4})\b", text_clean)
         if date_dmy:
-            payment_date = date_dmy.group(1)
+            day, month, year = date_dmy.group(1).zfill(2), date_dmy.group(2).zfill(2), date_dmy.group(3)
+            payment_date = f"{year}-{month}-{day}"
+        else:
+            date_match2 = re.search(r"\b(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4})\b", text_clean, re.IGNORECASE)
+            payment_date = date_match2.group(1) if date_match2 else None
 
     time_match = re.search(r"\b(\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm)?)\b", text_clean)
     payment_time = time_match.group(1) if time_match else None
@@ -1034,7 +1054,8 @@ async def create_topup_request(
                 db=db,
                 amount=req.requested_amount,
                 payment_mode=selected_mode,
-                retailer_id=retailer.public_id
+                retailer_id=retailer.public_id,
+                card_type=req.card_type
             )
             mdr_charge_val = calc["mdr"]
             gst_amount_val = calc["gst"]
@@ -1096,7 +1117,7 @@ async def create_topup_request(
             clean_card_last_4 = raw_last_4
 
     # 3b. Create TopupRequestModel with pricing snapshot and card information
-    ret_ref = getattr(retailer, "retailer_ref_id", None) or getattr(retailer, "user_ref_id", None) or 24
+    ret_ref = getattr(retailer, "retailer_ref_id", None) or getattr(retailer, "user_ref_id", None) or getattr(retailer, "id", None)
     wal_ref = getattr(wallet, "retailer_wallet_ref_id", None) or getattr(wallet, "wallet_ref_id", None)
     ten_ref = getattr(retailer, "tenant_ref_id", None) or 1
     cmp_ref = getattr(retailer, "company_ref_id", None) or 1
@@ -1303,12 +1324,14 @@ async def calculate_topup_mdr(
     pmode = req.get("payment_mode") or req.get("payment_method") or "POS - Instant"
     amt = float(req.get("transaction_amount") or req.get("requested_amount") or 0)
     ret_id = req.get("retailer_id")
+    card_type = req.get("card_type")
 
     result = await PosMdrService.calculate_pos_topup_pricing(
         db=db,
         amount=amt,
         payment_mode=pmode,
-        retailer_id=ret_id
+        retailer_id=ret_id,
+        card_type=card_type
     )
     return {
         "payment_mode": result["payment_mode"],
@@ -1399,9 +1422,9 @@ async def get_my_topup_requests(
         "items": items,
         "retailer": {
             "retailer_id": str(retailer.public_id),
-            "user_ref_id": getattr(retailer, "retailer_ref_id", None) or 24,
+            "user_ref_id": getattr(retailer, "retailer_ref_id", None) or getattr(retailer, "id", None),
             "user_type_ref_id": 2,
-            "retailer_ref_id": getattr(retailer, "retailer_ref_id", None) or 24,
+            "retailer_ref_id": getattr(retailer, "retailer_ref_id", None) or getattr(retailer, "id", None),
             "retailer_code": retailer.retailer_code or "RET-LIVE",
             "retailer_name": get_retailer_display_name(retailer),
             "mobile_number": getattr(retailer, "mobile_number", getattr(retailer, "phone_number", "")),
@@ -2389,8 +2412,22 @@ async def approve_topup_request(
             sp_data = json.loads(raw_sp) if isinstance(raw_sp, str) else raw_sp
             await db.commit()
 
+            # Dispatch hierarchy commission distribution to mapped SD and Distributor
+            try:
+                from app.application.pos_commission_service import PosCommissionService
+                await PosCommissionService.process_and_post_pos_commissions(
+                    db=db,
+                    retailer_id=topup_record.retailer_id,
+                    transaction_amount=float(final_approved_amount),
+                    orig_txn_ref=sp_data.get("transaction_reference") or sp_data.get("txn_id") or topup_record.topup_request_id,
+                    payment_mode=topup_record.payment_method,
+                    card_type=topup_record.card_type
+                )
+            except Exception as comm_err:
+                logger.error(f"Error processing POS hierarchy commissions in SP approval branch: {comm_err}", exc_info=True)
+
             # Dispatch retailer WhatsApp notification in background
-            override_txn = sp_data.get("txn_id") if isinstance(sp_data, dict) else None
+            override_txn = sp_data.get("txn_id") or sp_data.get("transaction_reference") if isinstance(sp_data, dict) else None
             asyncio.create_task(_trigger_retailer_topup_status_whatsapp(
                 topup_record.public_id, "Approved", final_approved_amount, final_approved_amount, override_txn
             ))
@@ -2527,7 +2564,7 @@ async def approve_topup_request(
     txn_ref = f"TOP-{now_date_str}-{uuid.uuid4().hex[:6].upper()}"
 
     adj_dto = WalletAdjustmentDTO(
-        user_ref_id=getattr(retailer, "retailer_ref_id", None) or 24,
+        user_ref_id=getattr(retailer, "retailer_ref_id", None) or getattr(retailer, "id", None),
         user_type_ref_id=2,
         retailer_code=retailer.retailer_code,
         user_id=str(retailer.public_id),

@@ -221,9 +221,9 @@ class AuthService:
                     user={
                         "public_id": str(auth_user.user_id),
                         "id": str(auth_user.user_id),
-                        "user_ref_id": getattr(ret_obj, "retailer_ref_id", None) or 24,
+                        "user_ref_id": getattr(ret_obj, "retailer_ref_id", None) or getattr(ret_obj, "user_ref_id", None) or getattr(ret_obj, "id", None) if ret_obj else None,
                         "user_type_ref_id": 2,
-                        "retailer_ref_id": getattr(ret_obj, "retailer_ref_id", None) or 24,
+                        "retailer_ref_id": getattr(ret_obj, "retailer_ref_id", None) or getattr(ret_obj, "user_ref_id", None) or getattr(ret_obj, "id", None) if ret_obj else None,
                         "email": auth_user.email or f"{clean_mob}@pay2pay.in",
                         "full_name": r_name,
                         "mobile_number": clean_mob,
@@ -1699,16 +1699,18 @@ class OrganizationManagementService:
     @staticmethod
     async def list_rms(
         db: AsyncSession,
-        tenant_id: uuid.UUID,
+        tenant_id: Optional[uuid.UUID] = None,
         search: Optional[str] = None,
         status: Optional[str] = None,
         page: int = 1,
-        page_size: int = 20
+        page_size: int = 20,
+        is_platform_admin: bool = False
     ) -> Tuple[List[RegionalManagerModel], int]:
         stmt = select(RegionalManagerModel).where(
-            RegionalManagerModel.tenant_id == tenant_id,
             RegionalManagerModel.is_deleted == False
         )
+        if tenant_id and not is_platform_admin:
+            stmt = stmt.where(RegionalManagerModel.tenant_id == tenant_id)
         if status:
             stmt = stmt.where(RegionalManagerModel.status == status.upper())
         if search:
@@ -1778,7 +1780,8 @@ class OrganizationManagementService:
             address=req.address,
             pincode=req.pincode,
             mapped_rm_id=req.mapped_rm_id,
-            status="ACTIVE",
+            status="PENDING",
+            is_active=False,
             created_by=actor_user.email
         )
         db.add(sd)
@@ -1816,16 +1819,18 @@ class OrganizationManagementService:
     @staticmethod
     async def list_super_distributors(
         db: AsyncSession,
-        tenant_id: uuid.UUID,
+        tenant_id: Optional[uuid.UUID] = None,
         search: Optional[str] = None,
         status: Optional[str] = None,
         page: int = 1,
-        page_size: int = 20
+        page_size: int = 20,
+        is_platform_admin: bool = False
     ) -> Tuple[List[SuperDistributorModel], int]:
         stmt = select(SuperDistributorModel).where(
-            SuperDistributorModel.tenant_id == tenant_id,
             SuperDistributorModel.is_deleted == False
         )
+        if tenant_id and not is_platform_admin:
+            stmt = stmt.where(SuperDistributorModel.tenant_id == tenant_id)
         if status:
             stmt = stmt.where(SuperDistributorModel.status == status.upper())
         if search:
@@ -1846,6 +1851,94 @@ class OrganizationManagementService:
         stmt = stmt.order_by(SuperDistributorModel.created_date.desc()).offset((page - 1) * page_size).limit(page_size)
         res = await db.execute(stmt)
         return res.scalars().all(), total
+
+    @staticmethod
+    async def update_super_distributor(
+        db: AsyncSession,
+        sd_id: str,
+        req: SuperDistributorUpdateRequest,
+        actor_user: Optional[AdminUserModel] = None,
+        tenant_id: Optional[uuid.UUID] = None
+    ) -> SuperDistributorModel:
+        conds = [
+            SuperDistributorModel.super_distributor_code == sd_id,
+            SuperDistributorModel.mobile == sd_id,
+            SuperDistributorModel.email == sd_id
+        ]
+        if sd_id.isdigit():
+            conds.append(SuperDistributorModel.super_distributor_ref_id == int(sd_id))
+        try:
+            u_id = uuid.UUID(sd_id)
+            conds.append(SuperDistributorModel.public_id == u_id)
+        except Exception:
+            pass
+        if len(sd_id) >= 10:
+            conds.append(SuperDistributorModel.mobile.like(f"%{sd_id}%"))
+
+        stmt = select(SuperDistributorModel).where(or_(*conds), SuperDistributorModel.is_deleted == False)
+        sd = (await db.execute(stmt)).scalars().first()
+        if not sd:
+            raise NotFoundException(f"Super Distributor '{sd_id}' not found.")
+
+        if req.mobile:
+            validate_mobile(req.mobile)
+            sd.mobile = req.mobile
+        if req.business_name is not None:
+            sd.business_name = req.business_name.strip()
+        if req.owner_name is not None:
+            sd.owner_name = req.owner_name.strip()
+        if req.email is not None:
+            sd.email = req.email.strip()
+        if req.gst_number is not None:
+            sd.gst_number = req.gst_number.upper().strip() if req.gst_number else None
+        if req.pan_number is not None:
+            sd.pan_number = req.pan_number.upper().strip() if req.pan_number else None
+        if req.bank_account_number is not None:
+            sd.bank_account_number = req.bank_account_number.strip() if req.bank_account_number else None
+        if req.ifsc is not None:
+            sd.ifsc = req.ifsc.upper().strip() if req.ifsc else None
+        if req.state is not None:
+            sd.state = req.state.strip()
+        if req.city is not None:
+            sd.city = req.city.strip()
+        if req.address is not None:
+            sd.address = req.address.strip()
+        if req.pincode is not None:
+            sd.pincode = req.pincode.strip()
+        if req.credit_limit is not None:
+            sd.credit_limit = float(req.credit_limit)
+        if req.status is not None:
+            sd.status = req.status.upper().strip()
+            sd.is_active = (sd.status == "ACTIVE")
+        if req.mapped_rm_id is not None:
+            sd.mapped_rm_id = req.mapped_rm_id
+
+        sd.updated_date = datetime.now(timezone.utc)
+        sd.updated_by = actor_user.email if actor_user else "admin@pay2pay.in"
+        sd.version_no = (sd.version_no or 1) + 1
+
+        await db.commit()
+        await db.refresh(sd)
+
+        await AuditLogger.log_action(
+            db=db,
+            tenant_id=sd.tenant_id,
+            company_id=sd.company_id,
+            actor_id=actor_user.public_id if actor_user else None,
+            actor_email=actor_user.email if actor_user else "admin@pay2pay.in",
+            action="UPDATE_PROFILE",
+            resource_type="SUPER_DISTRIBUTOR",
+            resource_id=str(sd.public_id),
+            details={
+                "business_name": sd.business_name,
+                "owner_name": sd.owner_name,
+                "mobile": sd.mobile,
+                "email": sd.email,
+                "city": sd.city,
+                "state": sd.state
+            }
+        )
+        return sd
 
     @staticmethod
     async def create_distributor(
@@ -1899,7 +1992,8 @@ class OrganizationManagementService:
             address=req.address,
             pincode=req.pincode,
             mapped_super_distributor_id=final_sd_id,
-            status="ACTIVE",
+            status="PENDING",
+            is_active=False,
             created_by=actor_user.email
         )
         db.add(dist)
@@ -1937,16 +2031,18 @@ class OrganizationManagementService:
     @staticmethod
     async def list_distributors(
         db: AsyncSession,
-        tenant_id: uuid.UUID,
+        tenant_id: Optional[uuid.UUID] = None,
         search: Optional[str] = None,
         status: Optional[str] = None,
         page: int = 1,
-        page_size: int = 20
+        page_size: int = 20,
+        is_platform_admin: bool = False
     ) -> Tuple[List[DistributorModel], int]:
         stmt = select(DistributorModel).where(
-            DistributorModel.tenant_id == tenant_id,
             DistributorModel.is_deleted == False
         )
+        if tenant_id and not is_platform_admin:
+            stmt = stmt.where(DistributorModel.tenant_id == tenant_id)
         if status:
             stmt = stmt.where(DistributorModel.status == status.upper())
         if search:
@@ -1967,6 +2063,94 @@ class OrganizationManagementService:
         stmt = stmt.order_by(DistributorModel.created_date.desc()).offset((page - 1) * page_size).limit(page_size)
         res = await db.execute(stmt)
         return res.scalars().all(), total
+
+    @staticmethod
+    async def update_distributor(
+        db: AsyncSession,
+        distributor_id: str,
+        req: DistributorUpdateRequest,
+        actor_user: Optional[AdminUserModel] = None,
+        tenant_id: Optional[uuid.UUID] = None
+    ) -> DistributorModel:
+        conds = [
+            DistributorModel.distributor_code == distributor_id,
+            DistributorModel.mobile == distributor_id,
+            DistributorModel.email == distributor_id
+        ]
+        if distributor_id.isdigit():
+            conds.append(DistributorModel.distributor_ref_id == int(distributor_id))
+        try:
+            u_id = uuid.UUID(distributor_id)
+            conds.append(DistributorModel.public_id == u_id)
+        except Exception:
+            pass
+        if len(distributor_id) >= 10:
+            conds.append(DistributorModel.mobile.like(f"%{distributor_id}%"))
+
+        stmt = select(DistributorModel).where(or_(*conds), DistributorModel.is_deleted == False)
+        dist = (await db.execute(stmt)).scalars().first()
+        if not dist:
+            raise NotFoundException(f"Distributor '{distributor_id}' not found.")
+
+        if req.mobile:
+            validate_mobile(req.mobile)
+            dist.mobile = req.mobile
+        if req.business_name is not None:
+            dist.business_name = req.business_name.strip()
+        if req.owner_name is not None:
+            dist.owner_name = req.owner_name.strip()
+        if req.email is not None:
+            dist.email = req.email.strip()
+        if req.gst_number is not None:
+            dist.gst_number = req.gst_number.upper().strip() if req.gst_number else None
+        if req.pan_number is not None:
+            dist.pan_number = req.pan_number.upper().strip() if req.pan_number else None
+        if req.bank_account_number is not None:
+            dist.bank_account_number = req.bank_account_number.strip() if req.bank_account_number else None
+        if req.ifsc is not None:
+            dist.ifsc = req.ifsc.upper().strip() if req.ifsc else None
+        if req.state is not None:
+            dist.state = req.state.strip()
+        if req.city is not None:
+            dist.city = req.city.strip()
+        if req.address is not None:
+            dist.address = req.address.strip()
+        if req.pincode is not None:
+            dist.pincode = req.pincode.strip()
+        if req.credit_limit is not None:
+            dist.credit_limit = float(req.credit_limit)
+        if req.status is not None:
+            dist.status = req.status.upper().strip()
+            dist.is_active = (dist.status == "ACTIVE")
+        if req.mapped_super_distributor_id is not None:
+            dist.mapped_super_distributor_id = req.mapped_super_distributor_id
+
+        dist.updated_date = datetime.now(timezone.utc)
+        dist.updated_by = actor_user.email if actor_user else "admin@pay2pay.in"
+        dist.version_no = (dist.version_no or 1) + 1
+
+        await db.commit()
+        await db.refresh(dist)
+
+        await AuditLogger.log_action(
+            db=db,
+            tenant_id=dist.tenant_id,
+            company_id=dist.company_id,
+            actor_id=actor_user.public_id if actor_user else None,
+            actor_email=actor_user.email if actor_user else "admin@pay2pay.in",
+            action="UPDATE_PROFILE",
+            resource_type="DISTRIBUTOR",
+            resource_id=str(dist.public_id),
+            details={
+                "business_name": dist.business_name,
+                "owner_name": dist.owner_name,
+                "mobile": dist.mobile,
+                "email": dist.email,
+                "city": dist.city,
+                "state": dist.state
+            }
+        )
+        return dist
 
     @staticmethod
     async def request_transfer(
@@ -2297,31 +2481,54 @@ class OrganizationManagementService:
         return company_tree
 
     @staticmethod
-    async def get_dashboard_metrics(db: AsyncSession, tenant_id: uuid.UUID) -> OrganizationDashboardMetricsResponse:
-        total_rms_stmt = select(func.count(RegionalManagerModel.id)).where(RegionalManagerModel.tenant_id == tenant_id, RegionalManagerModel.is_deleted == False)
+    async def get_dashboard_metrics(
+        db: AsyncSession,
+        tenant_id: Optional[uuid.UUID] = None,
+        is_platform_admin: bool = False
+    ) -> OrganizationDashboardMetricsResponse:
+        total_rms_stmt = select(func.count(RegionalManagerModel.id)).where(RegionalManagerModel.is_deleted == False)
+        total_sd_stmt = select(func.count(SuperDistributorModel.id)).where(SuperDistributorModel.is_deleted == False)
+        total_d_stmt = select(func.count(DistributorModel.id)).where(DistributorModel.is_deleted == False)
+        total_ret_stmt = select(func.count(RetailerModel.id)).where(RetailerModel.is_deleted == False)
+        
+        mapped_sds_stmt = select(func.count(SuperDistributorModel.id)).where(SuperDistributorModel.mapped_rm_id != None, SuperDistributorModel.is_deleted == False)
+        mapped_dist_stmt = select(func.count(DistributorModel.id)).where(DistributorModel.mapped_super_distributor_id != None, DistributorModel.is_deleted == False)
+        
+        suspended_rm_stmt = select(func.count(RegionalManagerModel.id)).where(RegionalManagerModel.status == "SUSPENDED", RegionalManagerModel.is_deleted == False)
+        suspended_sd_stmt = select(func.count(SuperDistributorModel.id)).where(SuperDistributorModel.status == "SUSPENDED", SuperDistributorModel.is_deleted == False)
+        suspended_d_stmt = select(func.count(DistributorModel.id)).where(DistributorModel.status == "SUSPENDED", DistributorModel.is_deleted == False)
+        
+        pending_transfers_stmt = select(func.count(OrganizationTransferModel.id)).where(OrganizationTransferModel.status == "PENDING_APPROVAL", OrganizationTransferModel.is_deleted == False)
+
+        if tenant_id and not is_platform_admin:
+            total_rms_stmt = total_rms_stmt.where(RegionalManagerModel.tenant_id == tenant_id)
+            total_sd_stmt = total_sd_stmt.where(SuperDistributorModel.tenant_id == tenant_id)
+            total_d_stmt = total_d_stmt.where(DistributorModel.tenant_id == tenant_id)
+            total_ret_stmt = total_ret_stmt.where(RetailerModel.tenant_id == tenant_id)
+            mapped_sds_stmt = mapped_sds_stmt.where(SuperDistributorModel.tenant_id == tenant_id)
+            mapped_dist_stmt = mapped_dist_stmt.where(DistributorModel.tenant_id == tenant_id)
+            suspended_rm_stmt = suspended_rm_stmt.where(RegionalManagerModel.tenant_id == tenant_id)
+            suspended_sd_stmt = suspended_sd_stmt.where(SuperDistributorModel.tenant_id == tenant_id)
+            suspended_d_stmt = suspended_d_stmt.where(DistributorModel.tenant_id == tenant_id)
+            pending_transfers_stmt = pending_transfers_stmt.where(OrganizationTransferModel.tenant_id == tenant_id)
+
         total_rms = (await db.execute(total_rms_stmt)).scalar() or 0
-
-        total_sd_stmt = select(func.count(SuperDistributorModel.id)).where(SuperDistributorModel.tenant_id == tenant_id, SuperDistributorModel.is_deleted == False)
         total_sds = (await db.execute(total_sd_stmt)).scalar() or 0
-
-        total_d_stmt = select(func.count(DistributorModel.id)).where(DistributorModel.tenant_id == tenant_id, DistributorModel.is_deleted == False)
         total_distributors = (await db.execute(total_d_stmt)).scalar() or 0
-
-        total_ret_stmt = select(func.count(RetailerModel.id)).where(RetailerModel.tenant_id == tenant_id, RetailerModel.is_deleted == False)
         total_retailers = (await db.execute(total_ret_stmt)).scalar() or 0
 
-        mapped_sds = (await db.execute(select(func.count(SuperDistributorModel.id)).where(SuperDistributorModel.tenant_id == tenant_id, SuperDistributorModel.mapped_rm_id != None, SuperDistributorModel.is_deleted == False))).scalar() or 0
-        mapped_dist = (await db.execute(select(func.count(DistributorModel.id)).where(DistributorModel.tenant_id == tenant_id, DistributorModel.mapped_super_distributor_id != None, DistributorModel.is_deleted == False))).scalar() or 0
+        mapped_sds = (await db.execute(mapped_sds_stmt)).scalar() or 0
+        mapped_dist = (await db.execute(mapped_dist_stmt)).scalar() or 0
 
         mapped_entities = mapped_sds + mapped_dist
         unmapped_entities = (total_sds - mapped_sds) + (total_distributors - mapped_dist)
 
-        suspended_rm = (await db.execute(select(func.count(RegionalManagerModel.id)).where(RegionalManagerModel.tenant_id == tenant_id, RegionalManagerModel.status == "SUSPENDED", RegionalManagerModel.is_deleted == False))).scalar() or 0
-        suspended_sd = (await db.execute(select(func.count(SuperDistributorModel.id)).where(SuperDistributorModel.tenant_id == tenant_id, SuperDistributorModel.status == "SUSPENDED", SuperDistributorModel.is_deleted == False))).scalar() or 0
-        suspended_d = (await db.execute(select(func.count(DistributorModel.id)).where(DistributorModel.tenant_id == tenant_id, DistributorModel.status == "SUSPENDED", DistributorModel.is_deleted == False))).scalar() or 0
+        suspended_rm = (await db.execute(suspended_rm_stmt)).scalar() or 0
+        suspended_sd = (await db.execute(suspended_sd_stmt)).scalar() or 0
+        suspended_d = (await db.execute(suspended_d_stmt)).scalar() or 0
         suspended_entities = suspended_rm + suspended_sd + suspended_d
 
-        pending_transfers = (await db.execute(select(func.count(OrganizationTransferModel.id)).where(OrganizationTransferModel.tenant_id == tenant_id, OrganizationTransferModel.status == "PENDING_APPROVAL", OrganizationTransferModel.is_deleted == False))).scalar() or 0
+        pending_transfers = (await db.execute(pending_transfers_stmt)).scalar() or 0
 
         tier_dist = {
             "REGIONAL_MANAGERS": total_rms,
@@ -5561,12 +5768,219 @@ class WalletLedgerPlatformService:
         return wallet
 
     @staticmethod
-    async def list_wallets(db: AsyncSession, tenant_id: uuid.UUID) -> List[EnterpriseWalletModel]:
-        stmt = select(EnterpriseWalletModel).options(selectinload(EnterpriseWalletModel.balance)).where(
-            EnterpriseWalletModel.tenant_id == tenant_id,
+    async def list_wallets(db: AsyncSession, tenant_id: uuid.UUID) -> List[EnterpriseWalletResponse]:
+        items: List[EnterpriseWalletResponse] = []
+
+        # 1. Retailers (Query all active retailers with live wallet balance, contact info, and hierarchy mapping)
+        ret_sql = text("""
+            SELECT 
+                r.public_id,
+                COALESCE(r.retailer_code, CONCAT('RET-', SUBSTRING(r.public_id::text, 1, 8))) AS entity_code,
+                COALESCE(NULLIF(r.store_name, ''), r.owner_name, r.retailer_code) AS entity_name,
+                COALESCE(r.owner_name, '') AS owner_name,
+                COALESCE(rc.mobile, '') AS mobile,
+                'RETAILER' AS entity_type,
+                COALESCE(rw.wallet_type, 'MAIN') AS wallet_type,
+                'INR' AS currency,
+                CAST(COALESCE(rw.wallet_balance, 0.0) AS FLOAT) AS balance,
+                CAST(COALESCE(rw.wallet_balance, 0.0) AS FLOAT) AS available_balance,
+                0.0 AS hold_balance,
+                0.0 AS pending_settlement,
+                CASE 
+                    WHEN COALESCE(rw.is_frozen, false) = true THEN 'FROZEN'
+                    WHEN r.status = 'ACTIVE' THEN 'ACTIVE'
+                    ELSE r.status
+                END AS status,
+                COALESCE(rw.is_frozen, false) AS is_frozen,
+                COALESCE(d.distributor_code, '') AS distributor_code,
+                COALESCE(sd.super_distributor_code, '') AS sd_code,
+                COALESCE(rw.updated_date, r.created_date) AS last_txn_date,
+                r.created_date
+            FROM retailer r
+            LEFT JOIN retailer_wallet rw ON rw.retailer_id = r.public_id
+            LEFT JOIN (
+                SELECT DISTINCT ON (retailer_id) retailer_id, mobile
+                FROM retailer_contact
+                ORDER BY retailer_id, id DESC
+            ) rc ON rc.retailer_id = r.public_id
+            LEFT JOIN distributor d ON d.public_id = r.mapped_distributor_id
+            LEFT JOIN super_distributor sd ON sd.public_id = r.mapped_super_distributor_id
+            WHERE COALESCE(r.is_deleted, false) = false
+            ORDER BY r.created_date DESC
+        """)
+        ret_rows = (await db.execute(ret_sql)).fetchall()
+        for r in ret_rows:
+            items.append(EnterpriseWalletResponse(
+                public_id=r.public_id,
+                wallet_number=r.entity_code,
+                wallet_type=r.wallet_type,
+                owner_type="RETAILER",
+                owner_id=r.public_id,
+                status=r.status,
+                currency=r.currency,
+                current_balance=r.balance,
+                available_balance=r.available_balance,
+                hold_balance=r.hold_balance,
+                created_date=r.created_date,
+                entity_code=r.entity_code,
+                entity_name=r.entity_name,
+                owner_name=r.owner_name,
+                mobile=r.mobile,
+                entity_type=r.entity_type,
+                balance=r.balance,
+                pending_settlement=r.pending_settlement,
+                is_frozen=r.is_frozen,
+                distributor_code=r.distributor_code,
+                sd_code=r.sd_code,
+                last_txn_date=r.last_txn_date
+            ))
+
+        # 2. Distributors (Query live distributors with wallet balances)
+        dist_sql = text("""
+            SELECT
+                d.public_id,
+                COALESCE(d.distributor_code, CONCAT('DIST-', SUBSTRING(d.public_id::text, 1, 8))) AS entity_code,
+                COALESCE(NULLIF(d.business_name, ''), d.owner_name, d.distributor_code) AS entity_name,
+                COALESCE(d.owner_name, '') AS owner_name,
+                COALESCE(d.mobile, '') AS mobile,
+                'DISTRIBUTOR' AS entity_type,
+                'MAIN' AS wallet_type,
+                'INR' AS currency,
+                CAST(COALESCE(dw.balance, d.wallet_balance, 0.0) AS FLOAT) AS balance,
+                CAST(COALESCE(dw.balance, d.wallet_balance, 0.0) AS FLOAT) AS available_balance,
+                0.0 AS hold_balance,
+                0.0 AS pending_settlement,
+                CASE 
+                    WHEN COALESCE(dw.is_frozen, false) = true THEN 'FROZEN'
+                    WHEN d.status = 'ACTIVE' THEN 'ACTIVE'
+                    ELSE d.status
+                END AS status,
+                COALESCE(dw.is_frozen, false) AS is_frozen,
+                d.distributor_code,
+                COALESCE(sd.super_distributor_code, '') AS sd_code,
+                COALESCE(dw.updated_at, d.updated_date, d.created_date) AS last_txn_date,
+                d.created_date
+            FROM distributor d
+            LEFT JOIN dist_wallet dw ON dw.distributor_ref_id = d.distributor_ref_id
+            LEFT JOIN super_distributor sd ON sd.public_id = d.mapped_super_distributor_id
+            WHERE COALESCE(d.is_deleted, false) = false
+            ORDER BY d.created_date DESC
+        """)
+        dist_rows = (await db.execute(dist_sql)).fetchall()
+        for d in dist_rows:
+            items.append(EnterpriseWalletResponse(
+                public_id=d.public_id,
+                wallet_number=d.entity_code,
+                wallet_type=d.wallet_type,
+                owner_type="DISTRIBUTOR",
+                owner_id=d.public_id,
+                status=d.status,
+                currency=d.currency,
+                current_balance=d.balance,
+                available_balance=d.available_balance,
+                hold_balance=d.hold_balance,
+                created_date=d.created_date,
+                entity_code=d.entity_code,
+                entity_name=d.entity_name,
+                owner_name=d.owner_name,
+                mobile=d.mobile,
+                entity_type=d.entity_type,
+                balance=d.balance,
+                pending_settlement=d.pending_settlement,
+                is_frozen=d.is_frozen,
+                distributor_code=d.distributor_code,
+                sd_code=d.sd_code,
+                last_txn_date=d.last_txn_date
+            ))
+
+        # 3. Super Distributors
+        sd_sql = text("""
+            SELECT
+                sd.public_id,
+                COALESCE(sd.super_distributor_code, CONCAT('SD-', SUBSTRING(sd.public_id::text, 1, 8))) AS entity_code,
+                COALESCE(NULLIF(sd.business_name, ''), sd.owner_name, sd.super_distributor_code) AS entity_name,
+                COALESCE(sd.owner_name, '') AS owner_name,
+                COALESCE(sd.mobile, '') AS mobile,
+                'SUPER_DISTRIBUTOR' AS entity_type,
+                'MAIN' AS wallet_type,
+                'INR' AS currency,
+                CAST(COALESCE(sdw.balance, sd.wallet_balance, 0.0) AS FLOAT) AS balance,
+                CAST(COALESCE(sdw.balance, sd.wallet_balance, 0.0) AS FLOAT) AS available_balance,
+                0.0 AS hold_balance,
+                0.0 AS pending_settlement,
+                CASE 
+                    WHEN COALESCE(sdw.is_frozen, false) = true THEN 'FROZEN'
+                    WHEN sd.status = 'ACTIVE' THEN 'ACTIVE'
+                    ELSE sd.status
+                END AS status,
+                COALESCE(sdw.is_frozen, false) AS is_frozen,
+                '' AS distributor_code,
+                sd.super_distributor_code AS sd_code,
+                COALESCE(sdw.updated_at, sd.updated_date, sd.created_date) AS last_txn_date,
+                sd.created_date
+            FROM super_distributor sd
+            LEFT JOIN sd_wallet sdw ON sdw.super_distributor_ref_id = sd.super_distributor_ref_id
+            WHERE COALESCE(sd.is_deleted, false) = false
+            ORDER BY sd.created_date DESC
+        """)
+        sd_rows = (await db.execute(sd_sql)).fetchall()
+        for s in sd_rows:
+            items.append(EnterpriseWalletResponse(
+                public_id=s.public_id,
+                wallet_number=s.entity_code,
+                wallet_type=s.wallet_type,
+                owner_type="SUPER_DISTRIBUTOR",
+                owner_id=s.public_id,
+                status=s.status,
+                currency=s.currency,
+                current_balance=s.balance,
+                available_balance=s.available_balance,
+                hold_balance=s.hold_balance,
+                created_date=s.created_date,
+                entity_code=s.entity_code,
+                entity_name=s.entity_name,
+                owner_name=s.owner_name,
+                mobile=s.mobile,
+                entity_type=s.entity_type,
+                balance=s.balance,
+                pending_settlement=s.pending_settlement,
+                is_frozen=s.is_frozen,
+                distributor_code=s.distributor_code,
+                sd_code=s.sd_code,
+                last_txn_date=s.last_txn_date
+            ))
+
+        # 4. Enterprise Wallets (if any provisioned)
+        ew_stmt = select(EnterpriseWalletModel).options(selectinload(EnterpriseWalletModel.balance)).where(
             EnterpriseWalletModel.is_deleted == False
         ).order_by(EnterpriseWalletModel.created_date.desc())
-        return (await db.execute(stmt)).scalars().all()
+        ew_rows = (await db.execute(ew_stmt)).scalars().all()
+        for ew in ew_rows:
+            closing_bal = float(ew.balance.closing_balance) if ew.balance else 0.0
+            avail_bal = float(ew.balance.available_balance) if ew.balance else 0.0
+            hold_bal = float(ew.balance.hold_balance) if ew.balance else 0.0
+            items.append(EnterpriseWalletResponse(
+                public_id=ew.public_id,
+                wallet_number=ew.wallet_number,
+                wallet_type=ew.wallet_type,
+                owner_type=ew.owner_type,
+                owner_id=ew.owner_id,
+                status=ew.status,
+                currency=ew.currency,
+                current_balance=closing_bal,
+                available_balance=avail_bal,
+                hold_balance=hold_bal,
+                created_date=ew.created_date,
+                entity_code=ew.wallet_number,
+                entity_name=ew.wallet_number,
+                entity_type=ew.owner_type,
+                balance=avail_bal,
+                pending_settlement=0.0,
+                is_frozen=(ew.status == "FROZEN"),
+                last_txn_date=ew.created_date
+            ))
+
+        return items
 
     @staticmethod
     async def toggle_freeze(
@@ -5575,20 +5989,145 @@ class WalletLedgerPlatformService:
         wallet_id: uuid.UUID,
         req: WalletFreezeRequest,
         actor_user: AdminUserModel
-    ) -> EnterpriseWalletModel:
+    ) -> EnterpriseWalletResponse:
+        is_freeze = (req.action == "FREEZE")
+
+        # 1. Check EnterpriseWalletModel
         stmt = select(EnterpriseWalletModel).options(selectinload(EnterpriseWalletModel.balance)).where(
             EnterpriseWalletModel.public_id == wallet_id,
-            EnterpriseWalletModel.tenant_id == tenant_id,
             EnterpriseWalletModel.is_deleted == False
         )
-        wallet = (await db.execute(stmt)).scalar_one_or_none()
-        if not wallet:
-            raise NotFoundException("Enterprise Wallet not found")
+        ew = (await db.execute(stmt)).scalar_one_or_none()
+        if ew:
+            ew.status = "FROZEN" if is_freeze else "ACTIVE"
+            await db.commit()
+            await db.refresh(ew)
+            return EnterpriseWalletResponse(
+                public_id=ew.public_id,
+                wallet_number=ew.wallet_number,
+                wallet_type=ew.wallet_type,
+                owner_type=ew.owner_type,
+                owner_id=ew.owner_id,
+                status=ew.status,
+                currency=ew.currency,
+                current_balance=ew.balance.closing_balance if ew.balance else 0.0,
+                available_balance=ew.balance.available_balance if ew.balance else 0.0,
+                hold_balance=ew.balance.hold_balance if ew.balance else 0.0,
+                created_date=ew.created_date,
+                entity_code=ew.wallet_number,
+                entity_name=ew.wallet_number,
+                entity_type=ew.owner_type,
+                balance=ew.balance.available_balance if ew.balance else 0.0,
+                is_frozen=is_freeze,
+            )
 
-        wallet.status = "FROZEN" if req.action == "FREEZE" else "ACTIVE"
-        await db.commit()
-        await db.refresh(wallet)
-        return wallet
+        # 2. Check RetailerModel & RetailerWalletModel
+        r_stmt = select(RetailerModel).where(RetailerModel.public_id == wallet_id)
+        retailer = (await db.execute(r_stmt)).scalar_one_or_none()
+        if retailer:
+            rw_stmt = select(RetailerWalletModel).where(RetailerWalletModel.retailer_id == retailer.public_id)
+            rw = (await db.execute(rw_stmt)).scalar_one_or_none()
+            if not rw:
+                rw = RetailerWalletModel(
+                    public_id=uuid.uuid4(),
+                    retailer_id=retailer.public_id,
+                    tenant_id=retailer.tenant_id,
+                    wallet_balance=0.0,
+                    is_frozen=is_freeze,
+                    freeze_reason=req.reason,
+                    wallet_type="MAIN",
+                    created_by=actor_user.email
+                )
+                db.add(rw)
+            else:
+                rw.is_frozen = is_freeze
+                rw.freeze_reason = req.reason
+            await db.commit()
+            return EnterpriseWalletResponse(
+                public_id=retailer.public_id,
+                wallet_number=retailer.retailer_code or str(retailer.public_id)[:8],
+                wallet_type="MAIN",
+                owner_type="RETAILER",
+                owner_id=retailer.public_id,
+                status="FROZEN" if is_freeze else retailer.status,
+                currency="INR",
+                current_balance=float(rw.wallet_balance or 0.0),
+                available_balance=float(rw.wallet_balance or 0.0),
+                hold_balance=0.0,
+                created_date=retailer.created_date,
+                entity_code=retailer.retailer_code,
+                entity_name=retailer.store_name or retailer.owner_name,
+                owner_name=retailer.owner_name,
+                entity_type="RETAILER",
+                balance=float(rw.wallet_balance or 0.0),
+                is_frozen=is_freeze
+            )
+
+        # 3. Check Distributor
+        d_stmt = select(DistributorModel).where(DistributorModel.public_id == wallet_id)
+        dist = (await db.execute(d_stmt)).scalar_one_or_none()
+        if dist:
+            from app.infrastructure.db.distributor_models import DistWalletModel
+            dw_stmt = select(DistWalletModel).where(DistWalletModel.distributor_ref_id == dist.distributor_ref_id)
+            dw = (await db.execute(dw_stmt)).scalar_one_or_none()
+            if dw:
+                dw.is_frozen = is_freeze
+                dw.freeze_reason = req.reason
+            await db.commit()
+            return EnterpriseWalletResponse(
+                public_id=dist.public_id,
+                wallet_number=dist.distributor_code or str(dist.public_id)[:8],
+                wallet_type="MAIN",
+                owner_type="DISTRIBUTOR",
+                owner_id=dist.public_id,
+                status="FROZEN" if is_freeze else dist.status,
+                currency="INR",
+                current_balance=float(dw.balance if dw else dist.wallet_balance or 0.0),
+                available_balance=float(dw.balance if dw else dist.wallet_balance or 0.0),
+                hold_balance=0.0,
+                created_date=dist.created_date,
+                entity_code=dist.distributor_code,
+                entity_name=dist.business_name or dist.owner_name,
+                owner_name=dist.owner_name,
+                mobile=dist.mobile,
+                entity_type="DISTRIBUTOR",
+                balance=float(dw.balance if dw else dist.wallet_balance or 0.0),
+                is_frozen=is_freeze
+            )
+
+        # 4. Check Super Distributor
+        sd_stmt = select(SuperDistributorModel).where(SuperDistributorModel.public_id == wallet_id)
+        sdist = (await db.execute(sd_stmt)).scalar_one_or_none()
+        if sdist:
+            from app.infrastructure.db.super_distributor_models import SdWalletModel
+            sdw_stmt = select(SdWalletModel).where(SdWalletModel.super_distributor_ref_id == sdist.super_distributor_ref_id)
+            sdw = (await db.execute(sdw_stmt)).scalar_one_or_none()
+            if sdw:
+                sdw.is_frozen = is_freeze
+                sdw.freeze_reason = req.reason
+            await db.commit()
+            return EnterpriseWalletResponse(
+                public_id=sdist.public_id,
+                wallet_number=sdist.super_distributor_code or str(sdist.public_id)[:8],
+                wallet_type="MAIN",
+                owner_type="SUPER_DISTRIBUTOR",
+                owner_id=sdist.public_id,
+                status="FROZEN" if is_freeze else sdist.status,
+                currency="INR",
+                current_balance=float(sdw.balance if sdw else sdist.wallet_balance or 0.0),
+                available_balance=float(sdw.balance if sdw else sdist.wallet_balance or 0.0),
+                hold_balance=0.0,
+                created_date=sdist.created_date,
+                entity_code=sdist.super_distributor_code,
+                entity_name=sdist.business_name or sdist.owner_name,
+                owner_name=sdist.owner_name,
+                mobile=sdist.mobile,
+                entity_type="SUPER_DISTRIBUTOR",
+                balance=float(sdw.balance if sdw else sdist.wallet_balance or 0.0),
+                is_frozen=is_freeze
+            )
+
+        raise NotFoundException("Entity wallet not found")
 
     @staticmethod
     async def adjust_balance(
@@ -5597,47 +6136,144 @@ class WalletLedgerPlatformService:
         wallet_id: uuid.UUID,
         req: WalletAdjustmentCreateRequest,
         actor_user: AdminUserModel
-    ) -> WalletAdjustmentModel:
+    ) -> Any:
+        adj_num = f"ADJ-2026-{random.randint(10000, 99999)}"
+
+        # 1. Check EnterpriseWalletModel
         stmt = select(EnterpriseWalletModel).options(selectinload(EnterpriseWalletModel.balance)).where(
             EnterpriseWalletModel.public_id == wallet_id,
-            EnterpriseWalletModel.tenant_id == tenant_id,
             EnterpriseWalletModel.is_deleted == False
         )
         wallet = (await db.execute(stmt)).scalar_one_or_none()
-        if not wallet:
-            raise NotFoundException("Enterprise Wallet not found")
+        if wallet:
+            if wallet.status == "FROZEN":
+                raise BadRequestException("Cannot adjust balance on a FROZEN wallet!")
+            adj = WalletAdjustmentModel(
+                public_id=uuid.uuid4(),
+                tenant_id=tenant_id,
+                wallet_id=wallet.public_id,
+                adjustment_number=adj_num,
+                adjustment_type=req.adjustment_type,
+                amount=req.amount,
+                reason=req.reason,
+                approved_by=actor_user.email,
+                status="COMPLETED",
+                created_by=actor_user.email
+            )
+            db.add(adj)
+            if wallet.balance:
+                if req.adjustment_type == "CREDIT":
+                    wallet.balance.credit += req.amount
+                    wallet.balance.closing_balance += req.amount
+                    wallet.balance.available_balance += req.amount
+                elif req.adjustment_type == "DEBIT":
+                    wallet.balance.debit += req.amount
+                    wallet.balance.closing_balance -= req.amount
+                    wallet.balance.available_balance -= req.amount
+            await db.commit()
+            return adj
 
-        if wallet.status == "FROZEN":
-            raise BadRequestException("Cannot adjust balance on a FROZEN wallet!")
+        # 2. Check RetailerModel & RetailerWalletModel
+        r_stmt = select(RetailerModel).where(RetailerModel.public_id == wallet_id)
+        retailer = (await db.execute(r_stmt)).scalar_one_or_none()
+        if retailer:
+            rw_stmt = select(RetailerWalletModel).where(RetailerWalletModel.retailer_id == retailer.public_id)
+            rw = (await db.execute(rw_stmt)).scalar_one_or_none()
+            if not rw:
+                rw = RetailerWalletModel(
+                    public_id=uuid.uuid4(),
+                    retailer_id=retailer.public_id,
+                    tenant_id=retailer.tenant_id,
+                    wallet_balance=0.0,
+                    is_frozen=False,
+                    wallet_type="MAIN",
+                    created_by=actor_user.email
+                )
+                db.add(rw)
+                await db.flush()
+            if rw.is_frozen:
+                raise BadRequestException("Cannot adjust balance on a FROZEN wallet!")
+            delta = req.amount if req.adjustment_type == "CREDIT" else -req.amount
+            rw.wallet_balance = max(0.0, float(rw.wallet_balance or 0.0) + delta)
 
-        adj_num = f"ADJ-2026-{random.randint(1000, 9999)}"
-        adj = WalletAdjustmentModel(
-            public_id=uuid.uuid4(),
-            tenant_id=tenant_id,
-            wallet_id=wallet.public_id,
-            adjustment_number=adj_num,
-            adjustment_type=req.adjustment_type,
-            amount=req.amount,
-            reason=req.reason,
-            approved_by=actor_user.email,
-            status="COMPLETED",
-            created_by=actor_user.email
-        )
-        db.add(adj)
+            adj = WalletAdjustmentModel(
+                public_id=uuid.uuid4(),
+                tenant_id=retailer.tenant_id or tenant_id,
+                wallet_id=retailer.public_id,
+                retailer_wallet_ref_id=rw.retailer_wallet_ref_id,
+                adjustment_number=adj_num,
+                adjustment_type=req.adjustment_type,
+                amount=req.amount,
+                reason=req.reason,
+                approved_by=actor_user.email,
+                status="COMPLETED",
+                created_by=actor_user.email
+            )
+            db.add(adj)
+            await db.commit()
+            return adj
 
-        # Update balance
-        if wallet.balance:
-            if req.adjustment_type == "CREDIT":
-                wallet.balance.credit += req.amount
-                wallet.balance.closing_balance += req.amount
-                wallet.balance.available_balance += req.amount
-            elif req.adjustment_type == "DEBIT":
-                wallet.balance.debit += req.amount
-                wallet.balance.closing_balance -= req.amount
-                wallet.balance.available_balance -= req.amount
+        # 3. Check Distributor
+        d_stmt = select(DistributorModel).where(DistributorModel.public_id == wallet_id)
+        dist = (await db.execute(d_stmt)).scalar_one_or_none()
+        if dist:
+            from app.infrastructure.db.distributor_models import DistWalletModel
+            dw_stmt = select(DistWalletModel).where(DistWalletModel.distributor_ref_id == dist.distributor_ref_id)
+            dw = (await db.execute(dw_stmt)).scalar_one_or_none()
+            if dw and dw.is_frozen:
+                raise BadRequestException("Cannot adjust balance on a FROZEN wallet!")
+            delta = req.amount if req.adjustment_type == "CREDIT" else -req.amount
+            if dw:
+                dw.balance = max(0.0, float(dw.balance or 0.0) + delta)
+            dist.wallet_balance = max(0.0, float(dist.wallet_balance or 0.0) + delta)
 
-        await db.commit()
-        return adj
+            adj = WalletAdjustmentModel(
+                public_id=uuid.uuid4(),
+                tenant_id=dist.tenant_id or tenant_id,
+                wallet_id=dist.public_id,
+                adjustment_number=adj_num,
+                adjustment_type=req.adjustment_type,
+                amount=req.amount,
+                reason=req.reason,
+                approved_by=actor_user.email,
+                status="COMPLETED",
+                created_by=actor_user.email
+            )
+            db.add(adj)
+            await db.commit()
+            return adj
+
+        # 4. Check Super Distributor
+        sd_stmt = select(SuperDistributorModel).where(SuperDistributorModel.public_id == wallet_id)
+        sdist = (await db.execute(sd_stmt)).scalar_one_or_none()
+        if sdist:
+            from app.infrastructure.db.super_distributor_models import SdWalletModel
+            sdw_stmt = select(SdWalletModel).where(SdWalletModel.super_distributor_ref_id == sdist.super_distributor_ref_id)
+            sdw = (await db.execute(sdw_stmt)).scalar_one_or_none()
+            if sdw and sdw.is_frozen:
+                raise BadRequestException("Cannot adjust balance on a FROZEN wallet!")
+            delta = req.amount if req.adjustment_type == "CREDIT" else -req.amount
+            if sdw:
+                sdw.balance = max(0.0, float(sdw.balance or 0.0) + delta)
+            sdist.wallet_balance = max(0.0, float(sdist.wallet_balance or 0.0) + delta)
+
+            adj = WalletAdjustmentModel(
+                public_id=uuid.uuid4(),
+                tenant_id=sdist.tenant_id or tenant_id,
+                wallet_id=sdist.public_id,
+                adjustment_number=adj_num,
+                adjustment_type=req.adjustment_type,
+                amount=req.amount,
+                reason=req.reason,
+                approved_by=actor_user.email,
+                status="COMPLETED",
+                created_by=actor_user.email
+            )
+            db.add(adj)
+            await db.commit()
+            return adj
+
+        raise NotFoundException("Entity wallet not found")
 
     @staticmethod
     async def list_chart_of_accounts(db: AsyncSession, tenant_id: uuid.UUID) -> List[ChartOfAccountsModel]:

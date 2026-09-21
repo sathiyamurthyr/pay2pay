@@ -10,7 +10,7 @@ import {
   Sliders, UploadCloud, Cpu, BookOpen, Wallet, Scale, Send, BarChart3, Activity,
   Ticket, Landmark, GitMerge, CheckSquare, Bell, Zap, Fingerprint, Volume2, Music,
   Globe, Sparkles, Search, X, PanelLeftClose, PanelLeftOpen, AlertTriangle, Layers,
-  Megaphone, Terminal, Star, Pin, MessageSquare, QrCode, RefreshCw, Crown, CheckCircle2
+  Megaphone, Terminal, Star, Pin, MessageSquare, QrCode, RefreshCw, Crown, CheckCircle2, Percent
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth";
@@ -103,6 +103,9 @@ const ICON_MAP: Record<string, React.ElementType> = {
   RefreshCw,
   Network,
   Building2,
+  Percent,
+  Crown,
+  CheckCircle2,
 };
 
 // ─── ADMIN PORTAL MENU STRUCTURE (Strict Governance & Administration - Section 20) ───
@@ -321,27 +324,6 @@ export const Sidebar: React.FC = () => {
   };
 
   const navigation = useMemo(() => {
-    if (serverMenuAccess && serverMenuAccess.length > 0) {
-      let baseNav = serverMenuAccess;
-      if (favorites.length > 0) {
-        const favCategory: NavCategory = {
-          category: "Favorites",
-          icon: Star,
-          items: favorites.map((fav) => {
-            const originalItem = allItemsMap[fav.menu_href];
-            return {
-              label: fav.menu_label || originalItem?.label || fav.menu_href,
-              href: fav.menu_href,
-              icon: originalItem?.icon || Star,
-              badge: originalItem?.badge,
-            };
-          }),
-        };
-        return [favCategory, ...baseNav];
-      }
-      return baseNav;
-    }
-
     const email = (user?.email || "").toLowerCase();
     const roles = (user?.roles || []).map((r) => r.toLowerCase());
     const uType = (user?.user_type || "").toUpperCase();
@@ -361,23 +343,59 @@ export const Sidebar: React.FC = () => {
     const isOps = uType === "OPERATIONS" || uType === "OPERATIONS_ADMIN" || roles.includes("operations_admin");
     const isFinance = uType === "FINANCE" || uType === "FINANCE_ADMIN" || roles.includes("finance_admin") || roles.includes("settlement_mgr") || uType.includes("FINANCE");
 
-    let allowedCategories: string[] = ["Dashboard", "User Management", "Governance", "Retailers", "Transactions", "Wallet", "Services", "Reports", "Configuration", "System"];
+    let allowedCategories: string[] = ["Dashboard", "Organization", "User Management", "Partners & Hierarchy", "Retailers", "Transactions", "Wallet", "Services", "Reports", "Configuration", "System"];
 
     if (isAdmin) {
-      allowedCategories = ["Dashboard", "User Management", "Governance", "Retailers", "Transactions", "Wallet", "Services", "Reports", "Configuration", "System"];
+      allowedCategories = ["Dashboard", "Organization", "User Management", "Partners & Hierarchy", "Retailers", "Transactions", "Wallet", "Services", "Reports", "Configuration", "System"];
     } else if (isRm) {
-      allowedCategories = ["Dashboard", "Retailers", "Transactions", "Reports"];
+      allowedCategories = ["Dashboard", "Partners & Hierarchy", "Retailers", "Transactions", "Reports"];
     } else if (isCrm) {
-      allowedCategories = ["Dashboard", "Retailers", "Transactions", "Wallet", "Configuration", "Reports"];
+      allowedCategories = ["Dashboard", "Partners & Hierarchy", "Retailers", "Transactions", "Wallet", "Configuration", "Reports"];
     } else if (isAudit) {
       allowedCategories = ["Dashboard", "Reports", "System"];
     } else if (isOps) {
-      allowedCategories = ["Dashboard", "User Management", "Governance", "Services", "Wallet", "Transactions", "System"];
+      allowedCategories = ["Dashboard", "User Management", "Services", "Wallet", "Transactions", "System"];
     } else if (isFinance) {
       allowedCategories = ["Dashboard", "Wallet", "Configuration", "Reports"];
     }
 
-    let baseNav = ADMIN_NAV.filter((cat) => allowedCategories.includes(cat.category));
+    let baseNav: NavCategory[] = [];
+
+    if (serverMenuAccess && serverMenuAccess.length > 0) {
+      const normalizedServerCategories = serverMenuAccess.map((cat) => {
+        const matchingAdminCat = ADMIN_NAV.find(
+          (c) =>
+            c.category.toLowerCase() === cat.category.toLowerCase() ||
+            (cat.category.toLowerCase() === "retailers" && c.category.toLowerCase() === "partners & hierarchy")
+        );
+
+        if (!matchingAdminCat) return cat;
+
+        const serverHrefs = new Set(cat.items.map((i) => i.href));
+        const missingItems = matchingAdminCat.items.filter((i) => !serverHrefs.has(i.href));
+
+        return {
+          category: matchingAdminCat.category,
+          items: [...cat.items, ...missingItems],
+        };
+      });
+
+      ADMIN_NAV.forEach((adminCat) => {
+        if (!allowedCategories.includes(adminCat.category)) return;
+        const exists = normalizedServerCategories.some(
+          (c) =>
+            c.category.toLowerCase() === adminCat.category.toLowerCase() ||
+            (c.category.toLowerCase() === "retailers" && adminCat.category.toLowerCase() === "partners & hierarchy")
+        );
+        if (!exists) {
+          normalizedServerCategories.push(adminCat);
+        }
+      });
+
+      baseNav = normalizedServerCategories;
+    } else {
+      baseNav = ADMIN_NAV.filter((cat) => allowedCategories.includes(cat.category));
+    }
 
     // Prepend Dynamic Favorites Category if any are saved in DB
     if (favorites.length > 0) {

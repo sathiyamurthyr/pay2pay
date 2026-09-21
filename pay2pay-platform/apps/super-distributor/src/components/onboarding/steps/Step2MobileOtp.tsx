@@ -161,7 +161,7 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
             This mobile number is already registered.
           </h2>
           <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto">
-            Your registration is already completed. Please login to continue accessing your retailer portal.
+            Your registration is already completed. Please login to continue accessing your super distributor portal.
           </p>
         </div>
 

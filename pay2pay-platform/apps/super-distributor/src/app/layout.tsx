@@ -14,8 +14,8 @@ export const metadata: Metadata = {
     apple: "/apple-touch-icon.png",
   },
   manifest: "/site.webmanifest",
-  title: "Pay2Pay FinTech Retailer Platform",
-  description: "Enterprise Merchant Banking & Settlement Terminal",
+  title: "Pay2Pay Super Distributor Platform",
+  description: "Enterprise Super Distributor Network & Multi-Tier Settlement Terminal",
 };
 
 export const viewport: Viewport = {

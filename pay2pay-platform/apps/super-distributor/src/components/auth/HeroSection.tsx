@@ -15,7 +15,10 @@ import {
   Globe2,
   CreditCard,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  Layers,
+  Users,
+  Network
 } from "lucide-react";
 import { AnimatedAuroraBackground } from "./motion/AnimatedAuroraBackground";
 import { MouseSpotlight } from "./motion/MouseSpotlight";
@@ -32,7 +35,15 @@ import {
   shimmerVariants
 } from "./motion/animationVariants";
 
-export const HeroSection: React.FC = () => {
+interface HeroSectionProps {
+  darkMode?: boolean;
+  portalRole?: string;
+}
+
+export const HeroSection: React.FC<HeroSectionProps> = ({
+  darkMode = true,
+  portalRole = "SUPER_DISTRIBUTOR"
+}) => {
   const shouldReduceMotion = useReducedMotion();
 
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
@@ -45,40 +56,42 @@ export const HeroSection: React.FC = () => {
   };
 
   const BENEFITS = [
-    { title: "Instant Settlement", icon: Zap },
-    { title: "NPCI BBPS", icon: Building2 },
-    { title: "UPI Enabled", icon: QrCode },
-    { title: "AEPS Banking", icon: Smartphone },
-    { title: "Secure Wallet", icon: CreditCard },
-    { title: "PCI DSS Certified", icon: ShieldCheck },
-    { title: "ISO 27001", icon: Lock },
-    { title: "AI Fraud Detection", icon: Sparkles }
+    { title: "Multi-Tier Network", icon: Network },
+    { title: "Master Liquidity", icon: Zap },
+    { title: "MDR Margin Routing", icon: TrendingUp },
+    { title: "NPCI BBPS Hub", icon: Building2 },
+    { title: "Dynamic UPI 2.0", icon: QrCode },
+    { title: "AEPS Banking Switch", icon: Smartphone },
+    { title: "Master Float Pool", icon: CreditCard },
+    { title: "AI Risk Radar", icon: Sparkles }
   ];
 
   const TICKER_ITEMS = [
-    "⚡ Money Transfer ₹15,000 → HDFC Bank",
-    "✓ UPI Success ₹500 → Merchant QR",
-    "💳 Wallet Auto-Loaded ₹50,000",
-    "🏦 AEPS Cash Withdrawal ₹10,000 → SBI",
-    "✨ T+0 Settlement ₹2,50,000 → ICICI",
-    "📄 BBPS Bill Paid ₹2,450 → TNEB Power",
-    "🔐 Fraud Alert Blocked — AI Shield",
-    "📱 UPI QR Payout ₹8,500 → Merchant"
+    "⚡ Commission Credited ₹1,45,200 → SD Master Wallet",
+    "✓ Distributor Onboarded #DST-9876 → Active",
+    "💳 Master Liquidity Pool Loaded ₹15,00,000 → ICICI",
+    "🏦 High-Volume Settlement Settled ₹4,20,000 → SBI",
+    "✨ T+0 Multi-Tier MDR Commission Verified — Pay2Pay Hub",
+    "📄 BBPS Commission Shared ₹38,450 → Super Distributor",
+    "🔐 Bank-Grade Security Shield Active — AI Risk Radar",
+    "📱 Channel Partner Network Volume ₹45,80,000 Today"
   ];
 
   // Duplicate for seamless infinite scroll
   const TICKER_DOUBLED = [...TICKER_ITEMS, ...TICKER_ITEMS];
 
   return (
-    <div className="relative w-full h-full bg-slate-950 text-white overflow-hidden flex flex-col justify-between select-none">
-
+    <div
+      className={`relative w-full h-full text-white overflow-hidden flex flex-col justify-between select-none transition-colors duration-300 ${
+        darkMode ? "bg-slate-950" : "bg-[#0A0E1A]"
+      }`}
+    >
       {/* Background Effects */}
       <AnimatedAuroraBackground />
       <MouseSpotlight />
 
       {/* Inner layout with padding */}
-      <div className="relative z-20 flex flex-col h-full p-5 xl:p-7 2xl:p-10">
-
+      <div className="relative z-20 flex flex-col h-full p-5 xl:p-7 2xl:p-10 justify-between">
         {/* ── Top Header ── */}
         <div className="flex items-center justify-between mb-4 2xl:mb-6">
           <div className="flex items-center gap-3 2xl:gap-4">
@@ -98,8 +111,9 @@ export const HeroSection: React.FC = () => {
               <h1 className="text-base 2xl:text-xl font-extrabold tracking-tight text-white leading-tight">
                 Pay2Pay Enterprise
               </h1>
-              <p className="text-[11px] 2xl:text-xs font-semibold text-slate-400 mt-0.5">
-                Retailer Authentication Portal
+              <p className="text-[11px] 2xl:text-xs font-semibold text-blue-400/90 mt-0.5 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                Super Distributor Command Center
               </p>
             </div>
           </div>
@@ -119,7 +133,6 @@ export const HeroSection: React.FC = () => {
 
         {/* ── Hero Main Content ── */}
         <div className="flex-1 flex flex-col justify-center py-2 2xl:py-6">
-
           {/* RBI Compliance Badge */}
           <motion.div
             variants={fadeUpVariants}
@@ -134,7 +147,7 @@ export const HeroSection: React.FC = () => {
                 className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none"
               />
               <ShieldCheck className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-              <span>RBI Compliant FinTech Infrastructure</span>
+              <span>RBI Compliant Super Distributor Infrastructure</span>
             </div>
           </motion.div>
 
@@ -147,14 +160,14 @@ export const HeroSection: React.FC = () => {
           >
             <div className="text-3xl xl:text-4xl 2xl:text-6xl font-black tracking-tight text-white leading-tight">
               <div className="overflow-hidden">
-                {["Power", "Every"].map((word, i) => (
+                {["Scale", "Your"].map((word, i) => (
                   <motion.span key={i} variants={wordChildVariants} className="inline-block mr-3">
                     {word}
                   </motion.span>
                 ))}
               </div>
               <div className="overflow-hidden">
-                {["Retail", "Business"].map((word, i) => (
+                {["Distribution", "Empire"].map((word, i) => (
                   <motion.span
                     key={i}
                     variants={wordChildVariants}
@@ -174,9 +187,9 @@ export const HeroSection: React.FC = () => {
             animate="visible"
             className="text-slate-300 text-sm xl:text-base 2xl:text-xl font-medium leading-relaxed mb-4 2xl:mb-6 max-w-lg 2xl:max-w-2xl"
           >
-            Transfer Money · Accept UPI · AEPS Banking · BBPS · Wallet
+            Distributor Hierarchy · Retailer Networks · Volume Float Pools · Master Commission Routing · Automated T+0 Settlements
             <span className="block text-slate-400 text-xs xl:text-sm 2xl:text-base font-normal mt-1">
-              All from one secure enterprise workstation platform.
+              Command your entire high-volume financial channel with real-time switch controls.
             </span>
           </motion.p>
 
@@ -189,34 +202,34 @@ export const HeroSection: React.FC = () => {
           >
             {[
               {
-                title: "Instant Money Transfer",
-                subtitle: "₹25,000 DMT",
-                badge: "✓ Instant",
-                icon: Zap,
+                title: "Multi-Tier Hierarchy",
+                subtitle: "Distributor & Retailers",
+                badge: "✓ Full Control",
+                icon: Layers,
                 color: "blue",
                 delay: 0
               },
               {
-                title: "Dynamic UPI 2.0",
-                subtitle: "QR Accept",
-                badge: "✓ 0% MDR",
-                icon: QrCode,
+                title: "Master Float Pools",
+                subtitle: "High-Volume Liquidity",
+                badge: "✓ Real-Time",
+                icon: Zap,
                 color: "purple",
                 delay: 1.2
               },
               {
-                title: "AEPS Micro-ATM",
-                subtitle: "Biometric Cash",
-                badge: "✓ Verified",
-                icon: Smartphone,
+                title: "MDR Margin Overrides",
+                subtitle: "Automated Routing",
+                badge: "✓ Max Profit",
+                icon: TrendingUp,
                 color: "emerald",
                 delay: 0.6
               },
               {
-                title: "Merchant Settlement",
-                subtitle: "T+0 Payout",
-                badge: "✓ 24x7",
-                icon: TrendingUp,
+                title: "Instant Switch Payout",
+                subtitle: "T+0 Settlement",
+                badge: "✓ 24x7 Switch",
+                icon: CreditCard,
                 color: "cyan",
                 delay: 1.8
               }
@@ -293,10 +306,10 @@ export const HeroSection: React.FC = () => {
           {/* Stats Grid */}
           <div className="grid grid-cols-4 gap-3 2xl:gap-6 mb-3 2xl:mb-4">
             {[
-              { value: <CountUpNumber target={50000} suffix="+" duration={2.2} />, label: "Active Retailers", color: "text-white" },
-              { value: <CountUpNumber target={5000} prefix="₹" suffix=" Cr+" duration={2.4} />, label: "Transactions", color: "text-white" },
-              { value: <CountUpNumber target={99.99} decimals={2} suffix="%" duration={2} />, label: "Success Rate", color: "text-emerald-400" },
-              { value: "24x7", label: "Support", color: "text-cyan-400" }
+              { value: <CountUpNumber target={10000} suffix="+" duration={2.2} />, label: "Distributors", color: "text-white" },
+              { value: <CountUpNumber target={500} prefix="₹" suffix=" Cr+" duration={2.4} />, label: "Monthly Volume", color: "text-white" },
+              { value: <CountUpNumber target={99.99} decimals={2} suffix="%" duration={2} />, label: "Switch Uptime", color: "text-emerald-400" },
+              { value: "0-Sec", label: "Instant Credit", color: "text-cyan-400" }
             ].map((stat, i) => (
               <div key={i}>
                 <p className={`text-lg xl:text-xl 2xl:text-3xl font-black leading-tight ${stat.color}`}>
@@ -325,7 +338,6 @@ export const HeroSection: React.FC = () => {
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );

@@ -39,6 +39,7 @@ class CalculateMdrRequest(BaseModel):
     payment_mode: str = Field(..., description="POS - Instant, POS+T1, or POS+T2")
     transaction_amount: float = Field(..., gt=0, description="Gross POS transaction amount")
     retailer_id: Optional[str] = Field(None, description="Retailer ID, code, or UUID")
+    card_type: Optional[str] = Field(None, description="POS Card Type: VISA, MASTER, RUPAY, AMEX / DINERS")
 
 
 class CalculateMdrResponse(BaseModel):
@@ -98,13 +99,14 @@ CARD_TYPES_CONFIG = [
     {"code": "MASTER", "name": "MASTER", "display_order": 2},
     {"code": "RUPAY", "name": "RUPAY", "display_order": 3},
     {"code": "AMEX / DINERS", "name": "AMEX / DINERS", "display_order": 4},
+    {"code": "Business/corporate", "name": "Business/corporate", "display_order": 5},
 ]
 
 @router.get("/card-types")
 async def get_pos_card_types():
     """
     Returns dynamically configured POS Card Types for POS Settlement Top-Up:
-    VISA, MASTER, RUPAY, AMEX / DINERS.
+    VISA, MASTER, RUPAY, AMEX / DINERS, Business/corporate.
     """
     return {"items": CARD_TYPES_CONFIG, "total": len(CARD_TYPES_CONFIG)}
 
@@ -133,7 +135,8 @@ async def calculate_mdr(
         db=db,
         amount=req.transaction_amount,
         payment_mode=req.payment_mode,
-        retailer_id=req.retailer_id
+        retailer_id=req.retailer_id,
+        card_type=req.card_type
     )
     return CalculateMdrResponse(
         payment_mode=result["payment_mode"],
@@ -701,23 +704,32 @@ async def provision_all_approved_defaults(
 # ==============================================================================
 
 class CompanyCommissionConfigRequest(BaseModel):
-    distributor_commission_pct: float = Field(0.0, ge=0.0, le=100.0, description="Distributor commission percentage")
-    sd_commission_pct: float = Field(0.0, ge=0.0, le=100.0, description="Super Distributor commission percentage")
-    default_distributor_mdr: Optional[float] = Field(0.0, ge=0.0, le=100.0, description="Company default Distributor MDR percentage")
-    default_sd_mdr: Optional[float] = Field(0.0, ge=0.0, le=100.0, description="Company default Super Distributor MDR percentage")
-    payment_mode: Optional[str] = Field("ALL", description="Payment mode e.g. ALL, POS - Instant, etc.")
+    payment_mode: Optional[str] = Field("POS - Instant", description="Payment mode e.g. POS - Instant, POS+T1, ALL")
+    card_type: Optional[str] = Field(None, description="Card Type e.g. VISA, MASTER, RUPAY, AMEX / DINERS")
+    card_type_ref_id: Optional[int] = Field(None, description="Card type ref id (1=VISA, 2=MASTER, 3=RUPAY, 4=AMEX / DINERS)")
+    company_mdr: Optional[float] = Field(None, ge=0.0, le=100.0, description="Company baseline MDR percentage")
+    sd_commission_pct: Optional[float] = Field(0.0, ge=0.0, le=100.0, description="Super Distributor commission percentage")
+    distributor_commission_pct: Optional[float] = Field(0.0, ge=0.0, le=100.0, description="Distributor commission percentage")
+    default_distributor_mdr: Optional[float] = Field(None, ge=0.0, le=100.0, description="Distributor MDR percentage")
+    default_sd_mdr: Optional[float] = Field(None, ge=0.0, le=100.0, description="Super Distributor MDR percentage")
+    distributor_mdr: Optional[float] = Field(None, ge=0.0, le=100.0, description="Alias for default_distributor_mdr")
+    sd_mdr: Optional[float] = Field(None, ge=0.0, le=100.0, description="Alias for default_sd_mdr")
+    retailer_mdr: Optional[float] = Field(None, ge=0.0, le=100.0, description="Retailer MDR percentage")
+    retailer_mdr_override: Optional[float] = Field(None, ge=0.0, le=100.0, description="Retailer MDR percentage override")
     company_id: Optional[str] = Field(None, description="Company UUID (optional; resolves default if omitted)")
 
 
 @router.get("/admin/company-commission-config", summary="Get Company Commission & Default MDR Configuration")
 async def get_company_commission_config(
     company_id: Optional[str] = Query(None, description="Company UUID"),
-    payment_mode: Optional[str] = Query("ALL", description="Payment mode (default ALL)"),
+    payment_mode: Optional[str] = Query("POS - Instant", description="Payment mode (default: POS - Instant)"),
+    card_type: Optional[str] = Query(None, description="Card type (VISA, MASTER, RUPAY, AMEX / DINERS)"),
+    card_type_ref_id: Optional[int] = Query(None, description="Card type ref ID (1..4)"),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Returns the company-level default Distributor and Super Distributor commissions
-    and MDR settings (defaults to 0.00% dynamically if not configured).
+    Returns the company-level MDR and Commission configuration for a specific
+    Payment Mode + Card Type combination.
     """
     from app.application.pos_commission_service import PosCommissionService
     from app.application.hierarchy_mapping_service import HierarchyMappingService
@@ -737,7 +749,9 @@ async def get_company_commission_config(
     data = await PosCommissionService.get_company_commission_config(
         db=db,
         company_id=c_uuid,
-        payment_mode=payment_mode
+        payment_mode=payment_mode,
+        card_type=card_type,
+        card_type_ref_id=card_type_ref_id
     )
     return {"success": True, "data": data}
 
@@ -748,8 +762,8 @@ async def update_company_commission_config(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Admin updates the company-level default Distributor and Super Distributor commissions
-    and MDR settings.
+    Admin updates the company-level MDR and Commission configuration for a specific
+    Payment Mode + Card Type combination.
     """
     from app.application.pos_commission_service import PosCommissionService
     from app.application.hierarchy_mapping_service import HierarchyMappingService
@@ -767,18 +781,60 @@ async def update_company_commission_config(
             raise HTTPException(status_code=404, detail="Default company could not be resolved.")
         c_uuid = comp.public_id
 
+    d_mdr = req.distributor_mdr if req.distributor_mdr is not None else (req.default_distributor_mdr if req.default_distributor_mdr is not None else (req.distributor_commission_pct or 0.0))
+    s_mdr = req.sd_mdr if req.sd_mdr is not None else (req.default_sd_mdr if req.default_sd_mdr is not None else (req.sd_commission_pct or 0.0))
+    r_mdr = req.retailer_mdr if req.retailer_mdr is not None else req.retailer_mdr_override
+
     result = await PosCommissionService.update_company_commission_config(
         db=db,
         company_id=c_uuid,
-        distributor_commission_pct=req.distributor_commission_pct,
-        sd_commission_pct=req.sd_commission_pct,
-        default_distributor_mdr=req.default_distributor_mdr or 0.0,
-        default_sd_mdr=req.default_sd_mdr or 0.0,
-        payment_mode=req.payment_mode or "ALL"
+        distributor_commission_pct=d_mdr,
+        sd_commission_pct=s_mdr,
+        default_distributor_mdr=d_mdr,
+        default_sd_mdr=s_mdr,
+        company_mdr=req.company_mdr,
+        retailer_mdr_override=r_mdr,
+        payment_mode=req.payment_mode or "POS - Instant",
+        card_type=req.card_type,
+        card_type_ref_id=req.card_type_ref_id
     )
     return {
         "success": True,
-        "message": "Company commission and MDR configuration updated successfully.",
+        "message": f"MDR configuration for '{req.payment_mode or 'POS - Instant'} + {req.card_type or 'ALL'}' updated successfully.",
         "data": result
     }
+
+
+@router.get("/admin/mdr-matrix", summary="Get 8-Combination POS MDR Rate Matrix")
+async def get_pos_mdr_matrix(
+    company_id: Optional[str] = Query(None, description="Company UUID"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Returns the complete 8-row MDR Matrix:
+    [POS - Instant, POS+T1] x [VISA, MASTER, RUPAY, AMEX / DINERS]
+    with live Company MDR, SD MDR, Distributor MDR, and Retailer MDR.
+    """
+    from app.application.pos_commission_service import PosCommissionService
+    from app.application.hierarchy_mapping_service import HierarchyMappingService
+
+    c_uuid = None
+    if company_id:
+        try:
+            c_uuid = uuid.UUID(str(company_id).strip())
+        except Exception:
+            pass
+
+    if not c_uuid:
+        comp = await HierarchyMappingService.resolve_default_company(db)
+        if comp:
+            c_uuid = comp.public_id
+
+    matrix = await PosCommissionService.get_mdr_matrix(db=db, company_id=c_uuid)
+    return {
+        "success": True,
+        "items": matrix,
+        "total": len(matrix)
+    }
+
 

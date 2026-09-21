@@ -1243,7 +1243,7 @@ class EnterprisePayoutExecutionService:
             "p_gst_amount": cls._money(tx.gst_amount or 0.0),
             "p_retailer_name": "Retailer Partner",
             "p_vendor_name": tx.vendor_name or "UTKALDIGITAL",
-            "p_user_ref_id": getattr(tx, "retailer_ref_id", None) or 24,
+            "p_user_ref_id": getattr(tx, "retailer_ref_id", None) or getattr(tx, "user_ref_id", None) or getattr(tx, "id", None),
             "p_tenant_ref_id": getattr(tx, "tenant_ref_id", None) or 1,
             "p_company_ref_id": getattr(tx, "company_ref_id", None) or 1
         })

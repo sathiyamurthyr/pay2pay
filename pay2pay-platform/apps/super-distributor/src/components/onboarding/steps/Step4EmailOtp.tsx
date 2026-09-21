@@ -91,7 +91,7 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
         <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
           Code dispatched to{" "}
           <span className="font-extrabold text-blue-600 dark:text-blue-400">
-            {email || "retailer@pay2pay.in"}
+            {email || "superdist@pay2pay.in"}
           </span>
         </p>
       </div>

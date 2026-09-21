@@ -225,7 +225,28 @@ export default function RetailerDetailsPage() {
   };
 
   useEffect(() => {
-    if (retailerId) fetchDetails();
+    if (!retailerId) return;
+    if (retailerId === "distributor-approvals") {
+      router.replace("/retailers/distributor-approvals");
+      return;
+    }
+    if (retailerId === "sd-approvals") {
+      router.replace("/retailers/sd-approvals");
+      return;
+    }
+    if (retailerId === "onboard-distributor") {
+      router.replace("/retailers/onboard-distributor");
+      return;
+    }
+    if (retailerId === "onboard-sd") {
+      router.replace("/retailers/onboard-sd");
+      return;
+    }
+    if (retailerId === "onboard") {
+      router.replace("/retailers/onboard");
+      return;
+    }
+    fetchDetails();
   }, [retailerId]);
 
   const copyToClipboard = (text: string, fieldName: string) => {

@@ -1119,9 +1119,9 @@ class PayoutWorkflowService:
 
         ret_stmt = select(RetailerModel).where(RetailerModel.public_id == retailer_id)
         ret_obj = (await db.execute(ret_stmt)).scalars().first()
-        ret_ref_id = getattr(ret_obj, "retailer_ref_id", None) or 24
+        ret_ref_id = getattr(ret_obj, "retailer_ref_id", None) or getattr(ret_obj, "user_ref_id", None) or getattr(ret_obj, "id", None)
         t_ref_id = getattr(ret_obj, "tenant_ref_id", None) or 1
-        c_ref_id = getattr(ret_obj, "company_ref_id", None) or 2
+        c_ref_id = getattr(ret_obj, "company_ref_id", None) or 1
         ret_name = getattr(ret_obj, "store_name", None) or getattr(ret_obj, "legal_name", None) or "Retailer"
         comp_id = getattr(ret_obj, "company_id", None)
 

@@ -1,6 +1,7 @@
 import uuid
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Query
+from datetime import datetime
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from pydantic import BaseModel
@@ -48,23 +49,7 @@ async def list_enterprise_wallets(
     current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    wallets = await WalletLedgerPlatformService.list_wallets(db, tenant_id)
-    return [
-        EnterpriseWalletResponse(
-            public_id=w.public_id,
-            wallet_number=w.wallet_number,
-            wallet_type=w.wallet_type,
-            owner_type=w.owner_type,
-            owner_id=w.owner_id,
-            status=w.status,
-            currency=w.currency,
-            current_balance=w.balance.closing_balance if w.balance else 0.0,
-            available_balance=w.balance.available_balance if w.balance else 0.0,
-            hold_balance=w.balance.hold_balance if w.balance else 0.0,
-            created_date=w.created_date
-        )
-        for w in wallets
-    ]
+    return await WalletLedgerPlatformService.list_wallets(db, tenant_id)
 
 
 @router.post("/wallets/{id}/freeze", response_model=EnterpriseWalletResponse)
@@ -75,20 +60,7 @@ async def toggle_wallet_freeze(
     current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    w = await WalletLedgerPlatformService.toggle_freeze(db, tenant_id, id, req, current_user)
-    return EnterpriseWalletResponse(
-        public_id=w.public_id,
-        wallet_number=w.wallet_number,
-        wallet_type=w.wallet_type,
-        owner_type=w.owner_type,
-        owner_id=w.owner_id,
-        status=w.status,
-        currency=w.currency,
-        current_balance=w.balance.closing_balance if w.balance else 0.0,
-        available_balance=w.balance.available_balance if w.balance else 0.0,
-        hold_balance=w.balance.hold_balance if w.balance else 0.0,
-        created_date=w.created_date
-    )
+    return await WalletLedgerPlatformService.toggle_freeze(db, tenant_id, id, req, current_user)
 
 
 @router.post("/wallets/{id}/adjust")
@@ -344,5 +316,189 @@ async def get_user_wallet_endpoint(
     }
 
 
+# ==============================================================================
+# WALLET LEDGER / TRANSACTIONS AUDIT REPORT API
+# GET /api/v1/wallet-ledger/transactions
+# ==============================================================================
+
+@router.get("/entities", summary="Dynamic entities list for SD, Distributor, and Retailer filters")
+async def get_wallet_ledger_entities(
+    user_type: Optional[str] = Query(None, description="User type filter: SD, DISTRIBUTOR, RETAILER, ALL"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Returns dynamically resolved entity list for cascading filters.
+    SDs, Distributors, Retailers from live database records.
+    """
+    from app.application.wallet_ledger_audit_service import WalletLedgerAuditService
+    entities = await WalletLedgerAuditService.get_entities_by_user_type(db, user_type)
+    return {
+        "success": True,
+        "total": len(entities),
+        "items": entities
+    }
 
 
+@router.get("/transactions", summary="Wallet Ledger & Financial Reconciliation Audit Report")
+async def get_wallet_ledger_audit_transactions(
+    page: int = Query(1, description="Page number (1-indexed)"),
+    limit: int = Query(25, description="Page size (1-100)"),
+    from_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD) in IST"),
+    to_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD) in IST"),
+    user_type: Optional[str] = Query(None, description="User type (SD, DISTRIBUTOR, RETAILER, ALL)"),
+    user_ref_id: Optional[int] = Query(None, description="User Reference ID"),
+    service: Optional[str] = Query(None, description="Service (PAYOUT, TOPUP, AEPS, DMT, RECHARGE, ALL)"),
+    entry_type: Optional[str] = Query(None, description="Entry type (CREDIT, DEBIT, ALL)"),
+    status: Optional[str] = Query(None, description="Status (SUCCESS, PENDING, FAILED, ALL)"),
+    reconciliation: Optional[str] = Query(None, description="Reconciliation status (MATCHED, MISMATCH, PENDING, ALL)"),
+    search: Optional[str] = Query(None, description="Search term for Txn ID, Ref ID, Retailer, Distributor, etc."),
+    sort_by: Optional[str] = Query("created_at", description="Sort by field"),
+    sort_order: Optional[str] = Query("DESC", description="Sort direction (ASC, DESC)"),
+    company_ref_id: Optional[int] = Query(None, description="Optional company scoping"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Major Financial Tracking and Audit Report Endpoint.
+    Combines transactions, wallet ledgers, and reconciliation results.
+    Authoritative server-side calculations for CR/DR, Net Movement, and Mismatch Detection.
+    """
+    from app.application.wallet_ledger_audit_service import WalletLedgerAuditService
+
+    result = await WalletLedgerAuditService.get_audit_report(
+        db=db,
+        page=page,
+        limit=limit,
+        from_date=from_date,
+        to_date=to_date,
+        user_type=user_type,
+        user_ref_id=user_ref_id,
+        service=service,
+        entry_type=entry_type,
+        status=status,
+        reconciliation=reconciliation,
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        company_ref_id=company_ref_id
+    )
+    return result
+
+
+
+
+@router.get("/transactions/export", summary="Export Wallet Ledger Audit Report as CSV")
+async def export_wallet_ledger_audit_csv(
+    from_date: Optional[str] = Query(None),
+    to_date: Optional[str] = Query(None),
+    user_type: Optional[str] = Query(None),
+    user_ref_id: Optional[int] = Query(None),
+    service: Optional[str] = Query(None),
+    entry_type: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    reconciliation: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    company_ref_id: Optional[int] = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Exports filtered audit report as CSV stream respecting all applied filters.
+    """
+    import io
+    import csv
+    from fastapi.responses import StreamingResponse
+    from app.application.wallet_ledger_audit_service import WalletLedgerAuditService
+
+    # Fetch up to 10,000 matching records for export
+    result = await WalletLedgerAuditService.get_audit_report(
+        db=db,
+        page=1,
+        limit=10000,
+        from_date=from_date,
+        to_date=to_date,
+        user_type=user_type,
+        user_ref_id=user_ref_id,
+        service=service,
+        entry_type=entry_type,
+        status=status,
+        reconciliation=reconciliation,
+        search=search,
+        company_ref_id=company_ref_id
+    )
+
+    items = result.get("data", [])
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # 25 Column Headers
+    headers = [
+        "Date/Time", "Transaction ID", "Ledger ID", "Reference ID",
+        "User Type", "User Name", "Company", "Super Distributor",
+        "Distributor", "Retailer", "Service", "Transaction Type",
+        "CR/DR", "Transaction Amount", "Ledger Amount",
+        "MDR %", "MDR Amount", "Commission %", "Commission Amount",
+        "Opening Balance", "Closing Balance", "Wallet",
+        "Status", "Reconciliation", "Mismatch Reasons", "Created By"
+    ]
+    writer.writerow(headers)
+
+    for it in items:
+        reasons_str = "; ".join(it.get("mismatch_reasons") or [])
+        writer.writerow([
+            it.get("created_at"),
+            it.get("txn_id"),
+            it.get("ledger_id"),
+            it.get("ref_id"),
+            it.get("user_type"),
+            it.get("user_name"),
+            it.get("company"),
+            it.get("super_distributor"),
+            it.get("distributor"),
+            it.get("retailer"),
+            it.get("service"),
+            it.get("transaction_type"),
+            it.get("cr_dr"),
+            it.get("amount"),
+            it.get("ledger_amount"),
+            it.get("mdr_percent"),
+            it.get("mdr_amount"),
+            it.get("commission_percent"),
+            it.get("commission_amount"),
+            it.get("opening_balance"),
+            it.get("closing_balance"),
+            it.get("wallet"),
+            it.get("status"),
+            it.get("reconciliation"),
+            reasons_str,
+            it.get("created_by")
+        ])
+
+    output.seek(0)
+    filename = f"wallet_ledger_audit_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
+
+@router.get("/transactions/{txn_id}", summary="Get Detailed Transaction Audit Trace")
+async def get_wallet_ledger_audit_transaction_detail(
+    txn_id: str,
+    primary_id: Optional[int] = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Provides comprehensive deep audit trace for a specific transaction ID.
+    Includes component rows, ledger entries, gateway reconciliation, and hierarchy.
+    """
+    from app.application.wallet_ledger_audit_service import WalletLedgerAuditService
+
+    detail = await WalletLedgerAuditService.get_transaction_detail(db, txn_id, primary_id=primary_id)
+    if not detail:
+        raise HTTPException(
+            status_code=404,
+            detail={"success": False, "message": f"Transaction {txn_id} not found"}
+        )
+    return detail

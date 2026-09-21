@@ -406,8 +406,24 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
     setActiveStepId("s12");
     setTimelineSteps([...stepsCopy]);
 
-    // Await backend ACID transaction result
-    const finResult = await transactionPromise;
+    // Await backend ACID transaction result — MUST be wrapped in try/catch
+    // so ANY unhandled error (scope bugs, network, timeout) transitions to FAILURE_RECEIPT
+    // instead of freezing Step 12 in PROCESSING indefinitely.
+    let finResult: Awaited<ReturnType<typeof FinancialAccounting.executeACIDTransaction>>;
+    try {
+      finResult = await transactionPromise;
+    } catch (awaitErr: any) {
+      console.error("[Payout Pipeline] Unhandled error awaiting transactionPromise:", awaitErr);
+      stepsCopy[11].status = "FAILED";
+      stepsCopy[11].subTitle = "Processing error — see error message";
+      setTimelineSteps([...stepsCopy]);
+      bankingSounds.playError();
+      setErrorMessage(sanitizeCustomerErrorMessage(
+        awaitErr?.message || "An unexpected error occurred while processing the payout. Please try again."
+      ));
+      setTimeout(() => { setViewState("FAILURE_RECEIPT"); }, 800);
+      return;
+    }
 
     setLiveFinResult(finResult);
 

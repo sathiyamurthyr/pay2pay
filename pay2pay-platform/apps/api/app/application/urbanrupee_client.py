@@ -12,7 +12,9 @@ Live Provider Details:
 """
 
 import os
+import re
 import uuid
+import random
 import logging
 from decimal import Decimal
 from typing import Dict, Any, Optional
@@ -83,6 +85,38 @@ class UrbanRupeeApiClient:
         clean_mobile = str(mobile or "9876543210").strip()
         if len(clean_mobile) > 10:
             clean_mobile = clean_mobile[-10:]
+
+        # ── Dynamic Test Account Safeguard ──────────────────────────────────────────
+        # Guarantee: Never send real bank payouts to test beneficiary accounts (from .env)
+        test_bene_acc = os.getenv("PAYOUT_TEST_BENE_ACCOUNT", "").strip()
+        clean_target_acc = re.sub(r"\D", "", str(account_number or ""))
+        clean_test_acc = re.sub(r"\D", "", test_bene_acc)
+
+        if clean_test_acc and clean_target_acc and clean_test_acc == clean_target_acc:
+            sim_utr = f"SIM-UTR{random.randint(100000000000, 999999999999)}"
+            sim_tx = f"SIM-UR-{uuid.uuid4().hex[:8].upper()}"
+            logger.warning(
+                f"[DYNAMIC ACCOUNT SAFEGUARD] Target account {clean_target_acc} matches dynamic test account "
+                f"PAYOUT_TEST_BENE_ACCOUNT={test_bene_acc}. Preventing real bank transfer dynamically. "
+                f"Simulating SUCCESS without debiting real funds."
+            )
+            return {
+                "status": "SUCCESS",
+                "vendor_name": "UrbanRupee",
+                "vendor_tx_id": sim_tx,
+                "reference_id": merchant_ref,
+                "utr": sim_utr,
+                "message": "Dynamic Safeguard: Test account payout intercepted safely (no bank debit).",
+                "raw_response": {
+                    "status": True,
+                    "current_status": "SUCCESS",
+                    "transaction_id": sim_tx,
+                    "utr": sim_utr,
+                    "message": "Test account safety simulation successful",
+                    "is_simulated": True
+                }
+            }
+        # ────────────────────────────────────────────────────────────────────────────
 
         payload = {
             "token": creds["token"],

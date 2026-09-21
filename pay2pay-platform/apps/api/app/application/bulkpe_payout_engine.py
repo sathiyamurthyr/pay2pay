@@ -657,12 +657,16 @@ class BulkPePayoutEngine:
         from app.application.payout_vendor_adapter import PayoutVendorAdapterFactory, SimulatedVendorAdapter
         vendor_adapter = PayoutVendorAdapterFactory.get_adapter()
 
-        # ── Test-Retailer Safe-Mode Bypass ─────────────────────────────────────────
-        # If the retailer's mobile/code matches PAYOUT_TEST_RETAILER in .env (e.g. "9176669426"),
-        # force the SimulatedVendorAdapter regardless of ENVIRONMENT setting.
-        # This guarantees NO real bank transfer is triggered during P0 debugging.
-        # PRODUCTION retailers with different IDs are completely unaffected.
+        # ── Dynamic Test Safeguard Bypass ──────────────────────────────────────────
+        # 1. Beneficiary Account Check: Guarantee NO real money payout to test accounts
+        _test_bene_acc = os.getenv("PAYOUT_TEST_BENE_ACCOUNT", "").strip()
+        _clean_target_acc = re.sub(r"\D", "", str(acc_num or ""))
+        _clean_test_bene = re.sub(r"\D", "", _test_bene_acc)
+        _is_test_account = bool(_clean_test_bene and _clean_target_acc and _clean_test_bene == _clean_target_acc)
+
+        # 2. Retailer Safe-Mode Check
         _test_retailer_id = os.getenv("PAYOUT_TEST_RETAILER", "").strip()
+        _test_retailer_mode = os.getenv("PAYOUT_TEST_RETAILER_MODE", "SIMULATED").strip().upper()
         _is_test_retailer = False
         if _test_retailer_id and ret_info:
             _clean_test = re.sub(r"\D", "", _test_retailer_id)
@@ -696,11 +700,18 @@ class BulkPePayoutEngine:
                 if (_clean_test == _ret_ref) or (_ret_code and _clean_test[-10:] == _ret_code[-10:]):
                     _is_test_retailer = True
 
-        if _is_test_retailer and not isinstance(vendor_adapter, SimulatedVendorAdapter):
-            print(f"\n[TEST-RETAILER BYPASS] Retailer matches PAYOUT_TEST_RETAILER={_test_retailer_id}. "
+        if _is_test_account:
+            print(f"\n[DYNAMIC BENE ACCOUNT SAFEGUARD] Target account {acc_num} matches PAYOUT_TEST_BENE_ACCOUNT={_test_bene_acc}. "
+                  f"Overriding to SimulatedVendorAdapter — NO REAL PAYOUT WILL BE SENT TO THIS ACCOUNT.\n")
+            vendor_adapter = SimulatedVendorAdapter()
+        elif _is_test_retailer and _test_retailer_mode != "LIVE" and not isinstance(vendor_adapter, SimulatedVendorAdapter):
+            print(f"\n[TEST-RETAILER BYPASS] Retailer matches PAYOUT_TEST_RETAILER={_test_retailer_id} (mode={_test_retailer_mode}). "
                   f"Overriding to SimulatedVendorAdapter — no real vendor call will be made.\n")
             vendor_adapter = SimulatedVendorAdapter()
-        # ── End Test-Retailer Bypass ───────────────────────────────────────────────
+        elif _is_test_retailer and _test_retailer_mode == "LIVE":
+            print(f"\n[TEST-RETAILER LIVE MODE] Retailer matches PAYOUT_TEST_RETAILER={_test_retailer_id} "
+                  f"with PAYOUT_TEST_RETAILER_MODE=LIVE. Calling LIVE vendor gateway directly.\n")
+        # ── End Test Safeguard ─────────────────────────────────────────────────────
 
         if isinstance(vendor_adapter, SimulatedVendorAdapter) or settings.is_payout_simulation_active:
             print(f"\n[VENDOR SANDBOX] Executing {active_provider} payout in DEV Simulator Mode for {merchant_ref}\n")

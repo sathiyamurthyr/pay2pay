@@ -159,7 +159,7 @@ async def get_wallet_balance_endpoint(
 
     return {
         "success": True,
-        "user_ref_id": getattr(retailer, "retailer_ref_id", None) or user_ref_id or 24,
+        "user_ref_id": getattr(retailer, "retailer_ref_id", None) or getattr(retailer, "user_ref_id", None) or getattr(retailer, "id", None) or user_ref_id,
         "user_type_ref_id": 2,
         "retailer_code": retailer.retailer_code,
         "retailer_id": str(retailer.public_id),

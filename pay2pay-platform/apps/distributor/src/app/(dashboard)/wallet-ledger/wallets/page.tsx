@@ -26,196 +26,12 @@ import {
   Landmark,
 } from "lucide-react";
 
-// ─── Hierarchy Options ───────────────────────────────────────────────────────
-const SD_OPTIONS = [
-  { code: "", name: "All Super Distributors (SD)" },
-  { code: "SD-1002", name: "SD-1002 — South India Super Network (sathus-SD)" },
-  { code: "SD-1003", name: "SD-1003 — North Apex Network" },
-];
-
-const DIST_OPTIONS = [
-  { code: "", name: "All Distributors", sd_code: "" },
-  { code: "DIST-5012", name: "DIST-5012 — Metro Apex Distributors", sd_code: "SD-1002" },
-  { code: "DIST-5013", name: "DIST-5013 — City Digital Services", sd_code: "SD-1002" },
-  { code: "DIST-5014", name: "DIST-5014 — Northern Telecoms", sd_code: "SD-1003" },
-];
-
-const RETAILER_OPTIONS = [
-  { code: "", name: "All Retailers", dist_code: "" },
-  { code: "RET-10928", name: "RET-10928 — Sathus Pay Store", dist_code: "DIST-5012" },
-  { code: "RET-10929", name: "RET-10929 — Apex Communications", dist_code: "DIST-5012" },
-  { code: "RET-10930", name: "RET-10930 — Om Sai Mobile", dist_code: "DIST-5013" },
-  { code: "RET-10931", name: "RET-10931 — Karthik General Store", dist_code: "DIST-5014" },
-];
-
 // ─── Initial Seeded Entity Wallets Dataset ────────────────────────────────────
-const INITIAL_ENTITY_WALLETS = [
-  // Super Distributors
-  {
-    public_id: "w-sd-101",
-    entity_code: "SD-1002",
-    entity_name: "South India Super Network (sathus-SD)",
-    entity_type: "SUPER_DISTRIBUTOR",
-    wallet_type: "MAIN",
-    currency: "INR",
-    balance: 1250000.0,
-    hold_balance: 50000.0,
-    pending_settlement: 75000.0,
-    status: "ACTIVE",
-    last_txn_date: "2026-08-02T21:15:00Z",
-  },
-  {
-    public_id: "w-sd-102",
-    entity_code: "SD-1002",
-    entity_name: "South India Super Network (sathus-SD)",
-    entity_type: "SUPER_DISTRIBUTOR",
-    wallet_type: "COMMISSION",
-    currency: "INR",
-    balance: 185000.0,
-    hold_balance: 0.0,
-    pending_settlement: 0.0,
-    status: "ACTIVE",
-    last_txn_date: "2026-08-02T20:30:00Z",
-  },
-  {
-    public_id: "w-sd-103",
-    entity_code: "SD-1003",
-    entity_name: "North Apex Network",
-    entity_type: "SUPER_DISTRIBUTOR",
-    wallet_type: "MAIN",
-    currency: "INR",
-    balance: 600000.0,
-    hold_balance: 20000.0,
-    pending_settlement: 35000.0,
-    status: "ACTIVE",
-    last_txn_date: "2026-08-02T19:40:00Z",
-  },
-
-  // Distributors
-  {
-    public_id: "w-dist-201",
-    entity_code: "DIST-5012",
-    entity_name: "Metro Apex Distributors",
-    sd_code: "SD-1002",
-    entity_type: "DISTRIBUTOR",
-    wallet_type: "MAIN",
-    currency: "INR",
-    balance: 780000.0,
-    hold_balance: 25000.0,
-    pending_settlement: 42000.0,
-    status: "ACTIVE",
-    last_txn_date: "2026-08-02T21:00:00Z",
-  },
-  {
-    public_id: "w-dist-202",
-    entity_code: "DIST-5012",
-    entity_name: "Metro Apex Distributors",
-    sd_code: "SD-1002",
-    entity_type: "DISTRIBUTOR",
-    wallet_type: "COMMISSION",
-    currency: "INR",
-    balance: 95000.0,
-    hold_balance: 0.0,
-    pending_settlement: 0.0,
-    status: "ACTIVE",
-    last_txn_date: "2026-08-02T18:20:00Z",
-  },
-  {
-    public_id: "w-dist-203",
-    entity_code: "DIST-5013",
-    entity_name: "City Digital Services",
-    sd_code: "SD-1002",
-    entity_type: "DISTRIBUTOR",
-    wallet_type: "MAIN",
-    currency: "INR",
-    balance: 460000.0,
-    hold_balance: 15000.0,
-    pending_settlement: 28000.0,
-    status: "ACTIVE",
-    last_txn_date: "2026-08-02T17:50:00Z",
-  },
-
-  // Retailers
-  {
-    public_id: "w-ret-301",
-    entity_code: "RET-10928",
-    entity_name: "Sathus Pay Store",
-    distributor_code: "DIST-5012",
-    sd_code: "SD-1002",
-    entity_type: "RETAILER",
-    wallet_type: "MAIN",
-    currency: "INR",
-    balance: 245800.0,
-    hold_balance: 15000.0,
-    pending_settlement: 32400.0,
-    status: "ACTIVE",
-    last_txn_date: "2026-08-02T21:45:00Z",
-  },
-  {
-    public_id: "w-ret-302",
-    entity_code: "RET-10928",
-    entity_name: "Sathus Pay Store",
-    distributor_code: "DIST-5012",
-    sd_code: "SD-1002",
-    entity_type: "RETAILER",
-    wallet_type: "COMMISSION",
-    currency: "INR",
-    balance: 28500.0,
-    hold_balance: 0.0,
-    pending_settlement: 0.0,
-    status: "ACTIVE",
-    last_txn_date: "2026-08-02T21:10:00Z",
-  },
-  {
-    public_id: "w-ret-303",
-    entity_code: "RET-10929",
-    entity_name: "Apex Communications",
-    distributor_code: "DIST-5012",
-    sd_code: "SD-1002",
-    entity_type: "RETAILER",
-    wallet_type: "MAIN",
-    currency: "INR",
-    balance: 192400.0,
-    hold_balance: 10000.0,
-    pending_settlement: 18500.0,
-    status: "ACTIVE",
-    last_txn_date: "2026-08-02T19:30:00Z",
-  },
-  {
-    public_id: "w-ret-304",
-    entity_code: "RET-10930",
-    entity_name: "Om Sai Mobile",
-    distributor_code: "DIST-5013",
-    sd_code: "SD-1002",
-    entity_type: "RETAILER",
-    wallet_type: "MAIN",
-    currency: "INR",
-    balance: 168000.0,
-    hold_balance: 5000.0,
-    pending_settlement: 12000.0,
-    status: "ACTIVE",
-    last_txn_date: "2026-08-02T16:40:00Z",
-  },
-  {
-    public_id: "w-ret-305",
-    entity_code: "RET-10931",
-    entity_name: "Karthik General Store",
-    distributor_code: "DIST-5014",
-    sd_code: "SD-1003",
-    entity_type: "RETAILER",
-    wallet_type: "MAIN",
-    currency: "INR",
-    balance: 284300.0,
-    hold_balance: 20000.0,
-    pending_settlement: 25000.0,
-    status: "ACTIVE",
-    last_txn_date: "2026-08-02T14:20:00Z",
-  },
-];
+const INITIAL_ENTITY_WALLETS: any[] = [];
 
 export default function EnterpriseWalletsPage() {
-  const [wallets, setWallets] = useState<any[]>(INITIAL_ENTITY_WALLETS);
-  const [loading, setLoading] = useState(false);
+  const [wallets, setWallets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // ── Filters ────────────────────────────────────────────────────────────────
   const [entityTypeFilter, setEntityTypeFilter] = useState<string>("ALL");
@@ -248,13 +64,16 @@ export default function EnterpriseWalletsPage() {
     try {
       setLoading(true);
       const res = await api.get("/api/v1/wallet-ledger/wallets");
-      const fetched = res.data?.items || res.data || [];
+      const fetched = Array.isArray(res.data) ? res.data : (res.data?.items || []);
       if (fetched && fetched.length > 0) {
         setWallets(fetched);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("pay2pay_entity_wallets", JSON.stringify(fetched));
+        }
         return;
       }
     } catch (err) {
-      console.log("Using local/localStorage wallet state");
+      console.error("Failed to fetch entity wallets from API:", err);
     } finally {
       setLoading(false);
     }
@@ -264,10 +83,8 @@ export default function EnterpriseWalletsPage() {
       try {
         setWallets(JSON.parse(stored));
       } catch (e) {
-        setWallets(INITIAL_ENTITY_WALLETS);
+        setWallets([]);
       }
-    } else {
-      setWallets(INITIAL_ENTITY_WALLETS);
     }
   };
 
@@ -278,17 +95,98 @@ export default function EnterpriseWalletsPage() {
     return () => window.removeEventListener("pay2pay_wallets_updated", handleUpdate);
   }, []);
 
+  // ── Dynamic Hierarchy Dropdown Options derived from live database entities ──
+  const sdOptions = useMemo(() => {
+    const list: Array<{ code: string; name: string }> = [
+      { code: "", name: "All Super Distributors (SD)" },
+    ];
+    const seen = new Set<string>();
+
+    wallets.forEach((w) => {
+      if (w.entity_type === "SUPER_DISTRIBUTOR" && w.entity_code && !seen.has(w.entity_code)) {
+        seen.add(w.entity_code);
+        list.push({
+          code: w.entity_code,
+          name: `${w.entity_code} — ${w.entity_name || "Super Distributor"}`,
+        });
+      }
+    });
+    wallets.forEach((w) => {
+      if (w.sd_code && !seen.has(w.sd_code)) {
+        seen.add(w.sd_code);
+        list.push({
+          code: w.sd_code,
+          name: `${w.sd_code} — Super Distributor`,
+        });
+      }
+    });
+    return list;
+  }, [wallets]);
+
+  const distOptions = useMemo(() => {
+    const list: Array<{ code: string; name: string; sd_code: string }> = [
+      { code: "", name: "All Distributors", sd_code: "" },
+    ];
+    const seen = new Set<string>();
+
+    wallets.forEach((w) => {
+      if (w.entity_type === "DISTRIBUTOR" && w.entity_code && !seen.has(w.entity_code)) {
+        seen.add(w.entity_code);
+        list.push({
+          code: w.entity_code,
+          name: `${w.entity_code} — ${w.entity_name || "Distributor"}`,
+          sd_code: w.sd_code || "",
+        });
+      }
+    });
+    wallets.forEach((w) => {
+      if (w.distributor_code && !seen.has(w.distributor_code)) {
+        seen.add(w.distributor_code);
+        list.push({
+          code: w.distributor_code,
+          name: `${w.distributor_code} — Distributor`,
+          sd_code: w.sd_code || "",
+        });
+      }
+    });
+    return list;
+  }, [wallets]);
+
+  const retailerOptions = useMemo(() => {
+    const list: Array<{ code: string; name: string; dist_code: string; sd_code: string }> = [
+      { code: "", name: "All Retailers", dist_code: "", sd_code: "" },
+    ];
+    const seen = new Set<string>();
+
+    wallets.forEach((w) => {
+      if (w.entity_type === "RETAILER" && w.entity_code && !seen.has(w.entity_code)) {
+        seen.add(w.entity_code);
+        list.push({
+          code: w.entity_code,
+          name: `${w.entity_code} — ${w.entity_name || "Retailer Outlet"}`,
+          dist_code: w.distributor_code || "",
+          sd_code: w.sd_code || "",
+        });
+      }
+    });
+    return list;
+  }, [wallets]);
+
   // Filter Distributors based on selected SD
   const availableDistributors = useMemo(() => {
-    if (!sdFilter) return DIST_OPTIONS;
-    return DIST_OPTIONS.filter((d) => !d.sd_code || d.sd_code === sdFilter);
-  }, [sdFilter]);
+    if (!sdFilter) return distOptions;
+    return distOptions.filter((d) => !d.code || !d.sd_code || d.sd_code === sdFilter);
+  }, [sdFilter, distOptions]);
 
-  // Filter Retailers based on selected Distributor
+  // Filter Retailers based on selected Distributor and SD
   const availableRetailers = useMemo(() => {
-    if (!distFilter) return RETAILER_OPTIONS;
-    return RETAILER_OPTIONS.filter((r) => !r.dist_code || r.dist_code === distFilter);
-  }, [distFilter]);
+    return retailerOptions.filter((r) => {
+      if (!r.code) return true;
+      if (distFilter && r.dist_code && r.dist_code !== distFilter) return false;
+      if (sdFilter && r.sd_code && r.sd_code !== sdFilter) return false;
+      return true;
+    });
+  }, [distFilter, sdFilter, retailerOptions]);
 
   // ── Filtering Engine ───────────────────────────────────────────────────────
   const filteredWallets = useMemo(() => {
@@ -304,17 +202,29 @@ export default function EnterpriseWalletsPage() {
       }
 
       // 3. SD Filter
-      if (sdFilter && w.sd_code && w.sd_code !== sdFilter) {
-        return false;
+      if (sdFilter) {
+        if (w.entity_type === "SUPER_DISTRIBUTOR") {
+          if (w.entity_code !== sdFilter) return false;
+        } else if (w.sd_code && w.sd_code !== sdFilter) {
+          return false;
+        } else if (!w.sd_code && w.entity_type !== "SUPER_DISTRIBUTOR") {
+          return false;
+        }
       }
 
       // 4. Distributor Filter
-      if (distFilter && w.distributor_code && w.distributor_code !== distFilter) {
-        return false;
+      if (distFilter) {
+        if (w.entity_type === "DISTRIBUTOR") {
+          if (w.entity_code !== distFilter) return false;
+        } else if (w.distributor_code && w.distributor_code !== distFilter) {
+          return false;
+        } else if (!w.distributor_code && w.entity_type !== "DISTRIBUTOR") {
+          return false;
+        }
       }
 
       // 5. Retailer Filter
-      if (retFilter && w.entity_code && w.entity_code !== retFilter) {
+      if (retFilter && w.entity_code !== retFilter) {
         return false;
       }
 
@@ -323,8 +233,10 @@ export default function EnterpriseWalletsPage() {
         const q = search.toLowerCase();
         const matchName = (w.entity_name || "").toLowerCase().includes(q);
         const matchCode = (w.entity_code || "").toLowerCase().includes(q);
+        const matchOwner = (w.owner_name || "").toLowerCase().includes(q);
+        const matchMobile = (w.mobile || "").toLowerCase().includes(q);
         const matchType = (w.wallet_type || "").toLowerCase().includes(q);
-        if (!matchName && !matchCode && !matchType) return false;
+        if (!matchName && !matchCode && !matchOwner && !matchMobile && !matchType) return false;
       }
 
       return true;
@@ -437,7 +349,36 @@ export default function EnterpriseWalletsPage() {
       cell: (w) => (
         <div>
           <p className="font-bold text-xs text-[#0F172A]">{w.entity_name}</p>
-          <p className="font-mono text-[10px] font-bold text-[#2563EB]">{w.entity_code}</p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="font-mono text-[10px] font-bold text-[#2563EB]">{w.entity_code}</span>
+            {w.mobile && (
+              <span className="text-[10px] text-[#64748B] font-mono">({w.mobile})</span>
+            )}
+          </div>
+          {w.owner_name && w.owner_name !== w.entity_name && (
+            <p className="text-[10px] text-[#64748B]">Owner: {w.owner_name}</p>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "hierarchy",
+      header: "MAPPED HIERARCHY",
+      cell: (w) => (
+        <div className="text-[10px] space-y-0.5">
+          {w.distributor_code && (
+            <p className="text-[#334155] font-medium">
+              <span className="text-[#94A3B8] font-bold">Dist:</span> {w.distributor_code}
+            </p>
+          )}
+          {w.sd_code && (
+            <p className="text-[#334155] font-medium">
+              <span className="text-[#94A3B8] font-bold">SD:</span> {w.sd_code}
+            </p>
+          )}
+          {!w.distributor_code && !w.sd_code && (
+            <span className="text-[#94A3B8] italic">Direct / Root</span>
+          )}
         </div>
       ),
     },
@@ -662,7 +603,7 @@ export default function EnterpriseWalletsPage() {
               }}
               className="w-full rounded-xl border border-[#CBD5E1] bg-white px-3 py-2 text-xs font-bold text-[#0F172A] focus:border-[#2563EB] focus:outline-none cursor-pointer"
             >
-              {SD_OPTIONS.map((opt) => (
+              {sdOptions.map((opt) => (
                 <option key={opt.code} value={opt.code}>{opt.name}</option>
               ))}
             </select>
@@ -776,13 +717,14 @@ export default function EnterpriseWalletsPage() {
       <DataTable
         data={filteredWallets}
         columns={columns}
-        keyExtractor={(w) => w.public_id}
+        keyExtractor={(w) => String(w.public_id || w.entity_code)}
         loading={loading}
         totalRecords={filteredWallets.length}
+        pageSize={25}
         onRefresh={fetchWallets}
         onAddNew={() => setShowCreateModal(true)}
         addNewLabel="Create Entity Wallet"
-        searchPlaceholder="Search by entity name, code, wallet type..."
+        searchPlaceholder="Search by entity name, code, owner, mobile, wallet type..."
       />
 
       {/* Modal: Create Entity Wallet */}

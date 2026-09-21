@@ -48,23 +48,7 @@ async def list_enterprise_wallets(
     current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    wallets = await WalletLedgerPlatformService.list_wallets(db, tenant_id)
-    return [
-        EnterpriseWalletResponse(
-            public_id=w.public_id,
-            wallet_number=w.wallet_number,
-            wallet_type=w.wallet_type,
-            owner_type=w.owner_type,
-            owner_id=w.owner_id,
-            status=w.status,
-            currency=w.currency,
-            current_balance=w.balance.closing_balance if w.balance else 0.0,
-            available_balance=w.balance.available_balance if w.balance else 0.0,
-            hold_balance=w.balance.hold_balance if w.balance else 0.0,
-            created_date=w.created_date
-        )
-        for w in wallets
-    ]
+    return await WalletLedgerPlatformService.list_wallets(db, tenant_id)
 
 
 @router.post("/wallets/{id}/freeze", response_model=EnterpriseWalletResponse)
@@ -75,20 +59,7 @@ async def toggle_wallet_freeze(
     current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    w = await WalletLedgerPlatformService.toggle_freeze(db, tenant_id, id, req, current_user)
-    return EnterpriseWalletResponse(
-        public_id=w.public_id,
-        wallet_number=w.wallet_number,
-        wallet_type=w.wallet_type,
-        owner_type=w.owner_type,
-        owner_id=w.owner_id,
-        status=w.status,
-        currency=w.currency,
-        current_balance=w.balance.closing_balance if w.balance else 0.0,
-        available_balance=w.balance.available_balance if w.balance else 0.0,
-        hold_balance=w.balance.hold_balance if w.balance else 0.0,
-        created_date=w.created_date
-    )
+    return await WalletLedgerPlatformService.toggle_freeze(db, tenant_id, id, req, current_user)
 
 
 @router.post("/wallets/{id}/adjust")

@@ -185,7 +185,7 @@ interface AuthPanelProps {
 }
 
 export const AuthPanel: React.FC<AuthPanelProps> = ({
-  portalRole = "RETAILER",
+  portalRole = "SD",
   darkMode: externalDarkMode,
   setDarkMode: externalSetDarkMode
 }) => {
@@ -194,37 +194,27 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
   const normalizedRole: "RETAILER" | "SD" | "DIST" =
     portalRole === "RETAILER"
       ? "RETAILER"
-      : portalRole === "SD" || portalRole === "SUPER_DISTRIBUTOR"
-      ? "SD"
-      : "DIST";
+      : portalRole === "DIST" || portalRole === "DISTRIBUTOR"
+      ? "DIST"
+      : "SD";
 
   const portalTitle =
     normalizedRole === "RETAILER"
       ? "Pay2Pay Retailer Portal"
-      : normalizedRole === "SD"
-      ? "Pay2Pay SD Portal"
-      : "Pay2Pay Distributor Portal";
+      : normalizedRole === "DIST"
+      ? "Pay2Pay Distributor Portal"
+      : "Pay2Pay Super Distributor Portal";
 
   const portalSubtitle =
     normalizedRole === "RETAILER"
       ? "Access your Pay2Pay Retailer Business Workstation"
-      : normalizedRole === "SD"
-      ? "Access your Pay2Pay Super Distributor Workspace"
-      : "Access your Pay2Pay Distributor Workspace";
+      : normalizedRole === "DIST"
+      ? "Access your Pay2Pay Distributor Workspace"
+      : "Access your Pay2Pay Super Distributor Workspace";
 
-  const portalRegisterUrl =
-    normalizedRole === "RETAILER"
-      ? "/register"
-      : normalizedRole === "SD"
-      ? "/sd/onboarding"
-      : "/dist/onboarding";
+  const portalRegisterUrl = "/register";
 
-  const portalDashboardUrl =
-    normalizedRole === "RETAILER"
-      ? "/retailer/dashboard"
-      : normalizedRole === "SD"
-      ? "/sd/dashboard"
-      : "/dist/dashboard";
+  const portalDashboardUrl = "/dashboard";
 
   const [selectedLanguage, setSelectedLanguage] = useState<LanguageKey>("English");
   const t = TRANSLATIONS[selectedLanguage] || TRANSLATIONS.English;

@@ -23,7 +23,7 @@ const SERVICES_CONFIG = [
   {
     code: "POS",
     name: "Point of Sale (Card Swipe)",
-    modes: ["VISA", "MASTER", "RUPAY", "AMEX / DINERS"]
+    modes: ["VISA", "MASTER", "RUPAY", "AMEX / DINERS", "Business/corporate"]
   },
   {
     code: "DMT",

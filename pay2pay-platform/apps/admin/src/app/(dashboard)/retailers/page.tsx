@@ -101,15 +101,27 @@ function OnboardingHubContent() {
     setLoading(true);
     try {
       const [retRes, distRes, sdRes] = await Promise.allSettled([
-        api.get("/api/v1/retailers", {
+        api.get("/retailers", {
           params: {
             page_size: 100,
             ...(search ? { search } : {}),
             ...(statusFilter ? { status: statusFilter } : {}),
           },
         }),
-        api.get("/api/v1/organization/distributors"),
-        api.get("/api/v1/organization/super-distributors"),
+        api.get("/organization/distributors", {
+          params: {
+            page_size: 100,
+            ...(search ? { search } : {}),
+            ...(statusFilter ? { status: statusFilter } : {}),
+          },
+        }),
+        api.get("/organization/super-distributors", {
+          params: {
+            page_size: 100,
+            ...(search ? { search } : {}),
+            ...(statusFilter ? { status: statusFilter } : {}),
+          },
+        }),
       ]);
 
       if (retRes.status === "fulfilled") {
@@ -724,7 +736,12 @@ function OnboardingHubContent() {
                     </>
                   ) : (
                     <>
-                      <td className="px-5 py-3.5 font-semibold text-[#0F172A]">{item.business_name}</td>
+                      <td className="px-5 py-3.5">
+                        <div className="font-semibold text-[#0F172A]">{item.business_name}</div>
+                        <div className="text-[11px] font-mono font-bold text-[#6C63FF]">
+                          {item.super_distributor_code || item.distributor_code || (item.public_id ? `ID: ${String(item.public_id).slice(0, 8)}` : "")}
+                        </div>
+                      </td>
                       <td className="px-5 py-3.5 text-[#334155]">{item.owner_name}</td>
                       <td className="px-5 py-3.5">
                         <div className="font-mono text-[11px] text-[#475569]">{item.mobile}</div>
@@ -745,6 +762,14 @@ function OnboardingHubContent() {
                         >
                           <KeyRound className="w-3.5 h-3.5" />
                         </button>
+                        <Link
+                          href={activeTab === "distributors" ? `/retailers/distributor-approvals?id=${item.public_id || item.distributor_id || ""}` : `/retailers/sd-approvals?id=${item.public_id || item.super_distributor_id || ""}`}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] text-[11px] font-bold text-[#D97706] hover:bg-[#FEF3C7] hover:border-[#F59E0B] hover:text-[#B45309] transition-all shadow-2xs"
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5 text-[#D97706]" />
+                          <span>Approvals</span>
+                          <ChevronRight className="w-3 h-3 text-[#D97706]" />
+                        </Link>
                       </td>
                     </>
                   )}

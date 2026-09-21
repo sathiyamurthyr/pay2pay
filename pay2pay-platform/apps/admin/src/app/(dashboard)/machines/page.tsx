@@ -242,6 +242,18 @@ export default function MachinesPage() {
   const [searchMdr, setSearchMdr] = useState("");
   const [mdrScopeFilter, setMdrScopeFilter] = useState<"ALL" | "DEFAULT" | "RETAILER">("ALL");
 
+  // Tab 2: Payment Mode + Card Type Based MDR Configuration State
+  const [selectedPaymentMode, setSelectedPaymentMode] = useState<string>("POS - Instant");
+  const [selectedCardType, setSelectedCardType] = useState<string>("VISA");
+  const [companyMdrRate, setCompanyMdrRate] = useState<string | number>("1.20");
+  const [sdMdrRate, setSdMdrRate] = useState<string | number>("0.10");
+  const [distMdrRate, setDistMdrRate] = useState<string | number>("0.20");
+  const [retailerMdrRate, setRetailerMdrRate] = useState<string | number>("1.70");
+  const [loadingModeCardMdr, setLoadingModeCardMdr] = useState<boolean>(false);
+  const [savingModeCardMdr, setSavingModeCardMdr] = useState<boolean>(false);
+  const [mdrMatrixList, setMdrMatrixList] = useState<any[]>([]);
+  const [loadingMatrix, setLoadingMatrix] = useState<boolean>(false);
+
   // Modals & Drawers State
   const [showMachineModal, setShowMachineModal] = useState(false);
   const [editingMachine, setEditingMachine] = useState<any | null>(null);
@@ -467,10 +479,125 @@ export default function MachinesPage() {
     }
   };
 
+  // Fetch specific Payment Mode + Card Type MDR configuration
+  const fetchSelectedModeCardMdr = async (mode: string, card: string) => {
+    try {
+      setLoadingModeCardMdr(true);
+      const res = await api.get("/api/v1/pos/admin/company-commission-config", {
+        params: { payment_mode: mode, card_type: card }
+      });
+      if (res.data?.data) {
+        const d = res.data.data;
+        const cVal = d.company_mdr !== undefined && d.company_mdr !== null ? String(d.company_mdr) : (mode === "POS - Instant" ? "1.20" : "1.10");
+        const sVal = d.sd_mdr !== undefined && d.sd_mdr !== null ? String(d.sd_mdr) : "0.10";
+        const dVal = d.distributor_mdr !== undefined && d.distributor_mdr !== null ? String(d.distributor_mdr) : "0.20";
+        const rVal = d.retailer_mdr !== undefined && d.retailer_mdr !== null ? String(d.retailer_mdr) : (mode === "POS - Instant" ? "1.70" : "1.60");
+
+        setCompanyMdrRate(cVal);
+        setSdMdrRate(sVal);
+        setDistMdrRate(dVal);
+        setRetailerMdrRate(rVal);
+      }
+    } catch (e) {
+      console.error("Failed to load mode/card MDR config", e);
+    } finally {
+      setLoadingModeCardMdr(false);
+    }
+  };
+
+  // Fetch full 8-combination MDR Matrix
+  const fetchMdrMatrix = async () => {
+    try {
+      setLoadingMatrix(true);
+      const res = await api.get("/api/v1/pos/admin/mdr-matrix");
+      if (res.data?.items) {
+        setMdrMatrixList(res.data.items);
+      }
+    } catch (e) {
+      console.error("Failed to load MDR matrix", e);
+    } finally {
+      setLoadingMatrix(false);
+    }
+  };
+
+  // Handle Payment Mode change -> load corresponding Card Type & MDR configuration
+  const handlePaymentModeChange = (newMode: string) => {
+    setSelectedPaymentMode(newMode);
+    fetchSelectedModeCardMdr(newMode, selectedCardType);
+  };
+
+  // Handle Card Type change -> load corresponding MDR configuration
+  const handleCardTypeChange = (newCard: string) => {
+    setSelectedCardType(newCard);
+    fetchSelectedModeCardMdr(selectedPaymentMode, newCard);
+  };
+
+  // Save Payment Mode + Card Type MDR Configuration
+  const handleSaveModeCardMdr = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const cMdr = parseFloat(String(companyMdrRate));
+    const sMdr = parseFloat(String(sdMdrRate));
+    const dMdr = parseFloat(String(distMdrRate));
+    const rMdr = parseFloat(String(retailerMdrRate));
+
+    if (isNaN(cMdr) || cMdr < 0) {
+      playErrorSound();
+      setAlertState({ type: "error", message: "Company MDR must be a valid non-negative number." });
+      return;
+    }
+    if (isNaN(sMdr) || sMdr < 0) {
+      playErrorSound();
+      setAlertState({ type: "error", message: "SD MDR must be a valid non-negative number." });
+      return;
+    }
+    if (isNaN(dMdr) || dMdr < 0) {
+      playErrorSound();
+      setAlertState({ type: "error", message: "Distributor MDR must be a valid non-negative number." });
+      return;
+    }
+    if (isNaN(rMdr) || rMdr < 0) {
+      playErrorSound();
+      setAlertState({ type: "error", message: "Retailer MDR must be a valid non-negative number." });
+      return;
+    }
+
+    try {
+      setSavingModeCardMdr(true);
+      await api.post("/api/v1/pos/admin/company-commission-config", {
+        payment_mode: selectedPaymentMode,
+        card_type: selectedCardType,
+        company_mdr: cMdr,
+        sd_mdr: sMdr,
+        sd_commission_pct: sMdr,
+        distributor_mdr: dMdr,
+        distributor_commission_pct: dMdr,
+        retailer_mdr: rMdr,
+        retailer_mdr_override: rMdr
+      });
+      playSuccessSound();
+      setAlertState({
+        type: "success",
+        message: `MDR Configuration for "${selectedPaymentMode} + ${selectedCardType}" saved successfully!`
+      });
+      fetchMdrMatrix();
+      fetchMdrConfigs();
+    } catch (err: any) {
+      playErrorSound();
+      setAlertState({
+        type: "error",
+        message: parseErrorMessage(err)
+      });
+    } finally {
+      setSavingModeCardMdr(false);
+    }
+  };
+
   useEffect(() => {
     fetchVendors();
     fetchRetailersAndCompanies();
     fetchServicesAndModes();
+    fetchMdrMatrix();
+    fetchSelectedModeCardMdr(selectedPaymentMode, selectedCardType);
   }, []);
 
   useEffect(() => {
@@ -479,6 +606,8 @@ export default function MachinesPage() {
     } else if (activeTab === "mdr") {
       fetchMdrConfigs();
       fetchServicesAndModes();
+      fetchMdrMatrix();
+      fetchSelectedModeCardMdr(selectedPaymentMode, selectedCardType);
     } else if (activeTab === "services") {
       fetchServicesAndModes();
     }
@@ -1203,6 +1332,315 @@ export default function MachinesPage() {
       {/* TAB 2: POS MDR CONFIGURATION CONTENT */}
       {activeTab === "mdr" && (
         <div className="space-y-6">
+          {/* SECTION 1: PAYMENT MODE + CARD TYPE BASED MDR CONFIGURATION EDITOR */}
+          <div id="mdr-form-card" className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full bg-[#2563EB] text-white text-[11px] font-black uppercase tracking-wider">
+                    MDR Configuration Enhancement
+                  </span>
+                  <h3 className="text-base font-extrabold text-[#0F172A] flex items-center gap-2">
+                    <Scale className="w-5 h-5 text-[#2563EB]" />
+                    Payment Mode + Card Type Based MDR
+                  </h3>
+                </div>
+                <p className="text-xs text-[#64748B] mt-1 font-medium">
+                  Configure Company baseline MDR, Super Distributor (SD) MDR, Distributor MDR, and Retailer MDR for each valid Payment Mode and Card Type combination. Source of truth is the live database.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    fetchMdrMatrix();
+                    fetchSelectedModeCardMdr(selectedPaymentMode, selectedCardType);
+                  }}
+                  disabled={loadingModeCardMdr || loadingMatrix}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-bold text-[#334155] transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingModeCardMdr || loadingMatrix ? "animate-spin text-[#2563EB]" : ""}`} />
+                  Refresh
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveModeCardMdr} className="space-y-5">
+              {/* Dropdowns Row: Payment Mode + Card Type */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Payment Mode */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-extrabold text-[#0F172A] flex items-center gap-1.5">
+                    <CreditCard className="w-4 h-4 text-[#2563EB]" />
+                    Payment Mode *
+                  </label>
+                  <select
+                    value={selectedPaymentMode}
+                    onChange={(e) => handlePaymentModeChange(e.target.value)}
+                    className="w-full rounded-xl border border-[#CBD5E1] bg-white px-3.5 py-2.5 text-xs font-extrabold text-[#0F172A] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none transition-all cursor-pointer shadow-2xs"
+                  >
+                    <option value="POS - Instant">POS - Instant (Instant Real-Time Settlement)</option>
+                    <option value="POS+T1">POS + T1 (Next Business Day Settlement)</option>
+                  </select>
+                  <p className="text-[11px] text-[#64748B]">
+                    Select settlement timing mode. Reuses live payment mode registry.
+                  </p>
+                </div>
+
+                {/* Card Type */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-extrabold text-[#0F172A] flex items-center gap-1.5">
+                    <CreditCard className="w-4 h-4 text-[#16A34A]" />
+                    Card Type *
+                  </label>
+                  <select
+                    value={selectedCardType}
+                    onChange={(e) => handleCardTypeChange(e.target.value)}
+                    className="w-full rounded-xl border border-[#CBD5E1] bg-white px-3.5 py-2.5 text-xs font-extrabold text-[#0F172A] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none transition-all cursor-pointer shadow-2xs"
+                  >
+                    <option value="VISA">VISA</option>
+                    <option value="MASTER">MASTER</option>
+                    <option value="RUPAY">RUPAY</option>
+                    <option value="AMEX / DINERS">AMEX / DINERS</option>
+                    <option value="Business/corporate">Business/corporate</option>
+                  </select>
+                  <p className="text-[11px] text-[#64748B]">
+                    Select card network. Key = <strong>{selectedPaymentMode} + {selectedCardType}</strong>
+                  </p>
+                </div>
+              </div>
+
+              {/* Hierarchy MDR Rate Inputs Grid */}
+              <div className="rounded-xl border border-slate-200 bg-slate-50/75 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase text-[#0F172A] tracking-wider flex items-center gap-1.5">
+                    <Layers className="w-4 h-4 text-[#2563EB]" />
+                    Hierarchy MDR Configuration — ({selectedPaymentMode} + {selectedCardType})
+                  </span>
+                  {loadingModeCardMdr && (
+                    <span className="flex items-center gap-1.5 text-xs text-[#2563EB] font-bold">
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Loading rates...
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* 1. Company MDR */}
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-extrabold uppercase text-[#64748B]">Company MDR (%) *</label>
+                      <span className="px-1.5 py-0.5 rounded bg-blue-50 text-[#2563EB] text-[10px] font-black uppercase">Independent</span>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={companyMdrRate}
+                        onChange={(e) => setCompanyMdrRate(e.target.value)}
+                        className="w-full rounded-lg border border-[#CBD5E1] bg-white p-2 font-mono text-sm font-black text-[#0F172A] focus:border-[#2563EB] focus:outline-none"
+                      />
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-[#64748B]">%</span>
+                    </div>
+                    <p className="text-[10px] text-[#64748B]">Company baseline MDR configuration</p>
+                  </div>
+
+                  {/* 2. Super Distributor MDR */}
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-extrabold uppercase text-[#64748B]">Super Distributor MDR (%) *</label>
+                      <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-[#16A34A] text-[10px] font-black uppercase">Independent</span>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        required
+                        value={sdMdrRate}
+                        onChange={(e) => setSdMdrRate(e.target.value)}
+                        className="w-full rounded-lg border border-[#CBD5E1] bg-white p-2 font-mono text-sm font-black text-[#16A34A] focus:border-[#16A34A] focus:outline-none"
+                      />
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-[#64748B]">%</span>
+                    </div>
+                    <p className="text-[10px] text-[#64748B]">Super Distributor level MDR configuration</p>
+                  </div>
+
+                  {/* 3. Distributor MDR */}
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-extrabold uppercase text-[#64748B]">Distributor MDR (%) *</label>
+                      <span className="px-1.5 py-0.5 rounded bg-purple-50 text-[#9333EA] text-[10px] font-black uppercase">Independent</span>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        required
+                        value={distMdrRate}
+                        onChange={(e) => setDistMdrRate(e.target.value)}
+                        className="w-full rounded-lg border border-[#CBD5E1] bg-white p-2 font-mono text-sm font-black text-[#9333EA] focus:border-[#9333EA] focus:outline-none"
+                      />
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-[#64748B]">%</span>
+                    </div>
+                    <p className="text-[10px] text-[#64748B]">Distributor level MDR configuration</p>
+                  </div>
+
+                  {/* 4. Retailer MDR */}
+                  <div className="bg-white p-3.5 rounded-xl border border-blue-200 shadow-2xs space-y-1.5 bg-blue-50/20">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-extrabold uppercase text-[#1D4ED8]">Retailer MDR (%) *</label>
+                      <span className="px-1.5 py-0.5 rounded bg-blue-100 text-[#1D4ED8] text-[10px] font-black uppercase tracking-wider">
+                        Independent
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        required
+                        value={retailerMdrRate}
+                        onChange={(e) => setRetailerMdrRate(e.target.value)}
+                        className="w-full rounded-lg border border-[#2563EB] bg-white p-2 font-mono text-sm font-black text-[#1D4ED8] focus:border-[#1E40AF] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
+                      />
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-[#1D4ED8]">%</span>
+                    </div>
+                    <p className="text-[10px] text-[#64748B]">
+                      Independent Retailer MDR applied during transaction
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-between pt-2">
+                <div className="text-xs text-[#64748B]">
+                  Currently configuring: <strong className="text-[#0F172A]">{selectedPaymentMode}</strong> + <strong className="text-[#0F172A]">{selectedCardType}</strong>
+                </div>
+                <button
+                  type="submit"
+                  disabled={savingModeCardMdr}
+                  className="px-6 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-black transition-all shadow-sm flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {savingModeCardMdr ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                  SAVE MDR CONFIGURATION
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* SECTION 2: 10-COMBINATION 2D ACTIVE MDR RATE MATRIX */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-sm font-extrabold text-[#0F172A] flex items-center gap-2">
+                  <SlidersHorizontal className="w-4 h-4 text-[#2563EB]" />
+                  Active POS MDR Rate Matrix (All Valid Combinations)
+                </h3>
+                <p className="text-xs text-[#64748B] mt-0.5 font-medium">
+                  Live database overview of every Payment Mode + Card Type configuration. Click <strong>Edit</strong> on any row to load into the form above.
+                </p>
+              </div>
+              <span className="px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-[#1D4ED8] text-[11px] font-black self-start sm:self-auto">
+                {mdrMatrixList.length || 10} Active Combinations
+              </span>
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-black text-[#64748B] uppercase tracking-wider">
+                    <th className="py-3 px-4">Payment Mode</th>
+                    <th className="py-3 px-4">Card Type</th>
+                    <th className="py-3 px-4">Company MDR</th>
+                    <th className="py-3 px-4">Super Distributor MDR</th>
+                    <th className="py-3 px-4">Distributor MDR</th>
+                    <th className="py-3 px-4">Retailer MDR</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {(mdrMatrixList.length > 0 ? mdrMatrixList : [
+                    { payment_mode: "POS - Instant", card_type: "VISA", company_mdr: 1.20, sd_mdr: 1.60, distributor_mdr: 1.62, retailer_mdr: 1.70, status: "ACTIVE" },
+                    { payment_mode: "POS - Instant", card_type: "MASTER", company_mdr: 1.20, sd_mdr: 1.60, distributor_mdr: 1.62, retailer_mdr: 1.70, status: "ACTIVE" },
+                    { payment_mode: "POS - Instant", card_type: "RUPAY", company_mdr: 1.20, sd_mdr: 1.60, distributor_mdr: 1.62, retailer_mdr: 1.70, status: "ACTIVE" },
+                    { payment_mode: "POS - Instant", card_type: "AMEX / DINERS", company_mdr: 1.20, sd_mdr: 1.60, distributor_mdr: 1.62, retailer_mdr: 1.70, status: "ACTIVE" },
+                    { payment_mode: "POS - Instant", card_type: "Business/corporate", company_mdr: 1.20, sd_mdr: 1.60, distributor_mdr: 1.62, retailer_mdr: 1.70, status: "ACTIVE" },
+                    { payment_mode: "POS+T1", card_type: "VISA", company_mdr: 1.10, sd_mdr: 1.50, distributor_mdr: 1.52, retailer_mdr: 1.60, status: "ACTIVE" },
+                    { payment_mode: "POS+T1", card_type: "MASTER", company_mdr: 1.10, sd_mdr: 1.50, distributor_mdr: 1.52, retailer_mdr: 1.60, status: "ACTIVE" },
+                    { payment_mode: "POS+T1", card_type: "RUPAY", company_mdr: 1.10, sd_mdr: 1.50, distributor_mdr: 1.52, retailer_mdr: 1.60, status: "ACTIVE" },
+                    { payment_mode: "POS+T1", card_type: "AMEX / DINERS", company_mdr: 1.10, sd_mdr: 1.50, distributor_mdr: 1.52, retailer_mdr: 1.60, status: "ACTIVE" },
+                    { payment_mode: "POS+T1", card_type: "Business/corporate", company_mdr: 1.10, sd_mdr: 1.50, distributor_mdr: 1.52, retailer_mdr: 1.60, status: "ACTIVE" },
+                  ]).map((row, idx) => {
+                    const isSelected = row.payment_mode === selectedPaymentMode && row.card_type === selectedCardType;
+                    return (
+                      <tr
+                        key={`${row.payment_mode}-${row.card_type}-${idx}`}
+                        className={`transition-colors ${
+                          isSelected ? "bg-[#EFF6FF] font-semibold" : "hover:bg-slate-50/70"
+                        }`}
+                      >
+                        <td className="py-3 px-4 font-bold text-[#0F172A]">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md font-mono text-[11px] font-bold ${
+                            row.payment_mode === "POS - Instant"
+                              ? "bg-blue-50 text-[#1D4ED8] border border-blue-200"
+                              : "bg-emerald-50 text-[#15803D] border border-emerald-200"
+                          }`}>
+                            {row.payment_mode}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="font-extrabold text-[#0F172A] bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-[11px] font-mono">
+                            {row.card_type}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 font-mono font-bold text-[#64748B]">
+                          {Number(row.company_mdr || 0).toFixed(2)}%
+                        </td>
+                        <td className="py-3 px-4 font-mono font-bold text-[#16A34A]">
+                          {Number(row.sd_mdr || 0).toFixed(2)}%
+                        </td>
+                        <td className="py-3 px-4 font-mono font-bold text-[#9333EA]">
+                          {Number(row.distributor_mdr || 0).toFixed(2)}%
+                        </td>
+                        <td className="py-3 px-4 font-mono font-black text-[#2563EB]">
+                          <span className="bg-[#EFF6FF] border border-[#BFDBFE] px-2 py-0.5 rounded text-xs block w-fit">
+                            {Number(row.retailer_mdr || 0).toFixed(2)}%
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0] uppercase">
+                            <CheckCircle2 className="w-3 h-3" />
+                            {row.status || "ACTIVE"}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedPaymentMode(row.payment_mode);
+                              setSelectedCardType(row.card_type);
+                              fetchSelectedModeCardMdr(row.payment_mode, row.card_type);
+                              const el = document.getElementById("mdr-form-card");
+                              if (el) el.scrollIntoView({ behavior: "smooth" });
+                            }}
+                            className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-[#2563EB] hover:text-white text-xs font-bold text-[#334155] transition-all cursor-pointer shadow-2xs"
+                          >
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           {/* POS Settlement Modes Availability Quick Controls (Requirement 2 & 7) */}
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-3">

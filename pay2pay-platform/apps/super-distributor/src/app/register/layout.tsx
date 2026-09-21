@@ -37,7 +37,7 @@ function RegistrationLayoutContent({ children }: { children: React.ReactNode }) 
                 Step {currentStep === 66 ? "6A" : currentStep === 14 ? "Submitted" : currentStep} of 12
               </span>
             </h1>
-            <p className="text-xs text-slate-400 font-medium">Enterprise Retailer KYC & Business Verification Portal</p>
+            <p className="text-xs text-slate-400 font-medium">Enterprise Super Distributor KYC & Business Verification Portal</p>
           </div>
         </div>
 
@@ -126,7 +126,7 @@ function RegistrationLayoutContent({ children }: { children: React.ReactNode }) 
       {/* Footer */}
       <div className="relative z-10 mt-6 text-center text-xs font-semibold text-slate-500">
         <p>© 2021 SUPER REX PRODUCTS PRIVATE LIMITED</p>
-        <p>Pay2Pay Retailer Portal</p>
+        <p>Pay2Pay Super Distributor Portal</p>
       </div>
     </div>
   );

@@ -39,16 +39,21 @@ BEGIN
             jsonb_build_object('category', 'Dashboard', 'items', jsonb_build_array(
                 jsonb_build_object('label', 'Dashboard', 'href', '/dashboard', 'icon', 'LayoutDashboard')
             )),
+            jsonb_build_object('category', 'Organization', 'items', jsonb_build_array(
+                jsonb_build_object('label', 'Organization Mapping', 'href', '/admin/mapping', 'icon', 'Network', 'badge', 'Master'),
+                jsonb_build_object('label', 'Company Hierarchy', 'href', '/organization', 'icon', 'Building2')
+            )),
             jsonb_build_object('category', 'User Management', 'items', jsonb_build_array(
                 jsonb_build_object('label', 'User Management', 'href', '/users', 'icon', 'Users', 'badge', 'Admin'),
                 jsonb_build_object('label', 'User Creation', 'href', '/users/create', 'icon', 'UserPlus', 'badge', 'New'),
                 jsonb_build_object('label', 'Role & Permissions', 'href', '/roles', 'icon', 'ShieldCheck')
             )),
-            jsonb_build_object('category', 'Retailers', 'items', jsonb_build_array(
-                jsonb_build_object('label', 'Retailer Management', 'href', '/retailers', 'icon', 'Store'),
+            jsonb_build_object('category', 'Partners & Hierarchy', 'items', jsonb_build_array(
+                jsonb_build_object('label', 'Partner Hub', 'href', '/retailers', 'icon', 'Store'),
+                jsonb_build_object('label', 'Distributor Approvals', 'href', '/retailers/distributor-approvals', 'icon', 'CheckCircle2', 'badge', 'Pending'),
+                jsonb_build_object('label', 'Master Dist Approvals', 'href', '/retailers/sd-approvals', 'icon', 'Crown', 'badge', 'Pending'),
                 jsonb_build_object('label', 'Verification', 'href', '/admin/retailer-verification', 'icon', 'ShieldCheck', 'badge', 'Live'),
-                jsonb_build_object('label', 'Approval', 'href', '/approvals', 'icon', 'CheckSquare'),
-                jsonb_build_object('label', 'KYC', 'href', '/retailers', 'icon', 'Users')
+                jsonb_build_object('label', 'Approval', 'href', '/approvals', 'icon', 'CheckSquare')
             )),
             jsonb_build_object('category', 'Transactions', 'items', jsonb_build_array(
                 jsonb_build_object('label', 'Consolidated Reconciliation', 'href', '/operations/reconciliation', 'icon', 'Scale', 'badge', 'New'),
@@ -82,6 +87,7 @@ BEGIN
                 jsonb_build_object('label', 'Settlement Reports', 'href', '/settlement-processing/batches', 'icon', 'FileText')
             )),
             jsonb_build_object('category', 'Configuration', 'items', jsonb_build_array(
+                jsonb_build_object('label', 'POS Commission & MDR', 'href', '/configuration/pos-commission', 'icon', 'Percent', 'badge', 'SD-Dist'),
                 jsonb_build_object('label', 'UPI Vendors', 'href', '/configuration/upi-vendors', 'icon', 'QrCode', 'badge', 'New'),
                 jsonb_build_object('label', 'Charges', 'href', '/financial-config/approvals', 'icon', 'Scale'),
                 jsonb_build_object('label', 'MDR', 'href', '/configuration/payout-slabs', 'icon', 'Layers'),

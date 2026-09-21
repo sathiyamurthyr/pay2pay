@@ -60,10 +60,10 @@ export const Step9Shop: React.FC<Step9Props> = ({ registrationId, onSuccess }) =
     <div className="space-y-5 select-none">
       <div className="text-center">
         <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-          Shop & Retailer Profile
+          Business & Super Distributor Profile
         </h2>
         <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
-          Provide shop information for commercial audit & terminal assignment.
+          Provide enterprise information for commercial audit & partner assignment.
         </p>
       </div>
 
