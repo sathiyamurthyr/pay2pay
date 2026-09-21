@@ -264,6 +264,7 @@ class FinancialAccountingService {
     let userTypeRefId: any = 2;
     let retailerCode: string = "";
     let retailerPublicId: string = "";
+    let mobile: string = ""; // MUST be declared at function scope — used after try/catch blocks
 
     if (typeof document !== "undefined") {
       try {
@@ -291,23 +292,13 @@ class FinancialAccountingService {
     }
 
     if (typeof window !== "undefined") {
+      // Primary resolution: cookies (no localStorage dependency for auth-critical data)
       try {
-        if (!token) {
-          token =
-            localStorage.getItem("p2p_access_token") ||
-            localStorage.getItem("pay2pay_access_token") ||
-            localStorage.getItem("pay2pay_auth_token") ||
-            localStorage.getItem("token") ||
-            localStorage.getItem("access_token") ||
-            localStorage.getItem("retailer_token") ||
-            "";
-        }
         const userStr =
           localStorage.getItem("user_info") ||
           localStorage.getItem("user") ||
           localStorage.getItem("auth_user") ||
           localStorage.getItem("pay2pay_user_data");
-        let mobile = "";
         if (userStr) {
           const u = JSON.parse(userStr);
           userRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
@@ -318,24 +309,36 @@ class FinancialAccountingService {
           if (!retailerPublicId) {
             retailerPublicId = u.public_id || u.id || u.retailer_id || u.retailerId || "";
           }
+          // mobile is declared at function scope — safe to assign here
           mobile = u.mobile_number || u.mobile || u.phone || "";
         }
+        // Fallback token from localStorage if not resolved from cookies
+        if (!token) {
+          token =
+            localStorage.getItem("p2p_access_token") ||
+            localStorage.getItem("pay2pay_access_token") ||
+            localStorage.getItem("pay2pay_auth_token") ||
+            localStorage.getItem("token") ||
+            localStorage.getItem("access_token") ||
+            localStorage.getItem("retailer_token") ||
+            "";
+        }
+        if (!retailerCode) {
+          retailerCode =
+            localStorage.getItem("p2p_active_retailer_id") ||
+            localStorage.getItem("p2p_retailer_code") ||
+            localStorage.getItem("retailer_code") ||
+            localStorage.getItem("retailer_id") ||
+            localStorage.getItem("pay2pay_reg_id") ||
+            "";
+        }
+        if (!retailerPublicId) {
+          retailerPublicId = localStorage.getItem("p2p_retailer_public_id") || "";
+        }
+        if (!mobile) {
+          mobile = localStorage.getItem("p2p_mobile") || localStorage.getItem("retailer_mobile") || "";
+        }
       } catch {}
-      if (!retailerCode) {
-        retailerCode =
-          localStorage.getItem("p2p_active_retailer_id") ||
-          localStorage.getItem("p2p_retailer_code") ||
-          localStorage.getItem("retailer_code") ||
-          localStorage.getItem("retailer_id") ||
-          localStorage.getItem("pay2pay_reg_id") ||
-          "";
-      }
-      if (!retailerPublicId) {
-        retailerPublicId = localStorage.getItem("p2p_retailer_public_id") || "";
-      }
-      if (!mobile) {
-        mobile = localStorage.getItem("p2p_mobile") || localStorage.getItem("retailer_mobile") || "";
-      }
       if (!userRefId && !retailerCode) {
         userRefId = null;
       }
@@ -366,7 +369,7 @@ class FinancialAccountingService {
         user_ref_id: userRefId ? Number(userRefId) : null,
         user_type_ref_id: Number(userTypeRefId || 2),
         retailer_ref_id: userRefId ? Number(userRefId) : null,
-        tenant_id: (typeof localStorage !== "undefined" ? localStorage.getItem("p2p_tenant_id") : null) || null
+        tenant_id: (typeof window !== "undefined" && typeof localStorage !== "undefined" ? (() => { try { return localStorage.getItem("p2p_tenant_id"); } catch { return null; } })() : null) || null
       };
 
       const reqHeaders: Record<string, string> = {

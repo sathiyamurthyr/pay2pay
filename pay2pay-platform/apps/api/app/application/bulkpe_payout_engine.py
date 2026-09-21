@@ -6,6 +6,8 @@ and full financial ledger & audit journaling.
 """
 
 import uuid
+import os
+import re
 import secrets
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, Union
@@ -654,6 +656,51 @@ class BulkPePayoutEngine:
 
         from app.application.payout_vendor_adapter import PayoutVendorAdapterFactory, SimulatedVendorAdapter
         vendor_adapter = PayoutVendorAdapterFactory.get_adapter()
+
+        # ── Test-Retailer Safe-Mode Bypass ─────────────────────────────────────────
+        # If the retailer's mobile/code matches PAYOUT_TEST_RETAILER in .env (e.g. "9176669426"),
+        # force the SimulatedVendorAdapter regardless of ENVIRONMENT setting.
+        # This guarantees NO real bank transfer is triggered during P0 debugging.
+        # PRODUCTION retailers with different IDs are completely unaffected.
+        _test_retailer_id = os.getenv("PAYOUT_TEST_RETAILER", "").strip()
+        _is_test_retailer = False
+        if _test_retailer_id and ret_info:
+            _clean_test = re.sub(r"\D", "", _test_retailer_id)
+            # Check mobile from RetailerModel fields
+            for _mobile_field in ("mobile_number", "phone", "mobile", "contact_mobile"):
+                _raw_mob = re.sub(r"\D", "", str(getattr(ret_info, _mobile_field, "") or ""))
+                if _raw_mob and _raw_mob[-10:] == _clean_test[-10:]:
+                    _is_test_retailer = True
+                    break
+            # Check via RetailerContactModel (primary mobile storage)
+            if not _is_test_retailer:
+                try:
+                    from app.infrastructure.db.models import RetailerContactModel as _RCM
+                    _contact_rows = (await db.execute(
+                        select(_RCM).where(
+                            _RCM.retailer_id == ret_info.public_id,
+                            _RCM.is_deleted == False
+                        )
+                    )).scalars().all()
+                    for _c in _contact_rows:
+                        _cmob = re.sub(r"\D", "", str(_c.mobile or ""))
+                        if _cmob and _cmob[-10:] == _clean_test[-10:]:
+                            _is_test_retailer = True
+                            break
+                except Exception:
+                    pass
+            # Fallback: check retailer_ref_id or retailer_code as numeric match
+            if not _is_test_retailer and _clean_test:
+                _ret_ref = str(getattr(ret_info, "retailer_ref_id", "") or "")
+                _ret_code = re.sub(r"\D", "", str(getattr(ret_info, "retailer_code", "") or ""))
+                if (_clean_test == _ret_ref) or (_ret_code and _clean_test[-10:] == _ret_code[-10:]):
+                    _is_test_retailer = True
+
+        if _is_test_retailer and not isinstance(vendor_adapter, SimulatedVendorAdapter):
+            print(f"\n[TEST-RETAILER BYPASS] Retailer matches PAYOUT_TEST_RETAILER={_test_retailer_id}. "
+                  f"Overriding to SimulatedVendorAdapter — no real vendor call will be made.\n")
+            vendor_adapter = SimulatedVendorAdapter()
+        # ── End Test-Retailer Bypass ───────────────────────────────────────────────
 
         if isinstance(vendor_adapter, SimulatedVendorAdapter) or settings.is_payout_simulation_active:
             print(f"\n[VENDOR SANDBOX] Executing {active_provider} payout in DEV Simulator Mode for {merchant_ref}\n")
