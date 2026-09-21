@@ -147,9 +147,13 @@ LEFT JOIN LATERAL (
 LEFT JOIN LATERAL (
     SELECT r_in.store_name, r_in.owner_name, r_in.retailer_code
     FROM public.retailer r_in
-    WHERE (pt.retailer_ref_id IS NOT NULL AND r_in.id = pt.retailer_ref_id)
-       OR (pt.retailer_id IS NOT NULL AND (r_in.public_id = pt.retailer_id OR r_in.retailer_code = pt.retailer_id::text))
-    ORDER BY CASE WHEN pt.retailer_ref_id IS NOT NULL AND r_in.id = pt.retailer_ref_id THEN 0 ELSE 1 END
+    WHERE (pt.retailer_id IS NOT NULL AND (r_in.public_id = pt.retailer_id OR r_in.retailer_code = pt.retailer_id::text))
+       OR (pt.retailer_ref_id IS NOT NULL AND (r_in.retailer_ref_id = pt.retailer_ref_id OR r_in.id = pt.retailer_ref_id))
+    ORDER BY CASE 
+        WHEN pt.retailer_id IS NOT NULL AND r_in.public_id = pt.retailer_id THEN 0 
+        WHEN pt.retailer_ref_id IS NOT NULL AND r_in.retailer_ref_id = pt.retailer_ref_id THEN 1
+        ELSE 2 
+    END
     LIMIT 1
 ) r ON TRUE
 LEFT JOIN LATERAL (
@@ -238,10 +242,15 @@ BEGIN
         LEFT JOIN LATERAL (
             SELECT r_in.retailer_code, r_in.store_name, r_in.owner_name, r_in.legal_name
             FROM public.retailer r_in
-            WHERE r_in.public_id = t.retailer_id 
-               OR r_in.retailer_code = t.retailer_id::text
-               OR (t.retailer_ref_id IS NOT NULL AND r_in.id = t.retailer_ref_id)
-               OR (t.user_ref_id IS NOT NULL AND r_in.id = t.user_ref_id)
+            WHERE (t.retailer_id IS NOT NULL AND (r_in.public_id = t.retailer_id OR r_in.retailer_code = t.retailer_id::text))
+               OR (t.retailer_ref_id IS NOT NULL AND (r_in.retailer_ref_id = t.retailer_ref_id OR r_in.id = t.retailer_ref_id))
+               OR (t.user_ref_id IS NOT NULL AND (r_in.retailer_ref_id = t.user_ref_id OR r_in.id = t.user_ref_id))
+            ORDER BY CASE
+                WHEN t.retailer_id IS NOT NULL AND r_in.public_id = t.retailer_id THEN 0
+                WHEN t.retailer_ref_id IS NOT NULL AND r_in.retailer_ref_id = t.retailer_ref_id THEN 1
+                WHEN t.user_ref_id IS NOT NULL AND r_in.retailer_ref_id = t.user_ref_id THEN 2
+                ELSE 3
+            END
             LIMIT 1
         ) r ON TRUE
         WHERE (p_start_dt IS NULL OR t.created_at >= p_start_dt)
