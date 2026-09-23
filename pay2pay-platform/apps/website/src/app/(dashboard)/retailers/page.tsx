@@ -154,7 +154,31 @@ function OnboardingHubContent() {
       )
     : activeData;
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
+    setShowExportDropdown(false);
+    if (activeTab === "retailers") {
+      try {
+        const response = await api.get("/admin/reports/retailers/export", {
+          responseType: "blob",
+        });
+        const blob = new Blob([response.data], { type: "text/csv;charset=utf-8;" });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute(
+          "download",
+          `Retailers_Full_Master_Export_${new Date().toISOString().slice(0, 10)}.csv`
+        );
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        return;
+      } catch (err) {
+        console.error("Backend export failed, falling back to client-side export:", err);
+      }
+    }
+
     if (!filteredData.length) return;
     let headers: string[] = [];
     let rows: string[][] = [];
