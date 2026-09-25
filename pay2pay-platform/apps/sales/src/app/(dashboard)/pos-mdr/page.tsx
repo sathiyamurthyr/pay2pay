@@ -97,15 +97,25 @@ export default function PosMdrSetupStudioPage() {
   return (
     <div className="max-w-4xl w-full mx-auto space-y-6 pb-12">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-[#94003A] via-[#78002F] to-[#550020] border border-[#94003A]/20 rounded-2xl sm:rounded-3xl p-6 sm:p-8 text-white shadow-sm">
-        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#E7B631] mb-2">
-          <Sliders className="w-4 h-4" />
-          MDR Slabs & Commercial Rate Governance
+      <div className="bg-gradient-to-r from-[#94003A] via-[#78002F] to-[#550020] border border-[#94003A]/20 rounded-2xl sm:rounded-3xl p-6 sm:p-8 text-white shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#E7B631] mb-2">
+            <Sliders className="w-4 h-4" />
+            MDR Slabs & Commercial Rate Governance
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">POS MDR Setup Studio</h1>
+          <p className="text-[#F8E6EE]/80 text-xs sm:text-sm mt-1 max-w-2xl font-medium">
+            Configure dynamic Merchant Discount Rates (MDR) across card schemes and settlement speeds strictly within your authorized tenant hierarchy.
+          </p>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">POS MDR Setup Studio</h1>
-        <p className="text-[#F8E6EE]/80 text-xs sm:text-sm mt-1 max-w-2xl font-medium">
-          Configure dynamic Merchant Discount Rates (MDR) across card schemes and settlement speeds strictly within your authorized tenant hierarchy.
-        </p>
+
+        <Link
+          href="/pos-mdr/requests"
+          className="px-4 py-2.5 bg-[#E7B631] hover:bg-[#D9A320] text-[#1F2937] rounded-xl text-xs font-black shadow-sm transition flex items-center gap-2 shrink-0"
+        >
+          <Sparkles className="w-4 h-4 text-[#94003A]" />
+          <span>MDR Change Request Hub →</span>
+        </Link>
       </div>
 
       {feedback && (

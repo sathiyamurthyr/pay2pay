@@ -55,6 +55,7 @@ const SALES_NAV: NavCategory[] = [
     category: "POS HARDWARE & MDR",
     items: [
       { label: "POS Machines", href: "/pos-machines", icon: QrCode },
+      { label: "MDR Change Requests", href: "/pos-mdr/requests", icon: ClipboardCheck, badge: "WORKFLOW" },
       { label: "POS MDR Setup", href: "/pos-mdr", icon: Sliders, badge: "Config" },
     ],
   },
