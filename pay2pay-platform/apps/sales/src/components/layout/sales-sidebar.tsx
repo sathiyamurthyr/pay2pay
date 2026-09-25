@@ -6,9 +6,8 @@ import { usePathname } from "next/navigation";
 import { useSalesAuth } from "@/lib/auth";
 import {
   LayoutDashboard, Users, Store, Network, Receipt, CreditCard,
-  Sliders, Activity, FileText, UserCircle, LogOut, ShieldCheck,
-  Building2, Layers, ChevronRight, Sparkles, Zap, QrCode, X,
-  UserPlus, ClipboardCheck, Video, BadgeCheck, UserCog
+  Sliders, Activity, FileText, LogOut, Building2, Layers,
+  QrCode, X, UserPlus, ClipboardCheck, UserCog
 } from "lucide-react";
 
 interface NavCategory {
@@ -23,14 +22,14 @@ interface NavCategory {
 
 const SALES_NAV: NavCategory[] = [
   {
-    category: "Overview",
+    category: "OVERVIEW",
     items: [
       { label: "Sales Dashboard", href: "/dashboard", icon: LayoutDashboard },
-      { label: "Registrations & KYC Hub", href: "/registrations", icon: ClipboardCheck, badge: "Live" },
+      { label: "Registrations & KYC Hub", href: "/registrations", icon: ClipboardCheck, badge: "LIVE" },
     ],
   },
   {
-    category: "Register New Entity",
+    category: "REGISTER NEW ENTITY",
     items: [
       { label: "Register Super Distributor", href: "/register/super-distributor", icon: UserCog },
       { label: "Register Distributor", href: "/register/distributor", icon: UserPlus },
@@ -38,7 +37,7 @@ const SALES_NAV: NavCategory[] = [
     ],
   },
   {
-    category: "Hierarchy Management",
+    category: "HIERARCHY MANAGEMENT",
     items: [
       { label: "Super Distributors", href: "/hierarchy/super-distributors", icon: Users },
       { label: "Distributors", href: "/hierarchy/distributors", icon: Layers },
@@ -46,21 +45,21 @@ const SALES_NAV: NavCategory[] = [
     ],
   },
   {
-    category: "Transactions & Settlements",
+    category: "TRANSACTIONS & SETTLEMENTS",
     items: [
       { label: "Transaction Hub", href: "/transactions", icon: Receipt },
       { label: "POS Ledger & MDR", href: "/transactions/pos", icon: CreditCard, badge: "MDR" },
     ],
   },
   {
-    category: "POS Hardware & MDR",
+    category: "POS HARDWARE & MDR",
     items: [
       { label: "POS Machines", href: "/pos-machines", icon: QrCode },
       { label: "POS MDR Setup", href: "/pos-mdr", icon: Sliders, badge: "Config" },
     ],
   },
   {
-    category: "Field Operations & Reports",
+    category: "ANALYTICS & AUDIT",
     items: [
       { label: "Field Activity & Retention", href: "/activity", icon: Activity },
       { label: "Reports Center", href: "/reports", icon: FileText },
@@ -81,22 +80,57 @@ export const SalesSidebar: React.FC<{ isOpen?: boolean; onClose?: () => void }> 
     }
   };
 
-  const userInitial = (user?.full_name || "Vikram").charAt(0).toUpperCase();
+  const userInitial = (user?.full_name || "Sales User").charAt(0).toUpperCase();
+
+  const entityName = user?.company_name || user?.tenant_name || "SUPER REX PRODUCTS PVT LTD";
+  const scopeText = (() => {
+    if (!user) return "Authorized Scope";
+    if (user.mappings_count === 0 || (user as any).is_full_tenant || (user as any).scope_type === "FULL_TENANT") {
+      return "Full Tenant";
+    }
+    if (typeof user.mappings_count === "number" && user.mappings_count > 0) {
+      return `${user.mappings_count} Mapped Entities`;
+    }
+    return "Full Tenant";
+  })();
+
+  const renderBadge = (badge: string) => {
+    const badgeUpper = badge.toUpperCase();
+    if (badgeUpper === "KYC") {
+      return (
+        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[#FFF7D6] text-[#8A6800] border border-[#EDC11E]">
+          {badge}
+        </span>
+      );
+    }
+    if (badgeUpper === "LIVE") {
+      return (
+        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#166534] border border-[#86EFAC]">
+          {badge}
+        </span>
+      );
+    }
+    return (
+      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[#F8E6EE] text-[#94003A] border border-[#F3C4D7]">
+        {badge}
+      </span>
+    );
+  };
 
   const sidebarContent = (
-    <div className="w-64 bg-white border-r border-gray-200 flex flex-col shrink-0 h-full select-none shadow-sm">
-      {/* Brand Header */}
-      <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-        <Link href="/dashboard" onClick={handleLinkClick} className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#94003A] flex items-center justify-center text-[#E7B631] font-bold shadow-md">
-            <Network className="w-5 h-5 text-[#E7B631]" />
+    <div className="w-64 bg-[#FFFFFF] border-r border-[#E5E7EB] flex flex-col shrink-0 h-full select-none shadow-sm">
+      {/* ── Brand Header ── */}
+      <div className="p-4 border-b border-[#F3F4F6] flex items-center justify-between">
+        <Link href="/dashboard" onClick={handleLinkClick} className="flex items-center gap-3 group">
+          <div className="w-10 h-10 rounded-xl bg-[#94003A] flex items-center justify-center text-[#EDC11E] font-bold shadow-sm transition group-hover:scale-105">
+            <Network className="w-5 h-5 text-[#EDC11E]" />
           </div>
           <div>
             <div className="font-extrabold text-base tracking-tight text-[#94003A] flex items-center gap-1.5">
               Pay2Pay <span className="text-[#E7B631]">Sales</span>
             </div>
-            <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider">
-              Field Force Portal
+            <div className="text-[10px] uppercase font-bold text-[#6B7280] tracking-wider">
+              FIELD FORCE PORTAL
             </div>
           </div>
         </Link>
@@ -104,32 +138,32 @@ export const SalesSidebar: React.FC<{ isOpen?: boolean; onClose?: () => void }> 
         {onClose && (
           <button
             onClick={onClose}
-            className="md:hidden p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition"
+            className="md:hidden p-1.5 rounded-lg text-[#6B7280] hover:text-[#1F2937] hover:bg-[#F8E6EE] transition"
           >
             <X className="w-5 h-5" />
           </button>
         )}
       </div>
 
-      {/* Tenant Context Badge */}
-      <div className="p-3 mx-3 mt-3 rounded-2xl bg-[#F8E6EE] border border-pink-200/80">
-        <div className="flex items-center gap-2 text-[#94003A] text-[11px] font-bold">
-          <Building2 className="w-3.5 h-3.5 text-[#94003A] shrink-0" />
-          <span className="truncate">{user?.tenant_name || "SUPER REX PRODUCTS PVT LTD"}</span>
+      {/* ── Tenant / Company Box ── */}
+      <div className="p-3 mx-3 mt-3 rounded-2xl bg-[#F8E6EE] border border-[#F3C4D7]">
+        <div className="flex items-center gap-2 text-[#94003A] text-xs font-bold">
+          <Building2 className="w-4 h-4 text-[#94003A] shrink-0" />
+          <span className="truncate" title={entityName}>{entityName}</span>
         </div>
-        <div className="text-[10px] text-gray-600 mt-1 flex items-center justify-between">
-          <span>Scope:</span>
+        <div className="text-[11px] text-[#6B7280] mt-1.5 flex items-center justify-between">
+          <span className="font-medium">Scope:</span>
           <span className="font-semibold text-[#94003A]">
-            {user?.mappings_count === 0 ? "Full Tenant" : `${user?.mappings_count} Mapped`}
+            {scopeText}
           </span>
         </div>
       </div>
 
-      {/* Navigation List */}
+      {/* ── Navigation List ── */}
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
         {SALES_NAV.map((cat, idx) => (
           <div key={idx} className="space-y-1">
-            <div className="px-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+            <div className="px-3 text-[10px] font-bold uppercase tracking-wider text-[#6B7280]">
               {cat.category}
             </div>
             <div className="space-y-0.5 pt-1">
@@ -141,27 +175,21 @@ export const SalesSidebar: React.FC<{ isOpen?: boolean; onClose?: () => void }> 
                     key={item.href}
                     href={item.href}
                     onClick={handleLinkClick}
-                    className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition ${
+                    className={`group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition ${
                       isActive
-                        ? "bg-[#F8E6EE] text-[#94003A] font-bold border-l-4 border-[#94003A] shadow-sm"
-                        : "text-gray-600 hover:text-[#1F2937] hover:bg-[#F5F6FA]"
+                        ? "bg-[#F8E6EE] text-[#94003A] font-bold border-l-4 border-[#94003A] shadow-none"
+                        : "bg-transparent text-[#4B5563] hover:bg-[#F8E6EE] hover:text-[#94003A]"
                     }`}
                   >
-                    <div className="flex items-center gap-2.5">
-                      <Icon className={`w-4 h-4 ${isActive ? "text-[#94003A]" : "text-gray-400"}`} />
-                      <span>{item.label}</span>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Icon className={`w-4 h-4 shrink-0 transition ${isActive ? "text-[#94003A]" : "text-[#6B7280] group-hover:text-[#94003A]"}`} />
+                      <span className="truncate">{item.label}</span>
                     </div>
 
                     {item.badge && (
-                      <span
-                        className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
-                          isActive
-                            ? "bg-[#94003A] text-white"
-                            : "bg-[#FEF3C7] text-[#92400E] border border-amber-200"
-                        }`}
-                      >
-                        {item.badge}
-                      </span>
+                      <div className="shrink-0 ml-2">
+                        {renderBadge(item.badge)}
+                      </div>
                     )}
                   </Link>
                 );
@@ -171,26 +199,26 @@ export const SalesSidebar: React.FC<{ isOpen?: boolean; onClose?: () => void }> 
         ))}
       </div>
 
-      {/* User Footer Profile */}
-      <div className="p-3 border-t border-gray-100 bg-white">
-        <div className="p-2.5 rounded-xl bg-[#F5F6FA] border border-gray-200 flex items-center justify-between">
-          <Link href="/profile" onClick={handleLinkClick} className="flex items-center gap-2.5 overflow-hidden">
-            <div className="w-8 h-8 rounded-lg bg-[#94003A] text-[#E7B631] flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+      {/* ── User Profile Footer Card ── */}
+      <div className="p-3 border-t border-[#F3F4F6] bg-[#FFFFFF]">
+        <div className="p-2.5 rounded-xl bg-[#F5F6FA] border border-[#E5E7EB] flex items-center justify-between">
+          <Link href="/profile" onClick={handleLinkClick} className="flex items-center gap-2.5 overflow-hidden flex-1 group">
+            <div className="w-8 h-8 rounded-lg bg-[#94003A] text-[#EDC11E] flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
               {userInitial}
             </div>
-            <div className="overflow-hidden">
-              <div className="text-xs font-bold text-[#1F2937] truncate">
-                {user?.full_name || "Vikram Rathore"}
+            <div className="overflow-hidden min-w-0">
+              <div className="text-xs font-bold text-[#1F2937] truncate group-hover:text-[#94003A] transition">
+                {user?.full_name || "Sales User"}
               </div>
-              <div className="text-[10px] text-gray-500 font-mono truncate">
-                {user?.employee_code || "SALES001"}
+              <div className="text-[10px] text-[#6B7280] font-mono truncate">
+                {user?.employee_code || user?.designation || "ASM-FIELD"}
               </div>
             </div>
           </Link>
 
           <button
             onClick={logout}
-            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+            className="p-1.5 text-[#6B7280] hover:text-red-600 hover:bg-red-50 rounded-lg transition shrink-0 ml-1"
             title="Sign Out"
           >
             <LogOut className="w-4 h-4" />
