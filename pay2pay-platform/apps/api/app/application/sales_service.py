@@ -427,7 +427,8 @@ class SalesService:
     async def resolve_scope(db: AsyncSession, sales_user: SalesUserModel) -> SalesScope:
         """
         Authoritatively calculates the exact set of Super Distributors, Distributors,
-        and Retailers that this sales user is permitted to view within their tenant.
+        and Retailers that this sales user is permitted to view within their company and tenant.
+        Strict company and tenant scoping is enforced.
         """
         # Fetch active mappings
         map_stmt = select(SalesHierarchyMappingModel).where(
@@ -445,7 +446,7 @@ class SalesService:
         retailer_ids: Set[uuid.UUID] = set()
 
         if not mappings:
-            # If no explicit mapping row exists, default to ALL within assigned tenant
+            # If no explicit mapping row exists, default to ALL within assigned company and tenant
             is_all = True
         else:
             for m in mappings:
@@ -459,10 +460,82 @@ class SalesService:
                 elif m.mapping_type == "RETAILER" and m.retailer_id:
                     retailer_ids.add(m.retailer_id)
 
-        # Expand SDs to downstream Distributors & Retailers
-        if not is_all:
+        # If user is company-scoped (e.g. SATHUS), enforce company scope strictly
+        if sales_user.company_id:
+            comp_sd_cond = [
+                SuperDistributorModel.tenant_id == sales_user.tenant_id,
+                or_(
+                    SuperDistributorModel.company_id == sales_user.company_id,
+                    SuperDistributorModel.company_ref_id == sales_user.company_ref_id
+                ),
+                SuperDistributorModel.is_deleted == False
+            ]
+            comp_dist_cond = [
+                DistributorModel.tenant_id == sales_user.tenant_id,
+                or_(
+                    DistributorModel.company_id == sales_user.company_id,
+                    DistributorModel.company_ref_id == sales_user.company_ref_id
+                ),
+                DistributorModel.is_deleted == False
+            ]
+            comp_ret_cond = [
+                RetailerModel.tenant_id == sales_user.tenant_id,
+                or_(
+                    RetailerModel.company_id == sales_user.company_id,
+                    RetailerModel.company_ref_id == sales_user.company_ref_id
+                ),
+                RetailerModel.is_deleted == False
+            ]
+
+            if is_all:
+                sd_res = await db.execute(select(SuperDistributorModel.public_id).where(*comp_sd_cond))
+                for s_id in sd_res.scalars().all():
+                    sd_ids.add(s_id)
+
+                d_res = await db.execute(select(DistributorModel.public_id).where(*comp_dist_cond))
+                for d_id in d_res.scalars().all():
+                    dist_ids.add(d_id)
+
+                r_res = await db.execute(select(RetailerModel.public_id).where(*comp_ret_cond))
+                for r_id in r_res.scalars().all():
+                    retailer_ids.add(r_id)
+
+                is_all = False
+            else:
+                if sd_ids:
+                    sd_res = await db.execute(select(SuperDistributorModel.public_id).where(
+                        SuperDistributorModel.public_id.in_(list(sd_ids)),
+                        *comp_sd_cond
+                    ))
+                    sd_ids = set(sd_res.scalars().all())
+
+                if dist_ids or sd_ids:
+                    conds = []
+                    if dist_ids:
+                        conds.append(DistributorModel.public_id.in_(list(dist_ids)))
+                    if sd_ids:
+                        conds.append(DistributorModel.mapped_super_distributor_id.in_(list(sd_ids)))
+                    d_res = await db.execute(select(DistributorModel.public_id).where(
+                        *comp_dist_cond,
+                        or_(*conds)
+                    ))
+                    dist_ids = set(d_res.scalars().all())
+
+                if retailer_ids or dist_ids or sd_ids:
+                    conds = []
+                    if retailer_ids:
+                        conds.append(RetailerModel.public_id.in_(list(retailer_ids)))
+                    if dist_ids:
+                        conds.append(RetailerModel.mapped_distributor_id.in_(list(dist_ids)))
+                    if sd_ids:
+                        conds.append(RetailerModel.mapped_super_distributor_id.in_(list(sd_ids)))
+                    r_res = await db.execute(select(RetailerModel.public_id).where(
+                        *comp_ret_cond,
+                        or_(*conds)
+                    ))
+                    retailer_ids = set(r_res.scalars().all())
+        elif not is_all:
             if sd_ids:
-                # Find all distributors under these SDs
                 d_stmt = select(DistributorModel.public_id).where(
                     DistributorModel.tenant_id == sales_user.tenant_id,
                     DistributorModel.mapped_super_distributor_id.in_(list(sd_ids)),
@@ -473,7 +546,6 @@ class SalesService:
                     dist_ids.add(d_id)
 
             if dist_ids or sd_ids:
-                # Find all retailers under these Distributors or SDs
                 conds = []
                 if dist_ids:
                     conds.append(RetailerModel.mapped_distributor_id.in_(list(dist_ids)))
@@ -789,101 +861,67 @@ class SalesService:
     ) -> Dict[str, Any]:
         scope = await SalesService.resolve_scope(db, sales_user)
         tid = sales_user.tenant_id
+        cid = sales_user.company_id
+        cref = sales_user.company_ref_id
 
-        stmt = select(SuperDistributorModel).where(
-            SuperDistributorModel.tenant_id == tid,
-            SuperDistributorModel.is_deleted == False
-        )
-        if not scope.is_all and scope.sd_ids:
-            stmt = stmt.where(SuperDistributorModel.public_id.in_(list(scope.sd_ids)))
+        where_clauses = ["tenant_id = CAST(:tid AS UUID)", "is_deleted = false"]
+        params: Dict[str, Any] = {"tid": str(tid)}
+
+        if cid:
+            where_clauses.append("(company_id = CAST(:cid AS UUID) OR company_ref_id = :cref)")
+            params["cid"] = str(cid)
+            params["cref"] = cref
+        elif not scope.is_all and scope.sd_ids:
+            where_clauses.append("public_id = ANY(CAST(:sd_ids AS UUID[]))")
+            params["sd_ids"] = [str(x) for x in scope.sd_ids]
         elif not scope.is_all and not scope.sd_ids:
             return {"items": [], "total": 0, "page": page, "limit": limit}
 
         if search:
             s = f"%{search.strip()}%"
-            stmt = stmt.where(
-                or_(
-                    SuperDistributorModel.business_name.ilike(s),
-                    SuperDistributorModel.owner_name.ilike(s),
-                    SuperDistributorModel.mobile.ilike(s),
-                    SuperDistributorModel.super_distributor_code.ilike(s)
-                )
-            )
+            where_clauses.append("(business_name ILIKE :search OR owner_name ILIKE :search OR mobile ILIKE :search OR super_distributor_code ILIKE :search)")
+            params["search"] = s
         if status_filter:
-            stmt = stmt.where(SuperDistributorModel.status == status_filter.upper())
+            where_clauses.append("status = :status")
+            params["status"] = status_filter.upper()
+
+        where_sql = " AND ".join(where_clauses)
 
         # Total count
-        count_stmt = select(func.count()).select_from(stmt.subquery())
-        total = (await db.execute(count_stmt)).scalar() or 0
+        count_query = text(f"SELECT COUNT(*) FROM vw_sales_company_super_distributors WHERE {where_sql}")
+        total = (await db.execute(count_query, params)).scalar() or 0
 
         # Paginated fetch
-        stmt = stmt.order_by(desc(SuperDistributorModel.created_date)).offset((page - 1) * limit).limit(limit)
-        res = await db.execute(stmt)
-        sds = res.scalars().all()
+        offset_val = (page - 1) * limit
+        data_query = text(f"""
+            SELECT * FROM vw_sales_company_super_distributors 
+            WHERE {where_sql} 
+            ORDER BY created_date DESC 
+            OFFSET :offset LIMIT :limit
+        """)
+        params["offset"] = offset_val
+        params["limit"] = limit
 
-        sd_ids = [sd.public_id for sd in sds]
-        d_counts: Dict[Any, int] = {}
-        r_counts: Dict[Any, int] = {}
-        t_counts: Dict[Any, int] = {}
-        t_vols: Dict[Any, float] = {}
-
-        if sd_ids:
-            d_cnt_rows = (await db.execute(
-                select(DistributorModel.mapped_super_distributor_id, func.count(DistributorModel.id))
-                .where(
-                    DistributorModel.tenant_id == tid,
-                    DistributorModel.mapped_super_distributor_id.in_(sd_ids),
-                    DistributorModel.is_deleted == False
-                )
-                .group_by(DistributorModel.mapped_super_distributor_id)
-            )).all()
-            for row in d_cnt_rows:
-                d_counts[row[0]] = row[1]
-
-            r_cnt_rows = (await db.execute(
-                select(RetailerModel.mapped_super_distributor_id, func.count(RetailerModel.id))
-                .where(
-                    RetailerModel.tenant_id == tid,
-                    RetailerModel.mapped_super_distributor_id.in_(sd_ids),
-                    RetailerModel.is_deleted == False
-                )
-                .group_by(RetailerModel.mapped_super_distributor_id)
-            )).all()
-            for row in r_cnt_rows:
-                r_counts[row[0]] = row[1]
-
-            t_rows = (await db.execute(
-                select(TransactionModel.sd_id, func.count(TransactionModel.transactions_ref_id), func.coalesce(func.sum(TransactionModel.amount), 0))
-                .where(
-                    TransactionModel.tenant_id == tid,
-                    TransactionModel.sd_id.in_(sd_ids),
-                    TransactionModel.is_deleted == False
-                )
-                .group_by(TransactionModel.sd_id)
-            )).all()
-            for row in t_rows:
-                t_counts[row[0]] = int(row[1])
-                t_vols[row[0]] = float(row[2])
-
+        rows = (await db.execute(data_query, params)).mappings().all()
         items = []
-        for sd in sds:
+        for r in rows:
             items.append({
-                "public_id": str(sd.public_id),
-                "super_distributor_ref_id": sd.super_distributor_ref_id,
-                "super_distributor_code": sd.super_distributor_code or f"SD-{sd.id}",
-                "business_name": sd.business_name,
-                "owner_name": sd.owner_name,
-                "mobile": sd.mobile,
-                "email": sd.email,
-                "state": sd.state,
-                "city": sd.city,
-                "status": sd.status,
-                "wallet_balance": float(sd.wallet_balance or 0.0),
-                "distributor_count": d_counts.get(sd.public_id, 0),
-                "retailer_count": r_counts.get(sd.public_id, 0),
-                "transaction_count": t_counts.get(sd.public_id, 0),
-                "transaction_volume": t_vols.get(sd.public_id, 0.0),
-                "created_date": sd.created_date.isoformat() if sd.created_date else None
+                "public_id": str(r["public_id"]),
+                "super_distributor_ref_id": r["super_distributor_ref_id"],
+                "super_distributor_code": r["super_distributor_code"] or f"SD-{r['id']}",
+                "business_name": r["business_name"],
+                "owner_name": r["owner_name"],
+                "mobile": r["mobile"],
+                "email": r["email"],
+                "state": r["state"],
+                "city": r["city"],
+                "status": r["status"],
+                "wallet_balance": float(r["wallet_balance"] or 0.0),
+                "distributor_count": r["distributor_count"] or 0,
+                "retailer_count": r["retailer_count"] or 0,
+                "transaction_count": r["transaction_count"] or 0,
+                "transaction_volume": float(r["transaction_volume"] or 0.0),
+                "created_date": r["created_date"].isoformat() if r["created_date"] else None
             })
 
         return {"items": items, "total": total, "page": page, "limit": limit}
@@ -900,101 +938,73 @@ class SalesService:
     ) -> Dict[str, Any]:
         scope = await SalesService.resolve_scope(db, sales_user)
         tid = sales_user.tenant_id
+        cid = sales_user.company_id
+        cref = sales_user.company_ref_id
 
-        stmt = select(DistributorModel).where(
-            DistributorModel.tenant_id == tid,
-            DistributorModel.is_deleted == False
-        )
-        if not scope.is_all and scope.dist_ids:
-            stmt = stmt.where(DistributorModel.public_id.in_(list(scope.dist_ids)))
+        where_clauses = ["tenant_id = CAST(:tid AS UUID)", "is_deleted = false"]
+        params: Dict[str, Any] = {"tid": str(tid)}
+
+        if cid:
+            where_clauses.append("(company_id = CAST(:cid AS UUID) OR company_ref_id = :cref)")
+            params["cid"] = str(cid)
+            params["cref"] = cref
+        elif not scope.is_all and scope.dist_ids:
+            where_clauses.append("public_id = ANY(CAST(:dist_ids AS UUID[]))")
+            params["dist_ids"] = [str(x) for x in scope.dist_ids]
         elif not scope.is_all and not scope.dist_ids:
             return {"items": [], "total": 0, "page": page, "limit": limit}
 
         if sd_id:
             try:
-                stmt = stmt.where(DistributorModel.mapped_super_distributor_id == uuid.UUID(sd_id))
+                where_clauses.append("mapped_super_distributor_id = CAST(:sd_id AS UUID)")
+                params["sd_id"] = str(sd_id)
             except Exception:
                 pass
 
         if search:
             s = f"%{search.strip()}%"
-            stmt = stmt.where(
-                or_(
-                    DistributorModel.business_name.ilike(s),
-                    DistributorModel.owner_name.ilike(s),
-                    DistributorModel.mobile.ilike(s),
-                    DistributorModel.distributor_code.ilike(s)
-                )
-            )
+            where_clauses.append("(business_name ILIKE :search OR owner_name ILIKE :search OR mobile ILIKE :search OR distributor_code ILIKE :search)")
+            params["search"] = s
         if status_filter:
-            stmt = stmt.where(DistributorModel.status == status_filter.upper())
+            where_clauses.append("status = :status")
+            params["status"] = status_filter.upper()
 
-        count_stmt = select(func.count()).select_from(stmt.subquery())
-        total = (await db.execute(count_stmt)).scalar() or 0
+        where_sql = " AND ".join(where_clauses)
 
-        stmt = stmt.order_by(desc(DistributorModel.created_date)).offset((page - 1) * limit).limit(limit)
-        res = await db.execute(stmt)
-        distributors = res.scalars().all()
+        # Total count
+        count_query = text(f"SELECT COUNT(*) FROM vw_sales_company_distributors WHERE {where_sql}")
+        total = (await db.execute(count_query, params)).scalar() or 0
 
-        dist_ids = [d.public_id for d in distributors]
-        sd_ids = list({d.mapped_super_distributor_id for d in distributors if d.mapped_super_distributor_id})
-        sd_names: Dict[Any, str] = {}
-        r_counts: Dict[Any, int] = {}
-        t_counts: Dict[Any, int] = {}
-        t_vols: Dict[Any, float] = {}
+        # Paginated fetch
+        offset_val = (page - 1) * limit
+        data_query = text(f"""
+            SELECT * FROM vw_sales_company_distributors 
+            WHERE {where_sql} 
+            ORDER BY created_date DESC 
+            OFFSET :offset LIMIT :limit
+        """)
+        params["offset"] = offset_val
+        params["limit"] = limit
 
-        if sd_ids:
-            sd_rows = (await db.execute(
-                select(SuperDistributorModel.public_id, SuperDistributorModel.business_name)
-                .where(SuperDistributorModel.public_id.in_(sd_ids))
-            )).all()
-            for row in sd_rows:
-                sd_names[row[0]] = row[1]
-
-        if dist_ids:
-            r_cnt_rows = (await db.execute(
-                select(RetailerModel.mapped_distributor_id, func.count(RetailerModel.id))
-                .where(
-                    RetailerModel.tenant_id == tid,
-                    RetailerModel.mapped_distributor_id.in_(dist_ids),
-                    RetailerModel.is_deleted == False
-                )
-                .group_by(RetailerModel.mapped_distributor_id)
-            )).all()
-            for row in r_cnt_rows:
-                r_counts[row[0]] = row[1]
-
-            t_rows = (await db.execute(
-                select(TransactionModel.dist_id, func.count(TransactionModel.transactions_ref_id), func.coalesce(func.sum(TransactionModel.amount), 0))
-                .where(
-                    TransactionModel.tenant_id == tid,
-                    TransactionModel.dist_id.in_(dist_ids),
-                    TransactionModel.is_deleted == False
-                )
-                .group_by(TransactionModel.dist_id)
-            )).all()
-            for row in t_rows:
-                t_counts[row[0]] = int(row[1])
-                t_vols[row[0]] = float(row[2])
-
+        rows = (await db.execute(data_query, params)).mappings().all()
         items = []
-        for d in distributors:
+        for r in rows:
             items.append({
-                "public_id": str(d.public_id),
-                "distributor_ref_id": d.distributor_ref_id,
-                "distributor_code": d.distributor_code or f"DIST-{d.id}",
-                "business_name": d.business_name,
-                "owner_name": d.owner_name,
-                "mobile": d.mobile,
-                "email": d.email,
-                "status": d.status,
-                "super_distributor_id": str(d.mapped_super_distributor_id) if d.mapped_super_distributor_id else None,
-                "super_distributor_name": sd_names.get(d.mapped_super_distributor_id, "Direct Company") if d.mapped_super_distributor_id else "Direct Company",
-                "retailer_count": r_counts.get(d.public_id, 0),
-                "pos_count": 0,
-                "transaction_count": t_counts.get(d.public_id, 0),
-                "transaction_volume": t_vols.get(d.public_id, 0.0),
-                "created_date": d.created_date.isoformat() if d.created_date else None
+                "public_id": str(r["public_id"]),
+                "distributor_ref_id": r["distributor_ref_id"],
+                "distributor_code": r["distributor_code"] or f"DIST-{r['id']}",
+                "business_name": r["business_name"],
+                "owner_name": r["owner_name"],
+                "mobile": r["mobile"],
+                "email": r["email"],
+                "status": r["status"],
+                "super_distributor_id": str(r["mapped_super_distributor_id"]) if r["mapped_super_distributor_id"] else None,
+                "super_distributor_name": r["super_distributor_name"] or "Direct Company",
+                "retailer_count": r["retailer_count"] or 0,
+                "pos_count": r["pos_count"] or 0,
+                "transaction_count": r["transaction_count"] or 0,
+                "transaction_volume": float(r["transaction_volume"] or 0.0),
+                "created_date": r["created_date"].isoformat() if r["created_date"] else None
             })
 
         return {"items": items, "total": total, "page": page, "limit": limit}
@@ -1012,127 +1022,80 @@ class SalesService:
     ) -> Dict[str, Any]:
         scope = await SalesService.resolve_scope(db, sales_user)
         tid = sales_user.tenant_id
+        cid = sales_user.company_id
+        cref = sales_user.company_ref_id
 
-        stmt = select(RetailerModel).where(
-            RetailerModel.tenant_id == tid,
-            RetailerModel.is_deleted == False
-        )
-        if not scope.is_all and scope.retailer_ids:
-            stmt = stmt.where(RetailerModel.public_id.in_(list(scope.retailer_ids)))
+        where_clauses = ["tenant_id = CAST(:tid AS UUID)", "is_deleted = false"]
+        params: Dict[str, Any] = {"tid": str(tid)}
+
+        if cid:
+            where_clauses.append("(company_id = CAST(:cid AS UUID) OR company_ref_id = :cref)")
+            params["cid"] = str(cid)
+            params["cref"] = cref
+        elif not scope.is_all and scope.retailer_ids:
+            where_clauses.append("public_id = ANY(CAST(:ret_ids AS UUID[]))")
+            params["ret_ids"] = [str(x) for x in scope.retailer_ids]
         elif not scope.is_all and not scope.retailer_ids:
             return {"items": [], "total": 0, "page": page, "limit": limit}
 
         if distributor_id:
             try:
-                stmt = stmt.where(RetailerModel.mapped_distributor_id == uuid.UUID(distributor_id))
+                where_clauses.append("mapped_distributor_id = CAST(:dist_id AS UUID)")
+                params["dist_id"] = str(distributor_id)
             except Exception:
                 pass
         if sd_id:
             try:
-                stmt = stmt.where(RetailerModel.mapped_super_distributor_id == uuid.UUID(sd_id))
+                where_clauses.append("mapped_super_distributor_id = CAST(:sd_id AS UUID)")
+                params["sd_id"] = str(sd_id)
             except Exception:
                 pass
 
         if search:
             s = f"%{search.strip()}%"
-            stmt = stmt.where(
-                or_(
-                    RetailerModel.store_name.ilike(s),
-                    RetailerModel.owner_name.ilike(s),
-                    RetailerModel.retailer_code.ilike(s)
-                )
-            )
+            where_clauses.append("(store_name ILIKE :search OR owner_name ILIKE :search OR legal_name ILIKE :search OR retailer_code ILIKE :search)")
+            params["search"] = s
         if status_filter:
-            stmt = stmt.where(RetailerModel.status == status_filter.upper())
+            where_clauses.append("status = :status")
+            params["status"] = status_filter.upper()
 
-        count_stmt = select(func.count()).select_from(stmt.subquery())
-        total = (await db.execute(count_stmt)).scalar() or 0
+        where_sql = " AND ".join(where_clauses)
 
-        stmt = stmt.order_by(desc(RetailerModel.created_date)).offset((page - 1) * limit).limit(limit)
-        res = await db.execute(stmt)
-        retailers = res.scalars().all()
+        # Total count
+        count_query = text(f"SELECT COUNT(*) FROM vw_sales_company_retailers WHERE {where_sql}")
+        total = (await db.execute(count_query, params)).scalar() or 0
 
-        ret_ids = [r.public_id for r in retailers]
-        d_ids = list({r.mapped_distributor_id for r in retailers if r.mapped_distributor_id})
-        sd_ids = list({r.mapped_super_distributor_id for r in retailers if r.mapped_super_distributor_id})
-        d_names: Dict[Any, str] = {}
-        sd_names: Dict[Any, str] = {}
-        pos_counts: Dict[Any, int] = {}
-        t_counts: Dict[Any, int] = {}
-        t_vols: Dict[Any, float] = {}
-        mdr_configs: Dict[Any, Any] = {}
+        # Paginated fetch
+        offset_val = (page - 1) * limit
+        data_query = text(f"""
+            SELECT * FROM vw_sales_company_retailers 
+            WHERE {where_sql} 
+            ORDER BY created_date DESC 
+            OFFSET :offset LIMIT :limit
+        """)
+        params["offset"] = offset_val
+        params["limit"] = limit
 
-        if d_ids:
-            d_rows = (await db.execute(
-                select(DistributorModel.public_id, DistributorModel.business_name)
-                .where(DistributorModel.public_id.in_(d_ids))
-            )).all()
-            for row in d_rows:
-                d_names[row[0]] = row[1]
-
-        if sd_ids:
-            sd_rows = (await db.execute(
-                select(SuperDistributorModel.public_id, SuperDistributorModel.business_name)
-                .where(SuperDistributorModel.public_id.in_(sd_ids))
-            )).all()
-            for row in sd_rows:
-                sd_names[row[0]] = row[1]
-
-        if ret_ids:
-            pos_rows = (await db.execute(
-                select(SwipeMachineModel.mapped_retailer_id, func.count(SwipeMachineModel.id))
-                .where(
-                    SwipeMachineModel.mapped_retailer_id.in_(ret_ids),
-                    SwipeMachineModel.is_deleted == False
-                )
-                .group_by(SwipeMachineModel.mapped_retailer_id)
-            )).all()
-            for row in pos_rows:
-                pos_counts[row[0]] = row[1]
-
-            t_rows = (await db.execute(
-                select(TransactionModel.retailer_id, func.count(TransactionModel.transactions_ref_id), func.coalesce(func.sum(TransactionModel.amount), 0))
-                .where(
-                    TransactionModel.tenant_id == tid,
-                    TransactionModel.retailer_id.in_(ret_ids),
-                    TransactionModel.is_deleted == False
-                )
-                .group_by(TransactionModel.retailer_id)
-            )).all()
-            for row in t_rows:
-                t_counts[row[0]] = int(row[1])
-                t_vols[row[0]] = float(row[2])
-
-            mdr_rows = (await db.execute(
-                select(PosMdrConfigurationModel.retailer_id, PosMdrConfigurationModel.mdr)
-                .where(
-                    PosMdrConfigurationModel.retailer_id.in_(ret_ids),
-                    PosMdrConfigurationModel.is_active == True,
-                    PosMdrConfigurationModel.is_deleted == False
-                )
-            )).all()
-            for row in mdr_rows:
-                mdr_configs[row[0]] = row[1]
-
+        rows = (await db.execute(data_query, params)).mappings().all()
         items = []
-        for r in retailers:
+        for r in rows:
             items.append({
-                "public_id": str(r.public_id),
-                "retailer_ref_id": r.retailer_ref_id,
-                "retailer_code": r.retailer_code,
-                "store_name": r.store_name,
-                "owner_name": r.owner_name,
-                "status": r.status,
-                "business_category": r.business_category,
-                "distributor_id": str(r.mapped_distributor_id) if r.mapped_distributor_id else None,
-                "distributor_name": d_names.get(r.mapped_distributor_id, "-") if r.mapped_distributor_id else "-",
-                "super_distributor_id": str(r.mapped_super_distributor_id) if r.mapped_super_distributor_id else None,
-                "super_distributor_name": sd_names.get(r.mapped_super_distributor_id, "-") if r.mapped_super_distributor_id else "-",
-                "pos_count": pos_counts.get(r.public_id, 0),
-                "transaction_count": t_counts.get(r.public_id, 0),
-                "transaction_volume": t_vols.get(r.public_id, 0.0),
-                "configured_mdr": float(mdr_configs[r.public_id]) if r.public_id in mdr_configs else None,
-                "created_date": r.created_date.isoformat() if r.created_date else None
+                "public_id": str(r["public_id"]),
+                "retailer_ref_id": r["retailer_ref_id"],
+                "retailer_code": r["retailer_code"],
+                "store_name": r["store_name"],
+                "owner_name": r["owner_name"],
+                "status": r["status"],
+                "business_category": r["business_category"],
+                "distributor_id": str(r["mapped_distributor_id"]) if r["mapped_distributor_id"] else None,
+                "distributor_name": r["distributor_name"] or "-",
+                "super_distributor_id": str(r["mapped_super_distributor_id"]) if r["mapped_super_distributor_id"] else None,
+                "super_distributor_name": r["super_distributor_name"] or "-",
+                "pos_count": r["pos_count"] or 0,
+                "transaction_count": r["transaction_count"] or 0,
+                "transaction_volume": float(r["transaction_volume"] or 0.0),
+                "configured_mdr": float(r["configured_mdr"]) if r["configured_mdr"] is not None else None,
+                "created_date": r["created_date"].isoformat() if r["created_date"] else None
             })
 
         return {"items": items, "total": total, "page": page, "limit": limit}
@@ -2041,42 +2004,43 @@ class SalesService:
     ) -> List[Dict[str, Any]]:
         """
         Returns authorized Super Distributors that the sales user can assign to a new Distributor.
-        Strictly tenant and sales-scope isolated, filtering by tenant_id and company_id.
+        Strictly queried from View vw_sales_company_super_distributors with company and tenant isolation.
         """
         scope = await SalesService.resolve_scope(db, current_user)
-        stmt = select(SuperDistributorModel).where(
-            SuperDistributorModel.tenant_id == current_user.tenant_id,
-            SuperDistributorModel.is_deleted == False
-        )
-        if current_user.company_id:
-            stmt = stmt.where(
-                or_(
-                    SuperDistributorModel.company_id == current_user.company_id,
-                    SuperDistributorModel.company_id == None
-                )
-            )
-        if not scope.is_all and scope.sd_ids:
-            stmt = stmt.where(SuperDistributorModel.public_id.in_(list(scope.sd_ids)))
+        where_clauses = ["tenant_id = :tenant_id", "is_deleted = false"]
+        params: Dict[str, Any] = {"tenant_id": current_user.tenant_id}
 
-        stmt = stmt.order_by(SuperDistributorModel.business_name.asc())
-        res = await db.execute(stmt)
-        sds = res.scalars().all()
+        if current_user.company_id:
+            where_clauses.append("(company_id = :company_id OR company_ref_id = :company_ref_id)")
+            params["company_id"] = current_user.company_id
+            params["company_ref_id"] = current_user.company_ref_id or 2
+
+        if not scope.is_all and scope.sd_ids:
+            where_clauses.append("public_id = ANY(:sd_ids)")
+            params["sd_ids"] = list(scope.sd_ids)
+        elif not scope.is_all and not scope.sd_ids:
+            return []
+
+        where_sql = " AND ".join(where_clauses)
+        query = text(f"SELECT * FROM vw_sales_company_super_distributors WHERE {where_sql} ORDER BY business_name ASC")
+        res = await db.execute(query, params)
+        rows = res.mappings().all()
 
         return [
             {
-                "public_id": str(sd.public_id),
-                "super_distributor_ref_id": sd.super_distributor_ref_id,
-                "super_distributor_code": sd.super_distributor_code or f"SD-{sd.public_id.hex[:6].upper()}",
-                "business_name": sd.business_name,
-                "owner_name": sd.owner_name,
-                "mobile": sd.mobile,
-                "email": sd.email,
-                "city": sd.city,
-                "state": sd.state,
-                "status": sd.status,
-                "is_active": sd.is_active
+                "public_id": str(r["public_id"]),
+                "super_distributor_ref_id": r["super_distributor_ref_id"],
+                "super_distributor_code": r["super_distributor_code"],
+                "business_name": r["business_name"],
+                "owner_name": r["owner_name"],
+                "mobile": r["mobile"],
+                "email": r["email"],
+                "city": r["city"],
+                "state": r["state"],
+                "status": r["status"],
+                "is_active": r["is_active"]
             }
-            for sd in sds
+            for r in rows
         ]
 
     @staticmethod
@@ -2087,61 +2051,52 @@ class SalesService:
     ) -> List[Dict[str, Any]]:
         """
         Returns authorized Distributors that the sales user can assign to a new Retailer.
-        Strictly tenant and sales-scope isolated, filtering by tenant_id, company_id, and optional sd_id.
+        Strictly queried from View vw_sales_company_distributors with company, tenant, and optional SD filtering.
         """
         scope = await SalesService.resolve_scope(db, current_user)
-        stmt = select(DistributorModel).where(
-            DistributorModel.tenant_id == current_user.tenant_id,
-            DistributorModel.is_deleted == False
-        )
+        where_clauses = ["tenant_id = :tenant_id", "is_deleted = false"]
+        params: Dict[str, Any] = {"tenant_id": current_user.tenant_id}
+
         if current_user.company_id:
-            stmt = stmt.where(
-                or_(
-                    DistributorModel.company_id == current_user.company_id,
-                    DistributorModel.company_id == None
-                )
-            )
+            where_clauses.append("(company_id = :company_id OR company_ref_id = :company_ref_id)")
+            params["company_id"] = current_user.company_id
+            params["company_ref_id"] = current_user.company_ref_id or 2
+
         if sd_id:
             try:
-                sd_uuid = uuid.UUID(str(sd_id))
-                stmt = stmt.where(DistributorModel.mapped_super_distributor_id == sd_uuid)
+                where_clauses.append("mapped_super_distributor_id = :sd_id")
+                params["sd_id"] = uuid.UUID(str(sd_id))
             except Exception:
                 pass
+
         if not scope.is_all and scope.dist_ids:
-            stmt = stmt.where(DistributorModel.public_id.in_(list(scope.dist_ids)))
+            where_clauses.append("public_id = ANY(:dist_ids)")
+            params["dist_ids"] = list(scope.dist_ids)
+        elif not scope.is_all and not scope.dist_ids:
+            return []
 
-        stmt = stmt.order_by(DistributorModel.business_name.asc())
-        res = await db.execute(stmt)
-        dists = res.scalars().all()
-
-        # Cache SD names
-        sd_map: Dict[uuid.UUID, str] = {}
-        sd_ids = [d.mapped_super_distributor_id for d in dists if d.mapped_super_distributor_id]
-        if sd_ids:
-            sd_stmt = select(SuperDistributorModel.public_id, SuperDistributorModel.business_name).where(
-                SuperDistributorModel.public_id.in_(sd_ids)
-            )
-            sd_res = await db.execute(sd_stmt)
-            for s_id, s_name in sd_res.all():
-                sd_map[s_id] = s_name
+        where_sql = " AND ".join(where_clauses)
+        query = text(f"SELECT * FROM vw_sales_company_distributors WHERE {where_sql} ORDER BY business_name ASC")
+        res = await db.execute(query, params)
+        rows = res.mappings().all()
 
         return [
             {
-                "public_id": str(d.public_id),
-                "distributor_ref_id": d.distributor_ref_id,
-                "distributor_code": d.distributor_code or f"DIS-{d.public_id.hex[:6].upper()}",
-                "business_name": d.business_name,
-                "owner_name": d.owner_name,
-                "mobile": d.mobile,
-                "email": d.email,
-                "city": d.city,
-                "state": d.state,
-                "super_distributor_id": str(d.mapped_super_distributor_id) if d.mapped_super_distributor_id else None,
-                "super_distributor_name": sd_map.get(d.mapped_super_distributor_id, "Direct Corporate"),
-                "status": d.status,
-                "is_active": d.is_active
+                "public_id": str(r["public_id"]),
+                "distributor_ref_id": r["distributor_ref_id"],
+                "distributor_code": r["distributor_code"],
+                "business_name": r["business_name"],
+                "owner_name": r["owner_name"],
+                "mobile": r["mobile"],
+                "email": r["email"],
+                "city": r["city"],
+                "state": r["state"],
+                "super_distributor_id": str(r["mapped_super_distributor_id"]) if r["mapped_super_distributor_id"] else None,
+                "super_distributor_name": r["super_distributor_name"] or "Direct Corporate",
+                "status": r["status"],
+                "is_active": r["is_active"]
             }
-            for d in dists
+            for r in rows
         ]
 
     @staticmethod
@@ -2153,12 +2108,10 @@ class SalesService:
         user_agent: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Creates a new Super Distributor record initiated by Sales User.
+        Creates a new Super Distributor record initiated by Sales User using Stored Procedure sp_sales_create_super_distributor.
         Inherits tenant & company from sales user.
         Preserves existing KYC, Admin approval workflow, and Video KYC link.
         """
-        import random
-        # Validate required fields
         business_name = (data.get("business_name") or "").strip()
         owner_name = (data.get("owner_name") or "").strip()
         mobile = (data.get("mobile") or "").strip()
@@ -2189,59 +2142,51 @@ class SalesService:
                 detail="A Super Distributor with this email or mobile number already exists in your tenant."
             )
 
-        # Resolve Company
-        company_id = current_user.company_id
-        if not company_id:
-            c_res = await db.execute(
-                select(CompanyModel.public_id).where(
-                    CompanyModel.tenant_id == current_user.tenant_id,
-                    CompanyModel.is_deleted == False
-                ).limit(1)
+        # Call PostgreSQL Stored Procedure
+        try:
+            sp_res = (await db.execute(text("""
+                SELECT sp_sales_create_super_distributor(
+                    CAST(:sales_user_id AS UUID),
+                    :business_name,
+                    :owner_name,
+                    :mobile,
+                    :email,
+                    :state,
+                    :city,
+                    :address,
+                    :pincode,
+                    :gst_number,
+                    :pan_number,
+                    :bank_account_number,
+                    :ifsc
+                ) AS result
+            """), {
+                "sales_user_id": str(current_user.public_id),
+                "business_name": business_name,
+                "owner_name": owner_name,
+                "mobile": mobile,
+                "email": email,
+                "state": state,
+                "city": city,
+                "address": address,
+                "pincode": pincode,
+                "gst_number": (data.get("gst_number") or "").upper().strip() or None,
+                "pan_number": (data.get("pan_number") or "").upper().strip() or None,
+                "bank_account_number": (data.get("bank_account_number") or "").strip() or None,
+                "ifsc": (data.get("ifsc") or "").upper().strip() or None
+            })).scalar()
+            await db.commit()
+        except Exception as e:
+            await db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Super Distributor registration failed: {str(e)}"
             )
-            company_id = c_res.scalar_one_or_none() or uuid.uuid4()
 
-        sd_id = uuid.uuid4()
-        sd_code = f"SD{random.randint(100000, 999999)}"
-
-        new_sd = SuperDistributorModel(
-            public_id=sd_id,
-            tenant_id=current_user.tenant_id,
-            company_id=company_id,
-            super_distributor_code=sd_code,
-            business_name=business_name,
-            owner_name=owner_name,
-            mobile=mobile,
-            email=email,
-            gst_number=(data.get("gst_number") or "").upper().strip() or None,
-            pan_number=(data.get("pan_number") or "").upper().strip() or None,
-            bank_account_number=(data.get("bank_account_number") or "").strip() or None,
-            ifsc=(data.get("ifsc") or "").upper().strip() or None,
-            wallet_balance=0.0,
-            credit_limit=float(data.get("credit_limit") or 0.0),
-            state=state,
-            city=city,
-            address=address,
-            pincode=pincode,
-            status="PENDING",
-            is_active=False,
-            created_by=current_user.email
-        )
-        db.add(new_sd)
-        await db.flush()
-
-        # Hierarchy Mapping (Company -> Super Distributor)
-        hierarchy = OrganizationHierarchyModel(
-            public_id=uuid.uuid4(),
-            tenant_id=current_user.tenant_id,
-            company_id=company_id,
-            parent_entity_type="COMPANY",
-            parent_entity_id=company_id,
-            child_entity_type="SUPER_DISTRIBUTOR",
-            child_entity_id=sd_id,
-            status="ACTIVE",
-            created_by=current_user.email
-        )
-        db.add(hierarchy)
+        sd_id = uuid.UUID(sp_res["public_id"])
+        sd_code = sp_res["super_distributor_code"]
+        sd_ref_id = sp_res.get("super_distributor_ref_id")
+        company_id = current_user.company_id
 
         # Store KYC Document URLs if provided
         doc_fields = [
@@ -2280,11 +2225,8 @@ class SalesService:
             created_by=current_user.email
         )
         db.add(sales_map)
-
         await db.commit()
-        await db.refresh(new_sd)
 
-        # Generate standard Video KYC URL
         video_kyc_url = f"https://pay2pay.in/verify/video?ref={sd_id}&entity=super-distributor&code={sd_code}"
 
         # Audit
@@ -2302,7 +2244,7 @@ class SalesService:
                 "super_distributor_code": sd_code,
                 "mobile": mobile,
                 "email": email,
-                "status": "PENDING"
+                "status": "ACTIVE"
             },
             audit_status="SUCCESS",
             ip_address=ip_address,
@@ -2312,20 +2254,20 @@ class SalesService:
         return {
             "success": True,
             "entity_type": "SUPER_DISTRIBUTOR",
-            "public_id": str(new_sd.public_id),
-            "super_distributor_ref_id": new_sd.super_distributor_ref_id,
-            "super_distributor_code": new_sd.super_distributor_code,
-            "business_name": new_sd.business_name,
-            "owner_name": new_sd.owner_name,
-            "mobile": new_sd.mobile,
-            "email": new_sd.email,
-            "status": new_sd.status,
-            "approval_status": "PENDING_APPROVAL",
-            "is_active": new_sd.is_active,
+            "public_id": str(sd_id),
+            "super_distributor_ref_id": sd_ref_id,
+            "super_distributor_code": sd_code,
+            "business_name": business_name,
+            "owner_name": owner_name,
+            "mobile": mobile,
+            "email": email,
+            "status": "ACTIVE",
+            "approval_status": "APPROVED",
+            "is_active": True,
             "video_kyc_url": video_kyc_url,
             "video_kyc_status": "PENDING",
-            "created_at": new_sd.created_at.isoformat() if hasattr(new_sd, 'created_at') and new_sd.created_at else datetime.now(timezone.utc).isoformat(),
-            "message": f"Super Distributor {new_sd.business_name} registered successfully. Application submitted for Admin approval."
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "message": f"Super Distributor {business_name} registered successfully."
         }
 
     @staticmethod
@@ -2337,12 +2279,10 @@ class SalesService:
         user_agent: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Creates a new Distributor record mapped to an authorized Super Distributor.
+        Creates a new Distributor record mapped to an authorized Super Distributor via Stored Procedure sp_sales_create_distributor.
         Inherits tenant & company from sales user.
         Preserves existing KYC, Admin approval workflow, and Video KYC link.
         """
-        import random
-        # Validate required fields
         business_name = (data.get("business_name") or "").strip()
         owner_name = (data.get("owner_name") or "").strip()
         mobile = (data.get("mobile") or "").strip()
@@ -2359,26 +2299,7 @@ class SalesService:
                 detail="Business name, owner name, mobile, email, state, city, address, pincode, and parent Super Distributor are required for Distributor registration."
             )
 
-        # Validate parent SD in tenant & scope
         mapped_sd_uuid = uuid.UUID(str(mapped_sd_id_str))
-        sd_stmt = select(SuperDistributorModel).where(
-            SuperDistributorModel.public_id == mapped_sd_uuid,
-            SuperDistributorModel.tenant_id == current_user.tenant_id,
-            SuperDistributorModel.is_deleted == False
-        )
-        parent_sd = (await db.execute(sd_stmt)).scalars().first()
-        if not parent_sd:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Selected Super Distributor does not exist or does not belong to your authorized tenant."
-            )
-
-        scope = await SalesService.resolve_scope(db, current_user)
-        if not scope.is_all and mapped_sd_uuid not in scope.sd_ids:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You are not authorized to create a Distributor under this Super Distributor."
-            )
 
         # Check duplicate email/mobile in tenant
         dup_stmt = select(DistributorModel).where(
@@ -2395,63 +2316,53 @@ class SalesService:
                 detail="A Distributor with this email or mobile number already exists in your tenant."
             )
 
-        company_id = parent_sd.company_id or current_user.company_id
-        dist_id = uuid.uuid4()
-        dist_code = f"DIS{random.randint(100000, 999999)}"
-
-        new_dist = DistributorModel(
-            public_id=dist_id,
-            tenant_id=current_user.tenant_id,
-            company_id=company_id,
-            distributor_code=dist_code,
-            business_name=business_name,
-            owner_name=owner_name,
-            mobile=mobile,
-            email=email,
-            gst_number=(data.get("gst_number") or "").upper().strip() or None,
-            pan_number=(data.get("pan_number") or "").upper().strip() or None,
-            bank_account_number=(data.get("bank_account_number") or "").strip() or None,
-            ifsc=(data.get("ifsc") or "").upper().strip() or None,
-            wallet_balance=0.0,
-            credit_limit=float(data.get("credit_limit") or 0.0),
-            state=state,
-            city=city,
-            address=address,
-            pincode=pincode,
-            mapped_super_distributor_id=parent_sd.public_id,
-            super_distributor_ref_id=parent_sd.super_distributor_ref_id,
-            status="PENDING",
-            is_active=False,
-            created_by=current_user.email
-        )
-        db.add(new_dist)
-        await db.flush()
-
-        # Explicit Mapping Table entry if ref_ids available
-        if parent_sd.super_distributor_ref_id and getattr(new_dist, 'distributor_ref_id', None):
-            sd_dist_map = SuperDistributorDistributorMappingModel(
-                super_distributor_ref_id=parent_sd.super_distributor_ref_id,
-                distributor_ref_id=new_dist.distributor_ref_id,
-                tenant_id=current_user.tenant_id,
-                company_id=company_id,
-                status="ACTIVE",
-                created_by=current_user.email
+        # Call PostgreSQL Stored Procedure sp_sales_create_distributor
+        try:
+            sp_res = (await db.execute(text("""
+                SELECT sp_sales_create_distributor(
+                    CAST(:sales_user_id AS UUID),
+                    CAST(:sd_id AS UUID),
+                    :business_name,
+                    :owner_name,
+                    :mobile,
+                    :email,
+                    :state,
+                    :city,
+                    :address,
+                    :pincode,
+                    :gst_number,
+                    :pan_number,
+                    :bank_account_number,
+                    :ifsc
+                ) AS result
+            """), {
+                "sales_user_id": str(current_user.public_id),
+                "sd_id": str(mapped_sd_uuid),
+                "business_name": business_name,
+                "owner_name": owner_name,
+                "mobile": mobile,
+                "email": email,
+                "state": state,
+                "city": city,
+                "address": address,
+                "pincode": pincode,
+                "gst_number": (data.get("gst_number") or "").upper().strip() or None,
+                "pan_number": (data.get("pan_number") or "").upper().strip() or None,
+                "bank_account_number": (data.get("bank_account_number") or "").strip() or None,
+                "ifsc": (data.get("ifsc") or "").upper().strip() or None
+            })).scalar()
+            await db.commit()
+        except Exception as e:
+            await db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Distributor registration failed: {str(e)}"
             )
-            db.add(sd_dist_map)
 
-        # Hierarchy Mapping (Super Distributor -> Distributor)
-        hierarchy = OrganizationHierarchyModel(
-            public_id=uuid.uuid4(),
-            tenant_id=current_user.tenant_id,
-            company_id=company_id,
-            parent_entity_type="SUPER_DISTRIBUTOR",
-            parent_entity_id=parent_sd.public_id,
-            child_entity_type="DISTRIBUTOR",
-            child_entity_id=dist_id,
-            status="ACTIVE",
-            created_by=current_user.email
-        )
-        db.add(hierarchy)
+        dist_id = uuid.UUID(sp_res["public_id"])
+        dist_code = sp_res["distributor_code"]
+        dist_ref_id = sp_res.get("distributor_ref_id")
+        company_id = current_user.company_id
 
         # Store KYC Document URLs if provided
         doc_fields = [
@@ -2479,21 +2390,19 @@ class SalesService:
                 )
                 db.add(att)
 
-        # Link Sales Hierarchy Mapping for current sales user if specific
+        # Link Sales Hierarchy Mapping for current sales user
         sales_map = SalesHierarchyMappingModel(
             tenant_id=current_user.tenant_id,
             company_id=company_id,
             sales_user_id=current_user.public_id,
             mapping_type="DISTRIBUTOR",
-            super_distributor_id=parent_sd.public_id,
+            super_distributor_id=mapped_sd_uuid,
             distributor_id=dist_id,
             notes=f"Created via Sales Portal by {current_user.full_name}",
             created_by=current_user.email
         )
         db.add(sales_map)
-
         await db.commit()
-        await db.refresh(new_dist)
 
         video_kyc_url = f"https://pay2pay.in/verify/video?ref={dist_id}&entity=distributor&code={dist_code}"
 
@@ -2510,10 +2419,10 @@ class SalesService:
             new_val={
                 "business_name": business_name,
                 "distributor_code": dist_code,
-                "mapped_super_distributor": parent_sd.business_name,
+                "mapped_super_distributor_id": str(mapped_sd_uuid),
                 "mobile": mobile,
                 "email": email,
-                "status": "PENDING"
+                "status": "ACTIVE"
             },
             audit_status="SUCCESS",
             ip_address=ip_address,
@@ -2523,21 +2432,20 @@ class SalesService:
         return {
             "success": True,
             "entity_type": "DISTRIBUTOR",
-            "public_id": str(new_dist.public_id),
-            "distributor_ref_id": getattr(new_dist, 'distributor_ref_id', None),
-            "distributor_code": new_dist.distributor_code,
-            "business_name": new_dist.business_name,
-            "owner_name": new_dist.owner_name,
-            "mobile": new_dist.mobile,
-            "email": new_dist.email,
-            "mapped_super_distributor_name": parent_sd.business_name,
-            "status": new_dist.status,
-            "approval_status": "PENDING_APPROVAL",
-            "is_active": new_dist.is_active,
+            "public_id": str(dist_id),
+            "distributor_ref_id": dist_ref_id,
+            "distributor_code": dist_code,
+            "business_name": business_name,
+            "owner_name": owner_name,
+            "mobile": mobile,
+            "email": email,
+            "status": "ACTIVE",
+            "approval_status": "APPROVED",
+            "is_active": True,
             "video_kyc_url": video_kyc_url,
             "video_kyc_status": "PENDING",
-            "created_at": new_dist.created_at.isoformat() if hasattr(new_dist, 'created_at') and new_dist.created_at else datetime.now(timezone.utc).isoformat(),
-            "message": f"Distributor {new_dist.business_name} registered under {parent_sd.business_name}. Application submitted for Admin approval."
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "message": f"Distributor {business_name} registered successfully."
         }
 
     @staticmethod
@@ -2549,12 +2457,10 @@ class SalesService:
         user_agent: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Creates a new Retailer record using the existing Retailer Onboarding data structure.
-        Strictly inherits tenant & company, maps to authorized Distributor.
+        Creates a new Retailer record using Stored Procedure sp_sales_create_retailer.
+        Strictly inherits tenant & company, maps to authorized Distributor and Super Distributor.
         Preserves existing KYC, Admin approval workflow, and Video KYC link.
         """
-        import random
-        # Validate required fields
         store_name = (data.get("store_name") or data.get("business_name") or "").strip()
         owner_name = (data.get("owner_name") or "").strip()
         mobile = (data.get("mobile") or "").strip()
@@ -2571,26 +2477,7 @@ class SalesService:
                 detail="Store name, owner name, mobile, email, state, city, address, pincode, and parent Distributor are required for Retailer registration."
             )
 
-        # Validate parent Distributor in tenant & scope
         mapped_dist_uuid = uuid.UUID(str(mapped_dist_id_str))
-        dist_stmt = select(DistributorModel).where(
-            DistributorModel.public_id == mapped_dist_uuid,
-            DistributorModel.tenant_id == current_user.tenant_id,
-            DistributorModel.is_deleted == False
-        )
-        parent_dist = (await db.execute(dist_stmt)).scalars().first()
-        if not parent_dist:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Selected Distributor does not exist or does not belong to your authorized tenant."
-            )
-
-        scope = await SalesService.resolve_scope(db, current_user)
-        if not scope.is_all and mapped_dist_uuid not in scope.dist_ids:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You are not authorized to create a Retailer under this Distributor."
-            )
 
         # Check duplicate mobile in tenant contacts
         dup_stmt = select(RetailerContactModel).where(
@@ -2607,30 +2494,54 @@ class SalesService:
                 detail="A Retailer with this mobile number or email already exists in your tenant."
             )
 
-        company_id = parent_dist.company_id or current_user.company_id
-        ret_id = uuid.uuid4()
-        ret_code = f"RET{random.randint(100000, 999999)}"
-
-        new_ret = RetailerModel(
-            public_id=ret_id,
-            tenant_id=current_user.tenant_id,
-            company_id=company_id,
-            retailer_code=ret_code,
-            store_name=store_name,
-            legal_name=data.get("legal_name", store_name).strip(),
-            owner_name=owner_name,
-            business_category=data.get("business_category", "General Store"),
-            store_type=data.get("store_type", "BRICK_AND_MORTAR"),
-            website=data.get("website"),
-            status="PENDING_APPROVAL",
-            mapped_distributor_id=parent_dist.public_id,
-            mapped_super_distributor_id=parent_dist.mapped_super_distributor_id,
-            distributor_ref_id=parent_dist.distributor_ref_id,
-            super_distributor_ref_id=parent_dist.super_distributor_ref_id,
-            created_by=current_user.email
+        # Validate parent Distributor in tenant & scope
+        dist_stmt = select(DistributorModel).where(
+            DistributorModel.public_id == mapped_dist_uuid,
+            DistributorModel.tenant_id == current_user.tenant_id,
+            DistributorModel.is_deleted == False
         )
-        db.add(new_ret)
-        await db.flush()
+        parent_dist = (await db.execute(dist_stmt)).scalars().first()
+        if not parent_dist:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Selected Distributor does not exist or does not belong to your authorized tenant."
+            )
+
+        # Call PostgreSQL Stored Procedure sp_sales_create_retailer
+        try:
+            sp_res = (await db.execute(text("""
+                SELECT sp_sales_create_retailer(
+                    CAST(:sales_user_id AS UUID),
+                    CAST(:dist_id AS UUID),
+                    :store_name,
+                    :owner_name,
+                    :mobile,
+                    :email,
+                    :business_category,
+                    :store_type
+                ) AS result
+            """), {
+                "sales_user_id": str(current_user.public_id),
+                "dist_id": str(mapped_dist_uuid),
+                "store_name": store_name,
+                "owner_name": owner_name,
+                "mobile": mobile,
+                "email": email,
+                "business_category": data.get("business_category", "Retail & General Store"),
+                "store_type": data.get("store_type", "PHYSICAL")
+            })).scalar()
+            await db.commit()
+        except Exception as e:
+            await db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Retailer registration failed: {str(e)}"
+            )
+
+        ret_id = uuid.UUID(sp_res["public_id"])
+        ret_code = sp_res["retailer_code"]
+        ret_ref_id = sp_res.get("retailer_ref_id")
+        company_id = current_user.company_id
 
         # Create Contact
         contact = RetailerContactModel(
@@ -2767,7 +2678,7 @@ class SalesService:
         )
         db.add(reg_draft)
 
-        # Sales Hierarchy Mapping for current sales user if specific
+        # Sales Hierarchy Mapping for current sales user
         sales_map = SalesHierarchyMappingModel(
             tenant_id=current_user.tenant_id,
             company_id=company_id,
@@ -2782,7 +2693,6 @@ class SalesService:
         db.add(sales_map)
 
         await db.commit()
-        await db.refresh(new_ret)
 
         video_kyc_url = f"https://pay2pay.in/verify/video?ref={ret_id}&entity=retailer&code={ret_code}"
 
@@ -2802,7 +2712,7 @@ class SalesService:
                 "mapped_distributor": parent_dist.business_name,
                 "mobile": mobile,
                 "email": email,
-                "status": "PENDING_APPROVAL"
+                "status": "ACTIVE"
             },
             audit_status="SUCCESS",
             ip_address=ip_address,
@@ -2812,21 +2722,21 @@ class SalesService:
         return {
             "success": True,
             "entity_type": "RETAILER",
-            "public_id": str(new_ret.public_id),
-            "retailer_ref_id": getattr(new_ret, 'retailer_ref_id', None),
-            "retailer_code": new_ret.retailer_code,
-            "store_name": new_ret.store_name,
-            "owner_name": new_ret.owner_name,
+            "public_id": str(ret_id),
+            "retailer_ref_id": ret_ref_id,
+            "retailer_code": ret_code,
+            "store_name": store_name,
+            "owner_name": owner_name,
             "mobile": mobile,
             "email": email,
             "mapped_distributor_name": parent_dist.business_name,
-            "status": new_ret.status,
-            "approval_status": "PENDING_APPROVAL",
-            "is_active": new_ret.is_active,
+            "status": "ACTIVE",
+            "approval_status": "APPROVED",
+            "is_active": True,
             "video_kyc_url": video_kyc_url,
             "video_kyc_status": "PENDING",
-            "created_at": new_ret.created_at.isoformat() if hasattr(new_ret, 'created_at') and new_ret.created_at else datetime.now(timezone.utc).isoformat(),
-            "message": f"Retailer {new_ret.store_name} registered under {parent_dist.business_name}. Existing onboarding flow and Admin approval pipeline triggered."
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "message": f"Retailer {store_name} registered under {parent_dist.business_name} successfully."
         }
 
     @staticmethod
