@@ -30,7 +30,9 @@ import {
   ChevronUp,
   Sparkles,
   ArrowRight,
-  Info
+  Info,
+  Pencil,
+  RotateCcw
 } from "lucide-react";
 
 interface EntityType {
@@ -172,6 +174,7 @@ export function SinglePageOnboardingForm({
   const [personalDistrict, setPersonalDistrict] = useState("Chennai");
   const [personalPincode, setPersonalPincode] = useState("");
   const [personalCitiesList, setPersonalCitiesList] = useState<string[]>([]);
+  const [customPersonalCity, setCustomPersonalCity] = useState(false);
 
   // ── 11. Shop Address ──
   const [sameAsPersonal, setSameAsPersonal] = useState(false);
@@ -182,6 +185,7 @@ export function SinglePageOnboardingForm({
   const [shopDistrict, setShopDistrict] = useState("Chennai");
   const [shopPincode, setShopPincode] = useState("");
   const [shopCitiesList, setShopCitiesList] = useState<string[]>([]);
+  const [customShopCity, setCustomShopCity] = useState(false);
 
   // ── 12. Shop Category ──
   const [categoriesList, setCategoriesList] = useState<string[]>([]);
@@ -1300,10 +1304,26 @@ export function SinglePageOnboardingForm({
               <span>1. Mobile Number & WhatsApp OTP *</span>
             </div>
             {mobileVerified && (
-              <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Verified ✓</span>
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Verified ✓</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileVerified(false);
+                    setMobileOtpSent(false);
+                    setMobileOtp("");
+                    setMobileConflict(null);
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 text-xs font-bold transition-all cursor-pointer"
+                  title="Click to edit mobile number if entered incorrectly"
+                >
+                  <Pencil className="w-3 h-3" />
+                  <span>Edit</span>
+                </button>
+              </div>
             )}
           </div>
 
@@ -1326,7 +1346,22 @@ export function SinglePageOnboardingForm({
               />
             </div>
 
-            {!mobileVerified && (
+            {mobileVerified ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileVerified(false);
+                  setMobileOtpSent(false);
+                  setMobileOtp("");
+                  setMobileConflict(null);
+                }}
+                className="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                title="Click to edit mobile number if entered incorrectly"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                <span>Edit Mobile</span>
+              </button>
+            ) : (
               <button
                 type="button"
                 onClick={handleSendMobileOtp}
@@ -1388,10 +1423,26 @@ export function SinglePageOnboardingForm({
               <span>2. Email Address *</span>
             </div>
             {emailVerified && (
-              <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Verified ✓</span>
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Verified ✓</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmailVerified(false);
+                    setEmailOtpSent(false);
+                    setEmailOtp("");
+                    setEmailConflict(null);
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 text-xs font-bold transition-all cursor-pointer"
+                  title="Click to edit email address if entered incorrectly"
+                >
+                  <Pencil className="w-3 h-3" />
+                  <span>Edit</span>
+                </button>
+              </div>
             )}
           </div>
 
@@ -1404,7 +1455,22 @@ export function SinglePageOnboardingForm({
               placeholder="e.g. partner@pay2pay.in"
               className="sm:col-span-2 px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 font-semibold text-sm"
             />
-            {!emailVerified && (
+            {emailVerified ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setEmailVerified(false);
+                  setEmailOtpSent(false);
+                  setEmailOtp("");
+                  setEmailConflict(null);
+                }}
+                className="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                title="Click to edit email address if entered incorrectly"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                <span>Edit Email</span>
+              </button>
+            ) : (
               <button
                 type="button"
                 onClick={handleSendEmailOtp}
@@ -1459,10 +1525,24 @@ export function SinglePageOnboardingForm({
               <span>3. PAN Card (OCR Auto-Read + Cashfree Verify) *</span>
             </div>
             {panVerified && (
-              <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Verified ✓</span>
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Verified ✓</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPanVerified(false);
+                    setPanError("");
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 text-xs font-bold transition-all cursor-pointer"
+                  title="Click to edit PAN number if entered incorrectly"
+                >
+                  <Pencil className="w-3 h-3" />
+                  <span>Edit</span>
+                </button>
+              </div>
             )}
           </div>
 
@@ -1526,9 +1606,22 @@ export function SinglePageOnboardingForm({
                   <span>Verify with Cashfree</span>
                 </button>
               ) : (
-                <div className="w-full py-2.5 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-xs flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>✓ PAN Verified</span>
+                <div className="flex items-center justify-between w-full py-2.5 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>✓ PAN Verified</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPanVerified(false);
+                      setPanError("");
+                    }}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 text-[11px] font-bold cursor-pointer transition-all"
+                    title="Click to edit PAN number if entered incorrectly"
+                  >
+                    <Pencil className="w-3 h-3" /> Edit
+                  </button>
                 </div>
               )}
             </div>
@@ -1550,10 +1643,26 @@ export function SinglePageOnboardingForm({
               <span>4. Aadhaar Card (OCR Auto-Read + Cashfree eKYC) *</span>
             </div>
             {aadhaarVerified && (
-              <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Verified ✓</span>
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Verified ✓</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAadhaarVerified(false);
+                    setAadhaarOtpSent(false);
+                    setAadhaarOtp("");
+                    setAadhaarError("");
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 text-xs font-bold transition-all cursor-pointer"
+                  title="Click to edit Aadhaar number if entered incorrectly"
+                >
+                  <Pencil className="w-3 h-3" />
+                  <span>Edit</span>
+                </button>
+              </div>
             )}
           </div>
 
@@ -1598,7 +1707,7 @@ export function SinglePageOnboardingForm({
               />
             </div>
             <div className="flex items-end">
-              {!aadhaarVerified && (
+              {!aadhaarVerified ? (
                 <button
                   type="button"
                   onClick={handleSendAadhaarOtp}
@@ -1607,6 +1716,26 @@ export function SinglePageOnboardingForm({
                 >
                   {aadhaarSendingOtp ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Send Aadhaar OTP</span>}
                 </button>
+              ) : (
+                <div className="flex items-center justify-between w-full py-2.5 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>✓ Aadhaar Verified</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAadhaarVerified(false);
+                      setAadhaarOtpSent(false);
+                      setAadhaarOtp("");
+                      setAadhaarError("");
+                    }}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 text-[11px] font-bold cursor-pointer transition-all"
+                    title="Click to edit Aadhaar number if entered incorrectly"
+                  >
+                    <Pencil className="w-3 h-3" /> Edit
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -1734,9 +1863,23 @@ export function SinglePageOnboardingForm({
                       {gstVerifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Verify GST</span>}
                     </button>
                   ) : (
-                    <div className="w-full py-2.5 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-xs flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>✓ GST Verified</span>
+                    <div className="flex items-center justify-between w-full py-2.5 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>✓ GST Verified</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setGstVerified(false);
+                          setGstDetails(null);
+                          setGstError("");
+                        }}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 text-[11px] font-bold cursor-pointer transition-all"
+                        title="Click to edit GSTIN if entered incorrectly"
+                      >
+                        <Pencil className="w-3 h-3" /> Edit
+                      </button>
                     </div>
                   )}
                 </div>
@@ -1764,10 +1907,25 @@ export function SinglePageOnboardingForm({
               <span>6. Bank Account Details (OCR + Penny Drop Verification) *</span>
             </div>
             {bankVerified && (
-              <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Verified ✓</span>
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Verified ✓</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBankVerified(false);
+                    setBankDetails(null);
+                    setBankError("");
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 text-xs font-bold transition-all cursor-pointer"
+                  title="Click to edit Bank Account or IFSC if entered incorrectly"
+                >
+                  <Pencil className="w-3 h-3" />
+                  <span>Edit</span>
+                </button>
+              </div>
             )}
           </div>
 
@@ -1831,9 +1989,23 @@ export function SinglePageOnboardingForm({
                   {bankVerifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Verify Account</span>}
                 </button>
               ) : (
-                <div className="w-full py-2.5 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-xs flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>✓ Bank Verified</span>
+                <div className="flex items-center justify-between w-full py-2.5 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>✓ Bank Verified</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBankVerified(false);
+                      setBankDetails(null);
+                      setBankError("");
+                    }}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 text-[11px] font-bold cursor-pointer transition-all"
+                    title="Click to edit Bank Account or IFSC if entered incorrectly"
+                  >
+                    <Pencil className="w-3 h-3" /> Edit
+                  </button>
                 </div>
               )}
             </div>
@@ -1914,9 +2086,21 @@ export function SinglePageOnboardingForm({
               <span className="text-xs font-bold text-slate-300">Device GPS Geolocation *</span>
               {geoLocation ? (
                 <div className="text-xs text-slate-300 space-y-1">
-                  <div className="flex items-center gap-1 text-emerald-400 font-bold">
-                    <MapPin className="w-3.5 h-3.5" />
-                    <span>GPS Coordinates Verified</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1 text-emerald-400 font-bold">
+                      <MapPin className="w-3.5 h-3.5" />
+                      <span>GPS Coordinates Verified</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={captureDeviceLocation}
+                      disabled={geoLocating}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 text-[11px] font-bold cursor-pointer transition-all"
+                      title="Re-capture location if inaccurate"
+                    >
+                      <RotateCcw className={`w-3 h-3 ${geoLocating ? "animate-spin" : ""}`} />
+                      <span>Re-capture</span>
+                    </button>
                   </div>
                   <p className="font-mono text-[11px] text-slate-400">
                     Lat: {geoLocation.latitude.toFixed(6)}, Lng: {geoLocation.longitude.toFixed(6)}
@@ -2113,8 +2297,20 @@ export function SinglePageOnboardingForm({
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-400 mb-1">City *</label>
-              {personalCitiesList.length > 0 ? (
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-400">City *</label>
+                {personalCitiesList.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setCustomPersonalCity(!customPersonalCity)}
+                    className="text-[10px] text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Pencil className="w-2.5 h-2.5" />
+                    <span>{customPersonalCity ? "Select from list" : "Type manually"}</span>
+                  </button>
+                )}
+              </div>
+              {personalCitiesList.length > 0 && !customPersonalCity ? (
                 <select
                   value={personalCity}
                   onChange={(e) => setPersonalCity(e.target.value)}
@@ -2131,7 +2327,7 @@ export function SinglePageOnboardingForm({
                   type="text"
                   value={personalCity}
                   onChange={(e) => setPersonalCity(e.target.value)}
-                  placeholder="City"
+                  placeholder="Enter City name"
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-blue-500"
                 />
               )}
@@ -2215,8 +2411,20 @@ export function SinglePageOnboardingForm({
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-400 mb-1">City *</label>
-              {shopCitiesList.length > 0 ? (
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-400">Shop City *</label>
+                {shopCitiesList.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setCustomShopCity(!customShopCity)}
+                    className="text-[10px] text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Pencil className="w-2.5 h-2.5" />
+                    <span>{customShopCity ? "Select from list" : "Type manually"}</span>
+                  </button>
+                )}
+              </div>
+              {shopCitiesList.length > 0 && !customShopCity ? (
                 <select
                   value={shopCity}
                   onChange={(e) => setShopCity(e.target.value)}
@@ -2233,7 +2441,7 @@ export function SinglePageOnboardingForm({
                   type="text"
                   value={shopCity}
                   onChange={(e) => setShopCity(e.target.value)}
-                  placeholder="City"
+                  placeholder="Enter Shop City"
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-blue-500"
                 />
               )}
