@@ -15,16 +15,16 @@ export default function SalesLoginPage() {
   const router = useRouter();
   const { login, sendWhatsAppOtp, verifyWhatsAppOtp, user } = useSalesAuth();
 
-  // Auth Modes: 'WHATSAPP_OTP' | 'PASSWORD'
-  const [authMode, setAuthMode] = useState<"WHATSAPP_OTP" | "PASSWORD">("WHATSAPP_OTP");
+  // Auth Modes: 'PASSWORD' | 'WHATSAPP_OTP'
+  const [authMode, setAuthMode] = useState<"PASSWORD" | "WHATSAPP_OTP">("PASSWORD");
 
-  // Password Login State
-  const [identifier, setIdentifier] = useState("sales@pay2pay.in");
-  const [password, setPassword] = useState("Sales@12345");
+  // Password Login State (Empty defaults for production)
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  // WhatsApp OTP State
-  const [mobileOrEmail, setMobileOrEmail] = useState("9876543210");
+  // WhatsApp OTP State (Empty defaults for production)
+  const [mobileOrEmail, setMobileOrEmail] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [sessionId, setSessionId] = useState("");
   const [maskedMobile, setMaskedMobile] = useState("");
@@ -60,9 +60,14 @@ export default function SalesLoginPage() {
     e.preventDefault();
     setError(null);
     setSuccessMsg(null);
-    setIsLoading(true);
 
-    const result = await login(identifier, password);
+    if (!identifier.trim() || !password.trim()) {
+      setError("Please enter your registered identifier and password.");
+      return;
+    }
+
+    setIsLoading(true);
+    const result = await login(identifier.trim(), password.trim());
     setIsLoading(false);
 
     if (result.success) {
@@ -235,25 +240,8 @@ export default function SalesLoginPage() {
                 </p>
               </div>
 
-              {/* Authentication Mode Switcher Tabs */}
+              {/* Authentication Mode Switcher Tabs: 1. Password, 2. WhatsApp OTP */}
               <div className="flex items-center p-1 bg-[#F5F6FA] border border-[#E5E7EB] rounded-xl mb-6">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthMode("WHATSAPP_OTP");
-                    setError(null);
-                    setSuccessMsg(null);
-                  }}
-                  className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                    authMode === "WHATSAPP_OTP"
-                      ? "bg-[#94003A] text-white shadow-sm"
-                      : "text-[#6B7280] hover:text-[#1F2937]"
-                  }`}
-                >
-                  <MessageSquare className="w-3.5 h-3.5" />
-                  <span>WhatsApp OTP</span>
-                </button>
-
                 <button
                   type="button"
                   onClick={() => {
@@ -269,6 +257,23 @@ export default function SalesLoginPage() {
                 >
                   <Lock className="w-3.5 h-3.5" />
                   <span>Password</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode("WHATSAPP_OTP");
+                    setError(null);
+                    setSuccessMsg(null);
+                  }}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                    authMode === "WHATSAPP_OTP"
+                      ? "bg-[#94003A] text-white shadow-sm"
+                      : "text-[#6B7280] hover:text-[#1F2937]"
+                  }`}
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>WhatsApp OTP</span>
                 </button>
               </div>
 
@@ -287,14 +292,75 @@ export default function SalesLoginPage() {
                 </div>
               )}
 
-              {/* ── MODE 1: WHATSAPP OTP ── */}
+              {/* ── 1. PASSWORD AUTHENTICATION (DEFAULT) ── */}
+              {authMode === "PASSWORD" && (
+                <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-[#374151] mb-1.5">
+                      Registered Mobile / Email / User ID
+                    </label>
+                    <div className="relative">
+                      <Mail className="w-4 h-4 text-[#9CA3AF] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        required
+                        value={identifier}
+                        onChange={(e) => setIdentifier(e.target.value)}
+                        placeholder="Enter registered mobile, email or user ID"
+                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#D1D5DB] rounded-xl text-xs text-[#1F2937] placeholder-[#9CA3AF] focus:outline-none focus:border-[#94003A] focus:ring-2 focus:ring-[#F8E6EE] transition"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#374151] mb-1.5">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 text-[#9CA3AF] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Enter your password"
+                        className="w-full pl-10 pr-10 py-2.5 bg-white border border-[#D1D5DB] rounded-xl text-xs text-[#1F2937] placeholder-[#9CA3AF] focus:outline-none focus:border-[#94003A] focus:ring-2 focus:ring-[#F8E6EE] transition"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#374151] cursor-pointer"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full py-3 rounded-xl bg-[#94003A] hover:bg-[#78002F] text-white font-bold text-xs shadow-md shadow-pink-900/20 flex items-center justify-center gap-2 transition active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                  >
+                    {isLoading ? (
+                      <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                    ) : (
+                      <>
+                        <span>Sign In with Password</span>
+                        <ArrowRight className="w-4 h-4 text-[#E7B631]" />
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
+
+              {/* ── 2. WHATSAPP OTP AUTHENTICATION ── */}
               {authMode === "WHATSAPP_OTP" && (
                 <div className="space-y-4">
                   {!otpSent ? (
                     <form onSubmit={handleSendOtp} className="space-y-4">
                       <div>
                         <label className="block text-xs font-bold text-[#374151] mb-1.5">
-                          Registered Mobile / Email
+                          Registered Mobile Number
                         </label>
                         <div className="relative">
                           <Smartphone className="w-4 h-4 text-[#9CA3AF] absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -303,7 +369,7 @@ export default function SalesLoginPage() {
                             required
                             value={mobileOrEmail}
                             onChange={(e) => setMobileOrEmail(e.target.value)}
-                            placeholder="e.g. 9876543210 or sales@pay2pay.in"
+                            placeholder="Enter 10-digit mobile number"
                             className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#D1D5DB] rounded-xl text-xs text-[#1F2937] placeholder-[#9CA3AF] focus:outline-none focus:border-[#94003A] focus:ring-2 focus:ring-[#F8E6EE] transition"
                           />
                         </div>
@@ -395,73 +461,6 @@ export default function SalesLoginPage() {
                   )}
                 </div>
               )}
-
-              {/* ── MODE 2: PASSWORD ── */}
-              {authMode === "PASSWORD" && (
-                <form onSubmit={handlePasswordSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-[#374151] mb-1.5">
-                      Email or Username
-                    </label>
-                    <div className="relative">
-                      <Mail className="w-4 h-4 text-[#9CA3AF] absolute left-3.5 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        required
-                        value={identifier}
-                        onChange={(e) => setIdentifier(e.target.value)}
-                        placeholder="sales@pay2pay.in"
-                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#D1D5DB] rounded-xl text-xs text-[#1F2937] placeholder-[#9CA3AF] focus:outline-none focus:border-[#94003A] focus:ring-2 focus:ring-[#F8E6EE] transition"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-[#374151] mb-1.5">
-                      Password
-                    </label>
-                    <div className="relative">
-                      <Lock className="w-4 h-4 text-[#9CA3AF] absolute left-3.5 top-1/2 -translate-y-1/2" />
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        required
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="w-full pl-10 pr-10 py-2.5 bg-white border border-[#D1D5DB] rounded-xl text-xs text-[#1F2937] placeholder-[#9CA3AF] focus:outline-none focus:border-[#94003A] focus:ring-2 focus:ring-[#F8E6EE] transition"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#374151]"
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full py-3 rounded-xl bg-[#94003A] hover:bg-[#78002F] text-white font-bold text-xs shadow-md shadow-pink-900/20 flex items-center justify-center gap-2 transition active:scale-[0.98] disabled:opacity-50 cursor-pointer"
-                  >
-                    {isLoading ? (
-                      <RefreshCw className="w-4 h-4 animate-spin text-white" />
-                    ) : (
-                      <>
-                        <span>Sign In with Password</span>
-                        <ArrowRight className="w-4 h-4 text-[#E7B631]" />
-                      </>
-                    )}
-                  </button>
-                </form>
-              )}
-
-              {/* Demo Credentials Quick-Fill Footnote */}
-              <div className="mt-6 pt-4 border-t border-[#E5E7EB] text-[11px] text-[#6B7280] flex items-center justify-between">
-                <span>Demo user: <strong className="text-[#1F2937]">sales@pay2pay.in</strong></span>
-                <span className="text-[#16A34A] font-bold">● Active Sandbox</span>
-              </div>
             </div>
           </div>
         </div>
