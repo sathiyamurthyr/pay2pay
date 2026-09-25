@@ -67,19 +67,19 @@ export const SalesHeader: React.FC<{ onMenuClick?: () => void }> = ({ onMenuClic
 
       {/* Right controls */}
       <div className="flex items-center gap-2 sm:gap-4">
-        {/* Tenant badge */}
+        {/* Company / Tenant badge */}
         <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#78002F] border border-pink-700/50 text-xs text-white">
           <Building2 className="w-3.5 h-3.5 text-[#E7B631] shrink-0" />
-          <span className="text-pink-200 font-medium">Tenant:</span>
+          <span className="text-pink-200 font-medium">{user?.company_name ? "Company:" : "Tenant:"}</span>
           <span className="text-white font-semibold truncate max-w-[130px] lg:max-w-[200px]">
-            {user?.tenant_name || "SUPER REX PRODUCTS PVT LTD"}
+            {user?.company_name || user?.tenant_name || "Enterprise Platform"}
           </span>
         </div>
 
         {/* Security badge */}
         <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-white/10 border border-white/20 text-[#E7B631] text-xs font-semibold">
           <ShieldCheck className="w-3.5 h-3.5 text-[#EDC11E]" />
-          <span className="hidden sm:inline text-white">Tenant Isolated</span>
+          <span className="hidden sm:inline text-white">Company Isolated</span>
           <span className="sm:hidden text-white">Secured</span>
         </div>
 
@@ -92,8 +92,8 @@ export const SalesHeader: React.FC<{ onMenuClick?: () => void }> = ({ onMenuClic
             {userInitial}
           </div>
           <div className="hidden lg:block text-left">
-            <div className="text-xs font-bold text-white">{user?.full_name || "Vikram Rathore"}</div>
-            <div className="text-[10px] text-pink-200">{user?.designation || "Area Sales Manager"}</div>
+            <div className="text-xs font-bold text-white">{user?.full_name || "Sales User"}</div>
+            <div className="text-[10px] text-pink-200">{user?.designation || "Sales Executive"}</div>
           </div>
         </Link>
       </div>

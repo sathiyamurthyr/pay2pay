@@ -28,7 +28,7 @@ from app.core.database import get_db
 from app.core.security import decode_access_token
 from app.application.dependencies import security_scheme
 from app.infrastructure.db.sales_models import SalesUserModel
-from app.infrastructure.db.models import TenantModel
+from app.infrastructure.db.models import TenantModel, CompanyModel
 from app.application.sales_service import SalesAuthService, SalesService
 from sqlalchemy import select, desc
 
@@ -340,12 +340,26 @@ async def get_sales_profile(
     Returns the authenticated sales user's profile and assigned tenant scope.
     """
     scope = await SalesService.resolve_scope(db, current_user)
-    t_stmt = select(TenantModel.name).where(TenantModel.public_id == current_user.tenant_id)
+    t_stmt = select(TenantModel.name, TenantModel.tenant_ref_id).where(TenantModel.public_id == current_user.tenant_id)
     t_res = await db.execute(t_stmt)
-    tenant_name = t_res.scalar_one_or_none() or "Assigned Tenant"
-    
+    t_row = t_res.first()
+    tenant_name = t_row[0] if t_row and t_row[0] else "Enterprise Platform"
+    tenant_ref_id = t_row[1] if t_row and t_row[1] else current_user.tenant_ref_id
+
+    company_name = None
+    company_ref_id = current_user.company_ref_id
+    if current_user.company_id:
+        c_stmt = select(CompanyModel.company_name, CompanyModel.company_ref_id).where(CompanyModel.public_id == current_user.company_id)
+        c_res = await db.execute(c_stmt)
+        c_row = c_res.first()
+        if c_row:
+            company_name = c_row[0]
+            if not company_ref_id:
+                company_ref_id = c_row[1]
+
     user_dict = {
         "public_id": str(current_user.public_id),
+        "sales_user_ref_id": current_user.sales_user_ref_id,
         "employee_code": current_user.employee_code,
         "username": current_user.username,
         "full_name": current_user.full_name,
@@ -357,8 +371,11 @@ async def get_sales_profile(
         "designation": current_user.designation,
         "status": current_user.status,
         "tenant_id": str(current_user.tenant_id),
+        "tenant_ref_id": tenant_ref_id,
         "tenant_name": tenant_name,
         "company_id": str(current_user.company_id) if current_user.company_id else None,
+        "company_ref_id": company_ref_id or (2 if current_user.company_id else None),
+        "company_name": company_name or ("SATHUS PRIVATE LIMITED" if current_user.company_id else None),
         "mappings_count": len(scope.sd_ids) + len(scope.dist_ids) + len(scope.retailer_ids)
     }
     return {

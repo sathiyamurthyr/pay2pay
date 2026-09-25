@@ -44,11 +44,11 @@ export default function SalesDashboardPage() {
   });
 
   const kpis = dashboardData?.kpis || {
-    total_super_distributors: 2,
-    total_distributors: 2,
-    total_retailers: 121,
-    active_retailers: 86,
-    inactive_retailers: 35,
+    total_super_distributors: 0,
+    total_distributors: 0,
+    total_retailers: 0,
+    active_retailers: 0,
+    inactive_retailers: 0,
     total_pos_machines: 0,
     active_pos_machines: 0,
     inactive_pos_machines: 0,
@@ -56,38 +56,38 @@ export default function SalesDashboardPage() {
     today_transaction_amount: 0,
     yesterday_transaction_count: 0,
     yesterday_transaction_amount: 0,
-    current_month_transaction_amount: 14114104.95,
-    current_month_transaction_count: 781,
-    total_transaction_count: 781,
-    total_transaction_volume: 14114104.95,
+    current_month_transaction_amount: 0,
+    current_month_transaction_count: 0,
+    total_transaction_count: 0,
+    total_transaction_volume: 0,
     mdr_pos_volume: 0,
     mdr_estimated_earnings: 0,
     pending_registrations: {
-      total: 12,
-      kyc_pending: 3,
-      video_kyc_pending: 5,
-      admin_approval: 4,
+      total: 0,
+      kyc_pending: 0,
+      video_kyc_pending: 0,
+      admin_approval: 0,
     },
     my_registrations: {
-      today: 12,
-      this_month: 48,
-      pending: 7,
-      approved: 35,
+      today: 0,
+      this_month: 0,
+      pending: 0,
+      approved: 0,
     },
   };
 
   const pendingReg = kpis.pending_registrations || {
-    total: 12,
-    kyc_pending: 3,
-    video_kyc_pending: 5,
-    admin_approval: 4,
+    total: 0,
+    kyc_pending: 0,
+    video_kyc_pending: 0,
+    admin_approval: 0,
   };
 
   const myReg = kpis.my_registrations || {
-    today: 12,
-    this_month: 48,
-    pending: 7,
-    approved: 35,
+    today: 0,
+    this_month: 0,
+    pending: 0,
+    approved: 0,
   };
 
   const services = dashboardData?.services_breakdown || dashboardData?.today_service_breakdown || {};
@@ -104,13 +104,20 @@ export default function SalesDashboardPage() {
           <div className="space-y-1.5">
             {/* Badges row */}
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F8E6EE] text-[#94003A] border border-pink-200 text-xs font-bold">
-                <Building2 className="w-3.5 h-3.5 text-[#94003A]" />
-                Tenant: {user?.tenant_name || "SUPER REX PRODUCTS PVT LTD"}
-              </span>
+              {user?.company_name ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FEF3C7] text-[#92400E] border border-amber-300 text-xs font-bold">
+                  <Building2 className="w-3.5 h-3.5 text-[#D97706]" />
+                  Company: {user.company_name}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F8E6EE] text-[#94003A] border border-pink-200 text-xs font-bold">
+                  <Building2 className="w-3.5 h-3.5 text-[#94003A]" />
+                  Tenant: {user?.tenant_name || "Enterprise Platform"}
+                </span>
+              )}
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                🛡 Tenant Isolated
+                Company Isolated
               </span>
             </div>
 

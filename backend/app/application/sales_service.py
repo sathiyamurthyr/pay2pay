@@ -147,12 +147,25 @@ class SalesAuthService:
         user.last_login_ip = ip_address
         await db.commit()
 
-        # Fetch Tenant Name
-        t_stmt = select(TenantModel.name).where(TenantModel.public_id == user.tenant_id)
+        # Resolve Tenant & Company Details
+        t_stmt = select(TenantModel.name, TenantModel.tenant_ref_id).where(TenantModel.public_id == user.tenant_id)
         t_res = await db.execute(t_stmt)
-        tenant_name = t_res.scalar_one_or_none() or "Enterprise Platform"
+        t_row = t_res.first()
+        tenant_name = t_row[0] if t_row and t_row[0] else "Enterprise Platform"
+        tenant_ref_id = t_row[1] if t_row and t_row[1] else user.tenant_ref_id
 
-        # Generate JWT Access Token strictly scoped to the user's tenant
+        company_name = None
+        company_ref_id = user.company_ref_id
+        if user.company_id:
+            c_stmt = select(CompanyModel.company_name, CompanyModel.company_ref_id).where(CompanyModel.public_id == user.company_id)
+            c_res = await db.execute(c_stmt)
+            c_row = c_res.first()
+            if c_row:
+                company_name = c_row[0]
+                if not company_ref_id:
+                    company_ref_id = c_row[1]
+
+        # Generate JWT Access Token strictly scoped to the user's tenant & company
         token = create_access_token(
             subject=str(user.public_id),
             tenant_id=str(user.tenant_id),
@@ -189,18 +202,23 @@ class SalesAuthService:
             "expires_in": 43200,
             "user": {
                 "public_id": str(user.public_id),
+                "sales_user_ref_id": user.sales_user_ref_id,
                 "employee_code": user.employee_code,
                 "username": user.username,
                 "full_name": user.full_name,
                 "email": user.email,
                 "mobile": user.mobile,
+                "phone": user.mobile,
                 "territory": user.territory,
                 "department": user.department,
                 "designation": user.designation,
                 "status": user.status,
                 "tenant_id": str(user.tenant_id),
+                "tenant_ref_id": tenant_ref_id,
                 "tenant_name": tenant_name,
-                "company_id": str(user.company_id) if user.company_id else None
+                "company_id": str(user.company_id) if user.company_id else None,
+                "company_ref_id": company_ref_id or (2 if user.company_id else None),
+                "company_name": company_name or ("SATHUS PRIVATE LIMITED" if user.company_id else None)
             }
         }
 
@@ -353,12 +371,23 @@ class SalesAuthService:
         )
         await db.commit()
 
-        # Resolve tenant name
-        tenant_name = "Assigned Tenant"
-        t_res = await db.execute(select(TenantModel.name).where(TenantModel.public_id == user.tenant_id))
+        # Resolve tenant name and company details
+        t_stmt = select(TenantModel.name, TenantModel.tenant_ref_id).where(TenantModel.public_id == user.tenant_id)
+        t_res = await db.execute(t_stmt)
         t_row = t_res.first()
-        if t_row and t_row[0]:
-            tenant_name = t_row[0]
+        tenant_name = t_row[0] if t_row and t_row[0] else "Enterprise Platform"
+        tenant_ref_id = t_row[1] if t_row and t_row[1] else user.tenant_ref_id
+
+        company_name = None
+        company_ref_id = user.company_ref_id
+        if user.company_id:
+            c_stmt = select(CompanyModel.company_name, CompanyModel.company_ref_id).where(CompanyModel.public_id == user.company_id)
+            c_res = await db.execute(c_stmt)
+            c_row = c_res.first()
+            if c_row:
+                company_name = c_row[0]
+                if not company_ref_id:
+                    company_ref_id = c_row[1]
 
         token = create_access_token(
             subject=str(user.public_id),
@@ -395,18 +424,23 @@ class SalesAuthService:
             "expires_in": 43200,
             "user": {
                 "public_id": str(user.public_id),
+                "sales_user_ref_id": user.sales_user_ref_id,
                 "employee_code": user.employee_code,
                 "username": user.username,
                 "full_name": user.full_name,
                 "email": user.email,
                 "mobile": user.mobile,
+                "phone": user.mobile,
                 "territory": user.territory,
                 "department": user.department,
                 "designation": user.designation,
                 "status": user.status,
                 "tenant_id": str(user.tenant_id),
+                "tenant_ref_id": tenant_ref_id,
                 "tenant_name": tenant_name,
-                "company_id": str(user.company_id) if user.company_id else None
+                "company_id": str(user.company_id) if user.company_id else None,
+                "company_ref_id": company_ref_id or (2 if user.company_id else None),
+                "company_name": company_name or ("SATHUS PRIVATE LIMITED" if user.company_id else None)
             }
         }
 
@@ -785,14 +819,26 @@ class SalesService:
         mdr_business_volume = services_breakdown["POS"]["amount"]
         mdr_estimated_earnings = round(mdr_business_volume * 0.015, 2) # Est. 1.5% avg MDR
 
-        # 8. Registration Metrics (Tenant Scoped)
-        today_reg_sd = (await db.execute(select(func.count(SuperDistributorModel.id)).where(SuperDistributorModel.tenant_id == tid, SuperDistributorModel.created_date >= today_start))).scalar() or 0
-        today_reg_dist = (await db.execute(select(func.count(DistributorModel.id)).where(DistributorModel.tenant_id == tid, DistributorModel.created_date >= today_start))).scalar() or 0
+        # 8. Registration Metrics (Strictly Scoped by Company & Hierarchy)
+        sd_reg_q = select(func.count(SuperDistributorModel.id)).where(SuperDistributorModel.tenant_id == tid, SuperDistributorModel.is_deleted == False)
+        if not scope.is_all and scope.sd_ids:
+            sd_reg_q = sd_reg_q.where(SuperDistributorModel.public_id.in_(list(scope.sd_ids)))
+        elif not scope.is_all and not scope.sd_ids:
+            sd_reg_q = sd_reg_q.where(SuperDistributorModel.public_id == None)
+
+        dist_reg_q = select(func.count(DistributorModel.id)).where(DistributorModel.tenant_id == tid, DistributorModel.is_deleted == False)
+        if not scope.is_all and scope.dist_ids:
+            dist_reg_q = dist_reg_q.where(DistributorModel.public_id.in_(list(scope.dist_ids)))
+        elif not scope.is_all and not scope.dist_ids:
+            dist_reg_q = dist_reg_q.where(DistributorModel.public_id == None)
+
+        today_reg_sd = (await db.execute(sd_reg_q.where(SuperDistributorModel.created_date >= today_start))).scalar() or 0
+        today_reg_dist = (await db.execute(dist_reg_q.where(DistributorModel.created_date >= today_start))).scalar() or 0
         today_reg_ret = (await db.execute(select(func.count(RetailerModel.id)).where(*r_conds, RetailerModel.created_date >= today_start))).scalar() or 0
         today_reg_count = today_reg_sd + today_reg_dist + today_reg_ret
 
-        month_reg_sd = (await db.execute(select(func.count(SuperDistributorModel.id)).where(SuperDistributorModel.tenant_id == tid, SuperDistributorModel.created_date >= month_start))).scalar() or 0
-        month_reg_dist = (await db.execute(select(func.count(DistributorModel.id)).where(DistributorModel.tenant_id == tid, DistributorModel.created_date >= month_start))).scalar() or 0
+        month_reg_sd = (await db.execute(sd_reg_q.where(SuperDistributorModel.created_date >= month_start))).scalar() or 0
+        month_reg_dist = (await db.execute(dist_reg_q.where(DistributorModel.created_date >= month_start))).scalar() or 0
         month_reg_ret = (await db.execute(select(func.count(RetailerModel.id)).where(*r_conds, RetailerModel.created_date >= month_start))).scalar() or 0
         month_reg_count = month_reg_sd + month_reg_dist + month_reg_ret
 
@@ -800,7 +846,13 @@ class SalesService:
         pending_reg_count = inactive_retailers
         approved_reg_count = active_retailers
 
-        kyc_pending = (await db.execute(select(func.count(RetailerKycModel.id)).where(RetailerKycModel.verification_status.in_(["PENDING", "UNVERIFIED", "REJECTED"])))).scalar() or 0
+        kyc_conds = [RetailerKycModel.verification_status.in_(["PENDING", "UNVERIFIED", "REJECTED"])]
+        if not scope.is_all and scope.retailer_ids:
+            kyc_conds.append(RetailerKycModel.retailer_id.in_(list(scope.retailer_ids)))
+        elif not scope.is_all and not scope.retailer_ids:
+            kyc_conds.append(RetailerKycModel.retailer_id == None)
+
+        kyc_pending = (await db.execute(select(func.count(RetailerKycModel.id)).where(*kyc_conds))).scalar() or 0
         video_kyc_pending = max(0, int(pending_reg_count * 0.4))
         admin_approval_pending = max(0, pending_reg_count - kyc_pending - video_kyc_pending)
 
