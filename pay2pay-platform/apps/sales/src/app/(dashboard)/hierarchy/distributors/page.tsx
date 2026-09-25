@@ -36,129 +36,131 @@ export default function DistributorsPage() {
   });
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 w-full max-w-[1400px] 2xl:max-w-[1500px] mx-auto pb-12">
       {/* Header */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="bg-gradient-to-r from-[#94003A] via-[#78002F] to-[#550020] border border-[#94003A]/20 rounded-2xl sm:rounded-3xl p-6 sm:p-8 text-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           {sdFilter && (
             <Link
               href="/hierarchy/distributors"
-              className="inline-flex items-center gap-1.5 text-xs text-indigo-400 hover:underline mb-2"
+              className="inline-flex items-center gap-1.5 text-xs text-[#E7B631] hover:underline mb-2 font-semibold"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               Clear Super Distributor filter
             </Link>
           )}
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-indigo-400 mb-2">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#E7B631] mb-2">
             <Layers className="w-4 h-4" />
-            Distributor Network Hub
+            Distributor Network Hub ({filtered.length})
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Distributors Directory</h1>
-          <p className="text-slate-400 text-xs sm:text-sm mt-1 max-w-2xl">
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Distributors Directory</h1>
+          <p className="text-[#F8E6EE]/80 text-xs sm:text-sm mt-1 max-w-2xl font-medium">
             Distributors managing localized merchant networks, retailer onboarding, POS assignment, and retail transactional liquidity.
           </p>
         </div>
 
         <button
           onClick={() => refetch()}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/20 transition shadow-xs"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-indigo-400" : ""}`} />
+          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-[#E7B631]" : ""}`} />
           Refresh Directory
         </button>
       </div>
 
       {/* Search Bar */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex items-center gap-3">
-        <Search className="w-4 h-4 text-slate-400" />
+      <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-xs flex items-center gap-3">
+        <Search className="w-4 h-4 text-[#9CA3AF]" />
         <input
           type="text"
           placeholder="Search by Distributor name, reference code, parent Super Dist, mobile..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full bg-transparent text-xs text-white placeholder:text-slate-500 focus:outline-none"
+          className="w-full bg-transparent text-xs text-[#1F2937] placeholder:text-[#9CA3AF] focus:outline-none"
         />
       </div>
 
       {/* Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {isLoading ? (
-          <div className="col-span-2 py-12 text-center text-slate-400 flex items-center justify-center gap-2">
-            <RefreshCw className="w-5 h-5 animate-spin text-indigo-500" />
-            <span>Loading distributors...</span>
+          <div className="col-span-2 py-12 text-center text-[#6B7280] flex items-center justify-center gap-2">
+            <RefreshCw className="w-5 h-5 animate-spin text-[#94003A]" />
+            <span className="font-semibold">Loading distributors...</span>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="col-span-2 py-12 text-center text-slate-500 text-xs">
+          <div className="col-span-2 py-12 text-center text-[#9CA3AF] text-xs bg-white rounded-2xl border border-[#E5E7EB] p-8">
             No Distributors found in your authorized scope.
           </div>
         ) : (
           filtered.map((dist: any) => (
             <div
               key={dist.id}
-              className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 hover:border-slate-700 transition"
+              className="bg-white border border-[#E5E7EB] rounded-2xl sm:rounded-3xl p-6 shadow-xs space-y-6 hover:border-[#94003A]/30 transition flex flex-col justify-between"
             >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-600/20 border border-blue-500/30 text-blue-400 flex items-center justify-center font-bold text-base">
-                    {(dist.name || "D").charAt(0).toUpperCase()}
+              <div className="space-y-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-[#F8E6EE] border border-[#94003A]/20 text-[#94003A] flex items-center justify-center font-black text-base">
+                      {(dist.name || "D").charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-[#1F2937] text-base">{dist.name}</h3>
+                      <div className="text-[11px] font-mono text-[#94003A] font-bold mt-0.5">
+                        Code: {dist.code}
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-white text-base">{dist.name}</h3>
-                    <div className="text-[11px] font-mono text-blue-400 mt-0.5">
-                      Code: {dist.code}
+
+                  <span className="px-2.5 py-1 rounded-full bg-[#DCFCE7] text-[#166534] border border-[#86EFAC] text-[10px] font-bold">
+                    {dist.status || "ACTIVE"}
+                  </span>
+                </div>
+
+                {/* Mapped Super Distributor & Contact */}
+                <div className="space-y-2 text-xs bg-[#FAFAFC] p-3.5 rounded-2xl border border-[#E5E7EB]">
+                  <div className="flex items-center gap-2 text-[#4B5563]">
+                    <Building2 className="w-3.5 h-3.5 text-[#94003A] shrink-0" />
+                    <span className="font-semibold text-[#1F2937]">Super Dist:</span>
+                    <span className="truncate">{dist.super_distributor_name || "Direct Hub"}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[#E5E7EB] text-[11px]">
+                    <div className="flex items-center gap-1.5 truncate text-[#6B7280]">
+                      <Mail className="w-3 h-3 text-[#9CA3AF] shrink-0" />
+                      <span className="truncate">{dist.email || "N/A"}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[#6B7280]">
+                      <Phone className="w-3 h-3 text-[#9CA3AF] shrink-0" />
+                      <span>{dist.mobile || "N/A"}</span>
                     </div>
                   </div>
                 </div>
 
-                <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
-                  {dist.status || "ACTIVE"}
-                </span>
-              </div>
-
-              {/* Mapped Super Distributor & Contact */}
-              <div className="space-y-2 text-xs text-slate-400 bg-slate-950/60 p-3.5 rounded-2xl border border-slate-800/60">
-                <div className="flex items-center gap-2 text-slate-300">
-                  <Building2 className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                  <span className="font-semibold text-white">Super Dist:</span>
-                  <span className="truncate">{dist.super_distributor_name || "Direct Hub"}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/60 text-[11px]">
-                  <div className="flex items-center gap-1.5 truncate">
-                    <Mail className="w-3 h-3 text-slate-500 shrink-0" />
-                    <span className="truncate">{dist.email || "N/A"}</span>
+                {/* Counts & Volume */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="p-3 bg-[#FAFAFC] rounded-xl border border-[#E5E7EB] text-center">
+                    <div className="text-[10px] uppercase font-bold text-[#6B7280]">Retailers</div>
+                    <div className="text-lg font-black text-[#94003A] mt-0.5">{dist.retailer_count || 0}</div>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <Phone className="w-3 h-3 text-slate-500 shrink-0" />
-                    <span>{dist.mobile || "N/A"}</span>
+
+                  <div className="p-3 bg-[#FAFAFC] rounded-xl border border-[#E5E7EB] text-center">
+                    <div className="text-[10px] uppercase font-bold text-[#6B7280]">POS Machines</div>
+                    <div className="text-lg font-black text-[#D97706] mt-0.5">{dist.pos_count || 0}</div>
                   </div>
-                </div>
-              </div>
 
-              {/* Counts & Volume */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="p-3 bg-slate-950/40 rounded-xl border border-slate-800/60 text-center">
-                  <div className="text-[10px] uppercase font-semibold text-slate-500">Retailers</div>
-                  <div className="text-lg font-black text-white mt-0.5">{dist.retailer_count || 0}</div>
-                </div>
-
-                <div className="p-3 bg-slate-950/40 rounded-xl border border-slate-800/60 text-center">
-                  <div className="text-[10px] uppercase font-semibold text-slate-500">POS Machines</div>
-                  <div className="text-lg font-black text-amber-300 mt-0.5">{dist.pos_count || 0}</div>
-                </div>
-
-                <div className="p-3 bg-slate-950/40 rounded-xl border border-slate-800/60 text-center">
-                  <div className="text-[10px] uppercase font-semibold text-slate-500">Volume</div>
-                  <div className="text-xs font-black text-emerald-400 mt-1">
-                    {formatCurrency(dist.total_volume)}
+                  <div className="p-3 bg-[#FAFAFC] rounded-xl border border-[#E5E7EB] text-center">
+                    <div className="text-[10px] uppercase font-bold text-[#6B7280]">Volume</div>
+                    <div className="text-xs font-black text-[#16A34A] mt-1 font-mono">
+                      {formatCurrency(dist.total_volume)}
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Footer Links */}
-              <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
+              <div className="pt-3 border-t border-[#E5E7EB] flex items-center justify-between">
                 <Link
                   href={`/hierarchy/retailers?dist_id=${dist.id}`}
-                  className="text-xs font-semibold text-blue-400 hover:text-blue-300 flex items-center gap-1 transition"
+                  className="text-xs font-bold text-[#94003A] hover:underline flex items-center gap-1 transition"
                 >
                   <span>View Mapped Retailers ({dist.retailer_count || 0})</span>
                   <ChevronRight className="w-3.5 h-3.5" />
@@ -166,7 +168,7 @@ export default function DistributorsPage() {
 
                 <Link
                   href={`/pos-mdr?dist_id=${dist.id}`}
-                  className="text-xs font-semibold text-slate-400 hover:text-white flex items-center gap-1 transition"
+                  className="text-xs font-semibold text-[#4B5563] hover:text-[#1F2937] flex items-center gap-1 transition"
                 >
                   <span>Configure MDR</span>
                   <ArrowRight className="w-3.5 h-3.5" />

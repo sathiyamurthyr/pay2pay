@@ -18,11 +18,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white">
-        <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mb-4 animate-pulse">
+      <div className="min-h-screen bg-[#F5F6FA] flex flex-col items-center justify-center text-[#1F2937]">
+        <div className="w-12 h-12 rounded-2xl bg-[#F8E6EE] border border-[#94003A]/20 flex items-center justify-center text-[#94003A] mb-4 animate-pulse">
           <Network className="w-6 h-6 animate-spin" />
         </div>
-        <div className="text-sm font-semibold tracking-wide">Validating Sales Session & Tenant Scope...</div>
+        <div className="text-sm font-bold tracking-wide text-[#1F2937]">Validating Sales Session & Tenant Scope...</div>
       </div>
     );
   }

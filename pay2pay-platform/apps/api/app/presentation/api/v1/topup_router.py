@@ -530,7 +530,7 @@ def _resolve_slip_url(slip_url: Optional[str], slip_id: Optional[str] = None) ->
 
 STATIC_UPI_PA = "Mswipe.1430101325004413@mswipesbm"
 STATIC_UPI_PN = "MSWIPE"
-STATIC_COMPANY_NAME = "SUPER REX PRODUCTS PRIVATE LIMITED"
+STATIC_COMPANY_NAME = "SATHUS PRIVATE LIMITED"
 
 def _extract_upi_payment_details(raw_text: str, expected_amount: Optional[float] = None) -> Dict[str, Any]:
     """

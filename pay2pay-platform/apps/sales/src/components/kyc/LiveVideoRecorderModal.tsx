@@ -202,23 +202,23 @@ export default function LiveVideoRecorderModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="w-full max-w-lg bg-white border border-[#E5E7EB] rounded-3xl overflow-hidden shadow-2xl space-y-4 text-[#1F2937]">
         {/* Header */}
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+        <div className="p-4 border-b border-[#E5E7EB] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-xl bg-[#F8E6EE] border border-[#94003A]/20 text-[#94003A] flex items-center justify-center font-bold">
               <Video className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white">Live Selfie Video KYC Recorder</h3>
-              <p className="text-[10px] text-slate-400">Record a short 10-second biometric selfie video</p>
+              <h3 className="text-sm font-bold text-[#1F2937]">Live Selfie Video KYC Recorder</h3>
+              <p className="text-[10px] text-[#6B7280]">Record a short 10-second biometric selfie video</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition"
+            className="p-1.5 rounded-lg bg-[#FAFAFC] hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#1F2937] transition"
           >
             <X className="w-4 h-4" />
           </button>
@@ -226,12 +226,12 @@ export default function LiveVideoRecorderModal({
 
         {/* Video Prompt Script */}
         <div className="px-4">
-          <div className="p-3 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 text-xs text-indigo-200 space-y-1">
-            <div className="flex items-center gap-1.5 font-bold text-indigo-300">
-              <Mic className="w-3.5 h-3.5 text-indigo-400" />
+          <div className="p-3.5 rounded-2xl bg-[#F8E6EE] border border-[#94003A]/20 text-xs text-[#94003A] space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-[#94003A]">
+              <Mic className="w-3.5 h-3.5 text-[#94003A]" />
               Please read this prompt clearly during recording:
             </div>
-            <p className="font-mono text-[11px] bg-slate-950/80 p-2 rounded-xl text-slate-200 border border-indigo-900/50">
+            <p className="font-mono text-[11px] bg-white p-2.5 rounded-xl text-[#1F2937] border border-[#E5E7EB]">
               &quot;My name is {entityName || "Merchant"}, and I am registering as a {roleName} on the Pay2Pay Platform.&quot;
             </p>
           </div>
@@ -239,7 +239,7 @@ export default function LiveVideoRecorderModal({
 
         {/* Camera / Video Player */}
         <div className="px-4">
-          <div className="relative aspect-video rounded-2xl bg-black overflow-hidden border border-slate-800 flex items-center justify-center">
+          <div className="relative aspect-video rounded-2xl bg-black overflow-hidden border border-[#E5E7EB] flex items-center justify-center">
             {recordedUrl ? (
               <video
                 src={recordedUrl}
@@ -258,22 +258,22 @@ export default function LiveVideoRecorderModal({
                 />
                 {/* Recording indicator */}
                 {recording && (
-                  <div className="absolute top-3 left-3 flex items-center gap-2 px-2.5 py-1 rounded-full bg-rose-500/90 text-white text-[11px] font-bold animate-pulse shadow-lg">
+                  <div className="absolute top-3 left-3 flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#DC2626] text-white text-[11px] font-bold animate-pulse shadow-lg">
                     <span className="w-2 h-2 rounded-full bg-white animate-ping" />
                     RECORDING ({countdown}s)
                   </div>
                 )}
               </>
             ) : (
-              <div className="p-6 text-center space-y-3">
-                <Video className="w-10 h-10 text-slate-600 mx-auto" />
-                <p className="text-xs text-slate-400">
+              <div className="p-6 text-center space-y-3 bg-[#FAFAFC] w-full h-full flex flex-col items-center justify-center">
+                <Video className="w-10 h-10 text-[#9CA3AF] mx-auto" />
+                <p className="text-xs text-[#6B7280]">
                   {errorMsg || "Initializing live webcam stream..."}
                 </p>
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold"
+                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#94003A] hover:bg-[#78002F] text-white text-xs font-bold transition shadow-sm"
                 >
                   <Upload className="w-3.5 h-3.5" />
                   Upload Video File Instead
@@ -286,8 +286,8 @@ export default function LiveVideoRecorderModal({
         {/* Error message */}
         {errorMsg && (
           <div className="px-4">
-            <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+            <div className="p-3 rounded-xl bg-[#FEE2E2] border border-[#FECACA] text-[#991B1B] text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-[#DC2626]" />
               <span>{errorMsg}</span>
             </div>
           </div>
@@ -303,12 +303,12 @@ export default function LiveVideoRecorderModal({
         />
 
         {/* Action Controls */}
-        <div className="p-4 bg-slate-950/60 border-t border-slate-800 flex items-center justify-between gap-3">
+        <div className="p-4 bg-[#FAFAFC] border-t border-[#E5E7EB] flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading || recording}
-            className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition disabled:opacity-50"
+            className="px-3.5 py-2 rounded-xl bg-white hover:bg-[#F3F4F6] text-[#4B5563] text-xs font-bold border border-[#D1D5DB] flex items-center gap-1.5 transition disabled:opacity-50"
           >
             <Upload className="w-3.5 h-3.5" />
             Upload Video
@@ -319,7 +319,7 @@ export default function LiveVideoRecorderModal({
               <button
                 type="button"
                 onClick={startRecording}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-extrabold shadow-lg shadow-rose-600/30 flex items-center gap-2"
+                className="px-5 py-2.5 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-bold shadow-sm flex items-center gap-2 transition"
               >
                 <span className="w-2.5 h-2.5 rounded-full bg-white" />
                 Start 10s Recording
@@ -330,7 +330,7 @@ export default function LiveVideoRecorderModal({
               <button
                 type="button"
                 onClick={stopRecording}
-                className="px-5 py-2.5 rounded-xl bg-rose-700 hover:bg-rose-600 text-white text-xs font-extrabold flex items-center gap-2 shadow-lg"
+                className="px-5 py-2.5 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-bold flex items-center gap-2 shadow-sm"
               >
                 <Square className="w-3.5 h-3.5" />
                 Stop Recording ({countdown}s)
@@ -343,7 +343,7 @@ export default function LiveVideoRecorderModal({
                   type="button"
                   onClick={handleRetake}
                   disabled={uploading}
-                  className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1.5"
+                  className="px-3.5 py-2.5 rounded-xl bg-white hover:bg-[#F3F4F6] text-[#4B5563] border border-[#D1D5DB] text-xs font-semibold flex items-center gap-1.5"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                   Re-record
@@ -352,7 +352,7 @@ export default function LiveVideoRecorderModal({
                   type="button"
                   onClick={handleUploadVideo}
                   disabled={uploading}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-extrabold shadow-lg shadow-purple-600/30 flex items-center gap-2 disabled:opacity-50"
+                  className="px-5 py-2.5 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold shadow-sm flex items-center gap-2 disabled:opacity-50 transition"
                 >
                   {uploading ? (
                     <>

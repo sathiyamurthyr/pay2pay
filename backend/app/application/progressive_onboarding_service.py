@@ -1676,7 +1676,9 @@ class ProgressiveOnboardingService:
     async def submit_registration(
         db: AsyncSession,
         registration_id: str,
-        target_user_type_ref_id: Optional[int] = None
+        target_user_type_ref_id: Optional[int] = None,
+        mapped_sd_id: Optional[str] = None,
+        mapped_dist_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """Final Submit: Re-validate cross-entity uniqueness, lock draft status to KYC_SUBMITTED, synchronize SD/Distributor/Retailer, and trigger Admin Verification."""
         d_stmt = select(RegistrationDraftModel).where(RegistrationDraftModel.registration_id == registration_id)
@@ -1684,7 +1686,13 @@ class ProgressiveOnboardingService:
         if not draft:
             return {"status": "ERROR", "message": "Invalid registration ID."}
 
-        draft_d = draft.draft_data or {}
+        draft_d = dict(draft.draft_data or {})
+        if mapped_sd_id:
+            draft_d["mapped_sd_id"] = str(mapped_sd_id)
+        if mapped_dist_id:
+            draft_d["mapped_dist_id"] = str(mapped_dist_id)
+        draft.draft_data = draft_d
+
         user_type_ref_id = int(target_user_type_ref_id or draft_d.get("user_type_ref_id", 2))
 
         # Map entity type name
@@ -1806,6 +1814,22 @@ class ProgressiveOnboardingService:
                     sd_entity.owner_name = ret_name
             elif user_type_ref_id == 3:
                 # Distributor
+                parent_sd_id = draft_d.get("mapped_super_distributor_id") or draft_d.get("mapped_sd_id")
+                parent_sd_uuid = None
+                parent_sd_ref = None
+                parent_comp_id = draft.tenant_id or DEFAULT_TENANT_ID
+                if parent_sd_id:
+                    try:
+                        p_uuid = uuid.UUID(str(parent_sd_id))
+                        p_sd = (await db.execute(select(SuperDistributorModel).where(SuperDistributorModel.public_id == p_uuid))).scalars().first()
+                        if p_sd:
+                            parent_sd_uuid = p_sd.public_id
+                            parent_sd_ref = p_sd.super_distributor_ref_id
+                            if p_sd.company_id:
+                                parent_comp_id = p_sd.company_id
+                    except Exception as ex_sd:
+                        print(f"[SD RESOLVE ERROR] {ex_sd}")
+
                 stmt = select(DistributorModel).where(
                     (DistributorModel.mobile == clean_m) | (DistributorModel.email == draft.email)
                 )
@@ -1816,7 +1840,7 @@ class ProgressiveOnboardingService:
                     dist_entity = DistributorModel(
                         distributor_ref_id=max_dist_ref,
                         tenant_id=draft.tenant_id or DEFAULT_TENANT_ID,
-                        company_id=draft.tenant_id or DEFAULT_TENANT_ID,
+                        company_id=parent_comp_id,
                         distributor_code=dist_code,
                         business_name=shop_n,
                         owner_name=ret_name,
@@ -1830,6 +1854,8 @@ class ProgressiveOnboardingService:
                         city=city_val,
                         address=street_val,
                         pincode=pincode_val,
+                        mapped_super_distributor_id=parent_sd_uuid,
+                        super_distributor_ref_id=parent_sd_ref,
                         status="PENDING_APPROVAL"
                     )
                     db.add(dist_entity)
@@ -1837,10 +1863,37 @@ class ProgressiveOnboardingService:
                     dist_entity.status = "PENDING_APPROVAL"
                     dist_entity.business_name = shop_n
                     dist_entity.owner_name = ret_name
+                    if parent_sd_uuid:
+                        dist_entity.mapped_super_distributor_id = parent_sd_uuid
+                        dist_entity.super_distributor_ref_id = parent_sd_ref
+                        dist_entity.company_id = parent_comp_id
             else:
                 # Retailer
                 from app.application.services import RetailerManagementService
                 await RetailerManagementService.sync_verifications_to_retailers(db, DEFAULT_TENANT_ID)
+
+                # Link parent Distributor if specified
+                parent_dist_id = draft_d.get("mapped_distributor_id") or draft_d.get("mapped_dist_id")
+                if parent_dist_id:
+                    try:
+                        p_dist_uuid = uuid.UUID(str(parent_dist_id))
+                        p_dist = (await db.execute(select(DistributorModel).where(DistributorModel.public_id == p_dist_uuid))).scalars().first()
+                        if p_dist:
+                            ret_stmt = select(RetailerModel).join(
+                                RetailerContactModel, RetailerContactModel.retailer_id == RetailerModel.public_id
+                            ).where(
+                                (RetailerContactModel.mobile == clean_m) | (RetailerContactModel.email == draft.email)
+                            )
+                            ret_obj = (await db.execute(ret_stmt)).scalars().first()
+                            if ret_obj:
+                                ret_obj.mapped_distributor_id = p_dist.public_id
+                                ret_obj.distributor_ref_id = p_dist.distributor_ref_id
+                                ret_obj.mapped_super_distributor_id = p_dist.mapped_super_distributor_id
+                                ret_obj.super_distributor_ref_id = p_dist.super_distributor_ref_id
+                                if p_dist.company_id:
+                                    ret_obj.company_id = p_dist.company_id
+                    except Exception as ex_dist:
+                        print(f"[RETAILER DIST MAP ERROR] {ex_dist}")
         except Exception as sync_ex:
             print(f"[ENTITY SYNC EXCEPTION] {sync_ex}")
 
@@ -2242,3 +2295,101 @@ class ProgressiveOnboardingService:
             "admin_remarks": admin_remarks,
             "faqs": faqs
         }
+
+    @staticmethod
+    async def get_sds_list(
+        db: AsyncSession,
+        tenant_id: Optional[uuid.UUID] = None,
+        company_id: Optional[uuid.UUID] = None
+    ) -> List[Dict[str, Any]]:
+        """Fetch Super Distributors list for registration/onboarding dropdowns scoped by tenant and company."""
+        eff_tid = tenant_id or DEFAULT_TENANT_ID
+        stmt = select(SuperDistributorModel).where(
+            SuperDistributorModel.tenant_id == eff_tid,
+            SuperDistributorModel.is_deleted == False
+        )
+        if company_id:
+            stmt = stmt.where(
+                or_(
+                    SuperDistributorModel.company_id == company_id,
+                    SuperDistributorModel.company_id == None
+                )
+            )
+        stmt = stmt.order_by(SuperDistributorModel.business_name.asc())
+        res = await db.execute(stmt)
+        sds = res.scalars().all()
+        return [
+            {
+                "public_id": str(sd.public_id),
+                "super_distributor_ref_id": sd.super_distributor_ref_id,
+                "super_distributor_code": sd.super_distributor_code or f"SD-{sd.public_id.hex[:6].upper()}",
+                "business_name": sd.business_name,
+                "owner_name": sd.owner_name,
+                "mobile": sd.mobile,
+                "email": sd.email,
+                "city": sd.city,
+                "state": sd.state,
+                "status": sd.status,
+                "is_active": sd.is_active
+            }
+            for sd in sds
+        ]
+
+    @staticmethod
+    async def get_distributors_list(
+        db: AsyncSession,
+        tenant_id: Optional[uuid.UUID] = None,
+        company_id: Optional[uuid.UUID] = None,
+        sd_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Fetch Distributors list for registration/onboarding dropdowns scoped by tenant, company, and optional parent SD."""
+        eff_tid = tenant_id or DEFAULT_TENANT_ID
+        stmt = select(DistributorModel).where(
+            DistributorModel.tenant_id == eff_tid,
+            DistributorModel.is_deleted == False
+        )
+        if company_id:
+            stmt = stmt.where(
+                or_(
+                    DistributorModel.company_id == company_id,
+                    DistributorModel.company_id == None
+                )
+            )
+        if sd_id:
+            try:
+                sd_uuid = uuid.UUID(str(sd_id))
+                stmt = stmt.where(DistributorModel.mapped_super_distributor_id == sd_uuid)
+            except Exception:
+                pass
+        stmt = stmt.order_by(DistributorModel.business_name.asc())
+        res = await db.execute(stmt)
+        dists = res.scalars().all()
+
+        sd_map: Dict[uuid.UUID, str] = {}
+        sd_ids = [d.mapped_super_distributor_id for d in dists if d.mapped_super_distributor_id]
+        if sd_ids:
+            sd_stmt = select(SuperDistributorModel.public_id, SuperDistributorModel.business_name).where(
+                SuperDistributorModel.public_id.in_(sd_ids)
+            )
+            sd_res = await db.execute(sd_stmt)
+            for s_id, s_name in sd_res.all():
+                sd_map[s_id] = s_name
+
+        return [
+            {
+                "public_id": str(d.public_id),
+                "distributor_ref_id": d.distributor_ref_id,
+                "distributor_code": d.distributor_code or f"DIS-{d.public_id.hex[:6].upper()}",
+                "business_name": d.business_name,
+                "owner_name": d.owner_name,
+                "mobile": d.mobile,
+                "email": d.email,
+                "city": d.city,
+                "state": d.state,
+                "super_distributor_id": str(d.mapped_super_distributor_id) if d.mapped_super_distributor_id else None,
+                "super_distributor_name": sd_map.get(d.mapped_super_distributor_id, "Direct Corporate"),
+                "status": d.status,
+                "is_active": d.is_active
+            }
+            for d in dists
+        ]

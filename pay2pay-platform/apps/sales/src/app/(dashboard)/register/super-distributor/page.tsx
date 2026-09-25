@@ -5,7 +5,7 @@ import { SinglePageOnboardingForm } from "@/components/onboarding/SinglePageOnbo
 
 export default function RegisterSuperDistributorPage() {
   return (
-    <div className="w-full max-w-5xl mx-auto py-4">
+    <div className="w-full max-w-[1400px] 2xl:max-w-[1500px] mx-auto py-2">
       <SinglePageOnboardingForm initialUserTypeRefId={4} />
     </div>
   );

@@ -167,23 +167,23 @@ export default function LiveCameraModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="w-full max-w-lg bg-white border border-[#E5E7EB] rounded-3xl overflow-hidden shadow-2xl space-y-4 text-[#1F2937]">
         {/* Header */}
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+        <div className="p-4 border-b border-[#E5E7EB] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-xl bg-[#F8E6EE] border border-[#94003A]/20 text-[#94003A] flex items-center justify-center font-bold">
               <Camera className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white">{title}</h3>
-              <p className="text-[10px] text-slate-400">Live Camera Capture & Backblaze B2 Vault Storage</p>
+              <h3 className="text-sm font-bold text-[#1F2937]">{title}</h3>
+              <p className="text-[10px] text-[#6B7280]">Live Camera Capture & Backblaze B2 Vault Storage</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition"
+            className="p-1.5 rounded-lg bg-[#FAFAFC] hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#1F2937] transition"
           >
             <X className="w-4 h-4" />
           </button>
@@ -191,7 +191,7 @@ export default function LiveCameraModal({
 
         {/* Camera Feed / Captured View */}
         <div className="px-4">
-          <div className="relative aspect-video rounded-2xl bg-black overflow-hidden border border-slate-800 flex items-center justify-center">
+          <div className="relative aspect-video rounded-2xl bg-black overflow-hidden border border-[#E5E7EB] flex items-center justify-center">
             {capturedImage ? (
               <img
                 src={capturedImage}
@@ -209,20 +209,20 @@ export default function LiveCameraModal({
                 />
                 {docType === "SELFIE" && (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-44 h-56 rounded-full border-2 border-dashed border-blue-400/60" />
+                    <div className="w-44 h-56 rounded-full border-2 border-dashed border-[#E7B631]/80" />
                   </div>
                 )}
               </>
             ) : (
-              <div className="p-6 text-center space-y-3">
-                <Camera className="w-10 h-10 text-slate-600 mx-auto" />
-                <p className="text-xs text-slate-400">
+              <div className="p-6 text-center space-y-3 bg-[#FAFAFC] w-full h-full flex flex-col items-center justify-center">
+                <Camera className="w-10 h-10 text-[#9CA3AF] mx-auto" />
+                <p className="text-xs text-[#6B7280]">
                   {errorMsg || "Starting live camera stream..."}
                 </p>
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold"
+                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#94003A] hover:bg-[#78002F] text-white text-xs font-bold transition shadow-sm"
                 >
                   <Upload className="w-3.5 h-3.5" />
                   Upload Photo From Device
@@ -235,8 +235,8 @@ export default function LiveCameraModal({
         {/* Error message */}
         {errorMsg && (
           <div className="px-4">
-            <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+            <div className="p-3 rounded-xl bg-[#FEE2E2] border border-[#FECACA] text-[#991B1B] text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-[#DC2626]" />
               <span>{errorMsg}</span>
             </div>
           </div>
@@ -252,12 +252,12 @@ export default function LiveCameraModal({
         />
 
         {/* Controls */}
-        <div className="p-4 bg-slate-950/60 border-t border-slate-800 flex items-center justify-between gap-3">
+        <div className="p-4 bg-[#FAFAFC] border-t border-[#E5E7EB] flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition"
+            className="px-3.5 py-2 rounded-xl bg-white hover:bg-[#F3F4F6] text-[#4B5563] text-xs font-bold border border-[#D1D5DB] flex items-center gap-1.5 transition"
           >
             <Upload className="w-3.5 h-3.5" />
             Upload File
@@ -269,7 +269,7 @@ export default function LiveCameraModal({
                 <button
                   type="button"
                   onClick={handleToggleFacingMode}
-                  className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
+                  className="p-2.5 rounded-xl bg-white hover:bg-[#F3F4F6] text-[#4B5563] border border-[#D1D5DB] transition"
                   title="Switch Front/Back Camera"
                 >
                   <SwitchCamera className="w-4 h-4" />
@@ -277,7 +277,7 @@ export default function LiveCameraModal({
                 <button
                   type="button"
                   onClick={handleCapture}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-extrabold shadow-lg shadow-blue-600/30 flex items-center gap-2"
+                  className="px-5 py-2.5 rounded-xl bg-[#94003A] hover:bg-[#78002F] text-white text-xs font-bold shadow-sm flex items-center gap-2 transition"
                 >
                   <Camera className="w-4 h-4" />
                   Take Photo
@@ -291,7 +291,7 @@ export default function LiveCameraModal({
                   type="button"
                   onClick={handleRetake}
                   disabled={uploading}
-                  className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1.5"
+                  className="px-3.5 py-2.5 rounded-xl bg-white hover:bg-[#F3F4F6] text-[#4B5563] border border-[#D1D5DB] text-xs font-semibold flex items-center gap-1.5"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                   Retake
@@ -300,7 +300,7 @@ export default function LiveCameraModal({
                   type="button"
                   onClick={handleUploadCaptured}
                   disabled={uploading}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-extrabold shadow-lg shadow-emerald-600/30 flex items-center gap-2 disabled:opacity-50"
+                  className="px-5 py-2.5 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold shadow-sm flex items-center gap-2 disabled:opacity-50 transition"
                 >
                   {uploading ? (
                     <>

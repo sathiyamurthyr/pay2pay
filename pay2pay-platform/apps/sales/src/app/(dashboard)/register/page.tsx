@@ -27,13 +27,15 @@ function RegisterContent() {
 
 export default function RegisterDashboardPage() {
   return (
-    <div className="w-full max-w-5xl mx-auto py-4">
-      <Suspense fallback={
-        <div className="flex flex-col items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-          <p className="text-sm font-semibold text-slate-400 mt-3">Loading Onboarding Portal...</p>
-        </div>
-      }>
+    <div className="w-full max-w-[1400px] 2xl:max-w-[1500px] mx-auto py-2">
+      <Suspense
+        fallback={
+          <div className="flex flex-col items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 text-[#94003A] animate-spin" />
+            <p className="text-sm font-semibold text-[#4B5563] mt-3">Loading Onboarding Portal...</p>
+          </div>
+        }
+      >
         <RegisterContent />
       </Suspense>
     </div>

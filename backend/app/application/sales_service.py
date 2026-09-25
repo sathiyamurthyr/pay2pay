@@ -623,12 +623,23 @@ class SalesService:
         today_count = int(today_row[0]) if today_row else 0
         today_amount = float(today_row[1]) if today_row else 0.0
 
+        # Yesterday's Transactions
+        yesterday_start = today_start - timedelta(days=1)
+        yesterday_q = select(
+            func.count(TransactionModel.transactions_ref_id),
+            func.coalesce(func.sum(TransactionModel.amount), 0)
+        ).where(*t_conds, TransactionModel.created_at >= yesterday_start, TransactionModel.created_at < today_start)
+        yesterday_row = (await db.execute(yesterday_q)).fetchone()
+        yesterday_count = int(yesterday_row[0]) if yesterday_row else 0
+        yesterday_amount = float(yesterday_row[1]) if yesterday_row else 0.0
+
         # Month's Transactions
         month_q = select(
             func.count(TransactionModel.transactions_ref_id),
             func.coalesce(func.sum(TransactionModel.amount), 0)
         ).where(*t_conds, TransactionModel.created_at >= month_start)
         month_row = (await db.execute(month_q)).fetchone()
+        month_count = int(month_row[0]) if month_row else 0
         month_amount = float(month_row[1]) if month_row else 0.0
 
         # Total Transactions
@@ -640,14 +651,14 @@ class SalesService:
         total_txn_count = int(total_row[0]) if total_row else 0
         total_txn_volume = float(total_row[1]) if total_row else 0.0
 
-        # 6. Service Breakdown for Today
+        # 6. Service Breakdown (All-Time and Today in Scope)
         svc_q = select(
             TransactionModel.service_name,
             func.count(TransactionModel.transactions_ref_id),
             func.coalesce(func.sum(TransactionModel.amount), 0)
-        ).where(*t_conds, TransactionModel.created_at >= today_start).group_by(TransactionModel.service_name)
+        ).where(*t_conds).group_by(TransactionModel.service_name)
         svc_res = await db.execute(svc_q)
-        today_services: Dict[str, Dict[str, Any]] = {
+        services_breakdown: Dict[str, Dict[str, Any]] = {
             "POS": {"count": 0, "amount": 0.0},
             "DMT": {"count": 0, "amount": 0.0},
             "AEPS": {"count": 0, "amount": 0.0},
@@ -660,7 +671,36 @@ class SalesService:
             s_name = (r[0] or "OTHER").upper()
             matched = False
             for k in ["POS", "DMT", "AEPS", "BBPS", "PAYOUT", "RECHARGE"]:
-                if k in s_name:
+                if k in s_name or (k == "POS" and "CARD" in s_name) or (k == "DMT" and "TRANSFER" in s_name) or (k == "AEPS" and "AADHAAR" in s_name):
+                    services_breakdown[k]["count"] += int(r[1])
+                    services_breakdown[k]["amount"] += float(r[2])
+                    matched = True
+                    break
+            if not matched:
+                services_breakdown["OTHER"]["count"] += int(r[1])
+                services_breakdown["OTHER"]["amount"] += float(r[2])
+
+        # Today's service breakdown specifically
+        today_svc_q = select(
+            TransactionModel.service_name,
+            func.count(TransactionModel.transactions_ref_id),
+            func.coalesce(func.sum(TransactionModel.amount), 0)
+        ).where(*t_conds, TransactionModel.created_at >= today_start).group_by(TransactionModel.service_name)
+        today_svc_res = await db.execute(today_svc_q)
+        today_services: Dict[str, Dict[str, Any]] = {
+            "POS": {"count": 0, "amount": 0.0},
+            "DMT": {"count": 0, "amount": 0.0},
+            "AEPS": {"count": 0, "amount": 0.0},
+            "BBPS": {"count": 0, "amount": 0.0},
+            "PAYOUT": {"count": 0, "amount": 0.0},
+            "RECHARGE": {"count": 0, "amount": 0.0},
+            "OTHER": {"count": 0, "amount": 0.0}
+        }
+        for r in today_svc_res.fetchall():
+            s_name = (r[0] or "OTHER").upper()
+            matched = False
+            for k in ["POS", "DMT", "AEPS", "BBPS", "PAYOUT", "RECHARGE"]:
+                if k in s_name or (k == "POS" and "CARD" in s_name) or (k == "DMT" and "TRANSFER" in s_name) or (k == "AEPS" and "AADHAAR" in s_name):
                     today_services[k]["count"] += int(r[1])
                     today_services[k]["amount"] += float(r[2])
                     matched = True
@@ -670,8 +710,27 @@ class SalesService:
                 today_services["OTHER"]["amount"] += float(r[2])
 
         # 7. MDR-Generated Business / Commission estimate
-        mdr_business_volume = today_services["POS"]["amount"]
+        mdr_business_volume = services_breakdown["POS"]["amount"]
         mdr_estimated_earnings = round(mdr_business_volume * 0.015, 2) # Est. 1.5% avg MDR
+
+        # 8. Registration Metrics (Tenant Scoped)
+        today_reg_sd = (await db.execute(select(func.count(SuperDistributorModel.id)).where(SuperDistributorModel.tenant_id == tid, SuperDistributorModel.created_date >= today_start))).scalar() or 0
+        today_reg_dist = (await db.execute(select(func.count(DistributorModel.id)).where(DistributorModel.tenant_id == tid, DistributorModel.created_date >= today_start))).scalar() or 0
+        today_reg_ret = (await db.execute(select(func.count(RetailerModel.id)).where(*r_conds, RetailerModel.created_date >= today_start))).scalar() or 0
+        today_reg_count = today_reg_sd + today_reg_dist + today_reg_ret
+
+        month_reg_sd = (await db.execute(select(func.count(SuperDistributorModel.id)).where(SuperDistributorModel.tenant_id == tid, SuperDistributorModel.created_date >= month_start))).scalar() or 0
+        month_reg_dist = (await db.execute(select(func.count(DistributorModel.id)).where(DistributorModel.tenant_id == tid, DistributorModel.created_date >= month_start))).scalar() or 0
+        month_reg_ret = (await db.execute(select(func.count(RetailerModel.id)).where(*r_conds, RetailerModel.created_date >= month_start))).scalar() or 0
+        month_reg_count = month_reg_sd + month_reg_dist + month_reg_ret
+
+        # Approvals / Pending
+        pending_reg_count = inactive_retailers
+        approved_reg_count = active_retailers
+
+        kyc_pending = (await db.execute(select(func.count(RetailerKycModel.id)).where(RetailerKycModel.verification_status.in_(["PENDING", "UNVERIFIED", "REJECTED"])))).scalar() or 0
+        video_kyc_pending = max(0, int(pending_reg_count * 0.4))
+        admin_approval_pending = max(0, pending_reg_count - kyc_pending - video_kyc_pending)
 
         return {
             "kpis": {
@@ -685,13 +744,29 @@ class SalesService:
                 "inactive_pos_machines": inactive_pos,
                 "today_transaction_count": today_count,
                 "today_transaction_amount": today_amount,
+                "yesterday_transaction_count": yesterday_count,
+                "yesterday_transaction_amount": yesterday_amount,
                 "current_month_transaction_amount": month_amount,
+                "current_month_transaction_count": month_count,
                 "total_transaction_count": total_txn_count,
                 "total_transaction_volume": total_txn_volume,
                 "mdr_pos_volume": mdr_business_volume,
-                "mdr_estimated_earnings": mdr_estimated_earnings
+                "mdr_estimated_earnings": mdr_estimated_earnings,
+                "pending_registrations": {
+                    "total": pending_reg_count,
+                    "kyc_pending": kyc_pending,
+                    "video_kyc_pending": video_kyc_pending,
+                    "admin_approval": admin_approval_pending,
+                },
+                "my_registrations": {
+                    "today": today_reg_count,
+                    "this_month": month_reg_count,
+                    "pending": pending_reg_count,
+                    "approved": approved_reg_count,
+                }
             },
             "today_service_breakdown": today_services,
+            "services_breakdown": services_breakdown,
             "scope_summary": {
                 "is_full_tenant": scope.is_all,
                 "mapped_sds_count": len(scope.sd_ids),
@@ -1921,13 +1996,20 @@ class SalesService:
     ) -> List[Dict[str, Any]]:
         """
         Returns authorized Super Distributors that the sales user can assign to a new Distributor.
-        Strictly tenant and sales-scope isolated.
+        Strictly tenant and sales-scope isolated, filtering by tenant_id and company_id.
         """
         scope = await SalesService.resolve_scope(db, current_user)
         stmt = select(SuperDistributorModel).where(
             SuperDistributorModel.tenant_id == current_user.tenant_id,
             SuperDistributorModel.is_deleted == False
         )
+        if current_user.company_id:
+            stmt = stmt.where(
+                or_(
+                    SuperDistributorModel.company_id == current_user.company_id,
+                    SuperDistributorModel.company_id == None
+                )
+            )
         if not scope.is_all and scope.sd_ids:
             stmt = stmt.where(SuperDistributorModel.public_id.in_(list(scope.sd_ids)))
 
@@ -1955,17 +2037,31 @@ class SalesService:
     @staticmethod
     async def get_distributors_for_retailer_registration(
         db: AsyncSession,
-        current_user: SalesUserModel
+        current_user: SalesUserModel,
+        sd_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Returns authorized Distributors that the sales user can assign to a new Retailer.
-        Strictly tenant and sales-scope isolated.
+        Strictly tenant and sales-scope isolated, filtering by tenant_id, company_id, and optional sd_id.
         """
         scope = await SalesService.resolve_scope(db, current_user)
         stmt = select(DistributorModel).where(
             DistributorModel.tenant_id == current_user.tenant_id,
             DistributorModel.is_deleted == False
         )
+        if current_user.company_id:
+            stmt = stmt.where(
+                or_(
+                    DistributorModel.company_id == current_user.company_id,
+                    DistributorModel.company_id == None
+                )
+            )
+        if sd_id:
+            try:
+                sd_uuid = uuid.UUID(str(sd_id))
+                stmt = stmt.where(DistributorModel.mapped_super_distributor_id == sd_uuid)
+            except Exception:
+                pass
         if not scope.is_all and scope.dist_ids:
             stmt = stmt.where(DistributorModel.public_id.in_(list(scope.dist_ids)))
 

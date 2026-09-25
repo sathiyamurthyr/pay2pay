@@ -29,13 +29,13 @@ function OnboardingContent() {
 
 export default function PublicOnboardingPage() {
   return (
-    <div className="min-h-screen bg-[#070A11] text-white py-8 px-3 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="min-h-screen bg-[#F5F6FA] text-[#1F2937] py-6 px-3 sm:px-6 lg:px-8">
+      <div className="w-full max-w-[1400px] 2xl:max-w-[1500px] mx-auto space-y-6">
         <Suspense
           fallback={
             <div className="flex flex-col items-center justify-center py-24 space-y-4">
-              <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
-              <p className="text-sm font-semibold text-slate-400">Loading Enterprise Onboarding Portal...</p>
+              <Loader2 className="w-10 h-10 text-[#94003A] animate-spin" />
+              <p className="text-sm font-semibold text-[#4B5563]">Loading Enterprise Onboarding Portal...</p>
             </div>
           }
         >

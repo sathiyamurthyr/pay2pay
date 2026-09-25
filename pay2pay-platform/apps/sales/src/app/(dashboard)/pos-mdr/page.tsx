@@ -95,15 +95,15 @@ export default function PosMdrSetupStudioPage() {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-12">
+    <div className="max-w-4xl w-full mx-auto space-y-6 pb-12">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 text-white shadow-xl">
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-amber-400 mb-2">
+      <div className="bg-gradient-to-r from-[#94003A] via-[#78002F] to-[#550020] border border-[#94003A]/20 rounded-2xl sm:rounded-3xl p-6 sm:p-8 text-white shadow-sm">
+        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#E7B631] mb-2">
           <Sliders className="w-4 h-4" />
           MDR Slabs & Commercial Rate Governance
         </div>
-        <h1 className="text-2xl sm:text-3xl font-bold">POS MDR Setup Studio</h1>
-        <p className="text-slate-400 text-xs sm:text-sm mt-1 max-w-2xl">
+        <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">POS MDR Setup Studio</h1>
+        <p className="text-[#F8E6EE]/80 text-xs sm:text-sm mt-1 max-w-2xl font-medium">
           Configure dynamic Merchant Discount Rates (MDR) across card schemes and settlement speeds strictly within your authorized tenant hierarchy.
         </p>
       </div>
@@ -112,25 +112,25 @@ export default function PosMdrSetupStudioPage() {
         <div
           className={`p-4 rounded-2xl text-xs sm:text-sm flex items-center gap-3 border ${
             feedback.type === "success"
-              ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/30"
-              : "bg-rose-500/10 text-rose-300 border-rose-500/30"
+              ? "bg-[#DCFCE7] text-[#166534] border-[#86EFAC]"
+              : "bg-[#FEE2E2] text-[#991B1B] border-[#FECACA]"
           }`}
         >
           {feedback.type === "success" ? (
-            <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-400" />
+            <CheckCircle2 className="w-5 h-5 shrink-0 text-[#16A34A]" />
           ) : (
-            <AlertCircle className="w-5 h-5 shrink-0 text-rose-400" />
+            <AlertCircle className="w-5 h-5 shrink-0 text-[#DC2626]" />
           )}
-          <span>{feedback.message}</span>
+          <span className="font-semibold">{feedback.message}</span>
         </div>
       )}
 
       {/* Main Form Card */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
+      <div className="bg-white border border-[#E5E7EB] rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 text-[#1F2937]">
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Target Level */}
           <div className="space-y-3">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+            <label className="block text-xs font-bold uppercase tracking-wider text-[#6B7280]">
               1. Select Hierarchy Scope Level
             </label>
             <div className="grid grid-cols-3 gap-3">
@@ -151,11 +151,11 @@ export default function PosMdrSetupStudioPage() {
                     }}
                     className={`p-4 rounded-2xl border text-left transition flex flex-col items-start gap-2 ${
                       isSelected
-                        ? "bg-indigo-600/20 border-indigo-500 text-white shadow-lg shadow-indigo-600/20"
-                        : "bg-slate-950/60 border-slate-800 text-slate-400 hover:bg-slate-950 hover:text-slate-200"
+                        ? "bg-[#F8E6EE] border-[#94003A] text-[#94003A] shadow-xs"
+                        : "bg-[#FAFAFC] border-[#E5E7EB] text-[#4B5563] hover:bg-white hover:border-[#D1D5DB]"
                     }`}
                   >
-                    <Icon className={`w-5 h-5 ${isSelected ? "text-indigo-400" : "text-slate-500"}`} />
+                    <Icon className={`w-5 h-5 ${isSelected ? "text-[#94003A]" : "text-[#6B7280]"}`} />
                     <span className="text-xs font-bold">{opt.label}</span>
                   </button>
                 );
@@ -165,13 +165,13 @@ export default function PosMdrSetupStudioPage() {
 
           {/* Select Entity */}
           <div className="space-y-2">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+            <label className="block text-xs font-bold uppercase tracking-wider text-[#6B7280]">
               2. Target {targetType.replace("_", " ")}
             </label>
             <select
               value={targetId}
               onChange={(e) => setTargetId(e.target.value)}
-              className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-2xl text-xs sm:text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-4 py-3 bg-[#FAFAFC] border border-[#D1D5DB] rounded-2xl text-xs sm:text-sm text-[#1F2937] focus:outline-none focus:ring-2 focus:ring-[#94003A]/20"
               required
             >
               <option value="">-- Select {targetType.replace("_", " ")} --</option>
@@ -186,13 +186,13 @@ export default function PosMdrSetupStudioPage() {
           {/* Card Scheme & Settlement Mode */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#6B7280]">
                 3. Card Scheme / Brand
               </label>
               <select
                 value={cardType}
                 onChange={(e) => setCardType(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-2xl text-xs sm:text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-3 bg-[#FAFAFC] border border-[#D1D5DB] rounded-2xl text-xs sm:text-sm text-[#1F2937] focus:outline-none focus:ring-2 focus:ring-[#94003A]/20"
               >
                 {cardTypes.map((c: string) => (
                   <option key={c} value={c}>
@@ -203,13 +203,13 @@ export default function PosMdrSetupStudioPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#6B7280]">
                 4. Settlement Speed
               </label>
               <select
                 value={paymentMode}
                 onChange={(e) => setPaymentMode(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-2xl text-xs sm:text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-3 bg-[#FAFAFC] border border-[#D1D5DB] rounded-2xl text-xs sm:text-sm text-[#1F2937] focus:outline-none focus:ring-2 focus:ring-[#94003A]/20"
               >
                 {paymentModes.map((m: any) => (
                   <option key={m.code || m} value={m.code || m}>
@@ -222,7 +222,7 @@ export default function PosMdrSetupStudioPage() {
 
           {/* Rate Percentage */}
           <div className="space-y-2">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+            <label className="block text-xs font-bold uppercase tracking-wider text-[#6B7280]">
               5. MDR Rate Percentage (%)
             </label>
             <div className="relative">
@@ -233,32 +233,32 @@ export default function PosMdrSetupStudioPage() {
                 max="5.0"
                 value={mdrRate}
                 onChange={(e) => setMdrRate(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-2xl text-lg font-mono font-bold text-amber-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-3 bg-[#FAFAFC] border border-[#D1D5DB] rounded-2xl text-lg font-mono font-bold text-[#D97706] focus:outline-none focus:ring-2 focus:ring-[#94003A]/20"
                 required
               />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-mono text-sm font-bold">
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#6B7280] font-mono text-sm font-bold">
                 %
               </span>
             </div>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-[#6B7280]">
               This rate will be used by the backend transaction calculation engine during live POS swipes.
             </p>
           </div>
 
           {/* Security Banner */}
-          <div className="p-4 bg-slate-950/60 rounded-2xl border border-slate-800 flex items-center gap-3 text-xs text-slate-400">
-            <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
-            <span>
+          <div className="p-4 bg-[#F8E6EE]/50 rounded-2xl border border-[#94003A]/20 flex items-center gap-3 text-xs text-[#94003A]">
+            <ShieldCheck className="w-5 h-5 text-[#94003A] shrink-0" />
+            <span className="font-semibold">
               Tenant Isolation Enforced: MDR updates are strictly restricted to entities in your authorized mapping.
             </span>
           </div>
 
           {/* Submit */}
-          <div className="pt-4 border-t border-slate-800 flex items-center justify-end gap-3">
+          <div className="pt-4 border-t border-[#E5E7EB] flex items-center justify-end gap-3">
             <button
               type="submit"
               disabled={saveMdrMutation.isPending}
-              className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs font-bold shadow-lg shadow-indigo-600/30 transition disabled:opacity-50 flex items-center gap-2"
+              className="px-6 py-3 bg-[#94003A] hover:bg-[#78002F] text-white rounded-2xl text-xs font-bold shadow-sm transition disabled:opacity-50 flex items-center gap-2"
             >
               {saveMdrMutation.isPending ? (
                 <RefreshCw className="w-4 h-4 animate-spin" />

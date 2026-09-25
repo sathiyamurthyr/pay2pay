@@ -9,7 +9,7 @@ export const SalesShell: React.FC<{ children: React.ReactNode }> = ({ children }
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col md:flex-row selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-[#F5F6FA] flex flex-col md:flex-row selection:bg-[#94003A] selection:text-white font-sans">
       {/* Sidebar: Persistent on Desktop, Slide-out Drawer on Mobile */}
       <SalesSidebar
         isOpen={isMobileMenuOpen}
@@ -17,9 +17,9 @@ export const SalesShell: React.FC<{ children: React.ReactNode }> = ({ children }
       />
 
       {/* Main Content Viewport */}
-      <div className="flex-1 flex flex-col min-w-0 pb-20 md:pb-8">
+      <div className="flex-1 flex flex-col min-w-0 pb-20 md:pb-8 bg-[#F5F6FA]">
         <SalesHeader onMenuClick={() => setIsMobileMenuOpen(true)} />
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto overflow-y-auto">
+        <main className="flex-1 py-5 px-4 sm:px-6 max-w-[1500px] w-full mx-auto overflow-y-auto bg-[#F5F6FA]">
           {children}
         </main>
       </div>

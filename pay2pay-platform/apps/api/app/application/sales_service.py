@@ -1921,13 +1921,20 @@ class SalesService:
     ) -> List[Dict[str, Any]]:
         """
         Returns authorized Super Distributors that the sales user can assign to a new Distributor.
-        Strictly tenant and sales-scope isolated.
+        Strictly tenant and sales-scope isolated, filtering by tenant_id and company_id.
         """
         scope = await SalesService.resolve_scope(db, current_user)
         stmt = select(SuperDistributorModel).where(
             SuperDistributorModel.tenant_id == current_user.tenant_id,
             SuperDistributorModel.is_deleted == False
         )
+        if current_user.company_id:
+            stmt = stmt.where(
+                or_(
+                    SuperDistributorModel.company_id == current_user.company_id,
+                    SuperDistributorModel.company_id == None
+                )
+            )
         if not scope.is_all and scope.sd_ids:
             stmt = stmt.where(SuperDistributorModel.public_id.in_(list(scope.sd_ids)))
 
@@ -1955,17 +1962,31 @@ class SalesService:
     @staticmethod
     async def get_distributors_for_retailer_registration(
         db: AsyncSession,
-        current_user: SalesUserModel
+        current_user: SalesUserModel,
+        sd_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Returns authorized Distributors that the sales user can assign to a new Retailer.
-        Strictly tenant and sales-scope isolated.
+        Strictly tenant and sales-scope isolated, filtering by tenant_id, company_id, and optional sd_id.
         """
         scope = await SalesService.resolve_scope(db, current_user)
         stmt = select(DistributorModel).where(
             DistributorModel.tenant_id == current_user.tenant_id,
             DistributorModel.is_deleted == False
         )
+        if current_user.company_id:
+            stmt = stmt.where(
+                or_(
+                    DistributorModel.company_id == current_user.company_id,
+                    DistributorModel.company_id == None
+                )
+            )
+        if sd_id:
+            try:
+                sd_uuid = uuid.UUID(str(sd_id))
+                stmt = stmt.where(DistributorModel.mapped_super_distributor_id == sd_uuid)
+            except Exception:
+                pass
         if not scope.is_all and scope.dist_ids:
             stmt = stmt.where(DistributorModel.public_id.in_(list(scope.dist_ids)))
 

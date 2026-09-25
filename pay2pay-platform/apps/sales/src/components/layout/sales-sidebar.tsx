@@ -26,7 +26,7 @@ const SALES_NAV: NavCategory[] = [
     category: "Overview",
     items: [
       { label: "Sales Dashboard", href: "/dashboard", icon: LayoutDashboard },
-      { label: "Registrations & KYC Hub", href: "/registrations", icon: ClipboardCheck, badge: "Status" },
+      { label: "Registrations & KYC Hub", href: "/registrations", icon: ClipboardCheck, badge: "Live" },
     ],
   },
   {
@@ -42,7 +42,7 @@ const SALES_NAV: NavCategory[] = [
     items: [
       { label: "Super Distributors", href: "/hierarchy/super-distributors", icon: Users },
       { label: "Distributors", href: "/hierarchy/distributors", icon: Layers },
-      { label: "Retailers Network", href: "/hierarchy/retailers", icon: Store, badge: "Live" },
+      { label: "Retailers Network", href: "/hierarchy/retailers", icon: Store },
     ],
   },
   {
@@ -62,7 +62,7 @@ const SALES_NAV: NavCategory[] = [
   {
     category: "Field Operations & Reports",
     items: [
-      { label: "Field Activity & Retention", href: "/activity", icon: Activity, badge: "Alerts" },
+      { label: "Field Activity & Retention", href: "/activity", icon: Activity },
       { label: "Reports Center", href: "/reports", icon: FileText },
     ],
   },
@@ -81,19 +81,21 @@ export const SalesSidebar: React.FC<{ isOpen?: boolean; onClose?: () => void }> 
     }
   };
 
+  const userInitial = (user?.full_name || "Vikram").charAt(0).toUpperCase();
+
   const sidebarContent = (
-    <div className="w-64 bg-slate-950 border-r border-slate-800/80 flex flex-col shrink-0 h-full select-none">
+    <div className="w-64 bg-white border-r border-gray-200 flex flex-col shrink-0 h-full select-none shadow-sm">
       {/* Brand Header */}
-      <div className="p-5 border-b border-slate-800/80 flex items-center justify-between">
+      <div className="p-4 border-b border-gray-100 flex items-center justify-between">
         <Link href="/dashboard" onClick={handleLinkClick} className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-blue-500 flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-600/30">
-            <Network className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-xl bg-[#94003A] flex items-center justify-center text-[#E7B631] font-bold shadow-md">
+            <Network className="w-5 h-5 text-[#E7B631]" />
           </div>
           <div>
-            <div className="font-extrabold text-base tracking-tight text-white flex items-center gap-1.5">
-              Pay2Pay <span className="text-indigo-400">Sales</span>
+            <div className="font-extrabold text-base tracking-tight text-[#94003A] flex items-center gap-1.5">
+              Pay2Pay <span className="text-[#E7B631]">Sales</span>
             </div>
-            <div className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">
+            <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider">
               Field Force Portal
             </div>
           </div>
@@ -102,7 +104,7 @@ export const SalesSidebar: React.FC<{ isOpen?: boolean; onClose?: () => void }> 
         {onClose && (
           <button
             onClick={onClose}
-            className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+            className="md:hidden p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition"
           >
             <X className="w-5 h-5" />
           </button>
@@ -110,24 +112,24 @@ export const SalesSidebar: React.FC<{ isOpen?: boolean; onClose?: () => void }> 
       </div>
 
       {/* Tenant Context Badge */}
-      <div className="p-3 mx-3 mt-3 rounded-2xl bg-gradient-to-r from-indigo-950/40 via-slate-900 to-slate-950 border border-indigo-900/40">
-        <div className="flex items-center gap-2 text-indigo-400 text-[11px] font-semibold">
-          <Building2 className="w-3.5 h-3.5 shrink-0" />
-          <span className="truncate">{user?.tenant_name || "Active Tenant"}</span>
+      <div className="p-3 mx-3 mt-3 rounded-2xl bg-[#F8E6EE] border border-pink-200/80">
+        <div className="flex items-center gap-2 text-[#94003A] text-[11px] font-bold">
+          <Building2 className="w-3.5 h-3.5 text-[#94003A] shrink-0" />
+          <span className="truncate">{user?.tenant_name || "SUPER REX PRODUCTS PVT LTD"}</span>
         </div>
-        <div className="text-[10px] text-slate-400 mt-1 flex items-center justify-between">
+        <div className="text-[10px] text-gray-600 mt-1 flex items-center justify-between">
           <span>Scope:</span>
-          <span className="font-mono text-indigo-300">
-            {user?.mappings_count === 0 ? "Full Tenant" : `${user?.mappings_count} Scoped`}
+          <span className="font-semibold text-[#94003A]">
+            {user?.mappings_count === 0 ? "Full Tenant" : `${user?.mappings_count} Mapped`}
           </span>
         </div>
       </div>
 
       {/* Navigation List */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
         {SALES_NAV.map((cat, idx) => (
           <div key={idx} className="space-y-1">
-            <div className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <div className="px-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">
               {cat.category}
             </div>
             <div className="space-y-0.5 pt-1">
@@ -141,21 +143,21 @@ export const SalesSidebar: React.FC<{ isOpen?: boolean; onClose?: () => void }> 
                     onClick={handleLinkClick}
                     className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition ${
                       isActive
-                        ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 font-semibold"
-                        : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/70"
+                        ? "bg-[#F8E6EE] text-[#94003A] font-bold border-l-4 border-[#94003A] shadow-sm"
+                        : "text-gray-600 hover:text-[#1F2937] hover:bg-[#F5F6FA]"
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
-                      <Icon className={`w-4 h-4 ${isActive ? "text-white" : "text-slate-400"}`} />
+                      <Icon className={`w-4 h-4 ${isActive ? "text-[#94003A]" : "text-gray-400"}`} />
                       <span>{item.label}</span>
                     </div>
 
                     {item.badge && (
                       <span
-                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                        className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
                           isActive
-                            ? "bg-white/20 text-white"
-                            : "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+                            ? "bg-[#94003A] text-white"
+                            : "bg-[#FEF3C7] text-[#92400E] border border-amber-200"
                         }`}
                       >
                         {item.badge}
@@ -170,25 +172,25 @@ export const SalesSidebar: React.FC<{ isOpen?: boolean; onClose?: () => void }> 
       </div>
 
       {/* User Footer Profile */}
-      <div className="p-3 border-t border-slate-800/80 bg-slate-950">
-        <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800/80 flex items-center justify-between">
+      <div className="p-3 border-t border-gray-100 bg-white">
+        <div className="p-2.5 rounded-xl bg-[#F5F6FA] border border-gray-200 flex items-center justify-between">
           <Link href="/profile" onClick={handleLinkClick} className="flex items-center gap-2.5 overflow-hidden">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-500 to-indigo-700 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-md">
-              {(user?.full_name || "S").charAt(0).toUpperCase()}
+            <div className="w-8 h-8 rounded-lg bg-[#94003A] text-[#E7B631] flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+              {userInitial}
             </div>
             <div className="overflow-hidden">
-              <div className="text-xs font-semibold text-white truncate">
-                {user?.full_name || "Sales Executive"}
+              <div className="text-xs font-bold text-[#1F2937] truncate">
+                {user?.full_name || "Vikram Rathore"}
               </div>
-              <div className="text-[10px] text-slate-400 font-mono truncate">
-                {user?.employee_code || "SALES"}
+              <div className="text-[10px] text-gray-500 font-mono truncate">
+                {user?.employee_code || "SALES001"}
               </div>
             </div>
           </Link>
 
           <button
             onClick={logout}
-            className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
+            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
             title="Sign Out"
           >
             <LogOut className="w-4 h-4" />
@@ -210,7 +212,7 @@ export const SalesSidebar: React.FC<{ isOpen?: boolean; onClose?: () => void }> 
         <div className="md:hidden fixed inset-0 z-50 flex">
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
             onClick={onClose}
           />
           {/* Drawer Panel */}

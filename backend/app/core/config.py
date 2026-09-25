@@ -103,7 +103,7 @@ class Settings(BaseSettings):
     ADMIN_STATEMENT_EMAIL: str = Field(default="")
 
     # ── Support Metadata Configuration ──────────────────────────────────────
-    COMPANY_NAME: str = Field(default="SUPER REX PRODUCTS PRIVATE LIMITED")
+    COMPANY_NAME: str = Field(default="SATHUS PRIVATE LIMITED")
     COMPANY_LOGO_URL: str = Field(default="/logo.png")
     SUPPORT_EMAIL: str = Field(default="support@pay2pay.com")
     SUPPORT_PHONE: str = Field(default="+91 1800 292 982")

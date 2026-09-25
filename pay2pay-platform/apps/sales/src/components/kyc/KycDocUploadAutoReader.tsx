@@ -160,11 +160,11 @@ export default function KycDocUploadAutoReader({
       <div
         className={`p-4 rounded-2xl transition border ${
           currentUrl
-            ? "bg-gradient-to-b from-slate-900/95 to-slate-950 border-emerald-500/40 shadow-md shadow-emerald-950/20"
+            ? "bg-white border-[#86EFAC] shadow-xs"
             : uploading
-            ? "bg-blue-950/20 border-blue-500/50 animate-pulse"
-            : "bg-slate-950 border-slate-800/90 hover:border-slate-700"
-        } flex flex-col justify-between space-y-3.5`}
+            ? "bg-[#F8E6EE]/30 border-[#94003A]/50 animate-pulse"
+            : "bg-[#FAFAFC] border-[#E5E7EB] hover:border-[#94003A]"
+        } flex flex-col justify-between space-y-3.5 text-[#1F2937]`}
       >
         <input
           ref={fileInputRef}
@@ -178,43 +178,43 @@ export default function KycDocUploadAutoReader({
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-blue-400" />
+              <span className="text-xs font-bold text-[#1F2937] flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-[#94003A]" />
                 {label}
-                {required && <span className="text-rose-400">*</span>}
+                {required && <span className="text-[#DC2626]">*</span>}
               </span>
               {currentUrl ? (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#DCFCE7] text-[#166534] border border-[#86EFAC]">
                   <CheckCircle2 className="w-3 h-3" /> Auto-Bound & Verified
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-slate-900 text-slate-400 border border-slate-800">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-[#F8E6EE] text-[#94003A] border border-[#94003A]/20">
                   Auto-Read
                 </span>
               )}
             </div>
-            <p className="text-[11px] text-slate-400 mt-1 leading-snug">{description}</p>
+            <p className="text-[11px] text-[#6B7280] mt-1 leading-snug">{description}</p>
           </div>
         </div>
 
         {/* Document Thumbnail Preview (when uploaded) */}
         {activeMediaUrl && (
-          <div className="relative rounded-xl overflow-hidden border border-slate-700/80 bg-slate-950 group">
+          <div className="relative rounded-xl overflow-hidden border border-[#E5E7EB] bg-[#FAFAFC] group">
             {!isPdf ? (
               <div
                 onClick={handleOpenFullView}
-                className="relative h-36 w-full bg-slate-950/90 flex items-center justify-center cursor-pointer overflow-hidden"
+                className="relative h-36 w-full bg-[#FAFAFC] flex items-center justify-center cursor-pointer overflow-hidden"
               >
                 <img
                   src={activeMediaUrl}
                   alt={label}
                   className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80 group-hover:opacity-100 transition-opacity flex items-end justify-between p-2.5">
-                  <span className="text-[10px] font-medium text-slate-200 flex items-center gap-1 bg-black/60 px-2 py-0.5 rounded-md backdrop-blur-sm">
-                    <Eye className="w-3 h-3 text-blue-400" /> Click for Full View
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-80 group-hover:opacity-100 transition-opacity flex items-end justify-between p-2.5">
+                  <span className="text-[10px] font-medium text-white flex items-center gap-1 bg-black/60 px-2 py-0.5 rounded-md backdrop-blur-xs">
+                    <Eye className="w-3 h-3 text-[#E7B631]" /> Click for Full View
                   </span>
-                  <span className="text-[9px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded">
+                  <span className="text-[9px] font-bold uppercase tracking-wider bg-[#DCFCE7] text-[#166534] border border-[#86EFAC] px-2 py-0.5 rounded">
                     Encrypted Vault
                   </span>
                 </div>
@@ -222,16 +222,16 @@ export default function KycDocUploadAutoReader({
             ) : (
               <div
                 onClick={handleOpenFullView}
-                className="h-28 w-full bg-slate-900 flex items-center justify-center p-4 cursor-pointer group-hover:bg-slate-800/80 transition"
+                className="h-28 w-full bg-[#FAFAFC] flex items-center justify-center p-4 cursor-pointer group-hover:bg-[#F3F4F6] transition"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-[#F8E6EE] border border-[#94003A]/20 text-[#94003A] flex items-center justify-center shrink-0">
                     <FileText className="w-5 h-5" />
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-slate-200">PDF Document Attached</div>
-                    <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
-                      <Eye className="w-3 h-3 text-blue-400" /> Click to View Full PDF
+                    <div className="text-xs font-bold text-[#1F2937]">PDF Document Attached</div>
+                    <div className="text-[10px] text-[#6B7280] flex items-center gap-1 mt-0.5">
+                      <Eye className="w-3 h-3 text-[#94003A]" /> Click to View Full PDF
                     </div>
                   </div>
                 </div>
@@ -242,9 +242,9 @@ export default function KycDocUploadAutoReader({
 
         {/* Extracted Details Pill */}
         {currentUrl && extractedInfo && (
-          <div className="p-2.5 rounded-xl bg-slate-900/95 border border-emerald-500/30 flex items-center gap-2">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <div className="text-[11px] text-emerald-200 font-medium truncate">
+          <div className="p-2.5 rounded-xl bg-[#F0FDF4] border border-[#86EFAC] flex items-center gap-2">
+            <Sparkles className="w-3.5 h-3.5 text-[#16A34A] shrink-0" />
+            <div className="text-[11px] text-[#166534] font-medium truncate">
               {extractedInfo}
             </div>
           </div>
@@ -252,19 +252,19 @@ export default function KycDocUploadAutoReader({
 
         {/* Uploading Status */}
         {uploading && (
-          <div className="p-3 rounded-xl bg-blue-950/40 border border-blue-500/40 text-blue-300 text-xs flex items-center gap-2.5">
-            <RefreshCw className="w-4 h-4 animate-spin text-blue-400 shrink-0" />
+          <div className="p-3 rounded-xl bg-[#F8E6EE] border border-[#94003A]/20 text-[#94003A] text-xs flex items-center gap-2.5">
+            <RefreshCw className="w-4 h-4 animate-spin text-[#94003A] shrink-0" />
             <div className="flex-1">
               <div className="font-bold text-[11px]">Uploading to Vault & Auto-Extracting...</div>
-              <div className="text-[10px] text-blue-400/80">Scanning optical characters & binding fields</div>
+              <div className="text-[10px] text-[#94003A]/80">Scanning optical characters & binding fields</div>
             </div>
           </div>
         )}
 
         {/* Error / Warning Notice */}
         {errorMsg && (
-          <div className="p-2.5 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-300 text-[11px] flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+          <div className="p-2.5 rounded-xl bg-[#FEE2E2] border border-[#FECACA] text-[#991B1B] text-[11px] flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-[#DC2626] shrink-0 mt-0.5" />
             <div className="flex-1">
               <span>{errorMsg}</span>
             </div>
@@ -275,27 +275,27 @@ export default function KycDocUploadAutoReader({
         <div className="pt-1 flex items-center justify-between gap-2">
           {currentUrl ? (
             <>
-              <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 truncate max-w-[200px]">
-                <Lock className="w-3 h-3 text-emerald-400 shrink-0" />
+              <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#6B7280] truncate max-w-[200px]">
+                <Lock className="w-3 h-3 text-[#16A34A] shrink-0" />
                 <span className="truncate">{currentUrl}</span>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   type="button"
                   onClick={handleOpenFullView}
-                  className="px-2 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-[11px] font-semibold border border-slate-700/80 transition flex items-center gap-1"
+                  className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-[#F3F4F6] text-[#4B5563] hover:text-[#1F2937] text-[11px] font-semibold border border-[#D1D5DB] transition flex items-center gap-1"
                   title="Open Full View"
                 >
-                  <Eye className="w-3 h-3 text-blue-400" /> Full View
+                  <Eye className="w-3 h-3 text-[#94003A]" /> Full View
                 </button>
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
-                  className="px-2.5 py-1.5 rounded-lg bg-purple-950/50 hover:bg-purple-900/60 text-purple-200 hover:text-white text-[11px] font-semibold border border-purple-600/40 transition flex items-center gap-1 shadow-sm"
+                  className="px-2.5 py-1.5 rounded-lg bg-[#F8E6EE] hover:bg-[#94003A] text-[#94003A] hover:text-white text-[11px] font-bold border border-[#94003A]/20 transition flex items-center gap-1 shadow-xs"
                   title="Re-upload new copy"
                 >
-                  <RefreshCw className="w-3 h-3 text-purple-400" /> Re-upload
+                  <RefreshCw className="w-3 h-3" /> Re-upload
                 </button>
               </div>
             </>
@@ -304,9 +304,9 @@ export default function KycDocUploadAutoReader({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-blue-600/90 to-indigo-600/90 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold transition shadow-md shadow-blue-600/20 flex items-center justify-center gap-2 border border-blue-400/30 disabled:opacity-50"
+              className="w-full py-2.5 px-3 rounded-xl bg-[#94003A] hover:bg-[#78002F] text-white text-xs font-bold transition shadow-xs flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              <Upload className="w-3.5 h-3.5" />
+              <Upload className="w-3.5 h-3.5 text-[#E7B631]" />
               Upload Document (Auto Read & Bind)
             </button>
           )}
@@ -315,23 +315,23 @@ export default function KycDocUploadAutoReader({
 
       {/* FULL VIEW LIGHTBOX & DOCUMENT INSPECTION MODAL */}
       {fullViewOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="w-full max-w-4xl max-h-[92vh] bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-4xl max-h-[92vh] bg-white border border-[#E5E7EB] rounded-3xl overflow-hidden shadow-2xl flex flex-col text-[#1F2937]">
             
             {/* Modal Header */}
-            <div className="p-4 border-b border-slate-800 bg-slate-950/80 flex items-center justify-between gap-4">
+            <div className="p-4 border-b border-[#E5E7EB] bg-[#FAFAFC] flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center font-bold">
+                <div className="w-9 h-9 rounded-xl bg-[#F8E6EE] border border-[#94003A]/20 text-[#94003A] flex items-center justify-center font-bold">
                   <FileCheck className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-[#1F2937] flex items-center gap-2">
                     {label}
-                    <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-[#DCFCE7] text-[#166534] border border-[#86EFAC] px-2 py-0.5 rounded-full">
                       Backblaze B2 Vault
                     </span>
                   </h3>
-                  <p className="text-[11px] text-slate-400">High-Resolution Document Preview & Extraction Inspector</p>
+                  <p className="text-[11px] text-[#6B7280]">High-Resolution Document Preview & Extraction Inspector</p>
                 </div>
               </div>
 
@@ -343,9 +343,9 @@ export default function KycDocUploadAutoReader({
                     fileInputRef.current?.click();
                     setFullViewOpen(false);
                   }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-[#F3F4F6] text-[#4B5563] text-xs font-semibold border border-[#D1D5DB] transition"
                 >
-                  <RefreshCw className="w-3.5 h-3.5 text-purple-400" />
+                  <RefreshCw className="w-3.5 h-3.5 text-[#94003A]" />
                   Re-upload
                 </button>
 
@@ -355,7 +355,7 @@ export default function KycDocUploadAutoReader({
                     href={activeMediaUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition"
+                    className="p-2 rounded-xl bg-white hover:bg-[#F3F4F6] text-[#4B5563] hover:text-[#1F2937] border border-[#D1D5DB] transition"
                     title="Open Document in New Tab"
                   >
                     <ExternalLink className="w-4 h-4" />
@@ -366,7 +366,7 @@ export default function KycDocUploadAutoReader({
                 <button
                   type="button"
                   onClick={() => setFullViewOpen(false)}
-                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition"
+                  className="p-2 rounded-xl bg-white hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#1F2937] border border-[#D1D5DB] transition"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -374,7 +374,7 @@ export default function KycDocUploadAutoReader({
             </div>
 
             {/* Modal Body: Document Viewer & Controls */}
-            <div className="flex-1 overflow-auto p-4 flex flex-col items-center justify-center bg-slate-950 relative min-h-[360px]">
+            <div className="flex-1 overflow-auto p-4 flex flex-col items-center justify-center bg-[#FAFAFC] relative min-h-[360px]">
               {!isPdf && activeMediaUrl ? (
                 <div className="relative flex items-center justify-center max-w-full max-h-[60vh] overflow-auto">
                   <img
@@ -384,11 +384,11 @@ export default function KycDocUploadAutoReader({
                       transform: `scale(${zoomLevel}) rotate(${rotation}deg)`,
                       transition: "transform 0.2s ease-out",
                     }}
-                    className="max-h-[55vh] max-w-full object-contain rounded-xl shadow-2xl border border-slate-800"
+                    className="max-h-[55vh] max-w-full object-contain rounded-xl shadow-md border border-[#E5E7EB]"
                   />
                 </div>
               ) : isPdf && activeMediaUrl ? (
-                <div className="w-full h-[55vh] rounded-2xl overflow-hidden border border-slate-800 bg-slate-900">
+                <div className="w-full h-[55vh] rounded-2xl overflow-hidden border border-[#E5E7EB] bg-white">
                   <iframe
                     src={activeMediaUrl}
                     title={label}
@@ -396,7 +396,7 @@ export default function KycDocUploadAutoReader({
                   />
                 </div>
               ) : (
-                <div className="text-center p-8 text-slate-500">
+                <div className="text-center p-8 text-[#9CA3AF]">
                   <FileText className="w-12 h-12 mx-auto mb-2 opacity-40" />
                   <p className="text-xs">No preview available</p>
                 </div>
@@ -404,22 +404,22 @@ export default function KycDocUploadAutoReader({
 
               {/* Floating Zoom & Rotate Toolbar (for images) */}
               {!isPdf && activeMediaUrl && (
-                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center gap-1.5 p-1.5 rounded-2xl bg-slate-900/90 border border-slate-700/80 shadow-2xl backdrop-blur-md">
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center gap-1.5 p-1.5 rounded-2xl bg-white border border-[#D1D5DB] shadow-lg backdrop-blur-xs">
                   <button
                     type="button"
                     onClick={handleZoomIn}
-                    className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition"
+                    className="p-1.5 rounded-lg hover:bg-[#F3F4F6] text-[#4B5563] hover:text-[#1F2937] transition"
                     title="Zoom In"
                   >
                     <ZoomIn className="w-4 h-4" />
                   </button>
-                  <span className="text-[10px] font-mono font-bold text-slate-400 px-1">
+                  <span className="text-[10px] font-mono font-bold text-[#6B7280] px-1">
                     {Math.round(zoomLevel * 100)}%
                   </span>
                   <button
                     type="button"
                     onClick={handleZoomOut}
-                    className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition"
+                    className="p-1.5 rounded-lg hover:bg-[#F3F4F6] text-[#4B5563] hover:text-[#1F2937] transition"
                     title="Zoom Out"
                   >
                     <ZoomOut className="w-4 h-4" />
@@ -427,16 +427,16 @@ export default function KycDocUploadAutoReader({
                   <button
                     type="button"
                     onClick={handleResetZoom}
-                    className="px-2 py-1 rounded-lg hover:bg-slate-800 text-[10px] font-bold text-slate-300 hover:text-white transition"
+                    className="px-2 py-1 rounded-lg hover:bg-[#F3F4F6] text-[10px] font-bold text-[#4B5563] hover:text-[#1F2937] transition"
                     title="Reset Zoom"
                   >
                     Reset
                   </button>
-                  <div className="w-px h-4 bg-slate-700 mx-1" />
+                  <div className="w-px h-4 bg-[#E5E7EB] mx-1" />
                   <button
                     type="button"
                     onClick={handleRotate}
-                    className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition"
+                    className="p-1.5 rounded-lg hover:bg-[#F3F4F6] text-[#4B5563] hover:text-[#1F2937] transition"
                     title="Rotate 90°"
                   >
                     <RotateCw className="w-4 h-4" />
@@ -446,23 +446,23 @@ export default function KycDocUploadAutoReader({
             </div>
 
             {/* Modal Footer: Extracted Metadata Drawer */}
-            <div className="p-4 border-t border-slate-800 bg-slate-950 space-y-2">
+            <div className="p-4 border-t border-[#E5E7EB] bg-white space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="text-[11px] font-bold text-[#1F2937] flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-[#16A34A]" />
                   Document Auto-Extracted Values
                 </span>
-                <span className="text-[10px] font-mono text-slate-500 truncate max-w-md">
+                <span className="text-[10px] font-mono text-[#6B7280] truncate max-w-md">
                   {currentUrl}
                 </span>
               </div>
 
               {extractedInfo ? (
-                <div className="p-3 rounded-xl bg-slate-900 border border-emerald-500/30 text-xs text-emerald-200 font-mono">
+                <div className="p-3 rounded-xl bg-[#F0FDF4] border border-[#86EFAC] text-xs text-[#166534] font-mono">
                   {extractedInfo}
                 </div>
               ) : (
-                <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-400">
+                <div className="p-3 rounded-xl bg-[#FAFAFC] border border-[#E5E7EB] text-xs text-[#6B7280]">
                   No OCR fields extracted yet. Re-upload a clear copy if details were not auto-bound.
                 </div>
               )}

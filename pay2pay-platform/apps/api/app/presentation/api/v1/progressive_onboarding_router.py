@@ -72,6 +72,12 @@ class SinglePageDraftPayload(BaseModel):
     shop_address: Optional[Dict[str, Any]] = None
     shop_category: Optional[str] = None
     sales_link_token: Optional[str] = None
+    mapped_super_distributor_id: Optional[str] = None
+    mapped_distributor_id: Optional[str] = None
+    mapped_sd_id: Optional[str] = None
+    mapped_dist_id: Optional[str] = None
+    parent_sd_name: Optional[str] = None
+    parent_dist_name: Optional[str] = None
     draft_data: Optional[Dict[str, Any]] = None
 
 class VerifyEmailOtpPayload(BaseModel):
@@ -161,6 +167,10 @@ class VideoUploadPayload(BaseModel):
 class SubmitPayload(BaseModel):
     registration_id: str
     user_type_ref_id: Optional[int] = Field(None, description="2: Retailer, 3: Distributor, 4: Super Distributor")
+    mapped_super_distributor_id: Optional[str] = None
+    mapped_distributor_id: Optional[str] = None
+    mapped_sd_id: Optional[str] = None
+    mapped_dist_id: Optional[str] = None
 
 
 @router.get("/entity-types")
@@ -173,6 +183,33 @@ async def get_entity_types(db: AsyncSession = Depends(get_db)):
 async def get_shop_categories(db: AsyncSession = Depends(get_db)):
     """Dynamic shop categories from database without hardcoding."""
     return await ProgressiveOnboardingService.get_shop_categories(db)
+
+
+@router.get("/hierarchy/sds")
+async def get_sds_hierarchy(
+    tenant_id: Optional[str] = Query(None),
+    company_id: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """Returns Super Distributors available for onboarding assignment."""
+    tid = uuid.UUID(tenant_id) if tenant_id else None
+    cid = uuid.UUID(company_id) if company_id else None
+    return await ProgressiveOnboardingService.get_sds_list(db, tid, cid)
+
+
+@router.get("/hierarchy/distributors")
+async def get_distributors_hierarchy(
+    tenant_id: Optional[str] = Query(None),
+    company_id: Optional[str] = Query(None),
+    sd_id: Optional[str] = Query(None),
+    super_distributor_id: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """Returns Distributors available for onboarding assignment."""
+    tid = uuid.UUID(tenant_id) if tenant_id else None
+    cid = uuid.UUID(company_id) if company_id else None
+    target_sd = sd_id or super_distributor_id
+    return await ProgressiveOnboardingService.get_distributors_list(db, tid, cid, target_sd)
 
 
 @router.get("/states")

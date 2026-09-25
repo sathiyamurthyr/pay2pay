@@ -25,7 +25,7 @@ import logging
 from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime, timezone
 import httpx
-from PIL import Image, ImageEnhance, ImageFilter
+from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 
 from app.application.storage_service import BackblazeStorageService
 from app.application.cashfree_service import CashfreeVerificationService
@@ -248,22 +248,29 @@ class KycDocumentReaderService:
             # Generate multiple image variants for maximum OCR accuracy
             image_variants: List[Image.Image] = []
             
-            # Variant A: Standard RGB
+            # Variant A: Standard RGB (upscaled if width < 1600)
             rgb_img = img.convert("RGB") if img.mode != "RGB" else img
-            # Upscale if low resolution (width < 1200)
-            if rgb_img.width < 1200:
-                scale_factor = 1200 / max(rgb_img.width, 1)
+            if rgb_img.width < 1600:
+                scale_factor = 1600 / max(rgb_img.width, 1)
                 new_size = (int(rgb_img.width * scale_factor), int(rgb_img.height * scale_factor))
                 rgb_img = rgb_img.resize(new_size, Image.Resampling.LANCZOS)
             image_variants.append(rgb_img)
 
-            # Variant B: Contrast & Sharpness Enhanced Grayscale converted back to RGB
+            # Variant B: Contrast & Sharpness Enhanced Grayscale
             try:
                 gray = rgb_img.convert("L")
                 enhancer = ImageEnhance.Contrast(gray)
-                enhanced_gray = enhancer.enhance(1.8)
+                enhanced_gray = enhancer.enhance(2.0)
                 sharp_gray = ImageEnhance.Sharpness(enhanced_gray).enhance(2.0)
                 image_variants.append(sharp_gray.convert("RGB"))
+            except Exception:
+                pass
+
+            # Variant C: Auto-contrast normalized Grayscale
+            try:
+                gray2 = rgb_img.convert("L")
+                auto_gray = ImageOps.autocontrast(gray2, cutoff=2)
+                image_variants.append(auto_gray.convert("RGB"))
             except Exception:
                 pass
 
@@ -600,56 +607,225 @@ class KycDocumentReaderService:
             "message": msg
         }
 
+    @staticmethod
+    def _sanitize_bank_account_digits(raw: str) -> str:
+        """Extracts and cleans digit string from candidate account number substring."""
+        stop_words = [
+            "IFSC", "IFS", "RTGS", "NEFT", "BRANCH", "DATE", "VALID", "PAY", "RUPEES",
+            "NAME", "ONLY", "CHEQUE", "CHQ", "BEARER", "ORDER", "BANK", "LIMITED", "LTD",
+            "SIGN", "SIGNATORY", "ACCOUNT", "HOLDER", "CUSTOMER"
+        ]
+        cleaned = raw
+        for sw in stop_words:
+            cleaned = re.sub(rf"(?i)\b{sw}\b.*", "", cleaned)
+        
+        char_map = {
+            "O": "0", "o": "0", "D": "0", "Q": "0",
+            "I": "1", "l": "1", "|": "1", "i": "1", "!": "1",
+            "Z": "2", "z": "2",
+            "S": "5", "s": "5",
+            "B": "8",
+        }
+        result_chars = []
+        for ch in cleaned:
+            if ch.isdigit():
+                result_chars.append(ch)
+            elif ch in char_map:
+                result_chars.append(char_map[ch])
+            elif ch in [" ", "-", "/", "."]:
+                pass
+            else:
+                break
+                
+        return "".join(result_chars)
+
+    @staticmethod
+    def _clean_ocr_ifsc(val: str) -> str:
+        """Normalizes and fixes OCR character confusion in IFSC code."""
+        val = val.strip().upper().replace(" ", "").replace("-", "").replace(":", "")
+        if len(val) < 11:
+            return ""
+        
+        prefix_chars = []
+        for ch in val[:4]:
+            if ch == "0": prefix_chars.append("O")
+            elif ch in ["1", "|"]: prefix_chars.append("I")
+            elif ch == "5": prefix_chars.append("S")
+            elif ch == "8": prefix_chars.append("B")
+            elif ch.isalpha(): prefix_chars.append(ch)
+            else: prefix_chars.append(ch)
+        prefix = "".join(prefix_chars)
+
+        fifth = "0"
+
+        suffix_chars = []
+        for ch in val[5:11]:
+            if ch in ["O", "Q", "D", "o"]:
+                suffix_chars.append("0")
+            elif ch in ["I", "L", "l", "|"]:
+                suffix_chars.append("1")
+            elif ch in ["S", "s"]:
+                suffix_chars.append("5")
+            elif ch == "B":
+                suffix_chars.append("8")
+            elif ch.isalnum():
+                suffix_chars.append(ch)
+            else:
+                suffix_chars.append(ch)
+        suffix = "".join(suffix_chars)
+
+        cand = f"{prefix}{fifth}{suffix}"
+        if re.match(r"^[A-Z]{4}0[A-Z0-9]{6}$", cand):
+            return cand
+        return ""
+
     @classmethod
     async def _parse_bank_document(
         cls, raw_text: str, qr_data: List[str], file_bytes: bytes, expected_name: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Parses Bank Cheque / Passbook / Statement, extracts IFSC, Account Number, Bank Name, Account Holder.
-        NO RANDOM FALLBACK VALUES: Returns empty string if not found.
+        Robust to multi-bank layouts (YES Bank, HDFC, ICICI, SBI, Axis, etc.), spaced digits, multi-line boxes, OCR noise.
         """
         all_text = f"{raw_text}\n" + "\n".join(qr_data)
+        lines = [l.strip() for l in raw_text.splitlines() if l.strip()]
 
-        # 1. IFSC Code regex: 4 letters, 0, 6 alphanumeric characters
-        ifsc_regex = r"\b[A-Z]{4}0[A-Z0-9]{6}\b"
-        ifsc_matches = re.findall(ifsc_regex, all_text.upper())
+        # ── 1. IFSC Code Extraction ──
         detected_ifsc = ""
+
+        # Strategy A: Standard strict IFSC regex
+        ifsc_matches = re.findall(r"\b[A-Z]{4}0[A-Z0-9]{6}\b", all_text.upper())
         if ifsc_matches:
             detected_ifsc = ifsc_matches[0]
-        else:
-            # Tolerant IFSC matching: e.g. 'O' instead of '0' in 5th character
-            loose_ifsc = re.search(r"\b([A-Z]{4})[O0]([A-Z0-9]{6})\b", all_text.upper())
-            if loose_ifsc:
-                detected_ifsc = f"{loose_ifsc.group(1)}0{loose_ifsc.group(2)}"
+        
+        # Strategy B: Labeled IFSC search
+        if not detected_ifsc:
+            labeled_ifsc = re.search(
+                r"(?:IFSC|IFS\s*CODE|RTGS\s*\/?\s*NEFT|NEFT\s*\/?\s*IFSC|RTGS\s*\/?\s*IFSC|BANK\s*IFSC)[:\s\-]+([A-Za-z0-9\s\-]{8,18})",
+                all_text,
+                re.IGNORECASE
+            )
+            if labeled_ifsc:
+                cleaned = cls._clean_ocr_ifsc(labeled_ifsc.group(1))
+                if cleaned:
+                    detected_ifsc = cleaned
 
-        # 2. Bank Account Number regex: 9 to 18 continuous digits
-        acc_regex = r"\b[0-9]{9,18}\b"
-        acc_matches = re.findall(acc_regex, all_text)
-        detected_acc = ""
-        for acc in acc_matches:
-            # Avoid matching 10-digit mobile numbers or 6-digit pincodes
-            if len(acc) >= 9 and not (len(acc) == 10 and acc[0] in "6789" and not ifsc_matches):
-                detected_acc = acc
-                break
+        # Strategy C: Known Bank IFSC prefix loose match
+        if not detected_ifsc:
+            for prefix in INDIAN_BANK_PATTERNS.keys():
+                m = re.search(rf"\b({prefix})[\s\-]?[0OoiIl|]?[0-9A-Za-z]{{5,7}}\b", all_text, re.IGNORECASE)
+                if m:
+                    cand = m.group(0).replace(" ", "").replace("-", "")
+                    cleaned = cls._clean_ocr_ifsc(cand)
+                    if cleaned:
+                        detected_ifsc = cleaned
+                        break
 
-        # 3. Detect Bank Name from IFSC prefix or OCR text
+        # Strategy D: General 11-char loose regex
+        if not detected_ifsc:
+            loose_matches = re.findall(r"\b([A-Za-z]{4})[\s\-]?[0OoiIl|]([A-Za-z0-9]{6})\b", all_text)
+            for p1, p2 in loose_matches:
+                cand = f"{p1.upper()}0{p2.upper()}"
+                if re.match(r"^[A-Z]{4}0[A-Z0-9]{6}$", cand):
+                    detected_ifsc = cand
+                    break
+
+        # ── 2. Bank Name Extraction ──
         detected_bank_name = ""
         if detected_ifsc and len(detected_ifsc) >= 4:
             prefix = detected_ifsc[:4]
             detected_bank_name = INDIAN_BANK_PATTERNS.get(prefix, f"{prefix} Bank")
         else:
             for prefix, bname in INDIAN_BANK_PATTERNS.items():
-                if bname.upper() in all_text.upper() or prefix in all_text.upper():
+                if bname.upper() in all_text.upper() or f"{prefix} BANK" in all_text.upper() or f"{prefix} " in all_text.upper():
                     detected_bank_name = bname
                     break
 
-        # 4. Account Holder Name
+        # ── 3. Bank Account Number Extraction ──
+        detected_acc = ""
+
+        # Strategy A: Explicit Labeled Account Number on same line
+        acc_label_patterns = [
+            r"(?:A\/C\s*NO\.?|A\/C\s*NUMBER|ACCOUNT\s*NO\.?|ACCOUNT\s*NUMBER|ACC\s*NO\.?|A\/C\s*#|A\/C[:\.\s]|SB\s*A\/C|CURRENT\s*A\/C|CA\s*A\/C|CUSTOMER\s*A\/C|ACCT\s*NO\.?)[:\s\-]*([0-9\s\-OlISsBbZz]{8,35})",
+            r"(?:A\/c|Acc|Account)[:\s\-]+([0-9\s\-OlISsBbZz]{8,35})"
+        ]
+        for pat in acc_label_patterns:
+            matches = re.finditer(pat, all_text, re.IGNORECASE)
+            for m in matches:
+                cand_digits = cls._sanitize_bank_account_digits(m.group(1))
+                if 9 <= len(cand_digits) <= 18:
+                    if len(cand_digits) == 10 and cand_digits[0] in "6789" and not detected_ifsc:
+                        continue
+                    detected_acc = cand_digits
+                    break
+            if detected_acc:
+                break
+
+        # Strategy B: Multi-line Account Number (Label on line i, digits on line i+1 or i+2)
+        if not detected_acc:
+            for i, line in enumerate(lines):
+                line_up = line.upper().strip()
+                if any(k in line_up for k in ["A/C NO", "ACCOUNT NO", "ACC NO", "A/C NUMBER", "ACCOUNT NUMBER", "A/C.", "A/C"]):
+                    cand_on_line = cls._sanitize_bank_account_digits(re.sub(r"(?i)A\/C\s*NO\.?|ACCOUNT\s*NO\.?|ACC\s*NO\.?|A\/C\.?", "", line))
+                    if 9 <= len(cand_on_line) <= 18:
+                        detected_acc = cand_on_line
+                        break
+                    if i + 1 < len(lines):
+                        next_line_digits = cls._sanitize_bank_account_digits(lines[i + 1])
+                        if 9 <= len(next_line_digits) <= 18:
+                            detected_acc = next_line_digits
+                            break
+                    if i + 2 < len(lines):
+                        next2_digits = cls._sanitize_bank_account_digits(lines[i + 2])
+                        if 9 <= len(next2_digits) <= 18:
+                            detected_acc = next2_digits
+                            break
+
+        # Strategy C: Grouped Digits (e.g. "0001 9010 0001 234" or "0023 8140 0000 123" or "5010 0012 3456 78")
+        if not detected_acc:
+            grouped_matches = re.findall(r"\b([0-9OlISsBbZz]{3,6}(?:[\s\-][0-9OlISsBbZz]{2,6}){2,4})\b", all_text)
+            for g in grouped_matches:
+                digits = cls._sanitize_bank_account_digits(g)
+                if 9 <= len(digits) <= 18:
+                    if len(digits) == 12 and len(g.split()) == 3 and not detected_ifsc:
+                        continue
+                    detected_acc = digits
+                    break
+
+        # Strategy D: Continuous digits (9 to 18 digits)
+        if not detected_acc:
+            all_digit_candidates = re.findall(r"\b[0-9]{9,18}\b", all_text)
+            valid_candidates = []
+            for c in all_digit_candidates:
+                if len(c) == 10 and c[0] in "6789" and not detected_ifsc:
+                    continue
+                if len(c) == 9 and ("MICR" in all_text or re.search(rf"\b000[0-9]{{3}}\s+{c}\b", all_text)):
+                    continue
+                valid_candidates.append(c)
+
+            if valid_candidates:
+                preferred_len = 15 if "YES" in (detected_bank_name or "").upper() else (14 if "HDFC" in (detected_bank_name or "").upper() else 11)
+                valid_candidates.sort(key=lambda x: (len(x) == preferred_len, 11 <= len(x) <= 16, len(x)), reverse=True)
+                detected_acc = valid_candidates[0]
+
+        # Strategy E: Bottom MICR line parsing fallback (Cheque bottom band)
+        if not detected_acc:
+            micr_line = re.search(r"[\"⑈\']?\s*([0-9]{6})\s*[\"⑈\']?\s*([0-9]{9})[\:⑆\s]+([0-9]{6,16})", all_text)
+            if micr_line:
+                third_part = micr_line.group(3).strip()
+                if 9 <= len(third_part) <= 18:
+                    detected_acc = third_part
+
+        # ── 4. Account Holder Name ──
         account_holder = ""
-        pay_match = re.search(r"(?:Pay|Name|A\/c Holder|Account Holder|Customer Name)[:\s]+([A-Za-z\s]{3,40})", all_text, re.IGNORECASE)
-        if pay_match:
-            cand = pay_match.group(1).strip().title()
-            if not any(k in cand.upper() for k in ["RUPEES", "BEARER", "ORDER", "BRANCH", "BANK", "ONLY", "CHEQUE"]):
-                account_holder = cand
+        if expected_name and expected_name.upper() in all_text.upper():
+            account_holder = expected_name.strip().title()
+        else:
+            pay_match = re.search(r"(?:Pay|Name|A\/c Holder|Account Holder|Customer Name)[:\s]+([A-Za-z\s]{3,40})", all_text, re.IGNORECASE)
+            if pay_match:
+                cand = pay_match.group(1).strip().title()
+                if not any(k in cand.upper() for k in ["RUPEES", "BEARER", "ORDER", "BRANCH", "BANK", "ONLY", "CHEQUE"]):
+                    account_holder = cand
 
         is_valid = bool(detected_ifsc or detected_acc)
 
@@ -660,6 +836,7 @@ class KycDocumentReaderService:
         )
 
         return {
+            "account_number": detected_acc,
             "bank_account_number": detected_acc,
             "ifsc": detected_ifsc,
             "bank_name": detected_bank_name,

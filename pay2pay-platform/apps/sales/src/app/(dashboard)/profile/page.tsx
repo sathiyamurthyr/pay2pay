@@ -28,22 +28,22 @@ export default function SalesProfilePage() {
   });
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-12">
+    <div className="max-w-4xl w-full mx-auto space-y-6 pb-12">
       {/* Profile Header */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+      <div className="bg-gradient-to-r from-[#94003A] via-[#78002F] to-[#550020] border border-[#94003A]/20 rounded-2xl sm:rounded-3xl p-6 sm:p-8 text-white shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-500 to-indigo-700 text-white flex items-center justify-center font-black text-2xl shadow-xl shadow-indigo-600/30">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#E7B631] to-[#D3A51F] text-[#1F2937] flex items-center justify-center font-black text-2xl shadow-md">
             {(user?.full_name || "S").charAt(0).toUpperCase()}
           </div>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold">{user?.full_name}</h1>
-              <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              <h1 className="text-2xl font-black tracking-tight text-white">{user?.full_name}</h1>
+              <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-white/20 text-white border border-white/30">
                 {user?.employee_code || "EMP"}
               </span>
             </div>
-            <div className="text-xs text-slate-400 mt-1 flex items-center gap-2">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            <div className="text-xs text-[#F8E6EE]/80 mt-1 flex items-center gap-2 font-medium">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#E7B631]" />
               <span>Role: Field Sales Force &bull; Status: Active</span>
             </div>
           </div>
@@ -51,7 +51,7 @@ export default function SalesProfilePage() {
 
         <button
           onClick={logout}
-          className="px-5 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-semibold transition"
+          className="px-5 py-2.5 rounded-xl bg-[#FEE2E2] hover:bg-[#FEE2E2]/90 text-[#991B1B] border border-[#FECACA] text-xs font-bold transition shadow-xs"
         >
           Sign Out of Session
         </button>
@@ -60,29 +60,29 @@ export default function SalesProfilePage() {
       {/* Identity & Tenant Governance Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Tenant Isolation Info */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
-          <h2 className="text-sm font-bold text-white flex items-center gap-2">
-            <Building2 className="w-4 h-4 text-indigo-400" />
+        <div className="bg-white border border-[#E5E7EB] rounded-2xl sm:rounded-3xl p-6 shadow-xs space-y-4 text-[#1F2937]">
+          <h2 className="text-sm font-bold text-[#1F2937] flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-[#94003A]" />
             Assigned Tenant & Company
           </h2>
 
           <div className="space-y-3 text-xs">
-            <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/60">
-              <div className="text-slate-400">Assigned Tenant Name:</div>
-              <div className="font-bold text-white text-sm mt-0.5">
+            <div className="p-3.5 bg-[#FAFAFC] rounded-xl border border-[#E5E7EB]">
+              <div className="text-[#6B7280]">Assigned Tenant Name:</div>
+              <div className="font-black text-[#1F2937] text-sm mt-0.5">
                 {user?.tenant_name || "Tenant"}
               </div>
-              <div className="text-[10px] text-slate-500 font-mono mt-1">
+              <div className="text-[10px] text-[#6B7280] font-mono mt-1">
                 ID: {user?.tenant_id}
               </div>
             </div>
 
-            <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/60">
-              <div className="text-slate-400">Governance Policy:</div>
-              <div className="text-emerald-400 font-semibold mt-0.5">
+            <div className="p-3.5 bg-[#FAFAFC] rounded-xl border border-[#E5E7EB]">
+              <div className="text-[#6B7280]">Governance Policy:</div>
+              <div className="text-[#16A34A] font-bold mt-0.5">
                 Strict Multi-Tenant Backend Isolation
               </div>
-              <div className="text-[11px] text-slate-500 mt-1">
+              <div className="text-[11px] text-[#6B7280] mt-1 leading-relaxed">
                 All API requests automatically resolve and restrict database rows to this tenant. Cross-tenant access is blocked at the SQL query layer.
               </div>
             </div>
@@ -90,31 +90,31 @@ export default function SalesProfilePage() {
         </div>
 
         {/* Profile & Territory */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
-          <h2 className="text-sm font-bold text-white flex items-center gap-2">
-            <Briefcase className="w-4 h-4 text-emerald-400" />
+        <div className="bg-white border border-[#E5E7EB] rounded-2xl sm:rounded-3xl p-6 shadow-xs space-y-4 text-[#1F2937]">
+          <h2 className="text-sm font-bold text-[#1F2937] flex items-center gap-2">
+            <Briefcase className="w-4 h-4 text-[#94003A]" />
             Field Profile & Territory
           </h2>
 
           <div className="space-y-3 text-xs">
-            <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/60 flex items-center justify-between">
-              <span className="text-slate-400">Email:</span>
-              <span className="font-semibold text-white">{user?.email}</span>
+            <div className="p-3.5 bg-[#FAFAFC] rounded-xl border border-[#E5E7EB] flex items-center justify-between">
+              <span className="text-[#6B7280]">Email:</span>
+              <span className="font-semibold text-[#1F2937]">{user?.email}</span>
             </div>
 
-            <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/60 flex items-center justify-between">
-              <span className="text-slate-400">Designation:</span>
-              <span className="font-semibold text-white">{user?.designation || "Sales Executive"}</span>
+            <div className="p-3.5 bg-[#FAFAFC] rounded-xl border border-[#E5E7EB] flex items-center justify-between">
+              <span className="text-[#6B7280]">Designation:</span>
+              <span className="font-semibold text-[#1F2937]">{user?.designation || "Sales Executive"}</span>
             </div>
 
-            <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/60 flex items-center justify-between">
-              <span className="text-slate-400">Territory:</span>
-              <span className="font-semibold text-indigo-300">{user?.territory || "Field Operations"}</span>
+            <div className="p-3.5 bg-[#FAFAFC] rounded-xl border border-[#E5E7EB] flex items-center justify-between">
+              <span className="text-[#6B7280]">Territory:</span>
+              <span className="font-bold text-[#94003A]">{user?.territory || "Field Operations"}</span>
             </div>
 
-            <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/60 flex items-center justify-between">
-              <span className="text-slate-400">Explicit Mappings:</span>
-              <span className="font-semibold text-white font-mono">
+            <div className="p-3.5 bg-[#FAFAFC] rounded-xl border border-[#E5E7EB] flex items-center justify-between">
+              <span className="text-[#6B7280]">Explicit Mappings:</span>
+              <span className="font-bold text-[#1F2937] font-mono">
                 {user?.mappings_count === 0 ? "Full Tenant Hierarchy" : `${user?.mappings_count} Scoped Nodes`}
               </span>
             </div>
@@ -123,11 +123,11 @@ export default function SalesProfilePage() {
       </div>
 
       {/* Security Governance Notice */}
-      <div className="p-4 rounded-2xl bg-indigo-950/30 border border-indigo-900/40 text-xs text-slate-400 flex items-start gap-3">
-        <Lock className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
+      <div className="p-4 rounded-2xl bg-[#F8E6EE] border border-[#94003A]/20 text-xs text-[#94003A] flex items-start gap-3">
+        <Lock className="w-5 h-5 text-[#94003A] shrink-0 mt-0.5" />
         <div>
-          <div className="font-bold text-indigo-300">Administrative Governance Rule</div>
-          <div className="mt-0.5">
+          <div className="font-bold text-[#94003A]">Administrative Governance Rule</div>
+          <div className="mt-0.5 text-[#1F2937] leading-relaxed">
             Sales personnel are strictly managed from the Central Admin Portal. Profile modifications, password resets, and hierarchy scope re-assignments must be performed by an authorized Platform Administrator.
           </div>
         </div>

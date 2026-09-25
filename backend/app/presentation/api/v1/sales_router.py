@@ -764,13 +764,17 @@ async def get_sds_for_registration(
 
 @router.get("/hierarchy/distributors-for-registration", tags=["Sales Registration"])
 async def get_distributors_for_registration(
+    sd_id: Optional[str] = Query(None, description="Optional Parent Super Distributor UUID to filter"),
+    super_distributor_id: Optional[str] = Query(None, description="Alias for sd_id"),
     current_user: SalesUserModel = Depends(get_current_sales_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Returns authorized Distributors that the sales user can assign when registering a Retailer.
+    Strictly filtered by tenant, company, and optional parent SD.
     """
-    return await SalesService.get_distributors_for_retailer_registration(db, current_user)
+    target_sd = sd_id or super_distributor_id
+    return await SalesService.get_distributors_for_retailer_registration(db, current_user, sd_id=target_sd)
 
 
 @router.post("/register/super-distributor", tags=["Sales Registration"])

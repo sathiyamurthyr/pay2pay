@@ -128,24 +128,24 @@ export default function LocationValidatorCard({
   return (
     <div className={`p-4 rounded-2xl transition border ${
       location?.is_valid
-        ? "bg-emerald-950/20 border-emerald-500/40"
-        : "bg-amber-950/20 border-amber-500/40"
-    } space-y-3`}>
+        ? "bg-[#DCFCE7]/30 border-[#86EFAC]"
+        : "bg-[#FEF3C7]/30 border-[#FDE68A]"
+    } space-y-3 text-[#1F2937]`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold ${
             location?.is_valid
-              ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400"
-              : "bg-amber-500/10 border border-amber-500/30 text-amber-400"
+              ? "bg-[#DCFCE7] text-[#166534] border border-[#86EFAC]"
+              : "bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A]"
           }`}>
             <MapPin className="w-4 h-4" />
           </div>
           <div>
-            <div className="text-xs font-bold text-white flex items-center gap-1.5">
+            <div className="text-xs font-bold text-[#1F2937] flex items-center gap-1.5">
               Premises GPS Geolocation & Territory Mapping
-              <span className="text-rose-400">*</span>
+              <span className="text-[#DC2626]">*</span>
             </div>
-            <p className="text-[10px] text-slate-400">
+            <p className="text-[10px] text-[#6B7280]">
               Live device GPS validation is strictly required for merchant mapping
             </p>
           </div>
@@ -155,29 +155,29 @@ export default function LocationValidatorCard({
           type="button"
           onClick={detectLocation}
           disabled={loading}
-          className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-[11px] font-semibold border border-slate-700/80 transition flex items-center gap-1.5 shrink-0"
+          className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#F3F4F6] text-[#4B5563] hover:text-[#1F2937] text-[11px] font-semibold border border-[#D1D5DB] transition flex items-center gap-1.5 shrink-0"
         >
-          <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin text-blue-400" : ""}`} />
+          <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin text-[#94003A]" : ""}`} />
           {loading ? "Validating GPS..." : "Re-Detect GPS"}
         </button>
       </div>
 
       {/* Validated GPS State */}
       {location?.is_valid && (
-        <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/30 flex items-start gap-3">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+        <div className="p-3 rounded-xl bg-white border border-[#86EFAC] flex items-start gap-3 shadow-xs">
+          <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0 mt-0.5" />
           <div className="flex-1 text-xs space-y-1">
-            <div className="font-bold text-emerald-300 flex items-center gap-2">
+            <div className="font-bold text-[#166534] flex items-center gap-2">
               GPS Location Verified & Mapped
-              <span className="text-[10px] font-mono text-emerald-400/80 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+              <span className="text-[10px] font-mono text-[#166534] bg-[#DCFCE7] px-1.5 py-0.5 rounded font-bold">
                 ±{location.accuracy.toFixed(0)}m accuracy
               </span>
             </div>
-            <div className="text-[11px] text-slate-300 font-mono">
+            <div className="text-[11px] text-[#1F2937] font-mono">
               Latitude: {location.latitude.toFixed(6)}° • Longitude: {location.longitude.toFixed(6)}°
             </div>
             {location.formatted_address && (
-              <div className="text-[10px] text-slate-400 truncate">
+              <div className="text-[10px] text-[#6B7280] truncate">
                 {location.formatted_address}
               </div>
             )}
@@ -187,13 +187,13 @@ export default function LocationValidatorCard({
 
       {/* Warning State when GPS is missing or denied */}
       {!location?.is_valid && (
-        <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-500/30 flex items-start gap-3 text-xs text-amber-200">
-          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+        <div className="p-3 rounded-xl bg-white border border-[#FDE68A] flex items-start gap-3 text-xs text-[#92400E] shadow-xs">
+          <AlertTriangle className="w-4 h-4 text-[#D97706] shrink-0 mt-0.5" />
           <div className="flex-1 space-y-1">
-            <div className="font-bold text-amber-300">
+            <div className="font-bold text-[#92400E]">
               GPS Verification Mandatory
             </div>
-            <p className="text-[11px] text-amber-200/90 leading-snug">
+            <p className="text-[11px] text-[#92400E] leading-snug">
               {error || "Location permissions must be enabled to confirm physical operating address. Registration cannot proceed without verified GPS coordinates."}
             </p>
           </div>

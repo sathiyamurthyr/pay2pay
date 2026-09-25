@@ -103,23 +103,23 @@ export default function SalesReportsPage() {
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 w-full max-w-[1400px] 2xl:max-w-[1500px] mx-auto pb-12">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="bg-gradient-to-r from-[#94003A] via-[#78002F] to-[#550020] border border-[#94003A]/20 rounded-2xl sm:rounded-3xl p-6 sm:p-8 text-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-indigo-400 mb-2">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#E7B631] mb-2">
             <FileText className="w-4 h-4" />
             Governance, Compliance & Business Reports
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Sales Reports Center</h1>
-          <p className="text-slate-400 text-xs sm:text-sm mt-1 max-w-2xl">
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">Sales Reports Center</h1>
+          <p className="text-[#F8E6EE]/80 text-xs sm:text-sm mt-1 max-w-2xl font-medium">
             Export tenant-isolated reports for retail networks, hardware terminals, multi-service transactions, and MDR rate structures.
           </p>
         </div>
 
         <button
           onClick={handleExport}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/30 transition"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold shadow-sm transition"
         >
           <ArrowDownToLine className="w-4 h-4" />
           Export to Excel (.xlsx)
@@ -127,7 +127,7 @@ export default function SalesReportsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 bg-slate-900/80 p-1.5 rounded-2xl border border-slate-800">
+      <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl border border-[#E5E7EB] shadow-xs overflow-x-auto">
         {[
           { id: "RETAILER", label: "Retailer Network Report", icon: Store },
           { id: "POS", label: "POS Terminals Report", icon: QrCode },
@@ -140,10 +140,10 @@ export default function SalesReportsPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2 ${
+              className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 whitespace-nowrap ${
                 isActive
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
-                  : "text-slate-400 hover:text-white"
+                  ? "bg-[#94003A] text-white shadow-xs"
+                  : "text-[#4B5563] hover:text-[#1F2937] hover:bg-[#FAFAFC]"
               }`}
             >
               <Icon className="w-4 h-4" />
@@ -154,9 +154,9 @@ export default function SalesReportsPage() {
       </div>
 
       {/* Report Data Preview */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-3xl shadow-xl overflow-hidden p-6">
+      <div className="bg-white border border-[#E5E7EB] rounded-2xl sm:rounded-3xl shadow-xs overflow-hidden p-6 text-[#1F2937]">
         <div className="flex items-center justify-between mb-4">
-          <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
+          <div className="text-xs font-bold uppercase tracking-wider text-[#6B7280]">
             Report Data Preview (Scoped)
           </div>
         </div>
@@ -165,7 +165,7 @@ export default function SalesReportsPage() {
           <div className="overflow-x-auto text-xs">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-800 text-slate-400 uppercase font-semibold">
+                <tr className="border-b border-[#E5E7EB] bg-[#FAFAFC] text-[#4B5563] uppercase font-bold">
                   <th className="py-3 px-4">Merchant Store</th>
                   <th className="py-3 px-4">Distributor</th>
                   <th className="py-3 px-4">Super Distributor</th>
@@ -174,18 +174,18 @@ export default function SalesReportsPage() {
                   <th className="py-3 px-4 text-center">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-[#E5E7EB]">
                 {retailers.slice(0, 15).map((r: any) => (
-                  <tr key={r.public_id}>
-                    <td className="py-3 px-4 font-bold text-white">{r.store_name} ({r.retailer_code})</td>
-                    <td className="py-3 px-4 text-slate-300">{r.distributor_name}</td>
-                    <td className="py-3 px-4 text-slate-400">{r.super_distributor_name}</td>
-                    <td className="py-3 px-4 text-center font-mono">{r.pos_count || 0}</td>
-                    <td className="py-3 px-4 text-right font-mono font-bold text-emerald-400">
+                  <tr key={r.public_id} className="hover:bg-[#FDF3F7]">
+                    <td className="py-3 px-4 font-bold text-[#1F2937]">{r.store_name} ({r.retailer_code})</td>
+                    <td className="py-3 px-4 text-[#4B5563]">{r.distributor_name}</td>
+                    <td className="py-3 px-4 text-[#6B7280]">{r.super_distributor_name}</td>
+                    <td className="py-3 px-4 text-center font-mono font-bold text-[#D97706]">{r.pos_count || 0}</td>
+                    <td className="py-3 px-4 text-right font-mono font-bold text-[#16A34A]">
                       {formatCurrency(r.total_volume)}
                     </td>
                     <td className="py-3 px-4 text-center">
-                      <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-bold">
+                      <span className="px-2 py-0.5 rounded bg-[#DCFCE7] text-[#166534] text-[10px] font-bold border border-[#86EFAC]">
                         {r.status}
                       </span>
                     </td>
@@ -200,7 +200,7 @@ export default function SalesReportsPage() {
           <div className="overflow-x-auto text-xs">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-800 text-slate-400 uppercase font-semibold">
+                <tr className="border-b border-[#E5E7EB] bg-[#FAFAFC] text-[#4B5563] uppercase font-bold">
                   <th className="py-3 px-4">Terminal ID</th>
                   <th className="py-3 px-4">Serial No</th>
                   <th className="py-3 px-4">Retailer</th>
@@ -209,18 +209,18 @@ export default function SalesReportsPage() {
                   <th className="py-3 px-4 text-center">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-[#E5E7EB]">
                 {posList.map((p: any) => (
-                  <tr key={p.terminal_id}>
-                    <td className="py-3 px-4 font-bold text-white font-mono">{p.terminal_id}</td>
-                    <td className="py-3 px-4 text-slate-400 font-mono">{p.pos_machine_id}</td>
-                    <td className="py-3 px-4 text-slate-200">{p.retailer_name}</td>
-                    <td className="py-3 px-4 text-slate-300">{p.distributor_name}</td>
-                    <td className="py-3 px-4 text-right font-mono font-bold text-emerald-400">
+                  <tr key={p.terminal_id} className="hover:bg-[#FDF3F7]">
+                    <td className="py-3 px-4 font-bold text-[#1F2937] font-mono">{p.terminal_id}</td>
+                    <td className="py-3 px-4 text-[#6B7280] font-mono">{p.pos_machine_id}</td>
+                    <td className="py-3 px-4 text-[#1F2937] font-semibold">{p.retailer_name}</td>
+                    <td className="py-3 px-4 text-[#4B5563]">{p.distributor_name}</td>
+                    <td className="py-3 px-4 text-right font-mono font-bold text-[#16A34A]">
                       {formatCurrency(p.total_volume)}
                     </td>
                     <td className="py-3 px-4 text-center">
-                      <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-bold">
+                      <span className="px-2 py-0.5 rounded bg-[#DCFCE7] text-[#166534] text-[10px] font-bold border border-[#86EFAC]">
                         {p.status}
                       </span>
                     </td>
@@ -235,7 +235,7 @@ export default function SalesReportsPage() {
           <div className="overflow-x-auto text-xs">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-800 text-slate-400 uppercase font-semibold">
+                <tr className="border-b border-[#E5E7EB] bg-[#FAFAFC] text-[#4B5563] uppercase font-bold">
                   <th className="py-3 px-4">Txn ID</th>
                   <th className="py-3 px-4">Date</th>
                   <th className="py-3 px-4">Service</th>
@@ -244,18 +244,18 @@ export default function SalesReportsPage() {
                   <th className="py-3 px-4 text-center">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-[#E5E7EB]">
                 {txns.slice(0, 15).map((t: any) => (
-                  <tr key={t.id || t.txn_id}>
-                    <td className="py-3 px-4 font-bold text-white font-mono">{t.txn_id}</td>
-                    <td className="py-3 px-4 text-slate-400 font-mono">{formatDate(t.created_at)}</td>
-                    <td className="py-3 px-4 text-indigo-300 font-bold">{t.service}</td>
-                    <td className="py-3 px-4 text-slate-200">{t.retailer_name}</td>
-                    <td className="py-3 px-4 text-right font-mono font-bold text-white">
+                  <tr key={t.id || t.txn_id} className="hover:bg-[#FDF3F7]">
+                    <td className="py-3 px-4 font-bold text-[#1F2937] font-mono">{t.txn_id}</td>
+                    <td className="py-3 px-4 text-[#6B7280] font-mono">{formatDate(t.created_at)}</td>
+                    <td className="py-3 px-4 text-[#94003A] font-bold">{t.service}</td>
+                    <td className="py-3 px-4 text-[#1F2937] font-medium">{t.retailer_name}</td>
+                    <td className="py-3 px-4 text-right font-mono font-bold text-[#1F2937]">
                       {formatCurrency(t.amount)}
                     </td>
                     <td className="py-3 px-4 text-center">
-                      <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-bold">
+                      <span className="px-2 py-0.5 rounded bg-[#DCFCE7] text-[#166534] text-[10px] font-bold border border-[#86EFAC]">
                         {t.status}
                       </span>
                     </td>
@@ -270,37 +270,37 @@ export default function SalesReportsPage() {
           <div className="overflow-x-auto text-xs">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-800 text-slate-400 uppercase font-semibold">
+                <tr className="border-b border-[#E5E7EB] bg-[#FAFAFC] text-[#4B5563] uppercase font-bold">
                   <th className="py-3 px-4">Card Scheme / Type</th>
                   <th className="py-3 px-4">Settlement Mode</th>
                   <th className="py-3 px-4 text-center">MDR Rate (%)</th>
                   <th className="py-3 px-4 text-center">Governance</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
-                <tr>
-                  <td className="py-3 px-4 font-bold text-white">Visa Credit & Debit</td>
-                  <td className="py-3 px-4 text-slate-300">POS - Instant Settlement</td>
-                  <td className="py-3 px-4 text-center font-mono font-bold text-amber-300">1.40%</td>
-                  <td className="py-3 px-4 text-center text-emerald-400 font-semibold">Active Tenant Slab</td>
+              <tbody className="divide-y divide-[#E5E7EB]">
+                <tr className="hover:bg-[#FDF3F7]">
+                  <td className="py-3 px-4 font-bold text-[#1F2937]">Visa Credit & Debit</td>
+                  <td className="py-3 px-4 text-[#4B5563]">POS - Instant Settlement</td>
+                  <td className="py-3 px-4 text-center font-mono font-bold text-[#D97706]">1.40%</td>
+                  <td className="py-3 px-4 text-center text-[#16A34A] font-bold">Active Tenant Slab</td>
                 </tr>
-                <tr>
-                  <td className="py-3 px-4 font-bold text-white">Mastercard Credit & Debit</td>
-                  <td className="py-3 px-4 text-slate-300">POS - Instant Settlement</td>
-                  <td className="py-3 px-4 text-center font-mono font-bold text-amber-300">1.40%</td>
-                  <td className="py-3 px-4 text-center text-emerald-400 font-semibold">Active Tenant Slab</td>
+                <tr className="hover:bg-[#FDF3F7]">
+                  <td className="py-3 px-4 font-bold text-[#1F2937]">Mastercard Credit & Debit</td>
+                  <td className="py-3 px-4 text-[#4B5563]">POS - Instant Settlement</td>
+                  <td className="py-3 px-4 text-center font-mono font-bold text-[#D97706]">1.40%</td>
+                  <td className="py-3 px-4 text-center text-[#16A34A] font-bold">Active Tenant Slab</td>
                 </tr>
-                <tr>
-                  <td className="py-3 px-4 font-bold text-white">RuPay Platinum & Commercial</td>
-                  <td className="py-3 px-4 text-slate-300">POS - Instant Settlement</td>
-                  <td className="py-3 px-4 text-center font-mono font-bold text-amber-300">1.25%</td>
-                  <td className="py-3 px-4 text-center text-emerald-400 font-semibold">Active Tenant Slab</td>
+                <tr className="hover:bg-[#FDF3F7]">
+                  <td className="py-3 px-4 font-bold text-[#1F2937]">RuPay Platinum & Commercial</td>
+                  <td className="py-3 px-4 text-[#4B5563]">POS - Instant Settlement</td>
+                  <td className="py-3 px-4 text-center font-mono font-bold text-[#D97706]">1.25%</td>
+                  <td className="py-3 px-4 text-center text-[#16A34A] font-bold">Active Tenant Slab</td>
                 </tr>
-                <tr>
-                  <td className="py-3 px-4 font-bold text-white">Amex / Diners Club</td>
-                  <td className="py-3 px-4 text-slate-300">POS - Instant Settlement</td>
-                  <td className="py-3 px-4 text-center font-mono font-bold text-amber-300">2.20%</td>
-                  <td className="py-3 px-4 text-center text-emerald-400 font-semibold">Active Tenant Slab</td>
+                <tr className="hover:bg-[#FDF3F7]">
+                  <td className="py-3 px-4 font-bold text-[#1F2937]">Amex / Diners Club</td>
+                  <td className="py-3 px-4 text-[#4B5563]">POS - Instant Settlement</td>
+                  <td className="py-3 px-4 text-center font-mono font-bold text-[#D97706]">2.20%</td>
+                  <td className="py-3 px-4 text-center text-[#16A34A] font-bold">Active Tenant Slab</td>
                 </tr>
               </tbody>
             </table>

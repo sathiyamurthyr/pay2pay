@@ -40,7 +40,7 @@ const nextConfig: NextConfig = {
     ];
   },
   async rewrites() {
-    const backendUrl = process.env.BACKEND_URL || "https://api.pay2pay.in";
+    const backendUrl = process.env.BACKEND_URL || "http://127.0.0.1:8000";
     return [
       {
         source: "/api/v1/:path*",
@@ -49,6 +49,10 @@ const nextConfig: NextConfig = {
       {
         source: "/sales/:path*",
         destination: `${backendUrl}/sales/:path*`,
+      },
+      {
+        source: "/uploads/:path*",
+        destination: `${backendUrl}/uploads/:path*`,
       },
     ];
   },
