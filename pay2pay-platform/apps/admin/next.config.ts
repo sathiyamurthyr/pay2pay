@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     webpackBuildWorker: false,
+    useTypeScriptCli: true,
   },
   async headers() {
     return [

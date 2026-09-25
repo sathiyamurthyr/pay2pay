@@ -71,9 +71,14 @@ ALLOWED_MIME_TYPES = {
     "image/png",
     "image/webp",
     "image/gif",
+    "video/webm",
+    "video/mp4",
+    "video/quicktime",
+    "video/x-matroska",
+    "video/ogg",
 }
 
-MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
+MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB
 DEFAULT_AUTH_DURATION_SECONDS = 7 * 24 * 3600  # 7 days
 
 

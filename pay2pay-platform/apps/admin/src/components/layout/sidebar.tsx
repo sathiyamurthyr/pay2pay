@@ -128,6 +128,8 @@ const ADMIN_NAV: NavCategory[] = [
     items: [
       { label: "User Management", href: "/users", icon: Users, badge: "Admin" },
       { label: "User Creation", href: "/users/create", icon: UserPlus, badge: "New" },
+      { label: "Sales Management", href: "/sales-management", icon: Users, badge: "Sales" },
+      { label: "Add Sales Person", href: "/sales-management/create", icon: UserPlus },
       { label: "Role & Permissions", href: "/roles", icon: ShieldCheck },
     ],
   },

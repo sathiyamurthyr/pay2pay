@@ -7,7 +7,10 @@ import time
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+import json
+import base64
+import httpx
+from sqlalchemy import select, desc, text
 from app.core.config import settings
 
 from app.application.cashfree_service import CashfreeVerificationService
@@ -15,7 +18,8 @@ from app.infrastructure.adapters.cashfree_aadhaar_adapter import cashfree_aadhaa
 from app.infrastructure.adapters.whatsapp_service import whatsapp_service
 from app.infrastructure.adapters.email_service import email_service
 from app.application.storage_service import BackblazeStorageService
-from app.infrastructure.db.models import RetailerModel, RetailerContactModel
+from app.infrastructure.db.models import RetailerModel, RetailerContactModel, SuperDistributorModel, DistributorModel
+from app.infrastructure.db.verification_models import RetailerVerificationModel
 from app.infrastructure.db.auth_models import AuthUserModel
 from app.infrastructure.db.registration_models import (
     RegistrationDraftModel, RegistrationProgressModel, RegistrationPanModel,
@@ -50,6 +54,49 @@ def verify_validation_token(mobile_number: str, token: str) -> bool:
         return hmac.compare_digest(tok_sig, expected_sig)
     except Exception:
         return False
+
+
+def generate_sales_link_token(
+    tenant_id: str,
+    company_id: Optional[str],
+    sales_user_id: Optional[str],
+    user_type_ref_id: int,
+    mapped_sd_id: Optional[str] = None,
+    mapped_dist_id: Optional[str] = None,
+    expires_in_hours: int = 72
+) -> str:
+    expires_at = int(time.time()) + (expires_in_hours * 3600)
+    data = {
+        "tenant_id": str(tenant_id),
+        "company_id": str(company_id) if company_id else None,
+        "sales_user_id": str(sales_user_id) if sales_user_id else None,
+        "user_type_ref_id": int(user_type_ref_id),
+        "mapped_sd_id": str(mapped_sd_id) if mapped_sd_id else None,
+        "mapped_dist_id": str(mapped_dist_id) if mapped_dist_id else None,
+        "expires_at": expires_at
+    }
+    encoded = base64.urlsafe_b64encode(json.dumps(data).encode()).decode()
+    sig = hmac.new(SECRET_KEY.encode(), encoded.encode(), hashlib.sha256).hexdigest()
+    return f"{encoded}.{sig}"
+
+
+def decode_sales_link_token(token: str) -> Optional[Dict[str, Any]]:
+    try:
+        parts = token.split(".")
+        if len(parts) != 2:
+            return None
+        encoded, sig = parts
+        expected_sig = hmac.new(SECRET_KEY.encode(), encoded.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig, expected_sig):
+            return None
+        raw_json = base64.urlsafe_b64decode(encoded.encode()).decode()
+        data = json.loads(raw_json)
+        if int(data.get("expires_at", 0)) < int(time.time()):
+            return None
+        return data
+    except Exception:
+        return None
+
 
 
 STEP_ROUTES_MAP = {
@@ -89,7 +136,7 @@ STEP_NAMES_MAP = {
 }
 
 
-MASTER_OTP_SET = {"778899", "123456", "999999", "000000", "112233", "123123", "654321"}
+# NOTE: Master OTP bypass has been removed. All OTPs are validated strictly against the stored draft value.
 
 class ProgressiveOnboardingService:
 
@@ -97,18 +144,20 @@ class ProgressiveOnboardingService:
     async def resolve_retailer_registration_state(
         db: AsyncSession,
         mobile_number: str,
-        tenant_id: Optional[str] = None
+        tenant_id: Optional[str] = None,
+        target_user_type_ref_id: Optional[int] = 2
     ) -> Dict[str, Any]:
         """
-        Authoritative server-side resolution of Retailer Registration & Onboarding State.
+        Authoritative server-side resolution of Entity Registration & Onboarding State.
         Separately evaluates:
+        0. Cross-entity uniqueness across Super Distributor, Distributor, Retailer via sp_check_entity_uniqueness.
         1. Does mobile exist?
         2. Does onboarding/application draft exist?
         3. What is the real onboarding progress (completed steps / total steps)?
         4. Is onboarding actually completed?
         5. Has KYC been completed?
         6. Has admin approval been completed?
-        7. Is retailer account ACTIVE?
+        7. Is retailer/entity account ACTIVE?
         8. Is login allowed?
         """
         clean_mobile = re.sub(r"\D", "", str(mobile_number))
@@ -122,10 +171,37 @@ class ProgressiveOnboardingService:
             except Exception:
                 tid = DEFAULT_TENANT_ID
 
+        # 0. Cross-entity uniqueness check using database Stored Procedure
+        target_ref_id = int(target_user_type_ref_id or 2)
+        try:
+            sp_chk = await db.execute(
+                text("SELECT row_to_json(public.sp_check_entity_uniqueness(:mobile, NULL, :target_type))"),
+                {"mobile": clean_mobile, "target_type": target_ref_id}
+            )
+            sp_res = sp_chk.scalar()
+            if sp_res and sp_res.get("is_valid") is False and sp_res.get("mobile_conflict"):
+                return {
+                    "status": "ERROR",
+                    "state": "CONFLICT",
+                    "flow": "RESTRICTED",
+                    "exists": True,
+                    "mobile_exists": True,
+                    "mobile_conflict": True,
+                    "can_register": False,
+                    "can_resume": False,
+                    "requires_otp": False,
+                    "existing_entity_type": sp_res.get("existing_entity_type"),
+                    "existing_user_type_ref_id": sp_res.get("existing_user_type_ref_id"),
+                    "message": sp_res.get("message") or "Mobile number already exists under another entity type."
+                }
+        except Exception as sp_err:
+            print(f"[SP UNIQUENESS ERROR] {sp_err}")
+
         # 1. Query Retailer & Retailer Contact
         c_stmt = select(RetailerContactModel).where(
             RetailerContactModel.mobile.in_([clean_mobile, f"+91{clean_mobile}", f"+91 {clean_mobile}"])
         )
+
         contact = (await db.execute(c_stmt)).scalars().first()
         
         retailer = None
@@ -314,20 +390,22 @@ class ProgressiveOnboardingService:
     async def validate_mobile(
         db: AsyncSession,
         mobile_number: str,
-        tenant_id: Optional[str] = None
+        tenant_id: Optional[str] = None,
+        user_type_ref_id: Optional[int] = 2
     ) -> Dict[str, Any]:
         """
         PRE-OTP VALIDATION: Read-only check of mobile registration status.
         Does NOT send OTP, does NOT create DB records.
         """
-        return await ProgressiveOnboardingService.resolve_retailer_registration_state(db, mobile_number, tenant_id)
+        return await ProgressiveOnboardingService.resolve_retailer_registration_state(db, mobile_number, tenant_id, user_type_ref_id)
 
     @staticmethod
     async def send_otp(
         db: AsyncSession,
         mobile_number: str,
         validation_token: str,
-        tenant_id: Optional[str] = None
+        tenant_id: Optional[str] = None,
+        user_type_ref_id: Optional[int] = 2
     ) -> Dict[str, Any]:
         """
         OTP DISPATCH ENDPOINT: Requires short-lived server validation token.
@@ -349,7 +427,7 @@ class ProgressiveOnboardingService:
                 tid = DEFAULT_TENANT_ID
 
         # Resolve State
-        state_info = await ProgressiveOnboardingService.resolve_retailer_registration_state(db, clean_mobile, str(tid))
+        state_info = await ProgressiveOnboardingService.resolve_retailer_registration_state(db, clean_mobile, str(tid), user_type_ref_id)
         if state_info.get("flow") == "LOGIN":
             return {"status": "ERROR", "message": "Your account is already active. Please login to continue."}
         if state_info.get("flow") == "RESTRICTED":
@@ -373,11 +451,13 @@ class ProgressiveOnboardingService:
         )
         existing_draft = (await db.execute(d_stmt)).scalars().first()
 
+        target_ref = int(user_type_ref_id or 2)
         if existing_draft:
             reg_id = existing_draft.registration_id
             draft_data = dict(existing_draft.draft_data or {})
             draft_data["otp_code"] = otp_code
             draft_data["otp_created_at"] = datetime.now(timezone.utc).isoformat()
+            draft_data["user_type_ref_id"] = target_ref
             existing_draft.draft_data = draft_data
             existing_draft.last_activity_at = datetime.now(timezone.utc)
             try:
@@ -398,7 +478,12 @@ class ProgressiveOnboardingService:
                     completed_steps=[],
                     status="DRAFT",
                     is_business=False,
-                    draft_data={"mobile_number": clean_mobile, "correlation_id": correlation_id, "otp_code": otp_code}
+                    draft_data={
+                        "mobile_number": clean_mobile,
+                        "correlation_id": correlation_id,
+                        "otp_code": otp_code,
+                        "user_type_ref_id": target_ref
+                    }
                 )
                 db.add(draft)
 
@@ -407,7 +492,7 @@ class ProgressiveOnboardingService:
                     registration_id=reg_id,
                     event_type="MOBILE_DRAFT_CREATED",
                     ip_address="127.0.0.1",
-                    details={"mobile_number": clean_mobile, "whatsapp_status": wa_dispatch_status}
+                    details={"mobile_number": clean_mobile, "whatsapp_status": wa_dispatch_status, "user_type_ref_id": target_ref}
                 )
                 db.add(audit)
 
@@ -423,6 +508,7 @@ class ProgressiveOnboardingService:
                     reg_id = retry_draft.registration_id
                     draft_d = dict(retry_draft.draft_data or {})
                     draft_d["otp_code"] = otp_code
+                    draft_d["user_type_ref_id"] = target_ref
                     retry_draft.draft_data = draft_d
                     try:
                         await db.commit()
@@ -451,16 +537,17 @@ class ProgressiveOnboardingService:
         db: AsyncSession,
         mobile_number: str,
         tenant_id: Optional[str] = None,
-        company_id: Optional[str] = None
+        company_id: Optional[str] = None,
+        user_type_ref_id: Optional[int] = 2
     ) -> Dict[str, Any]:
         """
-        Legacy check_mobile alias: validates mobile and sends OTP automatically.
+        Check mobile: validates cross-entity mobile uniqueness via SP and sends OTP.
         """
-        val_res = await ProgressiveOnboardingService.validate_mobile(db, mobile_number, tenant_id)
-        if val_res.get("requires_otp") is False:
+        val_res = await ProgressiveOnboardingService.validate_mobile(db, mobile_number, tenant_id, user_type_ref_id)
+        if val_res.get("requires_otp") is False or val_res.get("status") == "ERROR":
             return val_res
         tok = val_res.get("validation_token", "")
-        return await ProgressiveOnboardingService.send_otp(db, mobile_number, tok, tenant_id)
+        return await ProgressiveOnboardingService.send_otp(db, mobile_number, tok, tenant_id, user_type_ref_id)
 
     @staticmethod
     async def verify_mobile_otp(db: AsyncSession, registration_id: str, otp_code: str) -> Dict[str, Any]:
@@ -476,8 +563,7 @@ class ProgressiveOnboardingService:
         stored_otp = (draft.draft_data or {}).get("otp_code")
         clean_code = str(otp_code).strip()
         is_valid_otp = (
-            clean_code in MASTER_OTP_SET or
-            (stored_otp and clean_code == str(stored_otp).strip())
+            stored_otp and clean_code == str(stored_otp).strip()
         )
         if not is_valid_otp:
             return {"status": "ERROR", "message": "Invalid OTP code. Please check your WhatsApp messages and try again."}
@@ -504,8 +590,8 @@ class ProgressiveOnboardingService:
         except Exception:
             await db.rollback()
 
-        # Authoritative State Resolution
-        state_info = await ProgressiveOnboardingService.resolve_retailer_registration_state(db, clean_mobile, str(draft.tenant_id or DEFAULT_TENANT_ID))
+        target_ref = int((draft.draft_data or {}).get("user_type_ref_id", 2))
+        state_info = await ProgressiveOnboardingService.resolve_retailer_registration_state(db, clean_mobile, str(draft.tenant_id or DEFAULT_TENANT_ID), target_ref)
 
         if state_info.get("flow") == "RESUME_ONBOARDING":
             return {
@@ -597,8 +683,13 @@ class ProgressiveOnboardingService:
         }
 
     @staticmethod
-    async def check_email(db: AsyncSession, registration_id: str, email: str) -> Dict[str, Any]:
-        """Step 3: Check email uniqueness and dispatch Email OTP."""
+    async def check_email(
+        db: AsyncSession,
+        registration_id: str,
+        email: str,
+        target_user_type_ref_id: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """Step 3: Check email uniqueness across SD/Distributor/Retailer via SP and dispatch Email OTP."""
         clean_email = email.strip().lower()
         if "@" not in clean_email or "." not in clean_email:
             return {"status": "ERROR", "message": "Please enter a valid email address."}
@@ -611,6 +702,26 @@ class ProgressiveOnboardingService:
         draft = (await db.execute(d_stmt)).scalars().first()
         if not draft:
             return {"status": "ERROR", "message": "Invalid registration ID."}
+
+        target_ref = int(target_user_type_ref_id or (draft.draft_data or {}).get("user_type_ref_id", 2))
+
+        # Cross-entity email uniqueness check using Stored Procedure
+        try:
+            sp_chk = await db.execute(
+                text("SELECT row_to_json(public.sp_check_entity_uniqueness(NULL, :email, :target_type))"),
+                {"email": clean_email, "target_type": target_ref}
+            )
+            sp_res = sp_chk.scalar()
+            if sp_res and sp_res.get("is_valid") is False and sp_res.get("email_conflict"):
+                return {
+                    "status": "ERROR",
+                    "email_conflict": True,
+                    "existing_entity_type": sp_res.get("existing_entity_type"),
+                    "message": sp_res.get("message") or "Email address is already registered under another entity."
+                }
+        except Exception as sp_err:
+            print(f"[SP EMAIL UNIQUENESS ERROR] {sp_err}")
+
 
         email_otp = f"{random.randint(100000, 999999)}"
 
@@ -1562,12 +1673,47 @@ class ProgressiveOnboardingService:
         }
 
     @staticmethod
-    async def submit_registration(db: AsyncSession, registration_id: str) -> Dict[str, Any]:
-        """Final Submit: Lock draft status to KYC_SUBMITTED and generate Application Ref."""
+    async def submit_registration(
+        db: AsyncSession,
+        registration_id: str,
+        target_user_type_ref_id: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """Final Submit: Re-validate cross-entity uniqueness, lock draft status to KYC_SUBMITTED, synchronize SD/Distributor/Retailer, and trigger Admin Verification."""
         d_stmt = select(RegistrationDraftModel).where(RegistrationDraftModel.registration_id == registration_id)
         draft = (await db.execute(d_stmt)).scalars().first()
         if not draft:
             return {"status": "ERROR", "message": "Invalid registration ID."}
+
+        draft_d = draft.draft_data or {}
+        user_type_ref_id = int(target_user_type_ref_id or draft_d.get("user_type_ref_id", 2))
+
+        # Map entity type name
+        entity_names_map = {
+            4: "Super Distributor",
+            3: "Distributor",
+            2: "Retailer"
+        }
+        entity_name = entity_names_map.get(user_type_ref_id, "Retailer")
+        role_name = "SD" if user_type_ref_id == 4 else ("DISTRIBUTOR" if user_type_ref_id == 3 else "RETAILER")
+
+        clean_m = re.sub(r"\D", "", str(draft.mobile_number))[-10:]
+
+        # 1. Final server-side re-validation of cross-entity uniqueness via SP
+        try:
+            sp_chk = await db.execute(
+                text("SELECT row_to_json(public.sp_check_entity_uniqueness(:mobile, :email, :target_type))"),
+                {"mobile": clean_m, "email": draft.email, "target_type": user_type_ref_id}
+            )
+            sp_res = sp_chk.scalar()
+            if sp_res and sp_res.get("is_valid") is False and (sp_res.get("mobile_conflict") or sp_res.get("email_conflict")):
+                return {
+                    "status": "ERROR",
+                    "conflict": True,
+                    "existing_entity_type": sp_res.get("existing_entity_type"),
+                    "message": sp_res.get("message") or "Contact conflict detected with an existing entity."
+                }
+        except Exception as sp_err:
+            print(f"[FINAL SUBMIT SP UNIQUENESS ERROR] {sp_err}")
 
         application_ref = f"APP-P2P-{uuid.uuid4().hex[:8].upper()}"
         draft.status = "KYC_SUBMITTED"
@@ -1579,20 +1725,36 @@ class ProgressiveOnboardingService:
         draft.last_activity_at = datetime.now(timezone.utc)
 
         audit = RegistrationAuditModel(
-            tenant_id=DEFAULT_TENANT_ID,
+            tenant_id=draft.tenant_id or DEFAULT_TENANT_ID,
             registration_id=registration_id,
             event_type="KYC_APPLICATION_SUBMITTED",
             ip_address="127.0.0.1",
-            details={"application_ref": application_ref}
+            details={
+                "application_ref": application_ref,
+                "user_type_ref_id": user_type_ref_id,
+                "entity_name": entity_name
+            }
         )
         db.add(audit)
 
         # Trigger Verification Workflow Creation
         from app.application.verification_service import VerificationService
-        draft_d = draft.draft_data or {}
-        ret_name = draft_d.get("pan", {}).get("holder_name") or draft_d.get("aadhaar", {}).get("full_name") or "Retailer Partner"
-        shop_n = draft_d.get("shop", {}).get("shop_name") or "Sri Venkateswara Telecom"
+        ret_name = draft_d.get("full_name") or draft_d.get("name") or draft_d.get("pan", {}).get("holder_name") or draft_d.get("aadhaar", {}).get("full_name") or f"{entity_name} Partner"
+        shop_n = draft_d.get("shop_name") or draft_d.get("shop", {}).get("shop_name") or f"{ret_name}'s Enterprise"
         
+        # Address resolution (supporting both single-page flat addresses and step objects)
+        addr_src = draft_d.get("shop_address") or draft_d.get("personal_address") or draft_d.get("address") or {}
+        state_val = addr_src.get("state") or "Tamil Nadu"
+        city_val = addr_src.get("city") or "Chennai"
+        district_val = addr_src.get("district") or city_val
+        pincode_val = str(addr_src.get("pincode") or "600001")
+        street_val = addr_src.get("address_line1") or addr_src.get("street") or "Business Premises"
+
+        pan_val = draft_d.get("pan_number") or draft_d.get("pan", {}).get("pan_number")
+        gst_val = draft_d.get("gst_number") or draft_d.get("gst", {}).get("gst_number")
+        bank_acc_val = draft_d.get("bank_account_number") or draft_d.get("bank", {}).get("account_number")
+        bank_ifsc_val = draft_d.get("bank_ifsc") or draft_d.get("bank", {}).get("ifsc")
+
         await VerificationService.create_verification_request(
             db=db,
             registration_id=registration_id,
@@ -1601,56 +1763,272 @@ class ProgressiveOnboardingService:
             email=draft.email,
             shop_name=shop_n,
             is_business=draft.is_business,
-            pan_number=draft_d.get("pan", {}).get("pan_number"),
-            gst_number=draft_d.get("gst", {}).get("gst_number"),
-            state=draft_d.get("address", {}).get("state", "Tamil Nadu"),
-            district=draft_d.get("address", {}).get("district", "Chennai")
+            pan_number=pan_val,
+            gst_number=gst_val,
+            state=state_val,
+            district=district_val
         )
 
-        # Synchronize immediately into RetailerModel for Admin/Distributor Onboarding Hub
+        # Synchronize into SuperDistributorModel, DistributorModel, or RetailerModel
         try:
-            from app.application.services import RetailerManagementService
-            await RetailerManagementService.sync_verifications_to_retailers(db, DEFAULT_TENANT_ID)
-        except Exception as e:
-            pass
+            if user_type_ref_id == 4:
+                # Super Distributor
+                stmt = select(SuperDistributorModel).where(
+                    (SuperDistributorModel.mobile == clean_m) | (SuperDistributorModel.email == draft.email)
+                )
+                sd_entity = (await db.execute(stmt)).scalars().first()
+                if not sd_entity:
+                    sd_code = f"SD{random.randint(10000, 99999)}"
+                    max_sd_ref = (await db.execute(text("SELECT COALESCE(MAX(super_distributor_ref_id), 0) + 1 FROM public.super_distributor"))).scalar()
+                    sd_entity = SuperDistributorModel(
+                        super_distributor_ref_id=max_sd_ref,
+                        tenant_id=draft.tenant_id or DEFAULT_TENANT_ID,
+                        company_id=draft.tenant_id or DEFAULT_TENANT_ID,
+                        super_distributor_code=sd_code,
+                        business_name=shop_n,
+                        owner_name=ret_name,
+                        mobile=clean_m,
+                        email=draft.email or f"{clean_m}@pay2pay.in",
+                        gst_number=gst_val,
+                        pan_number=pan_val,
+                        bank_account_number=bank_acc_val,
+                        ifsc=bank_ifsc_val,
+                        state=state_val,
+                        city=city_val,
+                        address=street_val,
+                        pincode=pincode_val,
+                        status="PENDING_APPROVAL"
+                    )
+                    db.add(sd_entity)
+                else:
+                    sd_entity.status = "PENDING_APPROVAL"
+                    sd_entity.business_name = shop_n
+                    sd_entity.owner_name = ret_name
+            elif user_type_ref_id == 3:
+                # Distributor
+                stmt = select(DistributorModel).where(
+                    (DistributorModel.mobile == clean_m) | (DistributorModel.email == draft.email)
+                )
+                dist_entity = (await db.execute(stmt)).scalars().first()
+                if not dist_entity:
+                    dist_code = f"DIST{random.randint(10000, 99999)}"
+                    max_dist_ref = (await db.execute(text("SELECT COALESCE(MAX(distributor_ref_id), 0) + 1 FROM public.distributor"))).scalar()
+                    dist_entity = DistributorModel(
+                        distributor_ref_id=max_dist_ref,
+                        tenant_id=draft.tenant_id or DEFAULT_TENANT_ID,
+                        company_id=draft.tenant_id or DEFAULT_TENANT_ID,
+                        distributor_code=dist_code,
+                        business_name=shop_n,
+                        owner_name=ret_name,
+                        mobile=clean_m,
+                        email=draft.email or f"{clean_m}@pay2pay.in",
+                        gst_number=gst_val,
+                        pan_number=pan_val,
+                        bank_account_number=bank_acc_val,
+                        ifsc=bank_ifsc_val,
+                        state=state_val,
+                        city=city_val,
+                        address=street_val,
+                        pincode=pincode_val,
+                        status="PENDING_APPROVAL"
+                    )
+                    db.add(dist_entity)
+                else:
+                    dist_entity.status = "PENDING_APPROVAL"
+                    dist_entity.business_name = shop_n
+                    dist_entity.owner_name = ret_name
+            else:
+                # Retailer
+                from app.application.services import RetailerManagementService
+                await RetailerManagementService.sync_verifications_to_retailers(db, DEFAULT_TENANT_ID)
+        except Exception as sync_ex:
+            print(f"[ENTITY SYNC EXCEPTION] {sync_ex}")
 
-        # Ensure AuthUserModel is linked with the onboarding password hash
+        # Ensure AuthUserModel is linked with the onboarding password hash & MPIN
         try:
             from app.infrastructure.db.auth_models import AuthUserModel
             from app.infrastructure.db.models import RetailerContactModel, RetailerModel
-            clean_m = re.sub(r"\D", "", str(draft.mobile_number))[-10:]
             pass_h = draft_d.get("password_hash")
             if clean_m and pass_h:
                 auth_u = (await db.execute(select(AuthUserModel).where(AuthUserModel.mobile_number.in_([clean_m, f"91{clean_m}", f"+91{clean_m}"])))).scalars().first()
                 if auth_u:
                     auth_u.password_hash = pass_h
+                    auth_u.role = role_name
                 else:
                     ret_chk = (await db.execute(select(RetailerContactModel, RetailerModel).join(RetailerModel, RetailerContactModel.retailer_id == RetailerModel.public_id).where(RetailerContactModel.mobile.in_([clean_m, f"+91{clean_m}", f"91{clean_m}"])))).first()
-                    ret_id = ret_chk[1].public_id if ret_chk else uuid.uuid4()
+                    entity_uuid = ret_chk[1].public_id if ret_chk else uuid.uuid4()
                     auth_u = AuthUserModel(
-                        user_id=ret_id,
+                        user_id=entity_uuid,
                         mobile_number=clean_m,
                         full_name=ret_name,
                         email=draft.email or f"{clean_m}@pay2pay.in",
                         password_hash=pass_h,
-                        role="RETAILER",
-                        account_status="ACTIVE" if (ret_chk and ret_chk[1].status == "ACTIVE") else "PENDING_APPROVAL",
-                        tenant_id=DEFAULT_TENANT_ID,
-                        company_id=DEFAULT_TENANT_ID
+                        role=role_name,
+                        account_status="PENDING_APPROVAL",
+                        tenant_id=draft.tenant_id or DEFAULT_TENANT_ID,
+                        company_id=draft.tenant_id or DEFAULT_TENANT_ID
                     )
                     db.add(auth_u)
         except Exception as e:
-            logger.warning(f"Error persisting AuthUserModel on submit: {e}")
+            print(f"Error persisting AuthUserModel on submit: {e}")
 
         await db.commit()
 
         return {
             "status": "SUCCESS",
-            "message": "Congratulations! Your Pay2Pay Retailer Application has been submitted.",
+            "message": f"Congratulations! Your Pay2Pay {entity_name} Application has been submitted and is pending Admin Approval.",
             "application_ref": application_ref,
+            "entity_type": entity_name,
+            "user_type_ref_id": user_type_ref_id,
+            "approval_status": "PENDING_APPROVAL",
             "estimated_hours": 4,
             "registration_id": registration_id
         }
+
+    @staticmethod
+    async def check_uniqueness(
+        db: AsyncSession,
+        mobile: Optional[str] = None,
+        email: Optional[str] = None,
+        user_type_ref_id: int = 2
+    ) -> Dict[str, Any]:
+        """Direct invocation of public.sp_check_entity_uniqueness for cross-entity validation."""
+        clean_m = re.sub(r"\D", "", str(mobile or ""))[-10:] if mobile else None
+        clean_e = str(email or "").strip().lower() if email else None
+        target_ref = int(user_type_ref_id or 2)
+
+        res = await db.execute(
+            text("SELECT row_to_json(public.sp_check_entity_uniqueness(:mobile, :email, :target_type))"),
+            {"mobile": clean_m, "email": clean_e, "target_type": target_ref}
+        )
+        data = res.scalar() or {}
+        return data
+
+    @staticmethod
+    async def get_entity_types(db: AsyncSession) -> List[Dict[str, Any]]:
+        """Returns dynamic entity types from database without hardcoding."""
+        stmt = text("""
+            SELECT user_type_ref_id, user_type_code, user_type_name, description 
+            FROM public.user_type 
+            WHERE user_type_ref_id IN (2, 3, 4) 
+            ORDER BY user_type_ref_id ASC
+        """)
+        res = await db.execute(stmt)
+        return [
+            {
+                "user_type_ref_id": r[0],
+                "user_type_code": r[1],
+                "user_type_name": r[2],
+                "description": r[3]
+            }
+            for r in res.fetchall()
+        ]
+
+    @staticmethod
+    async def get_shop_categories(db: AsyncSession) -> List[str]:
+        """Returns distinct business categories from database without hardcoding."""
+        stmt = text("""
+            SELECT DISTINCT business_category as category FROM public.retailer WHERE business_category IS NOT NULL AND business_category != ''
+            UNION
+            SELECT DISTINCT category FROM public.registration_shop WHERE category IS NOT NULL AND category != ''
+            ORDER BY category ASC
+        """)
+        res = await db.execute(stmt)
+        categories = [r[0] for r in res.fetchall() if r[0]]
+        if not categories:
+            categories = [
+                "General Store / Kirana",
+                "Mobile & Electronics",
+                "Recharge & FinTech",
+                "Retail & FinTech",
+                "Pharmacy & Medical",
+                "Clothing & Apparel",
+                "Hardware & Electricals",
+                "Stationery & Books",
+                "Other Commercial"
+            ]
+        return categories
+
+    @staticmethod
+    async def resolve_pincode(pincode: str) -> Dict[str, Any]:
+        """Resolves 6-digit Indian pincode using official India Post API."""
+        clean_pin = re.sub(r"\D", "", str(pincode or "")).strip()
+        if len(clean_pin) != 6:
+            return {"valid": False, "message": "Pincode must be exactly 6 digits."}
+
+        try:
+            async with httpx.AsyncClient(timeout=4.0) as client:
+                res = await client.get(f"https://api.postalpincode.in/pincode/{clean_pin}")
+                if res.status_code == 200:
+                    data = res.json()
+                    if isinstance(data, list) and len(data) > 0 and data[0].get("Status") == "Success":
+                        post_offices = data[0].get("PostOffice") or []
+                        if post_offices:
+                            primary = post_offices[0]
+                            cities = sorted(list({po.get("Block") or po.get("Name") or po.get("District") for po in post_offices if (po.get("Block") or po.get("Name"))}))
+                            return {
+                                "valid": True,
+                                "pincode": clean_pin,
+                                "state": primary.get("State", ""),
+                                "district": primary.get("District", ""),
+                                "city": cities[0] if cities else primary.get("District", ""),
+                                "cities": cities,
+                                "post_offices": [po.get("Name") for po in post_offices]
+                            }
+        except Exception as e:
+            print(f"[PINCODE LOOKUP ERROR] {e}")
+
+        return {
+            "valid": False,
+            "pincode": clean_pin,
+            "message": "Pincode lookup service unavailable or not found."
+        }
+
+    @staticmethod
+    async def save_single_page_draft(
+        db: AsyncSession,
+        payload: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Saves or updates entire single-page onboarding form data directly to database without relying on localStorage."""
+        clean_reg_id = str(payload.get("registration_id") or "").strip()
+        clean_mobile = re.sub(r"\D", "", str(payload.get("mobile_number") or ""))[-10:]
+
+        d_stmt = select(RegistrationDraftModel).where(
+            (RegistrationDraftModel.registration_id == clean_reg_id) |
+            (RegistrationDraftModel.mobile_number == clean_mobile)
+        )
+        draft = (await db.execute(d_stmt)).scalars().first()
+
+        if not draft:
+            reg_id = clean_reg_id or f"REG-{uuid.uuid4().hex[:10].upper()}"
+            draft = RegistrationDraftModel(
+                tenant_id=DEFAULT_TENANT_ID,
+                registration_id=reg_id,
+                mobile_number=clean_mobile or "0000000000",
+                current_step=1,
+                completed_steps=[],
+                status="DRAFT",
+                is_business=False,
+                draft_data=payload
+            )
+            db.add(draft)
+        else:
+            draft_d = dict(draft.draft_data or {})
+            draft_d.update(payload)
+            draft.draft_data = draft_d
+            if payload.get("email"):
+                draft.email = str(payload["email"]).strip().lower()
+            if payload.get("mobile_number"):
+                draft.mobile_number = clean_mobile
+            draft.last_activity_at = datetime.now(timezone.utc)
+
+        await db.commit()
+        return {
+            "status": "SUCCESS",
+            "registration_id": draft.registration_id,
+            "message": "Onboarding form draft saved to database."
+        }
+
 
     @staticmethod
     async def resume_draft(db: AsyncSession, mobile_or_reg_id: str) -> Dict[str, Any]:

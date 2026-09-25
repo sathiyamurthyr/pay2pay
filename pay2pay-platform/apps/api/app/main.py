@@ -444,6 +444,21 @@ app.include_router(_super_distributor_router.router, prefix=f"{settings.API_V1_S
 app.include_router(_super_distributor_router.router, prefix="/api")
 app.include_router(_super_distributor_router.router, prefix="")
 
+import app.infrastructure.db.sales_models as _sales_models
+from app.presentation.api.v1 import sales_router as _sales_router
+app.include_router(_sales_router.router, prefix=settings.API_V1_STR)
+app.include_router(_sales_router.router, prefix="/v1")
+app.include_router(_sales_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(_sales_router.router, prefix="/api")
+app.include_router(_sales_router.router, prefix="")
+
+from app.presentation.api.v1 import admin_sales_management_router as _admin_sales_management_router
+app.include_router(_admin_sales_management_router.router, prefix=settings.API_V1_STR)
+app.include_router(_admin_sales_management_router.router, prefix="/v1")
+app.include_router(_admin_sales_management_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(_admin_sales_management_router.router, prefix="/api")
+app.include_router(_admin_sales_management_router.router, prefix="")
+
 @app.get("/health", tags=["Health"])
 @app.get(f"{settings.API_V1_STR}/health", tags=["Health"])
 @app.get(f"{settings.API_V1_STR}/payout-workflow/health", tags=["Health"])

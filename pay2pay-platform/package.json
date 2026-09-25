@@ -16,6 +16,7 @@
     "dev:retailer": "npm run dev --workspace=apps/retailer",
     "dev:share-pages": "npm run dev --workspace=apps/share-pages",
     "dev:auth": "npm run dev --workspace=apps/auth",
+    "dev:sales": "npm run dev --workspace=apps/sales",
     "build:all": "npm run build --workspaces --if-present",
     "lint:all": "npm run lint --workspaces --if-present"
   },

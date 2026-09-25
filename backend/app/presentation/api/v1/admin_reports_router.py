@@ -1317,11 +1317,11 @@ RETAILER_FULL_EXPORT_SQL = """
 WITH reg_docs AS (
     SELECT 
         rd.registration_id,
-        MAX(CASE WHEN rd.doc_type IN ('PAN', 'PAN_CARD') THEN rd.file_url END) AS doc_pan_url,
-        MAX(CASE WHEN rd.doc_type IN ('AADHAAR_FRONT', 'AADHAAR_CARD_FRONT') THEN rd.file_url END) AS doc_aadhaar_front_url,
-        MAX(CASE WHEN rd.doc_type IN ('AADHAAR_BACK', 'AADHAAR_CARD_BACK') THEN rd.file_url END) AS doc_aadhaar_back_url,
-        MAX(CASE WHEN rd.doc_type IN ('SHOP_PHOTO', 'SHOP_IMAGE', 'STORE_FRONT') THEN rd.file_url END) AS doc_shop_photo_url,
-        MAX(CASE WHEN rd.doc_type IN ('BANK_PROOF', 'CANCELLED_CHEQUE', 'PASSBOOK') THEN rd.file_url END) AS doc_bank_proof_url
+        MAX(CASE WHEN rd.doc_type IN ('PAN', 'PAN_CARD') THEN rd.file_url END) AS pan_doc_url,
+        MAX(CASE WHEN rd.doc_type IN ('AADHAAR_FRONT', 'AADHAAR_CARD_FRONT') THEN rd.file_url END) AS aadhaar_front_doc_url,
+        MAX(CASE WHEN rd.doc_type IN ('AADHAAR_BACK', 'AADHAAR_CARD_BACK') THEN rd.file_url END) AS aadhaar_back_doc_url,
+        MAX(CASE WHEN rd.doc_type IN ('BANK_PROOF', 'CANCELLED_CHEQUE', 'PASSBOOK') THEN rd.file_url END) AS bank_proof_doc_url,
+        MAX(CASE WHEN rd.doc_type IN ('SHOP_PHOTO', 'SHOP_IMAGE', 'STORE_FRONT') THEN rd.file_url END) AS shop_photo_doc_url
     FROM public.registration_documents rd
     WHERE rd.is_deleted IS NULL OR rd.is_deleted = FALSE
     GROUP BY rd.registration_id
@@ -1335,10 +1335,12 @@ SELECT
     COALESCE(r.owner_name, 'N/A') AS owner_name,
     COALESCE(rc.primary_contact, r.owner_name, 'N/A') AS contact_person,
     COALESCE(rc.mobile, 'N/A') AS mobile_number,
+    COALESCE(rc.alternate_mobile, '') AS alternate_mobile,
     COALESCE(rc.email, 'N/A') AS email,
-    COALESCE(r.business_category, 'Other Commercial') AS business_category,
-    COALESCE(r.store_type, 'PHYSICAL') AS store_type,
-    COALESCE(r.status, 'ACTIVE') AS account_status,
+    COALESCE(rc.support_email, '') AS support_email,
+    COALESCE(r.business_category, 'General Store') AS business_category,
+    COALESCE(r.store_type, 'BRICK_AND_MORTAR') AS store_type,
+    COALESCE(r.status, 'ACTIVE') AS retailer_status,
     CASE WHEN r.is_active = TRUE THEN 'Active' ELSE 'Inactive' END AS is_active,
     TO_CHAR(r.created_date, 'YYYY-MM-DD HH24:MI:SS') AS registration_date,
     
@@ -1346,52 +1348,57 @@ SELECT
     COALESCE(ra.address, radd.street, 'N/A') AS shop_address,
     COALESCE(radd.landmark, '') AS landmark,
     COALESCE(ra.city, radd.city, 'N/A') AS city,
-    COALESCE(ra.district, radd.district, 'N/A') AS district,
+    COALESCE(ra.district, radd.district, '') AS district,
     COALESCE(ra.state, radd.state, 'N/A') AS state,
     COALESCE(ra.pincode, radd.pincode, 'N/A') AS pincode,
     COALESCE(ra.country, 'India') AS country,
     COALESCE(ra.latitude::text, radd.latitude::text, '') AS latitude,
     COALESCE(ra.longitude::text, radd.longitude::text, '') AS longitude,
     
-    -- KYC Details
+    -- KYC Identifiers & Status
     COALESCE(rk.pan_number, rpan.pan_number, rv.pan_number, 'N/A') AS pan_number,
     COALESCE(rk.aadhaar_number, raadh.aadhaar_masked, 'N/A') AS aadhaar_number,
     COALESCE(rk.gst_number, rv.gst_number, '') AS gst_number,
-    COALESCE(rk.verification_status, rv.verification_status, 'PENDING') AS kyc_status,
+    COALESCE(rk.verification_status, rv.verification_status, 'PENDING') AS kyc_verification_status,
     COALESCE(rk.rejection_reason, '') AS kyc_rejection_reason,
     
     -- KYC Document URLs
-    COALESCE(docs.doc_pan_url, '') AS pan_document_url,
-    COALESCE(rk.aadhaar_front_url, docs.doc_aadhaar_front_url, '') AS aadhaar_front_url,
-    COALESCE(rk.aadhaar_back_url, docs.doc_aadhaar_back_url, '') AS aadhaar_back_url,
-    COALESCE(docs.doc_shop_photo_url, radd.shop_photo_url, '') AS shop_photo_url,
-    COALESCE(docs.doc_bank_proof_url, '') AS bank_proof_url,
-    COALESCE(rk.business_proof_url, '') AS business_proof_url,
+    COALESCE(docs.pan_doc_url, '') AS pan_document_url,
+    COALESCE(rk.aadhaar_front_url, docs.aadhaar_front_doc_url, '') AS aadhaar_front_url,
+    COALESCE(rk.aadhaar_back_url, docs.aadhaar_back_doc_url, '') AS aadhaar_back_url,
+    COALESCE(raadh.photo_url, '') AS aadhaar_photo_url,
+    COALESCE(docs.shop_photo_doc_url, radd.shop_photo_url, rk.business_proof_url, '') AS shop_business_proof_url,
+    COALESCE(docs.bank_proof_doc_url, '') AS bank_proof_url,
+    COALESCE(rvid.video_url, '') AS kyc_video_url,
     
-    -- Bank Details
+    -- Bank Account Details
     COALESCE(rb.settlement_bank_name, rbank.bank_name, 'N/A') AS bank_name,
     COALESCE(rb.account_holder, rbank.name_at_bank, r.owner_name, 'N/A') AS bank_account_holder,
-    COALESCE(rb.account_number, rbank.account_number_masked, 'N/A') AS bank_account_number,
+    COALESCE(rb.account_number, rbank.account_number, rbank.account_number_masked, 'N/A') AS bank_account_number,
     COALESCE(rb.ifsc, rbank.ifsc, 'N/A') AS bank_ifsc,
-    COALESCE(rbank.branch, '') AS bank_branch,
-    COALESCE(rbank.account_type, 'SAVINGS') AS bank_account_type,
+    COALESCE(rb.branch, rbank.branch, '') AS bank_branch,
+    COALESCE(rb.upi_id, '') AS upi_id,
     COALESCE(rb.verification_status, rbank.verification_status, 'PENDING') AS bank_verification_status,
     
     -- Wallet Details
     COALESCE(rw.wallet_balance, 0.0) AS wallet_balance_inr,
     CASE WHEN rw.is_frozen = TRUE THEN 'YES' ELSE 'NO' END AS wallet_frozen,
-    COALESCE(rw.daily_transaction_limit, 0.0) AS daily_limit_inr,
-    COALESCE(rw.single_transaction_limit, 0.0) AS single_limit_inr,
+    COALESCE(rw.daily_transaction_limit, 5000000.0) AS daily_limit_inr,
+    COALESCE(rw.single_transaction_limit, 500000.0) AS single_limit_inr,
     
-    -- Hierarchy
+    -- Hierarchy Mapping
     COALESCE(d.distributor_code, '') AS distributor_code,
     COALESCE(d.business_name, d.owner_name, '') AS distributor_name,
+    COALESCE(d.mobile, '') AS distributor_mobile,
     COALESCE(sd.super_distributor_code, '') AS super_distributor_code,
-    COALESCE(sd.business_name, sd.owner_name, '') AS super_distributor_name
+    COALESCE(sd.business_name, sd.owner_name, '') AS super_distributor_name,
+    COALESCE(sd.mobile, '') AS super_distributor_mobile,
+    COALESCE(cm.company_code, '') AS company_code,
+    COALESCE(cm.company_name, '') AS company_name
 
 FROM public.retailer r
 LEFT JOIN LATERAL (
-    SELECT rc_in.mobile, rc_in.email, rc_in.primary_contact
+    SELECT rc_in.mobile, rc_in.alternate_mobile, rc_in.email, rc_in.support_email, rc_in.primary_contact
     FROM public.retailer_contact rc_in
     WHERE rc_in.retailer_id = r.public_id 
        OR (r.retailer_ref_id IS NOT NULL AND rc_in.retailer_ref_id = r.retailer_ref_id)
@@ -1416,7 +1423,7 @@ LEFT JOIN LATERAL (
     LIMIT 1
 ) rk ON TRUE
 LEFT JOIN LATERAL (
-    SELECT rb_in.settlement_bank_name, rb_in.account_holder, rb_in.account_number, rb_in.ifsc, rb_in.verification_status
+    SELECT rb_in.settlement_bank_name, rb_in.account_holder, rb_in.account_number, rb_in.ifsc, rb_in.branch, rb_in.upi_id, rb_in.verification_status
     FROM public.retailer_bank rb_in
     WHERE rb_in.retailer_id = r.public_id 
        OR (r.retailer_ref_id IS NOT NULL AND rb_in.retailer_ref_id = r.retailer_ref_id)
@@ -1433,28 +1440,59 @@ LEFT JOIN LATERAL (
     LIMIT 1
 ) rw ON TRUE
 LEFT JOIN LATERAL (
+    SELECT rv_in.registration_id, rv_in.pan_number, rv_in.gst_number, rv_in.verification_status
+    FROM public.retailer_verifications rv_in
+    WHERE rv_in.retailer_id = r.retailer_code 
+       OR rv_in.retailer_id = r.public_id::text
+       OR (rc.mobile IS NOT NULL AND rv_in.mobile_number = rc.mobile)
+    ORDER BY rv_in.id DESC
+    LIMIT 1
+) rv ON TRUE
+LEFT JOIN LATERAL (
     SELECT rd_in.registration_id
     FROM public.registration_drafts rd_in
     WHERE (rc.mobile IS NOT NULL AND rd_in.mobile_number = rc.mobile)
     ORDER BY rd_in.id DESC
     LIMIT 1
 ) draft ON TRUE
-LEFT JOIN LATERAL (
-    SELECT rv_in.registration_id, rv_in.pan_number, rv_in.gst_number, rv_in.verification_status
-    FROM public.retailer_verifications rv_in
-    WHERE rv_in.retailer_id = r.public_id::text 
-       OR rv_in.retailer_id = r.retailer_code
-       OR (draft.registration_id IS NOT NULL AND rv_in.registration_id = draft.registration_id)
-    ORDER BY rv_in.id DESC
-    LIMIT 1
-) rv ON TRUE
 LEFT JOIN reg_docs docs ON docs.registration_id = COALESCE(rv.registration_id, draft.registration_id)
-LEFT JOIN public.registration_pan rpan ON rpan.registration_id = COALESCE(rv.registration_id, draft.registration_id)
-LEFT JOIN public.registration_aadhaar raadh ON raadh.registration_id = COALESCE(rv.registration_id, draft.registration_id)
-LEFT JOIN public.registration_bank rbank ON rbank.registration_id = COALESCE(rv.registration_id, draft.registration_id)
-LEFT JOIN public.registration_address radd ON radd.registration_id = COALESCE(rv.registration_id, draft.registration_id)
 LEFT JOIN LATERAL (
-    SELECT d_in.distributor_code, d_in.business_name, d_in.owner_name
+    SELECT rpan_in.id, rpan_in.pan_number
+    FROM public.registration_pan rpan_in
+    WHERE rpan_in.registration_id = COALESCE(rv.registration_id, draft.registration_id)
+    ORDER BY rpan_in.id DESC
+    LIMIT 1
+) rpan ON TRUE
+LEFT JOIN LATERAL (
+    SELECT raadh_in.id, raadh_in.aadhaar_masked, raadh_in.photo_url
+    FROM public.registration_aadhaar raadh_in
+    WHERE raadh_in.registration_id = COALESCE(rv.registration_id, draft.registration_id)
+    ORDER BY raadh_in.id DESC
+    LIMIT 1
+) raadh ON TRUE
+LEFT JOIN LATERAL (
+    SELECT rbank_in.id, rbank_in.bank_name, rbank_in.name_at_bank, rbank_in.account_number, rbank_in.account_number_masked, rbank_in.ifsc, rbank_in.branch, rbank_in.verification_status
+    FROM public.registration_bank rbank_in
+    WHERE rbank_in.registration_id = COALESCE(rv.registration_id, draft.registration_id)
+    ORDER BY rbank_in.id DESC
+    LIMIT 1
+) rbank ON TRUE
+LEFT JOIN LATERAL (
+    SELECT radd_in.id, radd_in.street, radd_in.landmark, radd_in.city, radd_in.district, radd_in.state, radd_in.pincode, radd_in.latitude, radd_in.longitude, radd_in.shop_photo_url
+    FROM public.registration_address radd_in
+    WHERE radd_in.registration_id = COALESCE(rv.registration_id, draft.registration_id)
+    ORDER BY radd_in.id DESC
+    LIMIT 1
+) radd ON TRUE
+LEFT JOIN LATERAL (
+    SELECT rvid_in.id, rvid_in.video_url
+    FROM public.registration_video rvid_in
+    WHERE rvid_in.registration_id = COALESCE(rv.registration_id, draft.registration_id)
+    ORDER BY rvid_in.id DESC
+    LIMIT 1
+) rvid ON TRUE
+LEFT JOIN LATERAL (
+    SELECT d_in.distributor_code, d_in.business_name, d_in.owner_name, d_in.mobile
     FROM public.distributor d_in
     WHERE (r.mapped_distributor_id IS NOT NULL AND d_in.public_id = r.mapped_distributor_id)
        OR (r.distributor_ref_id IS NOT NULL AND (d_in.distributor_ref_id = r.distributor_ref_id OR d_in.id = r.distributor_ref_id))
@@ -1462,13 +1500,20 @@ LEFT JOIN LATERAL (
     LIMIT 1
 ) d ON TRUE
 LEFT JOIN LATERAL (
-    SELECT sd_in.super_distributor_code, sd_in.business_name, sd_in.owner_name
+    SELECT sd_in.super_distributor_code, sd_in.business_name, sd_in.owner_name, sd_in.mobile
     FROM public.super_distributor sd_in
     WHERE (r.mapped_super_distributor_id IS NOT NULL AND sd_in.public_id = r.mapped_super_distributor_id)
        OR (r.super_distributor_ref_id IS NOT NULL AND (sd_in.super_distributor_ref_id = r.super_distributor_ref_id OR sd_in.id = r.super_distributor_ref_id))
     ORDER BY CASE WHEN r.mapped_super_distributor_id IS NOT NULL AND sd_in.public_id = r.mapped_super_distributor_id THEN 0 ELSE 1 END
     LIMIT 1
 ) sd ON TRUE
+LEFT JOIN LATERAL (
+    SELECT cm_in.company_code, cm_in.company_name
+    FROM public.company cm_in
+    WHERE (r.company_id IS NOT NULL AND cm_in.public_id = r.company_id)
+       OR (r.company_ref_id IS NOT NULL AND (cm_in.company_ref_id = r.company_ref_id OR cm_in.id = r.company_ref_id))
+    LIMIT 1
+) cm ON TRUE
 WHERE (r.is_deleted IS NULL OR r.is_deleted = FALSE)
 ORDER BY r.id ASC;
 """
@@ -1482,30 +1527,45 @@ async def export_retailers_full_csv(
     """
     Exports full details of all retailers including:
     - Business details (Code, Name, Category, Store Type, Status)
-    - Contact Details (Mobile, Email, Contact Person)
+    - Contact Details (Mobile, Alternate Mobile, Email, Support Email, Contact Person)
     - Full Store Address (Street, Landmark, City, District, State, Pincode, Lat, Long)
     - KYC & Identification (PAN, Aadhaar, GST, KYC Status, Rejection Reason)
-    - KYC Document URLs (PAN Card, Aadhaar Front, Aadhaar Back, Shop Photo, Bank Proof, Business Proof)
-    - Settlement Bank Details (Bank Name, Holder Name, Account No, IFSC, Branch, Account Type, Status)
+    - KYC Document URLs (PAN Card, Aadhaar Front, Aadhaar Back, Photo, Shop Proof, Bank Proof, Video KYC)
+    - Settlement Bank Details (Bank Name, Holder Name, Account No, IFSC, Branch, UPI ID, Status)
     - Wallet & Limits (Balance, Limits, Frozen Status)
-    - Hierarchy (Distributor, Super Distributor)
+    - Hierarchy (Distributor, Super Distributor, Company)
     """
     res = await db.execute(text(RETAILER_FULL_EXPORT_SQL))
     rows = res.fetchall()
+
+    base_domain = "https://admin.pay2pay.in"
+
+    def format_url(val: Any) -> str:
+        if not val or str(val).strip() in ("", "N/A", "null", "None"):
+            return ""
+        s = str(val).strip()
+        if s.startswith("http://") or s.startswith("https://"):
+            return s
+        if s.startswith("/"):
+            return f"{base_domain}{s}"
+        return f"{base_domain}/{s}"
 
     output = io.StringIO()
     writer = csv.writer(output)
     
     headers = [
         "S.No", "Retailer Code", "Retailer Ref ID", "Store Name", "Legal Name", "Owner Name",
-        "Contact Person", "Mobile Number", "Email", "Business Category", "Store Type", "Account Status",
-        "Active Status", "Registration Date", "Shop Address", "Landmark", "City", "District", "State",
-        "Pincode", "Country", "Latitude", "Longitude", "PAN Number", "Aadhaar Number", "GST Number",
-        "KYC Status", "KYC Rejection Reason", "PAN Document URL", "Aadhaar Front URL", "Aadhaar Back URL",
-        "Shop Photo URL", "Bank Proof URL", "Business Proof URL", "Bank Name", "Bank Account Holder",
-        "Bank Account Number", "Bank IFSC", "Bank Branch", "Bank Account Type", "Bank Verification Status",
-        "Wallet Balance (INR)", "Wallet Frozen", "Daily Limit (INR)", "Single Limit (INR)",
-        "Distributor Code", "Distributor Name", "Super Distributor Code", "Super Distributor Name"
+        "Contact Person", "Mobile Number", "Alternate Mobile", "Email", "Support Email",
+        "Business Category", "Store Type", "Account Status", "Active Status", "Registration Date",
+        "Shop Address", "Landmark", "City", "District", "State", "Pincode", "Country", "Latitude", "Longitude",
+        "PAN Number", "Aadhaar Number", "GST Number", "KYC Verification Status", "KYC Rejection Reason",
+        "PAN Document URL", "Aadhaar Front URL", "Aadhaar Back URL", "Aadhaar Photo URL",
+        "Shop / Business Proof URL", "Bank Proof URL", "Video KYC URL",
+        "Bank Name", "Bank Account Holder", "Bank Account Number", "Bank IFSC", "Bank Branch",
+        "UPI ID", "Bank Verification Status", "Wallet Balance (INR)", "Wallet Frozen",
+        "Daily Limit (INR)", "Single Limit (INR)", "Distributor Code", "Distributor Name",
+        "Distributor Mobile", "Super Distributor Code", "Super Distributor Name",
+        "Super Distributor Mobile", "Company Code", "Company Name"
     ]
     writer.writerow(headers)
 
@@ -1520,10 +1580,12 @@ async def export_retailers_full_csv(
             m.get("owner_name"),
             m.get("contact_person"),
             m.get("mobile_number"),
+            m.get("alternate_mobile"),
             m.get("email"),
+            m.get("support_email"),
             m.get("business_category"),
             m.get("store_type"),
-            m.get("account_status"),
+            m.get("retailer_status"),
             m.get("is_active"),
             m.get("registration_date"),
             m.get("shop_address"),
@@ -1538,20 +1600,21 @@ async def export_retailers_full_csv(
             m.get("pan_number"),
             m.get("aadhaar_number"),
             m.get("gst_number"),
-            m.get("kyc_status"),
+            m.get("kyc_verification_status"),
             m.get("kyc_rejection_reason"),
-            m.get("pan_document_url"),
-            m.get("aadhaar_front_url"),
-            m.get("aadhaar_back_url"),
-            m.get("shop_photo_url"),
-            m.get("bank_proof_url"),
-            m.get("business_proof_url"),
+            format_url(m.get("pan_document_url")),
+            format_url(m.get("aadhaar_front_url")),
+            format_url(m.get("aadhaar_back_url")),
+            format_url(m.get("aadhaar_photo_url")),
+            format_url(m.get("shop_business_proof_url")),
+            format_url(m.get("bank_proof_url")),
+            format_url(m.get("kyc_video_url")),
             m.get("bank_name"),
             m.get("bank_account_holder"),
             m.get("bank_account_number"),
             m.get("bank_ifsc"),
             m.get("bank_branch"),
-            m.get("bank_account_type"),
+            m.get("upi_id"),
             m.get("bank_verification_status"),
             m.get("wallet_balance_inr"),
             m.get("wallet_frozen"),
@@ -1559,8 +1622,12 @@ async def export_retailers_full_csv(
             m.get("single_limit_inr"),
             m.get("distributor_code"),
             m.get("distributor_name"),
+            m.get("distributor_mobile"),
             m.get("super_distributor_code"),
-            m.get("super_distributor_name")
+            m.get("super_distributor_name"),
+            m.get("super_distributor_mobile"),
+            m.get("company_code"),
+            m.get("company_name"),
         ])
 
     now_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
