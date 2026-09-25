@@ -821,35 +821,52 @@ class SalesService:
         res = await db.execute(stmt)
         sds = res.scalars().all()
 
+        sd_ids = [sd.public_id for sd in sds]
+        d_counts: Dict[Any, int] = {}
+        r_counts: Dict[Any, int] = {}
+        t_counts: Dict[Any, int] = {}
+        t_vols: Dict[Any, float] = {}
+
+        if sd_ids:
+            d_cnt_rows = (await db.execute(
+                select(DistributorModel.mapped_super_distributor_id, func.count(DistributorModel.id))
+                .where(
+                    DistributorModel.tenant_id == tid,
+                    DistributorModel.mapped_super_distributor_id.in_(sd_ids),
+                    DistributorModel.is_deleted == False
+                )
+                .group_by(DistributorModel.mapped_super_distributor_id)
+            )).all()
+            for row in d_cnt_rows:
+                d_counts[row[0]] = row[1]
+
+            r_cnt_rows = (await db.execute(
+                select(RetailerModel.mapped_super_distributor_id, func.count(RetailerModel.id))
+                .where(
+                    RetailerModel.tenant_id == tid,
+                    RetailerModel.mapped_super_distributor_id.in_(sd_ids),
+                    RetailerModel.is_deleted == False
+                )
+                .group_by(RetailerModel.mapped_super_distributor_id)
+            )).all()
+            for row in r_cnt_rows:
+                r_counts[row[0]] = row[1]
+
+            t_rows = (await db.execute(
+                select(TransactionModel.sd_id, func.count(TransactionModel.transactions_ref_id), func.coalesce(func.sum(TransactionModel.amount), 0))
+                .where(
+                    TransactionModel.tenant_id == tid,
+                    TransactionModel.sd_id.in_(sd_ids),
+                    TransactionModel.is_deleted == False
+                )
+                .group_by(TransactionModel.sd_id)
+            )).all()
+            for row in t_rows:
+                t_counts[row[0]] = int(row[1])
+                t_vols[row[0]] = float(row[2])
+
         items = []
         for sd in sds:
-            # Count mapped distributors
-            d_cnt_stmt = select(func.count(DistributorModel.id)).where(
-                DistributorModel.tenant_id == tid,
-                DistributorModel.mapped_super_distributor_id == sd.public_id,
-                DistributorModel.is_deleted == False
-            )
-            d_count = (await db.execute(d_cnt_stmt)).scalar() or 0
-
-            # Count mapped retailers
-            r_cnt_stmt = select(func.count(RetailerModel.id)).where(
-                RetailerModel.tenant_id == tid,
-                RetailerModel.mapped_super_distributor_id == sd.public_id,
-                RetailerModel.is_deleted == False
-            )
-            r_count = (await db.execute(r_cnt_stmt)).scalar() or 0
-
-            # Transaction summary for this SD
-            t_stmt = select(
-                func.count(TransactionModel.transactions_ref_id),
-                func.coalesce(func.sum(TransactionModel.amount), 0)
-            ).where(
-                TransactionModel.tenant_id == tid,
-                TransactionModel.sd_id == sd.public_id,
-                TransactionModel.is_deleted == False
-            )
-            t_row = (await db.execute(t_stmt)).fetchone()
-
             items.append({
                 "public_id": str(sd.public_id),
                 "super_distributor_ref_id": sd.super_distributor_ref_id,
@@ -862,10 +879,10 @@ class SalesService:
                 "city": sd.city,
                 "status": sd.status,
                 "wallet_balance": float(sd.wallet_balance or 0.0),
-                "distributor_count": d_count,
-                "retailer_count": r_count,
-                "transaction_count": int(t_row[0]) if t_row else 0,
-                "transaction_volume": float(t_row[1]) if t_row else 0.0,
+                "distributor_count": d_counts.get(sd.public_id, 0),
+                "retailer_count": r_counts.get(sd.public_id, 0),
+                "transaction_count": t_counts.get(sd.public_id, 0),
+                "transaction_volume": t_vols.get(sd.public_id, 0.0),
                 "created_date": sd.created_date.isoformat() if sd.created_date else None
             })
 
@@ -919,46 +936,49 @@ class SalesService:
         res = await db.execute(stmt)
         distributors = res.scalars().all()
 
-        items = []
-        for d in distributors:
-            # Mapped SD Name
-            sd_name = "Direct Company"
-            if d.mapped_super_distributor_id:
-                sd_res = await db.execute(
-                    select(SuperDistributorModel.business_name).where(SuperDistributorModel.public_id == d.mapped_super_distributor_id)
-                )
-                sd_name = sd_res.scalar_one_or_none() or "Super Distributor"
+        dist_ids = [d.public_id for d in distributors]
+        sd_ids = list({d.mapped_super_distributor_id for d in distributors if d.mapped_super_distributor_id})
+        sd_names: Dict[Any, str] = {}
+        r_counts: Dict[Any, int] = {}
+        t_counts: Dict[Any, int] = {}
+        t_vols: Dict[Any, float] = {}
 
-            # Retailers count
-            r_cnt = (await db.execute(
-                select(func.count(RetailerModel.id)).where(
+        if sd_ids:
+            sd_rows = (await db.execute(
+                select(SuperDistributorModel.public_id, SuperDistributorModel.business_name)
+                .where(SuperDistributorModel.public_id.in_(sd_ids))
+            )).all()
+            for row in sd_rows:
+                sd_names[row[0]] = row[1]
+
+        if dist_ids:
+            r_cnt_rows = (await db.execute(
+                select(RetailerModel.mapped_distributor_id, func.count(RetailerModel.id))
+                .where(
                     RetailerModel.tenant_id == tid,
-                    RetailerModel.mapped_distributor_id == d.public_id,
+                    RetailerModel.mapped_distributor_id.in_(dist_ids),
                     RetailerModel.is_deleted == False
                 )
-            )).scalar() or 0
+                .group_by(RetailerModel.mapped_distributor_id)
+            )).all()
+            for row in r_cnt_rows:
+                r_counts[row[0]] = row[1]
 
-            # POS count under this distributor's retailers
-            pos_cnt = (await db.execute(
-                select(func.count(SwipeMachineModel.id)).join(
-                    RetailerModel, SwipeMachineModel.mapped_retailer_id == RetailerModel.public_id
-                ).where(
-                    RetailerModel.mapped_distributor_id == d.public_id,
-                    SwipeMachineModel.is_deleted == False
+            t_rows = (await db.execute(
+                select(TransactionModel.dist_id, func.count(TransactionModel.transactions_ref_id), func.coalesce(func.sum(TransactionModel.amount), 0))
+                .where(
+                    TransactionModel.tenant_id == tid,
+                    TransactionModel.dist_id.in_(dist_ids),
+                    TransactionModel.is_deleted == False
                 )
-            )).scalar() or 0
+                .group_by(TransactionModel.dist_id)
+            )).all()
+            for row in t_rows:
+                t_counts[row[0]] = int(row[1])
+                t_vols[row[0]] = float(row[2])
 
-            # Txn Stats
-            t_stmt = select(
-                func.count(TransactionModel.transactions_ref_id),
-                func.coalesce(func.sum(TransactionModel.amount), 0)
-            ).where(
-                TransactionModel.tenant_id == tid,
-                TransactionModel.dist_id == d.public_id,
-                TransactionModel.is_deleted == False
-            )
-            t_row = (await db.execute(t_stmt)).fetchone()
-
+        items = []
+        for d in distributors:
             items.append({
                 "public_id": str(d.public_id),
                 "distributor_ref_id": d.distributor_ref_id,
@@ -969,11 +989,11 @@ class SalesService:
                 "email": d.email,
                 "status": d.status,
                 "super_distributor_id": str(d.mapped_super_distributor_id) if d.mapped_super_distributor_id else None,
-                "super_distributor_name": sd_name,
-                "retailer_count": r_cnt,
-                "pos_count": pos_cnt,
-                "transaction_count": int(t_row[0]) if t_row else 0,
-                "transaction_volume": float(t_row[1]) if t_row else 0.0,
+                "super_distributor_name": sd_names.get(d.mapped_super_distributor_id, "Direct Company") if d.mapped_super_distributor_id else "Direct Company",
+                "retailer_count": r_counts.get(d.public_id, 0),
+                "pos_count": 0,
+                "transaction_count": t_counts.get(d.public_id, 0),
+                "transaction_volume": t_vols.get(d.public_id, 0.0),
                 "created_date": d.created_date.isoformat() if d.created_date else None
             })
 
@@ -1032,45 +1052,70 @@ class SalesService:
         res = await db.execute(stmt)
         retailers = res.scalars().all()
 
-        items = []
-        for r in retailers:
-            # Distributor and SD Names
-            d_name = "-"
-            sd_name = "-"
-            if r.mapped_distributor_id:
-                d_res = await db.execute(select(DistributorModel.business_name).where(DistributorModel.public_id == r.mapped_distributor_id))
-                d_name = d_res.scalar_one_or_none() or "Distributor"
-            if r.mapped_super_distributor_id:
-                sd_res = await db.execute(select(SuperDistributorModel.business_name).where(SuperDistributorModel.public_id == r.mapped_super_distributor_id))
-                sd_name = sd_res.scalar_one_or_none() or "Super Distributor"
+        ret_ids = [r.public_id for r in retailers]
+        d_ids = list({r.mapped_distributor_id for r in retailers if r.mapped_distributor_id})
+        sd_ids = list({r.mapped_super_distributor_id for r in retailers if r.mapped_super_distributor_id})
+        d_names: Dict[Any, str] = {}
+        sd_names: Dict[Any, str] = {}
+        pos_counts: Dict[Any, int] = {}
+        t_counts: Dict[Any, int] = {}
+        t_vols: Dict[Any, float] = {}
+        mdr_configs: Dict[Any, Any] = {}
 
-            # POS Machine count
-            pos_cnt = (await db.execute(
-                select(func.count(SwipeMachineModel.id)).where(
-                    SwipeMachineModel.mapped_retailer_id == r.public_id,
+        if d_ids:
+            d_rows = (await db.execute(
+                select(DistributorModel.public_id, DistributorModel.business_name)
+                .where(DistributorModel.public_id.in_(d_ids))
+            )).all()
+            for row in d_rows:
+                d_names[row[0]] = row[1]
+
+        if sd_ids:
+            sd_rows = (await db.execute(
+                select(SuperDistributorModel.public_id, SuperDistributorModel.business_name)
+                .where(SuperDistributorModel.public_id.in_(sd_ids))
+            )).all()
+            for row in sd_rows:
+                sd_names[row[0]] = row[1]
+
+        if ret_ids:
+            pos_rows = (await db.execute(
+                select(SwipeMachineModel.mapped_retailer_id, func.count(SwipeMachineModel.id))
+                .where(
+                    SwipeMachineModel.mapped_retailer_id.in_(ret_ids),
                     SwipeMachineModel.is_deleted == False
                 )
-            )).scalar() or 0
+                .group_by(SwipeMachineModel.mapped_retailer_id)
+            )).all()
+            for row in pos_rows:
+                pos_counts[row[0]] = row[1]
 
-            # Transactions count and volume
-            t_stmt = select(
-                func.count(TransactionModel.transactions_ref_id),
-                func.coalesce(func.sum(TransactionModel.amount), 0)
-            ).where(
-                TransactionModel.tenant_id == tid,
-                TransactionModel.retailer_id == r.public_id,
-                TransactionModel.is_deleted == False
-            )
-            t_row = (await db.execute(t_stmt)).fetchone()
+            t_rows = (await db.execute(
+                select(TransactionModel.retailer_id, func.count(TransactionModel.transactions_ref_id), func.coalesce(func.sum(TransactionModel.amount), 0))
+                .where(
+                    TransactionModel.tenant_id == tid,
+                    TransactionModel.retailer_id.in_(ret_ids),
+                    TransactionModel.is_deleted == False
+                )
+                .group_by(TransactionModel.retailer_id)
+            )).all()
+            for row in t_rows:
+                t_counts[row[0]] = int(row[1])
+                t_vols[row[0]] = float(row[2])
 
-            # Active MDR config preview
-            mdr_stmt = select(PosMdrConfigurationModel.mdr).where(
-                PosMdrConfigurationModel.retailer_id == r.public_id,
-                PosMdrConfigurationModel.is_active == True,
-                PosMdrConfigurationModel.is_deleted == False
-            ).limit(1)
-            mdr_val = (await db.execute(mdr_stmt)).scalar_one_or_none()
+            mdr_rows = (await db.execute(
+                select(PosMdrConfigurationModel.retailer_id, PosMdrConfigurationModel.mdr)
+                .where(
+                    PosMdrConfigurationModel.retailer_id.in_(ret_ids),
+                    PosMdrConfigurationModel.is_active == True,
+                    PosMdrConfigurationModel.is_deleted == False
+                )
+            )).all()
+            for row in mdr_rows:
+                mdr_configs[row[0]] = row[1]
 
+        items = []
+        for r in retailers:
             items.append({
                 "public_id": str(r.public_id),
                 "retailer_ref_id": r.retailer_ref_id,
@@ -1080,13 +1125,13 @@ class SalesService:
                 "status": r.status,
                 "business_category": r.business_category,
                 "distributor_id": str(r.mapped_distributor_id) if r.mapped_distributor_id else None,
-                "distributor_name": d_name,
+                "distributor_name": d_names.get(r.mapped_distributor_id, "-") if r.mapped_distributor_id else "-",
                 "super_distributor_id": str(r.mapped_super_distributor_id) if r.mapped_super_distributor_id else None,
-                "super_distributor_name": sd_name,
-                "pos_count": pos_cnt,
-                "transaction_count": int(t_row[0]) if t_row else 0,
-                "transaction_volume": float(t_row[1]) if t_row else 0.0,
-                "configured_mdr": float(mdr_val) if mdr_val is not None else None,
+                "super_distributor_name": sd_names.get(r.mapped_super_distributor_id, "-") if r.mapped_super_distributor_id else "-",
+                "pos_count": pos_counts.get(r.public_id, 0),
+                "transaction_count": t_counts.get(r.public_id, 0),
+                "transaction_volume": t_vols.get(r.public_id, 0.0),
+                "configured_mdr": float(mdr_configs[r.public_id]) if r.public_id in mdr_configs else None,
                 "created_date": r.created_date.isoformat() if r.created_date else None
             })
 
