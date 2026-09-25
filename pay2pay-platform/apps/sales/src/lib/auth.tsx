@@ -43,9 +43,30 @@ export const SalesAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const verifySession = async () => {
     try {
+      let token: string | null = null;
+      if (typeof window !== "undefined") {
+        const cookies = document.cookie.split("; ");
+        const tokenCookie = cookies.find((row) =>
+          row.startsWith("p2p_sales_token=") ||
+          row.startsWith("pay2pay_sales_token=")
+        );
+        token = tokenCookie ? tokenCookie.split("=")[1] : null;
+        if (!token) {
+          token = sessionStorage.getItem("p2p_sales_token") || localStorage.getItem("p2p_sales_token");
+        }
+      }
+
+      if (!token || token.trim().length < 10) {
+        setUser(null);
+        setIsLoading(false);
+        return;
+      }
+
       const res = await apiClient.get("/sales/auth/me");
       if (res.data && res.data.public_id) {
         setUser(res.data);
+      } else if (res.data && res.data.user) {
+        setUser(res.data.user);
       } else {
         setUser(null);
       }
@@ -63,6 +84,7 @@ export const SalesAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const setAuthenticatedSession = (accessToken: string, userData: any) => {
     const maxAge = 86400 * 7; // 7 days
     document.cookie = `p2p_sales_token=${accessToken}; path=/; max-age=${maxAge}; SameSite=Lax`;
+    document.cookie = `pay2pay_sales_token=${accessToken}; path=/; max-age=${maxAge}; SameSite=Lax`;
     sessionStorage.setItem("p2p_sales_token", accessToken);
     if (typeof localStorage !== "undefined") {
       localStorage.setItem("p2p_sales_token", accessToken);
