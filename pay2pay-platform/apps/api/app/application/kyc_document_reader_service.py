@@ -22,6 +22,7 @@ import time
 import uuid
 import base64
 import logging
+import asyncio
 from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime, timezone
 import httpx
@@ -377,16 +378,37 @@ class KycDocumentReaderService:
         ocr_location = cls.extract_ocr_location(raw_text)
 
         extracted_data: Dict[str, Any] = {}
+        dt_clean = re.sub(r"[^A-Z]", "", doc_type_upper)
 
-        if doc_type_upper in ["PAN", "PAN_CARD"]:
+        if "PAN" in dt_clean:
             extracted_data = await cls._parse_pan_card(raw_text, qr_data, file_bytes, expected_name)
-        elif doc_type_upper in ["AADHAAR", "AADHAAR_FRONT", "AADHAAR_BACK", "AADHAAR_CARD"]:
+        elif any(k in dt_clean for k in ["AADHAAR", "ADHAR", "UID", "ADDRESS"]):
             extracted_data = await cls._parse_aadhaar_card(raw_text, qr_data, file_bytes, doc_type_upper)
-        elif doc_type_upper in ["BANK", "BANK_CHEQUE", "BANK_PASSBOOK", "BANK_PROOF"]:
+        elif any(k in dt_clean for k in ["BANK", "CHEQUE", "PASSBOOK"]):
             extracted_data = await cls._parse_bank_document(raw_text, qr_data, file_bytes, expected_name)
-        elif doc_type_upper in ["GST", "GST_CERTIFICATE", "GST_REG06"]:
+        elif "GST" in dt_clean:
             extracted_data = await cls._parse_gst_certificate(raw_text, qr_data, file_bytes)
-        elif doc_type_upper in ["SELFIE", "SELFIE_PHOTO", "PERSONAL_PHOTO", "PHOTO"]:
+        elif any(k in dt_clean for k in ["SHOP", "BUSINESS", "STORE", "OFFICE", "PREMISES"]):
+            extracted_data = {
+                "doc_type": "SHOP_BUSINESS_PHOTO",
+                "is_valid": True,
+                "status": "VERIFIED",
+                "shop_photo_url": b2_url,
+                "exif_gps": exif_gps,
+                "ocr_location": ocr_location,
+                "exif_gps_available": exif_gps.get("available", False),
+                "exif_latitude": exif_gps.get("latitude"),
+                "exif_longitude": exif_gps.get("longitude"),
+                "exif_reverse_address": exif_gps.get("reverse_geocoded", {}).get("formatted_address") if exif_gps.get("reverse_geocoded") else None,
+                "ocr_location_available": ocr_location.get("available", False),
+                "ocr_address": ocr_location.get("detected_address"),
+                "ocr_city": ocr_location.get("detected_city"),
+                "ocr_state": ocr_location.get("detected_state"),
+                "ocr_pincode": ocr_location.get("detected_pincode"),
+                "ocr_business_name": ocr_location.get("detected_business_name"),
+                "message": "Commercial premises photo verified in B2 Vault with image-derived location analysis."
+            }
+        elif any(k in dt_clean for k in ["SELFIE", "PERSONAL", "PHOTO"]):
             extracted_data = {
                 "doc_type": "PERSONAL_PHOTO",
                 "is_valid": True,
@@ -409,27 +431,7 @@ class KycDocumentReaderService:
                 "ocr_pincode": ocr_location.get("detected_pincode"),
                 "message": "Personal photo saved to B2 Vault with image EXIF GPS extraction."
             }
-        elif doc_type_upper in ["SHOP_PHOTO", "SHOP_BUSINESS_PHOTO", "OFFICE_PHOTO", "PREMISES_PHOTO", "STORE_PHOTO"]:
-            extracted_data = {
-                "doc_type": "SHOP_BUSINESS_PHOTO",
-                "is_valid": True,
-                "status": "VERIFIED",
-                "shop_photo_url": b2_url,
-                "exif_gps": exif_gps,
-                "ocr_location": ocr_location,
-                "exif_gps_available": exif_gps.get("available", False),
-                "exif_latitude": exif_gps.get("latitude"),
-                "exif_longitude": exif_gps.get("longitude"),
-                "exif_reverse_address": exif_gps.get("reverse_geocoded", {}).get("formatted_address") if exif_gps.get("reverse_geocoded") else None,
-                "ocr_location_available": ocr_location.get("available", False),
-                "ocr_address": ocr_location.get("detected_address"),
-                "ocr_city": ocr_location.get("detected_city"),
-                "ocr_state": ocr_location.get("detected_state"),
-                "ocr_pincode": ocr_location.get("detected_pincode"),
-                "ocr_business_name": ocr_location.get("detected_business_name"),
-                "message": "Commercial premises photo verified in B2 Vault with image-derived location analysis."
-            }
-        elif doc_type_upper in ["VIDEO_KYC", "SELFIE_VIDEO"]:
+        elif any(k in dt_clean for k in ["VIDEO"]):
             extracted_data = {
                 "doc_type": "VIDEO_KYC",
                 "is_valid": True,
@@ -562,15 +564,26 @@ class KycDocumentReaderService:
             for var_img in image_variants:
                 try:
                     import winocr
-                    ocr_res = await winocr.recognize_pil(var_img, "en")
-                    if ocr_res:
-                        # Extract line by line to preserve document layout
+                    ocr_res = await asyncio.to_thread(winocr.recognize_pil_sync, var_img, "en")
+                    if isinstance(ocr_res, dict):
+                        lines = ocr_res.get("lines") or []
+                        for l in lines:
+                            line_txt = l.get("text", "").strip() if isinstance(l, dict) else str(l).strip()
+                            if line_txt and line_txt not in raw_text_lines:
+                                raw_text_lines.append(line_txt)
+                        text_val = ocr_res.get("text", "")
+                        if text_val:
+                            for line_txt in text_val.splitlines():
+                                line_clean = line_txt.strip()
+                                if line_clean and line_clean not in raw_text_lines:
+                                    raw_text_lines.append(line_clean)
+                    elif ocr_res:
                         if hasattr(ocr_res, "lines") and ocr_res.lines:
                             for l in ocr_res.lines:
                                 line_txt = l.text.strip() if hasattr(l, "text") else str(l).strip()
                                 if line_txt and line_txt not in raw_text_lines:
                                     raw_text_lines.append(line_txt)
-                        elif ocr_res.text:
+                        elif hasattr(ocr_res, "text") and ocr_res.text:
                             for line_txt in ocr_res.text.splitlines():
                                 line_clean = line_txt.strip()
                                 if line_clean and line_clean not in raw_text_lines:
