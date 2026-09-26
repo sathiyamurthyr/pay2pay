@@ -80,6 +80,9 @@ export function middleware(request: NextRequest) {
     request.cookies.get("p2p_access_token")?.value ||
     request.cookies.get("pay2pay_access_token")?.value ||
     request.cookies.get("pay2pay_auth_token")?.value ||
+    request.cookies.get("p2p_sales_token")?.value ||
+    request.cookies.get("pay2pay_sales_token")?.value ||
+    request.cookies.get("access_token")?.value ||
     request.headers.get("authorization");
 
   const isAuthenticated = Boolean(token && token.trim().length > 10);

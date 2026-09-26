@@ -37,7 +37,20 @@ interface SalesAuthContextType {
 const SalesAuthContext = createContext<SalesAuthContextType | undefined>(undefined);
 
 export const SalesAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<SalesUser | null>(null);
+  const [user, setUser] = useState<SalesUser | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const storedUser = localStorage.getItem("pay2pay_sales_user") || localStorage.getItem("user_info");
+        if (storedUser) {
+          const parsed = JSON.parse(storedUser);
+          if (parsed && (parsed.public_id || parsed.email)) {
+            return parsed;
+          }
+        }
+      } catch {}
+    }
+    return null;
+  });
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
@@ -48,30 +61,83 @@ export const SalesAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         const cookies = document.cookie.split("; ");
         const tokenCookie = cookies.find((row) =>
           row.startsWith("p2p_sales_token=") ||
-          row.startsWith("pay2pay_sales_token=")
+          row.startsWith("pay2pay_sales_token=") ||
+          row.startsWith("p2p_access_token=") ||
+          row.startsWith("pay2pay_access_token=") ||
+          row.startsWith("access_token=")
         );
-        token = tokenCookie ? tokenCookie.split("=")[1] : null;
+        token = tokenCookie ? tokenCookie.split("=")[1]?.trim() : null;
         if (!token) {
-          token = sessionStorage.getItem("p2p_sales_token") || localStorage.getItem("p2p_sales_token");
+          token =
+            sessionStorage.getItem("p2p_sales_token") ||
+            localStorage.getItem("p2p_sales_token") ||
+            localStorage.getItem("p2p_access_token") ||
+            localStorage.getItem("access_token");
         }
       }
 
       if (!token || token.trim().length < 10) {
         setUser(null);
+        if (typeof localStorage !== "undefined") {
+          localStorage.removeItem("pay2pay_sales_user");
+          localStorage.removeItem("user_info");
+          localStorage.removeItem("p2p_sales_token");
+          localStorage.removeItem("p2p_access_token");
+        }
         setIsLoading(false);
         return;
       }
 
-      const res = await apiClient.get("/sales/auth/me");
-      if (res.data && res.data.public_id) {
-        setUser(res.data);
-      } else if (res.data && res.data.user) {
-        setUser(res.data.user);
-      } else {
-        setUser(null);
+      // Re-sync cookies to document.cookie with 30-day max-age so middleware and sub-requests find it
+      const maxAge = 2592000; // 30 days
+      document.cookie = `p2p_sales_token=${token}; path=/; max-age=${maxAge}; SameSite=Lax`;
+      document.cookie = `pay2pay_sales_token=${token}; path=/; max-age=${maxAge}; SameSite=Lax`;
+      document.cookie = `p2p_access_token=${token}; path=/; max-age=${maxAge}; SameSite=Lax`;
+      document.cookie = `pay2pay_access_token=${token}; path=/; max-age=${maxAge}; SameSite=Lax`;
+      document.cookie = `access_token=${token}; path=/; max-age=${maxAge}; SameSite=Lax`;
+
+      // Load cached user from localStorage if not already set
+      if (!user && typeof window !== "undefined") {
+        const storedUser = localStorage.getItem("pay2pay_sales_user") || localStorage.getItem("user_info");
+        if (storedUser) {
+          try {
+            const parsed = JSON.parse(storedUser);
+            if (parsed && (parsed.public_id || parsed.email)) {
+              setUser(parsed);
+            }
+          } catch {}
+        }
+      }
+
+      // Re-verify session live with backend
+      try {
+        const res = await apiClient.get("/sales/auth/me");
+        const userData = res.data?.public_id ? res.data : (res.data?.user || null);
+        if (userData) {
+          setUser(userData);
+          localStorage.setItem("pay2pay_sales_user", JSON.stringify(userData));
+          localStorage.setItem("user_info", JSON.stringify(userData));
+        }
+      } catch (err: any) {
+        // ONLY clear user if backend returns explicit 401 Unauthorized
+        if (err.response?.status === 401) {
+          setUser(null);
+          if (typeof localStorage !== "undefined") {
+            localStorage.removeItem("pay2pay_sales_user");
+            localStorage.removeItem("user_info");
+            localStorage.removeItem("p2p_sales_token");
+            localStorage.removeItem("p2p_access_token");
+            sessionStorage.removeItem("p2p_sales_token");
+          }
+          document.cookie = "p2p_sales_token=; path=/; max-age=0";
+          document.cookie = "pay2pay_sales_token=; path=/; max-age=0";
+          document.cookie = "p2p_access_token=; path=/; max-age=0";
+          document.cookie = "pay2pay_access_token=; path=/; max-age=0";
+          document.cookie = "access_token=; path=/; max-age=0";
+        }
       }
     } catch {
-      setUser(null);
+      // ignore non-401 outer errors
     } finally {
       setIsLoading(false);
     }
@@ -82,12 +148,20 @@ export const SalesAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, []);
 
   const setAuthenticatedSession = (accessToken: string, userData: any) => {
-    const maxAge = 86400 * 7; // 7 days
+    const maxAge = 2592000; // 30 days
     document.cookie = `p2p_sales_token=${accessToken}; path=/; max-age=${maxAge}; SameSite=Lax`;
     document.cookie = `pay2pay_sales_token=${accessToken}; path=/; max-age=${maxAge}; SameSite=Lax`;
+    document.cookie = `p2p_access_token=${accessToken}; path=/; max-age=${maxAge}; SameSite=Lax`;
+    document.cookie = `pay2pay_access_token=${accessToken}; path=/; max-age=${maxAge}; SameSite=Lax`;
+    document.cookie = `access_token=${accessToken}; path=/; max-age=${maxAge}; SameSite=Lax`;
+
     sessionStorage.setItem("p2p_sales_token", accessToken);
     if (typeof localStorage !== "undefined") {
       localStorage.setItem("p2p_sales_token", accessToken);
+      localStorage.setItem("p2p_access_token", accessToken);
+      localStorage.setItem("access_token", accessToken);
+      localStorage.setItem("pay2pay_sales_user", JSON.stringify(userData));
+      localStorage.setItem("user_info", JSON.stringify(userData));
     }
     setUser(userData);
   };
@@ -150,9 +224,17 @@ export const SalesAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const logout = () => {
     document.cookie = "p2p_sales_token=; path=/; max-age=0";
+    document.cookie = "pay2pay_sales_token=; path=/; max-age=0";
+    document.cookie = "p2p_access_token=; path=/; max-age=0";
+    document.cookie = "pay2pay_access_token=; path=/; max-age=0";
+    document.cookie = "access_token=; path=/; max-age=0";
     sessionStorage.removeItem("p2p_sales_token");
     if (typeof localStorage !== "undefined") {
       localStorage.removeItem("p2p_sales_token");
+      localStorage.removeItem("p2p_access_token");
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("pay2pay_sales_user");
+      localStorage.removeItem("user_info");
     }
     setUser(null);
     router.replace("/login");

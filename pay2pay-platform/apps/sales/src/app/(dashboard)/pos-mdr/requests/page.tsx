@@ -13,7 +13,7 @@ import {
   Clock, CheckCircle, XCircle, PauseCircle, Search, Filter,
   FileText, Calendar, Building2, UserCheck, ArrowUpRight,
   History, Send, Eye, ChevronRight, AlertTriangle, Info,
-  TrendingDown, TrendingUp, Check, X, ShieldAlert
+  TrendingDown, TrendingUp, Check, X, ShieldAlert, ClipboardCheck
 } from "lucide-react";
 
 interface MdrRates {

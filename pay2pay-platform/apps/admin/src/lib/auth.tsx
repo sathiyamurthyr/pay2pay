@@ -64,12 +64,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const tokenCookie = cookies.find((row) =>
         row.startsWith("p2p_access_token=") ||
         row.startsWith("pay2pay_access_token=") ||
-        row.startsWith("pay2pay_auth_token=")
+        row.startsWith("pay2pay_auth_token=") ||
+        row.startsWith("p2p_sales_token=") ||
+        row.startsWith("pay2pay_sales_token=") ||
+        row.startsWith("access_token=")
       );
 
-      const tokenValue = tokenCookie
-        ? tokenCookie.split("=")[1]
-        : (localStorage.getItem("p2p_access_token") || localStorage.getItem("pay2pay_access_token") || localStorage.getItem("pay2pay_auth_token"));
+      const cookieToken = tokenCookie ? tokenCookie.split("=")[1]?.trim() : null;
+      const lsToken =
+        typeof window !== "undefined"
+          ? localStorage.getItem("p2p_access_token") ||
+            localStorage.getItem("pay2pay_access_token") ||
+            localStorage.getItem("pay2pay_auth_token") ||
+            localStorage.getItem("p2p_sales_token") ||
+            localStorage.getItem("access_token")
+          : null;
+
+      const tokenValue = cookieToken || (lsToken ? lsToken.trim() : null);
 
       if (!tokenValue || tokenValue.trim().length < 10) {
         // No valid session cookie or token found: wipe any stale in-memory & local state
@@ -78,11 +89,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      // Ensure cookie sync if loaded from localStorage
-      if (!tokenCookie && tokenValue) {
-        document.cookie = `p2p_access_token=${tokenValue}; path=/; max-age=2592000; SameSite=Lax`;
-        document.cookie = `pay2pay_access_token=${tokenValue}; path=/; max-age=2592000; SameSite=Lax`;
-        document.cookie = `p2p_user_role=ADMIN; path=/; max-age=2592000; SameSite=Lax`;
+      // Ensure cookie sync if loaded from localStorage or missing
+      if (tokenValue) {
+        const maxAge = 2592000; // 30 days
+        document.cookie = `p2p_access_token=${tokenValue}; path=/; max-age=${maxAge}; SameSite=Lax`;
+        document.cookie = `pay2pay_access_token=${tokenValue}; path=/; max-age=${maxAge}; SameSite=Lax`;
+        document.cookie = `pay2pay_auth_token=${tokenValue}; path=/; max-age=${maxAge}; SameSite=Lax`;
+        document.cookie = `p2p_sales_token=${tokenValue}; path=/; max-age=${maxAge}; SameSite=Lax`;
+        document.cookie = `p2p_user_role=ADMIN; path=/; max-age=${maxAge}; SameSite=Lax`;
       }
 
       // Load transient user profile details

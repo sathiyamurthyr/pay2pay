@@ -16,7 +16,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [user, isLoading, router]);
 
-  if (isLoading) {
+  if (isLoading && !user) {
     return (
       <div className="min-h-screen bg-[#F5F6FA] flex flex-col items-center justify-center text-[#1F2937]">
         <div className="w-12 h-12 rounded-2xl bg-[#F8E6EE] border border-[#94003A]/20 flex items-center justify-center text-[#94003A] mb-4 animate-pulse">

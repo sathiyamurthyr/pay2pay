@@ -25,17 +25,23 @@ apiClient.interceptors.request.use(
         row.startsWith("pay2pay_access_token=") ||
         row.startsWith("access_token=")
       );
-      const cookieToken = tokenCookie ? tokenCookie.split("=")[1] : null;
+      const cookieToken = tokenCookie ? tokenCookie.split("=")[1]?.trim() : null;
 
       const token =
         cookieToken ||
         sessionStorage.getItem("p2p_sales_token") ||
         localStorage.getItem("p2p_sales_token") ||
+        localStorage.getItem("p2p_access_token") ||
         sessionStorage.getItem("access_token") ||
         localStorage.getItem("access_token");
 
       if (token && token.trim().length > 10) {
-        config.headers.Authorization = `Bearer ${token.trim()}`;
+        const bearerToken = `Bearer ${token.trim()}`;
+        config.headers = config.headers || {};
+        config.headers.Authorization = bearerToken;
+        if (typeof (config.headers as any).set === "function") {
+          (config.headers as any).set("Authorization", bearerToken);
+        }
       }
     }
     return config;
@@ -56,8 +62,14 @@ apiClient.interceptors.response.use(
         // Clear auth cookie and redirect
         document.cookie = "p2p_sales_token=; path=/; max-age=0";
         document.cookie = "pay2pay_sales_token=; path=/; max-age=0";
+        document.cookie = "p2p_access_token=; path=/; max-age=0";
+        document.cookie = "pay2pay_access_token=; path=/; max-age=0";
+        document.cookie = "access_token=; path=/; max-age=0";
         sessionStorage.removeItem("p2p_sales_token");
         localStorage.removeItem("p2p_sales_token");
+        localStorage.removeItem("p2p_access_token");
+        localStorage.removeItem("pay2pay_sales_user");
+        localStorage.removeItem("user_info");
         window.location.replace(`/login?reason=session_expired&redirect=${encodeURIComponent(window.location.pathname)}`);
       }
     }
