@@ -38,9 +38,9 @@ class CheckUniquenessPayload(BaseModel):
     user_type_ref_id: int = Field(2, description="Target entity: 2=Retailer, 3=Distributor, 4=Super Distributor")
 
 class LocationValidationPayload(BaseModel):
-    latitude: float = Field(..., example=12.9249)
-    longitude: float = Field(..., example=80.1000)
-    accuracy: Optional[float] = Field(None, example=15.0)
+    latitude: float = Field(..., description="GPS Latitude")
+    longitude: float = Field(..., description="GPS Longitude")
+    accuracy: Optional[float] = Field(None, description="Accuracy in meters")
     expected_state: Optional[str] = None
     expected_pincode: Optional[str] = None
     registration_id: Optional[str] = None
@@ -135,9 +135,22 @@ class ShopAddressPayload(BaseModel):
     state: str
     pincode: str
     country: Optional[str] = "India"
-    latitude: Optional[float] = 12.9249
-    longitude: Optional[float] = 80.1000
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     shop_photo_url: Optional[str] = None
+    exif_gps_available: Optional[bool] = False
+    exif_latitude: Optional[float] = None
+    exif_longitude: Optional[float] = None
+    exif_altitude: Optional[float] = None
+    exif_captured_at: Optional[str] = None
+    exif_reverse_address: Optional[str] = None
+    ocr_location_available: Optional[bool] = False
+    ocr_raw_text: Optional[str] = None
+    ocr_detected_address: Optional[str] = None
+    ocr_detected_city: Optional[str] = None
+    ocr_detected_state: Optional[str] = None
+    ocr_detected_pincode: Optional[str] = None
+    location_metadata: Optional[Dict[str, Any]] = None
 
 class DocumentUploadPayload(BaseModel):
     registration_id: str
@@ -586,6 +599,52 @@ async def upload_document_file(
     return res
 
 
+@router.post("/upload-photo")
+async def upload_photo(
+    file: UploadFile = File(...),
+    doc_type: str = Form("PERSONAL_PHOTO"),
+    registration_id: Optional[str] = Form(None),
+    entity_type: str = Form("RET"),
+    db: AsyncSession = Depends(get_db)
+):
+    """Uploads personal/premises photo and extracts EXIF GPS and OCR metadata."""
+    file_bytes = await file.read()
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded photo is empty.")
+    filename = file.filename or f"{doc_type.lower()}_{uuid.uuid4().hex[:8]}.jpg"
+    content_type = file.content_type or "image/jpeg"
+
+    result = await KycDocumentReaderService.process_and_upload_document(
+        file_bytes=file_bytes,
+        filename=filename,
+        content_type=content_type,
+        doc_type=doc_type,
+        entity_type=entity_type
+    )
+    b2_url = result.get("b2_url") or result.get("storage_path") or ""
+    if registration_id:
+        try:
+            doc_data = {
+                "doc_type": doc_type.upper(),
+                "file_name": filename,
+                "file_url": b2_url,
+                "file_size_bytes": len(file_bytes),
+                "mime_type": content_type
+            }
+            await ProgressiveOnboardingService.upload_document(db, registration_id, doc_data)
+        except Exception as e:
+            print(f"[UPLOAD-PHOTO WARNING] {e}")
+
+    return {
+        "status": "SUCCESS",
+        "photo_url": b2_url,
+        "b2_url": b2_url,
+        "exif_gps": result.get("exif_gps"),
+        "ocr_location": result.get("ocr_location"),
+        "extracted": result.get("extracted", {})
+    }
+
+
 @router.post("/upload-video")
 async def upload_video(payload: VideoUploadPayload, db: AsyncSession = Depends(get_db)):
     res = await ProgressiveOnboardingService.upload_video(db, payload.registration_id, payload.model_dump())
@@ -646,7 +705,11 @@ async def resume_draft(
 @router.post("/submit")
 async def submit_registration(payload: SubmitPayload, db: AsyncSession = Depends(get_db)):
     res = await ProgressiveOnboardingService.submit_registration(
-        db, payload.registration_id, target_user_type_ref_id=payload.user_type_ref_id
+        db,
+        payload.registration_id,
+        target_user_type_ref_id=payload.user_type_ref_id,
+        mapped_sd_id=payload.mapped_sd_id,
+        mapped_dist_id=payload.mapped_dist_id
     )
     if res.get("status") == "ERROR":
         raise HTTPException(status_code=400, detail=res["message"])

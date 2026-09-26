@@ -1,204 +1,274 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
-  MapPin, CheckCircle2, AlertTriangle, RefreshCw, Navigation,
-  ShieldCheck, AlertCircle, Sparkles
+  MapPin, CheckCircle2, AlertTriangle, Image as ImageIcon,
+  Building2, Compass, ShieldCheck, Sparkles, UploadCloud, Copy, Check
 } from "lucide-react";
 import apiClient from "@/lib/api";
 
-interface LocationData {
-  latitude: number;
-  longitude: number;
-  accuracy: number;
-  city?: string;
-  state?: string;
-  pincode?: string;
-  formatted_address?: string;
-  is_valid: boolean;
+export interface ExifGpsData {
+  available: boolean;
+  latitude: number | null;
+  longitude: number | null;
+  altitude?: number | null;
+  captured_at?: string | null;
+  reverse_geocoded?: {
+    city?: string;
+    district?: string;
+    state?: string;
+    pincode?: string;
+    formatted_address?: string;
+  } | null;
+  message?: string;
+}
+
+export interface OcrLocationData {
+  available: boolean;
+  raw_text?: string;
+  detected_business_name?: string | null;
+  detected_address?: string | null;
+  detected_street?: string | null;
+  detected_city?: string | null;
+  detected_district?: string | null;
+  detected_state?: string | null;
+  detected_pincode?: string | null;
+  confidence_score?: number;
+  message?: string;
 }
 
 interface LocationValidatorCardProps {
-  onLocationChange: (location: LocationData | null) => void;
-  expectedState?: string;
-  expectedPincode?: string;
+  exifGps?: ExifGpsData | null;
+  ocrLocation?: OcrLocationData | null;
+  shopPhotoUrl?: string | null;
+  onLocationExtracted?: (data: { exif_gps: ExifGpsData; ocr_location: OcrLocationData; b2_url?: string }) => void;
+  onApplyOcrAddress?: (address: { street?: string; city?: string; state?: string; pincode?: string }) => void;
 }
 
 export default function LocationValidatorCard({
-  onLocationChange,
-  expectedState,
-  expectedPincode,
+  exifGps,
+  ocrLocation,
+  shopPhotoUrl,
+  onLocationExtracted,
+  onApplyOcrAddress,
 }: LocationValidatorCardProps) {
-  const [loading, setLoading] = useState(false);
-  const [location, setLocation] = useState<LocationData | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [applied, setApplied] = useState(false);
 
-  useEffect(() => {
-    // Attempt auto-detect on mount
-    detectLocation();
-  }, []);
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const detectLocation = () => {
-    if (!navigator.geolocation) {
-      const msg = "Geolocation is not supported by your browser or device.";
-      setError(msg);
-      onLocationChange(null);
-      return;
-    }
-
-    setLoading(true);
+    setUploading(true);
     setError(null);
+    setApplied(false);
 
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        const acc = pos.coords.accuracy;
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("doc_type", "SHOP_PHOTO");
+    formData.append("entity_type", "RET");
 
-        try {
-          // Validate with backend location validation endpoint
-          const res = await apiClient.post("/sales/validate-location", {
-            latitude: lat,
-            longitude: lng,
-            accuracy: acc,
-            expected_state: expectedState,
-            expected_pincode: expectedPincode,
-          });
-
-          const data = res.data;
-          if (data.is_valid) {
-            const locObj: LocationData = {
-              latitude: lat,
-              longitude: lng,
-              accuracy: acc,
-              city: data.city,
-              state: data.state,
-              pincode: data.pincode,
-              formatted_address: data.formatted_address,
-              is_valid: true,
-            };
-            setLocation(locObj);
-            onLocationChange(locObj);
-          } else {
-            const err = data.error || data.message || "GPS coordinates outside operational territory.";
-            setError(err);
-            setLocation(null);
-            onLocationChange(null);
-          }
-        } catch (err: any) {
-          console.warn("Backend GPS validation warning:", err);
-          // Fallback to client-side India boundaries verification
-          const inBounds = lat >= 6.0 && lat <= 38.0 && lng >= 68.0 && lng <= 98.0;
-          if (inBounds) {
-            const fallbackLoc: LocationData = {
-              latitude: lat,
-              longitude: lng,
-              accuracy: acc,
-              formatted_address: `GPS: ${lat.toFixed(4)}, ${lng.toFixed(4)}`,
-              is_valid: true,
-            };
-            setLocation(fallbackLoc);
-            onLocationChange(fallbackLoc);
-          } else {
-            const err = "Coordinates outside operational boundaries. Please ensure device GPS is enabled.";
-            setError(err);
-            setLocation(null);
-            onLocationChange(null);
-          }
-        } finally {
-          setLoading(false);
-        }
-      },
-      (geoErr) => {
-        setLoading(false);
-        let msg = "Location permission denied. Please enable GPS / Location access to register.";
-        if (geoErr.code === geoErr.POSITION_UNAVAILABLE) {
-          msg = "GPS position unavailable. Please check device location settings.";
-        } else if (geoErr.code === geoErr.TIMEOUT) {
-          msg = "GPS location request timed out. Please click retry.";
-        }
-        setError(msg);
-        setLocation(null);
-        onLocationChange(null);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
+    try {
+      const res = await apiClient.post("/sales/extract-image-location", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      const data = res.data;
+      if (data.success && onLocationExtracted) {
+        onLocationExtracted({
+          exif_gps: data.exif_gps,
+          ocr_location: data.ocr_location,
+          b2_url: data.b2_url
+        });
+      }
+    } catch (err: any) {
+      console.warn("Failed to extract image location:", err);
+      setError(err?.response?.data?.detail || "Failed to analyze uploaded photo for location data.");
+    } finally {
+      setUploading(false);
+    }
   };
 
+  const handleApplyAddress = () => {
+    if (!ocrLocation || !onApplyOcrAddress) return;
+    onApplyOcrAddress({
+      street: ocrLocation.detected_address || ocrLocation.detected_street || undefined,
+      city: ocrLocation.detected_city || undefined,
+      state: ocrLocation.detected_state || undefined,
+      pincode: ocrLocation.detected_pincode || undefined,
+    });
+    setApplied(true);
+    setTimeout(() => setApplied(false), 3000);
+  };
+
+  const hasExif = Boolean(exifGps?.available && exifGps.latitude && exifGps.longitude);
+  const hasOcr = Boolean(ocrLocation?.available);
+
   return (
-    <div className={`p-4 rounded-2xl transition border ${
-      location?.is_valid
-        ? "bg-[#DCFCE7]/30 border-[#86EFAC]"
-        : "bg-[#FEF3C7]/30 border-[#FDE68A]"
-    } space-y-3 text-[#1F2937]`}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold ${
-            location?.is_valid
-              ? "bg-[#DCFCE7] text-[#166534] border border-[#86EFAC]"
-              : "bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A]"
-          }`}>
-            <MapPin className="w-4 h-4" />
+    <div className="p-5 rounded-3xl bg-white border border-[#E5E7EB] text-[#1F2937] space-y-4 shadow-sm">
+      {/* Header */}
+      <div className="flex items-center justify-between pb-3 border-b border-[#F3F4F6]">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-[#F8E6EE] text-[#94003A] flex items-center justify-center font-bold">
+            <Compass className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-xs font-bold text-[#1F2937] flex items-center gap-1.5">
-              Premises GPS Geolocation & Territory Mapping
-              <span className="text-[#DC2626]">*</span>
-            </div>
-            <p className="text-[10px] text-[#6B7280]">
-              Live device GPS validation is strictly required for merchant mapping
-            </p>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={detectLocation}
-          disabled={loading}
-          className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#F3F4F6] text-[#4B5563] hover:text-[#1F2937] text-[11px] font-semibold border border-[#D1D5DB] transition flex items-center gap-1.5 shrink-0"
-        >
-          <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin text-[#94003A]" : ""}`} />
-          {loading ? "Validating GPS..." : "Re-Detect GPS"}
-        </button>
-      </div>
-
-      {/* Validated GPS State */}
-      {location?.is_valid && (
-        <div className="p-3 rounded-xl bg-white border border-[#86EFAC] flex items-start gap-3 shadow-xs">
-          <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0 mt-0.5" />
-          <div className="flex-1 text-xs space-y-1">
-            <div className="font-bold text-[#166534] flex items-center gap-2">
-              GPS Location Verified & Mapped
-              <span className="text-[10px] font-mono text-[#166534] bg-[#DCFCE7] px-1.5 py-0.5 rounded font-bold">
-                ±{location.accuracy.toFixed(0)}m accuracy
+            <div className="text-sm font-extrabold text-[#1F2937] flex items-center gap-2">
+              <span>Image-Derived Location & Premises Inspector</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#1D4ED8] border border-[#BFDBFE]">
+                Image Exclusive
               </span>
             </div>
-            <div className="text-[11px] text-[#1F2937] font-mono">
-              Latitude: {location.latitude.toFixed(6)}° • Longitude: {location.longitude.toFixed(6)}°
-            </div>
-            {location.formatted_address && (
-              <div className="text-[10px] text-[#6B7280] truncate">
-                {location.formatted_address}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Warning State when GPS is missing or denied */}
-      {!location?.is_valid && (
-        <div className="p-3 rounded-xl bg-white border border-[#FDE68A] flex items-start gap-3 text-xs text-[#92400E] shadow-xs">
-          <AlertTriangle className="w-4 h-4 text-[#D97706] shrink-0 mt-0.5" />
-          <div className="flex-1 space-y-1">
-            <div className="font-bold text-[#92400E]">
-              GPS Verification Mandatory
-            </div>
-            <p className="text-[11px] text-[#92400E] leading-snug">
-              {error || "Location permissions must be enabled to confirm physical operating address. Registration cannot proceed without verified GPS coordinates."}
+            <p className="text-xs text-[#6B7280]">
+              Location is extracted exclusively from uploaded premises photo EXIF &amp; OCR
             </p>
           </div>
         </div>
+
+        {/* Upload Button */}
+        <div>
+          <label className="px-3.5 py-2 rounded-xl bg-[#94003A] hover:bg-[#78002F] text-white font-bold text-xs cursor-pointer inline-flex items-center gap-2 transition-all shadow-md shadow-[#94003A]/20">
+            <UploadCloud className="w-3.5 h-3.5" />
+            <span>{uploading ? "Analyzing Image..." : shopPhotoUrl ? "Change Photo" : "Upload Premises Photo"}</span>
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileUpload}
+              disabled={uploading}
+            />
+          </label>
+        </div>
+      </div>
+
+      {error && (
+        <div className="p-3 rounded-xl bg-[#FEF2F2] border border-[#FECACA] text-xs text-[#DC2626] font-medium">
+          {error}
+        </div>
       )}
+
+      {/* Grid: 1. EXIF GPS | 2. OCR Location */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* EXIF GPS Section */}
+        <div className={`p-4 rounded-2xl border transition-all ${
+          hasExif
+            ? "bg-[#F0FDF4] border-[#86EFAC]"
+            : "bg-[#FAFAFC] border-[#E5E7EB]"
+        } space-y-3`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-bold text-[#1F2937]">
+              <MapPin className={`w-4 h-4 ${hasExif ? "text-[#16A34A]" : "text-[#9CA3AF]"}`} />
+              <span>EXIF GPS Coordinates</span>
+            </div>
+            {hasExif ? (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#166534] border border-[#86EFAC] flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" />
+                EXIF Metadata Found
+              </span>
+            ) : (
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#F3F4F6] text-[#6B7280]">
+                Unavailable in EXIF
+              </span>
+            )}
+          </div>
+
+          {hasExif ? (
+            <div className="space-y-1.5 text-xs">
+              <div className="p-2.5 rounded-xl bg-white border border-[#BBF7D0] font-mono text-[11px] text-[#1F2937]">
+                <div className="font-bold text-[#166534]">
+                  Lat: {exifGps?.latitude?.toFixed(6)}° • Lng: {exifGps?.longitude?.toFixed(6)}°
+                </div>
+                {exifGps?.altitude && (
+                  <div className="text-[10px] text-[#6B7280] mt-0.5">
+                    Altitude: {exifGps.altitude}m • Captured: {exifGps.captured_at || "N/A"}
+                  </div>
+                )}
+              </div>
+              {exifGps?.reverse_geocoded?.formatted_address && (
+                <div className="text-[11px] text-[#4B5563] leading-relaxed">
+                  <span className="font-semibold text-[#1F2937]">Reverse Geocoded: </span>
+                  {exifGps.reverse_geocoded.formatted_address}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="p-3 rounded-xl bg-white border border-[#E5E7EB] text-xs text-[#6B7280] space-y-1">
+              <p className="font-medium text-[#4B5563]">
+                {exifGps?.message || "GPS metadata is unavailable in the uploaded image's EXIF data."}
+              </p>
+              <p className="text-[10px] text-[#9CA3AF]">
+                Coordinates are derived strictly from image metadata and never fabricated.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* OCR Location Section */}
+        <div className={`p-4 rounded-2xl border transition-all ${
+          hasOcr
+            ? "bg-[#EFF6FF] border-[#BFDBFE]"
+            : "bg-[#FAFAFC] border-[#E5E7EB]"
+        } space-y-3`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-bold text-[#1F2937]">
+              <Building2 className={`w-4 h-4 ${hasOcr ? "text-[#2563EB]" : "text-[#9CA3AF]"}`} />
+              <span>OCR-Derived Address Text</span>
+            </div>
+            {hasOcr ? (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#DBEAFE] text-[#1E40AF] border border-[#BFDBFE] flex items-center gap-1">
+                <Sparkles className="w-3 h-3" />
+                Address Text Detected
+              </span>
+            ) : (
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#F3F4F6] text-[#6B7280]">
+                No Visible Text
+              </span>
+            )}
+          </div>
+
+          {hasOcr ? (
+            <div className="space-y-2 text-xs">
+              <div className="p-2.5 rounded-xl bg-white border border-[#BFDBFE] space-y-1">
+                {ocrLocation?.detected_business_name && (
+                  <div className="text-[11px] font-bold text-[#1E40AF]">
+                    Store / Signboard: {ocrLocation.detected_business_name}
+                  </div>
+                )}
+                {ocrLocation?.detected_address && (
+                  <div className="text-[11px] text-[#1F2937]">
+                    Address: {ocrLocation.detected_address}
+                  </div>
+                )}
+                <div className="text-[10px] text-[#6B7280] flex flex-wrap gap-2 pt-0.5">
+                  {ocrLocation?.detected_city && <span>City: <strong className="text-[#1F2937]">{ocrLocation.detected_city}</strong></span>}
+                  {ocrLocation?.detected_state && <span>State: <strong className="text-[#1F2937]">{ocrLocation.detected_state}</strong></span>}
+                  {ocrLocation?.detected_pincode && <span>PIN: <strong className="text-[#1F2937]">{ocrLocation.detected_pincode}</strong></span>}
+                </div>
+              </div>
+
+              {onApplyOcrAddress && (
+                <button
+                  type="button"
+                  onClick={handleApplyAddress}
+                  className="w-full py-1.5 px-3 rounded-lg bg-white hover:bg-[#F3F4F6] text-[#2563EB] border border-[#BFDBFE] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition shadow-xs"
+                >
+                  {applied ? <Check className="w-3.5 h-3.5 text-[#16A34A]" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{applied ? "Applied to Form Address!" : "Apply OCR Address to Form"}</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="p-3 rounded-xl bg-white border border-[#E5E7EB] text-xs text-[#6B7280] space-y-1">
+              <p className="font-medium text-[#4B5563]">
+                {ocrLocation?.message || "No visible address or signboard text detected by OCR in this image."}
+              </p>
+              <p className="text-[10px] text-[#9CA3AF]">
+                OCR searches for shop boards, street names, pincodes, and states.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

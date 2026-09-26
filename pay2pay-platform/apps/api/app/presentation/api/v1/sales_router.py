@@ -171,10 +171,23 @@ class SalesRegisterSuperDistributorRequest(BaseModel):
     selfie_url: Optional[str] = None
     shop_photo_url: Optional[str] = None
     video_kyc_url: Optional[str] = None
-    # GPS Geolocation
+    # GPS Geolocation & Image-Derived Location
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     location_address: Optional[str] = None
+    exif_gps_available: Optional[bool] = False
+    exif_latitude: Optional[float] = None
+    exif_longitude: Optional[float] = None
+    exif_altitude: Optional[float] = None
+    exif_captured_at: Optional[str] = None
+    exif_reverse_address: Optional[str] = None
+    ocr_location_available: Optional[bool] = False
+    ocr_raw_text: Optional[str] = None
+    ocr_detected_address: Optional[str] = None
+    ocr_detected_city: Optional[str] = None
+    ocr_detected_state: Optional[str] = None
+    ocr_detected_pincode: Optional[str] = None
+    location_metadata: Optional[Dict[str, Any]] = None
 
 
 class SalesRegisterDistributorRequest(BaseModel):
@@ -201,10 +214,23 @@ class SalesRegisterDistributorRequest(BaseModel):
     selfie_url: Optional[str] = None
     shop_photo_url: Optional[str] = None
     video_kyc_url: Optional[str] = None
-    # GPS Geolocation
+    # GPS Geolocation & Image-Derived Location
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     location_address: Optional[str] = None
+    exif_gps_available: Optional[bool] = False
+    exif_latitude: Optional[float] = None
+    exif_longitude: Optional[float] = None
+    exif_altitude: Optional[float] = None
+    exif_captured_at: Optional[str] = None
+    exif_reverse_address: Optional[str] = None
+    ocr_location_available: Optional[bool] = False
+    ocr_raw_text: Optional[str] = None
+    ocr_detected_address: Optional[str] = None
+    ocr_detected_city: Optional[str] = None
+    ocr_detected_state: Optional[str] = None
+    ocr_detected_pincode: Optional[str] = None
+    location_metadata: Optional[Dict[str, Any]] = None
 
 
 class SalesRegisterRetailerRequest(BaseModel):
@@ -244,10 +270,23 @@ class SalesRegisterRetailerRequest(BaseModel):
     selfie_url: Optional[str] = None
     shop_photo_url: Optional[str] = None
     video_kyc_url: Optional[str] = None
-    # GPS Geolocation
+    # GPS Geolocation & Image-Derived Location
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     location_address: Optional[str] = None
+    exif_gps_available: Optional[bool] = False
+    exif_latitude: Optional[float] = None
+    exif_longitude: Optional[float] = None
+    exif_altitude: Optional[float] = None
+    exif_captured_at: Optional[str] = None
+    exif_reverse_address: Optional[str] = None
+    ocr_location_available: Optional[bool] = False
+    ocr_raw_text: Optional[str] = None
+    ocr_detected_address: Optional[str] = None
+    ocr_detected_city: Optional[str] = None
+    ocr_detected_state: Optional[str] = None
+    ocr_detected_pincode: Optional[str] = None
+    location_metadata: Optional[Dict[str, Any]] = None
 
 
 # ==============================================================================
@@ -938,6 +977,54 @@ async def auto_read_and_upload_doc(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to auto-read document: {str(ex)}"
+        )
+
+
+@router.post("/extract-image-location", tags=["Sales KYC Auto-Reader"])
+async def extract_image_location_endpoint(
+    file: UploadFile = File(..., description="Uploaded shop or commercial premises photo"),
+    entity_type: str = Form("RET", description="SD | DIST | RET"),
+    current_user: SalesUserModel = Depends(get_current_sales_user),
+):
+    """
+    Exclusively derives location from the uploaded image:
+    1. Extracts GPS coordinates from EXIF metadata (returns unavailable if not present without fabricating).
+    2. Runs OCR to identify visible text/address/city/state/pincode.
+    3. Saves photo to encrypted Backblaze B2 vault.
+    4. Returns EXIF GPS and OCR-derived location as separate fields.
+    """
+    from app.application.kyc_document_reader_service import KycDocumentReaderService
+
+    file_bytes = await file.read()
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    filename = file.filename or f"shop_location_{uuid.uuid4().hex[:8]}.jpg"
+    content_type = file.content_type or "image/jpeg"
+
+    try:
+        result = await KycDocumentReaderService.process_and_upload_document(
+            file_bytes=file_bytes,
+            filename=filename,
+            content_type=content_type,
+            doc_type="SHOP_PHOTO",
+            entity_type=entity_type,
+        )
+        return {
+            "success": True,
+            "b2_url": result.get("b2_url"),
+            "exif_gps": result.get("exif_gps"),
+            "ocr_location": result.get("ocr_location"),
+            "exif_gps_available": result.get("exif_gps", {}).get("available", False),
+            "ocr_location_available": result.get("ocr_location", {}).get("available", False),
+            "extracted": result.get("extracted", {}),
+            "message": "Image analyzed successfully. GPS and OCR locations extracted into separate fields."
+        }
+    except Exception as ex:
+        logger.error(f"[Extract Image Location Error] {ex}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to extract image location: {str(ex)}"
         )
 
 

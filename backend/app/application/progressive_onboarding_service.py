@@ -1502,47 +1502,100 @@ class ProgressiveOnboardingService:
 
     @staticmethod
     async def save_shop_address(db: AsyncSession, registration_id: str, address_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Step 10: Save Shop Address, GPS Coordinates, and Shop Photo."""
+        """Step 10: Save Shop Address, EXIF GPS Coordinates, and OCR Location data."""
         d_stmt = select(RegistrationDraftModel).where(RegistrationDraftModel.registration_id == registration_id)
         draft = (await db.execute(d_stmt)).scalars().first()
         if not draft:
             return {"status": "ERROR", "message": "Invalid registration ID."}
 
+        # EXIF GPS Fields
+        exif_avail = bool(address_data.get("exif_gps_available"))
+        exif_lat = float(address_data["exif_latitude"]) if address_data.get("exif_latitude") is not None else None
+        exif_lon = float(address_data["exif_longitude"]) if address_data.get("exif_longitude") is not None else None
+        exif_alt = float(address_data["exif_altitude"]) if address_data.get("exif_altitude") is not None else None
+        exif_cap = None
+        if address_data.get("exif_captured_at"):
+            try:
+                cap_str = str(address_data["exif_captured_at"]).replace("Z", "+00:00")
+                exif_cap = datetime.fromisoformat(cap_str)
+            except Exception:
+                exif_cap = None
+        exif_rev = address_data.get("exif_reverse_address")
+
+        # OCR Location Fields
+        ocr_avail = bool(address_data.get("ocr_location_available"))
+        ocr_raw = address_data.get("ocr_raw_text")
+        ocr_addr = address_data.get("ocr_detected_address")
+        ocr_city = address_data.get("ocr_detected_city")
+        ocr_state = address_data.get("ocr_detected_state")
+        ocr_pin = address_data.get("ocr_detected_pincode")
+        loc_meta = address_data.get("location_metadata")
+
+        # Final lat/lon: derived strictly from EXIF GPS or explicit payload without fabricating defaults
+        final_lat = exif_lat if (exif_lat is not None) else (float(address_data["latitude"]) if address_data.get("latitude") is not None else None)
+        final_lon = exif_lon if (exif_lon is not None) else (float(address_data["longitude"]) if address_data.get("longitude") is not None else None)
+
         a_stmt = select(RegistrationAddressModel).where(RegistrationAddressModel.registration_id == registration_id)
         existing_addr = (await db.execute(a_stmt)).scalars().first()
         if existing_addr:
-            existing_addr.street = address_data.get("street", "100 GST Road")
-            existing_addr.area = address_data.get("area", "Tambaram")
-            existing_addr.landmark = address_data.get("landmark", "Opposite Railway Station")
-            existing_addr.city = address_data.get("city", "Chennai")
-            existing_addr.district = address_data.get("district", "Chengalpattu")
-            existing_addr.state = address_data.get("state", "Tamil Nadu")
-            existing_addr.pincode = address_data.get("pincode", "600045")
+            existing_addr.street = address_data.get("street") or existing_addr.street
+            existing_addr.area = address_data.get("area") or existing_addr.area
+            existing_addr.landmark = address_data.get("landmark") or existing_addr.landmark
+            existing_addr.city = address_data.get("city") or existing_addr.city
+            existing_addr.district = address_data.get("district") or existing_addr.district
+            existing_addr.state = address_data.get("state") or existing_addr.state
+            existing_addr.pincode = address_data.get("pincode") or existing_addr.pincode
             existing_addr.country = address_data.get("country", "India")
-            existing_addr.latitude = float(address_data.get("latitude", 12.9249))
-            existing_addr.longitude = float(address_data.get("longitude", 80.1000))
-            existing_addr.shop_photo_url = address_data.get("shop_photo_url")
+            existing_addr.latitude = final_lat
+            existing_addr.longitude = final_lon
+            existing_addr.shop_photo_url = address_data.get("shop_photo_url") or existing_addr.shop_photo_url
+            existing_addr.exif_gps_available = exif_avail
+            existing_addr.exif_latitude = exif_lat
+            existing_addr.exif_longitude = exif_lon
+            existing_addr.exif_altitude = exif_alt
+            existing_addr.exif_captured_at = exif_cap
+            existing_addr.exif_reverse_address = exif_rev
+            existing_addr.ocr_location_available = ocr_avail
+            existing_addr.ocr_raw_text = ocr_raw
+            existing_addr.ocr_detected_address = ocr_addr
+            existing_addr.ocr_detected_city = ocr_city
+            existing_addr.ocr_detected_state = ocr_state
+            existing_addr.ocr_detected_pincode = ocr_pin
+            existing_addr.location_metadata = loc_meta
             existing_addr.updated_date = datetime.now(timezone.utc)
             addr_model = existing_addr
         else:
             addr_model = RegistrationAddressModel(
                 tenant_id=DEFAULT_TENANT_ID,
                 registration_id=registration_id,
-                street=address_data.get("street", "100 GST Road"),
-                area=address_data.get("area", "Tambaram"),
-                landmark=address_data.get("landmark", "Opposite Railway Station"),
-                city=address_data.get("city", "Chennai"),
-                district=address_data.get("district", "Chengalpattu"),
-                state=address_data.get("state", "Tamil Nadu"),
-                pincode=address_data.get("pincode", "600045"),
+                street=address_data.get("street", ""),
+                area=address_data.get("area"),
+                landmark=address_data.get("landmark"),
+                city=address_data.get("city", ""),
+                district=address_data.get("district", ""),
+                state=address_data.get("state", ""),
+                pincode=address_data.get("pincode", ""),
                 country=address_data.get("country", "India"),
-                latitude=float(address_data.get("latitude", 12.9249)),
-                longitude=float(address_data.get("longitude", 80.1000)),
-                shop_photo_url=address_data.get("shop_photo_url")
+                latitude=final_lat,
+                longitude=final_lon,
+                shop_photo_url=address_data.get("shop_photo_url"),
+                exif_gps_available=exif_avail,
+                exif_latitude=exif_lat,
+                exif_longitude=exif_lon,
+                exif_altitude=exif_alt,
+                exif_captured_at=exif_cap,
+                exif_reverse_address=exif_rev,
+                ocr_location_available=ocr_avail,
+                ocr_raw_text=ocr_raw,
+                ocr_detected_address=ocr_addr,
+                ocr_detected_city=ocr_city,
+                ocr_detected_state=ocr_state,
+                ocr_detected_pincode=ocr_pin,
+                location_metadata=loc_meta
             )
             db.add(addr_model)
 
-        draft_data = dict(draft.draft_data)
+        draft_data = dict(draft.draft_data or {})
         draft_data["address"] = address_data
         draft.draft_data = draft_data
         draft.current_step = max(draft.current_step, 11)
@@ -1556,9 +1609,11 @@ class ProgressiveOnboardingService:
 
         return {
             "status": "SUCCESS",
-            "message": "Shop Address & Geolocation saved!",
+            "message": "Shop Address & Image-Derived Location saved!",
             "next_step": 11,
-            "completed_steps": draft.completed_steps
+            "completed_steps": draft.completed_steps,
+            "exif_gps_available": exif_avail,
+            "ocr_location_available": ocr_avail
         }
 
     @staticmethod

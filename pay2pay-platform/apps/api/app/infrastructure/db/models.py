@@ -658,6 +658,23 @@ class RetailerAddressModel(BaseEntity, EnterpriseBaseMixin):
     latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
+    # EXIF-Derived GPS (Separate fields)
+    exif_gps_available: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
+    exif_latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    exif_longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    exif_altitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    exif_captured_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    exif_reverse_address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # OCR-Derived Location / Address (Separate fields)
+    ocr_location_available: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
+    ocr_raw_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    ocr_detected_address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    ocr_detected_city: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    ocr_detected_state: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    ocr_detected_pincode: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    location_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+
     retailer: Mapped["RetailerModel"] = relationship("RetailerModel", back_populates="addresses")
 
 

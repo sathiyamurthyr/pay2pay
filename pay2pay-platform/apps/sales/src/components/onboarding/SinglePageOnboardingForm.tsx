@@ -45,8 +45,12 @@ import {
   ChevronsRight,
   Filter,
   SlidersHorizontal,
-  RefreshCw
+  RefreshCw,
+  Compass,
+  AlertTriangle
 } from "lucide-react";
+import LocationValidatorCard, { ExifGpsData, OcrLocationData } from "@/components/kyc/LocationValidatorCard";
+import LiveVideoRecorderModal from "@/components/kyc/LiveVideoRecorderModal";
 
 // ── File Preview Lightbox Modal (portal-based for true full-screen) ──
 function FileLightbox({
@@ -472,27 +476,22 @@ export function SinglePageOnboardingForm({
   const [bankError, setBankError] = useState("");
   const [bankExtracted, setBankExtracted] = useState(false);
 
-  // ── 7. Personal Photo + Geo Location ──
+  // ── 7. Personal Photo + Image EXIF GPS ──
   const [personalPhotoUrl, setPersonalPhotoUrl] = useState("");
   const [personalPhotoUploading, setPersonalPhotoUploading] = useState(false);
-  const [geoLocation, setGeoLocation] = useState<{
-    latitude: number;
-    longitude: number;
-    accuracy?: number;
-    address?: string;
-    city?: string;
-    state?: string;
-    pincode?: string;
-  } | null>(null);
-  const [geoLocating, setGeoLocating] = useState(false);
-  const [geoError, setGeoError] = useState("");
+  const [personalPhotoGps, setPersonalPhotoGps] = useState<ExifGpsData | null>(null);
+  const [personalPhotoOcr, setPersonalPhotoOcr] = useState<OcrLocationData | null>(null);
 
-  // ── 8. Shop Photo ──
+  // ── 8. Shop Photo + Image-Derived Location (EXIF GPS & OCR Location) ──
   const [shopPhotoUrl, setShopPhotoUrl] = useState("");
   const [shopPhotoUploading, setShopPhotoUploading] = useState(false);
+  const [exifGps, setExifGps] = useState<ExifGpsData | null>(null);
+  const [ocrLocation, setOcrLocation] = useState<OcrLocationData | null>(null);
 
   // ── 9. Video KYC ──
   const [videoKycUrl, setVideoKycUrl] = useState("");
+  const [videoLocalPreview, setVideoLocalPreview] = useState("");
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
   const [videoUploading, setVideoUploading] = useState(false);
   const [videoRecording, setVideoRecording] = useState(false);
   const [videoCountdown, setVideoCountdown] = useState(15);
@@ -730,9 +729,26 @@ export function SinglePageOnboardingForm({
           details: bankDetails
         },
         personal_photo_url: personalPhotoUrl,
-        geo_location: geoLocation,
+        personal_photo_gps: personalPhotoGps,
+        personal_photo_ocr: personalPhotoOcr,
         shop_photo_url: shopPhotoUrl,
         video_kyc_url: videoKycUrl,
+        exif_gps: exifGps || personalPhotoGps,
+        ocr_location: ocrLocation || personalPhotoOcr,
+        exif_gps_available: (exifGps?.available || personalPhotoGps?.available) ?? false,
+        exif_latitude: exifGps?.latitude ?? personalPhotoGps?.latitude ?? null,
+        exif_longitude: exifGps?.longitude ?? personalPhotoGps?.longitude ?? null,
+        exif_altitude: exifGps?.altitude ?? personalPhotoGps?.altitude ?? null,
+        exif_captured_at: exifGps?.captured_at ?? personalPhotoGps?.captured_at ?? null,
+        exif_reverse_address: exifGps?.reverse_geocoded?.formatted_address ?? personalPhotoGps?.reverse_geocoded?.formatted_address ?? null,
+        ocr_location_available: (ocrLocation?.available || personalPhotoOcr?.available) ?? false,
+        ocr_raw_text: ocrLocation?.raw_text ?? personalPhotoOcr?.raw_text ?? null,
+        ocr_detected_address: ocrLocation?.detected_address ?? personalPhotoOcr?.detected_address ?? null,
+        ocr_detected_city: ocrLocation?.detected_city ?? personalPhotoOcr?.detected_city ?? null,
+        ocr_detected_state: ocrLocation?.detected_state ?? personalPhotoOcr?.detected_state ?? null,
+        ocr_detected_pincode: ocrLocation?.detected_pincode ?? personalPhotoOcr?.detected_pincode ?? null,
+        latitude: exifGps?.latitude ?? personalPhotoGps?.latitude ?? null,
+        longitude: exifGps?.longitude ?? personalPhotoGps?.longitude ?? null,
         personal_address: {
           address1: personalAddress1,
           address2: personalAddress2,
@@ -769,7 +785,7 @@ export function SinglePageOnboardingForm({
     aadhaarNumber, aadhaarMasked, aadhaarHolderName, aadhaarVerified, aadhaarFileUrl,
     isGstRegistered, gstNumber, gstVerified, gstDetails, gstFileUrl,
     bankAccount, bankIfsc, bankAccountType, bankVerified, bankFileUrl, bankDetails,
-    personalPhotoUrl, geoLocation, shopPhotoUrl, videoKycUrl,
+    personalPhotoUrl, shopPhotoUrl, videoKycUrl, exifGps, ocrLocation,
     personalAddress1, personalAddress2, personalState, personalCity, personalDistrict, personalPincode,
     shopAddress1, shopAddress2, shopState, shopCity, shopDistrict, shopPincode,
     selectedCategory, initialLinkToken
@@ -921,17 +937,20 @@ export function SinglePageOnboardingForm({
         body: formData
       });
       const data = await res.json();
-      if (res.ok && data.success) {
-        setPanFileUrl(data.doc_url || "");
-        if (data.extracted?.pan_number) {
-          setPanNumber(data.extracted.pan_number);
+      if (res.ok && (data.success || data.b2_url || data.doc_url)) {
+        const docUrl = data.doc_url || data.b2_url || data.url || "";
+        setPanFileUrl(docUrl);
+        const ext = data.extracted || {};
+        if (ext.pan_number) {
+          setPanNumber(ext.pan_number);
           setPanExtracted(true);
         }
-        if (data.extracted?.holder_name) {
-          setPanHolderName(data.extracted.holder_name);
-          if (!fullName) setFullName(data.extracted.holder_name);
+        const hName = ext.holder_name || ext.owner_name || ext.name;
+        if (hName) {
+          setPanHolderName(hName);
+          if (!fullName) setFullName(hName);
         }
-        if (data.extracted?.dob) setPanDob(data.extracted.dob);
+        if (ext.dob) setPanDob(ext.dob);
       } else {
         setPanError(data.detail || "Could not auto-read PAN. Please enter details manually.");
       }
@@ -996,14 +1015,17 @@ export function SinglePageOnboardingForm({
         body: formData
       });
       const data = await res.json();
-      if (res.ok && data.success) {
-        setAadhaarFileUrl(data.doc_url || "");
-        if (data.extracted?.aadhaar_number) {
-          setAadhaarNumber(data.extracted.aadhaar_number);
+      if (res.ok && (data.success || data.b2_url || data.doc_url)) {
+        const docUrl = data.doc_url || data.b2_url || data.url || "";
+        setAadhaarFileUrl(docUrl);
+        const ext = data.extracted || {};
+        if (ext.aadhaar_number) {
+          setAadhaarNumber(ext.aadhaar_number);
           setAadhaarExtracted(true);
         }
-        if (data.extracted?.holder_name && !fullName) {
-          setFullName(data.extracted.holder_name);
+        const hName = ext.holder_name || ext.owner_name || ext.name;
+        if (hName && !fullName) {
+          setFullName(hName);
         }
       }
     } catch {
@@ -1176,14 +1198,17 @@ export function SinglePageOnboardingForm({
         body: formData
       });
       const data = await res.json();
-      if (res.ok && data.success) {
-        setBankFileUrl(data.doc_url || "");
-        if (data.extracted?.account_number) {
-          setBankAccount(data.extracted.account_number);
+      if (res.ok && (data.success || data.b2_url || data.doc_url)) {
+        const docUrl = data.doc_url || data.b2_url || data.url || "";
+        setBankFileUrl(docUrl);
+        const ext = data.extracted || {};
+        const accNo = ext.account_number || ext.bank_account_number;
+        if (accNo) {
+          setBankAccount(accNo);
           setBankExtracted(true);
         }
-        if (data.extracted?.ifsc) {
-          setBankIfsc(data.extracted.ifsc);
+        if (ext.ifsc) {
+          setBankIfsc(ext.ifsc);
           setBankExtracted(true);
         }
       }
@@ -1227,7 +1252,7 @@ export function SinglePageOnboardingForm({
   };
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // 7. Personal Photo & GPS Capture
+  // 7. Personal Photo & Image EXIF GPS Extraction
   // ─────────────────────────────────────────────────────────────────────────────
   const handlePersonalPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1237,16 +1262,48 @@ export function SinglePageOnboardingForm({
     const formData = new FormData();
     formData.append("file", file);
     formData.append("doc_type", "PERSONAL_PHOTO");
-    formData.append("registration_id", registrationId);
+    formData.append("entity_type", "RET");
+    if (registrationId) formData.append("registration_id", registrationId);
 
     try {
-      const res = await fetch("/api/v1/onboarding/upload-photo", {
+      // 1. Primary: Use dedicated auto-read doc endpoint for EXIF GPS extraction
+      const res = await fetch("/api/v1/onboarding/auto-read-doc", {
         method: "POST",
         body: formData
       });
       const data = await res.json();
-      if (res.ok && data.photo_url) {
-        setPersonalPhotoUrl(data.photo_url);
+      if (res.ok && (data.b2_url || data.photo_url || data.extracted?.photo_url)) {
+        const url = data.b2_url || data.photo_url || data.extracted?.photo_url;
+        setPersonalPhotoUrl(url);
+        if (data.exif_gps) {
+          setPersonalPhotoGps(data.exif_gps);
+          if (!exifGps || !exifGps.available) {
+            setExifGps(data.exif_gps);
+          }
+        }
+        if (data.ocr_location) {
+          setPersonalPhotoOcr(data.ocr_location);
+        }
+      } else {
+        // Fallback: upload-photo endpoint
+        const fallbackRes = await fetch("/api/v1/onboarding/upload-photo", {
+          method: "POST",
+          body: formData
+        });
+        const fallbackData = await fallbackRes.json();
+        if (fallbackRes.ok && (fallbackData.photo_url || fallbackData.b2_url)) {
+          const url = fallbackData.photo_url || fallbackData.b2_url;
+          setPersonalPhotoUrl(url);
+          if (fallbackData.exif_gps) {
+            setPersonalPhotoGps(fallbackData.exif_gps);
+            if (!exifGps || !exifGps.available) {
+              setExifGps(fallbackData.exif_gps);
+            }
+          }
+          if (fallbackData.ocr_location) {
+            setPersonalPhotoOcr(fallbackData.ocr_location);
+          }
+        }
       }
     } catch {
       console.warn("Personal photo upload error");
@@ -1255,50 +1312,15 @@ export function SinglePageOnboardingForm({
     }
   };
 
-  const captureDeviceLocation = () => {
-    if (!navigator.geolocation) {
-      setGeoError("Geolocation is not supported by your browser.");
-      return;
-    }
-    setGeoLocating(true);
-    setGeoError("");
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const coords = {
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          accuracy: Math.round(pos.coords.accuracy)
-        };
-        try {
-          const revRes = await fetch(`/api/v1/onboarding/reverse-geocode?lat=${coords.latitude}&lng=${coords.longitude}`);
-          if (revRes.ok) {
-            const revData = await revRes.json();
-            setGeoLocation({
-              ...coords,
-              address: revData.display_name,
-              city: revData.city,
-              state: revData.state,
-              pincode: revData.pincode
-            });
-          } else {
-            setGeoLocation(coords);
-          }
-        } catch {
-          setGeoLocation(coords);
-        } finally {
-          setGeoLocating(false);
-        }
-      },
-      (err) => {
-        setGeoError(`Location access denied or unavailable: ${err.message}`);
-        setGeoLocating(false);
-      },
-      { enableHighAccuracy: true, timeout: 15000 }
-    );
+  const handleApplyOcrAddress = (detected: { street?: string; city?: string; state?: string; pincode?: string }) => {
+    if (detected.street) setShopAddress1(detected.street);
+    if (detected.city) setShopCity(detected.city);
+    if (detected.state) setShopState(detected.state);
+    if (detected.pincode) setShopPincode(detected.pincode);
   };
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // 8. Shop Photo Upload
+  // 8. Shop Photo & Image-Derived Location Extraction
   // ─────────────────────────────────────────────────────────────────────────────
   const handleShopPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1308,16 +1330,41 @@ export function SinglePageOnboardingForm({
     const formData = new FormData();
     formData.append("file", file);
     formData.append("doc_type", "SHOP_PHOTO");
+    formData.append("entity_type", "RET");
     formData.append("registration_id", registrationId);
 
     try {
-      const res = await fetch("/api/v1/onboarding/upload-photo", {
+      // 1. Primary: Use the dedicated image auto-reader & EXIF GPS / OCR extractor
+      const res = await fetch("/api/v1/sales/auto-read-doc", {
         method: "POST",
         body: formData
       });
       const data = await res.json();
-      if (res.ok && data.photo_url) {
-        setShopPhotoUrl(data.photo_url);
+      if (res.ok && (data.b2_url || data.photo_url)) {
+        setShopPhotoUrl(data.b2_url || data.photo_url);
+        if (data.exif_gps) {
+          setExifGps(data.exif_gps);
+        }
+        if (data.ocr_location) {
+          setOcrLocation(data.ocr_location);
+          if (!shopAddress1 && data.ocr_location.detected_address) {
+            setShopAddress1(data.ocr_location.detected_address);
+          }
+          if (!shopPincode && data.ocr_location.detected_pincode) {
+            setShopPincode(data.ocr_location.detected_pincode);
+          }
+        }
+      } else {
+        const fallbackRes = await fetch("/api/v1/onboarding/upload-photo", {
+          method: "POST",
+          body: formData
+        });
+        const fallbackData = await fallbackRes.json();
+        if (fallbackRes.ok && fallbackData.photo_url) {
+          setShopPhotoUrl(fallbackData.photo_url);
+          if (fallbackData.exif_gps) setExifGps(fallbackData.exif_gps);
+          if (fallbackData.ocr_location) setOcrLocation(fallbackData.ocr_location);
+        }
       }
     } catch {
       console.warn("Shop photo upload error");
@@ -1349,23 +1396,38 @@ export function SinglePageOnboardingForm({
     const file = e.target.files?.[0];
     if (!file) return;
     setVideoUploadFile(file);
+    const localUrl = URL.createObjectURL(file);
+    setVideoLocalPreview(localUrl);
     setVideoUploading(true);
 
     const formData = new FormData();
     formData.append("file", file);
     formData.append("doc_type", "VIDEO_KYC");
-    formData.append("registration_id", registrationId);
+    formData.append("entity_type", selectedUserTypeRefId === 4 ? "SD" : (selectedUserTypeRefId === 3 ? "DIST" : "RET"));
+    if (registrationId) formData.append("registration_id", registrationId);
 
     try {
-      const res = await fetch("/api/v1/onboarding/upload-video", {
+      // Primary: auto-read doc endpoint for Backblaze B2 Vault upload
+      const res = await fetch("/api/v1/onboarding/auto-read-doc", {
         method: "POST",
         body: formData
       });
       const data = await res.json();
-      if (res.ok && data.video_url) {
-        setVideoKycUrl(data.video_url);
+      if (res.ok && (data.b2_url || data.video_url || data.extracted?.video_kyc_url || data.doc_url)) {
+        const url = data.b2_url || data.video_url || data.extracted?.video_kyc_url || data.doc_url;
+        setVideoKycUrl(url);
       } else {
-        alert(data.detail || "Video upload failed. Please try again.");
+        // Fallback: upload-video-file endpoint (multipart/form-data)
+        const fallbackRes = await fetch("/api/v1/onboarding/upload-video-file", {
+          method: "POST",
+          body: formData
+        });
+        const fallbackData = await fallbackRes.json();
+        if (fallbackRes.ok && (fallbackData.video_url || fallbackData.b2_url)) {
+          setVideoKycUrl(fallbackData.video_url || fallbackData.b2_url);
+        } else {
+          alert(data.detail || fallbackData.detail || "Video upload failed. Please try again.");
+        }
       }
     } catch {
       alert("Video upload failed. Please check your connection.");
@@ -1486,11 +1548,6 @@ export function SinglePageOnboardingForm({
       scrollToSection("section_media");
       return;
     }
-    if (!geoLocation) {
-      setFormError("GPS Location capture is mandatory for compliance verification.");
-      scrollToSection("section_media");
-      return;
-    }
     if (!shopPhotoUrl) {
       setFormError("Shop / Commercial Premises Photo is mandatory.");
       scrollToSection("section_shop_photo");
@@ -1559,8 +1616,8 @@ export function SinglePageOnboardingForm({
     { id: "section_kyc", label: "Aadhaar eKYC (UIDAI)", completed: aadhaarVerified, desc: aadhaarVerified ? aadhaarMasked : "Pending OTP" },
     { id: "section_gst", label: "GST Registration", completed: !isGstRegistered || gstVerified, optional: true, desc: isGstRegistered ? (gstVerified ? "GST Verified" : "Pending GST") : "Skipped (Optional)" },
     { id: "section_bank", label: "Bank Account (Penny Drop)", completed: bankVerified, desc: bankVerified ? (bankDetails?.bank_name || "Verified") : "Pending Penny Drop" },
-    { id: "section_media", label: "Selfie & GPS Location", completed: Boolean(personalPhotoUrl && geoLocation), desc: geoLocation ? "GPS Coordinates Locked" : "Pending Capture" },
-    { id: "section_shop_photo", label: "Commercial Shop Photo", completed: Boolean(shopPhotoUrl), desc: shopPhotoUrl ? "Uploaded to B2" : "Pending Photo" },
+    { id: "section_media", label: "Live Selfie Photo", completed: Boolean(personalPhotoUrl), desc: personalPhotoUrl ? "Uploaded to B2" : "Pending Selfie" },
+    { id: "section_shop_photo", label: "Premises Photo & Location", completed: Boolean(shopPhotoUrl), desc: shopPhotoUrl ? (exifGps?.available ? "EXIF GPS Extracted" : "Photo Attached (No EXIF)") : "Pending Photo" },
     { id: "section_video", label: "Video KYC Statement", completed: Boolean(videoKycUrl), desc: videoKycUrl ? "Recorded / Uploaded" : "Pending Video" },
     { id: "section_address", label: "Personal & Shop Address", completed: Boolean(personalAddress1.trim() && personalPincode.trim() && shopAddress1.trim() && shopPincode.trim()), desc: personalPincode ? `Pincode: ${personalPincode}` : "Pending Address" },
   ];
@@ -1576,7 +1633,7 @@ export function SinglePageOnboardingForm({
     { id: "section_contact", label: "Contact", done: mobileVerified && emailVerified },
     { id: "section_kyc", label: "KYC", done: panVerified && aadhaarVerified },
     { id: "section_bank", label: "Bank", done: bankVerified },
-    { id: "section_media", label: "Media & GPS", done: Boolean(personalPhotoUrl && geoLocation && shopPhotoUrl) },
+    { id: "section_media", label: "Media & Location", done: Boolean(personalPhotoUrl && shopPhotoUrl) },
     { id: "section_address", label: "Address", done: Boolean(personalAddress1.trim() && shopAddress1.trim()) },
     { id: "section_review", label: "Review", done: completedCount === totalMandatory }
   ];
@@ -3385,49 +3442,93 @@ export function SinglePageOnboardingForm({
               </div>
             </div>
 
-            {/* GPS Location */}
-            <div className="p-5 rounded-2xl bg-[#FAFAFC] border border-[#E5E7EB] space-y-3.5 flex flex-col justify-between">
+            {/* Personal Photo Image EXIF GPS Location Card */}
+            <div className={`p-5 rounded-2xl border transition-all ${
+              personalPhotoGps?.available && personalPhotoGps.latitude && personalPhotoGps.longitude
+                ? "bg-[#F0FDF4] border-[#86EFAC]"
+                : personalPhotoUrl
+                ? "bg-[#FFFBEB] border-[#FDE68A]"
+                : "bg-[#FAFAFC] border-[#E5E7EB]"
+            } space-y-3.5 flex flex-col justify-between`}>
               <div>
-                <span className="text-xs font-bold text-[#4B5563] uppercase tracking-wider">Device GPS Location *</span>
-                <p className="text-xs text-[#6B7280] mt-1 mb-3">
-                  Location permission is required to capture the physical registration territory for compliance.
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <MapPin className={`w-4 h-4 ${
+                      personalPhotoGps?.available && personalPhotoGps.latitude
+                        ? "text-[#16A34A]"
+                        : personalPhotoUrl
+                        ? "text-[#D97706]"
+                        : "text-[#94003A]"
+                    }`} />
+                    <span className="text-xs font-bold text-[#4B5563] uppercase tracking-wider">Photo EXIF GPS Location *</span>
+                  </div>
+                  {personalPhotoGps?.available && personalPhotoGps.latitude && personalPhotoGps.longitude ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#166534] border border-[#86EFAC] flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      EXIF GPS Extracted
+                    </span>
+                  ) : personalPhotoUrl ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" />
+                      No EXIF GPS
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#F3F4F6] text-[#6B7280]">
+                      Pending Photo
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-xs text-[#6B7280] mt-1 mb-2.5">
+                  Location coordinates are derived strictly from the uploaded personal photo EXIF metadata. Device location permissions are never requested.
                 </p>
-                {geoLocation ? (
-                  <div className="text-xs text-[#166534] space-y-1.5 bg-[#F0FDF4] p-4 rounded-xl border border-[#86EFAC]">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-[#16A34A] font-bold">
-                        <MapPin className="w-4 h-4" />
-                        <span>✓ GPS Location Captured</span>
+
+                {personalPhotoGps?.available && personalPhotoGps.latitude && personalPhotoGps.longitude ? (
+                  <div className="space-y-2 text-xs">
+                    <div className="p-3 rounded-xl bg-white border border-[#BBF7D0] font-mono text-[11px] text-[#1F2937] shadow-xs">
+                      <div className="font-bold text-[#166534] flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-[#16A34A] shrink-0" />
+                        <span>Lat: {personalPhotoGps.latitude.toFixed(6)}° • Lng: {personalPhotoGps.longitude.toFixed(6)}°</span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={captureDeviceLocation}
-                        disabled={geoLocating}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white hover:bg-[#F3F4F6] text-[#94003A] border border-[#94003A]/30 text-xs font-bold cursor-pointer shadow-sm"
-                      >
-                        <RotateCcw className={`w-3 h-3 ${geoLocating ? "animate-spin" : ""}`} />
-                        <span>Re-capture</span>
-                      </button>
+                      {(personalPhotoGps.altitude != null || personalPhotoGps.captured_at) && (
+                        <div className="text-[10px] text-[#6B7280] mt-1 flex flex-wrap gap-2 pt-0.5 border-t border-[#F0FDF4]">
+                          {personalPhotoGps.altitude != null && <span>Altitude: <strong>{personalPhotoGps.altitude}m</strong></span>}
+                          {personalPhotoGps.captured_at && <span>Captured: <strong>{personalPhotoGps.captured_at}</strong></span>}
+                        </div>
+                      )}
                     </div>
-                    <p className="font-mono text-xs text-[#1F2937]">
-                      Lat: {geoLocation.latitude.toFixed(6)}, Lng: {geoLocation.longitude.toFixed(6)}
-                    </p>
-                    <p className="text-xs text-[#6B7280]">
-                      {geoLocation.address || "Operational territory validated"}
+                    {personalPhotoGps.reverse_geocoded?.formatted_address && (
+                      <div className="text-[11px] text-[#4B5563] bg-white/70 p-2.5 rounded-xl border border-[#BBF7D0] leading-relaxed">
+                        <span className="font-semibold text-[#1F2937]">Reverse Geocoded: </span>
+                        {personalPhotoGps.reverse_geocoded.formatted_address}
+                      </div>
+                    )}
+                  </div>
+                ) : personalPhotoUrl ? (
+                  <div className="p-3 rounded-xl bg-white border border-[#FDE68A] text-xs text-[#6B7280] space-y-1">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-[#92400E]">
+                      <AlertTriangle className="w-3.5 h-3.5 text-[#D97706] shrink-0" />
+                      <span>GPS metadata is unavailable in this photo's EXIF tags.</span>
+                    </div>
+                    <p className="text-[11px] text-[#78350F] leading-relaxed">
+                      Photo uploaded successfully for face verification. Coordinates are not inferred or fabricated.
                     </p>
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={captureDeviceLocation}
-                    disabled={geoLocating}
-                    className="w-full py-3 rounded-xl bg-white hover:bg-[#F3F4F6] text-[#1F2937] border border-[#D1D5DB] font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-sm"
-                  >
-                    {geoLocating ? <Loader2 className="w-4 h-4 animate-spin text-[#94003A]" /> : <MapPin className="w-4 h-4 text-[#94003A]" />}
-                    <span>Allow &amp; Capture GPS Location</span>
-                  </button>
+                  <div className="p-3 rounded-xl bg-white border border-[#E5E7EB] text-xs text-[#6B7280] space-y-1">
+                    <p className="font-medium text-[#4B5563]">
+                      Upload personal photo to extract GPS coordinates from image EXIF.
+                    </p>
+                    <p className="text-[10px] text-[#9CA3AF]">
+                      Derived strictly from image file metadata without browser permissions.
+                    </p>
+                  </div>
                 )}
-                {geoError && <p className="text-xs text-[#DC2626] font-medium mt-2">{geoError}</p>}
+              </div>
+
+              <div className="pt-2 border-t border-[#E5E7EB]/60 flex items-center gap-1.5 text-[10px] text-[#6B7280]">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#16A34A] shrink-0" />
+                <span>Image-Derived Verification Protocol (Strict EXIF compliance)</span>
               </div>
             </div>
           </div>
@@ -3444,6 +3545,19 @@ export function SinglePageOnboardingForm({
             </div>
             <span className="text-xs font-bold text-[#6B7280] uppercase tracking-wider">Step 6 of 7</span>
           </div>
+
+          {/* Location Validator Card */}
+          <LocationValidatorCard
+            exifGps={exifGps}
+            ocrLocation={ocrLocation}
+            shopPhotoUrl={shopPhotoUrl}
+            onLocationExtracted={(data) => {
+              if (data.b2_url) setShopPhotoUrl(data.b2_url);
+              if (data.exif_gps) setExifGps(data.exif_gps);
+              if (data.ocr_location) setOcrLocation(data.ocr_location);
+            }}
+            onApplyOcrAddress={handleApplyOcrAddress}
+          />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Shop Photo */}
@@ -3475,7 +3589,7 @@ export function SinglePageOnboardingForm({
                   <div>
                     <label className="px-4 py-2.5 rounded-xl bg-[#94003A] hover:bg-[#78002F] text-white font-bold text-xs cursor-pointer inline-flex items-center gap-2 transition-all shadow-md shadow-[#94003A]/20">
                       <UploadCloud className="w-4 h-4 text-white" />
-                      <span>{shopPhotoUploading ? "Uploading to B2..." : shopPhotoUrl ? "Change Photo" : "Select Shop Photo"}</span>
+                      <span>{shopPhotoUploading ? "Analyzing & Uploading..." : shopPhotoUrl ? "Change Photo" : "Select Shop Photo"}</span>
                       <input
                         type="file"
                         accept="image/*"
@@ -3524,45 +3638,79 @@ export function SinglePageOnboardingForm({
                   </div>
                 </div>
 
-                <label className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all ${
-                  videoUploadFile
-                    ? "border-[#86EFAC] bg-[#F0FDF4]"
-                    : "border-dashed border-[#D1D5DB] bg-white hover:border-[#94003A] hover:bg-[#FDF3F7] cursor-pointer"
-                }`}>
-                  <div className="shrink-0 w-10 h-10 rounded-lg bg-[#F8E6EE] border border-[#94003A]/20 flex items-center justify-center">
-                    {videoUploading ? (
-                      <Loader2 className="w-5 h-5 text-[#94003A] animate-spin" />
-                    ) : videoUploadFile ? (
-                      <CheckCircle2 className="w-5 h-5 text-[#16A34A]" />
-                    ) : (
-                      <UploadCloud className="w-5 h-5 text-[#94003A]" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-[#1F2937] truncate">
-                      {videoUploadFile ? videoUploadFile.name : "Select or drop video statement file"}
-                    </p>
-                    <p className="text-[11px] text-[#6B7280] mt-0.5">
-                      {videoUploadFile
-                        ? `${(videoUploadFile.size / 1024 / 1024).toFixed(1)} MB · ${videoUploadFile.type}`
-                        : "MP4, MOV, WEBM, AVI — max 100MB"}
-                    </p>
-                  </div>
-                  <span className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-black ${
-                    videoUploadFile
-                      ? "bg-[#DCFCE7] border border-[#86EFAC] text-[#166534]"
-                      : "bg-[#94003A] text-white shadow-sm"
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  <label className={`flex-1 flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all ${
+                    videoUploadFile || videoKycUrl
+                      ? "border-[#86EFAC] bg-[#F0FDF4]"
+                      : "border-dashed border-[#D1D5DB] bg-white hover:border-[#94003A] hover:bg-[#FDF3F7] cursor-pointer"
                   }`}>
-                    {videoUploading ? "Uploading..." : videoUploadFile ? "Replace" : "Browse"}
-                  </span>
-                  <input
-                    type="file"
-                    accept="video/*,video/mp4,video/quicktime,video/webm,video/x-msvideo"
-                    className="hidden"
-                    onChange={handleVideoFileUpload}
-                    disabled={videoUploading}
-                  />
-                </label>
+                    <div className="shrink-0 w-10 h-10 rounded-lg bg-[#F8E6EE] border border-[#94003A]/20 flex items-center justify-center">
+                      {videoUploading ? (
+                        <Loader2 className="w-5 h-5 text-[#94003A] animate-spin" />
+                      ) : videoUploadFile || videoKycUrl ? (
+                        <CheckCircle2 className="w-5 h-5 text-[#16A34A]" />
+                      ) : (
+                        <UploadCloud className="w-5 h-5 text-[#94003A]" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-[#1F2937] truncate">
+                        {videoUploadFile ? videoUploadFile.name : videoKycUrl ? "Video KYC Statement Uploaded" : "Select or drop video statement file"}
+                      </p>
+                      <p className="text-[11px] text-[#6B7280] mt-0.5">
+                        {videoUploadFile
+                          ? `${(videoUploadFile.size / 1024 / 1024).toFixed(1)} MB · ${videoUploadFile.type}`
+                          : "MP4, MOV, WEBM, AVI — max 100MB"}
+                      </p>
+                    </div>
+                    <span className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-black ${
+                      videoUploadFile || videoKycUrl
+                        ? "bg-[#DCFCE7] border border-[#86EFAC] text-[#166534]"
+                        : "bg-[#94003A] text-white shadow-sm"
+                    }`}>
+                      {videoUploading ? "Uploading..." : (videoUploadFile || videoKycUrl) ? "Replace" : "Browse"}
+                    </span>
+                    <input
+                      type="file"
+                      accept="video/*,video/mp4,video/quicktime,video/webm,video/x-msvideo"
+                      className="hidden"
+                      onChange={handleVideoFileUpload}
+                      disabled={videoUploading}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setVideoModalOpen(true)}
+                    className="px-4 py-3.5 rounded-xl bg-[#94003A] hover:bg-[#78002F] text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-[#94003A]/20 shrink-0 cursor-pointer"
+                  >
+                    <Camera className="w-4 h-4 text-white" />
+                    <span>Record Live Video</span>
+                  </button>
+                </div>
+
+                {(videoLocalPreview || videoKycUrl) && (
+                  <div className="space-y-2 pt-2 border-t border-[#E5E7EB]">
+                    <div className="flex items-center justify-between text-xs font-bold text-[#1F2937]">
+                      <span className="flex items-center gap-1.5 text-[#166534]">
+                        <CheckCircle2 className="w-4 h-4 text-[#16A34A]" />
+                        <span>Video Statement Playback Preview</span>
+                      </span>
+                      {videoKycUrl && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#166534] border border-[#86EFAC]">
+                          B2 Vault Verified ✓
+                        </span>
+                      )}
+                    </div>
+                    <div className="relative rounded-2xl overflow-hidden border-2 border-[#86EFAC] bg-black shadow-inner">
+                      <video
+                        src={videoLocalPreview || videoKycUrl}
+                        controls
+                        playsInline
+                        className="w-full max-h-56 object-cover"
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {videoKycUrl && (
                   <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-[#E5E7EB]">
@@ -3911,6 +4059,21 @@ export function SinglePageOnboardingForm({
           </div>
         </div>
       </form>
+
+      {/* Live Video Recorder Modal */}
+      <LiveVideoRecorderModal
+        isOpen={videoModalOpen}
+        onClose={() => setVideoModalOpen(false)}
+        entityName={shopName || fullName || "Merchant"}
+        roleName={selectedUserTypeRefId === 4 ? "Super Distributor" : (selectedUserTypeRefId === 3 ? "Distributor" : "Retailer")}
+        entityType={selectedUserTypeRefId === 4 ? "SD" : (selectedUserTypeRefId === 3 ? "DIST" : "RET")}
+        onVideoUploaded={(b2Url) => {
+          if (b2Url) {
+            setVideoKycUrl(b2Url);
+            setVideoLocalPreview(b2Url);
+          }
+        }}
+      />
     </div>
   );
 }
