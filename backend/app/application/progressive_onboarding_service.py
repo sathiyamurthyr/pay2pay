@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import json
 import base64
 import httpx
-from sqlalchemy import select, desc, text
+from sqlalchemy import select, desc, text, or_, func
 from app.core.config import settings
 
 from app.application.cashfree_service import CashfreeVerificationService
@@ -2358,11 +2358,18 @@ class ProgressiveOnboardingService:
         company_id: Optional[uuid.UUID] = None
     ) -> List[Dict[str, Any]]:
         """Fetch Super Distributors list for registration/onboarding dropdowns scoped by tenant and company."""
-        eff_tid = tenant_id or DEFAULT_TENANT_ID
         stmt = select(SuperDistributorModel).where(
-            SuperDistributorModel.tenant_id == eff_tid,
-            SuperDistributorModel.is_deleted == False
+            SuperDistributorModel.is_deleted == False,
+            SuperDistributorModel.is_active == True,
+            func.upper(SuperDistributorModel.status) == "ACTIVE"
         )
+        if tenant_id:
+            stmt = stmt.where(
+                or_(
+                    SuperDistributorModel.tenant_id == tenant_id,
+                    SuperDistributorModel.tenant_id == None
+                )
+            )
         if company_id:
             stmt = stmt.where(
                 or_(
@@ -2398,11 +2405,18 @@ class ProgressiveOnboardingService:
         sd_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Fetch Distributors list for registration/onboarding dropdowns scoped by tenant, company, and optional parent SD."""
-        eff_tid = tenant_id or DEFAULT_TENANT_ID
         stmt = select(DistributorModel).where(
-            DistributorModel.tenant_id == eff_tid,
-            DistributorModel.is_deleted == False
+            DistributorModel.is_deleted == False,
+            DistributorModel.is_active == True,
+            func.upper(DistributorModel.status) == "ACTIVE"
         )
+        if tenant_id:
+            stmt = stmt.where(
+                or_(
+                    DistributorModel.tenant_id == tenant_id,
+                    DistributorModel.tenant_id == None
+                )
+            )
         if company_id:
             stmt = stmt.where(
                 or_(

@@ -2059,7 +2059,7 @@ class SalesService:
         Strictly queried from View vw_sales_company_super_distributors with company and tenant isolation.
         """
         scope = await SalesService.resolve_scope(db, current_user)
-        where_clauses = ["tenant_id = :tenant_id", "is_deleted = false"]
+        where_clauses = ["tenant_id = :tenant_id", "is_deleted = false", "is_active = true", "UPPER(status) = 'ACTIVE'"]
         params: Dict[str, Any] = {"tenant_id": current_user.tenant_id}
 
         if current_user.company_id:
@@ -2106,7 +2106,7 @@ class SalesService:
         Strictly queried from View vw_sales_company_distributors with company, tenant, and optional SD filtering.
         """
         scope = await SalesService.resolve_scope(db, current_user)
-        where_clauses = ["tenant_id = :tenant_id", "is_deleted = false"]
+        where_clauses = ["tenant_id = :tenant_id", "is_deleted = false", "is_active = true", "UPPER(status) = 'ACTIVE'"]
         params: Dict[str, Any] = {"tenant_id": current_user.tenant_id}
 
         if current_user.company_id:
