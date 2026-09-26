@@ -564,7 +564,7 @@ class KycDocumentReaderService:
             for var_img in image_variants:
                 try:
                     import winocr
-                    ocr_res = await asyncio.to_thread(winocr.recognize_pil_sync, var_img, "en")
+                    ocr_res = await asyncio.to_thread(winocr.recognize_pil_sync, var_img)
                     if isinstance(ocr_res, dict):
                         lines = ocr_res.get("lines") or []
                         for l in lines:
@@ -865,7 +865,8 @@ class KycDocumentReaderService:
                 "MERA", "PEHCHAN", "ADDRESS", "DOB", "YEAR", "MALE", "FEMALE"
             ]
             for line in lines:
-                clean_line = re.sub(r"[^A-Za-z\s]", "", line).strip()
+                line_no_prefix = re.sub(r"^(?:Name|Holder Name|Full Name|Owner Name)[:\s]+", "", line, flags=re.IGNORECASE).strip()
+                clean_line = re.sub(r"[^A-Za-z\s]", "", line_no_prefix).strip()
                 if 3 <= len(clean_line) <= 35 and not any(k in clean_line.upper() for k in ignored_aadhaar):
                     if len(clean_line.split()) >= 1 and not re.search(r"\d", line):
                         detected_name = clean_line.title()
