@@ -181,7 +181,7 @@ export default function SalesLoginPage() {
             </div>
 
             {/* Feature Highlights Grid */}
-            <div className="grid grid-cols-2 gap-3.5 pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
               <div className="p-3.5 rounded-2xl bg-white border border-[#E5E7EB] shadow-xs flex items-start gap-3">
                 <div className="p-2 rounded-xl bg-[#F8E6EE] text-[#94003A] shrink-0">
                   <Building2 className="w-4 h-4" />
@@ -189,16 +189,6 @@ export default function SalesLoginPage() {
                 <div>
                   <h4 className="text-xs font-bold text-[#1F2937]">Strict Tenant Scoping</h4>
                   <p className="text-[11px] text-[#6B7280] mt-0.5">Isolated distribution hierarchy</p>
-                </div>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-white border border-[#E5E7EB] shadow-xs flex items-start gap-3">
-                <div className="p-2 rounded-xl bg-[#FEF3C7] text-[#D97706] shrink-0">
-                  <Users className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-[#1F2937]">3-Tier Network Tree</h4>
-                  <p className="text-[11px] text-[#6B7280] mt-0.5">Super Dist &rarr; Dist &rarr; Retailer</p>
                 </div>
               </div>
 
