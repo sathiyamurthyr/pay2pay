@@ -1335,7 +1335,7 @@ export function SinglePageOnboardingForm({
 
     try {
       // 1. Primary: Use the dedicated image auto-reader & EXIF GPS / OCR extractor
-      const res = await fetch("/api/v1/sales/auto-read-doc", {
+      const res = await fetch("/api/v1/onboarding/auto-read-doc", {
         method: "POST",
         body: formData
       });
@@ -3432,7 +3432,6 @@ export function SinglePageOnboardingForm({
                       <input
                         type="file"
                         accept="image/*"
-                        capture="user"
                         className="hidden"
                         onChange={handlePersonalPhotoUpload}
                       />
