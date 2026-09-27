@@ -709,7 +709,10 @@ class KycDocumentReaderService:
         ignored_keywords = [
             "INCOME", "TAX", "DEPARTMENT", "GOVT", "INDIA", "PERMANENT",
             "ACCOUNT", "NUMBER", "CARD", "SIGNATURE", "FATHER", "NAME",
-            "DATE", "BIRTH", "INCOMETAX", "GOVERNMENT", "UNION", "REPUBLIC"
+            "DATE", "BIRTH", "INCOMETAX", "GOVERNMENT", "UNION", "REPUBLIC",
+            "PAN", "PER", "AUTO", "READ", "ENTER", "STATUS", "VERIFICATION",
+            "PENDING", "COMPLIANCE", "NSDL", "CASHFREE", "REPLACE", "PREVIEW",
+            "FILE", "UPLOAD", "DOCUMENT", "EXTRACTS", "STEP", "DETAILS"
         ]
 
         # Check for explicit label matches
@@ -726,12 +729,28 @@ class KycDocumentReaderService:
                 if not any(k in cand.upper() for k in ignored_keywords):
                     father_name = cand
 
-        # Fallback candidate names from line order (excluding headers & numbers)
+        # Fallback candidate names from line order (excluding headers, UI noise & numbers)
         if not extracted_name:
             candidate_names: List[str] = []
+            ui_noise_words = {
+                "PNG", "JPG", "JPEG", "PDF", "DOC", "FIE", "FILE", "IMG", "PIC",
+                "CARD", "COPY", "SCAN", "EDIT", "CROP", "SAVE", "DONE", "BACK",
+                "NEXT", "FORM", "TYPE", "TEXT", "LINE", "MAIN", "ICON", "LOGO",
+                "PAGE", "SITE", "USER", "INFO", "DATA", "LIST", "VIEW", "SHOW",
+                "HIDE", "ITEM", "FLAG", "MARK", "HELP", "CALL", "SEND", "LINK",
+                "POF", "JFG", "STEP", "REPLACE", "PREVIEW", "STATUS", "PENDING"
+            }
             for line in lines:
                 clean_line = re.sub(r"[^A-Za-z\s]", "", line).strip()
-                if 3 <= len(clean_line) <= 40 and not any(k in clean_line.upper() for k in ignored_keywords):
+                words = clean_line.split()
+                if not words:
+                    continue
+                # Require total clean length >= 4 and exclude single 3-letter words or UI noise tokens
+                if len(clean_line) >= 4 and not any(k in clean_line.upper() for k in ignored_keywords):
+                    if len(words) == 1 and len(words[0]) < 4:
+                        continue
+                    if any(w.upper() in ui_noise_words for w in words):
+                        continue
                     if re.match(r"^[A-Za-z\s]+$", clean_line) and not re.search(r"\d", line):
                         # Ensure line doesn't match detected_pan or dob
                         if detected_pan and detected_pan in line.upper():
