@@ -190,23 +190,61 @@ class AuthService:
                 (AuthUserModel.mobile_number == clean_mob) | (AuthUserModel.email == identifier),
                 AuthUserModel.is_deleted == False
             )
+            auth_user = (await db.execute(a_stmt)).scalars().first()
             from app.presentation.api.v1.enterprise_auth_router import is_insecure_or_missing_hash
             if auth_user and not is_insecure_or_missing_hash(auth_user.password_hash) and verify_password(req.password, auth_user.password_hash):
-                ret_obj = (await db.execute(select(RetailerModel).where(RetailerModel.public_id == auth_user.user_id))).scalars().first()
-                r_code = ret_obj.retailer_code if ret_obj else "RET-08A9A0"
-                r_name = ret_obj.owner_name if (ret_obj and ret_obj.owner_name) else auth_user.full_name
-                
+                role = (auth_user.role or "RETAILER").upper()
+                extra_claims = {
+                    "mobile": clean_mob,
+                    "approve_status": True,
+                    "active_status": True
+                }
+                user_ref_id = None
+                user_type_ref_id = 2
+
+                if role == "SUPER_DISTRIBUTOR":
+                    from app.infrastructure.db.models import SuperDistributorModel
+                    sd_obj = (await db.execute(select(SuperDistributorModel).where(SuperDistributorModel.public_id == auth_user.user_id))).scalars().first()
+                    user_ref_id = getattr(sd_obj, "super_distributor_ref_id", None)
+                    user_type_ref_id = 4
+                    extra_claims.update({
+                        "super_distributor_ref_id": user_ref_id,
+                        "sd_ref_id": user_ref_id,
+                        "super_distributor_id": str(auth_user.user_id),
+                        "user_type_ref_id": 4
+                    })
+                    r_name = sd_obj.owner_name if (sd_obj and sd_obj.owner_name) else auth_user.full_name
+                elif role == "DISTRIBUTOR":
+                    from app.infrastructure.db.models import DistributorModel
+                    dist_obj = (await db.execute(select(DistributorModel).where(DistributorModel.public_id == auth_user.user_id))).scalars().first()
+                    user_ref_id = getattr(dist_obj, "distributor_ref_id", None)
+                    user_type_ref_id = 3
+                    extra_claims.update({
+                        "distributor_ref_id": user_ref_id,
+                        "distributor_id": str(auth_user.user_id),
+                        "user_type_ref_id": 3
+                    })
+                    r_name = dist_obj.owner_name if (dist_obj and dist_obj.owner_name) else auth_user.full_name
+                else:
+                    ret_obj = (await db.execute(select(RetailerModel).where(RetailerModel.public_id == auth_user.user_id))).scalars().first()
+                    r_code = ret_obj.retailer_code if ret_obj else "RET-08A9A0"
+                    user_ref_id = getattr(ret_obj, "retailer_ref_id", None)
+                    user_type_ref_id = 2
+                    extra_claims.update({
+                        "retailer_code": r_code,
+                        "retailer_id": str(auth_user.user_id),
+                        "retailer_ref_id": user_ref_id,
+                        "user_type_ref_id": 2
+                    })
+                    r_name = ret_obj.owner_name if (ret_obj and ret_obj.owner_name) else auth_user.full_name
+
                 access_token = create_access_token(
                     subject=str(auth_user.user_id),
                     tenant_id=str(auth_user.tenant_id or "547aa7bb-a790-4fe2-bd5b-27214ed176c8"),
                     company_id=str(auth_user.company_id or "3778f4e4-bb6e-4eb1-8a12-762f24591ebc"),
-                    roles=[auth_user.role or "RETAILER"],
+                    roles=[role],
                     expires_delta=timedelta(days=7),
-                    retailer_code=r_code,
-                    retailer_id=str(auth_user.user_id),
-                    mobile=clean_mob,
-                    approve_status=True,
-                    active_status=True
+                    **extra_claims
                 )
                 refresh_token = create_refresh_token(
                     subject=str(auth_user.user_id),
@@ -221,17 +259,13 @@ class AuthService:
                     user={
                         "public_id": str(auth_user.user_id),
                         "id": str(auth_user.user_id),
-                        "user_ref_id": getattr(ret_obj, "retailer_ref_id", None) or getattr(ret_obj, "user_ref_id", None) or getattr(ret_obj, "id", None) if ret_obj else None,
-                        "user_type_ref_id": 2,
-                        "retailer_ref_id": getattr(ret_obj, "retailer_ref_id", None) or getattr(ret_obj, "user_ref_id", None) or getattr(ret_obj, "id", None) if ret_obj else None,
+                        "user_ref_id": user_ref_id,
+                        "user_type_ref_id": user_type_ref_id,
                         "email": auth_user.email or f"{clean_mob}@pay2pay.in",
                         "full_name": r_name,
                         "mobile_number": clean_mob,
-                        "role": auth_user.role or "RETAILER",
-                        "roles": [auth_user.role or "RETAILER"],
-                        "retailer_code": r_code,
-                        "approve_status": True,
-                        "active_status": True
+                        "role": role,
+                        "roles": [role]
                     }
                 )
 

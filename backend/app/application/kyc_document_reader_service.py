@@ -560,6 +560,14 @@ class KycDocumentReaderService:
             except Exception:
                 pass
 
+            # Variant D: High-Contrast Black & White Binarization
+            try:
+                gray3 = rgb_img.convert("L")
+                bin_img = gray3.point(lambda p: 255 if p > 135 else 0)
+                image_variants.append(bin_img.convert("RGB"))
+            except Exception:
+                pass
+
             # 2. Windows Native OCR across variants
             for var_img in image_variants:
                 try:
@@ -591,6 +599,29 @@ class KycDocumentReaderService:
                 except Exception as ocr_err:
                     logger.warning(f"[WinOCR Error] {ocr_err}")
 
+            # 3. If no text extracted, attempt rotation variants (90°, 180°, 270°) for sideways uploaded photos
+            if not raw_text_lines:
+                for angle in [90, 180, 270]:
+                    try:
+                        rot_img = rgb_img.rotate(angle, expand=True)
+                        import winocr
+                        ocr_res = await asyncio.to_thread(winocr.recognize_pil_sync, rot_img)
+                        if ocr_res:
+                            text_val = ""
+                            if isinstance(ocr_res, dict):
+                                text_val = ocr_res.get("text", "")
+                            elif hasattr(ocr_res, "text"):
+                                text_val = ocr_res.text
+                            if text_val and text_val.strip():
+                                for line_txt in text_val.splitlines():
+                                    line_clean = line_txt.strip()
+                                    if line_clean and line_clean not in raw_text_lines:
+                                        raw_text_lines.append(line_clean)
+                                if raw_text_lines:
+                                    break
+                    except Exception as rot_err:
+                        logger.debug(f"[OCR Rotation Check {angle}° Debug] {rot_err}")
+
         full_raw_text = "\n".join(raw_text_lines).strip()
         return full_raw_text, qr_data_list
 
@@ -606,14 +637,29 @@ class KycDocumentReaderService:
         qr_text = " ".join(qr_data)
         all_text = f"{raw_text}\n{qr_text}"
 
-        # 1. Standard 10-character PAN Regex: 5 letters, 4 digits, 1 letter
-        pan_regex = r"\b[A-Z]{5}[0-9]{4}[A-Z]{1}\b"
-        pan_matches = re.findall(pan_regex, all_text.upper())
+        # 1. Multi-pattern PAN Regex search (contiguous, spaced out, hyphenated)
+        pan_regex_strict = r"\b[A-Z]{5}[0-9]{4}[A-Z]{1}\b"
+        pan_regex_spaced = r"\b([A-Z]{5})[\s\-]*([0-9]{4})[\s\-]*([A-Z]{1})\b"
+
+        pan_matches = re.findall(pan_regex_strict, all_text.upper())
         if pan_matches:
             detected_pan = pan_matches[0]
         else:
-            # 2. Intelligent OCR character correction (O/0, I/1, B/8, S/5, Z/2)
-            words = re.findall(r"\b[A-Za-z0-9]{10}\b", all_text)
+            spaced_matches = re.findall(pan_regex_spaced, all_text.upper())
+            if spaced_matches:
+                p1, p2, p3 = spaced_matches[0]
+                detected_pan = f"{p1}{p2}{p3}"
+
+        # 2. Intelligent OCR character correction & whitespace-stripped scanning
+        if not detected_pan:
+            # Clean text by removing spaces and hyphens for candidate scanning
+            clean_text_no_space = re.sub(r"[\s\-]+", "", all_text.upper())
+            no_space_matches = re.findall(pan_regex_strict, clean_text_no_space)
+            if no_space_matches:
+                detected_pan = no_space_matches[0]
+
+        if not detected_pan:
+            words = re.findall(r"\b[A-Za-z0-9]{10}\b", re.sub(r"[\s\-]+", " ", all_text))
             for w in words:
                 w_up = w.upper()
                 prefix = ""
@@ -663,12 +709,12 @@ class KycDocumentReaderService:
         ignored_keywords = [
             "INCOME", "TAX", "DEPARTMENT", "GOVT", "INDIA", "PERMANENT",
             "ACCOUNT", "NUMBER", "CARD", "SIGNATURE", "FATHER", "NAME",
-            "DATE", "BIRTH", "INCOMETAX", "GOVERNMENT"
+            "DATE", "BIRTH", "INCOMETAX", "GOVERNMENT", "UNION", "REPUBLIC"
         ]
 
         # Check for explicit label matches
         for l in lines:
-            m_name = re.search(r"^(?:NAME|CARD HOLDER NAME)[:\s]+([A-Za-z\s]+)$", l, re.IGNORECASE)
+            m_name = re.search(r"^(?:NAME|CARD HOLDER NAME|HOLDER NAME)[:\s]+([A-Za-z\s]+)$", l, re.IGNORECASE)
             if m_name and not extracted_name:
                 cand = m_name.group(1).strip().title()
                 if not any(k in cand.upper() for k in ignored_keywords):
@@ -687,6 +733,9 @@ class KycDocumentReaderService:
                 clean_line = re.sub(r"[^A-Za-z\s]", "", line).strip()
                 if 3 <= len(clean_line) <= 40 and not any(k in clean_line.upper() for k in ignored_keywords):
                     if re.match(r"^[A-Za-z\s]+$", clean_line) and not re.search(r"\d", line):
+                        # Ensure line doesn't match detected_pan or dob
+                        if detected_pan and detected_pan in line.upper():
+                            continue
                         candidate_names.append(clean_line.title())
 
             if candidate_names:
