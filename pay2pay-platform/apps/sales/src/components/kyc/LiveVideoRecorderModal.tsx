@@ -165,7 +165,7 @@ export default function LiveVideoRecorderModal({
       onClose();
     } catch (err: any) {
       console.error("Upload Video KYC Error:", err);
-      setErrorMsg(err.response?.data?.detail || "Failed to upload Video KYC to B2 Vault. Please retry.");
+      setErrorMsg(err.response?.data?.detail || "Failed to upload Video KYC. Please retry.");
     } finally {
       setUploading(false);
     }

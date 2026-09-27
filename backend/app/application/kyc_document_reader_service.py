@@ -106,43 +106,55 @@ class KycDocumentReaderService:
         try:
             from PIL import Image, ExifTags
             img = Image.open(io.BytesIO(file_bytes))
-            exif = img.getexif()
-            if not exif:
+
+            gps_ifd = {}
+            # 1. Try modern Pillow getexif().get_ifd(0x8825)
+            try:
+                exif = img.getexif()
+                if exif:
+                    if hasattr(exif, "get_ifd"):
+                        gps_ifd = exif.get_ifd(0x8825)
+                    if not gps_ifd:
+                        for tag_id, tag_val in exif.items():
+                            tag_name = ExifTags.TAGS.get(tag_id, str(tag_id))
+                            if (tag_id == 34853 or tag_name == "GPSInfo") and isinstance(tag_val, dict):
+                                gps_ifd = tag_val
+                                break
+            except Exception:
+                pass
+
+            # 2. Try legacy _getexif() fallback (used on mobile camera jpegs)
+            if not gps_ifd:
+                try:
+                    raw_exif = getattr(img, "_getexif", None)()
+                    if raw_exif and isinstance(raw_exif, dict):
+                        gps_ifd = raw_exif.get(34853) or raw_exif.get(0x8825) or {}
+                except Exception:
+                    pass
+
+            if not gps_ifd:
                 return {
                     "available": False,
                     "latitude": None,
                     "longitude": None,
                     "altitude": None,
                     "captured_at": None,
+                    "google_maps_url": None,
                     "reverse_geocoded": None,
                     "message": "GPS metadata is unavailable in the uploaded image's EXIF data. Coordinates were not inferred or fabricated."
                 }
 
-            gps_ifd = exif.get_ifd(0x8825) if hasattr(exif, "get_ifd") else {}
-            if not gps_ifd:
-                for tag_id, tag_val in exif.items():
-                    tag_name = ExifTags.TAGS.get(tag_id, str(tag_id))
-                    if tag_name == "GPSInfo" and isinstance(tag_val, dict):
-                        gps_ifd = tag_val
-                        break
+            # Map both numeric and string tags
+            named_gps = {}
+            for k, v in gps_ifd.items():
+                name = ExifTags.GPSTAGS.get(k, k) if isinstance(k, int) else k
+                named_gps[name] = v
+                named_gps[k] = v
 
-            if not gps_ifd:
-                return {
-                    "available": False,
-                    "latitude": None,
-                    "longitude": None,
-                    "altitude": None,
-                    "captured_at": None,
-                    "reverse_geocoded": None,
-                    "message": "GPS metadata is unavailable in the uploaded image's EXIF data. Coordinates were not inferred or fabricated."
-                }
-
-            named_gps = {ExifTags.GPSTAGS.get(k, k): v for k, v in gps_ifd.items()}
-
-            lat_raw = named_gps.get("GPSLatitude")
-            lat_ref = named_gps.get("GPSLatitudeRef", "N")
-            lon_raw = named_gps.get("GPSLongitude")
-            lon_ref = named_gps.get("GPSLongitudeRef", "E")
+            lat_raw = named_gps.get("GPSLatitude") or named_gps.get(2)
+            lat_ref = named_gps.get("GPSLatitudeRef") or named_gps.get(1) or "N"
+            lon_raw = named_gps.get("GPSLongitude") or named_gps.get(4)
+            lon_ref = named_gps.get("GPSLongitudeRef") or named_gps.get(3) or "E"
 
             if not lat_raw or not lon_raw:
                 return {
@@ -151,20 +163,66 @@ class KycDocumentReaderService:
                     "longitude": None,
                     "altitude": None,
                     "captured_at": None,
+                    "google_maps_url": None,
                     "reverse_geocoded": None,
                     "message": "GPS metadata is unavailable in the uploaded image's EXIF data. Coordinates were not inferred or fabricated."
                 }
 
+            def _eval_num(x):
+                if x is None:
+                    return 0.0
+                if isinstance(x, (int, float)):
+                    return float(x)
+                if isinstance(x, (tuple, list)):
+                    if len(x) >= 2 and x[1]:
+                        return float(x[0]) / float(x[1])
+                    if len(x) >= 1:
+                        return float(x[0])
+                    return 0.0
+                if hasattr(x, "numerator") and hasattr(x, "denominator"):
+                    return float(x.numerator) / float(x.denominator) if x.denominator else float(x.numerator)
+                try:
+                    return float(x)
+                except Exception:
+                    return 0.0
+
             def to_deg(val):
-                d, m, s = float(val[0]), float(val[1]), float(val[2])
+                if not val or not isinstance(val, (tuple, list)) or len(val) < 3:
+                    return None
+                d = _eval_num(val[0])
+                m = _eval_num(val[1])
+                s = _eval_num(val[2])
                 return d + (m / 60.0) + (s / 3600.0)
 
-            lat = to_deg(lat_raw)
-            if str(lat_ref).upper() == "S":
-                lat = -lat
+            def _clean_ref(r, default):
+                if not r:
+                    return default
+                if isinstance(r, bytes):
+                    try:
+                        r = r.decode("utf-8", errors="ignore")
+                    except Exception:
+                        r = str(r)
+                r_clean = str(r).strip("'\" b").upper()
+                return r_clean[0] if r_clean else default
 
+            lat = to_deg(lat_raw)
             lon = to_deg(lon_raw)
-            if str(lon_ref).upper() == "W":
+
+            if lat is None or lon is None:
+                return {
+                    "available": False,
+                    "latitude": None,
+                    "longitude": None,
+                    "altitude": None,
+                    "captured_at": None,
+                    "google_maps_url": None,
+                    "reverse_geocoded": None,
+                    "message": "GPS metadata in EXIF data could not be converted to decimal degrees."
+                }
+
+            if _clean_ref(lat_ref, "N") == "S":
+                lat = -lat
+            if _clean_ref(lon_ref, "E") == "W":
                 lon = -lon
 
             # Validity range checks
@@ -175,17 +233,19 @@ class KycDocumentReaderService:
                     "longitude": None,
                     "altitude": None,
                     "captured_at": None,
+                    "google_maps_url": None,
                     "reverse_geocoded": None,
                     "message": "GPS metadata in EXIF data contains invalid or zero coordinates."
                 }
 
             # Altitude
             altitude = None
-            if "GPSAltitude" in named_gps:
+            alt_val = named_gps.get("GPSAltitude") or named_gps.get(6)
+            if alt_val is not None:
                 try:
-                    alt_val = named_gps["GPSAltitude"]
-                    alt = float(alt_val[0]) / float(alt_val[1]) if isinstance(alt_val, (tuple, list)) and alt_val[1] else float(alt_val)
-                    if named_gps.get("GPSAltitudeRef", 0) == 1:
+                    alt = _eval_num(alt_val)
+                    alt_ref = named_gps.get("GPSAltitudeRef") or named_gps.get(5) or 0
+                    if alt_ref == 1:
                         alt = -alt
                     altitude = round(alt, 2)
                 except Exception:
@@ -193,18 +253,21 @@ class KycDocumentReaderService:
 
             # Timestamp / Date
             captured_at = None
-            date_stamp = named_gps.get("GPSDateStamp")
-            time_stamp = named_gps.get("GPSTimeStamp")
+            date_stamp = named_gps.get("GPSDateStamp") or named_gps.get(29)
+            time_stamp = named_gps.get("GPSTimeStamp") or named_gps.get(7)
             if date_stamp and time_stamp:
                 try:
-                    h, m, s = int(time_stamp[0]), int(time_stamp[1]), int(time_stamp[2])
-                    date_parts = str(date_stamp).replace(":", "-")
+                    h = int(_eval_num(time_stamp[0]))
+                    m = int(_eval_num(time_stamp[1]))
+                    s = int(_eval_num(time_stamp[2]))
+                    date_parts = str(date_stamp).replace(":", "-").strip()
                     captured_at = f"{date_parts}T{h:02d}:{m:02d}:{s:02d}Z"
                 except Exception:
                     pass
 
-            # Reverse geocode using existing validator
+            # Reverse geocode using validator
             rev_data = await cls.validate_location(latitude=lat, longitude=lon)
+            formatted_address = rev_data.get("formatted_address") or f"Latitude: {lat:.6f}, Longitude: {lon:.6f}"
 
             return {
                 "available": True,
@@ -212,12 +275,13 @@ class KycDocumentReaderService:
                 "longitude": round(lon, 6),
                 "altitude": altitude,
                 "captured_at": captured_at,
+                "google_maps_url": f"https://www.google.com/maps?q={lat:.6f},{lon:.6f}",
                 "reverse_geocoded": {
-                    "city": rev_data.get("city"),
-                    "district": rev_data.get("district"),
-                    "state": rev_data.get("state"),
-                    "pincode": rev_data.get("pincode"),
-                    "formatted_address": rev_data.get("formatted_address")
+                    "city": rev_data.get("city") or "",
+                    "district": rev_data.get("district") or "",
+                    "state": rev_data.get("state") or "",
+                    "pincode": rev_data.get("pincode") or "",
+                    "formatted_address": formatted_address
                 },
                 "status": "EXIF_GPS_EXTRACTED",
                 "message": f"GPS coordinates ({lat:.6f}, {lon:.6f}) extracted exclusively from image EXIF metadata."
@@ -230,6 +294,7 @@ class KycDocumentReaderService:
                 "longitude": None,
                 "altitude": None,
                 "captured_at": None,
+                "google_maps_url": None,
                 "reverse_geocoded": None,
                 "message": f"GPS metadata is unavailable in the uploaded image's EXIF data ({str(e)})."
             }
@@ -415,7 +480,7 @@ class KycDocumentReaderService:
                 "ocr_state": ocr_location.get("detected_state"),
                 "ocr_pincode": ocr_location.get("detected_pincode"),
                 "ocr_business_name": ocr_location.get("detected_business_name"),
-                "message": "Commercial premises photo verified in B2 Vault with image-derived location analysis."
+                "message": "Commercial premises photo verified with image-derived location analysis."
             }
         elif any(k in dt_clean for k in ["SELFIE", "PERSONAL", "PHOTO"]):
             extracted_data = {
@@ -438,7 +503,7 @@ class KycDocumentReaderService:
                 "ocr_city": ocr_location.get("detected_city"),
                 "ocr_state": ocr_location.get("detected_state"),
                 "ocr_pincode": ocr_location.get("detected_pincode"),
-                "message": "Personal photo saved to B2 Vault with image EXIF GPS extraction."
+                "message": "Personal photo saved with image EXIF GPS extraction."
             }
         elif any(k in dt_clean for k in ["VIDEO"]):
             extracted_data = {
@@ -447,7 +512,7 @@ class KycDocumentReaderService:
                 "status": "RECORDED",
                 "video_kyc_url": b2_url,
                 "duration_seconds": 10,
-                "message": "Live Selfie Video KYC recording verified and uploaded to B2 Vault"
+                "message": "Live Selfie Video KYC recording verified and uploaded successfully."
             }
         else:
             extracted_data = {

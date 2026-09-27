@@ -89,7 +89,7 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, initialPan = ""
           Verify PAN Details
         </h2>
         <p className="text-xs font-semibold text-[#6B7280] mt-1">
-          Instant NSDL Permanent Account Number Verification
+          Instant Permanent Account Number Verification
         </p>
       </div>
 
@@ -165,7 +165,7 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, initialPan = ""
               <h3 className="text-sm font-black text-[#1F2937] flex items-center gap-1.5">
                 <span>✓ PAN Verified Successfully</span>
               </h3>
-              <p className="text-xs text-[#4B5563] font-medium">Your PAN details have been authenticated with NSDL.</p>
+              <p className="text-xs text-[#4B5563] font-medium">Your PAN details have been verified successfully.</p>
             </div>
           </div>
 

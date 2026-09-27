@@ -251,7 +251,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({
           Aadhaar eKYC Verification
         </h2>
         <p className="text-xs font-semibold text-[#6B7280] mt-1">
-          UIDAI Paperless eKYC Verification with live Demographic retrieval.
+          Aadhaar Paperless eKYC Verification with live Demographic retrieval.
         </p>
       </div>
 
@@ -289,10 +289,10 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({
           <div className="p-3.5 rounded-2xl bg-[#F8E6EE] border border-[#94003A]/20 text-[#94003A] text-xs font-medium space-y-1">
             <p className="font-bold flex items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-[#94003A]" />
-              UIDAI Safe Authentication Notice
+              Aadhaar Safe Authentication Notice
             </p>
             <p className="text-[11px] leading-relaxed text-[#6B7280]">
-              An OTP will be sent to the mobile number registered with your UIDAI Aadhaar record.
+              An OTP will be sent to the mobile number registered with your Aadhaar record.
             </p>
           </div>
 
@@ -315,7 +315,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Initiating UIDAI OTP...</span>
+                  <span>Initiating Aadhaar OTP...</span>
                 </>
               ) : (
                 <>
@@ -344,7 +344,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({
                 Enter 6-Digit Aadhaar OTP <span className="text-[#DC2626]">*</span>
               </label>
               <span className="text-[10px] font-bold text-[#9CA3AF]">
-                Sent to UIDAI Mobile
+                Sent to Registered Mobile
               </span>
             </div>
             <input
@@ -429,7 +429,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({
                   ✅ Aadhaar Verified Successfully
                 </h3>
                 <p className="text-[11px] text-[#4B5563] font-medium">
-                  {maskedAadhaarDisplay} • UIDAI authenticated
+                  {maskedAadhaarDisplay} • eKYC authenticated
                 </p>
               </div>
             </div>

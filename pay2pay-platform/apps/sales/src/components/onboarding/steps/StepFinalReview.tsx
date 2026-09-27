@@ -256,7 +256,7 @@ export const StepFinalReview: React.FC<StepFinalProps> = ({
           <div>
             <span className="text-[10px] text-[#6B7280] font-bold uppercase block">Aadhaar Status</span>
             <span className="font-bold text-[#16A34A] flex items-center gap-1">
-              <CheckCircle2 className="w-3 h-3" /> UIDAI Verified
+              <CheckCircle2 className="w-3 h-3" /> Aadhaar Verified
             </span>
           </div>
           <div>
@@ -344,8 +344,8 @@ export const StepFinalReview: React.FC<StepFinalProps> = ({
             className="w-4 h-4 mt-0.5 rounded border-[#D1D5DB] accent-[#94003A] focus:ring-[#94003A]"
           />
           <span className="text-xs font-medium text-[#4B5563] leading-relaxed">
-            I confirm that the applicant details provided are authentic, true to bank & UIDAI records,
-            and comply with the Pay2Pay Master Business Agreement and regulatory KYC norms.
+            I confirm that the applicant details provided are authentic and accurate,
+            and comply with the Pay2Pay Master Business Agreement and applicable KYC norms.
           </span>
         </label>
       </div>
