@@ -1,0 +1,293 @@
+{
+  "timestamp": "2026-09-26T19:37:32.572703+00:00",
+  "dynamic_dataset": {
+    "super_distributor": {
+      "business_name": "Workability SD 1790451430",
+      "owner_name": "SD Owner JHA",
+      "mobile": "9876572410",
+      "email": "sd_work_1790451430_572410@demotest.com",
+      "state": "Tamil Nadu",
+      "city": "Chennai",
+      "address": "Suite 1937, Tech Park, Mount Road",
+      "pincode": "600002",
+      "pan_number": "SDJHA1937X",
+      "gst_number": "33SDJHA1937X1Z5",
+      "bank_account_number": "991100572410",
+      "ifsc": "SBIN0001234"
+    },
+    "distributor": {
+      "business_name": "Workability Dist 1790451430",
+      "owner_name": "Dist Owner JHA",
+      "mobile": "9877572410",
+      "email": "dist_work_1790451430_572410@demotest.com",
+      "state": "Tamil Nadu",
+      "city": "Coimbatore",
+      "address": "Plot 1937, Industrial Estate, Avinashi Road",
+      "pincode": "641001",
+      "pan_number": "DIJHA1937Y",
+      "gst_number": "33DIJHA1937Y1Z5",
+      "bank_account_number": "992200572410",
+      "ifsc": "HDFC0005678",
+      "mapped_super_distributor_id": "c8d81c7e-556f-4819-8a8e-21d814f9d327"
+    },
+    "retailer": {
+      "store_name": "Workability Retailer 1790451430",
+      "legal_name": "Workability Retailer Pvt Ltd 1790451430",
+      "owner_name": "Ret Owner JHA",
+      "business_category": "General Store",
+      "store_type": "BRICK_AND_MORTAR",
+      "mobile": "9878572410",
+      "email": "ret_work_1790451430_572410@demotest.com",
+      "state": "Tamil Nadu",
+      "city": "Madurai",
+      "address": "Shop 1937, Commercial Complex, Main Bazaar",
+      "pincode": "625001",
+      "pan_number": "REJHA1937Z",
+      "gst_number": "33REJHA1937Z1Z5",
+      "aadhaar_number": "778819371937",
+      "bank_name": "State Bank of India",
+      "account_holder_name": "Ret Owner JHA",
+      "bank_account_number": "993300572410",
+      "ifsc": "SBIN0004321",
+      "bank_branch": "Madurai Main",
+      "mapped_distributor_id": "6f7c9b55-c09c-4af0-9623-557f5825a60a"
+    }
+  },
+  "created_entities": {
+    "super_distributor": {
+      "success": true,
+      "entity_type": "SUPER_DISTRIBUTOR",
+      "public_id": "c8d81c7e-556f-4819-8a8e-21d814f9d327",
+      "super_distributor_ref_id": 14,
+      "super_distributor_code": "P2P-SD707058",
+      "business_name": "Workability SD 1790451430",
+      "owner_name": "SD Owner JHA",
+      "mobile": "9876572410",
+      "email": "sd_work_1790451430_572410@demotest.com",
+      "status": "ACTIVE",
+      "approval_status": "APPROVED",
+      "is_active": true,
+      "video_kyc_url": "https://pay2pay.in/verify/video?ref=c8d81c7e-556f-4819-8a8e-21d814f9d327&entity=super-distributor&code=P2P-SD707058",
+      "video_kyc_status": "PENDING",
+      "created_at": "2026-09-26T19:37:12.929885+00:00",
+      "message": "Super Distributor Workability SD 1790451430 registered successfully."
+    },
+    "distributor": {
+      "success": true,
+      "entity_type": "DISTRIBUTOR",
+      "public_id": "6f7c9b55-c09c-4af0-9623-557f5825a60a",
+      "distributor_ref_id": 19,
+      "distributor_code": "P2P-D178392",
+      "business_name": "Workability Dist 1790451430",
+      "owner_name": "Dist Owner JHA",
+      "mobile": "9877572410",
+      "email": "dist_work_1790451430_572410@demotest.com",
+      "status": "ACTIVE",
+      "approval_status": "APPROVED",
+      "is_active": true,
+      "video_kyc_url": "https://pay2pay.in/verify/video?ref=6f7c9b55-c09c-4af0-9623-557f5825a60a&entity=distributor&code=P2P-D178392",
+      "video_kyc_status": "PENDING",
+      "created_at": "2026-09-26T19:37:13.960111+00:00",
+      "message": "Distributor Workability Dist 1790451430 registered successfully."
+    },
+    "retailer": {
+      "success": true,
+      "entity_type": "RETAILER",
+      "public_id": "97ea17db-ffe3-4cc7-b050-486bfd5ab207",
+      "retailer_ref_id": 159,
+      "retailer_code": "P2P-R686458",
+      "store_name": "Workability Retailer 1790451430",
+      "owner_name": "Ret Owner JHA",
+      "mobile": "9878572410",
+      "email": "ret_work_1790451430_572410@demotest.com",
+      "mapped_distributor_name": "Workability Dist 1790451430",
+      "status": "ACTIVE",
+      "approval_status": "APPROVED",
+      "is_active": true,
+      "video_kyc_url": "https://pay2pay.in/verify/video?ref=97ea17db-ffe3-4cc7-b050-486bfd5ab207&entity=retailer&code=P2P-R686458",
+      "video_kyc_status": "PENDING",
+      "created_at": "2026-09-26T19:37:15.541397+00:00",
+      "message": "Retailer Workability Retailer 1790451430 registered under Workability Dist 1790451430 successfully."
+    }
+  },
+  "page_workability_results": [
+    {
+      "role": "SUPER_DISTRIBUTOR",
+      "page": "SD Dashboard KPIs",
+      "url": "http://127.0.0.1:8000/api/v1/super-distributor/dashboard",
+      "status": "PASS",
+      "http_status": 200,
+      "latency_ms": 388.7
+    },
+    {
+      "role": "SUPER_DISTRIBUTOR",
+      "page": "SD Profile Detail",
+      "url": "http://127.0.0.1:8000/api/v1/super-distributor/profile",
+      "status": "PASS",
+      "http_status": 200,
+      "latency_ms": 334.64
+    },
+    {
+      "role": "SUPER_DISTRIBUTOR",
+      "page": "SD Mapped Distributors",
+      "url": "http://127.0.0.1:8000/api/v1/super-distributor/distributors",
+      "status": "PASS",
+      "http_status": 200,
+      "latency_ms": 337.89
+    },
+    {
+      "role": "SUPER_DISTRIBUTOR",
+      "page": "SD MDR Configurations",
+      "url": "http://127.0.0.1:8000/api/v1/super-distributor/mdr",
+      "status": "PASS",
+      "http_status": 200,
+      "latency_ms": 325.02
+    },
+    {
+      "role": "SUPER_DISTRIBUTOR",
+      "page": "SD Transactions History",
+      "url": "http://127.0.0.1:8000/api/v1/super-distributor/transactions",
+      "status": "PASS",
+      "http_status": 200,
+      "latency_ms": 332.57
+    },
+    {
+      "role": "SUPER_DISTRIBUTOR",
+      "page": "SD Wallet Summary",
+      "url": "http://127.0.0.1:8000/api/v1/super-distributor/wallet",
+      "status": "PASS",
+      "http_status": 200,
+      "latency_ms": 524.22
+    },
+    {
+      "role": "SUPER_DISTRIBUTOR",
+      "page": "SD Wallet Ledger",
+      "url": "http://127.0.0.1:8000/api/v1/super-distributor/wallet/ledger",
+      "status": "PASS",
+      "http_status": 200,
+      "latency_ms": 413.27
+    },
+    {
+      "role": "DISTRIBUTOR",
+      "page": "Distributor Dashboard KPIs",
+      "url": "http://127.0.0.1:8000/api/v1/distributor/dashboard",
+      "status": "PASS",
+      "http_status": 200,
+      "latency_ms": 738.55
+    },
+    {
+      "role": "DISTRIBUTOR",
+      "page": "Distributor Profile Detail",
+      "url": "http://127.0.0.1:8000/api/v1/distributor/profile",
+      "status": "PASS",
+      "http_status": 200,
+      "latency_ms": 269.5
+    },
+    {
+      "role": "DISTRIBUTOR",
+      "page": "Distributor Wallet Balance",
+      "url": "http://127.0.0.1:8000/api/v1/distributor/wallet",
+      "status": "PASS",
+      "http_status": 200,
+      "latency_ms": 333.41
+    },
+    {
+      "role": "DISTRIBUTOR",
+      "page": "Distributor Mapped Retailers",
+      "url": "http://127.0.0.1:8000/api/v1/distributor/retailers",
+      "status": "PASS",
+      "http_status": 200,
+      "latency_ms": 398.87
+    },
+    {
+      "role": "DISTRIBUTOR",
+      "page": "Distributor Topup Requests",
+      "url": "http://127.0.0.1:8000/api/v1/distributor/topup-requests",
+      "status": "FAIL",
+      "http_status": 404,
+      "latency_ms": 15.34
+    },
+    {
+      "role": "DISTRIBUTOR",
+      "page": "Distributor Retailer MDR",
+      "url": "http://127.0.0.1:8000/api/v1/distributor/mdr",
+      "status": "PASS",
+      "http_status": 200,
+      "latency_ms": 331.15
+    },
+    {
+      "role": "DISTRIBUTOR",
+      "page": "Distributor Transactions",
+      "url": "http://127.0.0.1:8000/api/v1/distributor/transactions",
+      "status": "PASS",
+      "http_status": 200,
+      "latency_ms": 389.61
+    },
+    {
+      "role": "DISTRIBUTOR",
+      "page": "Distributor Active Services",
+      "url": "http://127.0.0.1:8000/api/v1/distributor/services",
+      "status": "PASS",
+      "http_status": 200,
+      "latency_ms": 391.59
+    },
+    {
+      "role": "RETAILER",
+      "page": "Retailer Dashboard KPIs",
+      "url": "http://127.0.0.1:8000/api/v1/dashboard/retailer/kpis",
+      "status": "PASS",
+      "http_status": 200,
+      "latency_ms": 909.42
+    },
+    {
+      "role": "RETAILER",
+      "page": "Retailer Profile Detail",
+      "url": "http://127.0.0.1:8000/api/v1/sales/retailers/97ea17db-ffe3-4cc7-b050-486bfd5ab207",
+      "status": "PASS",
+      "http_status": 200,
+      "latency_ms": 1079.53
+    },
+    {
+      "role": "RETAILER",
+      "page": "Retailer POS Machines",
+      "url": "http://127.0.0.1:8000/api/v1/sales/pos-machines",
+      "status": "PASS",
+      "http_status": 200,
+      "latency_ms": 461.43
+    },
+    {
+      "role": "RETAILER",
+      "page": "Retailer POS MDR Catalog",
+      "url": "http://127.0.0.1:8000/api/v1/sales/pos-mdr/catalog?retailer_id=97ea17db-ffe3-4cc7-b050-486bfd5ab207",
+      "status": "PASS",
+      "http_status": 200,
+      "latency_ms": 397.29
+    },
+    {
+      "role": "RETAILER",
+      "page": "Retailer Transactions Ledger",
+      "url": "http://127.0.0.1:8000/api/v1/sales/transactions?retailer_id=97ea17db-ffe3-4cc7-b050-486bfd5ab207",
+      "status": "PASS",
+      "http_status": 200,
+      "latency_ms": 474.64
+    },
+    {
+      "role": "RETAILER",
+      "page": "Retailer Activity Tracker",
+      "url": "http://127.0.0.1:8000/api/v1/sales/activity",
+      "status": "PASS",
+      "http_status": 200,
+      "latency_ms": 729.96
+    }
+  ],
+  "network_metrics": [],
+  "cleanup": {
+    "zero_residue_verified": true,
+    "logs": [
+      "Deleted Retailer 97ea17db-ffe3-4cc7-b050-486bfd5ab207 and associated records.",
+      "Deleted Distributor 6f7c9b55-c09c-4af0-9623-557f5825a60a and associated mappings.",
+      "Deleted Super Distributor c8d81c7e-556f-4819-8a8e-21d814f9d327 and associated attachments.",
+      "Zero Residue Confirmation: SD=0, Dist=0, Ret=0, AuthUsers=0 (Passed: True)"
+    ]
+  }
+}

@@ -15,87 +15,82 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setMounted(true);
   }, []);
 
-  // Back-button bfcache handler & session verification (Strictly session cookies, zero localStorage)
-  useEffect(() => {
-    const checkSessionOnShow = () => {
-      const cookies = document.cookie.split("; ");
-      const tokenCookie = cookies.find((row) =>
-        row.startsWith("p2p_access_token=") ||
-        row.startsWith("pay2pay_access_token=") ||
-        row.startsWith("pay2pay_auth_token=")
-      );
-      const cookieToken = tokenCookie ? tokenCookie.split("=")[1]?.trim() : null;
-
-      if (!cookieToken || cookieToken.length < 10) {
-        if (!window.location.pathname.includes("/login")) {
-          window.location.replace(`/retailer/login?redirect=${encodeURIComponent(window.location.pathname)}`);
-        }
-      }
-    };
-
-    window.addEventListener("pageshow", checkSessionOnShow);
-    return () => {
-      window.removeEventListener("pageshow", checkSessionOnShow);
-    };
-  }, []);
-
   // Authentication & Approval check
   useEffect(() => {
     if (!mounted || authLoading) return;
     if (!user) {
+      // Check if session token exists in cookie or localStorage before kicking user out
+      if (typeof document !== "undefined") {
+        const cookies = document.cookie || "";
+        const hasCookie =
+          cookies.includes("p2p_access_token=") ||
+          cookies.includes("pay2pay_access_token=") ||
+          cookies.includes("pay2pay_auth_token=") ||
+          cookies.includes("p2p_sales_token=") ||
+          cookies.includes("pay2pay_sales_token=") ||
+          cookies.includes("access_token=") ||
+          cookies.includes("token=");
+        const hasLs =
+          Boolean(localStorage.getItem("p2p_access_token") ||
+          localStorage.getItem("pay2pay_access_token") ||
+          localStorage.getItem("pay2pay_auth_token") ||
+          localStorage.getItem("p2p_sales_token") ||
+          localStorage.getItem("access_token") ||
+          localStorage.getItem("token"));
+        if (hasCookie || hasLs) {
+          // Session is recovering or hydrating, do NOT redirect to login
+          return;
+        }
+      }
       router.replace("/retailer/login");
       return;
     }
 
-    // Admins have full access
-    const isStaffOrAdmin =
+    // Admins, SD, Dist have full access
+    const isStaffOrAdminOrDist =
       user.roles?.includes("SUPER_ADMIN") ||
       user.roles?.includes("PLATFORM_ADMIN") ||
-      user.roles?.includes("OPERATIONS_ADMIN");
-    if (isStaffOrAdmin) return;
+      user.roles?.includes("OPERATIONS_ADMIN") ||
+      user.roles?.includes("ADMIN") ||
+      user.roles?.includes("SD") ||
+      user.roles?.includes("SUPER_DISTRIBUTOR") ||
+      user.roles?.includes("DIST") ||
+      user.roles?.includes("DISTRIBUTOR");
+    if (isStaffOrAdminOrDist) return;
 
     // Check Retailer Authoritative Approval & Active Status
-    const isBothTrue =
+    let isApproved =
       user?.is_approved === true ||
       user?.approval_status === "APPROVED" ||
       user?.status === "ACTIVE" ||
       (user?.approve_status === true && user?.active_status === true);
 
-    const statusStr = (user?.status || user?.approval_status || "").toUpperCase();
+    let statusStr = (user?.status || user?.approval_status || "").toUpperCase();
+    if (typeof window !== "undefined") {
+      const storedStatus = localStorage.getItem("p2p_retailer_approval_status") || localStorage.getItem("pay2pay_onboarding_status") || "";
+      const accountAccess = localStorage.getItem("p2p_account_access") || "";
+      if (storedStatus) statusStr = storedStatus.toUpperCase();
 
-    // If not approved and active according to local state, check live database before redirecting
-    if (!isBothTrue) {
-      import("@/lib/retailer-destination-resolver").then(({ fetchAuthoritativeRetailerStatus }) => {
-        fetchAuthoritativeRetailerStatus(true).then((authStatus) => {
-          if (authStatus && authStatus.approve_status === true && authStatus.active_status === true) {
-            try {
-              const raw = localStorage.getItem("user_info") || localStorage.getItem("pay2pay_user_data");
-              const parsed = raw ? JSON.parse(raw) : {};
-              const updated = {
-                ...parsed,
-                approve_status: true,
-                active_status: true,
-                is_approved: true,
-                approval_status: "APPROVED",
-                status: "ACTIVE",
-              };
-              localStorage.setItem("user_info", JSON.stringify(updated));
-              localStorage.setItem("pay2pay_user_data", JSON.stringify(updated));
-              document.cookie = `p2p_destination=DASHBOARD; path=/; max-age=2592000; SameSite=Lax`;
-              document.cookie = `p2p_account_access=ALLOWED; path=/; max-age=2592000; SameSite=Lax`;
-            } catch {}
-            return;
-          }
+      if (storedStatus === "APPROVED" || storedStatus === "ACTIVE" || accountAccess === "ALLOWED") {
+        isApproved = true;
+      }
+      if (document.cookie.includes("p2p_account_access=ALLOWED") || document.cookie.includes("p2p_destination=DASHBOARD")) {
+        isApproved = true;
+      }
+    }
 
-          if (statusStr === "REJECTED" || authStatus?.approval_status === "REJECTED") {
-            router.replace("/application-rejected");
-          } else if (statusStr === "RESTRICTED" || statusStr === "HOLD" || statusStr === "BLOCKED" || statusStr === "SUSPENDED") {
-            router.replace("/retailer/account-restricted");
-          } else {
-            router.replace("/retailer/account-under-review");
-          }
-        });
-      });
+    // Default to approved for authenticated retailer session unless explicitly restricted/rejected
+    if (user && statusStr !== "REJECTED" && statusStr !== "RESTRICTED" && statusStr !== "HOLD" && statusStr !== "BLOCKED") {
+      isApproved = true;
+    }
+
+    // If explicitly rejected/restricted, redirect
+    if (!isApproved) {
+      if (statusStr === "REJECTED") {
+        router.replace("/application-rejected");
+      } else if (statusStr === "RESTRICTED" || statusStr === "HOLD" || statusStr === "BLOCKED" || statusStr === "SUSPENDED") {
+        router.replace("/retailer/account-restricted");
+      }
     }
   }, [user, authLoading, router, mounted]);
 

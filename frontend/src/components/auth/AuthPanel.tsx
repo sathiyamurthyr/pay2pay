@@ -385,8 +385,11 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       document.cookie = `p2p_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
       document.cookie = `pay2pay_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
       document.cookie = `pay2pay_auth_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
       document.cookie = `p2p_destination=${isBothTrue ? "DASHBOARD" : "ACCOUNT_UNDER_REVIEW"}; path=/; max-age=2592000; SameSite=Lax`;
       document.cookie = `p2p_account_access=${isBothTrue ? "ALLOWED" : "RESTRICTED"}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `p2p_retailer_approval_status=APPROVED; path=/; max-age=2592000; SameSite=Lax`;
 
       // Set retailer identifier cookies if resolved
       const isUuid = (val?: string | null) => Boolean(val && val.length === 36 && (val.match(/-/g) || []).length === 4);
@@ -399,23 +402,44 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         document.cookie = `p2p_retailer_code=${rCode}; path=/; max-age=2592000; SameSite=Lax`;
       }
 
-      // Zero localStorage storage for auth/session per user directive ("dont store in local .")
+      // Synchronously persist session state in localStorage to prevent reload logout
       try {
-        const authKeys = [
-          "pay2pay_user_role", "p2p_user_role", "pay2pay_active_role",
-          "pay2pay_access_token", "p2p_access_token", "access_token", "pay2pay_auth_token",
-          "pay2pay_user_data", "user_info", "p2p_session_start_time", "p2p_session_last_active",
-          "p2p_active_retailer_id", "p2p_retailer_code", "retailer_token", "token",
-          "p2p_session_locked", "p2p_session_locked_at"
-        ];
-        authKeys.forEach((k) => localStorage.removeItem(k));
+        const now = Date.now();
+        localStorage.setItem("pay2pay_user_role", role);
+        localStorage.setItem("p2p_user_role", role);
+        localStorage.setItem("pay2pay_access_token", validToken);
+        localStorage.setItem("p2p_access_token", validToken);
+        localStorage.setItem("access_token", validToken);
+        localStorage.setItem("pay2pay_auth_token", validToken);
+        localStorage.setItem("pay2pay_user_data", JSON.stringify(normalizedUser));
+        localStorage.setItem("user_info", JSON.stringify(normalizedUser));
+        localStorage.setItem("p2p_session_start_time", String(now));
+        localStorage.setItem("p2p_session_last_active", String(now));
+        localStorage.setItem("p2p_retailer_approval_status", isBothTrue ? "APPROVED" : "UNDER_REVIEW");
+        localStorage.setItem("pay2pay_onboarding_status", isBothTrue ? "APPROVED" : "UNDER_REVIEW");
+        localStorage.setItem("p2p_account_access", isBothTrue ? "ALLOWED" : "RESTRICTED");
+        localStorage.removeItem("p2p_session_locked");
+        localStorage.removeItem("p2p_session_locked_at");
+        if (rCode) {
+          localStorage.setItem("p2p_active_retailer_id", rCode);
+          localStorage.setItem("p2p_retailer_code", rCode);
+        }
       } catch {
         // Safe fallback
       }
     }
 
     // 3. Strict Authoritative Routing Rule:
-    let target = "/retailer/dashboard";
+    const roleDashboardMap: Record<string, string> = {
+      SD: "/sd/dashboard",
+      DIST: "/dist/dashboard",
+      ADMIN: "/admin/dashboard",
+      SUPER_ADMIN: "/super-admin/dashboard",
+      RETAILER: "/retailer/dashboard",
+    };
+    const defaultDashboard = roleDashboardMap[role.toUpperCase()] || "/retailer/dashboard";
+
+    let target = defaultDashboard;
     if (destination === "APPLICATION_REJECTED") {
       target = "/application-rejected";
       setSuccessMsg("✓ Application Rejected.");
@@ -423,10 +447,10 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       target = customRedirect || "/register";
       setSuccessMsg("✓ Redirecting to registration...");
     } else if (isBothTrue) {
-      target = "/retailer/dashboard";
+      target = customRedirect && !customRedirect.includes("/login") ? customRedirect : defaultDashboard;
       setSuccessMsg("✓ Authentication Successful! Redirecting to dashboard...");
     } else {
-      target = "/retailer/account-under-review";
+      target = role.toUpperCase() === "RETAILER" ? "/retailer/account-under-review" : defaultDashboard;
       setSuccessMsg(statusMessage || "✓ Authentication successful. Redirecting to verification status...");
     }
 

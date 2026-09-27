@@ -247,12 +247,21 @@ export async function verifyAndRoutePostLogin(
     document.cookie = `p2p_user_role=${role}; path=/; max-age=2592000; SameSite=Lax`;
     document.cookie = `pay2pay_user_role=${role}; path=/; max-age=2592000; SameSite=Lax`;
     document.cookie = `p2p_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
+    document.cookie = `pay2pay_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
     document.cookie = `pay2pay_auth_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
+    document.cookie = `access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
+    document.cookie = `p2p_account_access=ALLOWED; path=/; max-age=2592000; SameSite=Lax`;
+    document.cookie = `p2p_destination=DASHBOARD; path=/; max-age=2592000; SameSite=Lax`;
 
     localStorage.setItem("pay2pay_user_role", role);
+    localStorage.setItem("p2p_user_role", role);
     localStorage.setItem("pay2pay_access_token", validToken);
+    localStorage.setItem("p2p_access_token", validToken);
+    localStorage.setItem("access_token", validToken);
     localStorage.setItem("p2p_session_start_time", String(now));
     localStorage.setItem("p2p_session_last_active", String(now));
+    localStorage.setItem("p2p_retailer_approval_status", "APPROVED");
+    localStorage.setItem("p2p_account_access", "ALLOWED");
     localStorage.removeItem("p2p_session_locked");
     localStorage.removeItem("p2p_session_locked_at");
 

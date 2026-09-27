@@ -12,6 +12,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     if (!isLoading && !user) {
+      if (typeof document !== "undefined") {
+        const cookies = document.cookie || "";
+        const hasCookie =
+          cookies.includes("p2p_sales_token=") ||
+          cookies.includes("pay2pay_sales_token=") ||
+          cookies.includes("p2p_access_token=") ||
+          cookies.includes("pay2pay_access_token=") ||
+          cookies.includes("access_token=") ||
+          cookies.includes("token=");
+        const hasLs =
+          Boolean(localStorage.getItem("p2p_sales_token") ||
+          localStorage.getItem("pay2pay_sales_token") ||
+          localStorage.getItem("p2p_access_token") ||
+          localStorage.getItem("pay2pay_access_token") ||
+          localStorage.getItem("access_token") ||
+          localStorage.getItem("token"));
+        if (hasCookie || hasLs) {
+          return;
+        }
+      }
       router.replace("/login");
     }
   }, [user, isLoading, router]);

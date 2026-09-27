@@ -76,6 +76,8 @@ def deploy_to_server(retailer_zip: Path):
         ("backend/app/presentation/api/v1/whatsapp_config_router.py", "pay2pay/backend/app/presentation/api/v1/whatsapp_config_router.py"),
         ("backend/app/infrastructure/adapters/whatsapp_service.py", "pay2pay/backend/app/infrastructure/adapters/whatsapp_service.py"),
         ("backend/app/presentation/api/v1/transaction_report_router.py", "pay2pay/backend/app/presentation/api/v1/transaction_report_router.py"),
+        ("backend/app/application/kyc_document_reader_service.py", "pay2pay/backend/app/application/kyc_document_reader_service.py"),
+        ("backend/app/presentation/api/v1/progressive_onboarding_router.py", "pay2pay/backend/app/presentation/api/v1/progressive_onboarding_router.py"),
     ]
 
     for rel_src, rel_dst in backend_files_to_sync:

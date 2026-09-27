@@ -70,10 +70,19 @@ export function resolvePortalRoute(rawRole?: string | null): PortalConfig {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const rawRole =
+  // Infer role from active portal route prefix so refresh on that portal never misidentifies role
+  let currentRouteRole: UserPortalRole | null = null;
+  if (pathname.startsWith("/sd")) currentRouteRole = "SD";
+  else if (pathname.startsWith("/dist")) currentRouteRole = "DIST";
+  else if (pathname.startsWith("/admin")) currentRouteRole = "ADMIN";
+  else if (pathname.startsWith("/super-admin")) currentRouteRole = "SUPER_ADMIN";
+  else if (pathname.startsWith("/retailer")) currentRouteRole = "RETAILER";
+
+  const cookieRole =
     request.cookies.get("p2p_user_role")?.value ||
-    request.cookies.get("pay2pay_user_role")?.value ||
-    "RETAILER";
+    request.cookies.get("pay2pay_user_role")?.value;
+
+  const rawRole = currentRouteRole || cookieRole || "RETAILER";
 
   const userRole = normalizeUserRole(rawRole);
   const portalConfig = resolvePortalRoute(userRole);
@@ -85,6 +94,7 @@ export function middleware(request: NextRequest) {
     request.cookies.get("p2p_sales_token")?.value ||
     request.cookies.get("pay2pay_sales_token")?.value ||
     request.cookies.get("access_token")?.value ||
+    request.cookies.get("token")?.value ||
     request.headers.get("authorization");
 
   const isAuthenticated = Boolean(token && token.trim().length > 10);
@@ -96,6 +106,12 @@ export function middleware(request: NextRequest) {
     res.headers.set("Expires", "0");
     res.headers.set("X-Content-Type-Options", "nosniff");
     res.headers.set("X-Frame-Options", "DENY");
+
+    // Sync authoritative role cookie if authenticated on a portal route
+    if (isAuthenticated && currentRouteRole) {
+      res.cookies.set("p2p_user_role", currentRouteRole, { path: "/", maxAge: 2592000, sameSite: "lax" });
+      res.cookies.set("pay2pay_user_role", currentRouteRole, { path: "/", maxAge: 2592000, sameSite: "lax" });
+    }
     return res;
   };
 

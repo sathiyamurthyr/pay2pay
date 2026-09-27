@@ -88,6 +88,15 @@ class KycDocumentReaderService:
     """Enterprise Document Auto-Reader, OCR & Verification Suite."""
 
     @classmethod
+    async def _run_sync(cls, func, *args):
+        """Cross-platform thread runner compatible with Python 3.8 through 3.12+."""
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, func, *args)
+
+    @classmethod
     async def extract_exif_gps(cls, file_bytes: bytes) -> Dict[str, Any]:
         """
         Extracts GPS coordinates exclusively from the image's EXIF metadata.
@@ -568,11 +577,30 @@ class KycDocumentReaderService:
             except Exception:
                 pass
 
-            # 2. Windows Native OCR across variants
+            # 2a. Pytesseract OCR (Linux/Ubuntu production server & cross-platform)
+            for var_img in image_variants:
+                try:
+                    import pytesseract
+                    for psm in [6, 3, 11]:
+                        try:
+                            tess_txt = await cls._run_sync(
+                                lambda v=var_img, p=psm: pytesseract.image_to_string(v, config=f"--psm {p} -l eng")
+                            )
+                            if tess_txt and tess_txt.strip():
+                                for line_txt in tess_txt.splitlines():
+                                    line_clean = line_txt.strip()
+                                    if line_clean and line_clean not in raw_text_lines:
+                                        raw_text_lines.append(line_clean)
+                        except Exception as tess_psm_err:
+                            logger.debug(f"[Pytesseract PSM {psm} Debug] {tess_psm_err}")
+                except Exception as pytess_err:
+                    logger.debug(f"[Pytesseract Error] {pytess_err}")
+
+            # 2b. Windows Native OCR across variants (Windows runtime)
             for var_img in image_variants:
                 try:
                     import winocr
-                    ocr_res = await asyncio.to_thread(winocr.recognize_pil_sync, var_img)
+                    ocr_res = await cls._run_sync(lambda v=var_img: winocr.recognize_pil_sync(v))
                     if isinstance(ocr_res, dict):
                         lines = ocr_res.get("lines") or []
                         for l in lines:
@@ -597,28 +625,47 @@ class KycDocumentReaderService:
                                 if line_clean and line_clean not in raw_text_lines:
                                     raw_text_lines.append(line_clean)
                 except Exception as ocr_err:
-                    logger.warning(f"[WinOCR Error] {ocr_err}")
+                    logger.debug(f"[WinOCR Error] {ocr_err}")
 
             # 3. If no text extracted, attempt rotation variants (90°, 180°, 270°) for sideways uploaded photos
             if not raw_text_lines:
                 for angle in [90, 180, 270]:
                     try:
                         rot_img = rgb_img.rotate(angle, expand=True)
-                        import winocr
-                        ocr_res = await asyncio.to_thread(winocr.recognize_pil_sync, rot_img)
-                        if ocr_res:
-                            text_val = ""
-                            if isinstance(ocr_res, dict):
-                                text_val = ocr_res.get("text", "")
-                            elif hasattr(ocr_res, "text"):
-                                text_val = ocr_res.text
-                            if text_val and text_val.strip():
-                                for line_txt in text_val.splitlines():
+                        # Try pytesseract first on rotated
+                        try:
+                            import pytesseract
+                            tess_txt = await cls._run_sync(
+                                lambda r=rot_img: pytesseract.image_to_string(r, config="--psm 6 -l eng")
+                            )
+                            if tess_txt and tess_txt.strip():
+                                for line_txt in tess_txt.splitlines():
                                     line_clean = line_txt.strip()
                                     if line_clean and line_clean not in raw_text_lines:
                                         raw_text_lines.append(line_clean)
-                                if raw_text_lines:
-                                    break
+                        except Exception:
+                            pass
+
+                        # Try winocr on rotated
+                        try:
+                            import winocr
+                            ocr_res = await cls._run_sync(lambda r=rot_img: winocr.recognize_pil_sync(r))
+                            if ocr_res:
+                                text_val = ""
+                                if isinstance(ocr_res, dict):
+                                    text_val = ocr_res.get("text", "")
+                                elif hasattr(ocr_res, "text"):
+                                    text_val = ocr_res.text
+                                if text_val and text_val.strip():
+                                    for line_txt in text_val.splitlines():
+                                        line_clean = line_txt.strip()
+                                        if line_clean and line_clean not in raw_text_lines:
+                                            raw_text_lines.append(line_clean)
+                        except Exception:
+                            pass
+
+                        if raw_text_lines:
+                            break
                     except Exception as rot_err:
                         logger.debug(f"[OCR Rotation Check {angle}° Debug] {rot_err}")
 

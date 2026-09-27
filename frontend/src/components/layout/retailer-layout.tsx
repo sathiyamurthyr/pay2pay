@@ -149,7 +149,11 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     const tokenCookie = cookies.find((row) =>
       row.startsWith("p2p_access_token=") ||
       row.startsWith("pay2pay_access_token=") ||
-      row.startsWith("pay2pay_auth_token=")
+      row.startsWith("pay2pay_auth_token=") ||
+      row.startsWith("p2p_sales_token=") ||
+      row.startsWith("pay2pay_sales_token=") ||
+      row.startsWith("access_token=") ||
+      row.startsWith("token=")
     );
     if (tokenCookie && tokenCookie.split("=")[1]?.trim().length > 10) {
       return true;
@@ -158,11 +162,15 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       const lsToken =
         localStorage.getItem("p2p_access_token") ||
         localStorage.getItem("pay2pay_access_token") ||
-        localStorage.getItem("access_token");
+        localStorage.getItem("pay2pay_auth_token") ||
+        localStorage.getItem("p2p_sales_token") ||
+        localStorage.getItem("pay2pay_sales_token") ||
+        localStorage.getItem("access_token") ||
+        localStorage.getItem("token");
       if (lsToken && lsToken.trim().length > 10) return true;
     }
-    return false;
-  }, []);
+    return Boolean(user);
+  }, [user]);
 
   const [isAuthenticatedSession, setIsAuthenticatedSession] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
@@ -179,7 +187,16 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         pathname.includes("/register") ||
         pathname.includes("/reset-password");
       if (!isAuthPage) {
-        window.location.replace(`/retailer/login?redirect=${encodeURIComponent(pathname)}`);
+        // Double check cookies before redirecting to avoid false positives on reload
+        const cks = typeof document !== "undefined" ? document.cookie : "";
+        if (
+          !cks.includes("p2p_access_token=") &&
+          !cks.includes("pay2pay_access_token=") &&
+          !cks.includes("pay2pay_auth_token=") &&
+          !cks.includes("access_token=")
+        ) {
+          window.location.replace(`/retailer/login?redirect=${encodeURIComponent(pathname)}`);
+        }
       }
     } else {
       setIsAuthenticatedSession(true);
@@ -188,17 +205,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
 
   useEffect(() => {
     verifyAndEnforceSession();
-
-    const handlePageShow = () => {
-      verifyAndEnforceSession();
-    };
-
-    window.addEventListener("pageshow", handlePageShow);
-    window.addEventListener("focus", handlePageShow);
-    return () => {
-      window.removeEventListener("pageshow", handlePageShow);
-      window.removeEventListener("focus", handlePageShow);
-    };
+    // Intentionally NO window 'focus' or 'pageshow' listener to prevent aggressive auto-refresh/logout
   }, [verifyAndEnforceSession]);
 
   const [lockedModalItem, setLockedModalItem] = useState<{ label: string; path: string } | null>(null);

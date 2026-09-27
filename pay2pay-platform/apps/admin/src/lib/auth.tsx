@@ -67,7 +67,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         row.startsWith("pay2pay_auth_token=") ||
         row.startsWith("p2p_sales_token=") ||
         row.startsWith("pay2pay_sales_token=") ||
-        row.startsWith("access_token=")
+        row.startsWith("access_token=") ||
+        row.startsWith("token=")
       );
 
       const cookieToken = tokenCookie ? tokenCookie.split("=")[1]?.trim() : null;
@@ -77,7 +78,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.getItem("pay2pay_access_token") ||
             localStorage.getItem("pay2pay_auth_token") ||
             localStorage.getItem("p2p_sales_token") ||
-            localStorage.getItem("access_token")
+            localStorage.getItem("pay2pay_sales_token") ||
+            localStorage.getItem("access_token") ||
+            localStorage.getItem("token")
           : null;
 
       const tokenValue = cookieToken || (lsToken ? lsToken.trim() : null);

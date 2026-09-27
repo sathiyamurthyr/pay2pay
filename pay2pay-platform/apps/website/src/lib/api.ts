@@ -30,7 +30,10 @@ apiClient.interceptors.request.use(
         localStorage.getItem("p2p_access_token") ||
         localStorage.getItem("pay2pay_access_token") ||
         localStorage.getItem("pay2pay_auth_token") ||
-        localStorage.getItem("access_token");
+        localStorage.getItem("p2p_sales_token") ||
+        localStorage.getItem("pay2pay_sales_token") ||
+        localStorage.getItem("access_token") ||
+        localStorage.getItem("token");
 
       if (token && token.trim().length > 10) {
         config.headers.Authorization = `Bearer ${token.trim()}`;
@@ -46,6 +49,18 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
+      const url = error.config?.url || "";
+      const isAuthVerifyEndpoint =
+        url.includes("/auth/me") ||
+        url.includes("/auth/verify") ||
+        url.includes("/auth/refresh") ||
+        url.includes("/sales/auth/me") ||
+        url.includes("/auth/validate-session");
+
+      if (!isAuthVerifyEndpoint) {
+        return Promise.reject(error);
+      }
+
       if (typeof document !== "undefined") {
         const cookieNames = [
           "p2p_access_token",
@@ -62,18 +77,6 @@ apiClient.interceptors.response.use(
         cookieNames.forEach((name) => {
           document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
         });
-      }
-
-      if (typeof localStorage !== "undefined") {
-        try {
-          localStorage.clear();
-        } catch {}
-      }
-
-      if (typeof sessionStorage !== "undefined") {
-        try {
-          sessionStorage.clear();
-        } catch {}
       }
 
       if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {

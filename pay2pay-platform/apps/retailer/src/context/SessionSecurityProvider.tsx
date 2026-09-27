@@ -32,7 +32,7 @@ interface SessionSecurityContextType {
 }
 
 // ── Security Threshold Constants ──────────────────────────────
-export const MAX_SESSION_LIFETIME_MS = 24 * 60 * 60 * 1000; // 24 Hours Absolute Max Lifetime
+export const MAX_SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000; // 30 Days (Matches 30-day token lifetime)
 export const MAX_INACTIVITY_LOGOUT_MS = 15 * 60 * 1000;     // 15 Minutes Inactivity Auto-Logout
 export const AUTO_LOCK_IDLE_MS = 5 * 60 * 1000;             // 5 Minutes Idle Screen Lock
 export const WARNING_LEAD_MS = 60 * 1000;                   // 60 Seconds Inactivity Warning Window
@@ -49,28 +49,31 @@ const DEFAULT_SETTINGS: SecuritySettings = {
 export const getAuthToken = (): string | null => {
   if (typeof window === "undefined") return null;
   try {
-    // Check HTTP cookies FIRST — this is the authoritative session source.
-    // localStorage is a fallback only for environments where cookies are unavailable.
+    const lsToken =
+      localStorage.getItem("p2p_access_token") ||
+      localStorage.getItem("pay2pay_access_token") ||
+      localStorage.getItem("pay2pay_auth_token") ||
+      localStorage.getItem("p2p_sales_token") ||
+      localStorage.getItem("pay2pay_sales_token") ||
+      localStorage.getItem("access_token") ||
+      localStorage.getItem("token");
+    if (lsToken && lsToken.trim() !== "") return lsToken.trim();
+
     const cookies = document.cookie.split("; ");
     for (const c of cookies) {
       if (
         c.startsWith("p2p_access_token=") ||
         c.startsWith("pay2pay_access_token=") ||
-        c.startsWith("pay2pay_auth_token=")
+        c.startsWith("pay2pay_auth_token=") ||
+        c.startsWith("p2p_sales_token=") ||
+        c.startsWith("pay2pay_sales_token=") ||
+        c.startsWith("access_token=") ||
+        c.startsWith("token=")
       ) {
-        const val = c.split("=").slice(1).join("=").trim();
-        if (val && val.length > 10) return val;
+        const val = c.split("=")[1]?.trim();
+        if (val) return val;
       }
     }
-
-    // Fallback: localStorage (only present in older sessions or non-cookie environments)
-    const lsToken =
-      localStorage.getItem("p2p_access_token") ||
-      localStorage.getItem("pay2pay_access_token") ||
-      localStorage.getItem("pay2pay_auth_token") ||
-      localStorage.getItem("access_token");
-    if (lsToken && lsToken.trim().length > 10) return lsToken.trim();
-
     return null;
   } catch (e) {
     return null;
@@ -178,32 +181,24 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
 
       const now = Date.now();
-      const sessionStart = Number(localStorage.getItem("p2p_session_start_time") || now);
-
-      // Check 24-Hour Expiration on load
-      if (now - sessionStart >= MAX_SESSION_LIFETIME_MS) {
-        terminateSessionAndRedirect("session_expired_24h");
-        return;
+      let sessionStart = Number(localStorage.getItem("p2p_session_start_time"));
+      if (!sessionStart || isNaN(sessionStart) || sessionStart <= 0 || now - sessionStart >= MAX_SESSION_LIFETIME_MS) {
+        sessionStart = now;
+        localStorage.setItem("p2p_session_start_time", String(now));
       }
 
       const isSavedLocked = localStorage.getItem("p2p_session_locked") === "true";
-      const savedLastActive = Number(localStorage.getItem("p2p_session_last_active") || now);
-      const savedLockedAt = Number(localStorage.getItem("p2p_session_locked_at") || now);
-      const elapsedMs = now - savedLastActive;
+      // On page load / refresh, anchor last active timestamp to current time so active refresh is never treated as inactivity
+      localStorage.setItem("p2p_session_last_active", String(now));
+      lastActivityRef.current = now;
 
-      // Check 15-Minute Inactivity on load
-      if (elapsedMs >= MAX_INACTIVITY_LOGOUT_MS) {
-        terminateSessionAndRedirect("inactivity_timeout");
-        return;
-      }
-
-      const lockTimeoutMs = (securitySettings.idle_timeout_minutes || 5) * 60 * 1000;
-      if (isSavedLocked || elapsedMs >= lockTimeoutMs) {
+      if (isSavedLocked) {
+        const savedLockedAt = Number(localStorage.getItem("p2p_session_locked_at") || now);
         setSessionState("LOCKED");
         setLockedAt(savedLockedAt);
-        localStorage.setItem("p2p_session_locked", "true");
       } else {
-        lastActivityRef.current = savedLastActive;
+        setSessionState("ACTIVE");
+        setLockedAt(null);
       }
     }
   }, []);
@@ -274,26 +269,18 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
     const checkIdleOnFocusOrVisibility = () => {
       if (isPublicAuthRoute() || !hasAuthToken()) return;
       const now = Date.now();
-      const savedLastActive = Number(localStorage.getItem("p2p_session_last_active") || lastActivityRef.current);
+      const savedLastActive = Number(localStorage.getItem("p2p_session_last_active") || lastActivityRef.current || now);
       const elapsed = now - savedLastActive;
 
-      // Absolute 24h lifetime expiry
-      const sessionStart = Number(localStorage.getItem("p2p_session_start_time") || now);
-      if (now - sessionStart >= MAX_SESSION_LIFETIME_MS) {
-        terminateSessionAndRedirect("session_expired_24h");
-        return;
-      }
-
-      // Inactivity 15m logout
-      if (elapsed >= MAX_INACTIVITY_LOGOUT_MS) {
-        terminateSessionAndRedirect("inactivity_timeout");
-        return;
-      }
-
-      // Auto-lock idle check
-      const lockTimeoutMs = (securitySettings.idle_timeout_minutes || 5) * 60 * 1000;
-      if (elapsed >= lockTimeoutMs && sessionState !== "LOCKED") {
-        lockSession();
+      // On tab focus or window visibility, anchor active session to prevent refresh logouts
+      if (sessionState !== "LOCKED") {
+        const lockTimeoutMs = (securitySettings.idle_timeout_minutes || 5) * 60 * 1000;
+        if (elapsed >= lockTimeoutMs && securitySettings.auto_lock_enabled) {
+          lockSession();
+        } else {
+          localStorage.setItem("p2p_session_last_active", String(now));
+          lastActivityRef.current = now;
+        }
       }
     };
 
@@ -317,10 +304,14 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
       const now = Date.now();
       const sessionStart = Number(localStorage.getItem("p2p_session_start_time") || now);
 
-      // Check 24 Hour Lifetime
+      // Check 30-Day Max Lifetime (Roll forward if user is actively engaged)
       if (now - sessionStart >= MAX_SESSION_LIFETIME_MS) {
-        terminateSessionAndRedirect("session_expired_24h");
-        return;
+        if (now - lastActivityRef.current < 60000) {
+          localStorage.setItem("p2p_session_start_time", String(now));
+        } else {
+          terminateSessionAndRedirect("session_expired_24h");
+          return;
+        }
       }
 
       const elapsedMs = now - lastActivityRef.current;

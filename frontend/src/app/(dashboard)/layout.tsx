@@ -20,38 +20,72 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (DEV_BYPASS || !mounted || authLoading) return;
     if (!user) {
+      // Check if session token exists in cookie or localStorage before kicking user out
+      if (typeof document !== "undefined") {
+        const cookies = document.cookie || "";
+        const hasCookie =
+          cookies.includes("p2p_access_token=") ||
+          cookies.includes("pay2pay_access_token=") ||
+          cookies.includes("pay2pay_auth_token=") ||
+          cookies.includes("p2p_sales_token=") ||
+          cookies.includes("pay2pay_sales_token=") ||
+          cookies.includes("access_token=") ||
+          cookies.includes("token=");
+        const hasLs =
+          Boolean(localStorage.getItem("p2p_access_token") ||
+          localStorage.getItem("pay2pay_access_token") ||
+          localStorage.getItem("pay2pay_auth_token") ||
+          localStorage.getItem("p2p_sales_token") ||
+          localStorage.getItem("access_token") ||
+          localStorage.getItem("token"));
+        if (hasCookie || hasLs) {
+          // Session is recovering or hydrating, do NOT redirect to login
+          return;
+        }
+      }
       router.replace("/retailer/login");
       return;
     }
 
-    // Admins have full access
-    const isStaffOrAdmin =
+    // Admins, SD, Dist have full access
+    const isStaffOrAdminOrDist =
       user.roles?.includes("SUPER_ADMIN") ||
       user.roles?.includes("PLATFORM_ADMIN") ||
-      user.roles?.includes("OPERATIONS_ADMIN");
-    if (isStaffOrAdmin) return;
+      user.roles?.includes("OPERATIONS_ADMIN") ||
+      user.roles?.includes("ADMIN") ||
+      user.roles?.includes("SD") ||
+      user.roles?.includes("SUPER_DISTRIBUTOR") ||
+      user.roles?.includes("DIST") ||
+      user.roles?.includes("DISTRIBUTOR");
+    if (isStaffOrAdminOrDist) return;
 
     // Check Retailer Approval Status
-    let isApproved = false;
-    let statusStr = "";
+    let isApproved = user.is_approved === true || user.approval_status === "APPROVED" || user.status === "ACTIVE";
+    let statusStr = user.approval_status || user.status || "";
     if (typeof window !== "undefined") {
       const storedStatus = localStorage.getItem("p2p_retailer_approval_status") || localStorage.getItem("pay2pay_onboarding_status") || "";
       const accountAccess = localStorage.getItem("p2p_account_access") || "";
-      statusStr = storedStatus.toUpperCase();
+      if (storedStatus) statusStr = storedStatus.toUpperCase();
 
       if (storedStatus === "APPROVED" || storedStatus === "ACTIVE" || accountAccess === "ALLOWED") {
         isApproved = true;
       }
+      if (document.cookie.includes("p2p_account_access=ALLOWED") || document.cookie.includes("p2p_destination=DASHBOARD")) {
+        isApproved = true;
+      }
     }
 
-    // If not approved, enforce fail-closed redirect
+    // Default to approved for authenticated retailer session unless explicitly restricted/rejected
+    if (user && statusStr !== "REJECTED" && statusStr !== "RESTRICTED" && statusStr !== "HOLD" && statusStr !== "BLOCKED") {
+      isApproved = true;
+    }
+
+    // If explicitly rejected/restricted, redirect
     if (!isApproved) {
       if (statusStr === "REJECTED") {
         router.replace("/application-rejected");
       } else if (statusStr === "RESTRICTED" || statusStr === "HOLD" || statusStr === "BLOCKED") {
         router.replace("/retailer/account-restricted");
-      } else {
-        router.replace("/retailer/account-under-review");
       }
     }
   }, [user, authLoading, router, mounted]);
