@@ -7,7 +7,7 @@ import { useSalesAuth } from "@/lib/auth";
 import {
   LayoutDashboard, Users, Store, Network, Receipt, CreditCard,
   Sliders, Activity, FileText, LogOut, Building2, Layers,
-  QrCode, X, UserPlus, ClipboardCheck, UserCog
+  QrCode, X, UserPlus, ClipboardCheck, UserCog, Smartphone
 } from "lucide-react";
 
 interface NavCategory {
@@ -54,6 +54,7 @@ const SALES_NAV: NavCategory[] = [
   {
     category: "POS HARDWARE & MDR",
     items: [
+      { label: "My POS Devices", href: "/pos-info", icon: Smartphone, badge: "NEW" },
       { label: "POS Machines", href: "/pos-machines", icon: QrCode },
       { label: "MDR Change Requests", href: "/pos-mdr/requests", icon: ClipboardCheck, badge: "WORKFLOW" },
       { label: "POS MDR Setup", href: "/pos-mdr", icon: Sliders, badge: "Config" },

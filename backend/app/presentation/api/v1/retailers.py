@@ -124,13 +124,20 @@ async def onboard_retailer(
 async def list_approved_retailers(
     search: Optional[str] = Query(None),
     company_id: Optional[str] = Query(None),
+    current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Returns only Approved and Active retailers loaded via SP / database.
+    Requires authenticated user session and enforces multi-tenant boundary.
     """
+    user_type = (getattr(current_user, "user_type", "") or "").upper()
+    is_super = user_type in ("PLATFORM_ADMIN", "SUPER_ADMIN")
+
     comp_uuid = None
-    if company_id:
+    if not is_super and getattr(current_user, "company_id", None):
+        comp_uuid = current_user.company_id
+    elif company_id:
         try:
             comp_uuid = uuid.UUID(str(company_id).strip())
         except Exception:

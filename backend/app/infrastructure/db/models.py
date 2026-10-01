@@ -3983,6 +3983,7 @@ class UserNotificationAlertModel(BaseEntity, EnterpriseBaseMixin):
     User-facing in-app notification inbox.
     Stores per-user notification alerts with read/unread state.
     Created to support the /notifications/recent and mark-as-read endpoints.
+    Extended for centralized multi-service notification system (v2).
     """
     __tablename__ = "user_notification_alert"
 
@@ -3995,10 +3996,74 @@ class UserNotificationAlertModel(BaseEntity, EnterpriseBaseMixin):
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="UNREAD")
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
 
+    # ── Centralized Notification System (v2) ─────────────────────────────────
+    # Service that generated the notification (TOPUP, MDR, RECHARGE, TRANSACTION, etc.)
+    service_type: Mapped[Optional[str]] = mapped_column(String(80), nullable=True, index=True)
+    # Business event that triggered this notification
+    event_type: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    # Business event status (APPROVED, REJECTED, SUCCESS, FAILED, PENDING, etc.)
+    event_status: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
+    # Reference to the originating business entity
+    reference_type: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    reference_ref_id: Mapped[Optional[str]] = mapped_column(String(200), nullable=True, index=True)
+    # Transaction linkage
+    transaction_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    transaction_type: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    currency: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, default="INR")
+    # Customer linkage
+    customer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    # Integer hierarchy ref IDs (BIGINT, NOT UUID foreign keys)
+    # These mirror tenant_ref_id / company_ref_id on the business entity rows.
+    usertype_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    user_ref_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
+    # Idempotency key to prevent duplicate notifications for the same business event
+    idempotency_key: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, index=True)
+    # Delivery tracking
+    delivery_status: Mapped[str] = mapped_column(String(30), nullable=False, default="CREATED")
+    push_sent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    push_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    read_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Extra event payload / metadata
+    metadata_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    # ─────────────────────────────────────────────────────────────────────────
+
     __table_args__ = (
         Index("ix_user_notif_alert_user_tenant", "user_id", "tenant_id"),
         Index("ix_user_notif_alert_unread", "user_id", "is_read"),
+        Index("ix_user_notif_alert_service", "user_id", "service_type", "event_status"),
+        Index("ix_user_notif_alert_idempotency", "idempotency_key"),
+        {"extend_existing": True},
     )
+
+class NotificationPushSubscriptionModel(BaseEntity, EnterpriseBaseMixin):
+    """
+    Web Push (VAPID) subscription records per user / browser endpoint.
+    Used by the notification service to deliver Windows desktop push notifications.
+    """
+    __tablename__ = "notification_push_subscription"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    # Integer ref IDs to match business entity pattern
+    usertype_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    user_ref_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
+    # Web Push endpoint URL
+    endpoint: Mapped[str] = mapped_column(Text, nullable=False)
+    # P256DH public key from browser PushSubscription
+    p256dh: Mapped[str] = mapped_column(Text, nullable=False)
+    # Auth secret from browser PushSubscription
+    auth_secret: Mapped[str] = mapped_column(String(500), nullable=False)
+    # Browser/device user-agent label
+    device_label: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    # Active/inactive flag (user can revoke)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_notif_push_sub_user", "user_id"),
+        Index("ix_notif_push_sub_endpoint", "endpoint"),
+        {"extend_existing": True},
+    )
+
 
 
 class NotificationAnalyticsModel(BaseEntity, EnterpriseBaseMixin):
@@ -4094,6 +4159,13 @@ class AdminServiceVendorWalletModel(BaseEntity):
         Index("ix_admin_svc_vendor_lookup", "tenant_id", "service_code", "vendor_code", "is_active", "is_deleted"),
         {"extend_existing": True}
     )
+
+
+# Unisus Pay Integration Models
+from app.infrastructure.db.unisus_pay_models import (
+    UnisusPayQrCodeModel, UnisusPayPaymentRequestModel, UnisusPayConfigModel,
+    SATHUS_COMPANY_ID, SATHUS_COMPANY_REF_ID
+)
 
 
 

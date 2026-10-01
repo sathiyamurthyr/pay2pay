@@ -32,6 +32,7 @@ import {
   SuperDistributorWalletSummary,
   SuperDistributorWalletLedgerItem
 } from "@/services/super-distributor-api";
+import UnisusQrTopupCard from "@/components/topup/UnisusQrTopupCard";
 
 export default function SuperDistributorWalletPage() {
   const [wallet, setWallet] = useState<SuperDistributorWalletSummary | null>(null);
@@ -234,6 +235,9 @@ export default function SuperDistributorWalletPage() {
           </p>
         </div>
       </div>
+
+      {/* Sathus Partner Collection QR (Exclusively Enabled for Sathus Super Distributors) */}
+      <UnisusQrTopupCard onSuccess={() => fetchWalletData(true)} className="mb-6" />
 
       {/* ── FILTER TOOLBAR ── */}
       <div className="p-4 rounded-2xl bg-[#0c1220]/80 border border-white/[0.08] backdrop-blur-xl space-y-3">

@@ -366,6 +366,12 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       ],
     },
     {
+      title: "DEVICES",
+      items: [
+        { label: "My POS Devices", path: "/retailer/pos-info", icon: PointOfSaleIcon },
+      ],
+    },
+    {
       title: "CUSTOMERS",
       items: [
         { label: "Customers", path: "/retailer/customers", icon: PersonIcon },

@@ -130,8 +130,10 @@ export default function PosMdrRequestsWorkflowPage() {
   const { data: retailersList = [] } = useQuery({
     queryKey: ["sales-hierarchy-retailers-for-mdr"],
     queryFn: async () => {
-      const res = await apiClient.get("/sales/hierarchy/retailers?limit=300");
-      return Array.isArray(res.data) ? res.data : [];
+      const res = await apiClient.get("/sales/hierarchy/retailers?limit=200");
+      if (Array.isArray(res.data)) return res.data;
+      if (res.data && Array.isArray(res.data.items)) return res.data.items;
+      return [];
     },
   });
 
@@ -389,7 +391,7 @@ export default function PosMdrRequestsWorkflowPage() {
   };
 
   const filteredAsmQueue = useMemo(() => {
-    const list: MdrChangeRequest[] = asmQueueData?.requests || [];
+    const list: MdrChangeRequest[] = asmQueueData?.requests || asmQueueData?.items || [];
     if (!searchTerm) return list;
     const term = searchTerm.toLowerCase();
     return list.filter(
@@ -869,7 +871,7 @@ export default function PosMdrRequestsWorkflowPage() {
                   </label>
                   <input
                     type="number"
-                    step="50000"
+                    step="any"
                     min="10000"
                     value={formVolume}
                     onChange={(e) => setFormVolume(e.target.value)}
@@ -1100,7 +1102,7 @@ export default function PosMdrRequestsWorkflowPage() {
                 <RefreshCw className="w-6 h-6 animate-spin text-[#94003A]" />
                 <span>Loading your requests...</span>
               </div>
-            ) : !myRequestsData?.requests || myRequestsData.requests.length === 0 ? (
+            ) : ((myRequestsData?.requests || myRequestsData?.items || []).length === 0) ? (
               <div className="p-12 text-center text-xs text-[#6B7280] flex flex-col items-center justify-center gap-2">
                 <History className="w-8 h-8 text-[#D1D5DB]" />
                 <span className="font-bold text-sm text-[#374151]">No Requests Found</span>
@@ -1122,7 +1124,7 @@ export default function PosMdrRequestsWorkflowPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E5E7EB]">
-                    {myRequestsData.requests.map((req: MdrChangeRequest) => (
+                    {(myRequestsData?.requests || myRequestsData?.items || []).map((req: MdrChangeRequest) => (
                       <tr key={req.id || req.public_id} className="hover:bg-[#F8E6EE]/20 transition">
                         <td className="px-5 py-4">
                           <div className="font-mono font-bold text-[#94003A]">
@@ -1219,7 +1221,7 @@ export default function PosMdrRequestsWorkflowPage() {
                 <RefreshCw className="w-6 h-6 animate-spin text-[#94003A]" />
                 <span>Loading Admin Queue...</span>
               </div>
-            ) : !adminQueueData?.requests || adminQueueData.requests.length === 0 ? (
+            ) : ((adminQueueData?.requests || adminQueueData?.items || []).length === 0) ? (
               <div className="p-12 text-center text-xs text-[#6B7280] flex flex-col items-center justify-center gap-2">
                 <CheckCircle2 className="w-8 h-8 text-[#16A34A]" />
                 <span className="font-bold text-sm text-[#374151]">All Approvals Executed</span>
@@ -1241,7 +1243,7 @@ export default function PosMdrRequestsWorkflowPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E5E7EB]">
-                    {adminQueueData.requests.map((req: MdrChangeRequest) => {
+                    {(adminQueueData?.requests || adminQueueData?.items || []).map((req: MdrChangeRequest) => {
                       const isPendingAdmin = req.status === "ADMIN_PENDING" || req.status === "ASM_APPROVED";
                       return (
                         <tr key={req.id || req.public_id} className="hover:bg-[#F8E6EE]/20 transition">

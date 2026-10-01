@@ -233,16 +233,18 @@ class CashfreeVerificationService:
                     "name_at_bank": name_at_bank.upper(),
                     "ref_id": ref_id,
                     "utr": utr,
-                    "message": data.get("message") or "Bank Account verified successfully via Cashfree V2 Penny Drop",
+                    "message": "Bank Account verified successfully.",
                     "raw_response": data,
                     "http_status_code": res.status_code,
                 }
             else:
-                err_msg = data.get("message") or (data.get("error", {}) if isinstance(data.get("error"), dict) else {}).get("message") or f"Cashfree API Error (HTTP {res.status_code})"
+                err_msg = data.get("message") or (data.get("error", {}) if isinstance(data.get("error"), dict) else {}).get("message") or f"Verification API Error (HTTP {res.status_code})"
                 if data.get("code") == "beneficiary_bank_offline":
                     err_msg = "Beneficiary bank server is currently offline or under maintenance. Please try again later."
                 elif data.get("code") == "ifsc_value_invalid":
                     err_msg = "Invalid IFSC code format. Please check the IFSC and try again."
+                elif data.get("code") == "failed_at_bank":
+                    err_msg = "Verification rejected by destination bank. Please verify that the Account Number and IFSC Code (5th character is zero) are correct."
 
                 return {
                     "status": "FAILED",

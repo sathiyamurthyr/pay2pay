@@ -17,6 +17,7 @@ Zero direct SQL from endpoints or frontend.
 
 import uuid
 import logging
+import asyncio
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, Query, Request, HTTPException, status
@@ -32,6 +33,35 @@ from app.application.recharge_service import RechargeService
 logger = logging.getLogger("pay2pay.recharge.router")
 
 router = APIRouter(prefix="/recharge", tags=["Mobile Recharge"])
+
+
+async def _emit_recharge_notification(retailer, body, result):
+    """Safely emits a recharge transaction status notification."""
+    try:
+        from app.application.notification_event_service import notification_event_service, recharge_notification_event
+        from app.core.database import AsyncSessionLocal
+
+        status_val = result.get("status") or ("SUCCESS" if result.get("success") else "FAILED")
+        txn_id = result.get("transaction_id") or result.get("reference_id") or "RC-UNKNOWN"
+        event = recharge_notification_event(
+            user_id=retailer.public_id,
+            tenant_id=retailer.tenant_id,
+            company_id=getattr(retailer, "company_id", None),
+            txn_id=str(txn_id),
+            event_status=status_val,
+            amount=float(body.recharge_amount),
+            operator=body.operator_code,
+            mobile_number=body.mobile_number,
+            usertype_ref_id=getattr(retailer, "user_type_ref_id", 2),
+            user_ref_id=str(getattr(retailer, "retailer_ref_id", getattr(retailer, "retailer_code", ""))),
+            tenant_ref_id=getattr(retailer, "tenant_ref_id", None),
+            company_ref_id=getattr(retailer, "company_ref_id", None),
+        )
+        async with AsyncSessionLocal() as ndb:
+            await notification_event_service.emit(ndb, event)
+    except Exception as err:
+        logger.warning(f"[_emit_recharge_notification] Non-blocking recharge notification skipped: {err}")
+
 
 
 # ---------------------------------------------------------------------
@@ -199,6 +229,8 @@ async def confirm_recharge(
         ip_address=client_ip,
         user_agent=user_agent
     )
+
+    asyncio.create_task(_emit_recharge_notification(retailer, body, result))
 
     if not result.get("success"):
         # Return 200 with success: false so the UI can gracefully display reversal and failure details

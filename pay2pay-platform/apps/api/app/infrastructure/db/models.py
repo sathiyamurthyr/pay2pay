@@ -4096,6 +4096,13 @@ class AdminServiceVendorWalletModel(BaseEntity):
     )
 
 
+# Unisus Pay Integration Models
+from app.infrastructure.db.unisus_pay_models import (
+    UnisusPayQrCodeModel, UnisusPayPaymentRequestModel, UnisusPayConfigModel,
+    SATHUS_COMPANY_ID, SATHUS_COMPANY_REF_ID
+)
+
+
 
 
 

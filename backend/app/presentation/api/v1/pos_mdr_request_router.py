@@ -11,6 +11,7 @@ Provides strictly controlled endpoints:
 
 import uuid
 import logging
+import asyncio
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
@@ -28,6 +29,36 @@ from app.core.security import decode_access_token
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/pos/mdr-requests", tags=["POS MDR Change Request Workflow"])
+
+
+async def _emit_mdr_notification(req_obj, event_status: str, admin_notes: Optional[str] = None):
+    """Safely and asynchronously emits an MDR status notification without blocking core operations."""
+    try:
+        from app.application.notification_event_service import notification_event_service, mdr_notification_event
+        from app.core.database import AsyncSessionLocal
+
+        target_user = getattr(req_obj, "retailer_id", None) or getattr(req_obj, "requester_public_id", None)
+        if not target_user:
+            return
+
+        event = mdr_notification_event(
+            user_id=target_user,
+            tenant_id=req_obj.tenant_id,
+            company_id=getattr(req_obj, "company_id", None),
+            request_id=f"MDR-{req_obj.mdr_request_ref_id}",
+            event_status=event_status,
+            payment_mode="POS All Schemes",
+            usertype_ref_id=getattr(req_obj, "requester_user_type_ref_id", None),
+            user_ref_id=str(getattr(req_obj, "requester_user_ref_id", "")),
+            tenant_ref_id=getattr(req_obj, "tenant_ref_id", None),
+            company_ref_id=getattr(req_obj, "company_ref_id", None),
+            admin_notes=admin_notes,
+        )
+        async with AsyncSessionLocal() as ndb:
+            await notification_event_service.emit(ndb, event)
+    except Exception as err:
+        logger.warning(f"[_emit_mdr_notification] Non-blocking notification emission skipped: {err}")
+
 
 
 # ==============================================================================
@@ -268,6 +299,8 @@ async def create_mdr_change_request(
         supporting_documents=payload.supporting_documents
     )
 
+    asyncio.create_task(_emit_mdr_notification(req_obj, "SUBMITTED"))
+
     return {
         "status": "SUCCESS",
         "message": f"MDR Change Request #{req_obj.mdr_request_ref_id} created successfully and routed to ASM for review.",
@@ -336,6 +369,9 @@ async def process_asm_action(
     )
 
     action_label = payload.action.upper()
+    status_map = {"APPROVE": "APPROVED", "REJECT": "REJECTED", "HOLD": "ON_HOLD"}
+    asyncio.create_task(_emit_mdr_notification(updated_req, status_map.get(action_label, action_label), admin_notes=payload.reason))
+
     return {
         "status": "SUCCESS",
         "message": f"Request #{updated_req.mdr_request_ref_id} has been marked as {action_label}.",
@@ -364,6 +400,8 @@ async def resubmit_held_request(
         reason=payload.reason,
         supporting_documents=payload.supporting_documents
     )
+
+    asyncio.create_task(_emit_mdr_notification(updated_req, "SUBMITTED", admin_notes=payload.reason))
 
     return {
         "status": "SUCCESS",
@@ -419,6 +457,8 @@ async def admin_apply_mdr_update(
         effective_date=payload.effective_date,
         decision_reason=payload.decision_reason
     )
+
+    asyncio.create_task(_emit_mdr_notification(updated_req, "COMPLETED", admin_notes=payload.decision_reason))
 
     return {
         "status": "SUCCESS",

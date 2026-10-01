@@ -63,9 +63,8 @@ async def startup_db():
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
-    allow_origin_regex=r"https?://.*",
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
     allow_headers=["*"],
 )
 
@@ -88,6 +87,18 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    if "Content-Security-Policy" not in response.headers:
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com data:; "
+            "img-src 'self' data: https: blob:; "
+            "connect-src 'self' https: http: ws: wss:; "
+            "frame-ancestors 'none';"
+        )
     return response
 
 
@@ -96,6 +107,23 @@ async def domain_exception_handler(request: Request, exc: DomainException):
     return JSONResponse(
         status_code=400,
         content={"success": False, "code": exc.code, "message": exc.message}
+    )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import logging
+    logging.getLogger("pay2pay.security").error(
+        f"Unhandled Server Error on {request.method} {request.url.path}: {exc}",
+        exc_info=True
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "success": False,
+            "code": "INTERNAL_SERVER_ERROR",
+            "message": "An unexpected internal server error occurred. Please contact support if the issue persists."
+        }
     )
 
 
@@ -275,6 +303,13 @@ app.include_router(topup_router.router, prefix="/v1")
 app.include_router(topup_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
 app.include_router(topup_router.router, prefix="/api")
 app.include_router(topup_router.router, prefix="")
+
+from app.presentation.api.v1 import unisus_pay_router
+app.include_router(unisus_pay_router.router, prefix=settings.API_V1_STR)
+app.include_router(unisus_pay_router.router, prefix="/v1")
+app.include_router(unisus_pay_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(unisus_pay_router.router, prefix="/api")
+app.include_router(unisus_pay_router.router, prefix="")
 
 from app.presentation.api.v1 import admin_transaction_operations_router
 app.include_router(admin_transaction_operations_router.router, prefix=settings.API_V1_STR)
@@ -465,6 +500,13 @@ app.include_router(_admin_sales_management_router.router, prefix="/v1")
 app.include_router(_admin_sales_management_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
 app.include_router(_admin_sales_management_router.router, prefix="/api")
 app.include_router(_admin_sales_management_router.router, prefix="")
+
+from app.presentation.api.v1 import unisus_pay_router
+app.include_router(unisus_pay_router.router, prefix=settings.API_V1_STR)
+app.include_router(unisus_pay_router.router, prefix="/v1")
+app.include_router(unisus_pay_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(unisus_pay_router.router, prefix="/api")
+app.include_router(unisus_pay_router.router, prefix="")
 
 @app.get("/health", tags=["Health"])
 @app.get(f"{settings.API_V1_STR}/health", tags=["Health"])

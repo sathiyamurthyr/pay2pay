@@ -28,6 +28,48 @@ interface Step7Props {
   onBack?: () => void;
 }
 
+function cleanVendorNames(msg: string): string {
+  if (!msg || typeof msg !== "string") return "";
+  return msg
+    .replace(/uidai/gi, "Government Identity Portal")
+    .replace(/cashfree/gi, "Verification Gateway")
+    .replace(/nsdl/gi, "Tax Information Network")
+    .replace(/backblaze|b2/gi, "Cloud Storage");
+}
+
+function extractErrorMessage(data: unknown, fallback: string): string {
+  let result = fallback;
+  if (!data) return cleanVendorNames(fallback);
+  if (typeof data === "string") {
+    result = data.trim() || fallback;
+  } else if (typeof data === "object") {
+    const d = data as Record<string, unknown>;
+    if (Array.isArray(d.detail)) {
+      const msgs = (d.detail as Array<{ msg?: string; loc?: string[] }>)
+        .map((err) => {
+          if (!err || typeof err !== "object") return "";
+          const field = Array.isArray(err.loc) ? err.loc[err.loc.length - 1] : "";
+          const cleanField = field && field !== "body" ? `${field}: ` : "";
+          return `${cleanField}${err.msg || "Invalid value"}`;
+        })
+        .filter(Boolean);
+      if (msgs.length > 0) result = msgs.join("; ");
+    } else if (typeof d.detail === "string" && d.detail.trim()) {
+      result = d.detail.trim();
+    } else if (typeof d.message === "string" && d.message.trim()) {
+      result = d.message.trim();
+    } else if (typeof d.error === "string" && d.error.trim()) {
+      result = d.error.trim();
+    } else if (d.detail && typeof d.detail === "object") {
+      const detailObj = d.detail as Record<string, unknown>;
+      if (typeof detailObj.message === "string" && detailObj.message.trim()) {
+        result = detailObj.message.trim();
+      }
+    }
+  }
+  return cleanVendorNames(result);
+}
+
 export const Step7Aadhaar: React.FC<Step7Props> = ({
   registrationId,
   initialAadhaar = "",
@@ -166,7 +208,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({
           setOtpCode(data.otp);
         }
       } else {
-        setErrorMsg(data.detail || data.message || "Failed to initiate UIDAI Aadhaar OTP.");
+        setErrorMsg(extractErrorMessage(data, "Failed to initiate Aadhaar OTP verification."));
       }
     } catch {
       setLoading(false);
@@ -196,7 +238,8 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({
         body: JSON.stringify({
           registration_id: registrationId,
           ref_id: refId,
-          otp: otpCode.trim()
+          otp: otpCode.trim(),
+          otp_code: otpCode.trim()
         })
       });
       const data = await res.json();
@@ -209,9 +252,10 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({
         const attempts = data.remaining_attempts ?? remainingAttempts - 1;
         setRemainingAttempts(attempts);
         setErrorMsg(
-          data.detail ||
-            data.message ||
-            `Invalid OTP. Please check the SMS sent to your UIDAI registered mobile number. Attempts left: ${attempts}`
+          extractErrorMessage(
+            data,
+            `Invalid OTP. Please check the SMS sent to your registered mobile number. Attempts left: ${attempts}`
+          )
         );
       }
     } catch {
@@ -258,7 +302,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({
       {errorMsg && (
         <div className="p-3.5 rounded-2xl bg-[#FEE2E2] border border-[#DC2626]/30 text-[#DC2626] text-xs font-bold flex items-start gap-2 animate-fadeIn">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-          <span>{errorMsg}</span>
+          <span>{typeof errorMsg === "string" ? errorMsg : String(errorMsg)}</span>
         </div>
       )}
 

@@ -22,7 +22,9 @@ import {
   CreditCard,
   Building2,
   Sparkles,
-  MoreHorizontal
+  MoreHorizontal,
+  Smartphone,
+  FileText
 } from "lucide-react";
 import { DistributorAPI } from "@/services/distributor-api";
 
@@ -97,7 +99,9 @@ export function DistributorLayout({ children }: DistributorLayoutProps) {
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "Retailers", href: "/retailers", icon: Users },
     { label: "Top-up Requests", href: "/topup", icon: Wallet },
+    { label: "Topup Report", href: "/reports/topup-requests", icon: FileText },
     { label: "MDR Setup", href: "/mdr", icon: Percent },
+    { label: "My POS Devices", href: "/pos-info", icon: Smartphone },
     { label: "Transactions", href: "/transactions", icon: ReceiptText },
     { label: "Reports", href: "/reports", icon: BarChart3 },
     { label: "Profile", href: "/profile", icon: Building2 },

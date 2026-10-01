@@ -438,6 +438,49 @@ interface SinglePageOnboardingFormProps {
   initialLinkToken?: string;
 }
 
+function cleanVendorNames(msg: string): string {
+  if (!msg || typeof msg !== "string") return "";
+  return msg
+    .replace(/uidai/gi, "Government Identity Portal")
+    .replace(/cashfree/gi, "Verification Gateway")
+    .replace(/nsdl/gi, "Tax Information Network")
+    .replace(/backblaze|b2/gi, "Cloud Storage");
+}
+
+function extractErrorMessage(data: unknown, fallback: string): string {
+  let result = fallback;
+  if (!data) return cleanVendorNames(fallback);
+  if (typeof data === "string") {
+    result = data.trim() || fallback;
+  } else if (typeof data === "object") {
+    const d = data as Record<string, unknown>;
+    // 1. Pydantic v2 validation error array: detail = [{type, loc, msg, input}, ...]
+    if (Array.isArray(d.detail)) {
+      const msgs = (d.detail as Array<{ msg?: string; loc?: string[] }>)
+        .map((err) => {
+          if (!err || typeof err !== "object") return "";
+          const field = Array.isArray(err.loc) ? err.loc[err.loc.length - 1] : "";
+          const cleanField = field && field !== "body" ? `${field}: ` : "";
+          return `${cleanField}${err.msg || "Invalid value"}`;
+        })
+        .filter(Boolean);
+      if (msgs.length > 0) result = msgs.join("; ");
+    } else if (typeof d.detail === "string" && d.detail.trim()) {
+      result = d.detail.trim();
+    } else if (typeof d.message === "string" && d.message.trim()) {
+      result = d.message.trim();
+    } else if (typeof d.error === "string" && d.error.trim()) {
+      result = d.error.trim();
+    } else if (d.detail && typeof d.detail === "object") {
+      const detailObj = d.detail as Record<string, unknown>;
+      if (typeof detailObj.message === "string" && detailObj.message.trim()) {
+        result = detailObj.message.trim();
+      }
+    }
+  }
+  return cleanVendorNames(result);
+}
+
 export function SinglePageOnboardingForm({
   initialUserTypeRefId,
   initialMobile = "",
@@ -952,7 +995,7 @@ export function SinglePageOnboardingForm({
       const checkRes = await fetch(`/api/v1/onboarding/check-mobile/${mobileNumber}`);
       const checkData = await checkRes.json();
       if (!checkRes.ok || checkData.conflict) {
-        setMobileConflict(checkData.message || "This mobile number is already registered with another account.");
+        setMobileConflict(extractErrorMessage(checkData, "This mobile number is already registered with another account."));
         setMobileChecking(false);
         return;
       }
@@ -981,14 +1024,14 @@ export function SinglePageOnboardingForm({
       const res = await fetch("/api/v1/onboarding/verify-whatsapp-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mobile: mobileNumber, otp: mobileOtp, registration_id: registrationId })
+        body: JSON.stringify({ mobile: mobileNumber, otp: mobileOtp, otp_code: mobileOtp, registration_id: registrationId })
       });
       const data = await res.json();
-      if (res.ok && data.verified) {
+      if (res.ok && (data.status === "SUCCESS" || data.verified === true)) {
         setMobileVerified(true);
         setMobileConflict(null);
       } else {
-        setMobileConflict(data.message || "Invalid OTP code. Please check WhatsApp message.");
+        setMobileConflict(extractErrorMessage(data, "Invalid OTP code. Please check WhatsApp message."));
       }
     } catch {
       setMobileConflict("Error verifying OTP.");
@@ -1008,10 +1051,12 @@ export function SinglePageOnboardingForm({
     setEmailChecking(true);
     setEmailConflict(null);
     try {
-      const checkRes = await fetch(`/api/v1/onboarding/check-email?email=${encodeURIComponent(email)}`);
+      const checkRes = await fetch(
+        `/api/v1/onboarding/check-email?email=${encodeURIComponent(email)}${registrationId ? `&registration_id=${encodeURIComponent(registrationId)}` : ""}`
+      );
       const checkData = await checkRes.json();
       if (!checkRes.ok || checkData.conflict) {
-        setEmailConflict(checkData.message || "This email address is already registered with another account.");
+        setEmailConflict(extractErrorMessage(checkData, "This email address is already registered with another account."));
         setEmailChecking(false);
         return;
       }
@@ -1039,14 +1084,14 @@ export function SinglePageOnboardingForm({
       const res = await fetch("/api/v1/onboarding/verify-email-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp: emailOtp, registration_id: registrationId })
+        body: JSON.stringify({ email, otp: emailOtp, otp_code: emailOtp, registration_id: registrationId })
       });
       const data = await res.json();
-      if (res.ok && data.verified) {
+      if (res.ok && (data.status === "SUCCESS" || data.verified === true)) {
         setEmailVerified(true);
         setEmailConflict(null);
       } else {
-        setEmailConflict(data.message || "Invalid verification code.");
+        setEmailConflict(extractErrorMessage(data, "Invalid verification code."));
       }
     } catch {
       setEmailConflict("Error verifying email code.");
@@ -1092,7 +1137,7 @@ export function SinglePageOnboardingForm({
         }
         if (ext.dob) setPanDob(ext.dob);
       } else {
-        setPanError(data.detail || "Could not auto-read PAN. Please enter details manually.");
+        setPanError(extractErrorMessage(data, "Could not auto-read PAN. Please enter details manually."));
       }
     } catch {
       setPanError("Failed to upload PAN document.");
@@ -1119,12 +1164,13 @@ export function SinglePageOnboardingForm({
         })
       });
       const data = await res.json();
-      if (res.ok && data.verified) {
+      if (res.ok && (data.status === "SUCCESS" || data.valid === true)) {
         setPanVerified(true);
+        setPanError("");
         if (data.registered_name) setPanHolderName(data.registered_name);
         if (!fullName && data.registered_name) setFullName(data.registered_name);
       } else {
-        setPanError(data.message || data.detail || "PAN verification failed.");
+        setPanError(extractErrorMessage(data, "PAN verification failed."));
       }
     } catch {
       setPanError("Network error verifying PAN.");
@@ -1134,7 +1180,7 @@ export function SinglePageOnboardingForm({
   };
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // 4. Aadhaar File Upload, OCR & UIDAI OTP
+  // 4. Aadhaar File Upload, OCR & Identity OTP
   // ─────────────────────────────────────────────────────────────────────────────
   const handleAadhaarFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1167,6 +1213,8 @@ export function SinglePageOnboardingForm({
         if (hName && !fullName) {
           setFullName(hName);
         }
+      } else {
+        setAadhaarError(extractErrorMessage(data, "Failed to upload Aadhaar card."));
       }
     } catch {
       setAadhaarError("Failed to upload Aadhaar card.");
@@ -1194,7 +1242,7 @@ export function SinglePageOnboardingForm({
         setAadhaarRefId(data.ref_id);
         setAadhaarOtpSent(true);
       } else {
-        setAadhaarError(data.message || data.detail || "Failed to send Aadhaar OTP.");
+        setAadhaarError(extractErrorMessage(data, "Failed to send Aadhaar OTP."));
       }
     } catch {
       setAadhaarError("Network error requesting Aadhaar OTP.");
@@ -1213,17 +1261,19 @@ export function SinglePageOnboardingForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           otp: aadhaarOtp,
+          otp_code: aadhaarOtp,
           ref_id: aadhaarRefId,
           aadhaar_number: aadhaarNumber.replace(/\D/g, ""),
           registration_id: registrationId
         })
       });
       const data = await res.json();
-      if (res.ok && data.verified) {
+      if (res.ok && (data.status === "SUCCESS" || data.verified === true)) {
         setAadhaarVerified(true);
-        setAadhaarHolderName(data.name || "");
-        setAadhaarMasked(data.masked_aadhaar || `XXXX XXXX ${aadhaarNumber.slice(-4)}`);
-        if (!fullName && data.name) setFullName(data.name);
+        setAadhaarError("");
+        setAadhaarHolderName(data.full_name || data.name || "");
+        setAadhaarMasked(data.masked_aadhaar || data.aadhaar_masked || `XXXX XXXX ${aadhaarNumber.slice(-4)}`);
+        if (!fullName && (data.full_name || data.name)) setFullName(data.full_name || data.name);
 
         // Auto-fill address from Aadhaar eKYC response
         if (data.address) {
@@ -1240,7 +1290,7 @@ export function SinglePageOnboardingForm({
           if (addr.pincode) setPersonalPincode(addr.pincode);
         }
       } else {
-        setAadhaarError(data.message || data.detail || "Aadhaar OTP verification failed.");
+        setAadhaarError(extractErrorMessage(data, "Aadhaar OTP verification failed."));
       }
     } catch {
       setAadhaarError("Network error validating Aadhaar OTP.");
@@ -1280,6 +1330,8 @@ export function SinglePageOnboardingForm({
         if (data.extracted?.trade_name && !shopName) {
           setShopName(data.extracted.trade_name);
         }
+      } else {
+        setGstError(extractErrorMessage(data, "Failed to read GST certificate. Please enter details manually."));
       }
     } catch {
       setGstError("Failed to upload GST certificate.");
@@ -1302,12 +1354,13 @@ export function SinglePageOnboardingForm({
         body: JSON.stringify({ gst_number: gstNumber, registration_id: registrationId })
       });
       const data = await res.json();
-      if (res.ok && data.verified) {
+      if (res.ok && (data.status === "SUCCESS" || data.verified === true)) {
         setGstVerified(true);
+        setGstError("");
         setGstDetails(data);
         if (data.legal_name && !shopName) setShopName(data.legal_name);
       } else {
-        setGstError(data.message || data.detail || "GSTIN verification failed.");
+        setGstError(extractErrorMessage(data, "GSTIN verification failed."));
       }
     } catch {
       setGstError("Network error checking GSTIN.");
@@ -1351,6 +1404,8 @@ export function SinglePageOnboardingForm({
           setBankIfsc(ext.ifsc);
           setBankExtracted(true);
         }
+      } else {
+        setBankError(extractErrorMessage(data, "Could not auto-read bank document. Please enter details manually."));
       }
     } catch {
       setBankError("Failed to upload Bank document.");
@@ -1378,11 +1433,12 @@ export function SinglePageOnboardingForm({
         })
       });
       const data = await res.json();
-      if (res.ok && data.verified) {
+      if (res.ok && (data.status === "SUCCESS" || data.verified === true)) {
         setBankVerified(true);
+        setBankError("");
         setBankDetails(data);
       } else {
-        setBankError(data.message || data.detail || "Bank Penny Drop verification failed.");
+        setBankError(extractErrorMessage(data, "Bank Penny Drop verification failed."));
       }
     } catch {
       setBankError("Network error validating bank account.");
@@ -1607,7 +1663,7 @@ export function SinglePageOnboardingForm({
         if (fallbackRes.ok && (fallbackData.video_url || fallbackData.b2_url)) {
           setVideoKycUrl(fallbackData.video_url || fallbackData.b2_url);
         } else {
-          alert(data.detail || fallbackData.detail || "Video upload failed. Please try again.");
+          alert(extractErrorMessage(data || fallbackData, "Video upload failed. Please try again."));
         }
       }
     } catch {
@@ -1763,7 +1819,7 @@ export function SinglePageOnboardingForm({
       if (res.ok && data.status === "SUCCESS") {
         setSubmittedResult(data);
       } else {
-        setFormError(data.message || data.detail || "Application submission rejected by server.");
+        setFormError(extractErrorMessage(data, "Application submission rejected by server."));
       }
     } catch {
       setFormError("Network error while submitting application.");
@@ -2970,7 +3026,7 @@ export function SinglePageOnboardingForm({
                 {mobileConflict && (
                   <div className="p-3 rounded-xl bg-[#FEF2F2] border border-[#FCA5A5] text-[#991B1B] text-xs font-semibold flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 text-[#DC2626] shrink-0" />
-                    <span>{mobileConflict}</span>
+                    <span>{typeof mobileConflict === "string" ? mobileConflict : String(mobileConflict)}</span>
                   </div>
                 )}
               </div>
@@ -3057,7 +3113,7 @@ export function SinglePageOnboardingForm({
                 {emailConflict && (
                   <div className="p-3 rounded-xl bg-[#FEF2F2] border border-[#FCA5A5] text-[#991B1B] text-xs font-semibold flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 text-[#DC2626] shrink-0" />
-                    <span>{emailConflict}</span>
+                    <span>{typeof emailConflict === "string" ? emailConflict : String(emailConflict)}</span>
                   </div>
                 )}
               </div>
@@ -3219,7 +3275,7 @@ export function SinglePageOnboardingForm({
             {panError && (
               <div className="p-3.5 rounded-xl bg-[#FEF2F2] border border-[#FCA5A5] text-[#991B1B] text-xs font-semibold flex items-center gap-2">
                 <XCircle className="w-4 h-4 text-[#DC2626] shrink-0" />
-                <span>{panError}</span>
+                <span>{typeof panError === "string" ? panError : String(panError)}</span>
               </div>
             )}
           </div>
@@ -3343,7 +3399,7 @@ export function SinglePageOnboardingForm({
             {aadhaarError && (
               <div className="p-3.5 rounded-xl bg-[#FEF2F2] border border-[#FCA5A5] text-[#991B1B] text-xs font-semibold flex items-center gap-2">
                 <XCircle className="w-4 h-4 text-[#DC2626] shrink-0" />
-                <span>{aadhaarError}</span>
+                <span>{typeof aadhaarError === "string" ? aadhaarError : String(aadhaarError)}</span>
               </div>
             )}
 
@@ -3467,7 +3523,7 @@ export function SinglePageOnboardingForm({
                 {gstError && (
                   <div className="p-3.5 rounded-xl bg-[#FEF2F2] border border-[#FCA5A5] text-[#991B1B] text-xs font-semibold flex items-center gap-2">
                     <XCircle className="w-4 h-4 text-[#DC2626] shrink-0" />
-                    <span>{gstError}</span>
+                    <span>{typeof gstError === "string" ? gstError : String(gstError)}</span>
                   </div>
                 )}
               </div>
@@ -3601,7 +3657,7 @@ export function SinglePageOnboardingForm({
           {bankError && (
             <div className="p-3.5 rounded-xl bg-[#FEF2F2] border border-[#FCA5A5] text-[#991B1B] text-xs font-semibold flex items-center gap-2">
               <XCircle className="w-4 h-4 text-[#DC2626] shrink-0" />
-              <span>{bankError}</span>
+              <span>{typeof bankError === "string" ? bankError : String(bankError)}</span>
             </div>
           )}
         </div>
@@ -4265,7 +4321,7 @@ export function SinglePageOnboardingForm({
           {formError && (
             <div className="p-4 rounded-2xl bg-[#FEF2F2] border border-[#FCA5A5] text-[#991B1B] text-xs font-bold flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-[#DC2626] shrink-0" />
-              <span>{formError}</span>
+              <span>{typeof formError === "string" ? formError : String(formError)}</span>
             </div>
           )}
 

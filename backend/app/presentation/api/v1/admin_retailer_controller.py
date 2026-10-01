@@ -1,5 +1,6 @@
 import uuid
 import datetime
+import asyncio
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from pydantic import BaseModel, Field
@@ -12,7 +13,35 @@ from app.infrastructure.db.registration_models import RegistrationDraftModel
 from app.infrastructure.db.session_security_models import SessionAuditLogModel, RetailerSecuritySettingsModel
 from app.application.dependencies import get_current_user, get_current_tenant_id
 
-router = APIRouter(prefix="/admin/retailer-control", tags=["Admin To Retailer Controller (Enterprise Ops)"])
+
+async def require_admin_user(
+    current_user: AdminUserModel = Depends(get_current_user)
+) -> AdminUserModel:
+    """
+    Strict server-side RBAC dependency. Enforces that only users with
+    administrative roles (PLATFORM_ADMIN, SUPER_ADMIN, ADMIN) can access
+    the admin retailer control operations.
+    """
+    user_type = (getattr(current_user, "user_type", "") or "").upper()
+    is_admin = user_type in ("PLATFORM_ADMIN", "SUPER_ADMIN", "ADMIN")
+    if not is_admin:
+        has_admin_role = any(
+            (ur.role and ur.role.code in ("PLATFORM_ADMIN", "SUPER_ADMIN", "ADMIN"))
+            for ur in (getattr(current_user, "user_roles", []) or [])
+        )
+        if not has_admin_role:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Forbidden: Administrative privileges required."
+            )
+    return current_user
+
+
+router = APIRouter(
+    prefix="/admin/retailer-control",
+    tags=["Admin To Retailer Controller (Enterprise Ops)"],
+    dependencies=[Depends(require_admin_user)]
+)
 
 
 # ─── REQUEST / RESPONSE SCHEMAS ───
@@ -333,6 +362,7 @@ async def get_retailer_overview_controller(
 async def update_retailer_status_controller(
     retailer_id: str,
     req: RetailerStatusUpdateRequest,
+    current_admin: AdminUserModel = Depends(require_admin_user),
     db: AsyncSession = Depends(get_db)
 ):
     action = req.action.upper()
@@ -426,7 +456,7 @@ async def update_retailer_status_controller(
             if action in ["APPROVE", "REACTIVATE"] and r_obj:
                 try:
                     from app.application.hierarchy_mapping_service import HierarchyMappingService
-                    actor_email = getattr(current_user, "email", "admin@pay2pay.in") if current_user else "admin@pay2pay.in"
+                    actor_email = getattr(current_admin, "email", "admin@pay2pay.in") if current_admin else "admin@pay2pay.in"
                     await HierarchyMappingService.apply_default_retailer_hierarchy(
                         db=db,
                         retailer=r_obj,
@@ -437,6 +467,32 @@ async def update_retailer_status_controller(
                     pass
 
             await db.commit()
+
+            # Emit centralized registration/account status notification
+            if r_obj:
+                async def _emit_ret_status_notif(ret_rec, st, rsn):
+                    try:
+                        from app.core.database import AsyncSessionLocal
+                        from app.application.notification_event_service import (
+                            notification_event_service, registration_notification_event
+                        )
+                        async with AsyncSessionLocal() as notif_db:
+                            ev = registration_notification_event(
+                                user_id=ret_rec.public_id,
+                                tenant_id=ret_rec.tenant_id,
+                                company_id=getattr(ret_rec, "company_id", None),
+                                retailer_code=ret_rec.retailer_code or str(ret_rec.public_id),
+                                event_status=st,
+                                usertype_ref_id=getattr(ret_rec, "user_type_ref_id", 2),
+                                user_ref_id=ret_rec.retailer_code,
+                                tenant_ref_id=getattr(ret_rec, "tenant_ref_id", None),
+                                company_ref_id=getattr(ret_rec, "company_ref_id", None),
+                                reason=rsn,
+                            )
+                            await notification_event_service.emit_safe(notif_db, ev)
+                    except Exception:
+                        pass
+                asyncio.create_task(_emit_ret_status_notif(r_obj, new_status, req.reason))
     except Exception as upd_err:
         pass
 
@@ -742,6 +798,31 @@ async def update_distributor_approval_status(
         raise HTTPException(status_code=400, detail=f"Invalid action '{req.action}'.")
 
     await db.commit()
+
+    # Emit centralized notification to distributor
+    async def _emit_dist_notif(dist_rec, st, rsn):
+        try:
+            from app.core.database import AsyncSessionLocal
+            from app.application.notification_event_service import (
+                notification_event_service, registration_notification_event
+            )
+            async with AsyncSessionLocal() as notif_db:
+                ev = registration_notification_event(
+                    user_id=dist_rec.public_id,
+                    tenant_id=dist_rec.tenant_id,
+                    company_id=getattr(dist_rec, "company_id", None),
+                    retailer_code=dist_rec.distributor_code or str(dist_rec.public_id),
+                    event_status=st,
+                    usertype_ref_id=getattr(dist_rec, "user_type_ref_id", 3),
+                    user_ref_id=dist_rec.distributor_code,
+                    tenant_ref_id=getattr(dist_rec, "tenant_ref_id", None),
+                    company_ref_id=getattr(dist_rec, "company_ref_id", None),
+                    reason=rsn,
+                )
+                await notification_event_service.emit_safe(notif_db, ev)
+        except Exception:
+            pass
+    asyncio.create_task(_emit_dist_notif(dist, dist.status, req.reason))
     return {
         "success": True,
         "message": f"Distributor {dist.distributor_code or dist.business_name} status updated to {dist.status}.",
@@ -802,6 +883,31 @@ async def update_super_distributor_approval_status(
         raise HTTPException(status_code=400, detail=f"Invalid action '{req.action}'.")
 
     await db.commit()
+
+    # Emit centralized notification to super distributor
+    async def _emit_sd_notif(sd_rec, st, rsn):
+        try:
+            from app.core.database import AsyncSessionLocal
+            from app.application.notification_event_service import (
+                notification_event_service, registration_notification_event
+            )
+            async with AsyncSessionLocal() as notif_db:
+                ev = registration_notification_event(
+                    user_id=sd_rec.public_id,
+                    tenant_id=sd_rec.tenant_id,
+                    company_id=getattr(sd_rec, "company_id", None),
+                    retailer_code=sd_rec.super_distributor_code or str(sd_rec.public_id),
+                    event_status=st,
+                    usertype_ref_id=getattr(sd_rec, "user_type_ref_id", 4),
+                    user_ref_id=sd_rec.super_distributor_code,
+                    tenant_ref_id=getattr(sd_rec, "tenant_ref_id", None),
+                    company_ref_id=getattr(sd_rec, "company_ref_id", None),
+                    reason=rsn,
+                )
+                await notification_event_service.emit_safe(notif_db, ev)
+        except Exception:
+            pass
+    asyncio.create_task(_emit_sd_notif(sd, sd.status, req.reason))
     return {
         "success": True,
         "message": f"Super Distributor {sd.super_distributor_code or sd.business_name} status updated to {sd.status}.",
