@@ -120,10 +120,12 @@ async def get_upload_constraints(
 async def upload_local_image(
     file: UploadFile = File(..., description="Image file: PNG, JPG, WEBP, GIF, SVG (max 5 MB)"),
     folder: str = Form("announcements", description="Subfolder within uploads"),
+    current_user: AdminUserModel = Depends(get_current_user),
 ):
     """
     Saves image to local static folder (/uploads/announcements/...)
     for zero-latency, super-fast loading on user dashboards.
+    Requires authenticated user session.
     """
     if not file.filename:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No filename provided.")
@@ -169,32 +171,36 @@ async def upload_local_image(
 @router.api_route("/document", methods=["GET", "HEAD"], summary="Proxy & Stream KYC Document / PDF with Auth")
 async def stream_document(
     path: str,
+    current_user: AdminUserModel = Depends(get_current_user),
 ):
     """
     Safely stream or serve any KYC document / PDF / image.
-    If local, returns local file. If in Backblaze B2, signs URL and streams content with 200 OK.
+    Requires authenticated user session.
+    Prevents path traversal and validates file location strictly.
     """
+    import mimetypes
     from fastapi.responses import Response, RedirectResponse, FileResponse
     from pathlib import Path
     import urllib.request
 
-    clean = path.strip().lstrip("/")
+    clean = path.strip().replace("\\", "/").lstrip("/")
+    if ".." in clean or clean.startswith("/"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid document path.")
+
     if clean.startswith("uploads/"):
         clean = clean[len("uploads/"):]
 
-    # 1. Check local uploads
-    local_candidates = [
-        Path("uploads") / clean,
-        Path("backend/uploads") / clean,
-        Path("/home/ubuntu/pay2pay/backend/uploads") / clean,
-        Path("/home/ubuntu/pay2pay/uploads") / clean,
-        Path(f"d:/pay2pay/backend/uploads/{clean}"),
-        Path(f"d:/pay2pay/uploads/{clean}"),
+    # 1. Check local uploads with strict boundary validation
+    candidate_bases = [
+        Path("uploads").resolve(),
+        Path("backend/uploads").resolve(),
     ]
-    for p in local_candidates:
-        if p.exists() and p.is_file():
-            mime_type, _ = mimetypes.guess_type(str(p))
-            return FileResponse(p, media_type=mime_type or "application/octet-stream")
+    for base in candidate_bases:
+        if base.exists():
+            resolved_file = (base / clean).resolve()
+            if str(resolved_file).startswith(str(base)) and resolved_file.is_file():
+                mime_type, _ = mimetypes.guess_type(str(resolved_file))
+                return FileResponse(resolved_file, media_type=mime_type or "application/octet-stream")
 
     # 2. Get signed B2 download URL
     signed_url = BackblazeStorageService.get_download_url(clean)
@@ -210,8 +216,8 @@ async def stream_document(
                     headers={
                         "Content-Type": content_type,
                         "Content-Disposition": f"inline; filename=\"{Path(clean).name}\"",
-                        "Cache-Control": "public, max-age=86400",
-                        "Access-Control-Allow-Origin": "*",
+                        "Cache-Control": "private, no-cache, no-store, must-revalidate",
+                        "X-Content-Type-Options": "nosniff",
                     }
                 )
         except Exception:
@@ -221,8 +227,14 @@ async def stream_document(
 
 
 @router.get("/signed-url", summary="Get Authenticated Backblaze B2 Download URL")
-async def get_signed_download_url(path: str):
-    signed_url = BackblazeStorageService.get_download_url(path)
+async def get_signed_download_url(
+    path: str,
+    current_user: AdminUserModel = Depends(get_current_user),
+):
+    clean = path.strip().replace("\\", "/").lstrip("/")
+    if ".." in clean:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid storage path.")
+    signed_url = BackblazeStorageService.get_download_url(clean)
     return {
         "success": True,
         "raw_path": path,

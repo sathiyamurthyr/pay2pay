@@ -9,6 +9,7 @@ public.wallet_balance_update
 """
 
 import uuid
+import asyncio
 import logging
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
@@ -50,18 +51,33 @@ router = APIRouter(prefix="", tags=["Enterprise Wallet Balance Adjustment Engine
 async def adjust_wallet_balance_endpoint(
     req: WalletAdjustmentDTO,
     request: Request,
+    current_admin: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Executes an atomic wallet balance adjustment (CREDIT or DEBIT) using
     PostgreSQL Stored Procedure `public.wallet_balance_update`.
 
-    - Supports user_ref_id (BIGINT), retailer_code (string), or UUIDs.
+    - Strictly enforced server-side authentication & administrative authorization.
     - Locks the wallet row with FOR UPDATE.
     - Prevents race conditions and dirty balance reads.
     - Emits granular double-entry transaction lines with continuous running balances.
     - Guarantees 100% database ledger auditability.
     """
+    admin_type = (getattr(current_admin, "user_type", "") or "").upper()
+    is_admin = admin_type in ("PLATFORM_ADMIN", "SUPER_ADMIN", "ADMIN")
+    if not is_admin:
+        # Check explicit role assignment
+        has_admin_role = any(
+            (ur.role and ur.role.code in ("PLATFORM_ADMIN", "SUPER_ADMIN", "ADMIN"))
+            for ur in (getattr(current_admin, "user_roles", []) or [])
+        )
+        if not has_admin_role:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Forbidden: Administrative privileges required to execute wallet adjustments."
+            )
+
     result = await WalletBalanceAdjustmentService.execute_wallet_balance_update(
         db=db,
         dto=req
@@ -92,6 +108,54 @@ async def adjust_wallet_balance_endpoint(
                 detail=f"Adjustment Error [{err_code}]: {err_msg}"
             )
 
+    # Dispatch centralized in-app notification (fire-and-forget)
+    async def _emit_wallet_notif():
+        try:
+            from app.core.database import AsyncSessionLocal
+            from app.application.notification_event_service import (
+                notification_event_service, wallet_notification_event
+            )
+            from app.infrastructure.db.models import RetailerModel
+            async with AsyncSessionLocal() as notif_db:
+                u_uuid = None
+                t_uuid = None
+                c_uuid = None
+                try:
+                    u_uuid = uuid.UUID(str(req.user_ref_id))
+                except Exception:
+                    pass
+                if not u_uuid:
+                    stmt = select(RetailerModel).where(
+                        or_(
+                            RetailerModel.retailer_code == str(req.user_ref_id),
+                            RetailerModel.public_id == getattr(result, "wallet_id", None)
+                        )
+                    ).limit(1)
+                    res = await notif_db.execute(stmt)
+                    ret = res.scalar_one_or_none()
+                    if ret:
+                        u_uuid = ret.public_id
+                        t_uuid = ret.tenant_id
+                        c_uuid = getattr(ret, "company_id", None)
+                if u_uuid:
+                    ev = wallet_notification_event(
+                        user_id=u_uuid,
+                        tenant_id=t_uuid or uuid.UUID("00000000-0000-0000-0000-000000000000"),
+                        company_id=c_uuid,
+                        entry_type=req.adjustment_type,
+                        amount=float(result.amount or req.amount),
+                        balance_after=float(result.balance_after) if result.balance_after is not None else None,
+                        reference_number=result.transaction_reference or req.transaction_reference,
+                        narration=req.narration,
+                        usertype_ref_id=req.usertype_ref_id,
+                        user_ref_id=str(req.user_ref_id),
+                    )
+                    await notification_event_service.emit_safe(notif_db, ev)
+        except Exception as e:
+            logger.warning(f"[WalletNotif] Non-critical notification error: {e}")
+
+    asyncio.create_task(_emit_wallet_notif())
+
     return result
 
 
@@ -109,11 +173,29 @@ async def get_wallet_balance_endpoint(
     user_id: Optional[str] = Query(None, description="User / Retailer UUID"),
     retailer_id: Optional[str] = Query(None, description="Retailer UUID or Code"),
     request: Request = None,
+    current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Returns real-time authoritative wallet balance from PostgreSQL.
+    Enforces that non-admin callers can ONLY view their own wallet balance.
     """
+    user_type = (getattr(current_user, "user_type", "") or "").upper()
+    is_admin = user_type in ("PLATFORM_ADMIN", "SUPER_ADMIN", "ADMIN")
+
+    if not is_admin:
+        # Enforce zero-trust identity: non-admins can strictly only query their own wallet
+        requested_target = retailer_id or user_id or retailer_code
+        if requested_target and str(requested_target) != str(current_user.public_id) and str(requested_target) != str(current_user.username):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Forbidden: Retailers cannot access external wallet balances."
+            )
+        retailer_code = current_user.username
+        user_id = str(current_user.public_id)
+        retailer_id = str(current_user.public_id)
+        user_ref_id = None
+
     target_id = retailer_id or user_id
     dto = WalletAdjustmentDTO(
         user_ref_id=user_ref_id,
@@ -188,15 +270,30 @@ async def get_wallet_transactions_endpoint(
     retailer_code: Optional[str] = Query(None),
     service_name: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=200),
+    current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Returns recent granular line entries recorded by wallet_balance_update.
+    Enforces that non-admin callers can only view their own transactions.
     """
+    user_type = (getattr(current_user, "user_type", "") or "").upper()
+    is_admin = user_type in ("PLATFORM_ADMIN", "SUPER_ADMIN", "ADMIN")
+
     conds = [CentralTransactionModel.is_deleted == False]
     
-    if user_ref_id:
-        conds.append(CentralTransactionModel.user_ref_id == user_ref_id)
+    if not is_admin:
+        # Non-admin users are strictly scoped to their own transactions
+        conds.append(
+            or_(
+                CentralTransactionModel.retailer_id == current_user.public_id,
+                CentralTransactionModel.user_ref_id == getattr(current_user, "user_ref_id", -1)
+            )
+        )
+    else:
+        if user_ref_id:
+            conds.append(CentralTransactionModel.user_ref_id == user_ref_id)
+
     if service_name:
         conds.append(CentralTransactionModel.service_name.ilike(f"%{service_name}%"))
 

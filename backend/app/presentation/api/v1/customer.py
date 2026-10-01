@@ -68,7 +68,11 @@ async def list_customers(
         kyc_status=kyc_status, kyc_level=kyc_level, risk_category=risk_category,
         page=page, page_size=page_size,
     )
-    customers = await CustomerService.list_customers(db, search_req)
+    user_type = (getattr(current_user, "user_type", "") or "").upper()
+    is_super = user_type in ("PLATFORM_ADMIN", "SUPER_ADMIN")
+    tenant_scope = None if is_super else getattr(current_user, "tenant_id", None)
+
+    customers = await CustomerService.list_customers(db, search_req, tenant_id=tenant_scope)
     return APIResponse(data=[c.model_dump(mode="json") for c in customers])
 
 
@@ -81,9 +85,13 @@ async def search_customers_post(
     current_user: AdminUserModel = Depends(get_current_user)
 ):
     """GET/POST customer search endpoint."""
+    user_type = (getattr(current_user, "user_type", "") or "").upper()
+    is_super = user_type in ("PLATFORM_ADMIN", "SUPER_ADMIN")
+    tenant_scope = None if is_super else getattr(current_user, "tenant_id", None)
+
     q_str = query or (req.get("query") if isinstance(req, dict) else "")
     search_req = CustomerSearchRequest(query=q_str, mobile_number=q_str)
-    customers = await CustomerService.list_customers(db, search_req)
+    customers = await CustomerService.list_customers(db, search_req, tenant_id=tenant_scope)
     return APIResponse(status="SUCCESS", data=[c.model_dump(mode="json") for c in customers])
 
 
@@ -94,7 +102,11 @@ async def get_customer(
     current_user: AdminUserModel = Depends(get_current_user)
 ):
     """Get a specific customer record."""
-    customer = await CustomerService.get_customer(db, customer_id)
+    user_type = (getattr(current_user, "user_type", "") or "").upper()
+    is_super = user_type in ("PLATFORM_ADMIN", "SUPER_ADMIN")
+    tenant_scope = None if is_super else getattr(current_user, "tenant_id", None)
+
+    customer = await CustomerService.get_customer(db, customer_id, tenant_id=tenant_scope)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
     return APIResponse(data=customer.model_dump(mode="json"))

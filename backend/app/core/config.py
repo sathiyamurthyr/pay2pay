@@ -34,15 +34,31 @@ class Settings(BaseSettings):
     
     # Database
     DATABASE_URL: str = Field(
-        default="postgresql+asyncpg://postgres:AivioSathus!321@db.arkoolfygfqawyvwnldv.supabase.co:5432/postgres"
+        default_factory=lambda: os.getenv(
+            "DATABASE_URL",
+            "postgresql+asyncpg://postgres:postgres@localhost:5432/pay2pay"
+        )
     )
     ALEMBIC_DATABASE_URL: str = Field(
-        default="postgresql+psycopg://postgres:AivioSathus!321@db.arkoolfygfqawyvwnldv.supabase.co:5432/postgres"
+        default_factory=lambda: os.getenv(
+            "ALEMBIC_DATABASE_URL",
+            "postgresql+psycopg://postgres:postgres@localhost:5432/pay2pay"
+        )
     )
     
     # JWT Security
-    SECRET_KEY: str = Field(default="e674b934091a133f9dfca4b967a544c207908b8b8017c669145695029a73887c")
-    REFRESH_SECRET_KEY: str = Field(default="5f3a0937a098863f6696b997c6d66e7f12e8ad28b8577a111b154b5e6702c2e0")
+    SECRET_KEY: str = Field(
+        default_factory=lambda: os.getenv(
+            "SECRET_KEY",
+            "0000000000000000000000000000000000000000000000000000000000000000"
+        )
+    )
+    REFRESH_SECRET_KEY: str = Field(
+        default_factory=lambda: os.getenv(
+            "REFRESH_SECRET_KEY",
+            "0000000000000000000000000000000000000000000000000000000000000000"
+        )
+    )
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours (Maximum Session Validity)
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7     # 7 days
@@ -53,9 +69,31 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
         "http://localhost:3001",
         "http://127.0.0.1:3001",
+        "http://localhost:3002",
+        "http://127.0.0.1:3002",
+        "http://localhost:3003",
+        "http://127.0.0.1:3003",
+        "http://localhost:3004",
+        "http://127.0.0.1:3004",
         "http://localhost:3005",
         "http://127.0.0.1:3005",
+        "http://localhost:3006",
+        "http://127.0.0.1:3006",
+        "http://localhost:3007",
+        "http://127.0.0.1:3007",
+        "http://localhost:3008",
+        "http://127.0.0.1:3008",
         "https://pay2pay.vercel.app",
+        "https://pay2pay.in",
+        "https://www.pay2pay.in",
+        "https://admin.pay2pay.in",
+        "https://super.pay2pay.in",
+        "https://sd.pay2pay.in",
+        "https://dist.pay2pay.in",
+        "https://ret.pay2pay.in",
+        "https://sales.pay2pay.in",
+        "https://auth.pay2pay.in",
+        "https://api.pay2pay.in",
     ]
     
     # Session Inactivity Timeout (Minutes) - Closes session after 15m idle
@@ -66,32 +104,33 @@ class Settings(BaseSettings):
     DEFAULT_COMPANY_CODE: str = "HQ_COMP"
 
     # ── Cashfree Production Verification Suite v2 Credentials ──────────────────
-    CASHFREE_CLIENT_ID: str = Field(default="")
-    CASHFREE_CLIENT_SECRET: str = Field(default="")
-    CASHFREE_BASE_URL: str = Field(default="https://api.cashfree.com/verification")
-    CASHFREE_API_VERSION: str = Field(default="2025-01-01")
+    CASHFREE_CLIENT_ID: str = Field(default_factory=lambda: os.getenv("CASHFREE_CLIENT_ID", ""))
+    CASHFREE_CLIENT_SECRET: str = Field(default_factory=lambda: os.getenv("CASHFREE_CLIENT_SECRET", ""))
+    CASHFREE_BASE_URL: str = Field(default_factory=lambda: os.getenv("CASHFREE_BASE_URL", "https://api.cashfree.com/verification"))
+    CASHFREE_API_VERSION: str = Field(default_factory=lambda: os.getenv("CASHFREE_API_VERSION", "2025-01-01"))
 
     # ── UrbanRupee Production Payout API Credentials ─────────────────────────
-    URBANRUPEE_BASE_URL: str = Field(default="https://payout.urbanrupee.in")
-    URBANRUPEE_USER_ID: str = Field(default="UR6877")
-    URBANRUPEE_API_TOKEN: str = Field(default="pk_6955bdbab906ece296070e22307eac099ac90a75a19fcbfa0ab4f798848a9e8e")
+    URBANRUPEE_BASE_URL: str = Field(default_factory=lambda: os.getenv("URBANRUPEE_BASE_URL", "https://payout.urbanrupee.in"))
+    URBANRUPEE_USER_ID: str = Field(default_factory=lambda: os.getenv("URBANRUPEE_USER_ID", ""))
+    URBANRUPEE_API_TOKEN: str = Field(default_factory=lambda: os.getenv("URBANRUPEE_API_TOKEN", ""))
 
     # ── Backblaze B2 Storage ──────────────────────────────────────────────────
     # These are overridden by .env (which is populated by secrets_bootstrap.py)
-    B2_KEY_ID:      str = Field(default="008e0d1d842b")
-    B2_APP_KEY:     str = Field(default="0030f1320724707dc33f380426ddf3371c3fedb37a")
-    B2_BUCKET_NAME: str = Field(default="sathus-pay2pay")
+    B2_KEY_ID:      str = Field(default_factory=lambda: os.getenv("B2_KEY_ID", ""))
+    B2_APP_KEY:     str = Field(default_factory=lambda: os.getenv("B2_APP_KEY", ""))
+    B2_BUCKET_NAME: str = Field(default_factory=lambda: os.getenv("B2_BUCKET_NAME", "sathus-pay2pay"))
 
     # ── Bitwarden (used by secrets_bootstrap.py only) ─────────────────────────
-    BITWARDEN_SERVER:          str = Field(default="https://vault.bitwarden.com")
-    BITWARDEN_CLIENT_ID:       str = Field(default="")
-    BITWARDEN_CLIENT_SECRET:   str = Field(default="")
-    BITWARDEN_MASTER_PASSWORD: str = Field(default="")
+    BITWARDEN_SERVER:          str = Field(default_factory=lambda: os.getenv("BITWARDEN_SERVER", "https://vault.bitwarden.com"))
+    BITWARDEN_CLIENT_ID:       str = Field(default_factory=lambda: os.getenv("BITWARDEN_CLIENT_ID", ""))
+    BITWARDEN_CLIENT_SECRET:   str = Field(default_factory=lambda: os.getenv("BITWARDEN_CLIENT_SECRET", ""))
+    BITWARDEN_MASTER_PASSWORD: str = Field(default_factory=lambda: os.getenv("BITWARDEN_MASTER_PASSWORD", ""))
     
     # ── Meta WhatsApp Cloud API Credentials ──────────────────────────────────
-    WHATSAPP_API_URL: str = Field(default="https://graph.facebook.com/v21.0")
-    WHATSAPP_PHONE_NUMBER_ID: str = Field(default="497102120160245")
-    WHATSAPP_AUTH_TOKEN: str = Field(default="EAAHe8ickOaEBO5X8Afgq8gNGq3mYEe9BmlyZBYnZCgRZBx9P1ZCjRJizHMH4P3lbtKAewLIRRgGWoOlWmlo0EfUWmGLMO5x2oZAyLOqKCAAhok9ZCp0hEYzWV9819cIlyDjVVjuc3jENdB52SdH1i4JNDComK1cruqsC752ts4qzujJB7TD5ymUtphwjEZBYZCX8KQZDZD")
+    WHATSAPP_API_URL: str = Field(default_factory=lambda: os.getenv("WHATSAPP_API_URL", "https://graph.facebook.com/v21.0"))
+    WHATSAPP_PHONE_NUMBER_ID: str = Field(default_factory=lambda: os.getenv("WHATSAPP_PHONE_NUMBER_ID", ""))
+    WHATSAPP_AUTH_TOKEN: str = Field(default_factory=lambda: os.getenv("WHATSAPP_AUTH_TOKEN", ""))
+
 
     # ── SMTP Email Dispatcher Credentials ────────────────────────────────────
     SMTP_SERVER: str = Field(default="smtp.gmail.com")

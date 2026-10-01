@@ -7,6 +7,7 @@ import FileDownloadIcon from "@mui/icons-material/FileDownload";
 
 export default function ReportsPage() {
   const reportsList = [
+    { title: "Topup Requests & Settlement Audit", desc: "Live wallet allocations, payment slip verification, UTR reconciliation & MDR audit", format: "Interactive / CSV", href: "/retailer/reports/topup-requests" },
     { title: "Daily Sales & Commission Summary", desc: "Detailed breakdown of DMT, AEPS, UPI & BBPS margins", format: "PDF / CSV" },
     { title: "Section 194O TDS Certificate", desc: "E-Commerce / FinTech TDS deduction statement for FY 2025-26", format: "PDF" },
     { title: "GSTR-1 B2B & B2C Tax Generator", desc: "Automated GST compliant sales invoice summary for CA filing", format: "Excel (.xlsx)" },
@@ -29,12 +30,27 @@ export default function ReportsPage() {
               <Typography variant="body2" sx={{ color: "#4B5563" }}>{rep.desc}</Typography>
 
               <Button
-                variant="outlined"
+                variant={rep.href ? "contained" : "outlined"}
                 startIcon={<FileDownloadIcon />}
-                onClick={() => alert(`Downloading ${rep.title}...`)}
-                sx={{ borderRadius: 2.5, fontWeight: 700, borderColor: "#E5E7EB", color: "#374151" }}
+                onClick={() => {
+                  if (rep.href) {
+                    window.location.href = rep.href;
+                  } else {
+                    alert(`Downloading ${rep.title}...`);
+                  }
+                }}
+                sx={{
+                  borderRadius: 2.5,
+                  fontWeight: 700,
+                  borderColor: "#E5E7EB",
+                  backgroundColor: rep.href ? "#2563EB" : undefined,
+                  color: rep.href ? "#FFFFFF" : "#374151",
+                  "&:hover": {
+                    backgroundColor: rep.href ? "#1D4ED8" : undefined,
+                  },
+                }}
               >
-                Download Report
+                {rep.href ? "Open Interactive Report" : "Download Report"}
               </Button>
             </Stack>
           </Paper>

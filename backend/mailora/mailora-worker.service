@@ -1,0 +1,24 @@
+[Unit]
+Description=Mailora IMAP-to-OCR Pipeline Worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/pay2pay/backend
+ExecStart=/home/ubuntu/pay2pay/backend/venv/bin/python /home/ubuntu/pay2pay/backend/mailora_worker.py
+Restart=always
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mailora-worker
+Environment=PYTHONIOENCODING=utf-8
+Environment=PYTHONUNBUFFERED=1
+
+# Resource limits
+TimeoutStartSec=30
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

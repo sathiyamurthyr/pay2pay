@@ -1142,7 +1142,7 @@ class KycDocumentReaderService:
 
         suffix_chars = []
         for ch in val[5:11]:
-            if ch in ["O", "Q", "D", "o"]:
+            if ch in ["O", "Q", "D", "o", "G"]:
                 suffix_chars.append("0")
             elif ch in ["I", "L", "l", "|"]:
                 suffix_chars.append("1")

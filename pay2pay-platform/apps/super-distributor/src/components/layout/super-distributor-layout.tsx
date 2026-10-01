@@ -20,7 +20,8 @@ import {
   Building2,
   Crown,
   Layers,
-  ArrowUpRight
+  ArrowUpRight,
+  Smartphone
 } from "lucide-react";
 import { SuperDistributorAPI } from "@/services/super-distributor-api";
 
@@ -83,9 +84,11 @@ export function SuperDistributorLayout({ children }: SuperDistributorLayoutProps
   const navItems = [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "Wallet & Ledger", href: "/wallet", icon: Wallet },
+    { label: "Topup Report", href: "/reports/topup-requests", icon: ReceiptText },
     { label: "Distributors", href: "/distributors", icon: Users },
     { label: "Onboard Partner", href: "/distributors/onboard", icon: UserPlus },
     { label: "MDR Setup", href: "/mdr", icon: Percent },
+    { label: "My POS Devices", href: "/pos-info", icon: Smartphone },
     { label: "Transactions", href: "/transactions", icon: ReceiptText },
     { label: "Profile & Settings", href: "/profile", icon: ShieldCheck },
   ];

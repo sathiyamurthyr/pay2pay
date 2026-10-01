@@ -19,7 +19,7 @@ import uuid
 import logging
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
-from fastapi import APIRouter, Depends, HTTPException, Query, status, Request, File, UploadFile, Form
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Request, Response, File, UploadFile, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -74,6 +74,30 @@ async def get_current_sales_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired session. Please sign in again."
+        )
+
+    # Verify session token JTI is not blacklisted
+    from app.application.dependencies import REVOKED_TOKENS_CACHE
+    jti = payload.get("jti")
+    if jti and str(jti) in REVOKED_TOKENS_CACHE:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session has been revoked or logged out."
+        )
+
+    # Strict multi-portal session isolation: ensure token is explicitly for Sales
+    user_type = str(payload.get("user_type", "")).upper()
+    roles = [str(r).upper() for r in payload.get("roles", [])]
+    is_sales_token = (
+        user_type == "SALES_USER"
+        or user_type == "SALES"
+        or any(r in roles for r in ["SALES_USER", "SALES_REPRESENTATIVE", "SALES_AGENT", "ASM", "SALES_MANAGER"])
+    )
+    # If the token belongs to a retailer, distributor, or admin without sales role, reject it
+    if not is_sales_token and ("RETAILER" in roles or "DISTRIBUTOR" in roles or "SUPER_DISTRIBUTOR" in roles):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Session belongs to a different portal. Access denied for Sales Portal."
         )
 
     sub = payload.get("sub")
@@ -369,6 +393,61 @@ async def sales_verify_whatsapp_otp(
     )
 
 
+@router.post("/auth/logout", tags=["Sales Authentication"])
+async def sales_logout(
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Terminates the authenticated Sales session, revokes tokens, and clears all sales cookies.
+    """
+    auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+    token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1].strip()
+    if not token:
+        token = (
+            request.cookies.get("pay2pay_sales_token")
+            or request.cookies.get("p2p_sales_token")
+            or request.cookies.get("p2p_access_token")
+        )
+
+    if token:
+        try:
+            from app.core.security import decode_access_token
+            from app.infrastructure.db.models import UserSessionModel
+            from app.application.dependencies import blacklist_jti
+            payload = decode_access_token(token)
+            if payload:
+                jti = payload.get("jti")
+                if jti:
+                    blacklist_jti(str(jti))
+                    stmt = select(UserSessionModel).where(UserSessionModel.token_jti == str(jti))
+                    sess = (await db.execute(stmt)).scalars().first()
+                    if sess:
+                        sess.is_revoked = True
+                        await db.commit()
+        except Exception as e:
+            logger.warning(f"Error revoking sales session: {e}")
+
+    cookie_names = [
+        "p2p_sales_token", "pay2pay_sales_token",
+        "p2p_access_token", "pay2pay_access_token", "pay2pay_auth_token",
+        "p2p_user_role", "pay2pay_user_role", "p2p_session_locked",
+        "p2p_session_id", "p2p_destination", "access_token", "token"
+    ]
+    for c_name in cookie_names:
+        response.delete_cookie(key=c_name, path="/")
+        response.delete_cookie(key=c_name, path="/", domain="pay2pay.in")
+        response.delete_cookie(key=c_name, path="/", domain=".pay2pay.in")
+
+    return {
+        "status": "SUCCESS",
+        "message": "Sales session invalidated and logged out successfully"
+    }
+
+
 @router.get("/auth/me", tags=["Sales Authentication"])
 @router.get("/auth/profile", tags=["Sales Authentication"])
 async def get_sales_profile(
@@ -486,7 +565,7 @@ async def get_retailers(
     search: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(50, ge=1, le=500),
     current_user: SalesUserModel = Depends(get_current_sales_user),
     db: AsyncSession = Depends(get_db)
 ):
