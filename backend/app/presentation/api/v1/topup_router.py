@@ -118,7 +118,7 @@ def check_t1_approval_eligibility(topup: TopupRequestModel) -> Tuple[bool, bool,
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form, status, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import select, update, func, or_, and_, desc, case, text
+from sqlalchemy import select, update, func, or_, and_, desc, case, text, literal
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -126,7 +126,7 @@ from app.core.security import decode_access_token
 from app.application.dependencies import security_scheme, get_current_token_payload, get_current_user, get_current_tenant_id
 from app.infrastructure.db.models import (
     AdminUserModel, RetailerModel, RetailerWalletModel, RetailerContactModel,
-    TopupRequestModel, AdminServiceVendorWalletModel
+    TopupRequestModel, AdminServiceVendorWalletModel, DistributorModel, SuperDistributorModel, CompanyModel
 )
 from app.infrastructure.db.pos_mdr_models import PosPaymentModeConfigModel
 from app.infrastructure.db.customer_models import CustomerServiceConfigurationModel
@@ -139,6 +139,55 @@ from app.infrastructure.adapters.email_service import email_service
 from app.application.wallet_balance_service import WalletBalanceAdjustmentService, WalletAdjustmentDTO
 
 logger = logging.getLogger("topup_router")
+
+# Centralized Notification Service integration (non-breaking)
+try:
+    from app.application.notification_event_service import (
+        notification_event_service as _notif_svc,
+        topup_notification_event as _topup_notif_event,
+    )
+    _NOTIF_ENABLED = True
+except Exception as _nie:
+    _NOTIF_ENABLED = False
+
+async def _emit_topup_notification(topup_record, event_status, admin_notes=None):
+    if not _NOTIF_ENABLED:
+        return
+    try:
+        from app.core.database import AsyncSessionLocal
+        from app.infrastructure.db.models import RetailerModel
+        from sqlalchemy import select as _sa_select
+        async with AsyncSessionLocal() as _ndb:
+            _rid = getattr(topup_record, 'retailer_id', None)
+            if not _rid:
+                return
+            _ret = (await _ndb.execute(_sa_select(RetailerModel).where(RetailerModel.public_id == _rid).limit(1))).scalar_one_or_none()
+            if not _ret:
+                return
+            _amt = None
+            if (event_status or '').upper() == 'APPROVED' and getattr(topup_record, 'approved_amount', None):
+                _amt = float(topup_record.approved_amount)
+            elif getattr(topup_record, 'requested_amount', None):
+                _amt = float(topup_record.requested_amount)
+            _ev = _topup_notif_event(
+                user_id=_ret.public_id,
+                tenant_id=topup_record.tenant_id,
+                company_id=getattr(topup_record, 'company_id', None),
+                topup_request_id=topup_record.topup_request_id,
+                event_status=event_status,
+                amount=_amt,
+                payment_method=getattr(topup_record, 'payment_method', None),
+                usertype_ref_id=getattr(topup_record, 'user_type_ref_id', 2),
+                user_ref_id=str(getattr(_ret, 'retailer_code', '') or ''),
+                tenant_ref_id=getattr(topup_record, 'tenant_ref_id', None),
+                company_ref_id=getattr(topup_record, 'company_ref_id', None),
+                admin_notes=admin_notes,
+            )
+            await _notif_svc.emit_safe(_ndb, _ev)
+    except Exception as _e:
+        import logging as _log
+        _log.getLogger('topup_router').warning(f'[TopupNotif] Non-critical: {_e}')
+
 
 router = APIRouter(prefix="/topup", tags=["Retailer Topup Requests & Verification"])
 
@@ -383,35 +432,38 @@ async def get_authenticated_retailer(
         except Exception:
             pass
 
-    # 3. Check query/header retailer identification (x-retailer-code, x-retailer-id, or query param)
-    q_retailer_id = request.query_params.get("retailer_id") or request.query_params.get("retailer_code")
-    h_retailer_id = request.headers.get("x-retailer-id") or request.headers.get("x-retailer-code")
-    caller_cand = q_retailer_id or h_retailer_id
-    if caller_cand and caller_cand != "00000000-0000-0000-0000-000000000000":
-        try:
-            cand_uuid = uuid.UUID(str(caller_cand))
-            stmt = select(RetailerModel).where(RetailerModel.public_id == cand_uuid, RetailerModel.is_deleted == False)
-            res = await db.execute(stmt)
-            retailer = res.scalars().first()
-            if retailer:
-                return retailer
-        except Exception:
-            pass
+    # 3. Only permit query/header retailer identification if the caller is an authenticated Admin / Super-Admin
+    token_roles = [str(r).upper() for r in (payload.get("roles") or [])]
+    is_admin = any(r in ("ADMIN", "SUPER_ADMIN", "PLATFORM_ADMIN", "COMPLIANCE_OFFICER") for r in token_roles)
+    if is_admin:
+        q_retailer_id = request.query_params.get("retailer_id") or request.query_params.get("retailer_code")
+        h_retailer_id = request.headers.get("x-retailer-id") or request.headers.get("x-retailer-code")
+        caller_cand = q_retailer_id or h_retailer_id
+        if caller_cand and caller_cand != "00000000-0000-0000-0000-000000000000":
+            try:
+                cand_uuid = uuid.UUID(str(caller_cand))
+                stmt = select(RetailerModel).where(RetailerModel.public_id == cand_uuid, RetailerModel.is_deleted == False)
+                res = await db.execute(stmt)
+                retailer = res.scalars().first()
+                if retailer:
+                    return retailer
+            except Exception:
+                pass
 
-        try:
-            stmt = select(RetailerModel).where(
-                or_(
-                    RetailerModel.retailer_code == str(caller_cand),
-                    RetailerModel.retailer_code.ilike(str(caller_cand))
-                ),
-                RetailerModel.is_deleted == False
-            )
-            res = await db.execute(stmt)
-            retailer = res.scalars().first()
-            if retailer:
-                return retailer
-        except Exception:
-            pass
+            try:
+                stmt = select(RetailerModel).where(
+                    or_(
+                        RetailerModel.retailer_code == str(caller_cand),
+                        RetailerModel.retailer_code.ilike(str(caller_cand))
+                    ),
+                    RetailerModel.is_deleted == False
+                )
+                res = await db.execute(stmt)
+                retailer = res.scalars().first()
+                if retailer:
+                    return retailer
+            except Exception:
+                pass
 
 
 
@@ -1256,6 +1308,8 @@ async def create_topup_request(
             logger.error(f"[WHATSAPP ALERT BACKGROUND ERROR] {bg_ex}")
 
     asyncio.create_task(_dispatch_admin_whatsapp_alert())
+    # Notify retailer: Topup request submitted
+    asyncio.create_task(_emit_topup_notification(topup_model, "SUBMITTED"))
 
     return {
         "success": True,
@@ -1354,29 +1408,308 @@ async def calculate_topup_mdr(
 # 3. RETAILER VIEW OWN REQUESTS
 # ==============================================================================
 
-@router.get("/my-requests", summary="Get Authenticated Retailer's Topup Requests")
+@router.get("/my-requests", summary="Get Authenticated User's Topup Requests (Dynamic Multi-Tenant & Multi-Role)")
 async def get_my_topup_requests(
     request: Request,
     retailer_id: Optional[str] = Query(None),
-    retailer: RetailerModel = Depends(get_authenticated_retailer),
+    distributor_id: Optional[str] = Query(None),
+    super_distributor_id: Optional[str] = Query(None),
+    user_ref_id: Optional[int] = Query(None),
+    user_type_ref_id: Optional[int] = Query(None),
+    tenant_id: Optional[str] = Query(None),
+    company_id: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    payment_method: Optional[str] = Query(None),
+    payment_mode: Optional[str] = Query(None),
+    from_date: Optional[str] = Query(None),
+    to_date: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=500),
+    payload: Optional[dict] = Depends(get_optional_token_payload),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Returns list of topup requests created by the authenticated retailer.
+    Returns list of topup requests with dynamic multi-tenant, multi-company, and multi-role scoping.
+    Supports Super Distributor (user_type_ref_id=4), Distributor (3), Retailer (2), and Admin (1).
+    Includes summary metrics (total, approved, pending, rejected, MDR, charges) and pagination.
     """
-    stmt = select(TopupRequestModel).where(
-        TopupRequestModel.retailer_id == retailer.public_id,
-        TopupRequestModel.is_deleted == False
-    ).order_by(TopupRequestModel.submitted_at.desc())
+    payload = payload or {}
+    roles = [str(r).upper() for r in (payload.get("roles") or [])]
+    jwt_sub = payload.get("sub")
 
-    res = await db.execute(stmt)
-    records = res.scalars().all()
+    # 1. Resolve caller credentials & identity
+    caller_user_type_ref_id = payload.get("user_type_ref_id")
+    caller_tenant_id = payload.get("tenant_id") or tenant_id or request.headers.get("x-tenant-id")
+    caller_company_id = payload.get("company_id") or company_id or request.headers.get("x-company-id")
+    caller_user_ref_id = payload.get("user_ref_id") or payload.get("retailer_ref_id") or payload.get("distributor_ref_id") or payload.get("super_distributor_ref_id")
+    caller_user_code = payload.get("retailer_code") or payload.get("distributor_code") or payload.get("super_distributor_code") or "USER-LIVE"
+    caller_mobile = payload.get("mobile") or payload.get("phone") or ""
+    caller_user_name = "Authorized User"
+    caller_company_name = ""
+    caller_wallet_bal = 0.0
+
+    is_admin = any(r in roles for r in ["ADMIN", "SUPER_ADMIN", "PLATFORM_ADMIN", "OPERATIONS"])
+    is_sd = any(r in roles for r in ["SUPER_DISTRIBUTOR", "SD"]) or caller_user_type_ref_id == 4
+    is_dist = any(r in roles for r in ["DISTRIBUTOR", "DIST"]) or caller_user_type_ref_id == 3
+    is_retailer = any(r in roles for r in ["RETAILER", "RET"]) or caller_user_type_ref_id == 2 or (not is_admin and not is_sd and not is_dist)
+
+    sub_uuid = None
+    if jwt_sub and jwt_sub != "00000000-0000-0000-0000-000000000000":
+        try:
+            sub_uuid = uuid.UUID(str(jwt_sub))
+        except Exception:
+            sub_uuid = None
+
+    if is_sd:
+        caller_user_type_name = "SUPER_DISTRIBUTOR"
+        caller_user_type_ref_id = 4
+        if sub_uuid:
+            sd_row = (await db.execute(select(SuperDistributorModel).where(SuperDistributorModel.public_id == sub_uuid, SuperDistributorModel.is_deleted == False))).scalars().first()
+            if sd_row:
+                caller_user_name = sd_row.business_name or sd_row.contact_person or "Super Distributor"
+                caller_user_code = sd_row.super_distributor_code or caller_user_code
+                caller_user_ref_id = sd_row.super_distributor_ref_id or caller_user_ref_id
+                caller_company_name = sd_row.business_name or ""
+                caller_tenant_id = str(sd_row.tenant_id)
+                caller_company_id = str(sd_row.company_id)
+    elif is_dist:
+        caller_user_type_name = "DISTRIBUTOR"
+        caller_user_type_ref_id = 3
+        if sub_uuid:
+            dist_row = (await db.execute(select(DistributorModel).where(DistributorModel.public_id == sub_uuid, DistributorModel.is_deleted == False))).scalars().first()
+            if dist_row:
+                caller_user_name = dist_row.business_name or dist_row.owner_name or "Distributor"
+                caller_user_code = dist_row.distributor_code or caller_user_code
+                caller_user_ref_id = dist_row.distributor_ref_id or caller_user_ref_id
+                caller_company_name = dist_row.business_name or ""
+                caller_tenant_id = str(dist_row.tenant_id)
+                caller_company_id = str(dist_row.company_id)
+    elif is_admin:
+        caller_user_type_name = "ADMIN"
+        caller_user_type_ref_id = 1
+        caller_user_name = "Platform Administrator"
+    else:
+        caller_user_type_name = "RETAILER"
+        caller_user_type_ref_id = 2
+        ret_candidate = None
+        if sub_uuid:
+            ret_candidate = (await db.execute(select(RetailerModel).where(RetailerModel.public_id == sub_uuid, RetailerModel.is_deleted == False))).scalars().first()
+        if not ret_candidate and retailer_id:
+            try:
+                ret_candidate = (await db.execute(select(RetailerModel).where(RetailerModel.public_id == uuid.UUID(str(retailer_id)), RetailerModel.is_deleted == False))).scalars().first()
+            except Exception:
+                ret_candidate = (await db.execute(select(RetailerModel).where(RetailerModel.retailer_code == str(retailer_id), RetailerModel.is_deleted == False))).scalars().first()
+        if not ret_candidate and caller_user_ref_id:
+            ret_candidate = (await db.execute(select(RetailerModel).where(or_(RetailerModel.retailer_ref_id == int(caller_user_ref_id), RetailerModel.id == int(caller_user_ref_id)), RetailerModel.is_deleted == False))).scalars().first()
+
+        if ret_candidate:
+            caller_user_name = get_retailer_display_name(ret_candidate)
+            caller_user_code = ret_candidate.retailer_code or caller_user_code
+            caller_user_ref_id = getattr(ret_candidate, "retailer_ref_id", None) or getattr(ret_candidate, "id", None)
+            caller_company_name = getattr(ret_candidate, "store_name", getattr(ret_candidate, "legal_name", ""))
+            caller_tenant_id = str(ret_candidate.tenant_id)
+            caller_company_id = str(ret_candidate.company_id)
+            wal = (await db.execute(select(RetailerWalletModel).where(RetailerWalletModel.retailer_id == ret_candidate.public_id, RetailerWalletModel.is_deleted == False))).scalars().first()
+            if wal:
+                caller_wallet_bal = float(wal.wallet_balance)
+
+    # 2. Build Query Conditions
+    conditions = [TopupRequestModel.is_deleted == False]
+
+    # Tenant filter
+    effective_tenant = tenant_id or request.headers.get("x-tenant-id") or (caller_tenant_id if not is_admin else None)
+    if effective_tenant and effective_tenant != "ALL":
+        try:
+            t_uuid = uuid.UUID(str(effective_tenant))
+            conditions.append(TopupRequestModel.tenant_id == t_uuid)
+        except Exception:
+            pass
+
+    # Company filter
+    effective_company = company_id or request.headers.get("x-company-id") or (caller_company_id if not is_admin else None)
+    if effective_company and effective_company != "ALL":
+        try:
+            c_uuid = uuid.UUID(str(effective_company))
+            conditions.append(TopupRequestModel.company_id == c_uuid)
+        except Exception:
+            pass
+
+    # User type filter
+    if user_type_ref_id is not None and int(user_type_ref_id) > 0:
+        conditions.append(TopupRequestModel.user_type_ref_id == int(user_type_ref_id))
+    elif not is_admin:
+        if is_retailer:
+            if sub_uuid:
+                conditions.append(
+                    or_(
+                        TopupRequestModel.retailer_id == sub_uuid,
+                        TopupRequestModel.user_ref_id == caller_user_ref_id if caller_user_ref_id else False
+                    )
+                )
+            elif caller_user_ref_id:
+                conditions.append(TopupRequestModel.user_ref_id == caller_user_ref_id)
+        elif is_dist:
+            if sub_uuid:
+                conditions.append(
+                    or_(
+                        TopupRequestModel.distributor_id == sub_uuid,
+                        TopupRequestModel.user_ref_id == caller_user_ref_id if caller_user_ref_id else False
+                    )
+                )
+            elif caller_user_ref_id:
+                conditions.append(
+                    or_(
+                        TopupRequestModel.distributor_ref_id == caller_user_ref_id,
+                        TopupRequestModel.user_ref_id == caller_user_ref_id
+                    )
+                )
+
+    # Specific Retailer filter
+    if retailer_id and retailer_id != "ALL":
+        try:
+            r_uuid = uuid.UUID(str(retailer_id))
+            conditions.append(TopupRequestModel.retailer_id == r_uuid)
+        except Exception:
+            ret_lookup = (await db.execute(select(RetailerModel.public_id).where(RetailerModel.retailer_code == str(retailer_id), RetailerModel.is_deleted == False))).scalars().first()
+            if ret_lookup:
+                conditions.append(TopupRequestModel.retailer_id == ret_lookup)
+
+    # Specific Distributor filter
+    if distributor_id and distributor_id != "ALL":
+        try:
+            d_uuid = uuid.UUID(str(distributor_id))
+            conditions.append(TopupRequestModel.distributor_id == d_uuid)
+        except Exception:
+            dist_lookup = (await db.execute(select(DistributorModel.public_id).where(DistributorModel.distributor_code == str(distributor_id), DistributorModel.is_deleted == False))).scalars().first()
+            if dist_lookup:
+                conditions.append(TopupRequestModel.distributor_id == dist_lookup)
+
+    # Specific User Ref ID filter
+    if user_ref_id and int(user_ref_id) > 0:
+        conditions.append(TopupRequestModel.user_ref_id == int(user_ref_id))
+
+    # Status filter
+    if status and status.upper() != "ALL":
+        conditions.append(TopupRequestModel.status == status.upper())
+
+    # Payment Mode / Method filter
+    eff_payment_mode = payment_mode or payment_method
+    if eff_payment_mode and eff_payment_mode.upper() != "ALL":
+        conditions.append(TopupRequestModel.payment_method.ilike(f"%{eff_payment_mode}%"))
+
+    # Date Range filter
+    if from_date:
+        try:
+            clean_from = from_date.strip().split("T")[0]
+            from_dt = datetime.strptime(clean_from, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=timezone.utc)
+            conditions.append(TopupRequestModel.submitted_at >= from_dt)
+        except Exception:
+            pass
+
+    if to_date:
+        try:
+            clean_to = to_date.strip().split("T")[0]
+            to_dt = datetime.strptime(clean_to, "%Y-%m-%d").replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=timezone.utc)
+            conditions.append(TopupRequestModel.submitted_at <= to_dt)
+        except Exception:
+            pass
+
+    # Search filter
+    if search and search.strip():
+        term = f"%{search.strip()}%"
+        conditions.append(
+            or_(
+                TopupRequestModel.topup_request_id.ilike(term),
+                TopupRequestModel.payment_reference.ilike(term),
+                TopupRequestModel.retailer_remarks.ilike(term),
+                TopupRequestModel.admin_notes.ilike(term),
+                TopupRequestModel.payment_method.ilike(term),
+            )
+        )
+
+    # 3. Dynamic Aggregates & KPI Metrics
+    where_clause = and_(*conditions)
+
+    count_stmt = select(func.count(TopupRequestModel.id)).where(where_clause)
+    total_count = await db.scalar(count_stmt) or 0
+
+    sum_stmt = select(
+        func.coalesce(func.sum(TopupRequestModel.requested_amount), 0),
+        func.coalesce(func.sum(TopupRequestModel.approved_amount), 0),
+        func.coalesce(func.sum(TopupRequestModel.received_amount), 0),
+        func.coalesce(func.sum(TopupRequestModel.mdr_charge), 0),
+        func.coalesce(func.sum(TopupRequestModel.gst_amount), 0),
+        func.coalesce(func.sum(TopupRequestModel.charges), 0)
+    ).where(where_clause)
+    sums_res = (await db.execute(sum_stmt)).one()
+    total_requested_amount = float(sums_res[0])
+    total_approved_amount = float(sums_res[1])
+    total_received_amount = float(sums_res[2])
+    total_mdr = float(sums_res[3])
+    total_gst = float(sums_res[4])
+    total_charges = float(sums_res[5])
+
+    approved_metrics = (await db.execute(
+        select(
+            func.count(TopupRequestModel.id),
+            func.coalesce(func.sum(TopupRequestModel.approved_amount), 0)
+        ).where(and_(*conditions, TopupRequestModel.status == "APPROVED"))
+    )).one()
+    approved_count = approved_metrics[0]
+    approved_amount = float(approved_metrics[1])
+
+    pending_metrics = (await db.execute(
+        select(
+            func.count(TopupRequestModel.id),
+            func.coalesce(func.sum(TopupRequestModel.requested_amount), 0)
+        ).where(and_(*conditions, TopupRequestModel.status.in_(["PENDING", "UNDER_REVIEW"])))
+    )).one()
+    pending_count = pending_metrics[0]
+    pending_amount = float(pending_metrics[1])
+
+    rejected_metrics = (await db.execute(
+        select(
+            func.count(TopupRequestModel.id),
+            func.coalesce(func.sum(TopupRequestModel.requested_amount), 0)
+        ).where(and_(*conditions, TopupRequestModel.status == "REJECTED"))
+    )).one()
+    rejected_count = rejected_metrics[0]
+    rejected_amount = float(rejected_metrics[1])
+
+    # 4. Fetch Paginated Records with Joined Entity Metadata
+    offset_val = (page - 1) * limit
+    records_stmt = (
+        select(
+            TopupRequestModel,
+            RetailerModel.retailer_code,
+            RetailerModel.store_name,
+            RetailerModel.owner_name,
+            literal("").label("retailer_mobile"),
+            DistributorModel.distributor_code,
+            DistributorModel.business_name,
+            CompanyModel.company_name
+        )
+        .outerjoin(RetailerModel, RetailerModel.public_id == TopupRequestModel.retailer_id)
+        .outerjoin(DistributorModel, DistributorModel.public_id == TopupRequestModel.distributor_id)
+        .outerjoin(CompanyModel, CompanyModel.public_id == TopupRequestModel.company_id)
+        .where(where_clause)
+        .order_by(TopupRequestModel.submitted_at.desc())
+        .offset(offset_val)
+        .limit(limit)
+    )
+
+    records_res = await db.execute(records_stmt)
+    rows = records_res.all()
 
     items = []
-    for r in records:
+    for r, r_code, r_store, r_owner, r_mob, d_code, d_biz, comp_name in rows:
         c_type = getattr(r, "card_type", None) or (r.metadata_json or {}).get("card_type") if hasattr(r, "metadata_json") else getattr(r, "card_type", None)
         c_last4 = getattr(r, "card_last_4", None) or (r.metadata_json or {}).get("card_last_4") if hasattr(r, "metadata_json") else getattr(r, "card_last_4", None)
         c_masked = f"****{c_last4}" if c_last4 else None
+
+        entity_name = r_store or r_owner or d_biz or "Authorized User"
+        entity_code = r_code or d_code or ("RET-LIVE" if r.user_type_ref_id == 2 else "USER-LIVE")
 
         items.append({
             "id": str(r.public_id),
@@ -1399,60 +1732,124 @@ async def get_my_topup_requests(
             "slip_id": r.slip_id,
             "slip_url": _resolve_slip_url(r.slip_url, r.slip_id),
             "slip_original_filename": r.slip_original_filename,
+            "slip_file_size_bytes": getattr(r, "slip_file_size_bytes", None),
             "retailer_remarks": r.retailer_remarks,
             "admin_notes": r.admin_notes,
             "rejection_reason": r.rejection_reason,
             "submitted_at": r.submitted_at.isoformat() if r.submitted_at else None,
             "approved_at": r.approved_at.isoformat() if r.approved_at else None,
-            "transaction_reference": r.transaction_reference
+            "approved_by": r.approved_by,
+            "rejected_at": r.rejected_at.isoformat() if r.rejected_at else None,
+            "rejected_by": r.rejected_by,
+            "transaction_reference": r.transaction_reference,
+            # Multi-Tenant & Hierarchy Metadata
+            "tenant_id": str(r.tenant_id) if r.tenant_id else None,
+            "company_id": str(r.company_id) if r.company_id else None,
+            "company_name": comp_name or "Pay2Pay Enterprise",
+            "user_type_ref_id": r.user_type_ref_id or 2,
+            "user_type": "SUPER_DISTRIBUTOR" if r.user_type_ref_id == 4 else ("DISTRIBUTOR" if r.user_type_ref_id == 3 else "RETAILER"),
+            "user_ref_id": r.user_ref_id,
+            "retailer_id": str(r.retailer_id) if r.retailer_id else None,
+            "distributor_id": str(r.distributor_id) if r.distributor_id else None,
+            "user_code": entity_code,
+            "user_name": entity_name,
+            "entity_code": entity_code,
+            "entity_name": entity_name,
+            "mobile": r_mob or ""
         })
-
-    # Fetch live wallet balance
-    wal_stmt = select(RetailerWalletModel).where(
-        RetailerWalletModel.retailer_id == retailer.public_id,
-        RetailerWalletModel.is_deleted == False
-    )
-    wal_res = await db.execute(wal_stmt)
-    wallet = wal_res.scalars().first()
-    wallet_bal = float(wallet.wallet_balance) if wallet else 0.0
 
     return {
         "success": True,
-        "total": len(items),
+        "total": total_count,
+        "page": page,
+        "limit": limit,
+        "total_pages": (total_count + limit - 1) // limit if total_count > 0 else 1,
         "items": items,
+        "summary": {
+            "total_requests": total_count,
+            "total_requested_amount": total_requested_amount,
+            "total_approved_amount": total_approved_amount,
+            "total_received_amount": total_received_amount,
+            "total_mdr": total_mdr,
+            "total_gst": total_gst,
+            "total_charges": total_charges,
+            "pending_count": pending_count,
+            "pending_amount": pending_amount,
+            "approved_count": approved_count,
+            "approved_amount": approved_amount,
+            "rejected_count": rejected_count,
+            "rejected_amount": rejected_amount,
+        },
+        "context": {
+            "tenant_id": str(caller_tenant_id) if caller_tenant_id else None,
+            "company_id": str(caller_company_id) if caller_company_id else None,
+            "user_type_ref_id": caller_user_type_ref_id,
+            "user_type": caller_user_type_name,
+            "user_ref_id": caller_user_ref_id,
+            "user_code": caller_user_code,
+            "user_name": caller_user_name,
+            "role": "SUPER_DISTRIBUTOR" if is_sd else ("DISTRIBUTOR" if is_dist else ("ADMIN" if is_admin else "RETAILER")),
+            "current_wallet_balance": caller_wallet_bal,
+        },
         "retailer": {
-            "retailer_id": str(retailer.public_id),
-            "user_ref_id": getattr(retailer, "retailer_ref_id", None) or getattr(retailer, "id", None),
-            "user_type_ref_id": 2,
-            "retailer_ref_id": getattr(retailer, "retailer_ref_id", None) or getattr(retailer, "id", None),
-            "retailer_code": retailer.retailer_code or "RET-LIVE",
-            "retailer_name": get_retailer_display_name(retailer),
-            "mobile_number": getattr(retailer, "mobile_number", getattr(retailer, "phone_number", "")),
-            "company_name": getattr(retailer, "store_name", getattr(retailer, "legal_name", "")),
-            "wallet_id": str(wallet.public_id) if wallet else None,
-            "current_wallet_balance": wallet_bal,
-            "is_wallet_frozen": wallet.is_frozen if wallet else False
+            "retailer_id": str(jwt_sub) if jwt_sub else None,
+            "user_ref_id": caller_user_ref_id,
+            "user_type_ref_id": caller_user_type_ref_id or 2,
+            "retailer_ref_id": caller_user_ref_id,
+            "retailer_code": caller_user_code,
+            "retailer_name": caller_user_name,
+            "mobile_number": caller_mobile,
+            "company_name": caller_company_name,
+            "wallet_id": None,
+            "current_wallet_balance": caller_wallet_bal,
+            "is_wallet_frozen": False
         }
     }
 
 
-@router.get("/request", summary="Get Authenticated Retailer's Topup Requests (Alias for /my-requests)")
+@router.get("/request", summary="Get Authenticated User's Topup Requests (Alias for /my-requests)")
 async def get_topup_request_get_alias(
     request: Request,
     retailer_id: Optional[str] = Query(None),
+    distributor_id: Optional[str] = Query(None),
+    super_distributor_id: Optional[str] = Query(None),
     user_ref_id: Optional[int] = Query(None),
     user_type_ref_id: Optional[int] = Query(None),
-    retailer: RetailerModel = Depends(get_authenticated_retailer),
+    tenant_id: Optional[str] = Query(None),
+    company_id: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    payment_method: Optional[str] = Query(None),
+    payment_mode: Optional[str] = Query(None),
+    from_date: Optional[str] = Query(None),
+    to_date: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=500),
+    payload: Optional[dict] = Depends(get_optional_token_payload),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Handles GET /api/v1/topup/request?user_type_ref_id=2&user_ref_id=24
-    Returns retailer's topup request history, live wallet balance, and retailer metadata.
+    Handles GET /api/v1/topup/request (Alias for /my-requests).
+    Returns user's topup request history, live wallet balance, and entity metadata.
     """
     return await get_my_topup_requests(
         request=request,
         retailer_id=retailer_id,
-        retailer=retailer,
+        distributor_id=distributor_id,
+        super_distributor_id=super_distributor_id,
+        user_ref_id=user_ref_id,
+        user_type_ref_id=user_type_ref_id,
+        tenant_id=tenant_id,
+        company_id=company_id,
+        status=status,
+        payment_method=payment_method,
+        payment_mode=payment_mode,
+        from_date=from_date,
+        to_date=to_date,
+        search=search,
+        page=page,
+        limit=limit,
+        payload=payload,
         db=db
     )
 
@@ -2241,6 +2638,19 @@ async def approve_topup_request(
        - Updates Topup Request status to APPROVED
     4. Dispatches real-time email notification.
     """
+    admin_type = (getattr(current_admin, "user_type", "") or "").upper()
+    is_admin = admin_type in ("PLATFORM_ADMIN", "SUPER_ADMIN", "ADMIN")
+    if not is_admin:
+        has_admin_role = any(
+            (ur.role and ur.role.code in ("PLATFORM_ADMIN", "SUPER_ADMIN", "ADMIN"))
+            for ur in (getattr(current_admin, "user_roles", []) or [])
+        )
+        if not has_admin_role:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Forbidden: Administrative privileges required to approve topup requests."
+            )
+
     # 1. Row-lock TopupRequestModel
     conditions = [TopupRequestModel.is_deleted == False]
     try:
@@ -2418,6 +2828,9 @@ async def approve_topup_request(
             asyncio.create_task(_trigger_retailer_topup_status_whatsapp(
                 topup_record.public_id, "Approved", final_approved_amount, final_approved_amount, override_txn
             ))
+
+            # Dispatch in-app notification: Topup Approved
+            asyncio.create_task(_emit_topup_notification(topup_record, "APPROVED"))
 
             # Dispatch notification
             return {
@@ -2661,6 +3074,8 @@ async def approve_topup_request(
     asyncio.create_task(_trigger_retailer_topup_status_whatsapp(
         topup_record.public_id, "Approved", final_approved_amount, final_approved_amount, getattr(sp_result, "txn_id", None)
     ))
+    # Dispatch in-app notification: Topup Approved (Application fallback branch)
+    asyncio.create_task(_emit_topup_notification(topup_record, "APPROVED", getattr(req, "admin_notes", None)))
 
     return {
         "success": True,
@@ -2704,6 +3119,19 @@ async def reject_topup_request(
     Stores rejection reason and timestamp.
     ZERO financial or ledger movements are created.
     """
+    admin_type = (getattr(current_admin, "user_type", "") or "").upper()
+    is_admin = admin_type in ("PLATFORM_ADMIN", "SUPER_ADMIN", "ADMIN")
+    if not is_admin:
+        has_admin_role = any(
+            (ur.role and ur.role.code in ("PLATFORM_ADMIN", "SUPER_ADMIN", "ADMIN"))
+            for ur in (getattr(current_admin, "user_roles", []) or [])
+        )
+        if not has_admin_role:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Forbidden: Administrative privileges required to reject topup requests."
+            )
+
     conditions = [TopupRequestModel.is_deleted == False]
     try:
         r_uuid = uuid.UUID(request_id)
@@ -2758,6 +3186,10 @@ async def reject_topup_request(
     # Dispatch retailer WhatsApp rejection notification in background
     asyncio.create_task(_trigger_retailer_topup_status_whatsapp(
         topup_record.public_id, "Rejected", 0.0, 0.0
+    ))
+    # Dispatch in-app notification: Topup Rejected
+    asyncio.create_task(_emit_topup_notification(
+        topup_record, "REJECTED", getattr(req, "admin_notes", None) or getattr(req, "rejection_reason", None)
     ))
 
     return {

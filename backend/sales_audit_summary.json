@@ -1,0 +1,179 @@
+{
+  "timestamp": "2026-09-26T19:27:35.854895+00:00",
+  "dynamic_dataset": {
+    "super_distributor": {
+      "business_name": "Demo Auto SD 1790450833",
+      "owner_name": "SD Owner GFZ",
+      "mobile": "9876605951",
+      "email": "sd_1790450833_605951@demotest.com",
+      "state": "Tamil Nadu",
+      "city": "Chennai",
+      "address": "Suite 8628, Tech Park, Mount Road",
+      "pincode": "600002",
+      "pan_number": "SDGFZ8628X",
+      "gst_number": "33SDGFZ8628X1Z5",
+      "bank_account_number": "991100605951",
+      "ifsc": "SBIN0001234"
+    },
+    "distributor": {
+      "business_name": "Demo Auto Dist 1790450833",
+      "owner_name": "Dist Owner GFZ",
+      "mobile": "9877605951",
+      "email": "dist_1790450833_605951@demotest.com",
+      "state": "Tamil Nadu",
+      "city": "Coimbatore",
+      "address": "Plot 8628, Industrial Estate, Avinashi Road",
+      "pincode": "641001",
+      "pan_number": "DIGFZ8628Y",
+      "gst_number": "33DIGFZ8628Y1Z5",
+      "bank_account_number": "992200605951",
+      "ifsc": "HDFC0005678",
+      "mapped_super_distributor_id": "032b5415-7503-45c4-a0b6-5787fb74e551"
+    },
+    "retailer": {
+      "store_name": "Demo Auto Retailer 1790450833",
+      "legal_name": "Demo Retailer Pvt Ltd 1790450833",
+      "owner_name": "Ret Owner GFZ",
+      "business_category": "General Store",
+      "store_type": "BRICK_AND_MORTAR",
+      "mobile": "9878605951",
+      "email": "ret_1790450833_605951@demotest.com",
+      "state": "Tamil Nadu",
+      "city": "Madurai",
+      "address": "Shop 8628, Commercial Complex, Main Bazaar",
+      "pincode": "625001",
+      "pan_number": "REGFZ8628Z",
+      "gst_number": "33REGFZ8628Z1Z5",
+      "aadhaar_number": "778886288628",
+      "bank_name": "State Bank of India",
+      "account_holder_name": "Ret Owner GFZ",
+      "bank_account_number": "993300605951",
+      "ifsc": "SBIN0004321",
+      "bank_branch": "Madurai Main",
+      "mapped_distributor_id": "a16a5fe3-fa26-4a5a-bf7c-37ea93a1153e"
+    }
+  },
+  "created_entity_ids": {
+    "super_distributor": "032b5415-7503-45c4-a0b6-5787fb74e551",
+    "distributor": "a16a5fe3-fa26-4a5a-bf7c-37ea93a1153e",
+    "retailer": "691274c5-b03e-470e-9fef-4e1698e8e266",
+    "emails": [
+      "sd_1790450833_605951@demotest.com",
+      "dist_1790450833_605951@demotest.com",
+      "ret_1790450833_605951@demotest.com"
+    ],
+    "mobiles": [
+      "9876605951",
+      "9877605951",
+      "9878605951"
+    ]
+  },
+  "e2e_results": [
+    {
+      "step": "ASM Login (SALES001)",
+      "status": "PASS",
+      "latency_ms": 4115.44,
+      "details": "Authenticated sales@pay2pay.in successfully."
+    },
+    {
+      "step": "ASM Login (ASM-SATHUS-001)",
+      "status": "PASS",
+      "latency_ms": 854.29,
+      "details": "Authenticated asmsales@gmail.com successfully."
+    },
+    {
+      "step": "ASM Login (ASM-SATHUS-002)",
+      "status": "PASS",
+      "latency_ms": 877.5,
+      "details": "Authenticated joeltechenterprises@gmail.com successfully."
+    },
+    {
+      "step": "ASM Login (SALES002)",
+      "status": "PASS",
+      "latency_ms": 803.54,
+      "details": "Authenticated rajesh.sales@pay2pay.in successfully."
+    },
+    {
+      "step": "Register Super Distributor",
+      "status": "PASS",
+      "latency_ms": 1050.99,
+      "details": "Registered SD P2P-SD903967 (Demo Auto SD 1790450833)"
+    },
+    {
+      "step": "Register Distributor",
+      "status": "PASS",
+      "latency_ms": 1058.04,
+      "details": "Registered Distributor P2P-D783039 (Demo Auto Dist 1790450833)"
+    },
+    {
+      "step": "Register Retailer",
+      "status": "PASS",
+      "latency_ms": 1827.02,
+      "details": "Registered Retailer P2P-R847680 (Demo Auto Retailer 1790450833)"
+    }
+  ],
+  "hierarchy_verification": [
+    {
+      "asm_code": "SALES001",
+      "asm_name": "ASMPay2Pay",
+      "total_sds": 4,
+      "total_distributors": 6,
+      "total_retailers": 50,
+      "target_sd_visible": true,
+      "target_dist_visible": true,
+      "target_ret_visible": true,
+      "sd_latency_ms": 494.74,
+      "dist_latency_ms": 498.72,
+      "ret_latency_ms": 522.24
+    },
+    {
+      "asm_code": "ASM-SATHUS-001",
+      "asm_name": "Maria nancy christy",
+      "total_sds": 1,
+      "total_distributors": 2,
+      "total_retailers": 6,
+      "target_sd_visible": false,
+      "target_dist_visible": false,
+      "target_ret_visible": false,
+      "sd_latency_ms": 709.79,
+      "dist_latency_ms": 679.94,
+      "ret_latency_ms": 712.15
+    },
+    {
+      "asm_code": "ASM-SATHUS-002",
+      "asm_name": "VIJAYA KUMARI",
+      "total_sds": 1,
+      "total_distributors": 2,
+      "total_retailers": 6,
+      "target_sd_visible": false,
+      "target_dist_visible": false,
+      "target_ret_visible": false,
+      "sd_latency_ms": 676.04,
+      "dist_latency_ms": 665.01,
+      "ret_latency_ms": 693.45
+    },
+    {
+      "asm_code": "SALES002",
+      "asm_name": "Pay2PayASM",
+      "total_sds": 1,
+      "total_distributors": 2,
+      "total_retailers": 50,
+      "target_sd_visible": false,
+      "target_dist_visible": false,
+      "target_ret_visible": false,
+      "sd_latency_ms": 719.46,
+      "dist_latency_ms": 723.77,
+      "ret_latency_ms": 757.0
+    }
+  ],
+  "network_metrics": [],
+  "cleanup": {
+    "zero_residue_verified": true,
+    "logs": [
+      "Deleted Retailer 691274c5-b03e-470e-9fef-4e1698e8e266 and associated contacts/address/kyc/bank/assignment.",
+      "Error deleting Distributor a16a5fe3-fa26-4a5a-bf7c-37ea93a1153e: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation \"super_distributor_distributor_mapping\" does not exist\n[SQL: DELETE FROM super_distributor_distributor_mapping WHERE distributor_id = CAST($1 AS UUID);]\n[parameters: ('a16a5fe3-fa26-4a5a-bf7c-37ea93a1153e',)]\n(Background on this error at: https://sqlalche.me/e/20/f405)",
+      "Error deleting Super Distributor 032b5415-7503-45c4-a0b6-5787fb74e551: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedColumnError'>: column \"super_distributor_id\" does not exist\n[SQL: DELETE FROM sd_wallet WHERE super_distributor_id = CAST($1 AS UUID);]\n[parameters: ('032b5415-7503-45c4-a0b6-5787fb74e551',)]\n(Background on this error at: https://sqlalche.me/e/20/f405)",
+      "Zero Residue Confirmation: SD=0, Dist=0, Ret=0 (Passed: True)"
+    ]
+  }
+}

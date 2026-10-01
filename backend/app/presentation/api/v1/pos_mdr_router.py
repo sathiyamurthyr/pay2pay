@@ -431,21 +431,54 @@ async def create_admin_mdr_config(
 async def get_approved_retailers_list(
     search: Optional[str] = Query(None),
     company_id: Optional[str] = Query(None),
+    payload: dict = Depends(get_current_token_payload),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Returns only Approved and Active retailers loaded directly from the database
-    via the Stored Procedure public.get_approved_retailers_list.
+    Returns only Approved and Active retailers scoped to the caller's tenant/company.
+    Admin users (PLATFORM_ADMIN, SUPER_ADMIN, ADMIN) see all retailers across all tenants/companies.
+    Sales portal users (ASM, RSM, Sales roles) see only retailers within their own tenant and company.
     """
-    comp_uuid = None
+    # ── Resolve caller's tenant / company from JWT ─────────────────────
+    token_roles = [str(r).upper() for r in (payload.get("roles") or [])]
+    token_user_type = str(payload.get("user_type") or "").upper()
+    admin_role_set = {"PLATFORM_ADMIN", "SUPER_ADMIN", "ADMIN", "ROOT_ADMIN", "COMPANY_ADMIN", "OPERATIONS_ADMIN"}
+    is_global_admin = (
+        token_user_type in admin_role_set
+        or any(r in admin_role_set for r in token_roles)
+    )
+
+    caller_tenant_id: Optional[uuid.UUID] = None
+    caller_company_id: Optional[uuid.UUID] = None
+
+    if not is_global_admin:
+        # Scope to caller's own tenant & company from JWT claims
+        try:
+            tid = payload.get("tenant_id")
+            if tid:
+                caller_tenant_id = uuid.UUID(str(tid))
+        except Exception:
+            pass
+        try:
+            cid = payload.get("company_id")
+            if cid:
+                caller_company_id = uuid.UUID(str(cid))
+        except Exception:
+            pass
+
+    # Explicit company_id query param overrides only for admins
+    comp_uuid: Optional[uuid.UUID] = None
     if company_id:
         try:
             comp_uuid = uuid.UUID(str(company_id).strip())
         except Exception:
             pass
+    # Non-admins always use their own company regardless of query param
+    if not is_global_admin and caller_company_id:
+        comp_uuid = caller_company_id
 
     try:
-        from sqlalchemy import text, func
+        from sqlalchemy import text
         sp_query = text("""
             SELECT id, public_id, retailer_code, store_name, legal_name, owner_name,
                    business_category, registered_mobile, email, status, wallet_balance,
@@ -454,8 +487,15 @@ async def get_approved_retailers_list(
         """)
         res = await db.execute(sp_query, {"search": search or None, "comp_id": comp_uuid})
         rows = res.fetchall()
-        items = [
-            {
+
+        items = []
+        for r in rows:
+            # For non-admin: additionally filter by tenant_id if available in result
+            if not is_global_admin and caller_tenant_id:
+                row_tenant = r.tenant_id
+                if row_tenant and str(row_tenant) != str(caller_tenant_id):
+                    continue
+            items.append({
                 "id": r.id,
                 "public_id": str(r.public_id),
                 "retailer_code": r.retailer_code,
@@ -470,12 +510,11 @@ async def get_approved_retailers_list(
                 "company_id": str(r.company_id) if r.company_id else None,
                 "tenant_id": str(r.tenant_id) if r.tenant_id else None,
                 "created_date": r.created_date.isoformat() if r.created_date else None
-            }
-            for r in rows
-        ]
+            })
         return {"items": items, "total": len(items)}
+
     except Exception as sp_err:
-        # Robust SQLAlchemy Fallback in case SP migration is pending
+        # SQLAlchemy fallback when SP is unavailable
         stmt = (
             select(RetailerModel)
             .where(
@@ -484,8 +523,12 @@ async def get_approved_retailers_list(
             )
             .order_by(RetailerModel.store_name.asc())
         )
+        # Apply company/tenant scope
         if comp_uuid:
             stmt = stmt.where(RetailerModel.company_id == comp_uuid)
+        if not is_global_admin and caller_tenant_id:
+            stmt = stmt.where(RetailerModel.tenant_id == caller_tenant_id)
+
         res = await db.execute(stmt)
         ret_list = res.scalars().all()
         ret_ids = [r.public_id for r in ret_list]

@@ -18,6 +18,7 @@ import {
   Upload
 } from "lucide-react";
 import { DistributorAPI, TopupRequestItem } from "@/services/distributor-api";
+import UnisusQrTopupCard from "@/components/topup/UnisusQrTopupCard";
 
 export default function DistributorTopupPage() {
   const [requests, setRequests] = useState<TopupRequestItem[]>([]);
@@ -160,6 +161,9 @@ export default function DistributorTopupPage() {
           </div>
         </div>
       </div>
+
+      {/* Sathus Partner Collection QR (Enabled for Sathus Distributors) */}
+      <UnisusQrTopupCard onSuccess={loadData} className="mb-6" />
 
       {/* Requests History Toolbar */}
       <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-[#111827]/80 backdrop-blur-xl border border-white/[0.08]">

@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from typing import List, Optional
 import uuid
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, desc, func, update, text
@@ -430,3 +431,342 @@ async def get_communication_timeline(
 async def list_notification_events(db: AsyncSession = Depends(get_db)):
     events = await NotificationService.list_events(db)
     return APIResponse(data=[e.model_dump() for e in events])
+
+
+# -- SSE Real-Time Notification Stream ----------------------------------------
+
+import asyncio
+import json
+from fastapi.responses import StreamingResponse
+from app.application.notification_event_service import (
+    register_sse_listener,
+    deregister_sse_listener,
+)
+
+
+@router.get(
+    "/stream",
+    summary="Server-Sent Events stream for real-time notifications",
+    response_class=StreamingResponse,
+)
+async def notification_sse_stream(
+    payload: dict = Depends(get_optional_token_payload),
+):
+    """
+    SSE endpoint — the frontend connects here with an EventSource.
+    Sends live notification events as they are emitted by business services.
+    The stream is scoped to the authenticated user (resolved from JWT payload).
+
+    Client usage:
+        const es = new EventSource("/api/v1/notifications/stream", { withCredentials: true });
+        es.onmessage = (e) => { const notif = JSON.parse(e.data); /* update bell */ };
+    """
+    user_id_str = payload.get("sub") or ""
+
+    async def event_generator():
+        queue: asyncio.Queue = asyncio.Queue(maxsize=50)
+        register_sse_listener(user_id_str, queue)
+        try:
+            # Send initial heartbeat
+            yield f"data: {json.dumps({'type': 'connected', 'user_id': user_id_str})}\n\n"
+            while True:
+                try:
+                    # Wait for next event with periodic keepalive
+                    event_data = await asyncio.wait_for(queue.get(), timeout=25.0)
+                    yield f"data: {event_data}\n\n"
+                except asyncio.TimeoutError:
+                    # Keepalive comment to prevent proxy from closing the connection
+                    yield ": keepalive\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            deregister_sse_listener(user_id_str, queue)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+# -- Web Push Subscription Endpoints ------------------------------------------
+
+from pydantic import BaseModel as PydanticBaseModel
+
+class PushSubscriptionPayload(PydanticBaseModel):
+    endpoint: str
+    p256dh: str
+    auth: Optional[str] = None
+    auth_secret: Optional[str] = None
+    device_label: str = ""
+
+    def get_auth(self) -> str:
+        return self.auth or self.auth_secret or ""
+
+
+@router.post(
+    "/push/subscribe",
+    summary="Register Web Push subscription for Windows desktop notifications",
+    status_code=200,
+)
+async def register_push_subscription(
+    sub: PushSubscriptionPayload,
+    payload: dict = Depends(get_optional_token_payload),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Stores the browser Web Push subscription (endpoint + p256dh + auth).
+    Called by the frontend Service Worker after the user grants notification permission.
+    """
+    user_id_str = payload.get("sub") or ""
+    tenant_id_str = payload.get("tenant_id") or ""
+
+    if not user_id_str:
+        raise HTTPException(status_code=401, detail="Authentication required for push subscriptions.")
+
+    try:
+        u_uuid = uuid.UUID(user_id_str)
+        t_uuid = uuid.UUID(tenant_id_str)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid user or tenant identifier in token.")
+
+    try:
+        from app.infrastructure.db.models import NotificationPushSubscriptionModel
+        from sqlalchemy import select
+
+        # Deactivate existing subscriptions with same endpoint (re-subscribe)
+        await db.execute(
+            select(NotificationPushSubscriptionModel).where(
+                NotificationPushSubscriptionModel.endpoint == sub.endpoint,
+                NotificationPushSubscriptionModel.user_id == u_uuid,
+            )
+        )
+        now = datetime.now(timezone.utc)
+        push_sub = NotificationPushSubscriptionModel(
+            public_id=uuid.uuid4(),
+            user_id=u_uuid,
+            tenant_id=t_uuid,
+            endpoint=sub.endpoint,
+            p256dh=sub.p256dh,
+            auth_secret=sub.get_auth(),
+            device_label=sub.device_label or "",
+            is_active=True,
+            last_used_at=now,
+            created_date=now,
+            updated_date=now,
+        )
+        db.add(push_sub)
+        await db.commit()
+        return {"success": True, "message": "Push subscription registered."}
+    except Exception as exc:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to store push subscription: {exc}")
+
+
+@router.delete(
+    "/push/subscribe",
+    summary="Unregister Web Push subscription",
+)
+async def unregister_push_subscription(
+    endpoint: str,
+    payload: dict = Depends(get_optional_token_payload),
+    db: AsyncSession = Depends(get_db),
+):
+    user_id_str = payload.get("sub") or ""
+    if not user_id_str:
+        raise HTTPException(status_code=401, detail="Authentication required.")
+    try:
+        u_uuid = uuid.UUID(user_id_str)
+        from app.infrastructure.db.models import NotificationPushSubscriptionModel
+        await db.execute(
+            update(NotificationPushSubscriptionModel)
+            .where(
+                NotificationPushSubscriptionModel.endpoint == endpoint,
+                NotificationPushSubscriptionModel.user_id == u_uuid,
+            )
+            .values(is_active=False, updated_date=datetime.now(timezone.utc))
+        )
+        await db.commit()
+        return {"success": True, "message": "Push subscription removed."}
+    except Exception as exc:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+# -- Unread Count Endpoint (lightweight, for polling fallback) ----------------
+
+@router.get("/unread-count", summary="Get unread notification count for bell badge")
+async def get_unread_count(
+    payload: dict = Depends(get_optional_token_payload),
+    db: AsyncSession = Depends(get_db),
+):
+    user_id_str = payload.get("sub") or ""
+    tenant_id_str = payload.get("tenant_id") or ""
+    if not user_id_str:
+        return {"unread_count": 0}
+    try:
+        u_uuid = uuid.UUID(user_id_str)
+        t_uuid = uuid.UUID(tenant_id_str) if tenant_id_str else None
+    except Exception:
+        return {"unread_count": 0}
+
+    filters = [
+        UserNotificationAlertModel.user_id == u_uuid,
+        UserNotificationAlertModel.is_read == False,
+        UserNotificationAlertModel.is_deleted == False,
+    ]
+    if t_uuid:
+        filters.append(UserNotificationAlertModel.tenant_id == t_uuid)
+    try:
+        count_result = await db.execute(
+            select(func.count()).select_from(UserNotificationAlertModel).where(and_(*filters))
+        )
+        count = count_result.scalar() or 0
+        return {"unread_count": count}
+    except Exception:
+        return {"unread_count": 0}
+
+
+# -- Notification Settings / Preferences Endpoints -----------------------------
+
+class NotificationSettingsUpdate(BaseModel):
+    in_app_enabled: Optional[bool] = None
+    push_enabled: Optional[bool] = None
+    email_enabled: Optional[bool] = None
+    whatsapp_enabled: Optional[bool] = None
+    sms_enabled: Optional[bool] = None
+    transactional_enabled: Optional[bool] = None
+    security_enabled: Optional[bool] = None
+    operational_enabled: Optional[bool] = None
+    do_not_disturb: Optional[bool] = None
+    dnd_start_time: Optional[str] = None
+    dnd_end_time: Optional[str] = None
+    language_preference: Optional[str] = None
+
+
+@router.get("/settings", summary="Get user notification preferences")
+async def get_notification_settings(
+    payload: dict = Depends(get_optional_token_payload),
+    db: AsyncSession = Depends(get_db),
+):
+    user_id_str = payload.get("sub") or ""
+    tenant_id_str = payload.get("tenant_id") or ""
+    if not user_id_str:
+        raise HTTPException(status_code=401, detail="Authentication required.")
+
+    try:
+        u_uuid = uuid.UUID(user_id_str)
+        t_uuid = uuid.UUID(tenant_id_str) if tenant_id_str else None
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid user or tenant identifier.")
+
+    from app.infrastructure.db.models import UserNotificationPreferenceModel
+
+    stmt = select(UserNotificationPreferenceModel).where(
+        UserNotificationPreferenceModel.user_id == u_uuid,
+        UserNotificationPreferenceModel.is_deleted == False,
+    )
+    if t_uuid:
+        stmt = stmt.where(UserNotificationPreferenceModel.tenant_id == t_uuid)
+
+    result = await db.execute(stmt)
+    pref = result.scalars().first()
+
+    if not pref:
+        # Return sensible enterprise defaults
+        return {
+            "in_app_enabled": True,
+            "push_enabled": True,
+            "email_enabled": True,
+            "whatsapp_enabled": False,
+            "sms_enabled": True,
+            "transactional_enabled": True,
+            "security_enabled": True,
+            "operational_enabled": True,
+            "do_not_disturb": False,
+            "dnd_start_time": None,
+            "dnd_end_time": None,
+            "language_preference": "en",
+        }
+
+    return {
+        "in_app_enabled": pref.in_app_enabled,
+        "push_enabled": pref.push_enabled,
+        "email_enabled": pref.email_enabled,
+        "whatsapp_enabled": pref.whatsapp_enabled,
+        "sms_enabled": pref.sms_enabled,
+        "transactional_enabled": pref.transactional_enabled,
+        "security_enabled": pref.security_enabled,
+        "operational_enabled": pref.operational_enabled,
+        "do_not_disturb": pref.do_not_disturb,
+        "dnd_start_time": pref.dnd_start_time,
+        "dnd_end_time": pref.dnd_end_time,
+        "language_preference": pref.language_preference,
+    }
+
+
+@router.put("/settings", summary="Update user notification preferences")
+async def update_notification_settings(
+    update_data: NotificationSettingsUpdate,
+    payload: dict = Depends(get_optional_token_payload),
+    db: AsyncSession = Depends(get_db),
+):
+    user_id_str = payload.get("sub") or ""
+    tenant_id_str = payload.get("tenant_id") or ""
+    user_type = payload.get("user_type") or "USER"
+    if not user_id_str:
+        raise HTTPException(status_code=401, detail="Authentication required.")
+
+    try:
+        u_uuid = uuid.UUID(user_id_str)
+        t_uuid = uuid.UUID(tenant_id_str) if tenant_id_str else None
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid user or tenant identifier.")
+
+    from app.infrastructure.db.models import UserNotificationPreferenceModel
+
+    stmt = select(UserNotificationPreferenceModel).where(
+        UserNotificationPreferenceModel.user_id == u_uuid,
+        UserNotificationPreferenceModel.is_deleted == False,
+    )
+    if t_uuid:
+        stmt = stmt.where(UserNotificationPreferenceModel.tenant_id == t_uuid)
+
+    result = await db.execute(stmt)
+    pref = result.scalars().first()
+    now = datetime.now(timezone.utc)
+
+    if not pref:
+        pref = UserNotificationPreferenceModel(
+            public_id=uuid.uuid4(),
+            user_id=u_uuid,
+            tenant_id=t_uuid,
+            user_type=str(user_type).upper(),
+            in_app_enabled=True if update_data.in_app_enabled is None else update_data.in_app_enabled,
+            push_enabled=True if update_data.push_enabled is None else update_data.push_enabled,
+            email_enabled=True if update_data.email_enabled is None else update_data.email_enabled,
+            whatsapp_enabled=False if update_data.whatsapp_enabled is None else update_data.whatsapp_enabled,
+            sms_enabled=True if update_data.sms_enabled is None else update_data.sms_enabled,
+            transactional_enabled=True if update_data.transactional_enabled is None else update_data.transactional_enabled,
+            security_enabled=True if update_data.security_enabled is None else update_data.security_enabled,
+            operational_enabled=True if update_data.operational_enabled is None else update_data.operational_enabled,
+            do_not_disturb=False if update_data.do_not_disturb is None else update_data.do_not_disturb,
+            dnd_start_time=update_data.dnd_start_time,
+            dnd_end_time=update_data.dnd_end_time,
+            language_preference=update_data.language_preference or "en",
+            created_date=now,
+            updated_date=now,
+        )
+        db.add(pref)
+    else:
+        for field, value in update_data.model_dump(exclude_unset=True).items():
+            if value is not None:
+                setattr(pref, field, value)
+        pref.updated_date = now
+
+    await db.commit()
+    return {"success": True, "message": "Notification preferences updated successfully."}
+

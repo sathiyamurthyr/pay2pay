@@ -4,14 +4,18 @@ import random
 import hashlib
 import hmac
 import time
+import logging
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 import json
 import base64
 import httpx
+from fastapi import HTTPException
 from sqlalchemy import select, desc, text, or_, func
 from app.core.config import settings
+
+logger = logging.getLogger("progressive_onboarding_service")
 
 from app.application.cashfree_service import CashfreeVerificationService
 from app.infrastructure.adapters.cashfree_aadhaar_adapter import cashfree_aadhaar_adapter
@@ -694,16 +698,7 @@ class ProgressiveOnboardingService:
         if "@" not in clean_email or "." not in clean_email:
             return {"status": "ERROR", "message": "Please enter a valid email address."}
 
-        clean_reg_id = str(registration_id or "").strip()
-        d_stmt = select(RegistrationDraftModel).where(
-            (RegistrationDraftModel.registration_id == clean_reg_id) |
-            (RegistrationDraftModel.mobile_number == clean_reg_id)
-        )
-        draft = (await db.execute(d_stmt)).scalars().first()
-        if not draft:
-            return {"status": "ERROR", "message": "Invalid registration ID."}
-
-        target_ref = int(target_user_type_ref_id or (draft.draft_data or {}).get("user_type_ref_id", 2))
+        target_ref = int(target_user_type_ref_id or 2)
 
         # Cross-entity email uniqueness check using Stored Procedure
         try:
@@ -715,12 +710,24 @@ class ProgressiveOnboardingService:
             if sp_res and sp_res.get("is_valid") is False and sp_res.get("email_conflict"):
                 return {
                     "status": "ERROR",
+                    "conflict": True,
                     "email_conflict": True,
                     "existing_entity_type": sp_res.get("existing_entity_type"),
-                    "message": sp_res.get("message") or "Email address is already registered under another entity."
+                    "message": sp_res.get("message") or f"Email address {clean_email} is already registered under another entity."
                 }
         except Exception as sp_err:
             print(f"[SP EMAIL UNIQUENESS ERROR] {sp_err}")
+
+        clean_reg_id = str(registration_id or "").strip()
+        d_stmt = select(RegistrationDraftModel).where(
+            (RegistrationDraftModel.registration_id == clean_reg_id) |
+            (RegistrationDraftModel.mobile_number == clean_reg_id)
+        )
+        draft = (await db.execute(d_stmt)).scalars().first()
+        if not draft:
+            return {"status": "ERROR", "message": "Invalid registration ID."}
+
+        target_ref = int(target_user_type_ref_id or (draft.draft_data or {}).get("user_type_ref_id", 2))
 
 
         email_otp = f"{random.randint(100000, 999999)}"
@@ -1099,7 +1106,7 @@ class ProgressiveOnboardingService:
 
     @staticmethod
     async def send_aadhaar_otp(db: AsyncSession, registration_id: str, aadhaar_number: str) -> Dict[str, Any]:
-        """Step 7A: Generate Cashfree Aadhaar OTP."""
+        """Step 7A: Generate Aadhaar OTP."""
         clean_aadhaar = re.sub(r"\D", "", str(aadhaar_number))
         if len(clean_aadhaar) != 12:
             return {"status": "ERROR", "message": "Aadhaar number must be exactly 12 digits."}
@@ -1107,14 +1114,13 @@ class ProgressiveOnboardingService:
         try:
             cf_res = await cashfree_aadhaar_adapter.generate_aadhaar_otp(clean_aadhaar)
         except Exception as err:
-            cf_res = {
-                "status": "SUCCESS",
-                "ref_id": f"CF-AADHAAR-{uuid.uuid4().hex[:8].upper()}",
-                "masked_aadhaar": f"XXXX-XXXX-{clean_aadhaar[-4:]}",
-                "message": f"Aadhaar eKYC OTP sent via Cashfree: {err}"
-            }
+            logger.error(f"Aadhaar OTP generation error: {err}")
+            clean_err = str(err).strip()
+            for v in ["Cashfree", "cashfree", "UIDAI", "uidai", "NSDL", "nsdl"]:
+                clean_err = clean_err.replace(v, "Identity Portal")
+            return {"status": "ERROR", "message": clean_err or "Failed to initiate Aadhaar OTP verification."}
 
-        ref_id = cf_res.get("ref_id") or f"CF-AADHAAR-{uuid.uuid4().hex[:8].upper()}"
+        ref_id = cf_res.get("ref_id")
         masked_aadhaar = cf_res.get("masked_aadhaar") or f"XXXX-XXXX-{clean_aadhaar[-4:]}"
 
         d_stmt = select(RegistrationDraftModel).where(RegistrationDraftModel.registration_id == registration_id)
@@ -1131,7 +1137,7 @@ class ProgressiveOnboardingService:
 
         return {
             "status": "SUCCESS",
-            "message": cf_res.get("message") or "Aadhaar OTP sent via Cashfree eKYC Gateway.",
+            "message": cf_res.get("message") or "Aadhaar OTP dispatched to registered mobile.",
             "ref_id": ref_id,
             "masked_aadhaar": masked_aadhaar,
             "next_step": 7
@@ -1139,7 +1145,7 @@ class ProgressiveOnboardingService:
 
     @staticmethod
     async def verify_aadhaar_otp(db: AsyncSession, registration_id: str, ref_id: str, otp_code: str) -> Dict[str, Any]:
-        """Step 7B: Verify Aadhaar OTP via Cashfree API and store demographic details."""
+        """Step 7B: Verify Aadhaar OTP and store demographic details."""
         clean_otp = str(otp_code).strip()
         if len(clean_otp) != 6:
             return {"status": "ERROR", "message": "OTP must be exactly 6 digits."}
@@ -1149,16 +1155,22 @@ class ProgressiveOnboardingService:
         if not draft:
             return {"status": "ERROR", "message": "Invalid registration ID."}
 
-        # Call Cashfree Aadhaar Adapter for authentic verification
+        # Call Aadhaar Adapter for authentic verification
         try:
             ekyc_profile = await cashfree_aadhaar_adapter.verify_aadhaar_otp(ref_id, clean_otp)
         except Exception as err:
-            logger.error(f"Cashfree Aadhaar verification error: {err}")
-            raise HTTPException(status_code=400, detail=str(err) or "Aadhaar OTP verification failed. Please try again.")
+            logger.error(f"Aadhaar OTP verification error: {err}")
+            clean_err = str(err).strip()
+            for v in ["Cashfree", "cashfree", "UIDAI", "uidai", "NSDL", "nsdl"]:
+                clean_err = clean_err.replace(v, "Identity Portal")
+            return {"status": "ERROR", "message": clean_err or "Aadhaar OTP verification failed. Please try again."}
 
         if not ekyc_profile or ekyc_profile.get("status") not in ["SUCCESS", "VALID", "VERIFIED"]:
             if not ekyc_profile.get("full_name") and not ekyc_profile.get("masked_aadhaar"):
-                raise HTTPException(status_code=400, detail=ekyc_profile.get("message") or "Aadhaar verification failed via UIDAI.")
+                err_msg = ekyc_profile.get("message") or "Aadhaar verification could not be validated. Please try again."
+                for v in ["Cashfree", "cashfree", "UIDAI", "uidai", "NSDL", "nsdl"]:
+                    err_msg = err_msg.replace(v, "Identity Portal")
+                return {"status": "ERROR", "message": err_msg}
 
         retailer_name = ekyc_profile.get("full_name") or draft.draft_data.get("name") or draft.draft_data.get("retailer_name") or ""
         aadhaar_masked = ekyc_profile.get("masked_aadhaar") or ekyc_profile.get("aadhaar_masked") or draft.draft_data.get("aadhaar_masked") or ""
@@ -1293,7 +1305,7 @@ class ProgressiveOnboardingService:
 
         return {
             "status": "SUCCESS",
-            "message": "Aadhaar eKYC verified successfully via Cashfree API!",
+            "message": "Aadhaar eKYC verified successfully!",
             "aadhaar_masked": aadhaar_masked,
             "aadhaar_last4": aadhaar_last4,
             "full_name": retailer_name,

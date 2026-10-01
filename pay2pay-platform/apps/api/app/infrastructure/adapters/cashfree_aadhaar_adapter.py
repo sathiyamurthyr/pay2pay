@@ -11,7 +11,10 @@ import json
 import logging
 import random
 from typing import Dict, Any, Optional
+from dotenv import load_dotenv
 import httpx
+
+load_dotenv()
 
 logger = logging.getLogger("cashfree_aadhaar_adapter")
 
@@ -38,22 +41,32 @@ class CashfreeAadhaarAdapter:
         self.client_id = client_id or os.getenv("CASHFREE_CLIENT_ID", "")
         self.client_secret = client_secret or os.getenv("CASHFREE_CLIENT_SECRET", "")
 
+    @property
+    def effective_client_id(self) -> str:
+        return self.client_id or os.getenv("CASHFREE_CLIENT_ID", "")
+
+    @property
+    def effective_client_secret(self) -> str:
+        return self.client_secret or os.getenv("CASHFREE_CLIENT_SECRET", "")
+
     async def generate_aadhaar_otp(self, aadhaar_number: str) -> Dict[str, Any]:
-        """Request 6-digit Aadhaar OTP from UIDAI via Cashfree Offline Aadhaar API."""
+        """Request 6-digit Aadhaar OTP from official identity portal via offline Aadhaar API."""
         clean_aadhaar = "".join(filter(str.isdigit, aadhaar_number))
         if len(clean_aadhaar) != 12:
             raise ValueError("Aadhaar number must be a valid 12-digit number")
 
-        if not self.client_id or not self.client_secret:
-            raise ValueError("Cashfree verification credentials are not configured on this server.")
+        cid = self.effective_client_id
+        csec = self.effective_client_secret
+        if not cid or not csec:
+            raise ValueError("Verification service credentials are not configured on this server.")
 
         masked_aadhaar = f"XXXX-XXXX-{clean_aadhaar[-4:]}"
         ref_id = str(int(time.time() * 1000))
 
         headers = {
-            "x-client-id": self.client_id,
-            "x-client-secret": self.client_secret,
-            "x-api-version": os.getenv("CASHFREE_API_VERSION", "2022-10-26"),
+            "x-client-id": cid,
+            "x-client-secret": csec,
+            "x-api-version": os.getenv("CASHFREE_API_VERSION", "2025-01-01"),
             "Content-Type": "application/json"
         }
 
@@ -84,34 +97,36 @@ class CashfreeAadhaarAdapter:
                         "raw_response": data
                     }
                 elif resp.status_code == 502:
-                    error_msg = data.get("message") or "UIDAI Aadhaar server is temporarily unavailable. Please try again in a few moments."
-                    logger.warning(f"Cashfree OTP HTTP 502: {error_msg}")
+                    error_msg = data.get("message") or "Aadhaar verification server is temporarily unavailable. Please try again in a few moments."
+                    logger.warning(f"Aadhaar OTP HTTP 502: {error_msg}")
                     raise ValueError(error_msg)
                 else:
-                    error_msg = data.get("message") or f"Cashfree Aadhaar service returned HTTP {resp.status_code}"
-                    logger.warning(f"Cashfree OTP error: {error_msg}")
+                    error_msg = data.get("message") or f"Aadhaar verification service returned HTTP {resp.status_code}"
+                    logger.warning(f"Aadhaar OTP error: {error_msg}")
                     raise ValueError(error_msg)
         except ValueError:
             raise
         except Exception as ex:
-            logger.error(f"Cashfree API connection exception: {ex}")
+            logger.error(f"Aadhaar API connection exception: {ex}")
             raise ValueError(f"Unable to connect to Aadhaar verification provider: {str(ex)}")
 
     async def verify_aadhaar_otp(self, ref_id: str, otp_code: str) -> Dict[str, Any]:
-        """Verify 6-digit Aadhaar OTP via Cashfree Offline Aadhaar API.
-        Never falls back to dummy/demo profiles. Verification MUST be genuine from UIDAI.
+        """Verify 6-digit Aadhaar OTP via offline Aadhaar API.
+        Never falls back to dummy/demo profiles. Verification MUST be genuine.
         """
         clean_otp = otp_code.strip()
         if len(clean_otp) != 6 or not clean_otp.isdigit():
-            raise ValueError("Invalid Aadhaar OTP entered. Please enter the valid 6-digit numeric OTP code received from UIDAI.")
+            raise ValueError("Invalid Aadhaar OTP entered. Please enter the valid 6-digit numeric OTP code.")
 
-        if not self.client_id or not self.client_secret:
-            raise ValueError("Cashfree verification credentials are not configured on this server.")
+        cid = self.effective_client_id
+        csec = self.effective_client_secret
+        if not cid or not csec:
+            raise ValueError("Verification service credentials are not configured on this server.")
 
         headers = {
-            "x-client-id": self.client_id,
-            "x-client-secret": self.client_secret,
-            "x-api-version": os.getenv("CASHFREE_API_VERSION", "2022-10-26"),
+            "x-client-id": cid,
+            "x-client-secret": csec,
+            "x-api-version": os.getenv("CASHFREE_API_VERSION", "2025-01-01"),
             "Content-Type": "application/json"
         }
 
@@ -129,19 +144,19 @@ class CashfreeAadhaarAdapter:
                 if resp.status_code in [200, 201]:
                     if data.get("status") in ["VALID", "SUCCESS"] or data.get("name") or data.get("full_name"):
                         return self._build_ekyc_profile(data, ref_id)
-                    raise ValueError(data.get("message") or "Aadhaar verification could not be validated by UIDAI.")
+                    raise ValueError(data.get("message") or "Aadhaar verification could not be validated.")
                 elif resp.status_code == 502:
-                    error_msg = data.get("message") or "UIDAI Aadhaar verification gateway is temporarily unavailable. Please try again shortly."
-                    logger.warning(f"Cashfree verify HTTP 502: {error_msg}")
+                    error_msg = data.get("message") or "Aadhaar verification gateway is temporarily unavailable. Please try again shortly."
+                    logger.warning(f"Aadhaar verify HTTP 502: {error_msg}")
                     raise ValueError(error_msg)
                 else:
                     error_msg = data.get("message") or f"Invalid Aadhaar OTP code or verification failed (HTTP {resp.status_code})."
-                    logger.warning(f"Cashfree verify error: {error_msg}")
+                    logger.warning(f"Aadhaar verify error: {error_msg}")
                     raise ValueError(error_msg)
         except ValueError:
             raise
         except Exception as ex:
-            logger.error(f"Cashfree verification API exception: {ex}")
+            logger.error(f"Aadhaar verification API exception: {ex}")
             raise ValueError(f"Aadhaar OTP verification failed: {str(ex)}")
 
     def _build_ekyc_profile(self, data: Dict[str, Any], ref_id: str) -> Dict[str, Any]:

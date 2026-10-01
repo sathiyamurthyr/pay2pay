@@ -204,11 +204,16 @@ export default function PosMdrSetupStudioPage() {
                 onChange={(e) => setCardType(e.target.value)}
                 className="w-full px-4 py-3 bg-[#FAFAFC] border border-[#D1D5DB] rounded-2xl text-xs sm:text-sm text-[#1F2937] focus:outline-none focus:ring-2 focus:ring-[#94003A]/20"
               >
-                {cardTypes.map((c: string) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
+                {cardTypes.map((c: any) => {
+                  const label = typeof c === "string" ? c : (c.name || c.code);
+                  const val = typeof c === "string" ? c : (c.name || c.code);
+                  const optKey = typeof c === "string" ? c : (c.code || c.name);
+                  return (
+                    <option key={optKey} value={val}>
+                      {label}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 

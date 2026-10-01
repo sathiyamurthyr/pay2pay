@@ -88,6 +88,15 @@ class KycDocumentReaderService:
     """Enterprise Document Auto-Reader, OCR & Verification Suite."""
 
     @classmethod
+    async def _run_sync(cls, func, *args):
+        """Cross-platform thread runner compatible with Python 3.8 through 3.12+."""
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, func, *args)
+
+    @classmethod
     async def extract_exif_gps(cls, file_bytes: bytes) -> Dict[str, Any]:
         """
         Extracts GPS coordinates exclusively from the image's EXIF metadata.
@@ -97,43 +106,55 @@ class KycDocumentReaderService:
         try:
             from PIL import Image, ExifTags
             img = Image.open(io.BytesIO(file_bytes))
-            exif = img.getexif()
-            if not exif:
+
+            gps_ifd = {}
+            # 1. Try modern Pillow getexif().get_ifd(0x8825)
+            try:
+                exif = img.getexif()
+                if exif:
+                    if hasattr(exif, "get_ifd"):
+                        gps_ifd = exif.get_ifd(0x8825)
+                    if not gps_ifd:
+                        for tag_id, tag_val in exif.items():
+                            tag_name = ExifTags.TAGS.get(tag_id, str(tag_id))
+                            if (tag_id == 34853 or tag_name == "GPSInfo") and isinstance(tag_val, dict):
+                                gps_ifd = tag_val
+                                break
+            except Exception:
+                pass
+
+            # 2. Try legacy _getexif() fallback (used on mobile camera jpegs)
+            if not gps_ifd:
+                try:
+                    raw_exif = getattr(img, "_getexif", None)()
+                    if raw_exif and isinstance(raw_exif, dict):
+                        gps_ifd = raw_exif.get(34853) or raw_exif.get(0x8825) or {}
+                except Exception:
+                    pass
+
+            if not gps_ifd:
                 return {
                     "available": False,
                     "latitude": None,
                     "longitude": None,
                     "altitude": None,
                     "captured_at": None,
+                    "google_maps_url": None,
                     "reverse_geocoded": None,
                     "message": "GPS metadata is unavailable in the uploaded image's EXIF data. Coordinates were not inferred or fabricated."
                 }
 
-            gps_ifd = exif.get_ifd(0x8825) if hasattr(exif, "get_ifd") else {}
-            if not gps_ifd:
-                for tag_id, tag_val in exif.items():
-                    tag_name = ExifTags.TAGS.get(tag_id, str(tag_id))
-                    if tag_name == "GPSInfo" and isinstance(tag_val, dict):
-                        gps_ifd = tag_val
-                        break
+            # Map both numeric and string tags
+            named_gps = {}
+            for k, v in gps_ifd.items():
+                name = ExifTags.GPSTAGS.get(k, k) if isinstance(k, int) else k
+                named_gps[name] = v
+                named_gps[k] = v
 
-            if not gps_ifd:
-                return {
-                    "available": False,
-                    "latitude": None,
-                    "longitude": None,
-                    "altitude": None,
-                    "captured_at": None,
-                    "reverse_geocoded": None,
-                    "message": "GPS metadata is unavailable in the uploaded image's EXIF data. Coordinates were not inferred or fabricated."
-                }
-
-            named_gps = {ExifTags.GPSTAGS.get(k, k): v for k, v in gps_ifd.items()}
-
-            lat_raw = named_gps.get("GPSLatitude")
-            lat_ref = named_gps.get("GPSLatitudeRef", "N")
-            lon_raw = named_gps.get("GPSLongitude")
-            lon_ref = named_gps.get("GPSLongitudeRef", "E")
+            lat_raw = named_gps.get("GPSLatitude") or named_gps.get(2)
+            lat_ref = named_gps.get("GPSLatitudeRef") or named_gps.get(1) or "N"
+            lon_raw = named_gps.get("GPSLongitude") or named_gps.get(4)
+            lon_ref = named_gps.get("GPSLongitudeRef") or named_gps.get(3) or "E"
 
             if not lat_raw or not lon_raw:
                 return {
@@ -142,20 +163,66 @@ class KycDocumentReaderService:
                     "longitude": None,
                     "altitude": None,
                     "captured_at": None,
+                    "google_maps_url": None,
                     "reverse_geocoded": None,
                     "message": "GPS metadata is unavailable in the uploaded image's EXIF data. Coordinates were not inferred or fabricated."
                 }
 
+            def _eval_num(x):
+                if x is None:
+                    return 0.0
+                if isinstance(x, (int, float)):
+                    return float(x)
+                if isinstance(x, (tuple, list)):
+                    if len(x) >= 2 and x[1]:
+                        return float(x[0]) / float(x[1])
+                    if len(x) >= 1:
+                        return float(x[0])
+                    return 0.0
+                if hasattr(x, "numerator") and hasattr(x, "denominator"):
+                    return float(x.numerator) / float(x.denominator) if x.denominator else float(x.numerator)
+                try:
+                    return float(x)
+                except Exception:
+                    return 0.0
+
             def to_deg(val):
-                d, m, s = float(val[0]), float(val[1]), float(val[2])
+                if not val or not isinstance(val, (tuple, list)) or len(val) < 3:
+                    return None
+                d = _eval_num(val[0])
+                m = _eval_num(val[1])
+                s = _eval_num(val[2])
                 return d + (m / 60.0) + (s / 3600.0)
 
-            lat = to_deg(lat_raw)
-            if str(lat_ref).upper() == "S":
-                lat = -lat
+            def _clean_ref(r, default):
+                if not r:
+                    return default
+                if isinstance(r, bytes):
+                    try:
+                        r = r.decode("utf-8", errors="ignore")
+                    except Exception:
+                        r = str(r)
+                r_clean = str(r).strip("'\" b").upper()
+                return r_clean[0] if r_clean else default
 
+            lat = to_deg(lat_raw)
             lon = to_deg(lon_raw)
-            if str(lon_ref).upper() == "W":
+
+            if lat is None or lon is None:
+                return {
+                    "available": False,
+                    "latitude": None,
+                    "longitude": None,
+                    "altitude": None,
+                    "captured_at": None,
+                    "google_maps_url": None,
+                    "reverse_geocoded": None,
+                    "message": "GPS metadata in EXIF data could not be converted to decimal degrees."
+                }
+
+            if _clean_ref(lat_ref, "N") == "S":
+                lat = -lat
+            if _clean_ref(lon_ref, "E") == "W":
                 lon = -lon
 
             # Validity range checks
@@ -166,17 +233,19 @@ class KycDocumentReaderService:
                     "longitude": None,
                     "altitude": None,
                     "captured_at": None,
+                    "google_maps_url": None,
                     "reverse_geocoded": None,
                     "message": "GPS metadata in EXIF data contains invalid or zero coordinates."
                 }
 
             # Altitude
             altitude = None
-            if "GPSAltitude" in named_gps:
+            alt_val = named_gps.get("GPSAltitude") or named_gps.get(6)
+            if alt_val is not None:
                 try:
-                    alt_val = named_gps["GPSAltitude"]
-                    alt = float(alt_val[0]) / float(alt_val[1]) if isinstance(alt_val, (tuple, list)) and alt_val[1] else float(alt_val)
-                    if named_gps.get("GPSAltitudeRef", 0) == 1:
+                    alt = _eval_num(alt_val)
+                    alt_ref = named_gps.get("GPSAltitudeRef") or named_gps.get(5) or 0
+                    if alt_ref == 1:
                         alt = -alt
                     altitude = round(alt, 2)
                 except Exception:
@@ -184,18 +253,21 @@ class KycDocumentReaderService:
 
             # Timestamp / Date
             captured_at = None
-            date_stamp = named_gps.get("GPSDateStamp")
-            time_stamp = named_gps.get("GPSTimeStamp")
+            date_stamp = named_gps.get("GPSDateStamp") or named_gps.get(29)
+            time_stamp = named_gps.get("GPSTimeStamp") or named_gps.get(7)
             if date_stamp and time_stamp:
                 try:
-                    h, m, s = int(time_stamp[0]), int(time_stamp[1]), int(time_stamp[2])
-                    date_parts = str(date_stamp).replace(":", "-")
+                    h = int(_eval_num(time_stamp[0]))
+                    m = int(_eval_num(time_stamp[1]))
+                    s = int(_eval_num(time_stamp[2]))
+                    date_parts = str(date_stamp).replace(":", "-").strip()
                     captured_at = f"{date_parts}T{h:02d}:{m:02d}:{s:02d}Z"
                 except Exception:
                     pass
 
-            # Reverse geocode using existing validator
+            # Reverse geocode using validator
             rev_data = await cls.validate_location(latitude=lat, longitude=lon)
+            formatted_address = rev_data.get("formatted_address") or f"Latitude: {lat:.6f}, Longitude: {lon:.6f}"
 
             return {
                 "available": True,
@@ -203,12 +275,13 @@ class KycDocumentReaderService:
                 "longitude": round(lon, 6),
                 "altitude": altitude,
                 "captured_at": captured_at,
+                "google_maps_url": f"https://www.google.com/maps?q={lat:.6f},{lon:.6f}",
                 "reverse_geocoded": {
-                    "city": rev_data.get("city"),
-                    "district": rev_data.get("district"),
-                    "state": rev_data.get("state"),
-                    "pincode": rev_data.get("pincode"),
-                    "formatted_address": rev_data.get("formatted_address")
+                    "city": rev_data.get("city") or "",
+                    "district": rev_data.get("district") or "",
+                    "state": rev_data.get("state") or "",
+                    "pincode": rev_data.get("pincode") or "",
+                    "formatted_address": formatted_address
                 },
                 "status": "EXIF_GPS_EXTRACTED",
                 "message": f"GPS coordinates ({lat:.6f}, {lon:.6f}) extracted exclusively from image EXIF metadata."
@@ -221,6 +294,7 @@ class KycDocumentReaderService:
                 "longitude": None,
                 "altitude": None,
                 "captured_at": None,
+                "google_maps_url": None,
                 "reverse_geocoded": None,
                 "message": f"GPS metadata is unavailable in the uploaded image's EXIF data ({str(e)})."
             }
@@ -406,7 +480,7 @@ class KycDocumentReaderService:
                 "ocr_state": ocr_location.get("detected_state"),
                 "ocr_pincode": ocr_location.get("detected_pincode"),
                 "ocr_business_name": ocr_location.get("detected_business_name"),
-                "message": "Commercial premises photo verified in B2 Vault with image-derived location analysis."
+                "message": "Commercial premises photo verified with image-derived location analysis."
             }
         elif any(k in dt_clean for k in ["SELFIE", "PERSONAL", "PHOTO"]):
             extracted_data = {
@@ -429,7 +503,7 @@ class KycDocumentReaderService:
                 "ocr_city": ocr_location.get("detected_city"),
                 "ocr_state": ocr_location.get("detected_state"),
                 "ocr_pincode": ocr_location.get("detected_pincode"),
-                "message": "Personal photo saved to B2 Vault with image EXIF GPS extraction."
+                "message": "Personal photo saved with image EXIF GPS extraction."
             }
         elif any(k in dt_clean for k in ["VIDEO"]):
             extracted_data = {
@@ -438,7 +512,7 @@ class KycDocumentReaderService:
                 "status": "RECORDED",
                 "video_kyc_url": b2_url,
                 "duration_seconds": 10,
-                "message": "Live Selfie Video KYC recording verified and uploaded to B2 Vault"
+                "message": "Live Selfie Video KYC recording verified and uploaded successfully."
             }
         else:
             extracted_data = {
@@ -560,11 +634,38 @@ class KycDocumentReaderService:
             except Exception:
                 pass
 
-            # 2. Windows Native OCR across variants
+            # Variant D: High-Contrast Black & White Binarization
+            try:
+                gray3 = rgb_img.convert("L")
+                bin_img = gray3.point(lambda p: 255 if p > 135 else 0)
+                image_variants.append(bin_img.convert("RGB"))
+            except Exception:
+                pass
+
+            # 2a. Pytesseract OCR (Linux/Ubuntu production server & cross-platform)
+            for var_img in image_variants:
+                try:
+                    import pytesseract
+                    for psm in [6, 3, 11]:
+                        try:
+                            tess_txt = await cls._run_sync(
+                                lambda v=var_img, p=psm: pytesseract.image_to_string(v, config=f"--psm {p} -l eng")
+                            )
+                            if tess_txt and tess_txt.strip():
+                                for line_txt in tess_txt.splitlines():
+                                    line_clean = line_txt.strip()
+                                    if line_clean and line_clean not in raw_text_lines:
+                                        raw_text_lines.append(line_clean)
+                        except Exception as tess_psm_err:
+                            logger.debug(f"[Pytesseract PSM {psm} Debug] {tess_psm_err}")
+                except Exception as pytess_err:
+                    logger.debug(f"[Pytesseract Error] {pytess_err}")
+
+            # 2b. Windows Native OCR across variants (Windows runtime)
             for var_img in image_variants:
                 try:
                     import winocr
-                    ocr_res = await asyncio.to_thread(winocr.recognize_pil_sync, var_img, "en")
+                    ocr_res = await cls._run_sync(lambda v=var_img: winocr.recognize_pil_sync(v))
                     if isinstance(ocr_res, dict):
                         lines = ocr_res.get("lines") or []
                         for l in lines:
@@ -589,7 +690,49 @@ class KycDocumentReaderService:
                                 if line_clean and line_clean not in raw_text_lines:
                                     raw_text_lines.append(line_clean)
                 except Exception as ocr_err:
-                    logger.warning(f"[WinOCR Error] {ocr_err}")
+                    logger.debug(f"[WinOCR Error] {ocr_err}")
+
+            # 3. If no text extracted, attempt rotation variants (90°, 180°, 270°) for sideways uploaded photos
+            if not raw_text_lines:
+                for angle in [90, 180, 270]:
+                    try:
+                        rot_img = rgb_img.rotate(angle, expand=True)
+                        # Try pytesseract first on rotated
+                        try:
+                            import pytesseract
+                            tess_txt = await cls._run_sync(
+                                lambda r=rot_img: pytesseract.image_to_string(r, config="--psm 6 -l eng")
+                            )
+                            if tess_txt and tess_txt.strip():
+                                for line_txt in tess_txt.splitlines():
+                                    line_clean = line_txt.strip()
+                                    if line_clean and line_clean not in raw_text_lines:
+                                        raw_text_lines.append(line_clean)
+                        except Exception:
+                            pass
+
+                        # Try winocr on rotated
+                        try:
+                            import winocr
+                            ocr_res = await cls._run_sync(lambda r=rot_img: winocr.recognize_pil_sync(r))
+                            if ocr_res:
+                                text_val = ""
+                                if isinstance(ocr_res, dict):
+                                    text_val = ocr_res.get("text", "")
+                                elif hasattr(ocr_res, "text"):
+                                    text_val = ocr_res.text
+                                if text_val and text_val.strip():
+                                    for line_txt in text_val.splitlines():
+                                        line_clean = line_txt.strip()
+                                        if line_clean and line_clean not in raw_text_lines:
+                                            raw_text_lines.append(line_clean)
+                        except Exception:
+                            pass
+
+                        if raw_text_lines:
+                            break
+                    except Exception as rot_err:
+                        logger.debug(f"[OCR Rotation Check {angle}° Debug] {rot_err}")
 
         full_raw_text = "\n".join(raw_text_lines).strip()
         return full_raw_text, qr_data_list
@@ -606,14 +749,29 @@ class KycDocumentReaderService:
         qr_text = " ".join(qr_data)
         all_text = f"{raw_text}\n{qr_text}"
 
-        # 1. Standard 10-character PAN Regex: 5 letters, 4 digits, 1 letter
-        pan_regex = r"\b[A-Z]{5}[0-9]{4}[A-Z]{1}\b"
-        pan_matches = re.findall(pan_regex, all_text.upper())
+        # 1. Multi-pattern PAN Regex search (contiguous, spaced out, hyphenated)
+        pan_regex_strict = r"\b[A-Z]{5}[0-9]{4}[A-Z]{1}\b"
+        pan_regex_spaced = r"\b([A-Z]{5})[\s\-]*([0-9]{4})[\s\-]*([A-Z]{1})\b"
+
+        pan_matches = re.findall(pan_regex_strict, all_text.upper())
         if pan_matches:
             detected_pan = pan_matches[0]
         else:
-            # 2. Intelligent OCR character correction (O/0, I/1, B/8, S/5, Z/2)
-            words = re.findall(r"\b[A-Za-z0-9]{10}\b", all_text)
+            spaced_matches = re.findall(pan_regex_spaced, all_text.upper())
+            if spaced_matches:
+                p1, p2, p3 = spaced_matches[0]
+                detected_pan = f"{p1}{p2}{p3}"
+
+        # 2. Intelligent OCR character correction & whitespace-stripped scanning
+        if not detected_pan:
+            # Clean text by removing spaces and hyphens for candidate scanning
+            clean_text_no_space = re.sub(r"[\s\-]+", "", all_text.upper())
+            no_space_matches = re.findall(pan_regex_strict, clean_text_no_space)
+            if no_space_matches:
+                detected_pan = no_space_matches[0]
+
+        if not detected_pan:
+            words = re.findall(r"\b[A-Za-z0-9]{10}\b", re.sub(r"[\s\-]+", " ", all_text))
             for w in words:
                 w_up = w.upper()
                 prefix = ""
@@ -663,12 +821,15 @@ class KycDocumentReaderService:
         ignored_keywords = [
             "INCOME", "TAX", "DEPARTMENT", "GOVT", "INDIA", "PERMANENT",
             "ACCOUNT", "NUMBER", "CARD", "SIGNATURE", "FATHER", "NAME",
-            "DATE", "BIRTH", "INCOMETAX", "GOVERNMENT"
+            "DATE", "BIRTH", "INCOMETAX", "GOVERNMENT", "UNION", "REPUBLIC",
+            "PAN", "PER", "AUTO", "READ", "ENTER", "STATUS", "VERIFICATION",
+            "PENDING", "COMPLIANCE", "NSDL", "CASHFREE", "REPLACE", "PREVIEW",
+            "FILE", "UPLOAD", "DOCUMENT", "EXTRACTS", "STEP", "DETAILS"
         ]
 
         # Check for explicit label matches
         for l in lines:
-            m_name = re.search(r"^(?:NAME|CARD HOLDER NAME)[:\s]+([A-Za-z\s]+)$", l, re.IGNORECASE)
+            m_name = re.search(r"^(?:NAME|CARD HOLDER NAME|HOLDER NAME)[:\s]+([A-Za-z\s]+)$", l, re.IGNORECASE)
             if m_name and not extracted_name:
                 cand = m_name.group(1).strip().title()
                 if not any(k in cand.upper() for k in ignored_keywords):
@@ -680,13 +841,32 @@ class KycDocumentReaderService:
                 if not any(k in cand.upper() for k in ignored_keywords):
                     father_name = cand
 
-        # Fallback candidate names from line order (excluding headers & numbers)
+        # Fallback candidate names from line order (excluding headers, UI noise & numbers)
         if not extracted_name:
             candidate_names: List[str] = []
+            ui_noise_words = {
+                "PNG", "JPG", "JPEG", "PDF", "DOC", "FIE", "FILE", "IMG", "PIC",
+                "CARD", "COPY", "SCAN", "EDIT", "CROP", "SAVE", "DONE", "BACK",
+                "NEXT", "FORM", "TYPE", "TEXT", "LINE", "MAIN", "ICON", "LOGO",
+                "PAGE", "SITE", "USER", "INFO", "DATA", "LIST", "VIEW", "SHOW",
+                "HIDE", "ITEM", "FLAG", "MARK", "HELP", "CALL", "SEND", "LINK",
+                "POF", "JFG", "STEP", "REPLACE", "PREVIEW", "STATUS", "PENDING"
+            }
             for line in lines:
                 clean_line = re.sub(r"[^A-Za-z\s]", "", line).strip()
-                if 3 <= len(clean_line) <= 40 and not any(k in clean_line.upper() for k in ignored_keywords):
+                words = clean_line.split()
+                if not words:
+                    continue
+                # Require total clean length >= 4 and exclude single 3-letter words or UI noise tokens
+                if len(clean_line) >= 4 and not any(k in clean_line.upper() for k in ignored_keywords):
+                    if len(words) == 1 and len(words[0]) < 4:
+                        continue
+                    if any(w.upper() in ui_noise_words for w in words):
+                        continue
                     if re.match(r"^[A-Za-z\s]+$", clean_line) and not re.search(r"\d", line):
+                        # Ensure line doesn't match detected_pan or dob
+                        if detected_pan and detected_pan in line.upper():
+                            continue
                         candidate_names.append(clean_line.title())
 
             if candidate_names:
@@ -865,7 +1045,8 @@ class KycDocumentReaderService:
                 "MERA", "PEHCHAN", "ADDRESS", "DOB", "YEAR", "MALE", "FEMALE"
             ]
             for line in lines:
-                clean_line = re.sub(r"[^A-Za-z\s]", "", line).strip()
+                line_no_prefix = re.sub(r"^(?:Name|Holder Name|Full Name|Owner Name)[:\s]+", "", line, flags=re.IGNORECASE).strip()
+                clean_line = re.sub(r"[^A-Za-z\s]", "", line_no_prefix).strip()
                 if 3 <= len(clean_line) <= 35 and not any(k in clean_line.upper() for k in ignored_aadhaar):
                     if len(clean_line.split()) >= 1 and not re.search(r"\d", line):
                         detected_name = clean_line.title()
@@ -961,7 +1142,7 @@ class KycDocumentReaderService:
 
         suffix_chars = []
         for ch in val[5:11]:
-            if ch in ["O", "Q", "D", "o"]:
+            if ch in ["O", "Q", "D", "o", "G"]:
                 suffix_chars.append("0")
             elif ch in ["I", "L", "l", "|"]:
                 suffix_chars.append("1")

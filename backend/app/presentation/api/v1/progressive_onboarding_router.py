@@ -2,6 +2,7 @@ from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Form, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 import uuid
 import re
 
@@ -25,7 +26,8 @@ class CheckMobilePayload(BaseModel):
 
 class VerifyMobileOtpPayload(BaseModel):
     registration_id: str
-    otp_code: str = Field(..., example="778899")
+    otp_code: Optional[str] = None
+    otp: Optional[str] = None
 
 class CheckEmailPayload(BaseModel):
     registration_id: str
@@ -82,7 +84,8 @@ class SinglePageDraftPayload(BaseModel):
 
 class VerifyEmailOtpPayload(BaseModel):
     registration_id: str
-    otp_code: str = Field(..., example="556677")
+    otp_code: Optional[str] = None
+    otp: Optional[str] = None
 
 class CreateCredentialsPayload(BaseModel):
     registration_id: str
@@ -105,7 +108,8 @@ class SendAadhaarOtpPayload(BaseModel):
 class VerifyAadhaarOtpPayload(BaseModel):
     registration_id: str
     ref_id: str
-    otp_code: str = Field(..., example="778899")
+    otp_code: Optional[str] = None
+    otp: Optional[str] = None
 
 class VerifyBankPayload(BaseModel):
     registration_id: str
@@ -451,6 +455,12 @@ async def check_mobile_get():
     }
 
 
+@router.get("/check-mobile/{mobile_number}")
+async def check_mobile_by_param(mobile_number: str, db: AsyncSession = Depends(get_db)):
+    res = await ProgressiveOnboardingService.check_mobile(db, mobile_number)
+    return res
+
+
 @router.post("/check-mobile")
 async def check_mobile(payload: CheckMobilePayload, db: AsyncSession = Depends(get_db)):
     res = await ProgressiveOnboardingService.check_mobile(
@@ -465,13 +475,59 @@ async def check_mobile(payload: CheckMobilePayload, db: AsyncSession = Depends(g
     return res
 
 
+@router.post("/send-whatsapp-otp")
+async def send_whatsapp_otp(payload: Dict[str, Any], db: AsyncSession = Depends(get_db)):
+    mob = payload.get("mobile") or payload.get("mobile_number") or ""
+    res = await ProgressiveOnboardingService.check_mobile(db, mob)
+    if res.get("status") == "ERROR":
+        raise HTTPException(status_code=400, detail=res.get("message") or "Failed to send WhatsApp OTP.")
+    return res
+
 
 @router.post("/verify-mobile-otp")
+@router.post("/verify-whatsapp-otp")
 async def verify_mobile_otp(payload: VerifyMobileOtpPayload, db: AsyncSession = Depends(get_db)):
-    res = await ProgressiveOnboardingService.verify_mobile_otp(db, payload.registration_id, payload.otp_code)
+    otp_code = payload.otp_code or payload.otp
+    if not otp_code:
+        raise HTTPException(status_code=400, detail="Mobile OTP code is required.")
+    res = await ProgressiveOnboardingService.verify_mobile_otp(db, payload.registration_id, otp_code)
     if res.get("status") == "ERROR":
         raise HTTPException(status_code=400, detail=res["message"])
     return res
+
+
+@router.get("/check-email")
+async def check_email_get(email: str = Query(...), registration_id: Optional[str] = Query(None), db: AsyncSession = Depends(get_db)):
+    clean_email = email.strip().lower()
+    if "@" not in clean_email or "." not in clean_email:
+        raise HTTPException(status_code=400, detail="Please enter a valid email address.")
+
+    try:
+        sp_chk = await db.execute(
+            text("SELECT row_to_json(public.sp_check_entity_uniqueness(NULL, :email, 2))"),
+            {"email": clean_email}
+        )
+        sp_res = sp_chk.scalar()
+        if sp_res and sp_res.get("is_valid") is False and sp_res.get("email_conflict"):
+            return {
+                "status": "ERROR",
+                "valid": False,
+                "conflict": True,
+                "email_conflict": True,
+                "existing_entity_type": sp_res.get("existing_entity_type"),
+                "message": sp_res.get("message") or f"Email address {clean_email} is already registered with another account."
+            }
+    except Exception as sp_err:
+        pass
+
+    return {
+        "status": "SUCCESS",
+        "valid": True,
+        "conflict": False,
+        "email_conflict": False,
+        "email": clean_email,
+        "message": "Email address is available."
+    }
 
 
 @router.post("/check-email")
@@ -484,9 +540,22 @@ async def check_email(payload: CheckEmailPayload, db: AsyncSession = Depends(get
     return res
 
 
+@router.post("/send-email-otp")
+async def send_email_otp(payload: Dict[str, Any], db: AsyncSession = Depends(get_db)):
+    em = payload.get("email") or ""
+    reg_id = payload.get("registration_id") or em
+    res = await ProgressiveOnboardingService.check_email(db, reg_id, em)
+    if res.get("status") == "ERROR":
+        raise HTTPException(status_code=400, detail=res.get("message") or "Failed to dispatch email OTP.")
+    return res
+
+
 @router.post("/verify-email-otp")
 async def verify_email_otp(payload: VerifyEmailOtpPayload, db: AsyncSession = Depends(get_db)):
-    res = await ProgressiveOnboardingService.verify_email_otp(db, payload.registration_id, payload.otp_code)
+    otp_code = payload.otp_code or payload.otp
+    if not otp_code:
+        raise HTTPException(status_code=400, detail="Email OTP code is required.")
+    res = await ProgressiveOnboardingService.verify_email_otp(db, payload.registration_id, otp_code)
     if res.get("status") == "ERROR":
         raise HTTPException(status_code=400, detail=res["message"])
     return res
@@ -519,6 +588,7 @@ async def verify_gst(payload: VerifyGstPayload, db: AsyncSession = Depends(get_d
 
 
 @router.post("/send-aadhaar-otp")
+@router.post("/aadhaar-generate-otp")
 async def send_aadhaar_otp(payload: SendAadhaarOtpPayload, db: AsyncSession = Depends(get_db)):
     res = await ProgressiveOnboardingService.send_aadhaar_otp(db, payload.registration_id, payload.aadhaar_number)
     if res.get("status") == "ERROR":
@@ -527,8 +597,12 @@ async def send_aadhaar_otp(payload: SendAadhaarOtpPayload, db: AsyncSession = De
 
 
 @router.post("/verify-aadhaar-otp")
+@router.post("/aadhaar-submit-otp")
 async def verify_aadhaar_otp(payload: VerifyAadhaarOtpPayload, db: AsyncSession = Depends(get_db)):
-    res = await ProgressiveOnboardingService.verify_aadhaar_otp(db, payload.registration_id, payload.ref_id, payload.otp_code)
+    otp_code = payload.otp_code or payload.otp
+    if not otp_code:
+        raise HTTPException(status_code=400, detail="Aadhaar OTP code is required.")
+    res = await ProgressiveOnboardingService.verify_aadhaar_otp(db, payload.registration_id, payload.ref_id, otp_code)
     if res.get("status") == "ERROR":
         raise HTTPException(status_code=400, detail=res["message"])
     return res

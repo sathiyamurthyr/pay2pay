@@ -23,6 +23,8 @@ apiClient.interceptors.request.use((config) => {
       row.startsWith("p2p_access_token=") ||
       row.startsWith("pay2pay_access_token=") ||
       row.startsWith("pay2pay_auth_token=") ||
+      row.startsWith("p2p_sales_token=") ||
+      row.startsWith("pay2pay_sales_token=") ||
       row.startsWith("access_token=") ||
       row.startsWith("token=")
     );
@@ -90,6 +92,19 @@ apiClient.interceptors.response.use(
         return Promise.reject(error);
       }
 
+      // ONLY terminate session if 401 is explicitly from an authoritative auth verification endpoint
+      const isAuthVerifyEndpoint =
+        url.includes("/auth/me") ||
+        url.includes("/auth/verify") ||
+        url.includes("/auth/refresh") ||
+        url.includes("/sales/auth/me") ||
+        url.includes("/auth/validate-session");
+
+      if (!isAuthVerifyEndpoint) {
+        // Ancillary or background API returned 401: do NOT wipe session or redirect to login
+        return Promise.reject(error);
+      }
+
       if (typeof window !== "undefined") {
         const isAuthPage =
           window.location.pathname.includes("/login") ||
@@ -112,12 +127,6 @@ apiClient.interceptors.response.use(
             try {
               document.cookie = `${name}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
             } catch {}
-          });
-          try {
-            localStorage.clear();
-            sessionStorage.clear();
-          } catch {}
-
           const currentPath = window.location.pathname;
           window.location.replace(`/retailer/login?reason=session_expired&redirect=${encodeURIComponent(currentPath)}`);
         }

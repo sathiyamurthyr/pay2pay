@@ -77,6 +77,20 @@ export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Pr
           localStorage.getItem("pay2pay_auth_token") ||
           "";
 
+        if (!token && typeof document !== "undefined") {
+          const cookies = document.cookie.split("; ");
+          const tokenCookie = cookies.find((row) =>
+            row.startsWith("p2p_access_token=") ||
+            row.startsWith("pay2pay_access_token=") ||
+            row.startsWith("pay2pay_auth_token=") ||
+            row.startsWith("access_token=") ||
+            row.startsWith("token=")
+          );
+          if (tokenCookie) {
+            token = tokenCookie.split("=")[1]?.trim() || "";
+          }
+        }
+
         try {
           const uStr = localStorage.getItem("pay2pay_user_data") || localStorage.getItem("user_info");
           if (uStr) {

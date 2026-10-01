@@ -36,6 +36,7 @@ import {
   ArrowLeft,
   ScanLine
 } from "lucide-react";
+import UnisusQrTopupCard from "@/components/topup/UnisusQrTopupCard";
 
 interface TopupRequestItem {
   id: string;
@@ -140,7 +141,8 @@ export default function RetailerTopupRequestPage() {
   const [loadingRequests, setLoadingRequests] = useState<boolean>(true);
 
   // ── Mode Switcher ─────────────────────────────────────────────────────────────
-  const [topupMode, setTopupMode] = useState<"UPI" | "POS">("UPI");
+  const [topupMode, setTopupMode] = useState<"UPI" | "POS" | "UNISUS">("UPI");
+  const [hasUnisusQr, setHasUnisusQr] = useState<boolean>(false);
 
   // ── UPI Flow Sub-Steps ────────────────────────────────────────────────────────
   // AMOUNT -> QR_DISPLAY -> UPLOAD -> VERIFY -> CONFIRM -> SUCCESS
@@ -325,6 +327,25 @@ export default function RetailerTopupRequestPage() {
       isMounted = false;
     };
   }, [topupMode]);
+
+  // Check Unisus Pay Partner QR availability (Exclusively enabled for Sathus Company)
+  useEffect(() => {
+    let isMounted = true;
+    const probeUnisus = async () => {
+      try {
+        const res = await api.get("/api/v1/unisus/qrs");
+        if (isMounted && res.data?.code === 200 && res.data?.data?.qrs?.length > 0) {
+          setHasUnisusQr(true);
+        }
+      } catch (err) {
+        if (isMounted) setHasUnisusQr(false);
+      }
+    };
+    probeUnisus();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // POS MDR Calculation
   useEffect(() => {
@@ -897,7 +918,7 @@ export default function RetailerTopupRequestPage() {
       </div>
 
       {/* ── Mode Switcher Tabs ── */}
-      <div className="flex items-center gap-3 p-1.5 bg-slate-900/80 border border-slate-800 rounded-2xl backdrop-blur max-w-xl">
+      <div className="flex items-center gap-2 sm:gap-3 p-1.5 bg-slate-900/80 border border-slate-800 rounded-2xl backdrop-blur w-full max-w-3xl overflow-x-auto">
         <button
           type="button"
           onClick={() => {
@@ -905,7 +926,7 @@ export default function RetailerTopupRequestPage() {
             setErrorMessage(null);
             setSuccessMessage(null);
           }}
-          className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+          className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 whitespace-nowrap shrink-0 ${
             topupMode === "UPI"
               ? "bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 shadow-lg shadow-amber-500/20"
               : "text-slate-400 hover:text-white hover:bg-slate-800/50"
@@ -922,7 +943,7 @@ export default function RetailerTopupRequestPage() {
             setErrorMessage(null);
             setSuccessMessage(null);
           }}
-          className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+          className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 whitespace-nowrap shrink-0 ${
             topupMode === "POS"
               ? "bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 shadow-lg shadow-amber-500/20"
               : "text-slate-400 hover:text-white hover:bg-slate-800/50"
@@ -936,6 +957,30 @@ export default function RetailerTopupRequestPage() {
             Terminal
           </span>
         </button>
+
+        {hasUnisusQr && (
+          <button
+            type="button"
+            onClick={() => {
+              setTopupMode("UNISUS");
+              setErrorMessage(null);
+              setSuccessMessage(null);
+            }}
+            className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 whitespace-nowrap shrink-0 ${
+              topupMode === "UNISUS"
+                ? "bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 shadow-lg shadow-amber-500/20"
+                : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+            }`}
+          >
+            <QrCode className="h-4 w-4" />
+            <span>Partner UPI QR</span>
+            <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-black uppercase ${
+              topupMode === "UNISUS" ? "bg-slate-950/20 text-slate-950" : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+            }`}>
+              Sathus
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Feedback Messages */}
@@ -956,7 +1001,15 @@ export default function RetailerTopupRequestPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* ── Left Column: Active Flow Component (5 cols) ── */}
         <div className="lg:col-span-5">
-          {topupMode === "UPI" ? (
+          {topupMode === "UNISUS" ? (
+            <UnisusQrTopupCard
+              onSuccess={() => {
+                fetchMyTopups();
+                refreshWallet();
+                triggerWalletSync();
+              }}
+            />
+          ) : topupMode === "UPI" ? (
             /* ══════════════════════════════════════════════════════════════════════
                UPI TOP-UP MULTI-STEP FLOW (Glassmorphism + Gold-Yellow Gradient)
                ══════════════════════════════════════════════════════════════════════ */

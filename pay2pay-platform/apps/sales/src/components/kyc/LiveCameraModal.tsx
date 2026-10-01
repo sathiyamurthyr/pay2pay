@@ -130,7 +130,7 @@ export default function LiveCameraModal({
       onClose();
     } catch (err: any) {
       console.error("Upload Captured Photo Error:", err);
-      setErrorMsg(err.response?.data?.detail || "Failed to upload photo to B2 Vault. Please retry.");
+      setErrorMsg(err.response?.data?.detail || "Failed to upload photo. Please retry.");
     } finally {
       setUploading(false);
     }
@@ -177,7 +177,7 @@ export default function LiveCameraModal({
             </div>
             <div>
               <h3 className="text-sm font-bold text-[#1F2937]">{title}</h3>
-              <p className="text-[10px] text-[#6B7280]">Live Camera Capture & Backblaze B2 Vault Storage</p>
+              <p className="text-[10px] text-[#6B7280]">Live Camera Capture &amp; Secure Cloud Storage</p>
             </div>
           </div>
           <button
@@ -305,12 +305,12 @@ export default function LiveCameraModal({
                   {uploading ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      Saving to B2...
+                      Uploading...
                     </>
                   ) : (
                     <>
                       <Check className="w-4 h-4" />
-                      Use & Upload to B2 Vault
+                      Use & Upload
                     </>
                   )}
                 </button>

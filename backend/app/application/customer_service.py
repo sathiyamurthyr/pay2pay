@@ -153,8 +153,14 @@ class CustomerService:
         )
 
     @staticmethod
-    async def list_customers(db: AsyncSession, req: CustomerSearchRequest) -> List[CustomerResponse]:
+    async def list_customers(
+        db: AsyncSession,
+        req: CustomerSearchRequest,
+        tenant_id: Optional[uuid.UUID] = None
+    ) -> List[CustomerResponse]:
         stmt = select(CustomerModel).where(CustomerModel.is_active == True)
+        if tenant_id:
+            stmt = stmt.where(CustomerModel.tenant_id == tenant_id)
         if req.mobile_number:
             stmt = stmt.where(CustomerModel.mobile_number == req.mobile_number)
         if req.customer_status:
@@ -237,8 +243,12 @@ class CustomerService:
         return responses
 
     @staticmethod
-    async def get_customer(db: AsyncSession, customer_id: Union[uuid.UUID, str]) -> Optional[CustomerResponse]:
-        c = await CustomerService._find_customer_model(db, customer_id)
+    async def get_customer(
+        db: AsyncSession,
+        customer_id: Union[uuid.UUID, str],
+        tenant_id: Optional[uuid.UUID] = None
+    ) -> Optional[CustomerResponse]:
+        c = await CustomerService._find_customer_model(db, customer_id, tenant_id=tenant_id)
         if not c:
             return None
         res_p = await db.execute(select(CustomerProfileModel).where(CustomerProfileModel.customer_id == c.public_id))
@@ -270,15 +280,21 @@ class CustomerService:
         )
 
     @staticmethod
-    async def _find_customer_model(db: AsyncSession, customer_id: Union[uuid.UUID, str]) -> Optional[CustomerModel]:
+    async def _find_customer_model(
+        db: AsyncSession,
+        customer_id: Union[uuid.UUID, str],
+        tenant_id: Optional[uuid.UUID] = None
+    ) -> Optional[CustomerModel]:
+        tenant_filter = [CustomerModel.tenant_id == tenant_id] if tenant_id else []
+
         if isinstance(customer_id, uuid.UUID):
-            stmt = select(CustomerModel).where(and_(CustomerModel.public_id == customer_id, CustomerModel.is_active == True))
+            stmt = select(CustomerModel).where(and_(CustomerModel.public_id == customer_id, CustomerModel.is_active == True, *tenant_filter))
             return (await db.execute(stmt)).scalars().first()
 
         val_str = str(customer_id).strip()
         try:
             c_uuid = uuid.UUID(val_str)
-            stmt = select(CustomerModel).where(and_(CustomerModel.public_id == c_uuid, CustomerModel.is_active == True))
+            stmt = select(CustomerModel).where(and_(CustomerModel.public_id == c_uuid, CustomerModel.is_active == True, *tenant_filter))
             c = (await db.execute(stmt)).scalars().first()
             if c:
                 return c
@@ -294,7 +310,7 @@ class CustomerService:
             conditions.append(CustomerModel.mobile_number == clean_digits)
             conditions.append(CustomerModel.mobile_number.endswith(clean_digits))
 
-        stmt = select(CustomerModel).where(and_(or_(*conditions), CustomerModel.is_active == True))
+        stmt = select(CustomerModel).where(and_(or_(*conditions), CustomerModel.is_active == True, *tenant_filter))
         return (await db.execute(stmt)).scalars().first()
 
     @staticmethod

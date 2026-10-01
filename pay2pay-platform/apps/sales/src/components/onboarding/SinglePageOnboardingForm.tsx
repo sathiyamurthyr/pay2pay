@@ -151,7 +151,122 @@ function FileLightbox({
   return createPortal(content, document.body);
 }
 
-// ── Document Upload Card with Local Preview Thumbnail (Light Maroon + Gold Design) ──
+// ── Zero-dependency Client-side EXIF GPS Extractor ──
+async function extractExifGpsFromBlob(file: Blob): Promise<ExifGpsData | null> {
+  try {
+    const buffer = await file.slice(0, 131072).arrayBuffer();
+    const view = new DataView(buffer);
+    if (view.byteLength < 4) return null;
+    if (view.getUint16(0) !== 0xFFD8) return null; // JPEG SOI
+
+    let offset = 2;
+    while (offset < view.byteLength - 4) {
+      const marker = view.getUint16(offset);
+      offset += 2;
+      if (marker === 0xFFE1) {
+        const length = view.getUint16(offset);
+        const exifHeader = String.fromCharCode(
+          view.getUint8(offset + 2),
+          view.getUint8(offset + 3),
+          view.getUint8(offset + 4),
+          view.getUint8(offset + 5)
+        );
+        if (exifHeader === "Exif") {
+          const tiffOffset = offset + 8;
+          const endian = view.getUint16(tiffOffset);
+          const littleEndian = endian === 0x4949; // "II"
+          const firstIfdOffset = view.getUint32(tiffOffset + 4, littleEndian);
+
+          const ifdOffset = tiffOffset + firstIfdOffset;
+          if (ifdOffset >= view.byteLength - 2) return null;
+
+          const numEntries = view.getUint16(ifdOffset, littleEndian);
+          let gpsIfdOffset = 0;
+          for (let i = 0; i < numEntries; i++) {
+            const entryOffset = ifdOffset + 2 + (i * 12);
+            if (entryOffset + 12 > view.byteLength) break;
+            const tag = view.getUint16(entryOffset, littleEndian);
+            if (tag === 0x8825) {
+              gpsIfdOffset = tiffOffset + view.getUint32(entryOffset + 8, littleEndian);
+              break;
+            }
+          }
+
+          if (!gpsIfdOffset || gpsIfdOffset >= view.byteLength - 2) return null;
+
+          const numGpsEntries = view.getUint16(gpsIfdOffset, littleEndian);
+          let lat: number | null = null;
+          let latRef = "N";
+          let lon: number | null = null;
+          let lonRef = "E";
+          let altitude: number | null = null;
+
+          const readRational = (ptr: number) => {
+            if (tiffOffset + ptr + 8 > view.byteLength) return 0;
+            const num = view.getUint32(tiffOffset + ptr, littleEndian);
+            const den = view.getUint32(tiffOffset + ptr + 4, littleEndian);
+            return den === 0 ? 0 : num / den;
+          };
+
+          const parseDegrees = (ptr: number) => {
+            const deg = readRational(ptr);
+            const min = readRational(ptr + 8);
+            const sec = readRational(ptr + 16);
+            return deg + (min / 60) + (sec / 3600);
+          };
+
+          for (let j = 0; j < numGpsEntries; j++) {
+            const gEntry = gpsIfdOffset + 2 + (j * 12);
+            if (gEntry + 12 > view.byteLength) break;
+            const tag = view.getUint16(gEntry, littleEndian);
+            const valOffset = view.getUint32(gEntry + 8, littleEndian);
+
+            if (tag === 1) {
+              latRef = String.fromCharCode(view.getUint8(gEntry + 8)).toUpperCase();
+            } else if (tag === 2) {
+              lat = parseDegrees(valOffset);
+            } else if (tag === 3) {
+              lonRef = String.fromCharCode(view.getUint8(gEntry + 8)).toUpperCase();
+            } else if (tag === 4) {
+              lon = parseDegrees(valOffset);
+            } else if (tag === 6) {
+              altitude = readRational(valOffset);
+            }
+          }
+
+          if (lat !== null && lon !== null && !isNaN(lat) && !isNaN(lon)) {
+            if (latRef === "S") lat = -lat;
+            if (lonRef === "W") lon = -lon;
+            if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180 && !(Math.abs(lat) < 0.0001 && Math.abs(lon) < 0.0001)) {
+              return {
+                available: true,
+                latitude: Number(lat.toFixed(6)),
+                longitude: Number(lon.toFixed(6)),
+                altitude: altitude ? Number(altitude.toFixed(1)) : null,
+                captured_at: new Date().toISOString(),
+                reverse_geocoded: {
+                  formatted_address: `GPS Coordinates: ${lat.toFixed(6)}°, ${lon.toFixed(6)}°`
+                },
+                message: `GPS coordinates (${lat.toFixed(6)}, ${lon.toFixed(6)}) extracted from image EXIF.`
+              };
+            }
+          }
+        }
+        offset += length;
+      } else if ((marker & 0xFF00) !== 0xFF00 || marker === 0xFFDA) {
+        break;
+      } else {
+        const length = view.getUint16(offset);
+        offset += length;
+      }
+    }
+  } catch (err) {
+    console.warn("Client EXIF parse error:", err);
+  }
+  return null;
+}
+
+// ── Document Upload Card with Local Preview Thumbnail & Loader Overlay ──
 function DocUploadCard({
   label, docFile, previewUrl, uploading, onUpload, accept, hint, icon: Icon, previewLabel
 }: {
@@ -178,16 +293,35 @@ function DocUploadCard({
       {lightbox && previewUrl && (
         <FileLightbox url={previewUrl} name={previewLabel || docFile?.name || label} onClose={() => setLightbox(false)} mimeType={mimeType} />
       )}
-      <div className={`rounded-2xl border transition-all duration-300 overflow-hidden h-full flex flex-col justify-between ${
+      <div className={`rounded-2xl border transition-all duration-300 overflow-hidden h-full flex flex-col justify-between relative ${
         hasPreview
           ? "border-[#86EFAC] bg-[#F0FDF4]"
           : "border-[#D1D5DB] bg-[#FAFAFC] hover:border-[#94003A] hover:bg-[#FDF3F7]"
       }`}>
+        {/* Full Card Animated Loader Overlay while Uploading / Processing OCR */}
+        {uploading && (
+          <div className="absolute inset-0 z-30 bg-white/95 backdrop-blur-[2px] flex flex-col items-center justify-center p-3 rounded-2xl border-2 border-[#94003A]/50 shadow-lg transition-all animate-in fade-in duration-200">
+            <div className="relative flex items-center justify-center mb-2">
+              <div className="w-9 h-9 rounded-full border-3 border-[#F8E6EE] border-t-[#94003A] animate-spin" />
+              <Loader2 className="w-4 h-4 text-[#94003A] animate-spin absolute" />
+            </div>
+            <span className="text-xs font-black text-[#94003A] tracking-wider animate-pulse text-center">
+              Uploading &amp; Reading OCR...
+            </span>
+            <span className="text-[10px] text-[#4B5563] font-medium text-center mt-0.5 max-w-[200px] leading-tight">
+              Extracting document data, please wait
+            </span>
+            <div className="w-28 h-1 bg-[#F3F4F6] rounded-full overflow-hidden mt-2 border border-[#E5E7EB]">
+              <div className="h-full bg-gradient-to-r from-[#94003A] to-[#D97706] rounded-full animate-pulse w-3/4" />
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row items-stretch flex-1">
           <div
-            className={`relative flex-shrink-0 flex items-center justify-center ${hasPreview ? "cursor-pointer group" : ""}`}
+            className={`relative flex-shrink-0 flex items-center justify-center ${hasPreview && !uploading ? "cursor-pointer group" : ""}`}
             style={{ width: hasPreview ? 110 : 80, minHeight: 90 }}
-            onClick={() => hasPreview && setLightbox(true)}
+            onClick={() => hasPreview && !uploading && setLightbox(true)}
           >
             {hasPreview ? (
               <>
@@ -216,7 +350,7 @@ function DocUploadCard({
           <div className="flex-1 p-3.5 flex flex-col justify-center min-w-0">
             <div className="flex items-center justify-between gap-2 mb-1">
               <span className="text-xs font-bold text-[#1F2937] truncate">{label}</span>
-              {hasPreview && (
+              {hasPreview && !uploading && (
                 <span className="px-2 py-0.5 rounded-md bg-[#DCFCE7] text-[#166534] border border-[#86EFAC] text-[10px] font-bold flex items-center gap-1 shrink-0">
                   <Check className="w-3 h-3 text-[#16A34A]" />
                   <span>Ready</span>
@@ -226,9 +360,15 @@ function DocUploadCard({
             {hint && <p className="text-[11px] text-[#6B7280] mb-2.5">{hint}</p>}
 
             <div className="flex items-center gap-2">
-              <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#94003A] hover:bg-[#78002F] text-white text-xs font-bold transition-all shadow-sm">
-                <UploadCloud className="w-3.5 h-3.5" />
-                <span>{uploading ? "Analyzing OCR..." : hasPreview ? "Replace File" : "Choose File"}</span>
+              <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-white text-xs font-bold transition-all shadow-sm ${
+                uploading ? "bg-[#94003A]/70 cursor-not-allowed" : "bg-[#94003A] hover:bg-[#78002F] cursor-pointer"
+              }`}>
+                {uploading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <UploadCloud className="w-3.5 h-3.5" />
+                )}
+                <span>{uploading ? "Reading OCR..." : hasPreview ? "Replace File" : "Choose File"}</span>
                 <input
                   type="file"
                   className="hidden"
@@ -237,7 +377,7 @@ function DocUploadCard({
                   disabled={uploading}
                 />
               </label>
-              {hasPreview && (
+              {hasPreview && !uploading && (
                 <button
                   type="button"
                   onClick={() => setLightbox(true)}
@@ -296,6 +436,49 @@ interface SinglePageOnboardingFormProps {
   initialUserTypeRefId?: number;
   initialMobile?: string;
   initialLinkToken?: string;
+}
+
+function cleanVendorNames(msg: string): string {
+  if (!msg || typeof msg !== "string") return "";
+  return msg
+    .replace(/uidai/gi, "Government Identity Portal")
+    .replace(/cashfree/gi, "Verification Gateway")
+    .replace(/nsdl/gi, "Tax Information Network")
+    .replace(/backblaze|b2/gi, "Cloud Storage");
+}
+
+function extractErrorMessage(data: unknown, fallback: string): string {
+  let result = fallback;
+  if (!data) return cleanVendorNames(fallback);
+  if (typeof data === "string") {
+    result = data.trim() || fallback;
+  } else if (typeof data === "object") {
+    const d = data as Record<string, unknown>;
+    // 1. Pydantic v2 validation error array: detail = [{type, loc, msg, input}, ...]
+    if (Array.isArray(d.detail)) {
+      const msgs = (d.detail as Array<{ msg?: string; loc?: string[] }>)
+        .map((err) => {
+          if (!err || typeof err !== "object") return "";
+          const field = Array.isArray(err.loc) ? err.loc[err.loc.length - 1] : "";
+          const cleanField = field && field !== "body" ? `${field}: ` : "";
+          return `${cleanField}${err.msg || "Invalid value"}`;
+        })
+        .filter(Boolean);
+      if (msgs.length > 0) result = msgs.join("; ");
+    } else if (typeof d.detail === "string" && d.detail.trim()) {
+      result = d.detail.trim();
+    } else if (typeof d.message === "string" && d.message.trim()) {
+      result = d.message.trim();
+    } else if (typeof d.error === "string" && d.error.trim()) {
+      result = d.error.trim();
+    } else if (d.detail && typeof d.detail === "object") {
+      const detailObj = d.detail as Record<string, unknown>;
+      if (typeof detailObj.message === "string" && detailObj.message.trim()) {
+        result = detailObj.message.trim();
+      }
+    }
+  }
+  return cleanVendorNames(result);
 }
 
 export function SinglePageOnboardingForm({
@@ -812,7 +995,7 @@ export function SinglePageOnboardingForm({
       const checkRes = await fetch(`/api/v1/onboarding/check-mobile/${mobileNumber}`);
       const checkData = await checkRes.json();
       if (!checkRes.ok || checkData.conflict) {
-        setMobileConflict(checkData.message || "This mobile number is already registered with another account.");
+        setMobileConflict(extractErrorMessage(checkData, "This mobile number is already registered with another account."));
         setMobileChecking(false);
         return;
       }
@@ -841,14 +1024,14 @@ export function SinglePageOnboardingForm({
       const res = await fetch("/api/v1/onboarding/verify-whatsapp-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mobile: mobileNumber, otp: mobileOtp, registration_id: registrationId })
+        body: JSON.stringify({ mobile: mobileNumber, otp: mobileOtp, otp_code: mobileOtp, registration_id: registrationId })
       });
       const data = await res.json();
-      if (res.ok && data.verified) {
+      if (res.ok && (data.status === "SUCCESS" || data.verified === true)) {
         setMobileVerified(true);
         setMobileConflict(null);
       } else {
-        setMobileConflict(data.message || "Invalid OTP code. Please check WhatsApp message.");
+        setMobileConflict(extractErrorMessage(data, "Invalid OTP code. Please check WhatsApp message."));
       }
     } catch {
       setMobileConflict("Error verifying OTP.");
@@ -868,10 +1051,12 @@ export function SinglePageOnboardingForm({
     setEmailChecking(true);
     setEmailConflict(null);
     try {
-      const checkRes = await fetch(`/api/v1/onboarding/check-email?email=${encodeURIComponent(email)}`);
+      const checkRes = await fetch(
+        `/api/v1/onboarding/check-email?email=${encodeURIComponent(email)}${registrationId ? `&registration_id=${encodeURIComponent(registrationId)}` : ""}`
+      );
       const checkData = await checkRes.json();
       if (!checkRes.ok || checkData.conflict) {
-        setEmailConflict(checkData.message || "This email address is already registered with another account.");
+        setEmailConflict(extractErrorMessage(checkData, "This email address is already registered with another account."));
         setEmailChecking(false);
         return;
       }
@@ -899,14 +1084,14 @@ export function SinglePageOnboardingForm({
       const res = await fetch("/api/v1/onboarding/verify-email-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp: emailOtp, registration_id: registrationId })
+        body: JSON.stringify({ email, otp: emailOtp, otp_code: emailOtp, registration_id: registrationId })
       });
       const data = await res.json();
-      if (res.ok && data.verified) {
+      if (res.ok && (data.status === "SUCCESS" || data.verified === true)) {
         setEmailVerified(true);
         setEmailConflict(null);
       } else {
-        setEmailConflict(data.message || "Invalid verification code.");
+        setEmailConflict(extractErrorMessage(data, "Invalid verification code."));
       }
     } catch {
       setEmailConflict("Error verifying email code.");
@@ -952,7 +1137,7 @@ export function SinglePageOnboardingForm({
         }
         if (ext.dob) setPanDob(ext.dob);
       } else {
-        setPanError(data.detail || "Could not auto-read PAN. Please enter details manually.");
+        setPanError(extractErrorMessage(data, "Could not auto-read PAN. Please enter details manually."));
       }
     } catch {
       setPanError("Failed to upload PAN document.");
@@ -979,12 +1164,13 @@ export function SinglePageOnboardingForm({
         })
       });
       const data = await res.json();
-      if (res.ok && data.verified) {
+      if (res.ok && (data.status === "SUCCESS" || data.valid === true)) {
         setPanVerified(true);
+        setPanError("");
         if (data.registered_name) setPanHolderName(data.registered_name);
         if (!fullName && data.registered_name) setFullName(data.registered_name);
       } else {
-        setPanError(data.message || data.detail || "PAN verification failed via NSDL / Cashfree.");
+        setPanError(extractErrorMessage(data, "PAN verification failed."));
       }
     } catch {
       setPanError("Network error verifying PAN.");
@@ -994,7 +1180,7 @@ export function SinglePageOnboardingForm({
   };
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // 4. Aadhaar File Upload, OCR & UIDAI OTP
+  // 4. Aadhaar File Upload, OCR & Identity OTP
   // ─────────────────────────────────────────────────────────────────────────────
   const handleAadhaarFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1027,6 +1213,8 @@ export function SinglePageOnboardingForm({
         if (hName && !fullName) {
           setFullName(hName);
         }
+      } else {
+        setAadhaarError(extractErrorMessage(data, "Failed to upload Aadhaar card."));
       }
     } catch {
       setAadhaarError("Failed to upload Aadhaar card.");
@@ -1054,7 +1242,7 @@ export function SinglePageOnboardingForm({
         setAadhaarRefId(data.ref_id);
         setAadhaarOtpSent(true);
       } else {
-        setAadhaarError(data.message || data.detail || "Failed to send UIDAI Aadhaar OTP.");
+        setAadhaarError(extractErrorMessage(data, "Failed to send Aadhaar OTP."));
       }
     } catch {
       setAadhaarError("Network error requesting Aadhaar OTP.");
@@ -1073,17 +1261,19 @@ export function SinglePageOnboardingForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           otp: aadhaarOtp,
+          otp_code: aadhaarOtp,
           ref_id: aadhaarRefId,
           aadhaar_number: aadhaarNumber.replace(/\D/g, ""),
           registration_id: registrationId
         })
       });
       const data = await res.json();
-      if (res.ok && data.verified) {
+      if (res.ok && (data.status === "SUCCESS" || data.verified === true)) {
         setAadhaarVerified(true);
-        setAadhaarHolderName(data.name || "");
-        setAadhaarMasked(data.masked_aadhaar || `XXXX XXXX ${aadhaarNumber.slice(-4)}`);
-        if (!fullName && data.name) setFullName(data.name);
+        setAadhaarError("");
+        setAadhaarHolderName(data.full_name || data.name || "");
+        setAadhaarMasked(data.masked_aadhaar || data.aadhaar_masked || `XXXX XXXX ${aadhaarNumber.slice(-4)}`);
+        if (!fullName && (data.full_name || data.name)) setFullName(data.full_name || data.name);
 
         // Auto-fill address from Aadhaar eKYC response
         if (data.address) {
@@ -1100,7 +1290,7 @@ export function SinglePageOnboardingForm({
           if (addr.pincode) setPersonalPincode(addr.pincode);
         }
       } else {
-        setAadhaarError(data.message || data.detail || "Aadhaar OTP verification failed.");
+        setAadhaarError(extractErrorMessage(data, "Aadhaar OTP verification failed."));
       }
     } catch {
       setAadhaarError("Network error validating Aadhaar OTP.");
@@ -1140,6 +1330,8 @@ export function SinglePageOnboardingForm({
         if (data.extracted?.trade_name && !shopName) {
           setShopName(data.extracted.trade_name);
         }
+      } else {
+        setGstError(extractErrorMessage(data, "Failed to read GST certificate. Please enter details manually."));
       }
     } catch {
       setGstError("Failed to upload GST certificate.");
@@ -1162,12 +1354,13 @@ export function SinglePageOnboardingForm({
         body: JSON.stringify({ gst_number: gstNumber, registration_id: registrationId })
       });
       const data = await res.json();
-      if (res.ok && data.verified) {
+      if (res.ok && (data.status === "SUCCESS" || data.verified === true)) {
         setGstVerified(true);
+        setGstError("");
         setGstDetails(data);
         if (data.legal_name && !shopName) setShopName(data.legal_name);
       } else {
-        setGstError(data.message || data.detail || "GSTIN verification failed.");
+        setGstError(extractErrorMessage(data, "GSTIN verification failed."));
       }
     } catch {
       setGstError("Network error checking GSTIN.");
@@ -1211,6 +1404,8 @@ export function SinglePageOnboardingForm({
           setBankIfsc(ext.ifsc);
           setBankExtracted(true);
         }
+      } else {
+        setBankError(extractErrorMessage(data, "Could not auto-read bank document. Please enter details manually."));
       }
     } catch {
       setBankError("Failed to upload Bank document.");
@@ -1238,11 +1433,12 @@ export function SinglePageOnboardingForm({
         })
       });
       const data = await res.json();
-      if (res.ok && data.verified) {
+      if (res.ok && (data.status === "SUCCESS" || data.verified === true)) {
         setBankVerified(true);
+        setBankError("");
         setBankDetails(data);
       } else {
-        setBankError(data.message || data.detail || "Bank Penny Drop verification failed.");
+        setBankError(extractErrorMessage(data, "Bank Penny Drop verification failed."));
       }
     } catch {
       setBankError("Network error validating bank account.");
@@ -1259,6 +1455,47 @@ export function SinglePageOnboardingForm({
     if (!file) return;
     setPersonalPhotoUploading(true);
 
+    // 1. Immediate client-side EXIF GPS Extraction from photo file bytes
+    try {
+      const clientGps = await extractExifGpsFromBlob(file);
+      if (clientGps && clientGps.available) {
+        setPersonalPhotoGps(clientGps);
+        if (!exifGps || !exifGps.available) {
+          setExifGps(clientGps);
+        }
+        // Reverse geocode via API in background
+        if (clientGps.latitude && clientGps.longitude) {
+          fetch("/api/v1/onboarding/validate-location", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ latitude: clientGps.latitude, longitude: clientGps.longitude })
+          })
+            .then((r) => r.json())
+            .then((geo) => {
+              if (geo && (geo.formatted_address || geo.city)) {
+                setPersonalPhotoGps((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        reverse_geocoded: {
+                          city: geo.city || "",
+                          district: geo.district || "",
+                          state: geo.state || "",
+                          pincode: geo.pincode || "",
+                          formatted_address: geo.formatted_address || prev.reverse_geocoded?.formatted_address
+                        }
+                      }
+                    : null
+                );
+              }
+            })
+            .catch(() => {});
+        }
+      }
+    } catch (clientErr) {
+      console.warn("Client EXIF extraction exception:", clientErr);
+    }
+
     const formData = new FormData();
     formData.append("file", file);
     formData.append("doc_type", "PERSONAL_PHOTO");
@@ -1266,16 +1503,16 @@ export function SinglePageOnboardingForm({
     if (registrationId) formData.append("registration_id", registrationId);
 
     try {
-      // 1. Primary: Use dedicated auto-read doc endpoint for EXIF GPS extraction
+      // 2. Server-side auto-read & persistent secure upload
       const res = await fetch("/api/v1/onboarding/auto-read-doc", {
         method: "POST",
         body: formData
       });
       const data = await res.json();
-      if (res.ok && (data.b2_url || data.photo_url || data.extracted?.photo_url)) {
-        const url = data.b2_url || data.photo_url || data.extracted?.photo_url;
-        setPersonalPhotoUrl(url);
-        if (data.exif_gps) {
+      const resolvedUrl = data.b2_url || data.photo_url || data.extracted?.photo_url || data.doc_url || data.url;
+      if (res.ok && resolvedUrl) {
+        setPersonalPhotoUrl(resolvedUrl);
+        if (data.exif_gps && data.exif_gps.available) {
           setPersonalPhotoGps(data.exif_gps);
           if (!exifGps || !exifGps.available) {
             setExifGps(data.exif_gps);
@@ -1291,10 +1528,10 @@ export function SinglePageOnboardingForm({
           body: formData
         });
         const fallbackData = await fallbackRes.json();
-        if (fallbackRes.ok && (fallbackData.photo_url || fallbackData.b2_url)) {
-          const url = fallbackData.photo_url || fallbackData.b2_url;
-          setPersonalPhotoUrl(url);
-          if (fallbackData.exif_gps) {
+        const fallbackUrl = fallbackData.photo_url || fallbackData.b2_url || fallbackData.doc_url;
+        if (fallbackRes.ok && fallbackUrl) {
+          setPersonalPhotoUrl(fallbackUrl);
+          if (fallbackData.exif_gps && fallbackData.exif_gps.available) {
             setPersonalPhotoGps(fallbackData.exif_gps);
             if (!exifGps || !exifGps.available) {
               setExifGps(fallbackData.exif_gps);
@@ -1426,7 +1663,7 @@ export function SinglePageOnboardingForm({
         if (fallbackRes.ok && (fallbackData.video_url || fallbackData.b2_url)) {
           setVideoKycUrl(fallbackData.video_url || fallbackData.b2_url);
         } else {
-          alert(data.detail || fallbackData.detail || "Video upload failed. Please try again.");
+          alert(extractErrorMessage(data || fallbackData, "Video upload failed. Please try again."));
         }
       }
     } catch {
@@ -1529,7 +1766,7 @@ export function SinglePageOnboardingForm({
       return;
     }
     if (!panVerified) {
-      setFormError("PAN Card Cashfree verification is mandatory.");
+      setFormError("PAN Card verification is mandatory.");
       scrollToSection("section_kyc");
       return;
     }
@@ -1582,7 +1819,7 @@ export function SinglePageOnboardingForm({
       if (res.ok && data.status === "SUCCESS") {
         setSubmittedResult(data);
       } else {
-        setFormError(data.message || data.detail || "Application submission rejected by server.");
+        setFormError(extractErrorMessage(data, "Application submission rejected by server."));
       }
     } catch {
       setFormError("Network error while submitting application.");
@@ -1612,11 +1849,11 @@ export function SinglePageOnboardingForm({
     },
     { id: "section_contact", label: "Mobile WhatsApp OTP", completed: mobileVerified, desc: mobileVerified ? `+91 ${mobileNumber}` : "Pending OTP" },
     { id: "section_contact", label: "Email Address OTP", completed: emailVerified, desc: emailVerified ? email : "Pending OTP" },
-    { id: "section_kyc", label: "PAN Card (Cashfree)", completed: panVerified, desc: panVerified ? panNumber : "Pending OCR/NSDL" },
-    { id: "section_kyc", label: "Aadhaar eKYC (UIDAI)", completed: aadhaarVerified, desc: aadhaarVerified ? aadhaarMasked : "Pending OTP" },
+    { id: "section_kyc", label: "PAN Card", completed: panVerified, desc: panVerified ? panNumber : "Pending Verification" },
+    { id: "section_kyc", label: "Aadhaar eKYC", completed: aadhaarVerified, desc: aadhaarVerified ? aadhaarMasked : "Pending OTP" },
     { id: "section_gst", label: "GST Registration", completed: !isGstRegistered || gstVerified, optional: true, desc: isGstRegistered ? (gstVerified ? "GST Verified" : "Pending GST") : "Skipped (Optional)" },
     { id: "section_bank", label: "Bank Account (Penny Drop)", completed: bankVerified, desc: bankVerified ? (bankDetails?.bank_name || "Verified") : "Pending Penny Drop" },
-    { id: "section_media", label: "Live Selfie Photo", completed: Boolean(personalPhotoUrl), desc: personalPhotoUrl ? "Uploaded to B2" : "Pending Selfie" },
+    { id: "section_media", label: "Live Selfie Photo", completed: Boolean(personalPhotoUrl), desc: personalPhotoUrl ? "Uploaded ✓" : "Pending Selfie" },
     { id: "section_shop_photo", label: "Premises Photo & Location", completed: Boolean(shopPhotoUrl), desc: shopPhotoUrl ? (exifGps?.available ? "EXIF GPS Extracted" : "Photo Attached (No EXIF)") : "Pending Photo" },
     { id: "section_video", label: "Video KYC Statement", completed: Boolean(videoKycUrl), desc: videoKycUrl ? "Recorded / Uploaded" : "Pending Video" },
     { id: "section_address", label: "Personal & Shop Address", completed: Boolean(personalAddress1.trim() && personalPincode.trim() && shopAddress1.trim() && shopPincode.trim()), desc: personalPincode ? `Pincode: ${personalPincode}` : "Pending Address" },
@@ -2789,7 +3026,7 @@ export function SinglePageOnboardingForm({
                 {mobileConflict && (
                   <div className="p-3 rounded-xl bg-[#FEF2F2] border border-[#FCA5A5] text-[#991B1B] text-xs font-semibold flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 text-[#DC2626] shrink-0" />
-                    <span>{mobileConflict}</span>
+                    <span>{typeof mobileConflict === "string" ? mobileConflict : String(mobileConflict)}</span>
                   </div>
                 )}
               </div>
@@ -2876,7 +3113,7 @@ export function SinglePageOnboardingForm({
                 {emailConflict && (
                   <div className="p-3 rounded-xl bg-[#FEF2F2] border border-[#FCA5A5] text-[#991B1B] text-xs font-semibold flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 text-[#DC2626] shrink-0" />
-                    <span>{emailConflict}</span>
+                    <span>{typeof emailConflict === "string" ? emailConflict : String(emailConflict)}</span>
                   </div>
                 )}
               </div>
@@ -2929,7 +3166,7 @@ export function SinglePageOnboardingForm({
             <div className="flex items-center justify-between">
               <span className="text-xs font-black text-[#94003A] uppercase tracking-wider flex items-center gap-1.5">
                 <CreditCard className="w-4 h-4" />
-                <span>PAN CARD (NSDL / CASHFREE) *</span>
+                <span>PAN CARD *</span>
               </span>
               {panVerified ? (
                 <span className="text-xs font-bold text-[#166534] flex items-center gap-1 bg-[#DCFCE7] px-2.5 py-0.5 rounded-full border border-[#86EFAC]">
@@ -2964,7 +3201,13 @@ export function SinglePageOnboardingForm({
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
                       <label className="text-xs font-bold text-[#4B5563] uppercase tracking-wider">PAN Number *</label>
-                      {panExtracted && <span className="text-[10px] text-[#166534] font-bold bg-[#DCFCE7] px-2 py-0.5 rounded border border-[#86EFAC]">✓ Extracted</span>}
+                      {panUploading ? (
+                        <span className="text-[10px] text-[#94003A] font-bold bg-[#F8E6EE] px-2 py-0.5 rounded border border-[#94003A]/20 flex items-center gap-1 animate-pulse">
+                          <Loader2 className="w-2.5 h-2.5 animate-spin" /> Reading OCR...
+                        </span>
+                      ) : panExtracted ? (
+                        <span className="text-[10px] text-[#166534] font-bold bg-[#DCFCE7] px-2 py-0.5 rounded border border-[#86EFAC]">✓ Extracted</span>
+                      ) : null}
                     </div>
                     <input
                       type="text"
@@ -2972,7 +3215,7 @@ export function SinglePageOnboardingForm({
                       value={panNumber}
                       disabled={panVerified}
                       onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
-                      placeholder="ABCDE1234F"
+                      placeholder={panUploading ? "Extracting PAN..." : "ABCDE1234F"}
                       className="w-full px-4 py-2.5 rounded-xl bg-white border border-[#D1D5DB] text-[#1F2937] font-mono font-bold text-sm focus:outline-none focus:border-[#94003A] focus:ring-4 focus:ring-[#F8E6EE] disabled:bg-[#F3F4F6] disabled:text-[#6B7280]"
                     />
                   </div>
@@ -2980,14 +3223,20 @@ export function SinglePageOnboardingForm({
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
                       <label className="text-xs font-bold text-[#4B5563] uppercase tracking-wider">Name as per PAN</label>
-                      {panExtracted && <span className="text-[10px] text-[#166534] font-bold bg-[#DCFCE7] px-2 py-0.5 rounded border border-[#86EFAC]">✓ Extracted</span>}
+                      {panUploading ? (
+                        <span className="text-[10px] text-[#94003A] font-bold bg-[#F8E6EE] px-2 py-0.5 rounded border border-[#94003A]/20 flex items-center gap-1 animate-pulse">
+                          <Loader2 className="w-2.5 h-2.5 animate-spin" /> Reading OCR...
+                        </span>
+                      ) : panExtracted ? (
+                        <span className="text-[10px] text-[#166534] font-bold bg-[#DCFCE7] px-2 py-0.5 rounded border border-[#86EFAC]">✓ Extracted</span>
+                      ) : null}
                     </div>
                     <input
                       type="text"
                       value={panHolderName}
                       disabled={panVerified}
                       onChange={(e) => setPanHolderName(e.target.value)}
-                      placeholder="Auto-read or enter name"
+                      placeholder={panUploading ? "Extracting Name..." : "Auto-read or enter name"}
                       className="w-full px-4 py-2.5 rounded-xl bg-white border border-[#D1D5DB] text-[#1F2937] text-sm focus:outline-none focus:border-[#94003A] focus:ring-4 focus:ring-[#F8E6EE] disabled:bg-[#F3F4F6] disabled:text-[#6B7280]"
                     />
                   </div>
@@ -3002,11 +3251,11 @@ export function SinglePageOnboardingForm({
                       className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#94003A] hover:bg-[#78002F] disabled:bg-[#E5E7EB] disabled:text-[#9CA3AF] text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-md shadow-[#94003A]/20"
                     >
                       {panVerifying ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <ShieldCheck className="w-4 h-4 text-white" />}
-                      <span>Verify PAN with NSDL</span>
+                      <span>Verify PAN</span>
                     </button>
                   ) : (
                     <div className="flex items-center justify-between w-full py-2 px-3 rounded-xl bg-[#F0FDF4] border border-[#86EFAC] text-[#166534] font-bold text-xs">
-                      <span>✓ NSDL Active &amp; Verified</span>
+                      <span>✓ PAN Active &amp; Verified</span>
                       <button
                         type="button"
                         onClick={() => {
@@ -3026,7 +3275,7 @@ export function SinglePageOnboardingForm({
             {panError && (
               <div className="p-3.5 rounded-xl bg-[#FEF2F2] border border-[#FCA5A5] text-[#991B1B] text-xs font-semibold flex items-center gap-2">
                 <XCircle className="w-4 h-4 text-[#DC2626] shrink-0" />
-                <span>{panError}</span>
+                <span>{typeof panError === "string" ? panError : String(panError)}</span>
               </div>
             )}
           </div>
@@ -3036,7 +3285,7 @@ export function SinglePageOnboardingForm({
             <div className="flex items-center justify-between">
               <span className="text-xs font-black text-[#94003A] uppercase tracking-wider flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4" />
-                <span>AADHAAR eKYC (UIDAI AUTH) *</span>
+                <span>AADHAAR eKYC *</span>
               </span>
               {aadhaarVerified ? (
                 <span className="text-xs font-bold text-[#166534] flex items-center gap-1 bg-[#DCFCE7] px-2.5 py-0.5 rounded-full border border-[#86EFAC]">
@@ -3070,7 +3319,13 @@ export function SinglePageOnboardingForm({
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-xs font-bold text-[#4B5563] uppercase tracking-wider">12-digit Aadhaar Number *</label>
-                    {aadhaarExtracted && <span className="text-[10px] text-[#166534] font-bold bg-[#DCFCE7] px-2 py-0.5 rounded border border-[#86EFAC]">✓ Extracted</span>}
+                    {aadhaarUploading ? (
+                      <span className="text-[10px] text-[#94003A] font-bold bg-[#F8E6EE] px-2 py-0.5 rounded border border-[#94003A]/20 flex items-center gap-1 animate-pulse">
+                        <Loader2 className="w-2.5 h-2.5 animate-spin" /> Reading OCR...
+                      </span>
+                    ) : aadhaarExtracted ? (
+                      <span className="text-[10px] text-[#166534] font-bold bg-[#DCFCE7] px-2 py-0.5 rounded border border-[#86EFAC]">✓ Extracted</span>
+                    ) : null}
                   </div>
                   <input
                     type="text"
@@ -3078,7 +3333,7 @@ export function SinglePageOnboardingForm({
                     value={aadhaarNumber}
                     disabled={aadhaarVerified}
                     onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, "").slice(0, 12))}
-                    placeholder="1234 5678 9012"
+                    placeholder={aadhaarUploading ? "Extracting Aadhaar..." : "1234 5678 9012"}
                     className="w-full px-4 py-2.5 rounded-xl bg-white border border-[#D1D5DB] text-[#1F2937] font-mono font-bold text-sm focus:outline-none focus:border-[#94003A] focus:ring-4 focus:ring-[#F8E6EE] disabled:bg-[#F3F4F6] disabled:text-[#6B7280]"
                   />
                 </div>
@@ -3091,11 +3346,11 @@ export function SinglePageOnboardingForm({
                       disabled={aadhaarSendingOtp || aadhaarNumber.replace(/\D/g, "").length !== 12}
                       className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#94003A] hover:bg-[#78002F] disabled:bg-[#E5E7EB] disabled:text-[#9CA3AF] text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-[#94003A]/20"
                     >
-                      {aadhaarSendingOtp ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <span>Send Aadhaar UIDAI OTP</span>}
+                      {aadhaarSendingOtp ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <span>Send Aadhaar OTP</span>}
                     </button>
                   ) : (
                     <div className="flex items-center justify-between w-full py-2 px-3 rounded-xl bg-[#F0FDF4] border border-[#86EFAC] text-[#166534] font-bold text-xs">
-                      <span>✓ UIDAI Auth Successful</span>
+                      <span>✓ Aadhaar Verified</span>
                       <button
                         type="button"
                         onClick={() => {
@@ -3115,7 +3370,7 @@ export function SinglePageOnboardingForm({
                 {aadhaarOtpSent && !aadhaarVerified && (
                   <div className="p-3.5 rounded-xl bg-white border border-[#E5E7EB] space-y-2.5">
                     <span className="text-xs font-bold text-[#4B5563]">
-                      Enter UIDAI Aadhaar eKYC OTP sent to registered mobile
+                      Enter 6-digit Aadhaar OTP sent to registered mobile
                     </span>
                     <div className="flex gap-2">
                       <input
@@ -3144,13 +3399,13 @@ export function SinglePageOnboardingForm({
             {aadhaarError && (
               <div className="p-3.5 rounded-xl bg-[#FEF2F2] border border-[#FCA5A5] text-[#991B1B] text-xs font-semibold flex items-center gap-2">
                 <XCircle className="w-4 h-4 text-[#DC2626] shrink-0" />
-                <span>{aadhaarError}</span>
+                <span>{typeof aadhaarError === "string" ? aadhaarError : String(aadhaarError)}</span>
               </div>
             )}
 
             {aadhaarVerified && (
               <div className="p-4 rounded-2xl bg-[#F0FDF4] border border-[#86EFAC] text-xs text-[#166534] font-semibold space-y-1">
-                <p>✓ Aadhaar eKYC Verified via Cashfree API.</p>
+                <p>✓ Aadhaar eKYC Verified Successfully.</p>
                 <p className="text-xs text-[#4B5563]">
                   Holder: <strong>{aadhaarHolderName}</strong> · Masked UID: {aadhaarMasked}
                 </p>
@@ -3268,7 +3523,7 @@ export function SinglePageOnboardingForm({
                 {gstError && (
                   <div className="p-3.5 rounded-xl bg-[#FEF2F2] border border-[#FCA5A5] text-[#991B1B] text-xs font-semibold flex items-center gap-2">
                     <XCircle className="w-4 h-4 text-[#DC2626] shrink-0" />
-                    <span>{gstError}</span>
+                    <span>{typeof gstError === "string" ? gstError : String(gstError)}</span>
                   </div>
                 )}
               </div>
@@ -3316,7 +3571,13 @@ export function SinglePageOnboardingForm({
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-xs font-bold text-[#4B5563] uppercase tracking-wider">Account Number *</label>
-                    {bankExtracted && <span className="text-[10px] text-[#166534] font-bold bg-[#DCFCE7] px-2 py-0.5 rounded border border-[#86EFAC]">✓ Extracted</span>}
+                    {bankUploading ? (
+                      <span className="text-[10px] text-[#94003A] font-bold bg-[#F8E6EE] px-2 py-0.5 rounded border border-[#94003A]/20 flex items-center gap-1">
+                        <Loader2 className="w-2.5 h-2.5 animate-spin" /> Reading OCR...
+                      </span>
+                    ) : bankExtracted ? (
+                      <span className="text-[10px] text-[#166534] font-bold bg-[#DCFCE7] px-2 py-0.5 rounded border border-[#86EFAC]">✓ Extracted</span>
+                    ) : null}
                   </div>
                   <input
                     type="text"
@@ -3331,7 +3592,13 @@ export function SinglePageOnboardingForm({
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-xs font-bold text-[#4B5563] uppercase tracking-wider">IFSC Code *</label>
-                    {bankExtracted && <span className="text-[10px] text-[#166534] font-bold bg-[#DCFCE7] px-2 py-0.5 rounded border border-[#86EFAC]">✓ Extracted</span>}
+                    {bankUploading ? (
+                      <span className="text-[10px] text-[#94003A] font-bold bg-[#F8E6EE] px-2 py-0.5 rounded border border-[#94003A]/20 flex items-center gap-1">
+                        <Loader2 className="w-2.5 h-2.5 animate-spin" /> Reading OCR...
+                      </span>
+                    ) : bankExtracted ? (
+                      <span className="text-[10px] text-[#166534] font-bold bg-[#DCFCE7] px-2 py-0.5 rounded border border-[#86EFAC]">✓ Extracted</span>
+                    ) : null}
                   </div>
                   <input
                     type="text"
@@ -3377,7 +3644,7 @@ export function SinglePageOnboardingForm({
 
           {bankDetails && (
             <div className="p-4 rounded-2xl bg-[#F0FDF4] border border-[#86EFAC] text-xs text-[#166534] font-semibold space-y-1">
-              <p>✓ Penny Drop Verification Confirmed via Cashfree.</p>
+              <p>✓ Penny Drop Verification Confirmed.</p>
               <p className="text-xs text-[#4B5563]">
                 Bank: <strong>{bankDetails.bank_name}</strong> · Branch: {bankDetails.branch}
               </p>
@@ -3390,7 +3657,7 @@ export function SinglePageOnboardingForm({
           {bankError && (
             <div className="p-3.5 rounded-xl bg-[#FEF2F2] border border-[#FCA5A5] text-[#991B1B] text-xs font-semibold flex items-center gap-2">
               <XCircle className="w-4 h-4 text-[#DC2626] shrink-0" />
-              <span>{bankError}</span>
+              <span>{typeof bankError === "string" ? bankError : String(bankError)}</span>
             </div>
           )}
         </div>
@@ -3409,7 +3676,17 @@ export function SinglePageOnboardingForm({
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Selfie Photo */}
-            <div className="p-5 rounded-2xl bg-[#FAFAFC] border border-[#E5E7EB] space-y-3.5 flex flex-col justify-between">
+            <div className="relative p-5 rounded-2xl bg-[#FAFAFC] border border-[#E5E7EB] space-y-3.5 flex flex-col justify-between overflow-hidden">
+              {/* Full-card upload overlay */}
+              {personalPhotoUploading && (
+                <div className="absolute inset-0 z-30 rounded-2xl bg-white/95 backdrop-blur-[2px] flex flex-col items-center justify-center gap-3">
+                  <Loader2 className="w-8 h-8 text-[#94003A] animate-spin" />
+                  <p className="text-xs font-bold text-[#94003A] animate-pulse">Uploading & Reading Photo...</p>
+                  <div className="w-32 h-1 rounded-full bg-[#F8E6EE] overflow-hidden">
+                    <div className="h-full bg-[#94003A] rounded-full animate-[loading_1.4s_ease-in-out_infinite]" style={{width:'60%'}} />
+                  </div>
+                </div>
+              )}
               <div>
                 <span className="text-xs font-bold text-[#4B5563] uppercase tracking-wider">Personal Photo (Selfie) *</span>
                 <p className="text-xs text-[#6B7280] mt-1 mb-3">Clear face photo for automated facial match &amp; fraud prevention.</p>
@@ -3426,13 +3703,14 @@ export function SinglePageOnboardingForm({
                     </div>
                   )}
                   <div>
-                    <label className="px-4 py-2.5 rounded-xl bg-[#94003A] hover:bg-[#78002F] text-white font-bold text-xs cursor-pointer inline-flex items-center gap-2 transition-all shadow-md shadow-[#94003A]/20">
+                    <label className={`px-4 py-2.5 rounded-xl bg-[#94003A] hover:bg-[#78002F] text-white font-bold text-xs inline-flex items-center gap-2 transition-all shadow-md shadow-[#94003A]/20 ${personalPhotoUploading ? 'opacity-60 pointer-events-none' : 'cursor-pointer'}`}>
                       <Camera className="w-4 h-4 text-white" />
                       <span>{personalPhotoUploading ? "Uploading..." : personalPhotoUrl ? "Change Photo" : "Upload / Capture Selfie"}</span>
                       <input
                         type="file"
                         accept="image/*"
                         className="hidden"
+                        disabled={personalPhotoUploading}
                         onChange={handlePersonalPhotoUpload}
                       />
                     </label>
@@ -3482,12 +3760,23 @@ export function SinglePageOnboardingForm({
                   Location coordinates are derived strictly from the uploaded personal photo EXIF metadata. Device location permissions are never requested.
                 </p>
 
-                {personalPhotoGps?.available && personalPhotoGps.latitude && personalPhotoGps.longitude ? (
+                {personalPhotoUploading ? (
+                  <div className="p-4 rounded-xl bg-white border border-[#94003A]/20 flex flex-col items-center justify-center gap-2.5">
+                    <Loader2 className="w-6 h-6 text-[#94003A] animate-spin" />
+                    <p className="text-xs font-bold text-[#94003A] animate-pulse">Extracting EXIF GPS from photo...</p>
+                    <div className="w-28 h-1 rounded-full bg-[#F8E6EE] overflow-hidden">
+                      <div className="h-full bg-[#94003A] rounded-full animate-pulse" style={{width:'70%'}} />
+                    </div>
+                  </div>
+                ) : personalPhotoGps?.available && personalPhotoGps.latitude && personalPhotoGps.longitude ? (
                   <div className="space-y-2 text-xs">
                     <div className="p-3 rounded-xl bg-white border border-[#BBF7D0] font-mono text-[11px] text-[#1F2937] shadow-xs">
                       <div className="font-bold text-[#166534] flex items-center gap-1.5">
                         <MapPin className="w-3.5 h-3.5 text-[#16A34A] shrink-0" />
-                        <span>Lat: {personalPhotoGps.latitude.toFixed(6)}° • Lng: {personalPhotoGps.longitude.toFixed(6)}°</span>
+                        <span>
+                          {Math.abs(personalPhotoGps.latitude).toFixed(6)}°{personalPhotoGps.latitude >= 0 ? 'N' : 'S'}{' '}·{' '}
+                          {Math.abs(personalPhotoGps.longitude).toFixed(6)}°{personalPhotoGps.longitude >= 0 ? 'E' : 'W'}
+                        </span>
                       </div>
                       {(personalPhotoGps.altitude != null || personalPhotoGps.captured_at) && (
                         <div className="text-[10px] text-[#6B7280] mt-1 flex flex-wrap gap-2 pt-0.5 border-t border-[#F0FDF4]">
@@ -3495,10 +3784,20 @@ export function SinglePageOnboardingForm({
                           {personalPhotoGps.captured_at && <span>Captured: <strong>{personalPhotoGps.captured_at}</strong></span>}
                         </div>
                       )}
+                      <div className="mt-1.5 pt-1 border-t border-[#F0FDF4]">
+                        <a
+                          href={`https://www.google.com/maps?q=${personalPhotoGps.latitude.toFixed(6)},${personalPhotoGps.longitude.toFixed(6)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[10px] font-bold text-[#1D4ED8] hover:underline"
+                        >
+                          <MapPin className="w-3 h-3" /> View on Google Maps →
+                        </a>
+                      </div>
                     </div>
                     {personalPhotoGps.reverse_geocoded?.formatted_address && (
                       <div className="text-[11px] text-[#4B5563] bg-white/70 p-2.5 rounded-xl border border-[#BBF7D0] leading-relaxed">
-                        <span className="font-semibold text-[#1F2937]">Reverse Geocoded: </span>
+                        <span className="font-semibold text-[#1F2937]">📍 Location: </span>
                         {personalPhotoGps.reverse_geocoded.formatted_address}
                       </div>
                     )}
@@ -3567,7 +3866,7 @@ export function SinglePageOnboardingForm({
                   {shopPhotoUrl && (
                     <span className="text-xs font-bold text-[#166534] flex items-center gap-1 bg-[#DCFCE7] px-2.5 py-0.5 rounded-full border border-[#86EFAC]">
                       <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
-                      <span>Uploaded to B2 ✓</span>
+                      <span>Uploaded Successfully ✓</span>
                     </span>
                   )}
                 </div>
@@ -3696,7 +3995,7 @@ export function SinglePageOnboardingForm({
                       </span>
                       {videoKycUrl && (
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#166534] border border-[#86EFAC]">
-                          B2 Vault Verified ✓
+                          Securely Verified ✓
                         </span>
                       )}
                     </div>
@@ -4022,7 +4321,7 @@ export function SinglePageOnboardingForm({
           {formError && (
             <div className="p-4 rounded-2xl bg-[#FEF2F2] border border-[#FCA5A5] text-[#991B1B] text-xs font-bold flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-[#DC2626] shrink-0" />
-              <span>{formError}</span>
+              <span>{typeof formError === "string" ? formError : String(formError)}</span>
             </div>
           )}
 
@@ -4053,7 +4352,7 @@ export function SinglePageOnboardingForm({
               )}
             </button>
             <p className="text-center text-xs text-[#6B7280] mt-3">
-              By submitting, you declare that all uploaded identity, address, and banking credentials are authentic and comply with NPCI, UIDAI &amp; RBI regulatory frameworks.
+              By submitting, you declare that all uploaded identity, address, and banking credentials are authentic and comply with applicable regulatory frameworks.
             </p>
           </div>
         </div>

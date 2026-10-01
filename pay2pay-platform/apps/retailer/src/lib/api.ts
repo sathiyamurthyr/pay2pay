@@ -17,20 +17,27 @@ apiClient.interceptors.request.use(
       config.url = config.url.replace(/^\/api\/v1/, "");
     }
     if (typeof window !== "undefined") {
-      const cookies = document.cookie.split("; ");
+      const cookies = document.cookie ? document.cookie.split("; ") : [];
       const tokenCookie = cookies.find((row) =>
         row.startsWith("p2p_access_token=") ||
         row.startsWith("pay2pay_access_token=") ||
-        row.startsWith("pay2pay_auth_token=")
+        row.startsWith("pay2pay_auth_token=") ||
+        row.startsWith("p2p_sales_token=") ||
+        row.startsWith("pay2pay_sales_token=") ||
+        row.startsWith("access_token=") ||
+        row.startsWith("token=")
       );
-      const cookieToken = tokenCookie ? tokenCookie.split("=")[1] : null;
+      const cookieToken = tokenCookie ? tokenCookie.split("=")[1]?.trim() : null;
 
       const token =
         cookieToken ||
         localStorage.getItem("p2p_access_token") ||
         localStorage.getItem("pay2pay_access_token") ||
         localStorage.getItem("pay2pay_auth_token") ||
-        localStorage.getItem("access_token");
+        localStorage.getItem("p2p_sales_token") ||
+        localStorage.getItem("pay2pay_sales_token") ||
+        localStorage.getItem("access_token") ||
+        localStorage.getItem("token");
 
       if (token && token.trim().length > 10) {
         config.headers.Authorization = `Bearer ${token.trim()}`;
@@ -119,6 +126,19 @@ apiClient.interceptors.response.use(
 
       if (isPinOrCredentialError) {
         // DO NOT clear session — this is a transactional auth error, not a session expiry
+        return Promise.reject(error);
+      }
+
+      // ONLY terminate session if the 401 is explicitly from an authoritative session verification endpoint
+      const isAuthVerifyEndpoint =
+        url.includes("/auth/me") ||
+        url.includes("/auth/verify") ||
+        url.includes("/auth/refresh") ||
+        url.includes("/sales/auth/me") ||
+        url.includes("/auth/validate-session");
+
+      if (!isAuthVerifyEndpoint) {
+        // Ancillary or background API returned 401: do NOT wipe session or redirect to login
         return Promise.reject(error);
       }
 

@@ -1638,6 +1638,12 @@ class SalesService:
 
         # 1. Fetch active card types
         card_types = [
+            "Visa Credit & Debit",
+            "Mastercard Credit & Debit",
+            "RuPay Platinum & Commercial",
+            "Amex / Diners Club"
+        ]
+        card_type_details = [
             {"code": "VISA", "name": "Visa Credit & Debit", "default_mdr": 1.45, "display_order": 1},
             {"code": "MASTERCARD", "name": "Mastercard Credit & Debit", "default_mdr": 1.50, "display_order": 2},
             {"code": "RUPAY", "name": "RuPay Platinum & Commercial", "default_mdr": 0.90, "display_order": 3},
@@ -1683,6 +1689,7 @@ class SalesService:
 
         return {
             "card_types": card_types,
+            "card_type_details": card_type_details,
             "payment_modes": payment_modes,
             "custom_overrides": custom_mdr
         }
@@ -2593,7 +2600,10 @@ class SalesService:
         ret_id = uuid.UUID(sp_res["public_id"])
         ret_code = sp_res["retailer_code"]
         ret_ref_id = sp_res.get("retailer_ref_id")
-        company_id = current_user.company_id
+        company_id = current_user.company_id or parent_dist.company_id
+        if not company_id:
+            c_stmt = select(CompanyModel.public_id).where(CompanyModel.tenant_id == current_user.tenant_id)
+            company_id = (await db.execute(c_stmt)).scalars().first()
 
         # Create Contact
         contact = RetailerContactModel(

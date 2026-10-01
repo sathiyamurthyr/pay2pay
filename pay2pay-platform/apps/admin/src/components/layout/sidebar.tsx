@@ -181,6 +181,7 @@ const ADMIN_NAV: NavCategory[] = [
     items: [
       { label: "Daily Statements", href: "/admin/statements", icon: FileText, badge: "3:00 AM" },
       { label: "Transaction Reports", href: "/admin/reports/transactions", icon: FileText },
+      { label: "Top-Up Request Reports", href: "/admin/reports/topup-requests", icon: ArrowLeftRight, badge: "Live" },
       { label: "Wallet Reports", href: "/admin/reports/transaction-ledger", icon: ScrollText },
       { label: "Commission Reports", href: "/retailer/reports", icon: FileText },
       { label: "Settlement Reports", href: "/settlement-processing/batches", icon: FileText },
@@ -194,7 +195,7 @@ const ADMIN_NAV: NavCategory[] = [
       { label: "MDR", href: "/configuration/payout-slabs", icon: Layers },
       { label: "GST", href: "/financial-config/rules", icon: BookOpen },
       { label: "Service Enable/Disable", href: "/configuration/services", icon: Sliders },
-      { label: "Notifications", href: "/notifications", icon: Bell },
+      { label: "Notifications", href: "/notifications/settings", icon: Bell },
     ],
   },
   {

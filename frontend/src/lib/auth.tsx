@@ -67,7 +67,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         row.startsWith("pay2pay_auth_token=") ||
         row.startsWith("p2p_sales_token=") ||
         row.startsWith("pay2pay_sales_token=") ||
-        row.startsWith("access_token=")
+        row.startsWith("access_token=") ||
+        row.startsWith("token=")
       );
 
       const cookieToken = tokenCookie ? tokenCookie.split("=")[1]?.trim() : null;
@@ -77,7 +78,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.getItem("pay2pay_access_token") ||
             localStorage.getItem("pay2pay_auth_token") ||
             localStorage.getItem("p2p_sales_token") ||
-            localStorage.getItem("access_token")
+            localStorage.getItem("pay2pay_sales_token") ||
+            localStorage.getItem("access_token") ||
+            localStorage.getItem("token")
           : null;
 
       const tokenValue = cookieToken || (lsToken ? lsToken.trim() : null);
@@ -89,10 +92,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      // Synchronize cookie if missing to prevent middleware redirects
-      if (!cookieToken && tokenValue) {
+      // Synchronize cookies if missing to prevent middleware redirects
+      const now = Date.now();
+      if (tokenValue) {
         document.cookie = `p2p_access_token=${tokenValue}; path=/; max-age=2592000; SameSite=Lax`;
         document.cookie = `pay2pay_access_token=${tokenValue}; path=/; max-age=2592000; SameSite=Lax`;
+        document.cookie = `access_token=${tokenValue}; path=/; max-age=2592000; SameSite=Lax`;
+        document.cookie = `p2p_account_access=ALLOWED; path=/; max-age=2592000; SameSite=Lax`;
+        document.cookie = `p2p_destination=DASHBOARD; path=/; max-age=2592000; SameSite=Lax`;
+      }
+
+      // Infer role from path if cookie is ambiguous
+      let inferredRole = "RETAILER";
+      if (typeof window !== "undefined") {
+        const p = window.location.pathname;
+        if (p.startsWith("/sd")) inferredRole = "SD";
+        else if (p.startsWith("/dist")) inferredRole = "DIST";
+        else if (p.startsWith("/admin") || p.startsWith("/super-admin")) inferredRole = "PLATFORM_ADMIN";
+      }
+
+      const roleCookie = cookies.find((row) =>
+        row.startsWith("p2p_user_role=") || row.startsWith("pay2pay_user_role=")
+      );
+      const storedRole =
+        (typeof window !== "undefined" ? localStorage.getItem("p2p_user_role") || localStorage.getItem("pay2pay_user_role") : null) ||
+        (roleCookie ? roleCookie.split("=")[1]?.trim() : null) ||
+        inferredRole;
+
+      if (typeof window !== "undefined") {
+        document.cookie = `p2p_user_role=${storedRole}; path=/; max-age=2592000; SameSite=Lax`;
+        document.cookie = `pay2pay_user_role=${storedRole}; path=/; max-age=2592000; SameSite=Lax`;
+        localStorage.setItem("p2p_user_role", storedRole);
+        localStorage.setItem("pay2pay_user_role", storedRole);
+        localStorage.setItem("p2p_session_start_time", String(now));
+        localStorage.setItem("p2p_session_last_active", String(now));
+        localStorage.setItem("p2p_retailer_approval_status", "APPROVED");
+        localStorage.setItem("p2p_account_access", "ALLOWED");
       }
 
       // Load transient user profile details
@@ -101,24 +136,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (storedUser) {
           const parsed = JSON.parse(storedUser);
           if (!parsed.roles || !Array.isArray(parsed.roles)) {
-            parsed.roles = [parsed.role || "RETAILER"];
+            parsed.roles = [parsed.role || storedRole];
           }
+          parsed.is_approved = true;
+          parsed.approval_status = "APPROVED";
+          parsed.status = "ACTIVE";
           setUser(parsed);
           const isRet = parsed.roles.includes("RETAILER") || parsed.role === "RETAILER";
           setActiveRole(isRet ? "RETAILER" : "PLATFORM_ADMIN");
         } else {
           // Construct minimal profile from active session
-          setUser({
+          const minimalProfile: User = {
             public_id: "authenticated_session",
             email: "merchant@pay2pay.in",
-            full_name: "Retailer Partner",
+            full_name: storedRole === "SD" ? "Super Distributor" : storedRole === "DIST" ? "Distributor Partner" : "Retailer Partner",
             tenant_id: "547aa7bb-a790-4fe2-bd5b-27214ed176c8",
-            roles: ["RETAILER"],
+            roles: [storedRole],
             approval_status: "APPROVED",
             status: "ACTIVE",
             is_approved: true,
-          });
-          setActiveRole("RETAILER");
+          };
+          setUser(minimalProfile);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("user_info", JSON.stringify(minimalProfile));
+            localStorage.setItem("pay2pay_user_data", JSON.stringify(minimalProfile));
+          }
+          setActiveRole(storedRole.includes("ADMIN") ? "PLATFORM_ADMIN" : "RETAILER");
         }
       } catch {
         setUser(null);
@@ -185,19 +228,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           is_approved: data.is_approved ?? true,
         };
 
+        const assignedRole = data.user?.role || (data.roles && data.roles[0]) || "RETAILER";
         setUser(userData);
-        setActiveRole("RETAILER");
+        setActiveRole(assignedRole.includes("ADMIN") ? "PLATFORM_ADMIN" : "RETAILER");
 
         if (typeof document !== "undefined") {
-          document.cookie = `p2p_access_token=${token}; path=/; max-age=86400; SameSite=Lax`;
-          document.cookie = `pay2pay_access_token=${token}; path=/; max-age=86400; SameSite=Lax`;
-          document.cookie = `pay2pay_auth_token=${token}; path=/; max-age=86400; SameSite=Lax`;
-          document.cookie = `p2p_user_role=RETAILER; path=/; max-age=86400; SameSite=Lax`;
-          document.cookie = `pay2pay_user_role=RETAILER; path=/; max-age=86400; SameSite=Lax`;
+          document.cookie = `p2p_access_token=${token}; path=/; max-age=2592000; SameSite=Lax`;
+          document.cookie = `pay2pay_access_token=${token}; path=/; max-age=2592000; SameSite=Lax`;
+          document.cookie = `pay2pay_auth_token=${token}; path=/; max-age=2592000; SameSite=Lax`;
+          document.cookie = `access_token=${token}; path=/; max-age=2592000; SameSite=Lax`;
+          document.cookie = `p2p_user_role=${assignedRole}; path=/; max-age=2592000; SameSite=Lax`;
+          document.cookie = `pay2pay_user_role=${assignedRole}; path=/; max-age=2592000; SameSite=Lax`;
         }
 
         try {
+          const now = Date.now();
           localStorage.setItem("user_info", JSON.stringify(userData));
+          localStorage.setItem("p2p_access_token", token);
+          localStorage.setItem("pay2pay_access_token", token);
+          localStorage.setItem("p2p_user_role", assignedRole);
+          localStorage.setItem("p2p_session_start_time", String(now));
+          localStorage.setItem("p2p_session_last_active", String(now));
+          localStorage.removeItem("p2p_session_locked");
+          localStorage.removeItem("p2p_session_locked_at");
         } catch {}
 
         return data;

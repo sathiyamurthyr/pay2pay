@@ -13,7 +13,7 @@ export const apiClient = axios.create({
 // Interceptor to attach Access Token to all requests
 apiClient.interceptors.request.use(
   (config) => {
-    if (config.url && config.url.startsWith("/api/v1")) {
+    if (config.url && config.url.startsWith("/api/v1") && config.baseURL && config.baseURL.endsWith("/api/v1")) {
       config.url = config.url.replace(/^\/api\/v1/, "");
     }
     if (typeof window !== "undefined") {

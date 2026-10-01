@@ -386,6 +386,8 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       document.cookie = `p2p_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
       document.cookie = `pay2pay_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
       document.cookie = `pay2pay_auth_token=${validToken}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
+      document.cookie = `access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
+      document.cookie = `token=${validToken}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
       document.cookie = `p2p_destination=${isBothTrue ? "DASHBOARD" : "ACCOUNT_UNDER_REVIEW"}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
       document.cookie = `p2p_account_access=${isBothTrue ? "ALLOWED" : "RESTRICTED"}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
 
@@ -395,6 +397,8 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       document.cookie = `p2p_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
       document.cookie = `pay2pay_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
       document.cookie = `pay2pay_auth_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
 
       // Set retailer identifier cookies if resolved
       const isUuid = (val?: string | null) => Boolean(val && val.length === 36 && (val.match(/-/g) || []).length === 4);

@@ -17,7 +17,9 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
 import InfoIcon from "@mui/icons-material/Info";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import SettingsIcon from "@mui/icons-material/Settings";
 import { soundSystem } from "@/lib/audio-engine";
+import { notificationEngine } from "@/services/notification-engine";
 
 export interface NotificationItem {
   id: string;
@@ -99,6 +101,7 @@ export const NotificationCenter: React.FC<{
         const res = await fetch(`/api/v1/notifications/recent?${queryParams.toString()}`, {
           method: "GET",
           headers: getAuthHeaders(),
+          credentials: "include",
         });
 
         if (!res.ok) {
@@ -129,9 +132,17 @@ export const NotificationCenter: React.FC<{
     [getResolvedUserId, getAuthHeaders, tenantId, notifications.length]
   );
 
-  // Load initial notification status on mount & set up background live polling
+  // Load initial notification status on mount, register SW, and connect to live SSE stream
   useEffect(() => {
     fetchNotifications();
+
+    // Register Web Push Service Worker
+    notificationEngine.registerServiceWorker();
+
+    // Connect to real-time SSE event stream for immediate notification alerts
+    const disconnectSSE = notificationEngine.connectSSE((liveEvent) => {
+      fetchNotifications(true);
+    });
 
     const intervalId = setInterval(() => {
       fetchNotifications();
@@ -147,6 +158,7 @@ export const NotificationCenter: React.FC<{
     }
 
     return () => {
+      disconnectSSE();
       clearInterval(intervalId);
       if (typeof window !== "undefined") {
         window.removeEventListener("pay2pay:notification_refresh", handleCustomRefresh);
@@ -174,6 +186,7 @@ export const NotificationCenter: React.FC<{
       await fetch(`/api/v1/notifications/mark-all-read?${queryParams.toString()}`, {
         method: "PATCH",
         headers: getAuthHeaders(),
+        credentials: "include",
       });
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
       setUnreadCount(0);
@@ -189,6 +202,7 @@ export const NotificationCenter: React.FC<{
         await fetch(`/api/v1/notifications/${item.id}/read`, {
           method: "PATCH",
           headers: getAuthHeaders(),
+          credentials: "include",
         });
         setNotifications((prev) =>
           prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n))
@@ -379,6 +393,21 @@ export const NotificationCenter: React.FC<{
                 }}
               />
             </IconButton>
+            <IconButton
+              size="small"
+              onClick={() => {
+                handleClose();
+                window.location.href = "/notifications/settings";
+              }}
+              title="Notification Preferences & Channels"
+              sx={{
+                color: "#94A3B8",
+                padding: "4px",
+                "&:hover": { color: "#FBBF24" },
+              }}
+            >
+              <SettingsIcon sx={{ fontSize: 17 }} />
+            </IconButton>
           </Box>
         </Box>
 
@@ -566,6 +595,53 @@ export const NotificationCenter: React.FC<{
               );
             })
           )}
+        </Box>
+
+        {/* Footer with Live Indicator & Preferences Link */}
+        <Box
+          sx={{
+            px: 2,
+            py: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+            bgcolor: "rgba(15, 23, 42, 0.9)",
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+            <Box
+              sx={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                bgcolor: "#10B981",
+                boxShadow: "0 0 6px #10B981",
+              }}
+            />
+            <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px", fontWeight: 600 }}>
+              Live Stream Active
+            </Typography>
+          </Box>
+          <Button
+            size="small"
+            onClick={() => {
+              handleClose();
+              window.location.href = "/notifications/settings";
+            }}
+            startIcon={<SettingsIcon sx={{ fontSize: 13 }} />}
+            sx={{
+              fontSize: "11px",
+              fontWeight: 700,
+              color: "#FBBF24",
+              textTransform: "none",
+              padding: "2px 8px",
+              borderRadius: "6px",
+              "&:hover": { backgroundColor: "rgba(251, 191, 36, 0.12)" },
+            }}
+          >
+            Preferences
+          </Button>
         </Box>
       </Menu>
     </>

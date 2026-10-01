@@ -1001,6 +1001,7 @@ class PosMdrRequestService:
                 "total_volume": float(kpi_row.total_volume) if kpi_row else 0.0
             },
             "total": total_count,
+            "requests": [cls._serialize_request(item) for item in items],
             "items": [cls._serialize_request(item) for item in items]
         }
 
@@ -1017,7 +1018,7 @@ class PosMdrRequestService:
         """
         u_uuid = getattr(current_user, "public_id", None)
         if not u_uuid:
-            return {"total": 0, "items": []}
+            return {"total": 0, "requests": [], "items": []}
 
         stmt = select(PosMdrChangeRequestModel).where(
             or_(
@@ -1031,6 +1032,7 @@ class PosMdrRequestService:
         items = (await db.execute(stmt)).scalars().all()
         return {
             "total": len(items),
+            "requests": [cls._serialize_request(item) for item in items],
             "items": [cls._serialize_request(item) for item in items]
         }
 
