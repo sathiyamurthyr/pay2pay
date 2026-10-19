@@ -249,7 +249,7 @@ class AadhaarEkycWorkflowService:
 
                 # 2. If record is a DEMO/dummy record, purge it immediately and permit verification
                 if existing_ver.full_name and "DEMO" in existing_ver.full_name.upper():
-                    await db.execute(text(f"DELETE FROM aadhaar_verification WHERE id = {existing_ver.id}"))
+                    await db.execute(text("DELETE FROM aadhaar_verification WHERE id = :id"), {"id": existing_ver.id})
                     await db.commit()
                     return None
 
@@ -259,12 +259,12 @@ class AadhaarEkycWorkflowService:
                     actual_cust = (await db.execute(cust_exists_stmt)).scalar_one_or_none()
                     if not actual_cust:
                         # Orphaned verification record with deleted customer — purge and allow
-                        await db.execute(text(f"DELETE FROM aadhaar_verification WHERE id = {existing_ver.id}"))
+                        await db.execute(text("DELETE FROM aadhaar_verification WHERE id = :id"), {"id": existing_ver.id})
                         await db.commit()
                         return None
                 else:
                     # Verification record has no associated customer — purge and allow
-                    await db.execute(text(f"DELETE FROM aadhaar_verification WHERE id = {existing_ver.id}"))
+                    await db.execute(text("DELETE FROM aadhaar_verification WHERE id = :id"), {"id": existing_ver.id})
                     await db.commit()
                     return None
 

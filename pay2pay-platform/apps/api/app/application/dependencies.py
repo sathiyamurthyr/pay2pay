@@ -6,6 +6,7 @@ from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import decode_access_token
 from app.core.exceptions import UnauthorizedException, ForbiddenException
@@ -48,7 +49,7 @@ async def get_current_token_payload(
         raise UnauthorizedException("Authentication credentials were not provided")
 
     payload = decode_access_token(token)
-    if not payload:
+    if not payload or payload.get("is_expired"):
         raise UnauthorizedException("Invalid or expired authentication token")
 
     # Check if session JTI has been revoked on server (In-memory + Database)
@@ -338,3 +339,71 @@ class PermissionChecker:
 
 def require_permission(permission_code: str):
     return Depends(PermissionChecker(permission_code))
+
+
+async def require_admin_user(
+    current_user: AdminUserModel = Depends(get_current_user)
+) -> AdminUserModel:
+    """
+    Strict server-side RBAC dependency. Enforces that only users with
+    authoritative administrative roles (PLATFORM_ADMIN, SUPER_ADMIN, ADMIN) can access
+    the protected administrative endpoint.
+    """
+    user_type = (getattr(current_user, "user_type", "") or "").upper()
+    is_admin = user_type in ("PLATFORM_ADMIN", "SUPER_ADMIN", "ADMIN")
+    if not is_admin:
+        has_admin_role = any(
+            (ur.role and ur.role.code in ("PLATFORM_ADMIN", "SUPER_ADMIN", "ADMIN"))
+            for ur in (getattr(current_user, "user_roles", []) or [])
+        )
+        if not has_admin_role:
+            raise ForbiddenException("Forbidden: Administrative privileges required.")
+    return current_user
+
+
+class RoleChecker:
+    """
+    Strict server-side RBAC dependency. Validates that the authenticated caller
+    possesses at least one of the required business roles based on cryptographic JWT token claims
+    (user_type_ref_id and roles). Never trusts client-side storage or hidden UI flags.
+    """
+    def __init__(self, allowed_roles: List[str]):
+        self.allowed_roles = [r.strip().upper() for r in allowed_roles]
+
+    async def __call__(
+        self,
+        payload: dict = Depends(get_current_token_payload)
+    ) -> dict:
+        user_roles = [str(r).strip().upper() for r in (payload.get("roles") or [])]
+        user_type_ref = payload.get("user_type_ref_id")
+
+        # Map usertype_ref_id directly:
+        # 1 = ADMIN, 2 = RETAILER, 3 = DISTRIBUTOR, 4 = SUPER_DISTRIBUTOR
+        if user_type_ref == 2 and "RETAILER" in self.allowed_roles:
+            return payload
+        if user_type_ref == 3 and any(r in self.allowed_roles for r in ("DIST", "DISTRIBUTOR")):
+            return payload
+        if user_type_ref == 4 and any(r in self.allowed_roles for r in ("SD", "SUPER_DISTRIBUTOR", "MASTER_DISTRIBUTOR")):
+            return payload
+        if user_type_ref == 1 and any(r in self.allowed_roles for r in ("ADMIN", "SUPER_ADMIN", "PLATFORM_ADMIN")):
+            return payload
+
+        # Check explicit roles list in token claims
+        for r in user_roles:
+            if r in self.allowed_roles:
+                return payload
+            if r in ("SD", "SUPER_DISTRIBUTOR", "MASTER_DISTRIBUTOR") and any(a in self.allowed_roles for a in ("SD", "SUPER_DISTRIBUTOR", "MASTER_DISTRIBUTOR")):
+                return payload
+            if r in ("DIST", "DISTRIBUTOR") and any(a in self.allowed_roles for a in ("DIST", "DISTRIBUTOR")):
+                return payload
+
+        # Platform Admin / Super Admin bypass check
+        if any(r in ("PLATFORM_ADMIN", "SUPER_ADMIN") for r in user_roles):
+            return payload
+
+        raise ForbiddenException("Forbidden: User role is not authorized for this resource.")
+
+
+def require_roles(allowed_roles: List[str]):
+    return Depends(RoleChecker(allowed_roles))
+

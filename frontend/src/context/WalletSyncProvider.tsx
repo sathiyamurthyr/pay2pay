@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from "react";
 import apiClient from "@/lib/api";
 import { useRetailerStore } from "@/stores/use-retailer-store";
 
@@ -48,8 +48,8 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(false); // No auto-loader on page load
   const [error, setError] = useState<string | null>(null);
 
-  const fetchWalletData = useCallback(async () => {
-    setIsLoading(true);
+  const fetchWalletData = useCallback(async (showLoader = false) => {
+    if (showLoader) setIsLoading(true);
     try {
       // Call /header-wallet with NO query params.
       // The backend resolves the authenticated retailer from the JWT cookie (p2p_access_token).
@@ -88,14 +88,17 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
       console.warn("Wallet sync fetch error:", err);
       setError("Failed to synchronize wallet balance");
     } finally {
-      setIsLoading(false);
+      if (showLoader) setIsLoading(false);
     }
   }, []);
 
-
-  // Initial fetch on component mount
+  // Silent initial sync once on mount (no loader flicker)
+  const hasMountedRef = useRef(false);
   useEffect(() => {
-    fetchWalletData();
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      fetchWalletData(false);
+    }
   }, [fetchWalletData]);
 
   // Event listener for explicit transaction action refreshes

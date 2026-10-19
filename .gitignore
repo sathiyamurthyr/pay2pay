@@ -58,3 +58,19 @@ storage/
 backend/storage/
 *.csv
 test_slip_sample.jpg
+
+# Temporary deployment and scratch scripts
+near2pay_source/
+temp_landing_bundle/
+activate_*.py
+deploy_*.py
+check_*.py
+execute_*.py
+apply_*.py
+fix_*.py
+run_*.py
+setup_*.py
+near4you_nginx.conf
+backend/check_*.py
+backend/list_*.py
+backend/app/check_*.py

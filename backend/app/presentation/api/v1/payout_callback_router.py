@@ -20,6 +20,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.application.dependencies import require_admin_user
 from app.application.payout_callback_service import PayoutCallbackService
 
 logger = logging.getLogger("payout_callback_router")
@@ -55,8 +56,8 @@ async def extract_request_data(request: Request) -> Tuple[Dict[str, Any], Dict[s
 
 
 # ── 1. CALLBACK & WEBHOOK URLS DIRECTORY ──
-@router.get("/callback/urls", summary="Catalog of All Payout Gateway Callback URLs")
-@router.get("/webhook/urls", summary="Catalog of All Payout Gateway Webhook URLs")
+@router.get("/callback/urls", summary="Catalog of All Payout Gateway Callback URLs", dependencies=[Depends(require_admin_user)])
+@router.get("/webhook/urls", summary="Catalog of All Payout Gateway Webhook URLs", dependencies=[Depends(require_admin_user)])
 async def get_callback_urls(request: Request):
     """
     Returns full configuration catalog of webhook and callback URLs for all integrated
@@ -68,8 +69,8 @@ async def get_callback_urls(request: Request):
 
 
 # ── 2. WEBHOOK AUDIT LOGS (FROM VIEW: public.view_payout_webhook_logs) ──
-@router.get("/webhook/logs", summary="Fetch Payout Webhook Received Logs from View")
-@router.get("/callback/logs", summary="Fetch Payout Callback Logs from View")
+@router.get("/webhook/logs", summary="Fetch Payout Webhook Received Logs from View", dependencies=[Depends(require_admin_user)])
+@router.get("/callback/logs", summary="Fetch Payout Callback Logs from View", dependencies=[Depends(require_admin_user)])
 async def get_payout_webhook_logs(
     gateway: Optional[str] = Query(None, description="Filter by gateway code (e.g. URBANRUPEE, BULKPE)"),
     status_filter: Optional[str] = Query(None, alias="status", description="Filter by status (SUCCESS, FAILED, PENDING)"),

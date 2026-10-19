@@ -17,12 +17,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, delete
 
 from app.core.database import get_db
-from app.application.dependencies import get_current_user
+from app.application.dependencies import get_current_user, require_admin_user
 from app.infrastructure.db.models import AdminUserModel, TenantModel, CompanyModel, SuperDistributorModel, DistributorModel, RetailerModel
 from app.infrastructure.db.sales_models import SalesUserModel, SalesHierarchyMappingModel, SalesAuditLogModel, SalesActivityLogModel
 from app.application.sales_service import AdminSalesService
 
-router = APIRouter(prefix="/admin/sales-management", tags=["Admin Sales Management Suite"])
+router = APIRouter(
+    prefix="/admin/sales-management",
+    tags=["Admin Sales Management Suite"],
+    dependencies=[Depends(require_admin_user)]
+)
 
 
 # ==============================================================================

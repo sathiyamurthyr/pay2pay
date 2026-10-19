@@ -305,14 +305,20 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 
   useEffect(() => {
     fetchCaptcha();
+    if (typeof window !== "undefined") {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const reason = params.get("reason");
+        if (reason === "session_expired" || reason === "token_expired" || reason === "session_expired_24h") {
+          setErrorMsg("Your session has expired. Please sign in again to continue.");
+        } else if (reason === "inactivity_timeout") {
+          setErrorMsg("You were signed out due to inactivity. Please sign in again.");
+        }
+      } catch {}
+    }
     collectSilentTelemetry().then((tele) => {
       setTelemetry(tele);
-      fetch(`${API_BASE}/auth/enterprise/telemetry`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(tele)
-      }).catch(() => {});
-    });
+    }).catch(() => {});
   }, []);
 
   const triggerError = (msg: string) => {
@@ -353,12 +359,19 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     activeStatus?: boolean,
     statusMessage?: string
   ) => {
+    // Determine effective user role (from user payload or portal default)
+    const resolvedRole =
+      userData?.role ||
+      (Array.isArray(userData?.roles) && userData.roles[0]) ||
+      portalRole ||
+      "RETAILER";
+    const role = String(resolvedRole).toUpperCase();
+
     // 1. Authoritative check:
     const isBothTrue = approveStatus === true && activeStatus === true;
 
     // 2. Synchronously persist credentials & session in Cookies and LocalStorage
     if (typeof window !== "undefined") {
-      const role = portalRole || "RETAILER";
       const validToken =
         token ||
         localStorage.getItem("pay2pay_access_token") ||
@@ -523,9 +536,11 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           : (data.message || "Invalid mobile number or password.");
         triggerError(errText);
       }
-    } catch {
+    } catch (err: any) {
       setLoading(false);
-      triggerError("Unable to connect to authentication service. Please check your connection.");
+      console.error("[LOGIN_PASSWORD_ERROR]", err);
+      const msg = err?.message || "Unable to connect to authentication service. Please check your connection.";
+      triggerError(msg.includes("Failed to fetch") ? "Unable to connect to authentication service. Please check your connection." : msg);
     }
   };
 
@@ -624,9 +639,11 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         const errText = (data.detail && data.detail !== "Not Found") ? data.detail : (data.message || "Invalid OTP code. Please check the OTP and try again.");
         triggerError(errText);
       }
-    } catch {
+    } catch (err: any) {
       setLoading(false);
-      triggerError("Failed to verify OTP code. Please enter the correct 6-digit WhatsApp OTP.");
+      console.error("[LOGIN_OTP_ERROR]", err);
+      const msg = err?.message || "Failed to verify OTP code. Please enter the correct 6-digit WhatsApp OTP.";
+      triggerError(msg);
     }
   };
 

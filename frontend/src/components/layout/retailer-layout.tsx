@@ -232,30 +232,30 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     plan_name?: string | null;
     loading?: boolean;
     error?: boolean;
-  }>({ loading: true });
+  }>({ loading: false });
 
   const hasInitializedRef = useRef(false);
 
   const fetchProfileDetails = useCallback(async (force = false) => {
-    setProfileDetails((prev) => ({ ...prev, loading: true, error: false }));
     try {
       const data = await getCachedHeaderWalletData(force);
       const rInfo = data.retailer_info || data;
       if (rInfo.approval_status && typeof setApprovalStatus === "function") {
         setApprovalStatus(rInfo.approval_status as any);
       }
-      const resolvedCode = rInfo.retailer_code || data.retailer_code || rInfo.retailer_id || data.retailer_id || outlet.code || "";
-      const photoUrl = rInfo.photo_url || rInfo.avatar_url || data.photo_url || data.avatar_url || outlet.avatar || outlet.photo_url || "";
+      const curOutlet = useRetailerStore.getState().outlet;
+      const resolvedCode = rInfo.retailer_code || data.retailer_code || rInfo.retailer_id || data.retailer_id || curOutlet.code || "";
+      const photoUrl = rInfo.photo_url || rInfo.avatar_url || data.photo_url || data.avatar_url || curOutlet.avatar || curOutlet.photo_url || "";
 
       setProfileDetails((prev) => ({
         ...prev,
-        owner_name: rInfo.owner_name || data.owner_name || outlet.ownerName || "",
-        retailer_name: rInfo.company_name || rInfo.retailer_name || data.company_name || data.retailer_name || outlet.name || "",
+        owner_name: rInfo.owner_name || data.owner_name || curOutlet.ownerName || "",
+        retailer_name: rInfo.company_name || rInfo.retailer_name || data.company_name || data.retailer_name || curOutlet.name || "",
         retailer_code: resolvedCode,
         photo_url: photoUrl,
-        approval_status: rInfo.approval_status || data.approval_status || (rInfo.approve_status ? "ACTIVE" : "") || outlet.approvalStatus || "",
-        kyc_status: rInfo.kyc_status || data.kyc_status || outlet.kycStatus || "",
-        location: rInfo.location || data.location || outlet.location || "",
+        approval_status: rInfo.approval_status || data.approval_status || (rInfo.approve_status ? "ACTIVE" : "") || curOutlet.approvalStatus || "",
+        kyc_status: rInfo.kyc_status || data.kyc_status || curOutlet.kycStatus || "",
+        location: rInfo.location || data.location || curOutlet.location || "",
         last_login_at: data.quick_stats?.last_login_at || data.last_login_at || null,
         plan_name: rInfo.plan_name || data.plan_name || "",
         loading: false,
@@ -263,33 +263,22 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       }));
     } catch (err) {
       console.warn("Profile details fetch error:", err);
-      setProfileDetails((prev) => ({ ...prev, loading: false, error: true }));
+      setProfileDetails((prev) => ({ ...prev, loading: false, error: false }));
     }
-  }, [setApprovalStatus, outlet.code, outlet.avatar, outlet.photo_url, outlet.ownerName, outlet.name, outlet.location, outlet.approvalStatus, outlet.kycStatus]);
+  }, [setApprovalStatus]);
 
   useEffect(() => {
     if (!isAuthenticatedSession) return;
-    fetchProfileDetails(true);
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
+
+    fetchProfileDetails(false);
     syncBalance();
 
     const handleWalletUpdate = () => {
       syncBalance();
     };
     window.addEventListener("p2p_wallet_update", handleWalletUpdate);
-
-    // Also load verified profile photo directly from profile endpoint
-    const loadVerifiedPhoto = async () => {
-      try {
-        const res = await retailerApi.getProfile();
-        const pUrl = res?.data?.photo?.photo_url;
-        if (pUrl) {
-          setProfileDetails((prev) => ({ ...prev, photo_url: pUrl }));
-        }
-      } catch (e) {
-        console.warn("Verified photo fetch notice:", e);
-      }
-    };
-    loadVerifiedPhoto();
 
     return () => {
       window.removeEventListener("p2p_wallet_update", handleWalletUpdate);

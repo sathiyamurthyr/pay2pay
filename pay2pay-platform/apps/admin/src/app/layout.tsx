@@ -31,8 +31,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning style={{ overflowX: "hidden", maxWidth: "100vw" }}>
-      <body className="antialiased min-h-screen bg-slate-950 text-slate-100" suppressHydrationWarning style={{ overflowX: "hidden", maxWidth: "100vw" }}>
+    <html lang="en" suppressHydrationWarning style={{ overflowX: "hidden", maxWidth: "100vw" }}>
+      <body className="antialiased min-h-screen bg-white text-slate-900" suppressHydrationWarning style={{ overflowX: "hidden", maxWidth: "100vw" }}>
         <script
           id="form-input-sanitizer"
           dangerouslySetInnerHTML={{

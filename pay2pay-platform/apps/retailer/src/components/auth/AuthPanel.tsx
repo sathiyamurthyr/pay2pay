@@ -358,7 +358,13 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 
     // 2. Synchronously persist credentials & session in Cookies and LocalStorage
     if (typeof window !== "undefined") {
-      const role = portalRole || "RETAILER";
+      const resolvedRoleRaw = (userData?.role || userData?.user_type || portalRole || "RETAILER").toString().toUpperCase();
+      const role = (resolvedRoleRaw.includes("SUPER_DISTRIBUTOR") || resolvedRoleRaw === "SD" || resolvedRoleRaw === "MSD")
+        ? "SD"
+        : (resolvedRoleRaw.includes("DIST") || resolvedRoleRaw === "DISTRIBUTOR")
+        ? "DIST"
+        : "RETAILER";
+
       const validToken =
         token ||
         localStorage.getItem("pay2pay_access_token") ||
@@ -379,8 +385,16 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         normalizedUser.roles = [normalizedUser.role || role];
       }
 
-      // Cookies with SameSite=Lax and 30-day expiry (set both host-only and domain-wide for pay2pay.in)
-      const domainAttr = typeof window !== "undefined" && window.location.hostname.endsWith("pay2pay.in") ? "; domain=.pay2pay.in" : "";
+      // Cookies with SameSite=Lax and 30-day expiry (set both host-only and domain-wide for near4you.store and pay2pay.in)
+      let domainAttr = "";
+      if (typeof window !== "undefined") {
+        if (window.location.hostname.endsWith("near4you.store")) {
+          domainAttr = "; domain=.near4you.store";
+        } else if (window.location.hostname.endsWith("pay2pay.in")) {
+          domainAttr = "; domain=.pay2pay.in";
+        }
+      }
+
       document.cookie = `p2p_user_role=${role}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
       document.cookie = `pay2pay_user_role=${role}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
       document.cookie = `p2p_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
@@ -400,11 +414,11 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       document.cookie = `access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
       document.cookie = `token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
 
-      // Set retailer identifier cookies if resolved
+      // Set role identifier cookies if resolved
       const isUuid = (val?: string | null) => Boolean(val && val.length === 36 && (val.match(/-/g) || []).length === 4);
-      let rCode = normalizedUser.retailer_code || normalizedUser.code;
+      let rCode = normalizedUser.retailer_code || normalizedUser.code || normalizedUser.distributor_code || normalizedUser.super_distributor_code;
       if (!rCode || isUuid(rCode)) {
-        rCode = normalizedUser.retailer_id || normalizedUser.public_id || normalizedUser.id || "";
+        rCode = normalizedUser.retailer_id || normalizedUser.distributor_id || normalizedUser.super_distributor_id || normalizedUser.public_id || normalizedUser.id || "";
       }
       if (rCode) {
         document.cookie = `p2p_active_retailer_id=${rCode}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
@@ -420,6 +434,8 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           localStorage.setItem("pay2pay_access_token", validToken);
           localStorage.setItem("token", validToken);
         }
+        localStorage.setItem("p2p_user_role", role);
+        localStorage.setItem("pay2pay_user_role", role);
         if (normalizedUser) {
           localStorage.setItem("user_info", JSON.stringify(normalizedUser));
           localStorage.setItem("pay2pay_user_data", JSON.stringify(normalizedUser));
@@ -437,7 +453,14 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     }
 
     // 3. Strict Authoritative Routing Rule:
-    let target = "/retailer/dashboard";
+    const resolvedRoleUpper = (userData?.role || userData?.user_type || portalRole || "RETAILER").toString().toUpperCase();
+    const defaultDashboard = (resolvedRoleUpper.includes("SUPER_DISTRIBUTOR") || resolvedRoleUpper === "SD" || resolvedRoleUpper === "MSD")
+      ? "/sd/dashboard"
+      : (resolvedRoleUpper.includes("DIST") || resolvedRoleUpper === "DISTRIBUTOR")
+      ? "/dist/dashboard"
+      : "/retailer/dashboard";
+
+    let target = customRedirect || defaultDashboard;
     if (destination === "APPLICATION_REJECTED") {
       target = "/application-rejected";
       setSuccessMsg("✓ Application Rejected.");
@@ -445,16 +468,25 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       target = customRedirect || "/register";
       setSuccessMsg("✓ Redirecting to registration...");
     } else if (isBothTrue) {
-      target = "/retailer/dashboard";
+      target = customRedirect || defaultDashboard;
       setSuccessMsg("✓ Authentication Successful! Redirecting to dashboard...");
     } else {
-      target = "/retailer/account-under-review";
+      target = (resolvedRoleUpper.includes("SUPER_DISTRIBUTOR") || resolvedRoleUpper === "SD")
+        ? "/sd/dashboard"
+        : (resolvedRoleUpper.includes("DIST") || resolvedRoleUpper === "DISTRIBUTOR")
+        ? "/dist/dashboard"
+        : "/retailer/account-under-review";
       setSuccessMsg(statusMessage || "✓ Authentication successful. Redirecting to verification status...");
     }
 
     // 4. Navigate with window.location.href to guarantee full cookie delivery
     if (typeof window !== "undefined") {
-      window.location.href = target;
+      // If authenticating from login.near4you.store, forward across to near4you.store with the target route
+      if (window.location.hostname === "login.near4you.store") {
+        window.location.href = `https://near4you.store${target}`;
+      } else {
+        window.location.href = target;
+      }
     } else {
       router.replace(target);
     }
@@ -489,7 +521,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           password,
           captcha_code: captchaInput,
           telemetry,
-          portal_role: portalRole || "RETAILER"
+          portal_role: portalRole || (typeof window !== "undefined" && window.location.hostname.includes("near4you.store") ? "NEAR4YOU" : "RETAILER")
         })
       });
 

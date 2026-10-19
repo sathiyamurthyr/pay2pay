@@ -18,11 +18,16 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.application.dependencies import require_admin_user
 from app.application.payout_routing_service import PayoutRoutingService
 
 logger = logging.getLogger("admin_payout_routing_router")
 
-router = APIRouter(prefix="/admin/payout-routing", tags=["Admin Payout Routing & Gateway Controller"])
+router = APIRouter(
+    prefix="/admin/payout-routing",
+    tags=["Admin Payout Routing & Gateway Controller"],
+    dependencies=[Depends(require_admin_user)]
+)
 
 
 class PrimarySwitchRequest(BaseModel):

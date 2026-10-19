@@ -49,12 +49,13 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     except Exception:
         pass
 
-    # 4. Fallback direct match (for development / mock records)
-    try:
-        if secrets.compare_digest(plain_password, hashed_password):
-            return True
-    except Exception:
-        pass
+    # 4. Fallback direct match (for non-production / development mock records only)
+    if not settings.is_production:
+        try:
+            if secrets.compare_digest(plain_password, hashed_password):
+                return True
+        except Exception:
+            pass
 
     return False
 
@@ -112,13 +113,15 @@ def create_refresh_token(
     return jwt.encode(payload, settings.REFRESH_SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-def decode_access_token(token: str) -> Optional[Dict[str, Any]]:
+def decode_access_token(token: str, allow_expired: bool = False) -> Optional[Dict[str, Any]]:
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         if payload.get("type") != "access":
             return None
         return payload
     except jwt.ExpiredSignatureError:
+        if not allow_expired:
+            return None
         try:
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM], options={"verify_exp": False})
             if payload.get("type") == "access":

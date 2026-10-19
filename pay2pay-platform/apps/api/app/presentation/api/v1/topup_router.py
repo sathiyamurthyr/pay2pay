@@ -1426,7 +1426,7 @@ async def get_my_topup_requests(
     search: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=500),
-    payload: Optional[dict] = Depends(get_optional_token_payload),
+    payload: dict = Depends(get_current_token_payload),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -1434,7 +1434,6 @@ async def get_my_topup_requests(
     Supports Super Distributor (user_type_ref_id=4), Distributor (3), Retailer (2), and Admin (1).
     Includes summary metrics (total, approved, pending, rejected, MDR, charges) and pagination.
     """
-    payload = payload or {}
     roles = [str(r).upper() for r in (payload.get("roles") or [])]
     jwt_sub = payload.get("sub")
 
@@ -1495,13 +1494,19 @@ async def get_my_topup_requests(
         ret_candidate = None
         if sub_uuid:
             ret_candidate = (await db.execute(select(RetailerModel).where(RetailerModel.public_id == sub_uuid, RetailerModel.is_deleted == False))).scalars().first()
-        if not ret_candidate and retailer_id:
-            try:
-                ret_candidate = (await db.execute(select(RetailerModel).where(RetailerModel.public_id == uuid.UUID(str(retailer_id)), RetailerModel.is_deleted == False))).scalars().first()
-            except Exception:
-                ret_candidate = (await db.execute(select(RetailerModel).where(RetailerModel.retailer_code == str(retailer_id), RetailerModel.is_deleted == False))).scalars().first()
         if not ret_candidate and caller_user_ref_id:
             ret_candidate = (await db.execute(select(RetailerModel).where(or_(RetailerModel.retailer_ref_id == int(caller_user_ref_id), RetailerModel.id == int(caller_user_ref_id)), RetailerModel.is_deleted == False))).scalars().first()
+
+        if is_retailer and not is_admin:
+            if retailer_id:
+                req_ret = str(retailer_id).lower()
+                caller_ret_id = str(payload.get("retailer_id") or payload.get("sub") or "").lower()
+                caller_ret_code = str(payload.get("retailer_code") or "").lower()
+                allowed = [c for c in [caller_ret_id, caller_ret_code] if c]
+                if ret_candidate:
+                    allowed.extend([str(ret_candidate.public_id).lower(), str(ret_candidate.retailer_code or "").lower()])
+                if req_ret not in allowed:
+                    raise HTTPException(status_code=403, detail="Forbidden: Cannot access topup requests for another retailer")
 
         if ret_candidate:
             caller_user_name = get_retailer_display_name(ret_candidate)
@@ -1825,7 +1830,7 @@ async def get_topup_request_get_alias(
     search: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=500),
-    payload: Optional[dict] = Depends(get_optional_token_payload),
+    payload: dict = Depends(get_current_token_payload),
     db: AsyncSession = Depends(get_db)
 ):
     """

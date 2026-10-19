@@ -298,8 +298,12 @@ class CustomerService:
         return (await db.execute(stmt)).scalars().first()
 
     @staticmethod
-    async def get_customer_360(db: AsyncSession, customer_id: Union[uuid.UUID, str]) -> Optional[Customer360Response]:
-        c = await CustomerService._find_customer_model(db, customer_id)
+    async def get_customer_360(
+        db: AsyncSession,
+        customer_id: Union[uuid.UUID, str],
+        tenant_id: Optional[uuid.UUID] = None
+    ) -> Optional[Customer360Response]:
+        c = await CustomerService._find_customer_model(db, customer_id, tenant_id=tenant_id)
         if not c:
             return None
         customer_id = c.public_id

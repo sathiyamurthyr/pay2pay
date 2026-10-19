@@ -282,6 +282,13 @@ app.include_router(admin_retailer_controller.router, prefix="/v1")
 app.include_router(admin_retailer_controller.router, prefix=f"{settings.API_V1_STR}/api/v1")
 app.include_router(admin_retailer_controller.router, prefix="/api")
 app.include_router(admin_retailer_controller.router, prefix="")
+
+from app.presentation.api.v1 import admin_migration_router
+app.include_router(admin_migration_router.router, prefix=settings.API_V1_STR)
+app.include_router(admin_migration_router.router, prefix="/v1")
+app.include_router(admin_migration_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(admin_migration_router.router, prefix="/api")
+app.include_router(admin_migration_router.router, prefix="")
 app.include_router(retailer_dashboard_router.router, prefix=f"{settings.API_V1_STR}/payout")
 app.include_router(report_center_router.router, prefix=f"{settings.API_V1_STR}/payout")
 app.include_router(progressive_onboarding_router.router, prefix=settings.API_V1_STR)

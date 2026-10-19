@@ -146,13 +146,9 @@ export const NotificationCenter: React.FC<{
     [getResolvedUserId, getAuthHeaders, tenantId]
   );
 
-  // Load initial notification status on mount & set up background live polling
+  // Load initial notification status on mount (no automatic polling loop)
   useEffect(() => {
     fetchNotifications();
-
-    const intervalId = setInterval(() => {
-      fetchNotifications();
-    }, refreshIntervalMs);
 
     const handleCustomRefresh = () => {
       fetchNotifications(true);
@@ -164,13 +160,12 @@ export const NotificationCenter: React.FC<{
     }
 
     return () => {
-      clearInterval(intervalId);
       if (typeof window !== "undefined") {
         window.removeEventListener("pay2pay:notification_refresh", handleCustomRefresh);
         window.removeEventListener("p2p:wallet_update", handleCustomRefresh);
       }
     };
-  }, [fetchNotifications, refreshIntervalMs]);
+  }, [fetchNotifications]);
 
   const handleOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);

@@ -84,15 +84,34 @@ export function DistributorLayout({ children }: DistributorLayoutProps) {
         "p2p_access_token",
         "pay2pay_access_token",
         "pay2pay_auth_token",
-        "access_token"
+        "p2p_sales_token",
+        "pay2pay_sales_token",
+        "access_token",
+        "token",
+        "p2p_user_role",
+        "pay2pay_user_role",
+        "p2p_session_locked",
+        "p2p_session_id",
+        "p2p_destination",
+        "p2p_active_retailer_id",
+        "p2p_retailer_code",
+        "p2p_retailer_approval_status",
+        "p2p_account_access"
       ];
       cookieList.forEach((c) => {
-        document.cookie = `${c}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+        document.cookie = `${c}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; max-age=0;`;
+        try {
+          document.cookie = `${c}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname}; max-age=0;`;
+        } catch {}
       });
-      localStorage.clear();
-      sessionStorage.clear();
+      try { localStorage.clear(); } catch {}
+      try { sessionStorage.clear(); } catch {}
     }
-    router.replace("/login");
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    } else {
+      router.replace("/login");
+    }
   };
 
   const navItems = [

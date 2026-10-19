@@ -44,7 +44,13 @@ class UnisusPayService:
     WEB_CODE = "UNISUSPAY"
 
     _cached_token: Optional[str] = None
-    _token_lock: asyncio.Lock = asyncio.Lock()
+    _token_lock: Optional[asyncio.Lock] = None
+
+    @classmethod
+    def _get_lock(cls) -> asyncio.Lock:
+        if cls._token_lock is None:
+            cls._token_lock = asyncio.Lock()
+        return cls._token_lock
 
     @classmethod
     def _clean_base64(cls, raw: str) -> str:
@@ -63,7 +69,7 @@ class UnisusPayService:
         SHOULD NOT CALL /login EVERY TIME.
         Only re-authenticate when no token exists or when force_refresh=True (e.g. after receiving a 401).
         """
-        async with cls._token_lock:
+        async with cls._get_lock():
             if not force_refresh and cls._cached_token:
                 return cls._cached_token
 

@@ -67,27 +67,39 @@ export function resolvePortalRoute(rawRole?: string | null): PortalConfig {
   return PORTAL_CONFIGS[role];
 }
 
+export function isJwtExpired(token?: string | null): boolean {
+  if (!token) return true;
+  try {
+    const cleanToken = token.startsWith("Bearer ") ? token.slice(7).trim() : token.trim();
+    const parts = cleanToken.split(".");
+    if (parts.length !== 3) return false;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = atob(base64);
+    const parsed = JSON.parse(jsonPayload);
+    if (typeof parsed.exp === "number") {
+      // 5-second buffer
+      return parsed.exp * 1000 <= Date.now() + 5000;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-
-  // Infer role from active portal route prefix so refresh on that portal never misidentifies role
-  let currentRouteRole: UserPortalRole | null = null;
-  if (pathname.startsWith("/sd")) currentRouteRole = "SD";
-  else if (pathname.startsWith("/dist")) currentRouteRole = "DIST";
-  else if (pathname.startsWith("/admin")) currentRouteRole = "ADMIN";
-  else if (pathname.startsWith("/super-admin")) currentRouteRole = "SUPER_ADMIN";
-  else if (pathname.startsWith("/retailer")) currentRouteRole = "RETAILER";
 
   const cookieRole =
     request.cookies.get("p2p_user_role")?.value ||
     request.cookies.get("pay2pay_user_role")?.value;
 
-  const rawRole = currentRouteRole || cookieRole || "RETAILER";
+  const rawRole = cookieRole || "RETAILER";
 
   const userRole = normalizeUserRole(rawRole);
   const portalConfig = resolvePortalRoute(userRole);
 
-  const token =
+  const rawToken =
     request.cookies.get("p2p_access_token")?.value ||
     request.cookies.get("pay2pay_access_token")?.value ||
     request.cookies.get("pay2pay_auth_token")?.value ||
@@ -97,7 +109,9 @@ export function middleware(request: NextRequest) {
     request.cookies.get("token")?.value ||
     request.headers.get("authorization");
 
-  const isAuthenticated = Boolean(token && token.trim().length > 10);
+  const hasToken = Boolean(rawToken && rawToken.trim().length > 10);
+  const isExpired = hasToken ? isJwtExpired(rawToken) : false;
+  const isAuthenticated = hasToken && !isExpired;
 
   // Helper to add security & no-cache headers to responses
   const applySecurityHeaders = (res: NextResponse) => {
@@ -106,12 +120,28 @@ export function middleware(request: NextRequest) {
     res.headers.set("Expires", "0");
     res.headers.set("X-Content-Type-Options", "nosniff");
     res.headers.set("X-Frame-Options", "DENY");
+    return res;
+  };
 
-    // Sync authoritative role cookie if authenticated on a portal route
-    if (isAuthenticated && currentRouteRole) {
-      res.cookies.set("p2p_user_role", currentRouteRole, { path: "/", maxAge: 2592000, sameSite: "lax" });
-      res.cookies.set("pay2pay_user_role", currentRouteRole, { path: "/", maxAge: 2592000, sameSite: "lax" });
-    }
+  // Helper to wipe auth cookies when session is dead or expired
+  const clearAuthCookies = (res: NextResponse) => {
+    const cookieNames = [
+      "p2p_access_token",
+      "pay2pay_access_token",
+      "pay2pay_auth_token",
+      "p2p_sales_token",
+      "pay2pay_sales_token",
+      "access_token",
+      "token",
+      "p2p_user_role",
+      "pay2pay_user_role",
+      "p2p_session_locked",
+      "p2p_session_id",
+      "p2p_destination",
+    ];
+    cookieNames.forEach((name) => {
+      res.cookies.set(name, "", { path: "/", maxAge: 0, expires: new Date(0) });
+    });
     return res;
   };
 
@@ -160,7 +190,11 @@ export function middleware(request: NextRequest) {
         NextResponse.redirect(new URL(portalConfig.dashboard, request.url))
       );
     }
-    return applySecurityHeaders(NextResponse.next());
+    const res = NextResponse.next();
+    if (hasToken && isExpired) {
+      clearAuthCookies(res);
+    }
+    return applySecurityHeaders(res);
   }
 
   // If visiting receipt portal domain on root, rewrite directly to /r
@@ -173,13 +207,20 @@ export function middleware(request: NextRequest) {
     return applySecurityHeaders(NextResponse.next());
   }
 
-  // 2. Unauthenticated user accessing ANY protected route -> Fail-closed redirect to login
+  // 2. Unauthenticated or session-expired user accessing ANY protected route -> Fail-closed redirect to login
   if (!isAuthenticated) {
     const loginUrl = new URL(portalConfig.login, request.url);
+    if (isExpired) {
+      loginUrl.searchParams.set("reason", "session_expired");
+    }
     if (pathname !== "/" && pathname !== "/dashboard" && pathname !== "/retailer-dashboard") {
       loginUrl.searchParams.set("redirect", pathname);
     }
-    return applySecurityHeaders(NextResponse.redirect(loginUrl));
+    const res = NextResponse.redirect(loginUrl);
+    if (isExpired) {
+      clearAuthCookies(res);
+    }
+    return applySecurityHeaders(res);
   }
 
   // 3. Authenticated Root/Dashboard aliases -> redirect to canonical portal dashboard

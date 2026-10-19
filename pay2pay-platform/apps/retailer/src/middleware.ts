@@ -154,16 +154,17 @@ export function middleware(request: NextRequest) {
       return applySecurityHeaders(NextResponse.next());
     }
 
-    // 1b. Generic /login: redirect directly to /retailer/login (or dashboard if already retailer)
+    // 1b. Centralized /login: allow viewing login page or redirect to authorized dashboard if already authenticated
     if (pathname === "/login") {
-      if (isAuthenticated && userRole === "RETAILER" && !request.nextUrl.searchParams.has("logout")) {
+      if (isAuthenticated && !request.nextUrl.searchParams.has("logout")) {
+        const targetDash = host.includes("login.near4you.store")
+          ? `https://near4you.store${portalConfig.dashboard}`
+          : portalConfig.dashboard;
         return applySecurityHeaders(
-          NextResponse.redirect(new URL("/retailer/dashboard", request.url))
+          NextResponse.redirect(new URL(targetDash, request.url))
         );
       }
-      return applySecurityHeaders(
-        NextResponse.redirect(new URL("/retailer/login", request.url))
-      );
+      return applySecurityHeaders(NextResponse.next());
     }
 
     // 1c. Other portal logins (e.g. /sd/login, /dist/login)
@@ -187,7 +188,9 @@ export function middleware(request: NextRequest) {
 
   // 2. Unauthenticated user accessing ANY protected route -> Fail-closed redirect to login
   if (!isAuthenticated) {
-    const loginUrl = new URL(portalConfig.login, request.url);
+    const isNear4You = host.includes("near4you.store");
+    const loginTarget = isNear4You ? "https://login.near4you.store" : portalConfig.login;
+    const loginUrl = new URL(loginTarget, request.url);
     if (pathname !== "/" && pathname !== "/dashboard" && pathname !== "/retailer-dashboard") {
       loginUrl.searchParams.set("redirect", pathname);
     }

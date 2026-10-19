@@ -115,12 +115,12 @@ export interface DistributorTransactionItem {
 export const DistributorAPI = {
   getDashboard: async (): Promise<DistributorDashboardData> => {
     const res = await apiClient.get("/distributor/dashboard");
-    return res.data.data;
+    return res.data?.data || res.data;
   },
 
   getWallet: async () => {
     const res = await apiClient.get("/distributor/wallet");
-    return res.data.data;
+    return res.data?.data || res.data?.wallet || res.data;
   },
 
   getRetailers: async (params?: { page?: number; page_size?: number; search?: string; status?: string }) => {
@@ -130,7 +130,7 @@ export const DistributorAPI = {
 
   getRetailerDetails: async (retailerRefId: number) => {
     const res = await apiClient.get(`/distributor/retailers/${retailerRefId}`);
-    return res.data.data;
+    return res.data?.data || res.data;
   },
 
   inviteRetailer: async (payload: { retailer_mobile: string; retailer_name?: string; retailer_email?: string }) => {
@@ -186,11 +186,11 @@ export const DistributorAPI = {
 
   getBusinessReport: async () => {
     const res = await apiClient.get("/distributor/business");
-    return res.data.data;
+    return res.data?.data || res.data;
   },
 
   getProfile: async () => {
     const res = await apiClient.get("/distributor/profile");
-    return res.data.data;
+    return res.data?.data || res.data?.distributor || res.data;
   }
 };

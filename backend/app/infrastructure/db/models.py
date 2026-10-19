@@ -420,7 +420,7 @@ class RegionalManagerModel(BaseEntity, EnterpriseBaseMixin):
 class SuperDistributorModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "super_distributor"
 
-    super_distributor_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    super_distributor_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, Identity(always=False), nullable=True, index=True)
     tenant_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     company_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     super_distributor_code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
@@ -4166,6 +4166,9 @@ from app.infrastructure.db.unisus_pay_models import (
     UnisusPayQrCodeModel, UnisusPayPaymentRequestModel, UnisusPayConfigModel,
     SATHUS_COMPANY_ID, SATHUS_COMPANY_REF_ID
 )
+
+# Account Migration History Model
+from app.infrastructure.db.account_migration_models import AccountMigrationHistoryModel
 
 
 

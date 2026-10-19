@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -30,4 +30,6 @@ async def get_dashboard_widgets(
     9. Pending Approvals
     10. Recent Activities Feed
     """
+    if str(getattr(current_user, "user_type", "")).upper() == "RETAILER":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden: Retailers cannot access admin dashboard widgets")
     return await DashboardService.get_dashboard_metrics(db, tenant_id)

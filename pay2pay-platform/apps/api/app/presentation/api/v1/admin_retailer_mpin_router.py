@@ -5,11 +5,15 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.application.dependencies import get_current_user, get_current_tenant_id, get_current_token_payload
+from app.application.dependencies import get_current_user, get_current_tenant_id, get_current_token_payload, require_admin_user
 from app.infrastructure.db.models import AdminUserModel
 from app.application.retailer_mpin_service import RetailerMpinService
 
-router = APIRouter(prefix="/admin/retailers", tags=["Admin Retailer MPIN Management"])
+router = APIRouter(
+    prefix="/admin/retailers",
+    tags=["Admin Retailer MPIN Management"],
+    dependencies=[Depends(require_admin_user)]
+)
 verify_router = APIRouter(prefix="/retailers/mpin", tags=["Retailer MPIN Verification"])
 
 
@@ -131,10 +135,27 @@ async def lock_retailer_mpin(
 async def verify_retailer_mpin_endpoint(
     req: RetailerMpinVerifyRequest,
     request: Request,
+    payload: dict = Depends(get_current_token_payload),
     db: AsyncSession = Depends(get_db)
 ):
     """Verifies retailer MPIN with rate-limiting attempt counter and automatic lockout after 5 failures."""
     client_ip = request.client.host if request.client else "127.0.0.1"
+
+    caller_sub = str(payload.get("sub", "")).lower()
+    caller_ret_id = str(payload.get("retailer_id", "")).lower()
+    caller_ret_code = str(payload.get("retailer_code", "")).lower()
+    caller_ret_ref = str(payload.get("retailer_ref_id", "")).lower()
+    req_ret_id = str(req.retailer_id).lower()
+
+    roles = [str(r).upper() for r in payload.get("roles", [])]
+    is_admin = any(r in ("ADMIN", "SUPER_ADMIN", "PLATFORM_ADMIN", "ROOT_ADMIN") for r in roles)
+
+    if not is_admin and req_ret_id not in (caller_sub, caller_ret_id, caller_ret_code, caller_ret_ref):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Cannot verify MPIN for another retailer"
+        )
+
     return await RetailerMpinService.verify_retailer_mpin(
         db=db,
         retailer_id=req.retailer_id,

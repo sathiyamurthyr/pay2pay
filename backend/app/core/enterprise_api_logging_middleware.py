@@ -245,9 +245,19 @@ class EnterpriseApiLoggingMiddleware(BaseHTTPMiddleware):
             clean_res_headers = mask_sensitive_headers(dict(response.headers))
 
             # Consume response body to log it, then reconstruct response stream
-            res_body = [section async for section in response.body_iterator]
-            response.body_iterator = iterate_in_threadpool(iter(res_body))
-            res_body_bytes = b"".join(res_body)
+            res_body = []
+            if hasattr(response, "body_iterator"):
+                iterator = response.body_iterator
+                if hasattr(iterator, "__aiter__"):
+                    async for section in iterator:
+                        res_body.append(section)
+                else:
+                    for section in iterator:
+                        res_body.append(section)
+                response.body_iterator = iterate_in_threadpool(iter(res_body))
+                res_body_bytes = b"".join(res_body)
+            elif hasattr(response, "body"):
+                res_body_bytes = response.body
         except Exception as exc:
             res_status_code = 500
             error_msg = str(exc)

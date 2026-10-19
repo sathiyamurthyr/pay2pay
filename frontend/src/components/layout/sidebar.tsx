@@ -90,6 +90,7 @@ const ADMIN_NAV: NavCategory[] = [
       { label: "Super Distributor", href: "/retailers", icon: Store },
       { label: "Distributor", href: "/retailers", icon: Store },
       { label: "Retailer", href: "/retailers", icon: Store },
+      { label: "Account Migration", href: "/admin/migration", icon: ArrowLeftRight, badge: "Admin" },
       { label: "Entity User", href: "/wallet-ledger/wallets", icon: Wallet },
       { label: "Manual Top-up", href: "/wallet-ledger/manual-topup", icon: ArrowLeftRight },
       { label: "Topup Requests", href: "/operations/topup-requests", icon: ArrowLeftRight, badge: "Live" },

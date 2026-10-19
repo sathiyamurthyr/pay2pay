@@ -80,8 +80,28 @@ export const getAuthToken = (): string | null => {
   }
 };
 
+export const isJwtExpired = (token?: string | null): boolean => {
+  if (!token) return true;
+  try {
+    const cleanToken = token.startsWith("Bearer ") ? token.slice(7).trim() : token.trim();
+    const parts = cleanToken.split(".");
+    if (parts.length !== 3) return false;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = atob(base64);
+    const parsed = JSON.parse(jsonPayload);
+    if (typeof parsed.exp === "number") {
+      return parsed.exp * 1000 <= Date.now() + 5000;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+};
+
 export const hasAuthToken = (): boolean => {
-  return Boolean(getAuthToken());
+  const token = getAuthToken();
+  return Boolean(token && !isJwtExpired(token));
 };
 
 export const isPublicAuthRoute = (): boolean => {
@@ -122,7 +142,7 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
 
   // ── Terminate Session and Force Redirect to Login ──────────────
-  const terminateSessionAndRedirect = (reason: "inactivity_timeout" | "session_expired_24h") => {
+  const terminateSessionAndRedirect = (reason: "inactivity_timeout" | "session_expired_24h" | "session_expired") => {
     if (typeof window === "undefined") return;
 
     // Clear all cookies
@@ -130,31 +150,50 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
       "p2p_access_token",
       "pay2pay_access_token",
       "pay2pay_auth_token",
+      "p2p_sales_token",
+      "pay2pay_sales_token",
       "p2p_user_role",
       "pay2pay_user_role",
+      "p2p_session_locked",
+      "p2p_session_id",
+      "p2p_destination",
+      "token",
+      "access_token",
     ];
     cookiesToClear.forEach((cookieName) => {
       document.cookie = `${cookieName}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+      try {
+        document.cookie = `${cookieName}=; path=/; domain=${window.location.hostname}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+      } catch {}
     });
 
     // Clear session storage tokens
     try {
+      localStorage.removeItem("p2p_access_token");
       localStorage.removeItem("pay2pay_access_token");
       localStorage.removeItem("pay2pay_auth_token");
+      localStorage.removeItem("p2p_sales_token");
+      localStorage.removeItem("pay2pay_sales_token");
       localStorage.removeItem("p2p_session_locked");
       localStorage.removeItem("p2p_session_locked_at");
       localStorage.removeItem("p2p_session_last_active");
       localStorage.removeItem("p2p_session_start_time");
       localStorage.removeItem("pay2pay_user_data");
       localStorage.removeItem("user_info");
+      sessionStorage.clear();
     } catch (e) {}
 
     soundSystem.playWarningSound();
     logAuditEvent("SESSION_TERMINATED", { reason });
 
-    const role = (typeof window !== "undefined" ? localStorage.getItem("pay2pay_user_role") : null) || "RETAILER";
-    const loginPath = PORTAL_LOGIN_MAP[role.toUpperCase()] || "/retailer/login";
-    window.location.replace(`${loginPath}?reason=${reason}`);
+    const currentPath = window.location.pathname;
+    let loginPath = "/retailer/login";
+    if (currentPath.startsWith("/admin")) loginPath = "/admin/login";
+    else if (currentPath.startsWith("/sd")) loginPath = "/sd/login";
+    else if (currentPath.startsWith("/dist")) loginPath = "/dist/login";
+    else if (currentPath.startsWith("/super-admin")) loginPath = "/super-admin/login";
+
+    window.location.replace(`${loginPath}?reason=${reason}&redirect=${encodeURIComponent(currentPath)}`);
   };
 
   // Initialize & Check Lock Persistence on Mount (Prevents Bypass via Refresh / URL Navigate)
@@ -168,6 +207,13 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
         } catch (e) {}
         setSessionState("ACTIVE");
         setLockedAt(null);
+        return;
+      }
+
+      // Check if JWT token is expired on mount
+      const currentToken = getAuthToken();
+      if (currentToken && isJwtExpired(currentToken)) {
+        terminateSessionAndRedirect("session_expired");
         return;
       }
 
@@ -292,6 +338,13 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
     if (isPublicAuthRoute() || !hasAuthToken()) return;
 
     const interval = setInterval(() => {
+      // Check token expiration periodically
+      const currentToken = getAuthToken();
+      if (currentToken && isJwtExpired(currentToken)) {
+        terminateSessionAndRedirect("session_expired");
+        return;
+      }
+
       const now = Date.now();
       const sessionStart = Number(localStorage.getItem("p2p_session_start_time") || now);
 

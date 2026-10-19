@@ -70,7 +70,10 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
 
   const rawRoleStr =
     typeof window !== "undefined"
-      ? localStorage.getItem("p2p_user_role") || localStorage.getItem("pay2pay_user_role") || "RETAILER"
+      ? localStorage.getItem("p2p_user_role") ||
+        localStorage.getItem("pay2pay_user_role") ||
+        (typeof document !== "undefined" && (document.cookie.match(/(?:^|;\s*)(?:p2p_user_role|pay2pay_user_role)=([^;]+)/)?.[1] || "")) ||
+        "RETAILER"
       : "RETAILER";
 
   const userRole = normalizeUserRole(rawRoleStr);

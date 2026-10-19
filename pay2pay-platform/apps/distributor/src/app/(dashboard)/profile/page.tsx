@@ -18,19 +18,29 @@ import { DistributorAPI } from "@/services/distributor-api";
 export default function DistributorProfilePage() {
   const [profile, setProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadProfile = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await DistributorAPI.getProfile();
+      const data = res?.distributor || res?.data || res;
+      if (data && (data.distributor_code || data.owner_name || data.mobile || data.business_name)) {
+        setProfile(data);
+      } else {
+        setProfile(data || null);
+      }
+    } catch (err: any) {
+      console.error("Profile load error:", err);
+      const msg = err?.response?.data?.detail || err?.message || "Failed to load profile. Please verify your distributor session.";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function loadProfile() {
-      try {
-        setLoading(true);
-        const data = await DistributorAPI.getProfile();
-        setProfile(data);
-      } catch (err) {
-        console.error("Profile load error:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
     loadProfile();
   }, []);
 
@@ -39,6 +49,23 @@ export default function DistributorProfilePage() {
       <div className="py-24 text-center text-slate-400 text-xs">
         <RefreshCw className="w-6 h-6 animate-spin text-amber-400 mx-auto mb-2" />
         Loading distributor profile...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-xl mx-auto py-16 text-center space-y-4">
+        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm">
+          <p className="font-semibold">{error}</p>
+          <p className="text-xs text-rose-400/80 mt-1">Please ensure you are signed in with a valid Distributor account.</p>
+        </div>
+        <button
+          onClick={loadProfile}
+          className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-colors"
+        >
+          Retry
+        </button>
       </div>
     );
   }

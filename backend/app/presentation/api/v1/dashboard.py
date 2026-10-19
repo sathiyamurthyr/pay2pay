@@ -2,7 +2,7 @@ import uuid
 import logging
 from datetime import datetime, date, timedelta, timezone
 from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -39,6 +39,7 @@ def safe_int(val: Any) -> int:
 @router.get("/widgets", response_model=DashboardWidgetsResponse)
 async def get_dashboard_widgets(
     tenant_id: Optional[uuid.UUID] = Depends(get_current_tenant_id),
+    current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -55,12 +56,15 @@ async def get_dashboard_widgets(
     10. Recent Activities Feed
     """
     t_id = tenant_id or uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8")
+    if str(getattr(current_user, "user_type", "")).upper() == "RETAILER":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden: Retailers cannot access admin dashboard widgets")
     return await DashboardService.get_dashboard_metrics(db, t_id)
 
 
 # ─── 2. DYNAMIC COMPREHENSIVE SUMMARY ───
 @router.get("/summary", summary="Get High-Velocity Dashboard Summary Across Views")
 async def get_dashboard_summary(
+    current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -70,6 +74,8 @@ async def get_dashboard_summary(
     - view_sales_hierarchy_scope
     - public.retailer_wallet & payout_transaction
     """
+    if str(getattr(current_user, "user_type", "")).upper() == "RETAILER":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden: Retailers cannot access admin dashboard summary")
     # 1. POS Metrics from view_sales_pos_transactions
     pos_data = {
         "total_pos_txns": 0,
@@ -220,6 +226,7 @@ async def get_pos_transactions(
     search: Optional[str] = Query(None, description="Search by txn_id, terminal_id, or retailer_name"),
     limit: int = Query(25, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -227,6 +234,12 @@ async def get_pos_transactions(
     """
     where_clauses = ["1=1"]
     params: Dict[str, Any] = {"limit": limit, "offset": offset}
+
+    user_type = str(getattr(current_user, "user_type", "")).upper()
+    if user_type == "RETAILER":
+        where_clauses.append("(retailer_id = :caller_retailer_id OR retailer_code = :caller_retailer_code)")
+        params["caller_retailer_id"] = current_user.public_id
+        params["caller_retailer_code"] = getattr(current_user, "retailer_code", None) or getattr(current_user, "username", "")
 
     if status:
         where_clauses.append("UPPER(transaction_status) = :status")
@@ -354,6 +367,7 @@ async def get_pending_transactions(
     search: Optional[str] = Query(None, description="Search by transaction_id, retailer_code, or utr"),
     limit: int = Query(25, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -361,6 +375,12 @@ async def get_pending_transactions(
     """
     where_clauses = ["1=1"]
     params: Dict[str, Any] = {"limit": limit, "offset": offset}
+
+    user_type = str(getattr(current_user, "user_type", "")).upper()
+    if user_type == "RETAILER":
+        where_clauses.append("(retailer_id = :caller_retailer_id OR retailer_code = :caller_retailer_code)")
+        params["caller_retailer_id"] = current_user.public_id
+        params["caller_retailer_code"] = getattr(current_user, "retailer_code", None) or getattr(current_user, "username", "")
 
     if service:
         where_clauses.append("UPPER(service) = :service")
@@ -482,6 +502,7 @@ async def get_hierarchy_scope(
     search: Optional[str] = Query(None, description="Search retailer name, distributor, or code"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
+    current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -574,6 +595,7 @@ async def get_hierarchy_scope(
 @router.get("/analytics-charts", summary="Get Interactive Volume & Trend Analytics for Charts")
 async def get_analytics_charts(
     timeframe: str = Query("7D", description="1D | 7D | 30D"),
+    current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """

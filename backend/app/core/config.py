@@ -94,6 +94,12 @@ class Settings(BaseSettings):
         "https://sales.pay2pay.in",
         "https://auth.pay2pay.in",
         "https://api.pay2pay.in",
+        "https://near4you.store",
+        "https://www.near4you.store",
+        "https://login.near4you.store",
+        "https://api.near4you.store",
+        "https://admin.near4you.store",
+        "https://sales.near4you.store",
     ]
     
     # Session Inactivity Timeout (Minutes) - Closes session after 15m idle
