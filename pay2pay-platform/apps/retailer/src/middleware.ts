@@ -189,7 +189,13 @@ export function middleware(request: NextRequest) {
   // 2. Unauthenticated user accessing ANY protected route -> Fail-closed redirect to login
   if (!isAuthenticated) {
     const isNear4You = host.includes("near4you.store");
-    const loginTarget = isNear4You ? "https://login.near4you.store" : portalConfig.login;
+    let loginTarget = portalConfig.login;
+    if (isNear4You) {
+      if (pathname.startsWith("/retailer")) loginTarget = "/retailer/login";
+      else if (pathname.startsWith("/dist")) loginTarget = "/dist/login";
+      else if (pathname.startsWith("/sd")) loginTarget = "/sd/login";
+      else loginTarget = "/login";
+    }
     const loginUrl = new URL(loginTarget, request.url);
     if (pathname !== "/" && pathname !== "/dashboard" && pathname !== "/retailer-dashboard") {
       loginUrl.searchParams.set("redirect", pathname);

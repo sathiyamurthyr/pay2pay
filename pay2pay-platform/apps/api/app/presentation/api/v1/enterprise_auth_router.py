@@ -362,14 +362,18 @@ async def login_with_password(
         or "admin." in host_header
     )
     has_letters = bool(re.search(r"[a-zA-Z]", raw_input))
+    raw_digits = re.sub(r"\D", "", raw_input)
 
-    if has_letters or is_admin_portal:
+    # Support both 10-digit mobile numbers and alphanumeric UIDs
+    if not has_letters and len(raw_digits) >= 10:
+        clean_mobile = raw_digits[-10:]
+    elif not has_letters and len(raw_digits) > 0 and len(raw_digits) < 10:
         clean_mobile = raw_input
     else:
-        raw_digits = re.sub(r"\D", "", raw_input)
-        clean_mobile = raw_digits[-10:] if len(raw_digits) >= 10 else raw_input
-        if len(clean_mobile) != 10:
-            raise HTTPException(status_code=400, detail="Mobile number must be exactly 10 digits.")
+        clean_mobile = raw_input
+
+    if not clean_mobile:
+        raise HTTPException(status_code=400, detail="Account UID or mobile number is required.")
 
     session_id = f"SESS-{uuid.uuid4().hex[:12].upper()}"
     correlation_id = f"CORR-{uuid.uuid4().hex[:12].upper()}"
@@ -401,12 +405,18 @@ async def login_with_password(
 
     mobile_variants = [
         clean_mobile,
-        f"91{clean_mobile}",
-        f"+91{clean_mobile}",
         raw_input,
         raw_input.lower(),
         raw_input.upper()
     ]
+    if len(raw_digits) >= 10:
+        norm_10 = raw_digits[-10:]
+        mobile_variants.extend([
+            norm_10,
+            f"91{norm_10}",
+            f"+91{norm_10}"
+        ])
+    mobile_variants = list(dict.fromkeys(mobile_variants))
 
     # 1. Check if user is an Admin User (admin_user table)
     admin_user = None
@@ -427,17 +437,20 @@ async def login_with_password(
         logger.warning(f"admin_user table check: {e}")
         admin_user = None
 
-    # 2. Check if user is in auth_user or retailer table
+    # 2. Check if user is in auth_user or retailer table (by mobile OR retailer_code/UID)
     existing_retailer = None
     auth_user = None
     try:
         r_stmt = (
             select(RetailerContactModel, RetailerModel)
-            .join(RetailerModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
+            .outerjoin(RetailerContactModel, (RetailerContactModel.retailer_id == RetailerModel.public_id) & (RetailerContactModel.is_deleted == False))
             .where(
-                RetailerContactModel.mobile.in_(mobile_variants),
-                RetailerModel.is_deleted == False,
-                RetailerContactModel.is_deleted == False
+                or_(
+                    RetailerContactModel.mobile.in_(mobile_variants),
+                    RetailerModel.retailer_code.in_(mobile_variants),
+                    RetailerModel.retailer_code.ilike(raw_input)
+                ),
+                RetailerModel.is_deleted == False
             )
             .order_by(
                 case((RetailerModel.status == "ACTIVE", 1), else_=2),
@@ -449,12 +462,31 @@ async def login_with_password(
         if r_res:
             _, existing_retailer = r_res
 
-        auth_user_stmt = select(AuthUserModel).where(AuthUserModel.mobile_number.in_(mobile_variants))
+        if not existing_retailer:
+            r_direct = await db.execute(
+                select(RetailerModel).where(
+                    or_(
+                        RetailerModel.retailer_code.in_(mobile_variants),
+                        RetailerModel.retailer_code.ilike(raw_input)
+                    ),
+                    RetailerModel.is_deleted == False
+                )
+            )
+            existing_retailer = r_direct.scalars().first()
+
+        auth_user_stmt = select(AuthUserModel).where(
+            or_(
+                AuthUserModel.mobile_number.in_(mobile_variants),
+                (AuthUserModel.user_id == existing_retailer.public_id) if existing_retailer else False
+            ),
+            AuthUserModel.is_deleted == False
+        )
         auth_user = (await db.execute(auth_user_stmt)).scalars().first()
         if auth_user and not existing_retailer:
-            ret_stmt = select(RetailerModel).where(RetailerModel.public_id == auth_user.user_id)
+            ret_stmt = select(RetailerModel).where(RetailerModel.public_id == auth_user.user_id, RetailerModel.is_deleted == False)
             existing_retailer = (await db.execute(ret_stmt)).scalars().first()
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Retailer / auth_user lookup: {e}")
         pass
 
     req_portal = (payload.portal_role or "").strip().upper()
@@ -489,9 +521,25 @@ async def login_with_password(
         try:
             sd_sp_res = await db.execute(
                 text("SELECT * FROM public.sp_super_distributor_login_lookup(:m)"),
-                {"m": clean_mobile}
+                {"m": raw_input}
             )
             sd_record = sd_sp_res.mappings().first()
+            if not sd_record and clean_mobile != raw_input:
+                sd_sp_res2 = await db.execute(
+                    text("SELECT * FROM public.sp_super_distributor_login_lookup(:m)"),
+                    {"m": clean_mobile}
+                )
+                sd_record = sd_sp_res2.mappings().first()
+            if not sd_record:
+                direct_sd = await db.execute(
+                    text("""
+                        SELECT * FROM public.view_super_distributor_auth_profile
+                        WHERE super_distributor_code = :v OR super_distributor_code ILIKE :v
+                        LIMIT 1
+                    """),
+                    {"v": raw_input}
+                )
+                sd_record = direct_sd.mappings().first()
         except Exception as e:
             logger.warning(f"Error executing sp_super_distributor_login_lookup: {e}")
             sd_record = None
@@ -499,7 +547,7 @@ async def login_with_password(
         if is_super_distributor_portal and not sd_record:
             raise HTTPException(
                 status_code=401,
-                detail="Master Distributor account not found for this mobile number. Please check your number or contact support."
+                detail="Master Distributor account not found for this identifier. Please check your UID/mobile number or contact support."
             )
 
         if sd_record:
@@ -696,9 +744,25 @@ async def login_with_password(
         try:
             sp_res = await db.execute(
                 text("SELECT * FROM public.sp_distributor_login_lookup(:m)"),
-                {"m": clean_mobile}
+                {"m": raw_input}
             )
             distributor_record = sp_res.mappings().first()
+            if not distributor_record and clean_mobile != raw_input:
+                sp_res2 = await db.execute(
+                    text("SELECT * FROM public.sp_distributor_login_lookup(:m)"),
+                    {"m": clean_mobile}
+                )
+                distributor_record = sp_res2.mappings().first()
+            if not distributor_record:
+                direct_dist = await db.execute(
+                    text("""
+                        SELECT * FROM public.view_distributor_auth_profile
+                        WHERE distributor_code = :v OR distributor_code ILIKE :v
+                        LIMIT 1
+                    """),
+                    {"v": raw_input}
+                )
+                distributor_record = direct_dist.mappings().first()
         except Exception as e:
             logger.warning(f"Error executing sp_distributor_login_lookup: {e}")
             distributor_record = None
@@ -706,7 +770,7 @@ async def login_with_password(
         if is_distributor_portal and not distributor_record:
             raise HTTPException(
                 status_code=401,
-                detail="Distributor account not found for this mobile number. Please check your number or contact support."
+                detail="Distributor account not found for this identifier. Please check your UID/mobile number or contact support."
             )
 
         if distributor_record:
@@ -897,9 +961,13 @@ async def login_with_password(
         if not existing_retailer and mobile_variants:
             r_stmt_c = (
                 select(RetailerContactModel, RetailerModel)
-                .join(RetailerModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
+                .outerjoin(RetailerContactModel, (RetailerContactModel.retailer_id == RetailerModel.public_id) & (RetailerContactModel.is_deleted == False))
                 .where(
-                    RetailerContactModel.mobile.in_(mobile_variants),
+                    or_(
+                        RetailerContactModel.mobile.in_(mobile_variants),
+                        RetailerModel.retailer_code.in_(mobile_variants),
+                        RetailerModel.retailer_code.ilike(raw_input)
+                    ),
                     RetailerModel.is_deleted == False
                 )
             )
@@ -908,9 +976,21 @@ async def login_with_password(
                 _, existing_retailer = r_res_c
             else:
                 from app.infrastructure.db.verification_models import RetailerVerificationModel
-                v_row = (await db.execute(select(RetailerVerificationModel).where(RetailerVerificationModel.mobile_number.in_(mobile_variants)))).scalars().first()
+                v_row = (await db.execute(select(RetailerVerificationModel).where(
+                    or_(
+                        RetailerVerificationModel.mobile_number.in_(mobile_variants),
+                        RetailerVerificationModel.retailer_id.in_(mobile_variants),
+                        RetailerVerificationModel.retailer_id.ilike(raw_input)
+                    )
+                ))).scalars().first()
                 if v_row and v_row.retailer_id:
-                    existing_retailer = (await db.execute(select(RetailerModel).where(RetailerModel.retailer_code == v_row.retailer_id, RetailerModel.is_deleted == False))).scalars().first()
+                    existing_retailer = (await db.execute(select(RetailerModel).where(
+                        or_(
+                            RetailerModel.retailer_code == v_row.retailer_id,
+                            RetailerModel.retailer_code.ilike(raw_input)
+                        ),
+                        RetailerModel.is_deleted == False
+                    ))).scalars().first()
 
     is_admin = False
     is_valid_pass = False

@@ -47,6 +47,17 @@ async def background_daily_statement_scheduler():
     Window: 03:00 AM to 03:30 AM IST.
     """
     global _last_scheduled_run_date
+    import os
+    from app.core.config import settings
+
+    auto_mail_enabled = (
+        getattr(settings, "AUTO_MAIL_DAILY_STATEMENT_ENABLED", False)
+        or os.getenv("AUTO_MAIL_DAILY_STATEMENT_ENABLED", "false").lower() in ("true", "1")
+    )
+    if not auto_mail_enabled:
+        print(f"[{get_ist_now().strftime('%Y-%m-%d %H:%M:%S IST')}] [STATEMENT SCHEDULER] Auto mail daily account statement report sending is STOPPED/DISABLED.")
+        return
+
     print(f"[{get_ist_now().strftime('%Y-%m-%d %H:%M:%S IST')}] [STATEMENT SCHEDULER] Daily 3:00 AM statement job scheduler started.")
 
     while True:

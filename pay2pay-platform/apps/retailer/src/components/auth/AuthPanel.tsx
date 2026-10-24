@@ -20,7 +20,8 @@ import {
   Lock,
   Eye,
   EyeOff,
-  Phone
+  Phone,
+  User
 } from "lucide-react";
 import { collectSilentTelemetry, TelemetryData } from "@/lib/telemetry";
 import { verifyAndRoutePostLogin } from "@/lib/retailer-destination-resolver";
@@ -323,7 +324,8 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
   };
 
   const handleMobileChange = (val: string) => {
-    const clean = val.replace(/\D/g, "").slice(0, 10);
+    // Support both mobile numbers and alphanumeric UIDs (e.g. P2P-R404667, DIST-..., P2P-SD...)
+    const clean = val.trim().slice(0, 50);
     setMobileNumber(clean);
     setErrorMsg("");
   };
@@ -498,8 +500,14 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       triggerError("Security Consent acceptance is mandatory.");
       return;
     }
-    if (mobileNumber.length !== 10) {
-      triggerError("Please enter a valid 10-digit mobile number.");
+    const cleanInput = mobileNumber.trim();
+    const isDigitsOnly = /^\d+$/.test(cleanInput);
+    if (isDigitsOnly && cleanInput.length !== 10) {
+      triggerError("Please enter a valid 10-digit mobile number or account UID.");
+      return;
+    }
+    if (!isDigitsOnly && cleanInput.length < 3) {
+      triggerError("Please enter a valid account UID or 10-digit mobile number.");
       return;
     }
     if (!password) {
@@ -544,8 +552,20 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         soundSystem.playLoginSuccess();
         const approveStatus = data.approve_status !== undefined ? data.approve_status : data.data?.approve_status;
         const activeStatus = data.active_status !== undefined ? data.active_status : data.data?.active_status;
+        const userRole = (data.data?.user?.role || data.data?.user?.user_type || data.data?.user_role || portalRole || "RETAILER").toString().toUpperCase();
+        const defaultRoleDashboard = (userRole.includes("SUPER_DISTRIBUTOR") || userRole === "SD" || userRole === "MSD")
+          ? "/sd/dashboard"
+          : (userRole.includes("DIST") || userRole === "DISTRIBUTOR")
+          ? "/dist/dashboard"
+          : "/retailer/dashboard";
+        const defaultReviewPage = (userRole.includes("SUPER_DISTRIBUTOR") || userRole === "SD")
+          ? "/sd/account-under-review"
+          : (userRole.includes("DIST") || userRole === "DISTRIBUTOR")
+          ? "/dist/account-under-review"
+          : "/retailer/account-under-review";
+
         const destination = data.data?.destination || (approveStatus && activeStatus ? "DASHBOARD" : "ACCOUNT_UNDER_REVIEW");
-        const redirectUrl = data.data?.redirect_url || (destination === "DASHBOARD" ? "/retailer/dashboard" : "/retailer/account-under-review");
+        const redirectUrl = data.data?.redirect_url || (destination === "DASHBOARD" ? defaultRoleDashboard : defaultReviewPage);
         await handleAuthSuccessRedirect(
           data.data?.access_token,
           data.data?.user,
@@ -963,29 +983,27 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           {authTab === "PASSWORD" && (
             <form onSubmit={handlePasswordLogin} className="space-y-4">
 
-              {/* Mobile Number */}
+              {/* UID or Mobile Number */}
               <div>
                 <label className={`block text-xs font-bold mb-1.5 ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
-                  {t.mobileNumber} <span className="text-red-500">*</span>
+                  UID / Mobile Number <span className="text-red-500">*</span>
                 </label>
                 <div className={`relative rounded-xl transition-all duration-200 ${inputFocusRing(mobileFocused)}`}>
                   <div className={`absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                    <Phone className="w-3.5 h-3.5" />
-                    <span className="text-xs font-bold">+91</span>
+                    <User className="w-3.5 h-3.5 text-blue-500" />
                     <span className={`text-xs ${darkMode ? "text-slate-700" : "text-slate-300"}`}>|</span>
                   </div>
                   <input
-                    type="tel"
-                    inputMode="numeric"
+                    type="text"
                     value={mobileNumber}
                     onFocus={() => setMobileFocused(true)}
                     onBlur={() => setMobileFocused(false)}
                     onChange={(e) => handleMobileChange(e.target.value)}
-                    placeholder="9876543210"
+                    placeholder="Enter UID (e.g. P2P-R404667) or Mobile"
                     required
-                    className={`${inputBase} pl-20 pr-10 py-3`}
+                    className={`${inputBase} pl-12 pr-10 py-3`}
                   />
-                  {mobileNumber.length === 10 && (
+                  {(mobileNumber.length === 10 || mobileNumber.length >= 6) && (
                     <Check className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" />
                   )}
                 </div>

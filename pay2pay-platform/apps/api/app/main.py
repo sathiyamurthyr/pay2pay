@@ -52,8 +52,11 @@ async def startup_db():
         await asyncio.wait_for(_create_tables(), timeout=5.0)
     except asyncio.TimeoutError:
         print("[STARTUP DB WARNING] Table creation timed out (DB may be locked) — continuing startup.")
-    from app.core.statement_scheduler import background_daily_statement_scheduler
-    asyncio.create_task(background_daily_statement_scheduler())
+    if getattr(settings, "AUTO_MAIL_DAILY_STATEMENT_ENABLED", False):
+        from app.core.statement_scheduler import background_daily_statement_scheduler
+        asyncio.create_task(background_daily_statement_scheduler())
+    else:
+        print("[STATEMENT SCHEDULER] Auto mail daily account statement report sending is STOPPED/DISABLED.")
     from app.core.urbanrupee_scheduler import background_urbanrupee_status_poller
     # Official UrbanRupee automated 5-minute status check (runs only if UrbanRupee priority is 1)
     asyncio.create_task(background_urbanrupee_status_poller(300))

@@ -139,6 +139,8 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = Field(default="")
     SMTP_FROM_EMAIL: str = Field(default="")
     SMTP_FROM_NAME: str = Field(default="Pay2Pay Enterprise")
+    ADMIN_STATEMENT_EMAIL: str = Field(default="")
+    AUTO_MAIL_DAILY_STATEMENT_ENABLED: bool = Field(default=False)
 
 
     # ── Support Metadata Configuration ──────────────────────────────────────
