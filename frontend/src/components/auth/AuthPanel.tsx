@@ -179,48 +179,56 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
 const API_BASE = "/api/v1";
 
 interface AuthPanelProps {
-  portalRole?: "SD" | "DIST" | "SUPER_DISTRIBUTOR" | "DISTRIBUTOR" | "RETAILER" | "ADMIN";
+  portalRole?: "SD" | "DIST" | "SUPER_DISTRIBUTOR" | "DISTRIBUTOR" | "RETAILER" | "ADMIN" | "COMMON";
   darkMode?: boolean;
   setDarkMode?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export const AuthPanel: React.FC<AuthPanelProps> = ({
-  portalRole = "RETAILER",
+  portalRole = "COMMON",
   darkMode: externalDarkMode,
   setDarkMode: externalSetDarkMode
 }) => {
   const router = useRouter();
 
-  const normalizedRole: "RETAILER" | "SD" | "DIST" =
-    portalRole === "RETAILER"
+  const normalizedRole: "RETAILER" | "SD" | "DIST" | "COMMON" =
+    portalRole === "COMMON"
+      ? "COMMON"
+      : portalRole === "RETAILER"
       ? "RETAILER"
       : portalRole === "SD" || portalRole === "SUPER_DISTRIBUTOR"
       ? "SD"
       : "DIST";
 
   const portalTitle =
-    normalizedRole === "RETAILER"
+    normalizedRole === "COMMON"
+      ? "Pay2Pay Unified Portal"
+      : normalizedRole === "RETAILER"
       ? "Pay2Pay Retailer Portal"
       : normalizedRole === "SD"
       ? "Pay2Pay SD Portal"
       : "Pay2Pay Distributor Portal";
 
   const portalSubtitle =
-    normalizedRole === "RETAILER"
+    normalizedRole === "COMMON"
+      ? "Sign in to access your Retailer, Distributor, or Super Distributor Workspace"
+      : normalizedRole === "RETAILER"
       ? "Access your Pay2Pay Retailer Business Workstation"
       : normalizedRole === "SD"
       ? "Access your Pay2Pay Super Distributor Workspace"
       : "Access your Pay2Pay Distributor Workspace";
 
   const portalRegisterUrl =
-    normalizedRole === "RETAILER"
+    normalizedRole === "COMMON" || normalizedRole === "RETAILER"
       ? "/register"
       : normalizedRole === "SD"
       ? "/sd/onboarding"
       : "/dist/onboarding";
 
   const portalDashboardUrl =
-    normalizedRole === "RETAILER"
+    normalizedRole === "COMMON"
+      ? "/retailer/dashboard"
+      : normalizedRole === "RETAILER"
       ? "/retailer/dashboard"
       : normalizedRole === "SD"
       ? "/sd/dashboard"
@@ -356,9 +364,28 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     // 1. Authoritative check:
     const isBothTrue = approveStatus === true && activeStatus === true;
 
+    // Resolve authoritative user_type_ref_id & role from server payload
+    let userTypeRefId = userData?.user_type_ref_id;
+    let authoritativeRole = "RETAILER";
+
+    if (userTypeRefId === 4 || userData?.role === "SUPER_DISTRIBUTOR" || userData?.role === "SD") {
+      authoritativeRole = "SD";
+      userTypeRefId = 4;
+    } else if (userTypeRefId === 3 || userData?.role === "DISTRIBUTOR" || userData?.role === "DIST") {
+      authoritativeRole = "DIST";
+      userTypeRefId = 3;
+    } else if (userTypeRefId === 1 || userData?.role === "ADMIN" || userData?.role === "SUPER_ADMIN" || userData?.role === "PLATFORM_ADMIN") {
+      authoritativeRole = "ADMIN";
+      userTypeRefId = 1;
+    } else if (userTypeRefId === 2 || userData?.role === "RETAILER") {
+      authoritativeRole = "RETAILER";
+      userTypeRefId = 2;
+    } else if (portalRole && portalRole !== "COMMON") {
+      authoritativeRole = portalRole === "SUPER_DISTRIBUTOR" ? "SD" : portalRole === "DISTRIBUTOR" ? "DIST" : portalRole;
+    }
+
     // 2. Synchronously persist credentials & session in Cookies and LocalStorage
     if (typeof window !== "undefined") {
-      const role = portalRole || "RETAILER";
       const validToken =
         token ||
         localStorage.getItem("pay2pay_access_token") ||
@@ -367,8 +394,9 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 
       const normalizedUser = userData || {
         mobile_number: mobileNumber,
-        role: role,
-        roles: [role],
+        role: authoritativeRole,
+        roles: [authoritativeRole],
+        user_type_ref_id: userTypeRefId,
         approve_status: approveStatus,
         active_status: activeStatus,
         approval_status: isBothTrue ? "APPROVED" : "UNDER_REVIEW",
@@ -376,12 +404,16 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       };
 
       if (!normalizedUser.roles || !Array.isArray(normalizedUser.roles)) {
-        normalizedUser.roles = [normalizedUser.role || role];
+        normalizedUser.roles = [normalizedUser.role || authoritativeRole];
       }
 
       // Cookies with SameSite=Lax and 30-day expiry
-      document.cookie = `p2p_user_role=${role}; path=/; max-age=2592000; SameSite=Lax`;
-      document.cookie = `pay2pay_user_role=${role}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `p2p_user_role=${authoritativeRole}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `pay2pay_user_role=${authoritativeRole}; path=/; max-age=2592000; SameSite=Lax`;
+      if (userTypeRefId) {
+        document.cookie = `p2p_user_type_ref_id=${userTypeRefId}; path=/; max-age=2592000; SameSite=Lax`;
+        document.cookie = `pay2pay_user_type_ref_id=${userTypeRefId}; path=/; max-age=2592000; SameSite=Lax`;
+      }
       document.cookie = `p2p_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
       document.cookie = `pay2pay_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
       document.cookie = `pay2pay_auth_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
@@ -405,8 +437,12 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       // Synchronously persist session state in localStorage to prevent reload logout
       try {
         const now = Date.now();
-        localStorage.setItem("pay2pay_user_role", role);
-        localStorage.setItem("p2p_user_role", role);
+        localStorage.setItem("pay2pay_user_role", authoritativeRole);
+        localStorage.setItem("p2p_user_role", authoritativeRole);
+        if (userTypeRefId) {
+          localStorage.setItem("p2p_user_type_ref_id", String(userTypeRefId));
+          localStorage.setItem("pay2pay_user_type_ref_id", String(userTypeRefId));
+        }
         localStorage.setItem("pay2pay_access_token", validToken);
         localStorage.setItem("p2p_access_token", validToken);
         localStorage.setItem("access_token", validToken);
@@ -432,12 +468,14 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     // 3. Strict Authoritative Routing Rule:
     const roleDashboardMap: Record<string, string> = {
       SD: "/sd/dashboard",
+      SUPER_DISTRIBUTOR: "/sd/dashboard",
       DIST: "/dist/dashboard",
+      DISTRIBUTOR: "/dist/dashboard",
       ADMIN: "/admin/dashboard",
       SUPER_ADMIN: "/super-admin/dashboard",
       RETAILER: "/retailer/dashboard",
     };
-    const defaultDashboard = roleDashboardMap[role.toUpperCase()] || "/retailer/dashboard";
+    const defaultDashboard = roleDashboardMap[authoritativeRole.toUpperCase()] || "/retailer/dashboard";
 
     let target = defaultDashboard;
     if (destination === "APPLICATION_REJECTED") {
@@ -450,7 +488,12 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       target = customRedirect && !customRedirect.includes("/login") ? customRedirect : defaultDashboard;
       setSuccessMsg("✓ Authentication Successful! Redirecting to dashboard...");
     } else {
-      target = role.toUpperCase() === "RETAILER" ? "/retailer/account-under-review" : defaultDashboard;
+      const underReviewMap: Record<string, string> = {
+        SD: "/sd/account-under-review",
+        DIST: "/dist/account-under-review",
+        RETAILER: "/retailer/account-under-review",
+      };
+      target = customRedirect || underReviewMap[authoritativeRole.toUpperCase()] || defaultDashboard;
       setSuccessMsg(statusMessage || "✓ Authentication successful. Redirecting to verification status...");
     }
 
@@ -491,7 +534,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           password,
           captcha_code: captchaInput,
           telemetry,
-          portal_role: portalRole || "RETAILER"
+          portal_role: portalRole || "COMMON"
         })
       });
 

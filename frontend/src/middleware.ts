@@ -50,7 +50,7 @@ export function normalizeUserRole(rawRole?: string | null): UserPortalRole {
   if (upper === "SUPER_ADMIN" || upper === "SUPERADMIN" || upper === "SUPER-ADMIN") {
     return "SUPER_ADMIN";
   }
-  if (upper === "ADMIN") {
+  if (upper === "ADMIN" || upper === "PLATFORM_ADMIN" || upper === "OPERATIONS_ADMIN") {
     return "ADMIN";
   }
   if (upper === "SD" || upper === "SUPER_DISTRIBUTOR" || upper === "SUPER DISTRIBUTOR") {
@@ -67,25 +67,30 @@ export function resolvePortalRoute(rawRole?: string | null): PortalConfig {
   return PORTAL_CONFIGS[role];
 }
 
+/**
+ * Safely decodes JWT claims without external dependencies in Edge runtime
+ */
+function getJwtClaims(token?: string | null): Record<string, any> | null {
+  if (!token || typeof token !== "string") return null;
+  try {
+    const parts = token.split(".");
+    if (parts.length < 2) return null;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonStr = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(jsonStr);
+  } catch {
+    return null;
+  }
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-
-  // Infer role from active portal route prefix so refresh on that portal never misidentifies role
-  let currentRouteRole: UserPortalRole | null = null;
-  if (pathname.startsWith("/sd")) currentRouteRole = "SD";
-  else if (pathname.startsWith("/dist")) currentRouteRole = "DIST";
-  else if (pathname.startsWith("/admin")) currentRouteRole = "ADMIN";
-  else if (pathname.startsWith("/super-admin")) currentRouteRole = "SUPER_ADMIN";
-  else if (pathname.startsWith("/retailer")) currentRouteRole = "RETAILER";
-
-  const cookieRole =
-    request.cookies.get("p2p_user_role")?.value ||
-    request.cookies.get("pay2pay_user_role")?.value;
-
-  const rawRole = currentRouteRole || cookieRole || "RETAILER";
-
-  const userRole = normalizeUserRole(rawRole);
-  const portalConfig = resolvePortalRoute(userRole);
 
   const token =
     request.cookies.get("p2p_access_token")?.value ||
@@ -99,6 +104,37 @@ export function middleware(request: NextRequest) {
 
   const isAuthenticated = Boolean(token && token.trim().length > 10);
 
+  // Authoritatively derive authenticated role from JWT claims and session cookies
+  // user_type_ref_id: 1=ADMIN, 2=RETAILER, 3=DISTRIBUTOR, 4=SUPER_DISTRIBUTOR
+  const jwtClaims = getJwtClaims(token);
+  const jwtUserType = jwtClaims?.user_type_ref_id;
+  const cookieUserType =
+    request.cookies.get("p2p_user_type_ref_id")?.value ||
+    request.cookies.get("pay2pay_user_type_ref_id")?.value;
+
+  const rawUserType = jwtUserType !== undefined ? jwtUserType : cookieUserType;
+
+  const jwtRole = Array.isArray(jwtClaims?.roles) ? jwtClaims.roles[0] : jwtClaims?.role;
+  const cookieRole =
+    request.cookies.get("p2p_user_role")?.value ||
+    request.cookies.get("pay2pay_user_role")?.value;
+
+  let resolvedRole: UserPortalRole = "RETAILER";
+  if (rawUserType !== undefined && rawUserType !== null && String(rawUserType).trim() !== "") {
+    const numId = Number(rawUserType);
+    if (numId === 1) resolvedRole = "ADMIN";
+    else if (numId === 2) resolvedRole = "RETAILER";
+    else if (numId === 3) resolvedRole = "DIST";
+    else if (numId === 4) resolvedRole = "SD";
+    else {
+      resolvedRole = normalizeUserRole(jwtRole || cookieRole);
+    }
+  } else {
+    resolvedRole = normalizeUserRole(jwtRole || cookieRole);
+  }
+
+  const portalConfig = resolvePortalRoute(resolvedRole);
+
   // Helper to add security & no-cache headers to responses
   const applySecurityHeaders = (res: NextResponse) => {
     res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
@@ -107,10 +143,14 @@ export function middleware(request: NextRequest) {
     res.headers.set("X-Content-Type-Options", "nosniff");
     res.headers.set("X-Frame-Options", "DENY");
 
-    // Sync authoritative role cookie if authenticated on a portal route
-    if (isAuthenticated && currentRouteRole) {
-      res.cookies.set("p2p_user_role", currentRouteRole, { path: "/", maxAge: 2592000, sameSite: "lax" });
-      res.cookies.set("pay2pay_user_role", currentRouteRole, { path: "/", maxAge: 2592000, sameSite: "lax" });
+    // Sync authoritative role cookies if authenticated
+    if (isAuthenticated) {
+      res.cookies.set("p2p_user_role", resolvedRole, { path: "/", maxAge: 2592000, sameSite: "lax" });
+      res.cookies.set("pay2pay_user_role", resolvedRole, { path: "/", maxAge: 2592000, sameSite: "lax" });
+      if (rawUserType !== undefined && rawUserType !== null) {
+        res.cookies.set("p2p_user_type_ref_id", String(rawUserType), { path: "/", maxAge: 2592000, sameSite: "lax" });
+        res.cookies.set("pay2pay_user_type_ref_id", String(rawUserType), { path: "/", maxAge: 2592000, sameSite: "lax" });
+      }
     }
     return res;
   };
@@ -136,8 +176,8 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/receipt");
 
   const isLoginRoute =
-    pathname === "/retailer/login" ||
     pathname === "/login" ||
+    pathname === "/retailer/login" ||
     pathname === "/dist/login" ||
     pathname === "/sd/login" ||
     pathname === "/admin/login" ||
@@ -173,9 +213,9 @@ export function middleware(request: NextRequest) {
     return applySecurityHeaders(NextResponse.next());
   }
 
-  // 2. Unauthenticated user accessing ANY protected route -> Fail-closed redirect to login
+  // 2. Unauthenticated user accessing ANY protected route -> Fail-closed redirect to unified login
   if (!isAuthenticated) {
-    const loginUrl = new URL(portalConfig.login, request.url);
+    const loginUrl = new URL("/login", request.url);
     if (pathname !== "/" && pathname !== "/dashboard" && pathname !== "/retailer-dashboard") {
       loginUrl.searchParams.set("redirect", pathname);
     }
@@ -200,7 +240,8 @@ export function middleware(request: NextRequest) {
   const targetPrefix = allPrefixes.find((prefix) => pathname.startsWith(prefix));
 
   if (targetPrefix && targetPrefix !== portalConfig.prefix) {
-    // If accessing another portal's prefixed routes (e.g. Retailer trying /admin/*), redirect to own dashboard
+    // If accessing another portal's prefixed routes (e.g. Retailer trying /dist/*, /sd/*, or /admin/*),
+    // redirect safely back to their own authorized dashboard
     return applySecurityHeaders(
       NextResponse.redirect(new URL(portalConfig.dashboard, request.url))
     );
