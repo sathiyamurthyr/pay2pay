@@ -286,15 +286,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // 3. Absolute, Authoritative Logout Procedure
   const logout = () => {
-    // A. Trigger backend session termination & revocation
+    // A. Trigger backend session termination & revocation with keepalive
     try {
       fetch("/api/v1/auth/enterprise/logout", {
         method: "POST",
+        credentials: "include",
+        keepalive: true,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ device_info: typeof navigator !== "undefined" ? navigator.userAgent : "Browser" }),
       }).catch(() => {});
       fetch("/api/v1/auth/logout", {
         method: "POST",
+        credentials: "include",
+        keepalive: true,
       }).catch(() => {});
     } catch {}
 
@@ -309,22 +313,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // C. Remove all authentication and session cookies across host and root domain
     if (typeof document !== "undefined") {
       const cookieNames = [
+        "p2p_token",
+        "pay2pay_token",
         "pay2pay_access_token",
         "p2p_access_token",
         "pay2pay_auth_token",
+        "p2p_sales_token",
+        "pay2pay_sales_token",
         "p2p_user_role",
         "pay2pay_user_role",
         "p2p_user_type_ref_id",
         "pay2pay_user_type_ref_id",
-        "p2p_session_locked",
-        "p2p_session_id",
+        "p2p_active_role",
+        "p2p_active_destination",
         "p2p_destination",
-        "token",
-        "access_token",
+        "p2p_account_access",
         "p2p_active_retailer_id",
         "p2p_retailer_code",
+        "p2p_retailer_approval_status",
+        "p2p_active_distributor_id",
+        "p2p_distributor_code",
+        "p2p_distributor_ref_id",
+        "p2p_active_super_distributor_id",
         "p2p_super_distributor_code",
-        "p2p_distributor_code"
+        "p2p_super_distributor_ref_id",
+        "p2p_session_locked",
+        "p2p_session_id",
+        "token",
+        "access_token"
       ];
       cookieNames.forEach((name) => {
         document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
@@ -360,11 +376,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       useTransactionMemoryStore.getState().setSelectedCustomer(null);
     } catch {}
 
-    // F. Direct fail-closed redirect to unified login
+    // F. Direct fail-closed redirect via /logout to guarantee middleware cookie strip
     if (typeof window !== "undefined") {
-      window.location.replace("/login");
+      window.location.replace("/logout");
     } else {
-      router.replace("/login");
+      router.replace("/logout");
     }
   };
 

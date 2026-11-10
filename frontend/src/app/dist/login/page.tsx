@@ -60,7 +60,7 @@ export default function DistributorLoginPage() {
           {/* Right Column — Shared Auth Panel */}
           <div className="lg:col-span-6 flex justify-center w-full">
             <div className="w-full max-w-md">
-              <AuthPanel portalRole="DIST" />
+              <AuthPanel portalRole="COMMON" />
             </div>
           </div>
         </div>

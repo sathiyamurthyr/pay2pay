@@ -312,6 +312,28 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
   const refreshCaptcha = () => fetchCaptcha();
 
   useEffect(() => {
+    // If arriving from logout, flush any client storage & cookies
+    if (typeof window !== "undefined" && window.location.search.includes("logout")) {
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch {}
+      const cookieNames = [
+        "p2p_token", "pay2pay_token", "p2p_access_token", "pay2pay_access_token", "pay2pay_auth_token",
+        "p2p_sales_token", "pay2pay_sales_token", "p2p_retailer_token", "p2p_dist_token", "p2p_sd_token", "p2p_admin_token",
+        "p2p_user_role", "pay2pay_user_role", "p2p_user_type_ref_id", "pay2pay_user_type_ref_id",
+        "p2p_active_role", "p2p_active_destination", "p2p_destination", "p2p_account_access",
+        "p2p_active_retailer_id", "p2p_retailer_code", "p2p_retailer_approval_status",
+        "p2p_active_distributor_id", "p2p_distributor_code", "p2p_distributor_ref_id",
+        "p2p_active_super_distributor_id", "p2p_super_distributor_code", "p2p_super_distributor_ref_id",
+        "p2p_session_locked", "p2p_session_locked_at", "p2p_session_last_active", "p2p_session_start_time", "p2p_session_id",
+        "token", "access_token"
+      ];
+      cookieNames.forEach((name) => {
+        document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
+      });
+    }
+
     fetchCaptcha();
     collectSilentTelemetry().then((tele) => {
       setTelemetry(tele);
@@ -733,6 +755,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             </div>
 
             <button
+              type="button"
               onClick={() => setDarkMode(!darkMode)}
               className={`p-2 rounded-xl border transition-colors ${
                 darkMode ? "bg-slate-900 border-slate-800 text-blue-400 hover:bg-slate-800" : "bg-white border-slate-200 text-blue-600 hover:bg-slate-100 shadow-sm"
@@ -774,6 +797,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             </div>
 
             <button
+              type="button"
               onClick={() => setDarkMode(!darkMode)}
               className={`p-2 rounded-xl border transition-colors ${
                 darkMode ? "bg-slate-900 border-slate-800 text-blue-400 hover:bg-slate-800" : "bg-white border-slate-200 text-blue-600 hover:bg-slate-100 shadow-sm"

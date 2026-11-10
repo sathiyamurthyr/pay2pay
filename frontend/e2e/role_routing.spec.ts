@@ -204,7 +204,7 @@ test.describe('P0 Dynamic Role-Based Login & Dashboard Routing', () => {
       } catch {}
       localStorage.clear();
       sessionStorage.clear();
-      window.location.href = '/login';
+      window.location.href = '/logout';
     });
 
     await page.waitForURL('**/login**', { timeout: 15000, waitUntil: 'domcontentloaded' });

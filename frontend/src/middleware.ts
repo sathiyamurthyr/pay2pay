@@ -92,7 +92,30 @@ function getJwtClaims(token?: string | null): Record<string, any> | null {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // ── Logout Route Handler: Clears ALL session cookies & redirects to /login?logout=true ──
+  if (pathname === "/logout") {
+    const res = NextResponse.redirect(new URL("/login?logout=true", request.url));
+    const allCookieNames = [
+      "p2p_token", "pay2pay_token", "p2p_access_token", "pay2pay_access_token", "pay2pay_auth_token",
+      "p2p_sales_token", "pay2pay_sales_token", "p2p_retailer_token", "p2p_dist_token", "p2p_sd_token", "p2p_admin_token",
+      "p2p_user_role", "pay2pay_user_role", "p2p_user_type_ref_id", "pay2pay_user_type_ref_id",
+      "p2p_active_role", "p2p_active_destination", "p2p_destination", "p2p_account_access",
+      "p2p_active_retailer_id", "p2p_retailer_code", "p2p_retailer_approval_status",
+      "p2p_active_distributor_id", "p2p_distributor_code", "p2p_distributor_ref_id",
+      "p2p_active_super_distributor_id", "p2p_super_distributor_code", "p2p_super_distributor_ref_id",
+      "p2p_session_locked", "p2p_session_locked_at", "p2p_session_last_active", "p2p_session_start_time", "p2p_session_id",
+      "token", "access_token"
+    ];
+    allCookieNames.forEach((name) => {
+      res.cookies.set(name, "", { path: "/", maxAge: 0, expires: new Date(0), sameSite: "lax" });
+    });
+    res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+    return res;
+  }
+
   const token =
+    request.cookies.get("p2p_token")?.value ||
+    request.cookies.get("pay2pay_token")?.value ||
     request.cookies.get("p2p_access_token")?.value ||
     request.cookies.get("pay2pay_access_token")?.value ||
     request.cookies.get("pay2pay_auth_token")?.value ||
@@ -193,12 +216,38 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/api/public") ||
     pathname === "/403";
 
+  // Handle logout parameter on login page: /login?logout=true or /login?reason=...
+  const isLogoutQuery = request.nextUrl.searchParams.has("logout") || request.nextUrl.searchParams.get("reason") === "session_terminated";
+  if (pathname === "/login" && isLogoutQuery) {
+    const res = NextResponse.next();
+    const allCookieNames = [
+      "p2p_token", "pay2pay_token", "p2p_access_token", "pay2pay_access_token", "pay2pay_auth_token",
+      "p2p_sales_token", "pay2pay_sales_token", "p2p_retailer_token", "p2p_dist_token", "p2p_sd_token", "p2p_admin_token",
+      "p2p_user_role", "pay2pay_user_role", "p2p_user_type_ref_id", "pay2pay_user_type_ref_id",
+      "p2p_active_role", "p2p_active_destination", "p2p_destination", "p2p_account_access",
+      "p2p_active_retailer_id", "p2p_retailer_code", "p2p_retailer_approval_status",
+      "p2p_active_distributor_id", "p2p_distributor_code", "p2p_distributor_ref_id",
+      "p2p_active_super_distributor_id", "p2p_super_distributor_code", "p2p_super_distributor_ref_id",
+      "p2p_session_locked", "p2p_session_locked_at", "p2p_session_last_active", "p2p_session_start_time", "p2p_session_id",
+      "token", "access_token"
+    ];
+    allCookieNames.forEach((name) => {
+      res.cookies.set(name, "", { path: "/", maxAge: 0, expires: new Date(0), sameSite: "lax" });
+    });
+    res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+    return res;
+  }
+
   // If user is already authenticated and visits a login page, redirect to active dashboard
   if (isLoginRoute) {
     if (isAuthenticated) {
       return applySecurityHeaders(
         NextResponse.redirect(new URL(portalConfig.dashboard, request.url))
       );
+    }
+    // Single common login application: redirect old specific login routes to /login
+    if (pathname !== "/login") {
+      return applySecurityHeaders(NextResponse.redirect(new URL("/login", request.url)));
     }
     return applySecurityHeaders(NextResponse.next());
   }
@@ -253,8 +302,8 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Universal Matcher: Protect ALL routes except static files, images, icons, and API routes.
+     * Universal Matcher: Protect ALL routes except Next.js internals, static files, images, icons, and API routes.
      */
-    "/((?!api|_next/static|_next/image|branding|images|favicon.*|apple-touch-icon.*|icon.*|site\\.webmanifest|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|mp4)$|uploads).*)",
+    "/((?!api|_next|branding|images|favicon.*|apple-touch-icon.*|icon.*|site\\.webmanifest|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|mp4)$|uploads).*)",
   ],
 };

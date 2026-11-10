@@ -543,16 +543,40 @@ async def login_with_password(
         or "retailer." in host_header
     )
 
-    # Common portal resets explicit default-retailer bias to allow dynamic role cascade
-    if is_common_portal and req_portal not in ("SUPER_DISTRIBUTOR", "DISTRIBUTOR", "DIST", "SD"):
+    # Common portal resets any referrer-based bias so routing is 100% dynamic
+    if is_common_portal:
+        is_super_distributor_portal = False
+        is_distributor_portal = False
         is_retailer_portal = False
+        is_admin_portal = False
 
     is_sd_auth_user = bool(auth_role in ("SUPER_DISTRIBUTOR", "SD", "MASTER_DISTRIBUTOR"))
-    should_check_sd = (
-        is_super_distributor_portal
-        or is_sd_auth_user
-        or (is_common_portal and not is_admin_portal and not is_distributor_portal and not existing_retailer)
-    )
+    is_dist_auth_user = bool(auth_role in ("DISTRIBUTOR", "DIST"))
+    is_ret_auth_user = bool(auth_role in ("RETAILER", "MERCHANT"))
+
+    if is_common_portal:
+        if is_sd_auth_user:
+            should_check_sd = True
+            should_check_distributor = False
+        elif is_dist_auth_user:
+            should_check_sd = False
+            should_check_distributor = True
+        elif is_ret_auth_user or existing_retailer:
+            should_check_sd = False
+            should_check_distributor = False
+            is_retailer_portal = True
+        else:
+            should_check_sd = True
+            should_check_distributor = True
+    else:
+        should_check_sd = (
+            is_super_distributor_portal
+            or is_sd_auth_user
+        )
+        should_check_distributor = (
+            is_distributor_portal
+            or is_dist_auth_user
+        )
 
     # ── SUPER DISTRIBUTOR AUTHENTICATION VIA STORED PROCEDURE ────────────────
     if should_check_sd:
@@ -753,19 +777,21 @@ async def login_with_password(
         or "/retailer" in referer_header
         or "retailer." in host_header
     )
-    if is_admin_portal or is_distributor_portal:
-        is_retailer_portal = False
-    if is_distributor_portal:
-        is_admin_portal = False
+    if is_common_portal:
+        is_retailer_portal = not (is_sd_auth_user or is_dist_auth_user)
+    else:
+        if is_admin_portal or is_distributor_portal:
+            is_retailer_portal = False
+        if is_distributor_portal:
+            is_admin_portal = False
 
     # ── DISTRIBUTOR AUTHENTICATION VIA STORED PROCEDURE ──
-    is_dist_auth_user = bool(auth_user and getattr(auth_user, "role", "").upper() == "DISTRIBUTOR")
-    should_check_distributor = (
-        is_distributor_portal
-        or is_dist_auth_user
-        or (is_common_portal and not is_admin_portal and not existing_retailer)
-        or (not is_admin_portal and not is_retailer_portal and not existing_retailer)
-    )
+    if not is_common_portal:
+        is_dist_auth_user = bool(auth_user and getattr(auth_user, "role", "").upper() == "DISTRIBUTOR")
+        should_check_distributor = (
+            is_distributor_portal
+            or is_dist_auth_user
+        )
 
     if should_check_distributor:
         distributor_record = None

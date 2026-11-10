@@ -18,7 +18,7 @@ export default function RetailerLoginPage() {
 
       {/* Right 42% Auth Panel — always full width mobile, scrollable on desktop */}
       <div className="w-full lg:w-[42%] xl:w-[40%] 2xl:w-[38%] min-h-screen flex flex-col justify-center overflow-y-auto shrink-0">
-        <AuthPanel portalRole="RETAILER" darkMode={darkMode} setDarkMode={setDarkMode} />
+        <AuthPanel portalRole="COMMON" darkMode={darkMode} setDarkMode={setDarkMode} />
       </div>
     </main>
   );
