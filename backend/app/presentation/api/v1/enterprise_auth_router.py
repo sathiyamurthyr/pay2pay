@@ -2593,10 +2593,16 @@ async def enterprise_logout(request: Request, response: Response, db: AsyncSessi
 
     # Clear authentication cookies across paths and domains
     cookie_names = [
+        "p2p_token", "pay2pay_token",
         "p2p_access_token", "pay2pay_access_token", "pay2pay_auth_token",
         "p2p_sales_token", "pay2pay_sales_token",
         "p2p_retailer_token", "p2p_dist_token", "p2p_sd_token", "p2p_admin_token",
         "p2p_user_role", "pay2pay_user_role", "pay2pay_active_role",
+        "p2p_user_type_ref_id", "pay2pay_user_type_ref_id",
+        "p2p_active_role", "p2p_active_destination",
+        "p2p_active_retailer_id", "p2p_retailer_code",
+        "p2p_active_distributor_id", "p2p_distributor_code", "p2p_distributor_ref_id",
+        "p2p_active_super_distributor_id", "p2p_super_distributor_code", "p2p_super_distributor_ref_id",
         "p2p_session_locked", "p2p_session_locked_at", "p2p_session_last_active",
         "p2p_session_start_time", "p2p_session_id", "p2p_destination",
         "access_token", "token"

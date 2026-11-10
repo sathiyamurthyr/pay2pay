@@ -626,9 +626,9 @@ async def get_retailer_profile(
     }
 
     # 8. Build Dynamic KYC Data & Documents
-    raw_pan = pan_record.pan_number if pan_record else (verif.pan_number if verif else draft_data.get("pan_number"))
-    raw_aadhaar = (aadhaar_record.aadhaar_masked if aadhaar_record else draft_data.get("aadhaar_number")) or (verif.aadhaar_number if verif else None)
-    raw_gst = gst_record.gst_number if gst_record else (verif.gst_number if verif else draft_data.get("gst_number"))
+    raw_pan = pan_record.pan_number if pan_record else (getattr(verif, "pan_number", None) if verif else draft_data.get("pan_number"))
+    raw_aadhaar = (aadhaar_record.aadhaar_masked if aadhaar_record else draft_data.get("aadhaar_number")) or (getattr(verif, "aadhaar_number", None) if verif else None)
+    raw_gst = gst_record.gst_number if gst_record else (getattr(verif, "gst_number", None) if verif else draft_data.get("gst_number"))
 
     # Map all documents
     formatted_docs = []
