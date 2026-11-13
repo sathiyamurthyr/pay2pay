@@ -3,9 +3,6 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Providers from "./providers";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 export async function generateMetadata(): Promise<Metadata> {
   try {
     const headersList = await headers();
@@ -26,6 +23,26 @@ export async function generateMetadata(): Promise<Metadata> {
           ],
           shortcut: "/branding/pay2pay-logo.png",
           apple: "/branding/pay2pay-logo.png",
+        },
+        manifest: "/site.webmanifest",
+      };
+    }
+
+    if (host.includes("smspay")) {
+      return {
+        title: {
+          default: "SMSPAY FinTech Retailer Platform",
+          template: "%s | SMSPAY",
+        },
+        description: "Enterprise Merchant Banking & Settlement Terminal - SMSPAY",
+        icons: {
+          icon: [
+            { url: "/branding/smspay-mark.svg", type: "image/svg+xml" },
+            { url: "/branding/favicon.png", type: "image/png" },
+            { url: "/favicon.ico" },
+          ],
+          shortcut: "/branding/smspay-mark.svg",
+          apple: "/branding/smspay-mark.svg",
         },
         manifest: "/site.webmanifest",
       };
