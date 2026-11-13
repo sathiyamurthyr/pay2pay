@@ -2,9 +2,13 @@
 
 import React from "react";
 import { motion, useReducedMotion } from "framer-motion";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 export const AnimatedAuroraBackground: React.FC<{ darkMode?: boolean }> = ({ darkMode = true }) => {
   const shouldReduceMotion = useReducedMotion();
+  const { primary_colour, secondary_colour } = useCompanyBranding();
+  const brandPrimary = primary_colour || "#A20A3A";
+  const brandSecondary = secondary_colour || "#EDC11E";
 
   // Floating currency & FinTech symbols data
   const PARTICLES = [
@@ -39,7 +43,10 @@ export const AnimatedAuroraBackground: React.FC<{ darkMode?: boolean }> = ({ dar
               repeat: Infinity,
               ease: "easeInOut"
             }}
-            className="absolute -top-32 -left-32 w-[500px] h-[500px] 2xl:w-[700px] 2xl:h-[700px] bg-gradient-to-r from-[#A20A3A]/10 via-[#FFF0F4] to-[#EDC11E]/10 rounded-full blur-[100px]"
+            style={{
+              background: `radial-gradient(circle, ${brandPrimary}22 0%, ${brandSecondary}15 60%, transparent 100%)`,
+            }}
+            className="absolute -top-32 -left-32 w-[500px] h-[500px] 2xl:w-[700px] 2xl:h-[700px] rounded-full blur-[100px]"
           />
 
           <motion.div
@@ -54,7 +61,10 @@ export const AnimatedAuroraBackground: React.FC<{ darkMode?: boolean }> = ({ dar
               ease: "easeInOut",
               delay: 2
             }}
-            className="absolute -bottom-40 -right-32 w-[550px] h-[550px] 2xl:w-[750px] 2xl:h-[750px] bg-gradient-to-tr from-[#EDC11E]/10 via-[#FFF3C4] to-[#A20A3A]/10 rounded-full blur-[120px]"
+            style={{
+              background: `radial-gradient(circle, ${brandSecondary}25 0%, ${brandPrimary}15 60%, transparent 100%)`,
+            }}
+            className="absolute -bottom-40 -right-32 w-[550px] h-[550px] 2xl:w-[750px] 2xl:h-[750px] rounded-full blur-[120px]"
           />
 
           <motion.div
@@ -67,21 +77,29 @@ export const AnimatedAuroraBackground: React.FC<{ darkMode?: boolean }> = ({ dar
               repeat: Infinity,
               ease: "easeInOut"
             }}
-            className="absolute top-1/3 left-1/3 w-[400px] h-[400px] 2xl:w-[600px] 2xl:h-[600px] bg-gradient-to-br from-[#A20A3A]/10 via-[#FFF0F4] to-[#EDC11E]/10 rounded-full blur-[90px]"
+            style={{
+              background: `radial-gradient(circle, ${brandPrimary}20 0%, ${brandSecondary}15 60%, transparent 100%)`,
+            }}
+            className="absolute top-1/3 left-1/3 w-[400px] h-[400px] 2xl:w-[600px] 2xl:h-[600px] rounded-full blur-[90px]"
           />
         </>
       )}
 
       {/* 3. Soft Moving Light Rays Overlay */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#A20A3A]/5 via-transparent to-transparent opacity-80" />
+      <div
+        className="absolute inset-0 opacity-80"
+        style={{
+          background: `radial-gradient(ellipse at top, ${brandPrimary}10, transparent 70%)`,
+        }}
+      />
 
       {/* 4. Background Animated Line Graph SVG with Telemetry Data Nodes */}
       <div className="absolute top-1/4 left-0 w-full opacity-20 pointer-events-none">
-        <svg viewBox="0 0 1000 300" fill="none" stroke="currentColor" className="w-full h-auto text-[#A20A3A]">
+        <svg viewBox="0 0 1000 300" fill="none" stroke="currentColor" className="w-full h-auto" style={{ color: brandPrimary }}>
           <motion.path
             d="M 0,150 Q 150,80 300,160 T 600,120 T 900,180 L 1000,100"
             fill="none"
-            stroke="#A20A3A"
+            stroke={brandPrimary}
             strokeWidth="2"
             strokeDasharray="6 6"
             initial={{ pathLength: 0 }}
@@ -96,14 +114,14 @@ export const AnimatedAuroraBackground: React.FC<{ darkMode?: boolean }> = ({ dar
             { cx: 900, cy: 180 }
           ].map((dot, i) => (
             <g key={i}>
-              <circle cx={dot.cx} cy={dot.cy} r="4" fill="#A20A3A" className="fill-[#A20A3A]" />
+              <circle cx={dot.cx} cy={dot.cy} r="4" fill={brandPrimary} />
               <motion.circle
                 cx={dot.cx}
                 cy={dot.cy}
                 r="10"
                 fill="none"
-                stroke="#EDC11E"
-                className="stroke-[#EDC11E] stroke-1 fill-none"
+                stroke={brandSecondary}
+                className="stroke-1 fill-none"
                 animate={{ scale: [1, 1.8, 1], opacity: [0.8, 0, 0.8] }}
                 transition={{ duration: 2.5, repeat: Infinity, delay: i * 0.5 }}
               />

@@ -25,6 +25,8 @@ import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = false }) => {
   const shouldReduceMotion = useReducedMotion();
   const { display_name, logo_url, primary_colour, secondary_colour } = useCompanyBranding();
+  const brandPrimary = primary_colour || "#A20A3A";
+  const brandSecondary = secondary_colour || "#EDC11E";
 
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -115,13 +117,14 @@ export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = false
           {/* RBI Compliance Badge */}
           <div className="mb-3 2xl:mb-5">
             <div
-              className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-[11px] 2xl:text-xs font-black uppercase tracking-wider backdrop-blur-md relative overflow-hidden ${
-                darkMode
-                  ? "bg-gradient-to-r from-[#A20A3A]/20 via-[#85072F]/15 to-[#EDC11E]/20 border-[#A20A3A]/30 text-[#EDC11E]"
-                  : "bg-gradient-to-r from-[#FFF0F4] via-[#FAF8F9] to-[#FFF8DC] border-[#A20A3A]/20 text-[#A20A3A] shadow-sm"
-              }`}
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full border text-[11px] 2xl:text-xs font-black uppercase tracking-wider backdrop-blur-md relative overflow-hidden shadow-sm"
+              style={{
+                borderColor: `${brandPrimary}33`,
+                background: `linear-gradient(to right, ${brandPrimary}15, ${brandSecondary}15)`,
+                color: brandPrimary,
+              }}
             >
-              <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-400" />
+              <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-500" />
               <span>RBI Compliant FinTech Infrastructure</span>
             </div>
           </div>
@@ -134,7 +137,12 @@ export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = false
               }`}
             >
               Power Every{" "}
-              <span className="bg-gradient-to-r from-[#A20A3A] via-[#C42555] to-[#EDC11E] bg-clip-text text-transparent">
+              <span
+                className="bg-clip-text text-transparent"
+                style={{
+                  backgroundImage: `linear-gradient(to right, ${brandPrimary}, ${brandSecondary})`,
+                }}
+              >
                 Retail Business
               </span>
             </h2>
@@ -189,31 +197,30 @@ export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = false
               },
             ].map((card, idx) => {
               const IconComp = card.icon;
-              const colorMap: Record<string, string> = {
-                blue: "bg-[#FFF0F4] text-[#A20A3A] border-[#FFD6E2]",
-                purple: "bg-[#FFF8DC] text-[#EDC11E] border-[#FFF3C4]",
-                emerald: "bg-emerald-50 text-emerald-600 border-emerald-200",
-                cyan: "bg-[#FFF0F4] text-[#85072F] border-[#FFD6E2]",
-              };
 
               return (
                 <div
                   key={idx}
                   onMouseMove={(e) => handleCardMouseMove(e, idx)}
                   onMouseLeave={() => setHoveredCard(null)}
-                  className="relative p-3.5 2xl:p-4 rounded-2xl border border-[#E8E2E5] bg-[#FFFFFF] shadow-sm flex items-center gap-3 group overflow-hidden transition-all duration-200 cursor-default hover:border-[#A20A3A]/40 hover:shadow-md"
+                  className="relative p-3.5 2xl:p-4 rounded-2xl border border-[#E8E2E5] bg-[#FFFFFF] shadow-sm flex items-center gap-3 group overflow-hidden transition-all duration-200 cursor-default hover:shadow-md"
                 >
                   {/* Mouse spotlight glow */}
                   {hoveredCard === idx && (
                     <div
                       className="absolute inset-0 pointer-events-none opacity-30 transition-opacity duration-300"
                       style={{
-                        background: `radial-gradient(180px circle at ${mousePos.x}px ${mousePos.y}px, rgba(162,10,58,0.12), transparent 80%)`,
+                        background: `radial-gradient(180px circle at ${mousePos.x}px ${mousePos.y}px, ${brandPrimary}20, transparent 80%)`,
                       }}
                     />
                   )}
                   <div
-                    className={`w-9 h-9 2xl:w-11 2xl:h-11 rounded-xl flex items-center justify-center shrink-0 border ${colorMap[card.color]}`}
+                    className="w-9 h-9 2xl:w-11 2xl:h-11 rounded-xl flex items-center justify-center shrink-0 border"
+                    style={{
+                      backgroundColor: card.color === "emerald" ? "#ECFDF5" : `${brandPrimary}10`,
+                      borderColor: card.color === "emerald" ? "#A7F3D0" : `${brandPrimary}25`,
+                      color: card.color === "emerald" ? "#059669" : brandPrimary,
+                    }}
                   >
                     <IconComp className="w-4 h-4 2xl:w-5 2xl:h-5" />
                   </div>
@@ -244,9 +251,9 @@ export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = false
               return (
                 <div
                   key={b.title}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E8E2E5] bg-[#FFFFFF] text-[#292329] text-[11px] 2xl:text-xs font-semibold transition-all cursor-default hover:border-[#A20A3A]/40 hover:text-[#A20A3A] shadow-xs"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E8E2E5] bg-[#FFFFFF] text-[#292329] text-[11px] 2xl:text-xs font-semibold transition-all cursor-default shadow-xs"
                 >
-                  <IconComponent className="w-3.5 h-3.5 text-[#A20A3A] shrink-0" />
+                  <IconComponent className="w-3.5 h-3.5 shrink-0" style={{ color: brandPrimary }} />
                   <span>{b.title}</span>
                 </div>
               );
@@ -265,26 +272,31 @@ export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = false
                 value: <CountUpNumber target={50000} suffix="+" duration={2.2} />,
                 label: "Active Retailers",
                 color: "text-[#292329]",
+                customColor: undefined,
               },
               {
                 value: <CountUpNumber target={5000} prefix="₹" suffix=" Cr+" duration={2.4} />,
                 label: "Transactions",
                 color: "text-[#292329]",
+                customColor: undefined,
               },
               {
                 value: <CountUpNumber target={99.99} decimals={2} suffix="%" duration={2} />,
                 label: "Success Rate",
                 color: "text-emerald-600",
+                customColor: undefined,
               },
               {
                 value: "24x7",
                 label: "Support",
-                color: "text-[#A20A3A]",
+                color: "",
+                customColor: brandPrimary,
               },
             ].map((stat, i) => (
               <div key={i}>
                 <p
                   className={`text-lg xl:text-xl 2xl:text-3xl font-black leading-tight ${stat.color}`}
+                  style={stat.customColor ? { color: stat.customColor } : {}}
                 >
                   {stat.value}
                 </p>
@@ -297,7 +309,12 @@ export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = false
 
           {/* Live Ticker — seamless infinite scroll via CSS animation */}
           <div
-            className="overflow-hidden rounded-xl border border-[#FFD6E2] bg-[#FFF0F4] text-[#A20A3A] py-2 2xl:py-2.5 shadow-xs"
+            className="overflow-hidden rounded-xl border py-2 2xl:py-2.5 shadow-xs"
+            style={{
+              borderColor: `${brandPrimary}25`,
+              backgroundColor: `${brandPrimary}0C`,
+              color: brandPrimary,
+            }}
           >
             <div className="flex items-center">
               <motion.div
