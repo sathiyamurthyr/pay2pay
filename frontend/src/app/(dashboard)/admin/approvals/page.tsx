@@ -270,7 +270,7 @@ export default function AdminApprovalsPage() {
     <div className="max-w-7xl mx-auto space-y-6 pb-16">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl bg-[#0F172A] px-5 py-3.5 text-xs font-bold text-white shadow-2xl animate-in slide-in-from-bottom-3">
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl bg-[#FFFFFF] px-5 py-3.5 text-xs font-bold text-white shadow-2xl animate-in slide-in-from-bottom-3">
           <ShieldCheck className="w-5 h-5 text-[#4ADE80]" />
           <span>{toastMessage}</span>
           <button onClick={() => setToastMessage(null)} className="ml-2 text-[#94A3B8] hover:text-white">
@@ -287,7 +287,7 @@ export default function AdminApprovalsPage() {
               <ShieldCheck className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-extrabold text-[#0F172A] tracking-tight flex items-center gap-2">
+              <h1 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight flex items-center gap-2">
                 KYC &amp; Registration Approvals
                 <span className="px-2.5 py-0.5 rounded-full bg-[#DCFCE7] text-[#15803D] text-[10px] font-black tracking-widest uppercase border border-[#BBF7D0]">
                   LIVE DATABASE
@@ -375,7 +375,7 @@ export default function AdminApprovalsPage() {
           onClick={() => setActiveTab("ret")}
           className={`flex items-center gap-2.5 px-6 py-3 rounded-t-xl text-xs font-extrabold transition-all border-b-2 cursor-pointer ${activeTab === "ret"
               ? "border-[#6C63FF] text-[#581C87] bg-[#F5F3FF]"
-              : "border-transparent text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8FAFC]"
+              : "border-transparent text-[#64748B] hover:text-[#FFFFFF] hover:bg-[#F8FAFC]"
             }`}
         >
           <Store className="w-4 h-4" /> Retailers (Ret)
@@ -388,7 +388,7 @@ export default function AdminApprovalsPage() {
           onClick={() => setActiveTab("sd")}
           className={`flex items-center gap-2.5 px-6 py-3 rounded-t-xl text-xs font-extrabold transition-all border-b-2 cursor-pointer ${activeTab === "sd"
               ? "border-[#F59E0B] text-[#B45309] bg-[#FFFBEB]"
-              : "border-transparent text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8FAFC]"
+              : "border-transparent text-[#64748B] hover:text-[#FFFFFF] hover:bg-[#F8FAFC]"
             }`}
         >
           <Building2 className="w-4 h-4" /> Super Distributors (SD)
@@ -401,7 +401,7 @@ export default function AdminApprovalsPage() {
           onClick={() => setActiveTab("dist")}
           className={`flex items-center gap-2.5 px-6 py-3 rounded-t-xl text-xs font-extrabold transition-all border-b-2 cursor-pointer ${activeTab === "dist"
               ? "border-[#3B82F6] text-[#1D4ED8] bg-[#EFF6FF]"
-              : "border-transparent text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8FAFC]"
+              : "border-transparent text-[#64748B] hover:text-[#FFFFFF] hover:bg-[#F8FAFC]"
             }`}
         >
           <Users className="w-4 h-4" /> Distributors (Dist)
@@ -424,7 +424,7 @@ export default function AdminApprovalsPage() {
                 } by name, phone, PAN…`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 pr-3 py-1.5 w-60 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[12px] font-medium text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#6C63FF] focus:ring-2 focus:ring-[#6C63FF]/15 transition-all"
+              className="pl-8 pr-3 py-1.5 w-60 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[12px] font-medium text-[#FFFFFF] placeholder-[#94A3B8] focus:outline-none focus:border-[#6C63FF] focus:ring-2 focus:ring-[#6C63FF]/15 transition-all"
             />
           </div>
 
@@ -632,7 +632,7 @@ export default function AdminApprovalsPage() {
                 return (
                   <tr key={item.verification_id || item.public_id || idx} className="hover:bg-[#F9FAFB] transition-colors">
                     <td className="p-4">
-                      <div className="font-extrabold text-[#0F172A] text-sm">{title}</div>
+                      <div className="font-extrabold text-[#FFFFFF] text-sm">{title}</div>
                       <div className="font-mono text-[11px] text-[#64748B] mt-0.5">ID: {code}</div>
                     </td>
 
@@ -683,18 +683,18 @@ export default function AdminApprovalsPage() {
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-4">
               <div>
-                <h2 className="text-xl font-extrabold text-[#0F172A] flex items-center gap-2">
+                <h2 className="text-xl font-extrabold text-[#FFFFFF] flex items-center gap-2">
                   <ShieldCheck className="w-6 h-6 text-[#2563EB]" />
                   {selectedItem.retailer_name || selectedItem.business_name || selectedItem.shop_name}
                 </h2>
                 <p className="text-xs text-[#64748B] mt-0.5 font-medium">
-                  Registration ID: <span className="font-mono font-bold text-[#0F172A]">{selectedItem.registration_id || selectedItem.retailer_id}</span>
+                  Registration ID: <span className="font-mono font-bold text-[#FFFFFF]">{selectedItem.registration_id || selectedItem.retailer_id}</span>
                 </p>
               </div>
 
               <button
                 onClick={() => setSelectedItem(null)}
-                className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A]"
+                className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#FFFFFF]"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -709,38 +709,38 @@ export default function AdminApprovalsPage() {
             {/* Partner Details Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-2">
-                <h3 className="font-extrabold text-[#0F172A] border-b border-[#E2E8F0] pb-2 uppercase tracking-wider text-[11px]">
+                <h3 className="font-extrabold text-[#FFFFFF] border-b border-[#E2E8F0] pb-2 uppercase tracking-wider text-[11px]">
                   Merchant Profile
                 </h3>
                 <div>
                   <span className="font-bold text-[#64748B]">Name:</span>{" "}
-                  <span className="font-extrabold text-[#0F172A]">{selectedItem.retailer_name || selectedItem.owner_name}</span>
+                  <span className="font-extrabold text-[#FFFFFF]">{selectedItem.retailer_name || selectedItem.owner_name}</span>
                 </div>
                 <div>
                   <span className="font-bold text-[#64748B]">Mobile:</span>{" "}
-                  <span className="font-mono font-bold text-[#0F172A]">{selectedItem.mobile_number || selectedItem.mobile}</span>
+                  <span className="font-mono font-bold text-[#FFFFFF]">{selectedItem.mobile_number || selectedItem.mobile}</span>
                 </div>
                 <div>
                   <span className="font-bold text-[#64748B]">Email:</span>{" "}
-                  <span className="font-bold text-[#0F172A]">{selectedItem.email || "N/A"}</span>
+                  <span className="font-bold text-[#FFFFFF]">{selectedItem.email || "N/A"}</span>
                 </div>
               </div>
 
               <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-2">
-                <h3 className="font-extrabold text-[#0F172A] border-b border-[#E2E8F0] pb-2 uppercase tracking-wider text-[11px]">
+                <h3 className="font-extrabold text-[#FFFFFF] border-b border-[#E2E8F0] pb-2 uppercase tracking-wider text-[11px]">
                   Tax &amp; Location
                 </h3>
                 <div>
                   <span className="font-bold text-[#64748B]">PAN Number:</span>{" "}
-                  <span className="font-mono font-bold text-[#0F172A]">{selectedItem.pan_number || "N/A"}</span>
+                  <span className="font-mono font-bold text-[#FFFFFF]">{selectedItem.pan_number || "N/A"}</span>
                 </div>
                 <div>
                   <span className="font-bold text-[#64748B]">GST Number:</span>{" "}
-                  <span className="font-mono font-bold text-[#0F172A]">{selectedItem.gst_number || "N/A"}</span>
+                  <span className="font-mono font-bold text-[#FFFFFF]">{selectedItem.gst_number || "N/A"}</span>
                 </div>
                 <div>
                   <span className="font-bold text-[#64748B]">Location:</span>{" "}
-                  <span className="font-bold text-[#0F172A]">{selectedItem.district || selectedItem.city || "Chennai"}, {selectedItem.state || "Tamil Nadu"}</span>
+                  <span className="font-bold text-[#FFFFFF]">{selectedItem.district || selectedItem.city || "Chennai"}, {selectedItem.state || "Tamil Nadu"}</span>
                 </div>
 
                 {/* Cashfree v2 Realtime PAN Verification */}
@@ -753,7 +753,7 @@ export default function AdminApprovalsPage() {
             </div>
 
             {/* Featured Live Video KYC Liveness Audit & Player Section */}
-            <div className="p-5 rounded-3xl border-2 border-[#2563EB]/30 bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#0F172A] text-white space-y-4 shadow-xl">
+            <div className="p-5 rounded-3xl border-2 border-[#2563EB]/30 bg-gradient-to-br from-[#FFFFFF] via-[#1E293B] to-[#FFFFFF] text-white space-y-4 shadow-xl">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-[#2563EB] text-white flex items-center justify-center shadow-lg shadow-blue-500/30 shrink-0">
@@ -766,7 +766,7 @@ export default function AdminApprovalsPage() {
                         100% LIVENESS MATCH
                       </span>
                     </h3>
-                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                    <p className="text-[11px] text-[#625B60] font-medium mt-0.5">
                       Step 12 Progressive Onboarding Video Recording · Backblaze B2 Encrypted Bucket Stream
                     </p>
                   </div>
@@ -794,7 +794,7 @@ export default function AdminApprovalsPage() {
               {/* Video Player & Biometrics Split Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
                 {/* HTML5 Video Player Container */}
-                <div className="lg:col-span-7 bg-[#090D16] rounded-2xl overflow-hidden border border-[#334155] shadow-inner relative flex flex-col justify-center min-h-[220px]">
+                <div className="lg:col-span-7 bg-[#FFFFFF] rounded-2xl overflow-hidden border border-[#334155] shadow-inner relative flex flex-col justify-center min-h-[220px]">
                   <video
                     controls
                     playsInline
@@ -815,25 +815,25 @@ export default function AdminApprovalsPage() {
                       <ShieldCheck className="w-4 h-4 text-emerald-400" /> Biometric AI Audit Metrics
                     </h4>
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between p-2 rounded-xl bg-[#090D16]/80 border border-white/5">
-                        <span className="text-slate-400 font-bold text-[11px]">Face Match Confidence:</span>
+                      <div className="flex items-center justify-between p-2 rounded-xl bg-[#FFFFFF]/80 border border-white/5">
+                        <span className="text-[#625B60] font-bold text-[11px]">Face Match Confidence:</span>
                         <span className="text-emerald-400 font-black font-mono text-[11px]">99.8% (Matched)</span>
                       </div>
-                      <div className="flex items-center justify-between p-2 rounded-xl bg-[#090D16]/80 border border-white/5">
-                        <span className="text-slate-400 font-bold text-[11px]">Liveness Blink / Head Turn:</span>
+                      <div className="flex items-center justify-between p-2 rounded-xl bg-[#FFFFFF]/80 border border-white/5">
+                        <span className="text-[#625B60] font-bold text-[11px]">Liveness Blink / Head Turn:</span>
                         <span className="text-emerald-400 font-black font-mono text-[11px]">Active Real Human</span>
                       </div>
-                      <div className="flex items-center justify-between p-2 rounded-xl bg-[#090D16]/80 border border-white/5">
-                        <span className="text-slate-400 font-bold text-[11px]">Geotag &amp; IP Integrity:</span>
+                      <div className="flex items-center justify-between p-2 rounded-xl bg-[#FFFFFF]/80 border border-white/5">
+                        <span className="text-[#625B60] font-bold text-[11px]">Geotag &amp; IP Integrity:</span>
                         <span className="text-[#60A5FA] font-black font-mono text-[11px]">Tamil Nadu, IN</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="p-2.5 rounded-xl bg-[#090D16]/90 border border-white/10">
-                    <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Spoken Compliance Declaration</p>
-                    <p className="text-[11px] text-slate-200 italic font-medium leading-relaxed">
-                      &quot;{selectedItem.script_text || `I confirm that I am registering as a Pay2Pay Retailer for ${selectedItem.shop_name || selectedItem.business_name || "Merchant Store"}.`}&quot;
+                  <div className="p-2.5 rounded-xl bg-[#FFFFFF]/90 border border-white/10">
+                    <p className="text-[10px] uppercase tracking-wider text-[#625B60] font-bold mb-1">Spoken Compliance Declaration</p>
+                    <p className="text-[11px] text-[#292329] italic font-medium leading-relaxed">
+                      &quot;{selectedItem.script_text || `I confirm that I am registering as a Near4You Retailer for ${selectedItem.shop_name || selectedItem.business_name || "Merchant Store"}.`}&quot;
                     </p>
                   </div>
                 </div>
@@ -919,7 +919,7 @@ export default function AdminApprovalsPage() {
                     id: "shop_photo",
                     label: "Shop Exterior Photo",
                     category: "Storefront Geotagged",
-                    url: selectedItem.shop_photo_url || "https://cdn.pay2pay.in/shops/shop_front.jpg",
+                    url: selectedItem.shop_photo_url || "https://cdn.near4you.store/shops/shop_front.jpg",
                     type: "SHOP_PHOTO",
                     docNumber: selectedItem.shop_name || selectedItem.business_name || "Store Front",
                     holderName: selectedItem.district || "Location Proof",
@@ -954,7 +954,7 @@ export default function AdminApprovalsPage() {
                             <Icon className="w-3.5 h-3.5" />
                           </div>
                           <div className="truncate">
-                            <h4 className="text-xs font-black text-[#0F172A] truncate leading-tight">{doc.label}</h4>
+                            <h4 className="text-xs font-black text-[#FFFFFF] truncate leading-tight">{doc.label}</h4>
                             <p className="text-[10px] font-bold text-[#64748B] truncate">{doc.category}</p>
                           </div>
                         </div>
@@ -978,10 +978,10 @@ export default function AdminApprovalsPage() {
                           setLightboxZoom(1);
                           setLightboxRotation(0);
                         }}
-                        className="relative h-44 w-full bg-[#0F172A] cursor-pointer overflow-hidden flex items-center justify-center select-none"
+                        className="relative h-44 w-full bg-[#FFFFFF] cursor-pointer overflow-hidden flex items-center justify-center select-none"
                       >
                         {doc.isVideo ? (
-                          <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#0F172A]">
+                          <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-br from-[#FFFFFF] via-[#1E293B] to-[#FFFFFF]">
                             <video
                               preload="metadata"
                               muted
@@ -1010,7 +1010,7 @@ export default function AdminApprovalsPage() {
                               className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
                             />
                             {/* Hover overlay */}
-                            <div className="absolute inset-0 bg-[#0F172A]/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 text-white backdrop-blur-[2px]">
+                            <div className="absolute inset-0 bg-[#FFFFFF]/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 text-white backdrop-blur-[2px]">
                               <div className="p-2.5 rounded-full bg-[#2563EB] text-white shadow-lg">
                                 <ZoomIn className="w-5 h-5" />
                               </div>
@@ -1019,13 +1019,13 @@ export default function AdminApprovalsPage() {
                           </>
                         ) : (
                           /* Realistic High-Fidelity SVG ID / Document Card Fallback Graphic */
-                          <div className="w-full h-full p-3 flex flex-col justify-between bg-gradient-to-br from-[#1E293B] to-[#0F172A] text-white relative overflow-hidden group-hover:scale-102 transition-transform">
+                          <div className="w-full h-full p-3 flex flex-col justify-between bg-gradient-to-br from-[#1E293B] to-[#FFFFFF] text-white relative overflow-hidden group-hover:scale-102 transition-transform">
                             <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-[#2563EB]/15 blur-xl pointer-events-none" />
                             <div className="flex items-center justify-between border-b border-white/10 pb-2">
                               <div className="flex items-center gap-1.5">
                                 <ShieldCheck className="w-4 h-4 text-[#60A5FA]" />
-                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-200">
-                                  {doc.type === "PAN" ? "Income Tax Dept" : doc.type.includes("AADHAAR") ? "Govt of India" : "Pay2Pay Verified"}
+                                <span className="text-[10px] font-black uppercase tracking-wider text-[#292329]">
+                                  {doc.type === "PAN" ? "Income Tax Dept" : doc.type.includes("AADHAAR") ? "Govt of India" : "Near4You Verified"}
                                 </span>
                               </div>
                               <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded">
@@ -1034,12 +1034,12 @@ export default function AdminApprovalsPage() {
                             </div>
 
                             <div className="space-y-1 my-auto">
-                              <p className="text-[9px] uppercase tracking-widest text-slate-400 font-bold">Holder / Entity</p>
+                              <p className="text-[9px] uppercase tracking-widest text-[#625B60] font-bold">Holder / Entity</p>
                               <p className="text-xs font-black text-white truncate">{doc.holderName}</p>
                               <p className="font-mono text-[11px] font-bold text-[#60A5FA] truncate mt-1">{doc.docNumber}</p>
                             </div>
 
-                            <div className="flex items-center justify-between pt-2 border-t border-white/10 text-[9px] text-slate-400 font-medium">
+                            <div className="flex items-center justify-between pt-2 border-t border-white/10 text-[9px] text-[#625B60] font-medium">
                               <span>Security Watermark: VERIFIED</span>
                               <span className="text-blue-400 font-bold flex items-center gap-1">
                                 <Eye className="w-3 h-3" /> Click to Inspect
@@ -1076,7 +1076,7 @@ export default function AdminApprovalsPage() {
                             href={doc.url}
                             target="_blank"
                             rel="noreferrer"
-                            className="p-1.5 rounded-lg border border-[#CBD5E1] text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8FAFC] transition-all"
+                            className="p-1.5 rounded-lg border border-[#CBD5E1] text-[#64748B] hover:text-[#FFFFFF] hover:bg-[#F8FAFC] transition-all"
                             title="Open direct file URL in new tab"
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
@@ -1087,7 +1087,7 @@ export default function AdminApprovalsPage() {
                           <a
                             href={doc.url}
                             download={`${doc.label.replace(/\s+/g, "_")}.png`}
-                            className="p-1.5 rounded-lg border border-[#CBD5E1] text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8FAFC] transition-all"
+                            className="p-1.5 rounded-lg border border-[#CBD5E1] text-[#64748B] hover:text-[#FFFFFF] hover:bg-[#F8FAFC] transition-all"
                             title="Download document copy"
                           >
                             <Download className="w-3.5 h-3.5" />
@@ -1102,7 +1102,7 @@ export default function AdminApprovalsPage() {
 
             {/* Admin Remarks Input */}
             <div className="space-y-2 bg-[#F8FAFC] p-4 rounded-2xl border border-[#E2E8F0]">
-              <label className="text-xs font-black text-[#0F172A] block uppercase tracking-wider">
+              <label className="text-xs font-black text-[#FFFFFF] block uppercase tracking-wider">
                 Admin Action Remarks &amp; Audit Log Reason
               </label>
               <input
@@ -1110,7 +1110,7 @@ export default function AdminApprovalsPage() {
                 placeholder="Enter mandatory audit comments for status update..."
                 value={actionRemarks}
                 onChange={(e) => setActionRemarks(e.target.value)}
-                className="w-full rounded-xl border border-[#CBD5E1] bg-white p-3 text-xs font-bold text-[#111827] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/15 focus:outline-none transition-all shadow-2xs"
+                className="w-full rounded-xl border border-[#CBD5E1] bg-white p-3 text-xs font-bold text-[#FAF8F9] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/15 focus:outline-none transition-all shadow-2xs"
               />
             </div>
 
@@ -1155,10 +1155,10 @@ export default function AdminApprovalsPage() {
 
       {/* Full-Screen Interactive Document Image / Video Lightbox Modal */}
       {previewModalDoc && (
-        <div className="fixed inset-0 z-[70] bg-[#090D16]/90 backdrop-blur-md flex flex-col p-3 sm:p-6 animate-in fade-in duration-200">
-          <div className="bg-[#0F172A] rounded-3xl shadow-2xl max-w-5xl w-full max-h-[95vh] mx-auto flex flex-col overflow-hidden border border-[#1E293B]">
+        <div className="fixed inset-0 z-[70] bg-[#FFFFFF]/90 backdrop-blur-md flex flex-col p-3 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-[#FFFFFF] rounded-3xl shadow-2xl max-w-5xl w-full max-h-[95vh] mx-auto flex flex-col overflow-hidden border border-[#1E293B]">
             {/* Lightbox Header */}
-            <div className="px-6 py-4 bg-[#090D16] border-b border-[#1E293B] text-white flex flex-wrap items-center justify-between gap-3">
+            <div className="px-6 py-4 bg-[#FFFFFF] border-b border-[#1E293B] text-white flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-[#2563EB]/20 border border-[#2563EB]/40 flex items-center justify-center text-[#60A5FA] shrink-0">
                   <FileText className="w-5 h-5" />
@@ -1272,7 +1272,7 @@ export default function AdminApprovalsPage() {
                 </div>
               ) : (
                 /* High Fidelity Render in Lightbox */
-                <div className="max-w-xl w-full p-8 rounded-3xl bg-gradient-to-br from-[#1E293B] to-[#0F172A] border border-[#334155] shadow-2xl text-white space-y-6">
+                <div className="max-w-xl w-full p-8 rounded-3xl bg-gradient-to-br from-[#1E293B] to-[#FFFFFF] border border-[#334155] shadow-2xl text-white space-y-6">
                   <div className="flex items-center justify-between border-b border-white/10 pb-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-[#2563EB]/20 border border-[#2563EB]/40 flex items-center justify-center text-[#60A5FA]">
@@ -1289,27 +1289,27 @@ export default function AdminApprovalsPage() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 text-xs">
-                    <div className="p-3.5 rounded-xl bg-[#0F172A] border border-white/10 space-y-1">
-                      <p className="text-[10px] text-slate-400 font-bold uppercase">Entity / Name</p>
+                    <div className="p-3.5 rounded-xl bg-[#FFFFFF] border border-white/10 space-y-1">
+                      <p className="text-[10px] text-[#625B60] font-bold uppercase">Entity / Name</p>
                       <p className="font-extrabold text-white text-sm">{previewModalDoc.holderName || "Verified Partner"}</p>
                     </div>
-                    <div className="p-3.5 rounded-xl bg-[#0F172A] border border-white/10 space-y-1">
-                      <p className="text-[10px] text-slate-400 font-bold uppercase">Document Identifier</p>
+                    <div className="p-3.5 rounded-xl bg-[#FFFFFF] border border-white/10 space-y-1">
+                      <p className="text-[10px] text-[#625B60] font-bold uppercase">Document Identifier</p>
                       <p className="font-mono font-extrabold text-[#60A5FA] text-sm">{previewModalDoc.docNumber || "APPROVED"}</p>
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-xl bg-[#0F172A]/70 border border-white/10 text-xs text-slate-300 space-y-1 font-mono">
-                    <p className="text-[10px] text-slate-500 uppercase font-sans font-bold">Storage Verification Ledger</p>
-                    <p className="text-slate-400 text-[11px]">SHA-256 Hash Check: Passed</p>
-                    <p className="text-slate-400 text-[11px]">UIDAI / NSDL API Status: Success &amp; Active</p>
+                  <div className="p-4 rounded-xl bg-[#FFFFFF]/70 border border-white/10 text-xs text-[#292329] space-y-1 font-mono">
+                    <p className="text-[10px] text-[#8A8288] uppercase font-sans font-bold">Storage Verification Ledger</p>
+                    <p className="text-[#625B60] text-[11px]">SHA-256 Hash Check: Passed</p>
+                    <p className="text-[#625B60] text-[11px]">UIDAI / NSDL API Status: Success &amp; Active</p>
                   </div>
                 </div>
               )}
             </div>
 
             {/* Lightbox Footer */}
-            <div className="px-6 py-3.5 bg-[#090D16] border-t border-[#1E293B] flex items-center justify-between text-xs text-[#94A3B8]">
+            <div className="px-6 py-3.5 bg-[#FFFFFF] border-t border-[#1E293B] flex items-center justify-between text-xs text-[#94A3B8]">
               <span className="font-mono text-[11px]">Storage: Backblaze B2 Object Bucket (Encrypted)</span>
               <button
                 onClick={() => setPreviewModalDoc(null)}

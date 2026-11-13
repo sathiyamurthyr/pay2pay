@@ -202,7 +202,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, initialAadh
             <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
               Verify Aadhaar
             </h2>
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs font-semibold text-[#8A8288] dark:text-[#625B60] mt-1">
               Verify your Aadhaar using OTP.
             </p>
           </div>
@@ -216,11 +216,11 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, initialAadh
 
           <form onSubmit={handleSendOtp} className="space-y-5">
             <div>
-              <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300 mb-1.5">
+              <label className="block text-xs font-extrabold text-slate-700 dark:text-[#292329] mb-1.5">
                 Aadhaar Number <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <ShieldCheck className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <ShieldCheck className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#625B60]" />
                 <input
                   type="text"
                   value={formatAadhaarInput(aadhaarNumber)}
@@ -232,10 +232,10 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, initialAadh
                   placeholder="XXXX XXXX 1234"
                   maxLength={14}
                   required
-                  className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-base font-black tracking-widest text-slate-900 dark:text-white focus:outline-none focus:border-blue-600 transition-all"
+                  className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-slate-50 dark:bg-[#FFFFFF] border border-slate-200 dark:border-[#E8E2E5] text-base font-black tracking-widest text-slate-900 dark:text-white focus:outline-none focus:border-blue-600 transition-all"
                 />
               </div>
-              <p className="text-[11px] text-slate-400 mt-1 font-semibold">Enter 12-digit numeric UIDAI Aadhaar number.</p>
+              <p className="text-[11px] text-[#625B60] mt-1 font-semibold">Enter 12-digit numeric UIDAI Aadhaar number.</p>
             </div>
 
             <div className="flex items-center gap-3 pt-2">
@@ -243,7 +243,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, initialAadh
                 <button
                   type="button"
                   onClick={onBack}
-                  className="px-4 py-3.5 rounded-2xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-extrabold text-xs transition-all cursor-pointer flex items-center gap-1.5"
+                  className="px-4 py-3.5 rounded-2xl bg-slate-100 dark:bg-[#FAF8F9] hover:bg-slate-200 dark:hover:bg-[#F5F2F4] border border-slate-200 dark:border-[#E8E2E5] text-slate-700 dark:text-[#292329] font-extrabold text-xs transition-all cursor-pointer flex items-center gap-1.5"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
                   <span>Back</span>
@@ -252,7 +252,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, initialAadh
               <button
                 type="submit"
                 disabled={loading || !isValidAadhaar}
-                className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-[#A20A3A] to-[#85072F] text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
               >
                 {loading ? (
                   <>
@@ -279,7 +279,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, initialAadh
               Verify OTP
             </h2>
             <div className="mt-1 flex items-center justify-center gap-2">
-              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Aadhaar:</span>
+              <span className="text-xs font-bold text-[#8A8288] dark:text-[#625B60]">Aadhaar:</span>
               <span className="font-mono font-black text-xs text-blue-600 dark:text-blue-400 tracking-wider bg-blue-500/10 px-2 py-0.5 rounded-lg border border-blue-500/20">
                 {maskedAadhaarDisplay}
               </span>
@@ -296,7 +296,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, initialAadh
                   <span>📩 {receivedOtpNotice}</span>
                 )}
               </div>
-              <span className="text-[10px] text-slate-400 font-extrabold">UIDAI Live</span>
+              <span className="text-[10px] text-[#625B60] font-extrabold">UIDAI Live</span>
             </div>
           )}
 
@@ -310,10 +310,10 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, initialAadh
           <form onSubmit={handleVerifyOtp} className="space-y-5">
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300">
+                <label className="block text-xs font-extrabold text-slate-700 dark:text-[#292329]">
                   Enter 6-Digit OTP <span className="text-red-500">*</span>
                 </label>
-                <span className="text-[10px] font-extrabold text-slate-400">
+                <span className="text-[10px] font-extrabold text-[#625B60]">
                   Attempts Left: {remainingAttempts}/5
                 </span>
               </div>
@@ -332,13 +332,13 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, initialAadh
                 placeholder="Enter 6-Digit OTP"
                 maxLength={6}
                 required
-                className="w-full text-center tracking-widest text-2xl font-black py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-600 transition-all"
+                className="w-full text-center tracking-widest text-2xl font-black py-3.5 rounded-2xl bg-slate-50 dark:bg-[#FFFFFF] border border-slate-200 dark:border-[#E8E2E5] text-slate-900 dark:text-white focus:outline-none focus:border-blue-600 transition-all"
               />
             </div>
 
             {/* Countdown & Resend Option */}
             <div className="flex items-center justify-between px-1 text-xs font-extrabold">
-              <span className="text-slate-400">
+              <span className="text-[#625B60]">
                 {countdown > 0 ? (
                   `Resend code in ${countdown}s`
                 ) : (
@@ -360,7 +360,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, initialAadh
               <button
                 type="button"
                 onClick={() => setOtpSent(false)}
-                className="px-4 py-3.5 rounded-2xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-extrabold text-xs transition-all cursor-pointer flex items-center gap-1.5"
+                className="px-4 py-3.5 rounded-2xl bg-slate-100 dark:bg-[#FAF8F9] hover:bg-slate-200 dark:hover:bg-[#F5F2F4] border border-slate-200 dark:border-[#E8E2E5] text-slate-700 dark:text-[#292329] font-extrabold text-xs transition-all cursor-pointer flex items-center gap-1.5"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Re-Enter Aadhaar</span>
@@ -368,7 +368,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, initialAadh
               <button
                 type="submit"
                 disabled={loading || otpCode.length !== 6}
-                className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-[#A20A3A] to-[#85072F] text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
               >
                 {loading ? (
                   <>
@@ -399,21 +399,21 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, initialAadh
               <h3 className="text-base font-black text-slate-900 dark:text-white">
                 ✅ Aadhaar Verified Successfully
               </h3>
-              <p className="text-xs text-slate-600 dark:text-slate-300 font-semibold mt-0.5">
+              <p className="text-xs text-slate-600 dark:text-[#292329] font-semibold mt-0.5">
                 Your identity has been verified successfully. Please review your information below.
               </p>
             </div>
           </div>
 
           {/* Clean Banking Demographic Profile Display */}
-          <div className="p-6 rounded-3xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 space-y-5">
+          <div className="p-6 rounded-3xl bg-slate-50 dark:bg-[#FAF8F9]/90 border border-slate-200 dark:border-[#E8E2E5] space-y-5">
             {/* Header: Photo + Name + DOB + Gender */}
-            <div className="flex items-center gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+            <div className="flex items-center gap-4 pb-4 border-b border-slate-200 dark:border-[#E8E2E5]">
               <BlurImage
                 src={getPhotoSrc(ekycResult)}
                 alt="Profile Photo"
                 blurhash={KNOWN_BLURHASHES.AADHAAR_PLACEHOLDER}
-                className="w-16 h-16 rounded-2xl object-cover border-2 border-emerald-500 shadow-md shrink-0 bg-slate-200 dark:bg-slate-800"
+                className="w-16 h-16 rounded-2xl object-cover border-2 border-emerald-500 shadow-md shrink-0 bg-slate-200 dark:bg-[#F5F2F4]"
               />
               <div className="space-y-1">
                 <span className="text-[10px] font-black uppercase text-emerald-600 dark:text-emerald-400 tracking-wider">
@@ -422,7 +422,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, initialAadh
                 <h4 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
                   {getVal(ekycResult, ["full_name", "name"], "—")}
                 </h4>
-                <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 font-bold">
+                <div className="flex items-center gap-3 text-xs text-[#8A8288] dark:text-[#625B60] font-bold">
                   <span>DOB: {getVal(ekycResult, ["dob", "date_of_birth"], "—")}</span>
                   <span>•</span>
                   <span>Gender: {getVal(ekycResult, ["gender"], "—")}</span>
@@ -433,7 +433,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, initialAadh
             {/* Read-Only Aadhaar & Address Breakdown Grid */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-xs">
               <div>
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-0.5">
+                <span className="text-[10px] font-extrabold text-[#625B60] uppercase tracking-wider block mb-0.5">
                   Masked Aadhaar
                 </span>
                 <p className="font-mono font-black text-slate-900 dark:text-white text-sm tracking-wider">
@@ -442,91 +442,91 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, initialAadh
               </div>
 
               <div>
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-0.5">
+                <span className="text-[10px] font-extrabold text-[#625B60] uppercase tracking-wider block mb-0.5">
                   Street
                 </span>
-                <p className="font-extrabold text-slate-800 dark:text-slate-200">
+                <p className="font-extrabold text-slate-800 dark:text-[#292329]">
                   {getVal(ekycResult, ["street"], "—")}
                 </p>
               </div>
 
               <div>
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-0.5">
+                <span className="text-[10px] font-extrabold text-[#625B60] uppercase tracking-wider block mb-0.5">
                   Locality
                 </span>
-                <p className="font-extrabold text-slate-800 dark:text-slate-200">
+                <p className="font-extrabold text-slate-800 dark:text-[#292329]">
                   {getVal(ekycResult, ["locality", "loc"], "—")}
                 </p>
               </div>
 
               <div>
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-0.5">
+                <span className="text-[10px] font-extrabold text-[#625B60] uppercase tracking-wider block mb-0.5">
                   City / Town
                 </span>
-                <p className="font-extrabold text-slate-800 dark:text-slate-200">
+                <p className="font-extrabold text-slate-800 dark:text-[#292329]">
                   {getVal(ekycResult, ["city", "village", "vtc", "village_town_city"], "—")}
                 </p>
               </div>
 
               <div>
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-0.5">
+                <span className="text-[10px] font-extrabold text-[#625B60] uppercase tracking-wider block mb-0.5">
                   District
                 </span>
-                <p className="font-extrabold text-slate-800 dark:text-slate-200">
+                <p className="font-extrabold text-slate-800 dark:text-[#292329]">
                   {getVal(ekycResult, ["district", "dist"], "—")}
                 </p>
               </div>
 
               <div>
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-0.5">
+                <span className="text-[10px] font-extrabold text-[#625B60] uppercase tracking-wider block mb-0.5">
                   State
                 </span>
-                <p className="font-extrabold text-slate-800 dark:text-slate-200">
+                <p className="font-extrabold text-slate-800 dark:text-[#292329]">
                   {getVal(ekycResult, ["state"], "—")}
                 </p>
               </div>
 
               <div>
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-0.5">
+                <span className="text-[10px] font-extrabold text-[#625B60] uppercase tracking-wider block mb-0.5">
                   PIN Code
                 </span>
-                <p className="font-extrabold text-slate-800 dark:text-slate-200">
+                <p className="font-extrabold text-slate-800 dark:text-[#292329]">
                   {getVal(ekycResult, ["pincode", "zip"], "—")}
                 </p>
               </div>
 
               <div>
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-0.5">
+                <span className="text-[10px] font-extrabold text-[#625B60] uppercase tracking-wider block mb-0.5">
                   Country
                 </span>
-                <p className="font-extrabold text-slate-800 dark:text-slate-200">
+                <p className="font-extrabold text-slate-800 dark:text-[#292329]">
                   {getVal(ekycResult, ["country"], "INDIA")}
                 </p>
               </div>
             </div>
 
             {/* Editable Fields Section: House, Landmark, Alternate Address */}
-            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-4">
-              <div className="flex items-center gap-1.5 text-xs font-black text-slate-700 dark:text-slate-300">
+            <div className="pt-4 border-t border-slate-200 dark:border-[#E8E2E5] space-y-4">
+              <div className="flex items-center gap-1.5 text-xs font-black text-slate-700 dark:text-[#292329]">
                 <Edit3 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                 <span>Editable Location Details</span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                 <div>
-                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
+                  <label className="block text-[10px] font-extrabold text-[#625B60] uppercase tracking-wider mb-1">
                     House / Flat No
                   </label>
                   <input
                     type="text"
                     value={editableHouse}
                     onChange={(e) => setEditableHouse(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-extrabold text-xs focus:outline-none focus:border-blue-600"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#FFFFFF] border border-slate-200 dark:border-[#E8E2E5] text-slate-900 dark:text-white font-extrabold text-xs focus:outline-none focus:border-blue-600"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
+                  <label className="block text-[10px] font-extrabold text-[#625B60] uppercase tracking-wider mb-1">
                     Landmark (Optional)
                   </label>
                   <input
@@ -534,12 +534,12 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, initialAadh
                     value={editableLandmark}
                     onChange={(e) => setEditableLandmark(e.target.value)}
                     placeholder="Near Temple / Metro Station"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-extrabold text-xs focus:outline-none focus:border-blue-600"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#FFFFFF] border border-slate-200 dark:border-[#E8E2E5] text-slate-900 dark:text-white font-extrabold text-xs focus:outline-none focus:border-blue-600"
                   />
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
+                  <label className="block text-[10px] font-extrabold text-[#625B60] uppercase tracking-wider mb-1">
                     Alternate Address (Optional)
                   </label>
                   <input
@@ -547,7 +547,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, initialAadh
                     value={editableAltAddress}
                     onChange={(e) => setEditableAltAddress(e.target.value)}
                     placeholder="Enter secondary address if applicable"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-extrabold text-xs focus:outline-none focus:border-blue-600"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#FFFFFF] border border-slate-200 dark:border-[#E8E2E5] text-slate-900 dark:text-white font-extrabold text-xs focus:outline-none focus:border-blue-600"
                   />
                 </div>
               </div>
@@ -562,7 +562,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, initialAadh
                 setEkycResult(null);
                 setOtpSent(false);
               }}
-              className="px-4 py-3.5 rounded-2xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-extrabold text-xs transition-all cursor-pointer flex items-center gap-1.5"
+              className="px-4 py-3.5 rounded-2xl bg-slate-100 dark:bg-[#FAF8F9] hover:bg-slate-200 dark:hover:bg-[#F5F2F4] border border-slate-200 dark:border-[#E8E2E5] text-slate-700 dark:text-[#292329] font-extrabold text-xs transition-all cursor-pointer flex items-center gap-1.5"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               <span>Re-Verify Aadhaar</span>
@@ -571,7 +571,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, initialAadh
             <button
               type="button"
               onClick={handleProceed}
-              className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 text-white font-extrabold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-[#A20A3A] to-[#85072F] hover:from-blue-700 text-white font-extrabold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>Continue to Bank Verification</span>
               <ArrowRight className="w-4 h-4" />

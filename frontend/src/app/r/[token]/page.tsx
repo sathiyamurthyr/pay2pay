@@ -38,7 +38,7 @@ export default function PublicReceiptPage() {
   const [showReceiptSlip, setShowReceiptSlip] = useState(false);
   const [receiptData, setReceiptData] = useState({
     companyName: "SUPER REX PRODUCTS PRIVATE LIMITED",
-    brandName: "Pay2Pay",
+    brandName: "Near4You",
     brandTagline: "Enterprise Domestic Money Transfer (DMT) · Authorized Network",
     certifications: "NPCI IMPS Switch Certified · ISO 27001:2022 · 256-Bit SSL Encrypted",
     status: "SUCCESS",
@@ -70,7 +70,7 @@ export default function PublicReceiptPage() {
       if (!token) return;
       try {
         setLoading(true);
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://api.pay2pay.in";
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://api.near4you.store";
         const res = await fetch(`${apiBase}/api/v1/public/receipt/${token}`);
         if (res.ok) {
           const data = await res.json();
@@ -105,14 +105,14 @@ export default function PublicReceiptPage() {
             setIsTopup(isTopupReq);
             setIsPendingApproval(reqIsPending);
 
-            const adminBase = process.env.NEXT_PUBLIC_ADMIN_PORTAL_URL || "https://admin.pay2pay.in";
+            const adminBase = process.env.NEXT_PUBLIC_ADMIN_PORTAL_URL || "https://admin.near4you.store";
             const reqId = data.topupRequestId || data.transactionId || token;
             const targetApprovalUrl = data.adminApprovalUrl || `${adminBase}/operations/topup-requests?requestId=${encodeURIComponent(reqId)}`;
             setAdminApprovalUrl(targetApprovalUrl);
 
             setReceiptData({
               companyName: data.companyName || "SUPER REX PRODUCTS PRIVATE LIMITED",
-              brandName: data.brandName || "Pay2Pay",
+              brandName: data.brandName || "Near4You",
               brandTagline: data.brandTagline || "Enterprise Domestic Money Transfer (DMT) · Authorized Network",
               certifications: data.certifications || "NPCI IMPS Switch Certified · ISO 27001:2022 · 256-Bit SSL Encrypted",
               status: data.status || "SUCCESS",
@@ -128,7 +128,7 @@ export default function PublicReceiptPage() {
               receiptToken: data.receiptToken || token,
               channel: data.channel || "IMPS",
               date: data.date || "",
-              retailerName: data.retailerName || "Pay2Pay Retailer",
+              retailerName: data.retailerName || "Near4You Retailer",
               retailerMobile: data.retailerMobile || "",
               beneficiaryName: data.beneficiaryName || "Beneficiary",
               beneficiaryBank: data.beneficiaryBank || "",
@@ -205,7 +205,7 @@ export default function PublicReceiptPage() {
   };
 
   const handleShareWhatsApp = () => {
-    const shareText = `*Pay2Pay Official Transaction Receipt*\n\n` +
+    const shareText = `*Near4You Official Transaction Receipt*\n\n` +
       `*Status:* SUCCESS (Real-Time CBS Settled)\n` +
       `*Amount:* ₹${receiptData.amount.toFixed(2)}\n` +
       `*Beneficiary:* ${receiptData.beneficiaryName}\n` +
@@ -213,13 +213,13 @@ export default function PublicReceiptPage() {
       `*A/C:* ${receiptData.beneficiaryAccount}\n` +
       `*UTR / RRN:* ${receiptData.utr}\n` +
       `*Receipt Token:* ${token}\n\n` +
-      `Verify Online: https://receipt.pay2pay.in/r/${token}`;
+      `Verify Online: https://receipt.near4you.store/r/${token}`;
     
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`, "_blank");
   };
 
   return (
-    <div className="min-h-screen bg-[#080B11] text-slate-100 flex flex-col items-center justify-start p-3 sm:p-6 select-none">
+    <div className="min-h-screen bg-[#FFFFFF] text-[#292329] flex flex-col items-center justify-start p-3 sm:p-6 select-none">
       {/* Global CSS for Clean Printing */}
       <style>{`
         @media print {
@@ -243,7 +243,7 @@ export default function PublicReceiptPage() {
       <header className="w-full max-w-xl flex items-center justify-between py-3 mb-4 border-b border-amber-500/20 no-print">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 p-0.5 shadow-lg shadow-amber-500/20 flex items-center justify-center">
-            <div className="w-full h-full bg-[#080B11] rounded-[10px] flex items-center justify-center">
+            <div className="w-full h-full bg-[#FFFFFF] rounded-[10px] flex items-center justify-center">
               <span className="text-sm font-black tracking-tighter bg-gradient-to-r from-[#FEF08A] to-[#F59E0B] bg-clip-text text-transparent">
                 P2P
               </span>
@@ -252,13 +252,13 @@ export default function PublicReceiptPage() {
           <div>
             <div className="flex items-center gap-1.5">
               <span className="font-black text-base tracking-tight bg-gradient-to-r from-[#FEF08A] via-[#FBBF24] to-[#F59E0B] bg-clip-text text-transparent">
-                Pay2Pay
+                Near4You
               </span>
               <span className="text-xs px-1.5 py-0.5 rounded bg-blue-500/20 border border-blue-400/40 text-blue-300 font-bold">
                 Enterprise
               </span>
             </div>
-            <p className="text-[10px] text-slate-400 font-semibold tracking-wide">
+            <p className="text-[10px] text-[#625B60] font-semibold tracking-wide">
               Public Receipt Verification Portal
             </p>
           </div>
@@ -267,7 +267,7 @@ export default function PublicReceiptPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={handleCopyLink}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 border border-amber-500/30 text-amber-300 hover:text-amber-200 text-xs font-bold transition-all shadow-md active:scale-95"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FAF8F9] border border-amber-500/30 text-amber-300 hover:text-amber-200 text-xs font-bold transition-all shadow-md active:scale-95"
           >
             <Copy className="w-3.5 h-3.5" />
             <span>{copied ? "Copied ✓" : "Copy URL"}</span>
@@ -277,19 +277,19 @@ export default function PublicReceiptPage() {
 
       {/* ── NOT FOUND ERROR CARD (Anti-Enumeration Protection) ── */}
       {notFound ? (
-        <main className="w-full max-w-xl bg-[#0F172A] text-slate-100 rounded-3xl p-7 shadow-2xl border border-red-500/30 text-center my-8">
+        <main className="w-full max-w-xl bg-[#FFFFFF] text-[#292329] rounded-3xl p-7 shadow-2xl border border-red-500/30 text-center my-8">
           <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-4 text-red-400">
             <Lock className="w-8 h-8" />
           </div>
           <h2 className="text-xl font-black text-white">Receipt Link Not Found</h2>
-          <p className="text-sm text-slate-400 mt-2 max-w-md mx-auto leading-relaxed">
+          <p className="text-sm text-[#625B60] mt-2 max-w-md mx-auto leading-relaxed">
             The transaction receipt you are attempting to view does not exist, has expired, or access is restricted.
           </p>
-          <div className="mt-5 p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs font-mono text-amber-400">
+          <div className="mt-5 p-3 rounded-xl bg-[#FAF8F9]/60 border border-[#E8E2E5] text-xs font-mono text-amber-400">
             Token: {token}
           </div>
-          <p className="text-xs text-slate-500 mt-4">
-            If you recently initiated this transaction, please check your WhatsApp notification or contact Pay2Pay Support.
+          <p className="text-xs text-[#8A8288] mt-4">
+            If you recently initiated this transaction, please check your WhatsApp notification or contact Near4You Support.
           </p>
         </main>
       ) : loading ? (
@@ -298,7 +298,7 @@ export default function PublicReceiptPage() {
           <p className="text-sm font-bold text-slate-600">Verifying Digital Receipt...</p>
         </main>
       ) : (isTopup && isAdminSource && isPendingApproval && !showReceiptSlip) ? (
-        <main className="w-full max-w-xl bg-gradient-to-b from-[#0D1527] to-[#0A0E1A] text-slate-100 rounded-3xl p-6 sm:p-8 shadow-2xl border border-blue-500/30 text-center my-6 relative overflow-hidden backdrop-blur-xl">
+        <main className="w-full max-w-xl bg-gradient-to-b from-[#FFFFFF] to-[#FFFFFF] text-[#292329] rounded-3xl p-6 sm:p-8 shadow-2xl border border-blue-500/30 text-center my-6 relative overflow-hidden backdrop-blur-xl">
           {/* Ambient Glow */}
           <div className="absolute -top-24 -left-24 w-48 h-48 bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -310,7 +310,7 @@ export default function PublicReceiptPage() {
           </div>
 
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-500 p-0.5 shadow-xl shadow-blue-500/25 mx-auto mb-4 flex items-center justify-center">
-            <div className="w-full h-full bg-[#080B11] rounded-[14px] flex items-center justify-center">
+            <div className="w-full h-full bg-[#FFFFFF] rounded-[14px] flex items-center justify-center">
               <Lock className="w-7 h-7 text-cyan-400" />
             </div>
           </div>
@@ -318,26 +318,26 @@ export default function PublicReceiptPage() {
           <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
             Top-Up Request Approval Gateway
           </h2>
-          <p className="text-xs sm:text-sm text-slate-300 mt-2 max-w-md mx-auto leading-relaxed">
-            Authorized administrative link verified. Redirecting you to the Pay2Pay Admin Console to review and approve this wallet top-up.
+          <p className="text-xs sm:text-sm text-[#292329] mt-2 max-w-md mx-auto leading-relaxed">
+            Authorized administrative link verified. Redirecting you to the Near4You Admin Console to review and approve this wallet top-up.
           </p>
 
           {/* Details Card */}
-          <div className="mt-6 p-4 rounded-2xl bg-slate-900/90 border border-slate-800 text-left space-y-2.5 shadow-lg">
+          <div className="mt-6 p-4 rounded-2xl bg-[#FAF8F9]/90 border border-[#E8E2E5] text-left space-y-2.5 shadow-lg">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400 font-medium">Request Reference</span>
+              <span className="text-[#625B60] font-medium">Request Reference</span>
               <span className="font-mono font-bold text-amber-400">{receiptData.transactionId || token}</span>
             </div>
             <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400 font-medium">Retailer / Store</span>
-              <span className="font-bold text-slate-200">{receiptData.retailerName}</span>
+              <span className="text-[#625B60] font-medium">Retailer / Store</span>
+              <span className="font-bold text-[#292329]">{receiptData.retailerName}</span>
             </div>
             <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400 font-medium">Requested Amount</span>
+              <span className="text-[#625B60] font-medium">Requested Amount</span>
               <span className="font-black text-emerald-400 text-sm">₹{Number(receiptData.requestedAmount || receiptData.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
             </div>
             <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400 font-medium">Status</span>
+              <span className="text-[#625B60] font-medium">Status</span>
               <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-bold">
                 {receiptData.status}
               </span>
@@ -346,14 +346,14 @@ export default function PublicReceiptPage() {
 
           {/* Progress / Countdown Bar */}
           <div className="mt-6 space-y-2">
-            <div className="flex items-center justify-between text-xs text-slate-400">
+            <div className="flex items-center justify-between text-xs text-[#625B60]">
               <span className="flex items-center gap-1.5">
                 <RefreshCw className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
                 <span>Redirecting to Admin Portal...</span>
               </span>
               <span className="font-mono font-bold text-cyan-400">{countdown}s</span>
             </div>
-            <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+            <div className="w-full h-1.5 bg-[#F5F2F4] rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-500 ease-out rounded-full"
                 style={{ width: `${Math.max(15, ((2 - countdown + 1) / 2) * 100)}%` }}
@@ -376,7 +376,7 @@ export default function PublicReceiptPage() {
             </button>
             <button
               onClick={() => setShowReceiptSlip(true)}
-              className="w-full sm:w-auto py-3 px-4 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold text-xs border border-slate-700 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              className="w-full sm:w-auto py-3 px-4 rounded-xl bg-[#F5F2F4]/80 hover:bg-slate-700 text-[#292329] hover:text-white font-semibold text-xs border border-[#E8E2E5] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <FileText className="w-3.5 h-3.5" />
               <span>View Receipt Slip</span>
@@ -389,7 +389,7 @@ export default function PublicReceiptPage() {
             <div className="w-full max-w-xl mb-4 p-3.5 rounded-2xl bg-gradient-to-r from-blue-900/50 to-indigo-900/50 border border-blue-500/40 flex items-center justify-between no-print shadow-lg">
               <div className="flex items-center gap-2 text-xs">
                 <ShieldCheck className="w-4 h-4 text-cyan-400" />
-                <span className="text-slate-200 font-semibold">Wallet Top-Up Request · Admin Review Action</span>
+                <span className="text-[#292329] font-semibold">Wallet Top-Up Request · Admin Review Action</span>
               </div>
               <button
                 onClick={() => {
@@ -410,14 +410,14 @@ export default function PublicReceiptPage() {
             {/* Subtle Watermark */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] select-none -rotate-12">
               <span className="text-6xl sm:text-7xl font-black text-slate-900 uppercase tracking-widest">
-                Pay2Pay Verified
+                Near4You Verified
               </span>
             </div>
 
           {/* ── 1. HEADER: BRAND & COMPANY DETAILS ── */}
           <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-4 relative z-10">
           <div className="flex items-center gap-3">
-            {/* Pay2Pay Dual Emblem Logo */}
+            {/* Near4You Dual Emblem Logo */}
             <div className="w-13 h-13 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white font-black text-lg shadow-md shadow-blue-500/30 shrink-0 border-2 border-white/20">
               P2P
             </div>
@@ -436,7 +436,7 @@ export default function PublicReceiptPage() {
               <p className="text-[10.5px] font-bold text-blue-700">
                 {receiptData.brandTagline}
               </p>
-              <p className="text-[9px] text-slate-500 mt-0.5">
+              <p className="text-[9px] text-[#8A8288] mt-0.5">
                 {receiptData.certifications}
               </p>
             </div>
@@ -450,7 +450,7 @@ export default function PublicReceiptPage() {
             <p className="text-[10px] font-mono font-bold text-slate-900 mt-1">
               {receiptData.receiptToken}
             </p>
-            <p className="text-[9px] text-slate-500">
+            <p className="text-[9px] text-[#8A8288]">
               {receiptData.date}
             </p>
           </div>
@@ -471,7 +471,7 @@ export default function PublicReceiptPage() {
           <div className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight mt-1">
             ₹{receiptData.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
           </div>
-          <p className="text-[11px] font-bold text-slate-500 mt-0.5">
+          <p className="text-[11px] font-bold text-[#8A8288] mt-0.5">
             {isTopup ? "Amount Credited to Retailer Wallet" : "Amount Credited to Beneficiary Account"}
           </p>
         </div>
@@ -479,25 +479,25 @@ export default function PublicReceiptPage() {
         {/* ── 3. TRANSACTION METADATA GRID (2-COLUMN) ── */}
         <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-200 mb-4 grid grid-cols-2 gap-3 relative z-10 text-left">
           <div>
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Transaction ID</p>
+            <p className="text-[10px] font-bold text-[#8A8288] uppercase tracking-wider">Transaction ID</p>
             <p className="text-xs font-mono font-bold text-slate-900 mt-0.5 break-all">
               {receiptData.transactionId}
             </p>
           </div>
           <div>
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Bank UTR / RRN</p>
+            <p className="text-[10px] font-bold text-[#8A8288] uppercase tracking-wider">Bank UTR / RRN</p>
             <p className="text-xs font-mono font-bold text-blue-700 mt-0.5 break-all">
               {receiptData.utr}
             </p>
           </div>
           <div>
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Receipt Token</p>
+            <p className="text-[10px] font-bold text-[#8A8288] uppercase tracking-wider">Receipt Token</p>
             <p className="text-xs font-mono font-bold text-blue-600 mt-0.5">
               {receiptData.receiptToken}
             </p>
           </div>
           <div>
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Channel & Date</p>
+            <p className="text-[10px] font-bold text-[#8A8288] uppercase tracking-wider">Channel & Date</p>
             <p className="text-xs font-bold text-slate-900 mt-0.5">
               {receiptData.channel} · {receiptData.date}
             </p>
@@ -511,7 +511,7 @@ export default function PublicReceiptPage() {
               {isTopup ? "Retailer Account" : "Retailer / Sender"}
             </p>
             <p className="text-xs sm:text-sm font-black text-slate-900">
-              {receiptData.retailerName} {receiptData.retailerMobile ? <span className="text-slate-500 font-semibold">({receiptData.retailerMobile})</span> : null}
+              {receiptData.retailerName} {receiptData.retailerMobile ? <span className="text-[#8A8288] font-semibold">({receiptData.retailerMobile})</span> : null}
             </p>
           </div>
 
@@ -567,7 +567,7 @@ export default function PublicReceiptPage() {
         </div>
 
         {/* ── 6. QR CODE & DIGITAL VERIFICATION SIGNATURE ── */}
-        <div className="flex items-center gap-3 p-3 bg-slate-900 text-white rounded-2xl relative z-10 text-left">
+        <div className="flex items-center gap-3 p-3 bg-[#FAF8F9] text-white rounded-2xl relative z-10 text-left">
           <div className="p-2 bg-white rounded-xl shrink-0 flex items-center justify-center">
             <QrCode className="w-10 h-10 text-slate-900" />
           </div>
@@ -581,8 +581,8 @@ export default function PublicReceiptPage() {
             <p className="text-[10px] font-mono text-amber-300 truncate mt-0.5">
               {receiptData.signature}
             </p>
-            <p className="text-[9px] text-slate-400 mt-0.5">
-              Powered by Pay2Pay Core Banking & DirectSwitch Engine
+            <p className="text-[9px] text-[#625B60] mt-0.5">
+              Powered by Near4You Core Banking & DirectSwitch Engine
             </p>
           </div>
         </div>
@@ -617,7 +617,7 @@ export default function PublicReceiptPage() {
           <button
             type="button"
             onClick={handlePrint}
-            className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-all shadow-md cursor-pointer"
+            className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-[#FAF8F9] hover:bg-[#F5F2F4] text-white font-bold text-xs transition-all shadow-md cursor-pointer"
           >
             <Printer className="w-4 h-4" />
             <span>Print</span>
@@ -646,9 +646,9 @@ export default function PublicReceiptPage() {
       )}
 
       {/* ── FOOTER COPYRIGHT ── */}
-      <footer className="mt-6 text-center text-xs text-slate-500 no-print space-y-1">
-        <p className="font-bold text-slate-400">
-          © {new Date().getFullYear()} Pay2Pay Technologies. All rights reserved.
+      <footer className="mt-6 text-center text-xs text-[#8A8288] no-print space-y-1">
+        <p className="font-bold text-[#625B60]">
+          © {new Date().getFullYear()} Near4You Technologies. All rights reserved.
         </p>
         <p className="text-[11px]">
           Enterprise Payment Infrastructure · ISO 27001 Certified · PCI-DSS Compliant

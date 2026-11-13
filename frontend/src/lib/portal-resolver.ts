@@ -40,6 +40,20 @@ export const PORTAL_CONFIGS: Record<UserPortalRole, PortalConfig> = {
   },
 };
 
+export function normalizeUserType(
+  userTypeRefId?: number | string | null,
+  rawRole?: string | null
+): UserPortalRole {
+  if (userTypeRefId !== undefined && userTypeRefId !== null && String(userTypeRefId).trim() !== "") {
+    const numId = Number(userTypeRefId);
+    if (numId === 1) return "ADMIN";
+    if (numId === 2) return "RETAILER";
+    if (numId === 3) return "DIST";
+    if (numId === 4) return "SD";
+  }
+  return normalizeUserRole(rawRole);
+}
+
 /**
  * Normalizes raw role string into authoritative UserPortalRole
  */
@@ -50,7 +64,7 @@ export function normalizeUserRole(rawRole?: string | null): UserPortalRole {
   if (upper === "SUPER_ADMIN" || upper === "SUPERADMIN" || upper === "SUPER-ADMIN") {
     return "SUPER_ADMIN";
   }
-  if (upper === "ADMIN") {
+  if (upper === "ADMIN" || upper === "PLATFORM_ADMIN" || upper === "OPERATIONS_ADMIN") {
     return "ADMIN";
   }
   if (upper === "SD" || upper === "SUPER_DISTRIBUTOR" || upper === "SUPER DISTRIBUTOR") {
@@ -63,10 +77,16 @@ export function normalizeUserRole(rawRole?: string | null): UserPortalRole {
 }
 
 /**
- * Authoritative portal route resolver based on authenticated user role
+ * Authoritative portal route resolver based on authenticated user role or user_type_ref_id
  */
-export function resolvePortalRoute(rawRole?: string | null): PortalConfig {
-  const role = normalizeUserRole(rawRole);
+export function resolvePortalRoute(
+  rawRoleOrId?: string | number | null,
+  fallbackRole?: string | null
+): PortalConfig {
+  const role =
+    typeof rawRoleOrId === "number" || (typeof rawRoleOrId === "string" && !isNaN(Number(rawRoleOrId)) && rawRoleOrId.trim() !== "")
+      ? normalizeUserType(rawRoleOrId, fallbackRole)
+      : normalizeUserRole(rawRoleOrId);
   return PORTAL_CONFIGS[role];
 }
 

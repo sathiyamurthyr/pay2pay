@@ -420,7 +420,7 @@ export default function BankGatewaysPage() {
                 Live Gateway Node
               </span>
             </div>
-            <p className="mt-1 text-sm font-medium text-slate-500">
+            <p className="mt-1 text-sm font-medium text-[#8A8288]">
               Live multi-node payout switcher connected to{" "}
               <span className="font-bold text-emerald-600">WowPe API</span> (
               <span className="font-mono text-xs text-slate-600">api.wowpe.in</span>) and{" "}
@@ -511,7 +511,7 @@ export default function BankGatewaysPage() {
                       </span>
                     )}
                   </div>
-                  <p className="text-xs font-medium text-slate-500 mt-0.5 font-mono">
+                  <p className="text-xs font-medium text-[#8A8288] mt-0.5 font-mono">
                     Client: b206347b-3b5f-4a6c-a18c-efebfef348f8
                   </p>
                 </div>
@@ -537,7 +537,7 @@ export default function BankGatewaysPage() {
             <div className="mt-5 pt-4 border-t border-slate-100 grid grid-cols-2 gap-3">
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 relative">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Live Account Balance</span>
+                  <span className="text-[10px] text-[#8A8288] font-bold uppercase tracking-wider block">Live Account Balance</span>
                   {balances.WOWPE?.latency_ms && (
                     <span className="text-[10px] font-mono text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded font-bold">
                       {balances.WOWPE.latency_ms}ms
@@ -552,17 +552,17 @@ export default function BankGatewaysPage() {
                     <span className="text-[10px] text-emerald-600 font-bold animate-pulse">Syncing...</span>
                   )}
                 </div>
-                <div className="text-[10px] font-mono text-slate-500 mt-1 truncate">
+                <div className="text-[10px] font-mono text-[#8A8288] mt-1 truncate">
                   Status: <strong className="text-slate-700">{balances.WOWPE?.message || "Connected to api.wowpe.in"}</strong>
                 </div>
               </div>
 
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex flex-col justify-between">
                 <div>
-                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Live API Node</span>
+                  <span className="text-[10px] text-[#8A8288] font-bold uppercase tracking-wider block">Live API Node</span>
                   <p className="text-xs font-bold text-slate-800 font-mono truncate mt-1">api.wowpe.in/payout</p>
                 </div>
-                <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-slate-500">
+                <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-[#8A8288]">
                   <span>{balances.WOWPE?.checked_at ? `Checked: ${balances.WOWPE.checked_at}` : "Live Connected"}</span>
                   <span className="inline-flex items-center gap-1 text-emerald-600 font-bold">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping"></span> Live Node
@@ -575,15 +575,15 @@ export default function BankGatewaysPage() {
             {balances.WOWPE && (
               <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[10px] font-mono p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
                 <div className="p-1">
-                  <span className="text-slate-400 block text-[9px] uppercase font-bold">Current Acc</span>
+                  <span className="text-[#625B60] block text-[9px] uppercase font-bold">Current Acc</span>
                   <strong className="text-slate-800 text-xs mt-0.5 block">₹{Number(balances.WOWPE.currentAccBalance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
                 </div>
                 <div className="p-1 border-x border-slate-200/60">
-                  <span className="text-slate-400 block text-[9px] uppercase font-bold">Payin Bal</span>
+                  <span className="text-[#625B60] block text-[9px] uppercase font-bold">Payin Bal</span>
                   <strong className="text-slate-800 text-xs mt-0.5 block">₹{Number(balances.WOWPE.payinBalane || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
                 </div>
                 <div className="p-1">
-                  <span className="text-slate-400 block text-[9px] uppercase font-bold">Fee Bal</span>
+                  <span className="text-[#625B60] block text-[9px] uppercase font-bold">Fee Bal</span>
                   <strong className="text-slate-800 text-xs mt-0.5 block">₹{Number(balances.WOWPE.feeBalance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
                 </div>
               </div>
@@ -639,7 +639,7 @@ export default function BankGatewaysPage() {
                       </span>
                     )}
                   </div>
-                  <p className="text-xs font-medium text-slate-500 mt-0.5 font-mono">
+                  <p className="text-xs font-medium text-[#8A8288] mt-0.5 font-mono">
                     Client: BLK_ENTERPRISE_01
                   </p>
                 </div>
@@ -663,23 +663,23 @@ export default function BankGatewaysPage() {
 
             <div className="mt-5 pt-4 border-t border-slate-100 grid grid-cols-2 gap-3">
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Live Account Balance</span>
+                <span className="text-[10px] text-[#8A8288] font-bold uppercase tracking-wider block">Live Account Balance</span>
                 <p className="text-2xl font-black text-sky-600 font-mono mt-1">
                   ₹{Number(balances.BULKPE?.balance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </p>
-                <div className="text-[10px] font-mono text-slate-500 mt-1 truncate">
+                <div className="text-[10px] font-mono text-[#8A8288] mt-1 truncate">
                   Status: <strong className="text-slate-700">{balances.BULKPE?.message || "Standby Failover Ready"}</strong>
                 </div>
               </div>
 
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex flex-col justify-between">
                 <div>
-                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Live API Node</span>
+                  <span className="text-[10px] text-[#8A8288] font-bold uppercase tracking-wider block">Live API Node</span>
                   <p className="text-xs font-bold text-slate-800 font-mono truncate mt-1">api.bulkpe.in/payout</p>
                 </div>
-                <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-slate-500">
+                <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-[#8A8288]">
                   <span>{balances.BULKPE?.checked_at ? `Checked: ${balances.BULKPE.checked_at}` : "Standby"}</span>
-                  <span className="text-slate-400 font-bold">Standby Ready</span>
+                  <span className="text-[#625B60] font-bold">Standby Ready</span>
                 </div>
               </div>
             </div>
@@ -749,14 +749,14 @@ export default function BankGatewaysPage() {
               Live Gateway Adapters & Credentials Matrix
             </h3>
           </div>
-          <span className="text-xs text-slate-500 font-mono font-bold bg-white px-2.5 py-1 rounded-md border border-slate-200">
+          <span className="text-xs text-[#8A8288] font-mono font-bold bg-white px-2.5 py-1 rounded-md border border-slate-200">
             {gateways.length} Gateway Adapters Connected
           </span>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-700">
-            <thead className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+            <thead className="bg-slate-50 text-[11px] font-bold text-[#8A8288] uppercase tracking-wider border-b border-slate-200">
               <tr>
                 <th className="px-6 py-3.5">Gateway</th>
                 <th className="px-6 py-3.5">Routing Status</th>
@@ -787,7 +787,7 @@ export default function BankGatewaysPage() {
                         </div>
                         <div>
                           <span className="font-extrabold text-slate-900 block text-xs">{g.provider_name}</span>
-                          <span className="text-[11px] text-slate-400 font-mono">{g.provider_code}</span>
+                          <span className="text-[11px] text-[#625B60] font-mono">{g.provider_code}</span>
                         </div>
                       </div>
                     </td>
@@ -802,16 +802,16 @@ export default function BankGatewaysPage() {
                             SECONDARY / FAILOVER
                           </span>
                         )}
-                        <span className="text-[11px] text-slate-400 font-mono">Priority: #{g.priority_order}</span>
+                        <span className="text-[11px] text-[#625B60] font-mono">Priority: #{g.priority_order}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 font-mono text-[11px] text-slate-600">
                       <div className="flex items-center gap-1.5">
-                        <Globe className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                        <Globe className="h-3.5 w-3.5 text-[#625B60] shrink-0" />
                         <span className="truncate max-w-[220px] font-medium">{g.api_endpoint}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 font-mono text-[11px] text-slate-500">
+                    <td className="px-6 py-4 font-mono text-[11px] text-[#8A8288]">
                       <div>User: <span className="text-slate-800 font-semibold">{g.user_id}</span></div>
                       <div>Secret: <span className="text-slate-800 font-semibold">{g.masked_secret || "••••••••••••"}</span></div>
                     </td>
@@ -823,7 +823,7 @@ export default function BankGatewaysPage() {
                         {isItemRefreshing && <RefreshCw className="h-3 w-3 animate-spin text-emerald-600" />}
                       </div>
                       {gwBal?.message && (
-                        <span className="block text-[10px] font-mono text-slate-400 truncate max-w-[150px]">
+                        <span className="block text-[10px] font-mono text-[#625B60] truncate max-w-[150px]">
                           {gwBal.message}
                         </span>
                       )}
@@ -869,7 +869,7 @@ export default function BankGatewaysPage() {
 
       {/* Edit Gateway Modal */}
       {editingGateway && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FAF8F9]/40 backdrop-blur-xs p-4 animate-fade-in">
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
             <div className="p-6 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-3">
@@ -878,12 +878,12 @@ export default function BankGatewaysPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-black text-slate-900">Configure {editingGateway.provider_name}</h3>
-                  <p className="text-xs text-slate-500 font-mono">Provider Code: {editingGateway.provider_code}</p>
+                  <p className="text-xs text-[#8A8288] font-mono">Provider Code: {editingGateway.provider_code}</p>
                 </div>
               </div>
               <button
                 onClick={() => setEditingGateway(null)}
-                className="text-slate-400 hover:text-slate-700 text-sm font-bold p-1 rounded-lg hover:bg-slate-100 cursor-pointer"
+                className="text-[#625B60] hover:text-slate-700 text-sm font-bold p-1 rounded-lg hover:bg-slate-100 cursor-pointer"
               >
                 ✕
               </button>

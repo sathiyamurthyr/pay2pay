@@ -69,7 +69,7 @@ const KPI_THEMES: { id: KpiTheme; label: string; swatch: string }[] = [
   { id: "royal-gold", label: "Royal Gold", swatch: "#FFD54F" },
   { id: "emerald-green", label: "Emerald Green", swatch: "#16A34A" },
   { id: "purple", label: "Purple Velvet", swatch: "#7C3AED" },
-  { id: "dark", label: "Dark Onyx", swatch: "#0F172A" },
+  { id: "dark", label: "Dark Onyx", swatch: "#FFFFFF" },
   { id: "corporate-white", label: "Corporate White", swatch: "#FFFFFF" },
 ];
 
@@ -465,12 +465,12 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        backgroundColor: "#08111F",
-        color: "#F8FAFC",
-        borderRight: "1px solid rgba(255, 255, 255, 0.08)",
+        backgroundColor: "#FFFFFF",
+        color: "#292329",
+        borderRight: "1px solid #E8E2E5",
       }}
     >
-      {/* PAY2PAY Brand Logo Header (72px) */}
+      {/* NEAR4YOU Brand Logo Header (72px) */}
       <Box
         sx={{
           height: 72,
@@ -478,8 +478,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           display: "flex",
           alignItems: "center",
           justifyContent: isCollapsed ? "center" : "space-between",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
-          bgcolor: "rgba(15, 23, 42, 0.6)",
+          borderBottom: "1px solid #E8E2E5",
+          bgcolor: "#FFFFFF",
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.8 }}>
@@ -489,9 +489,9 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               height: 46,
               borderRadius: "12px",
               p: "3px",
-              bgcolor: "rgba(11, 15, 25, 0.9)",
-              border: "1.5px solid rgba(245, 158, 11, 0.4)",
-              boxShadow: "0 4px 14px rgba(0, 0, 0, 0.5), 0 0 12px rgba(245, 158, 11, 0.15)",
+              bgcolor: "#FFFFFF",
+              border: "1.5px solid #EDC11E",
+              boxShadow: "0 2px 8px rgba(162, 10, 58, 0.08)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -501,8 +501,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           >
             <Box
               component="img"
-              src="/branding/pay2pay-logo.png"
-              alt="PAY2PAY"
+              src="/branding/logo.svg"
+              alt="Near 4 You"
               sx={{
                 width: "100%",
                 height: "100%",
@@ -512,10 +512,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           </Box>
           {!isCollapsed && (
             <Box sx={{ minWidth: 0 }}>
-              <Typography variant="h6" sx={{ fontWeight: 900, color: "#F8FAFC", fontSize: "22px", lineHeight: 1.1, whiteSpace: "nowrap" }}>
-                PAY2PAY
+              <Typography variant="h6" sx={{ fontWeight: 900, color: "#A20A3A", fontSize: "22px", lineHeight: 1.1, whiteSpace: "nowrap" }}>
+                NEAR4YOU
               </Typography>
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 600, fontSize: "13px", display: "block", whiteSpace: "nowrap" }}>
+              <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 600, fontSize: "13px", display: "block", whiteSpace: "nowrap" }}>
                 Enterprise Operations
               </Typography>
             </Box>
@@ -527,7 +527,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             <IconButton
               onClick={() => setDesktopCollapsed(true)}
               size="small"
-              sx={{ display: { xs: "none", lg: "flex" }, color: "#94A3B8", "&:hover": { backgroundColor: "rgba(255,255,255,0.08)" } }}
+              sx={{ display: { xs: "none", lg: "flex" }, color: "#8A8288", "&:hover": { backgroundColor: "#FAF8F9" } }}
             >
               <ChevronLeftIcon sx={{ fontSize: 20 }} />
             </IconButton>
@@ -548,12 +548,12 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               input: {
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon sx={{ color: "#60A5FA", fontSize: 16 }} />
+                    <SearchIcon sx={{ color: "#A20A3A", fontSize: 16 }} />
                   </InputAdornment>
                 ),
                 endAdornment: menuSearchQuery ? (
                   <InputAdornment position="end">
-                    <IconButton size="small" onClick={() => setMenuSearchQuery("")} sx={{ p: 0.2, color: "rgba(255, 255, 255, 0.5)" }}>
+                    <IconButton size="small" onClick={() => setMenuSearchQuery("")} sx={{ p: 0.2, color: "#8A8288" }}>
                       <ClearIcon sx={{ fontSize: 14 }} />
                     </IconButton>
                   </InputAdornment>
@@ -561,12 +561,13 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 sx: {
                   height: 34,
                   fontSize: "12px",
-                  color: "#FFFFFF",
+                  color: "#292329",
                   borderRadius: "8px",
-                  bgcolor: "rgba(255, 255, 255, 0.05)",
-                  "& fieldset": { borderColor: "rgba(255, 255, 255, 0.12)" },
-                  "&:hover fieldset": { borderColor: "#3B82F6" },
-                  "&.Mui-focused fieldset": { borderColor: "#2563EB" },
+                  bgcolor: "#FFFFFF",
+                  border: "1px solid #E8E2E5",
+                  "& fieldset": { border: "none" },
+                  "&:hover": { borderColor: "#A20A3A" },
+                  "&.Mui-focused": { borderColor: "#A20A3A", boxShadow: "0 0 0 2px rgba(162, 10, 58, 0.15)" },
                 },
               },
             }}
@@ -596,8 +597,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             <Box sx={{ mb: 1.5 }}>
               {!isCollapsed && (
                 <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", px: "14px", mb: 0.5 }}>
-                  <StarIcon sx={{ color: "#FFD54F", fontSize: 13 }} />
-                  <Typography variant="caption" sx={{ color: "#FFD54F", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px" }}>
+                  <StarIcon sx={{ color: "#EDC11E", fontSize: 13 }} />
+                  <Typography variant="caption" sx={{ color: "#EDC11E", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px" }}>
                     FAVORITES
                   </Typography>
                 </Stack>
@@ -631,19 +632,19 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                           borderRadius: "10px",
                           px: isCollapsed ? 0 : "14px",
                           justifyContent: isCollapsed ? "center" : "space-between",
-                          backgroundColor: isActive ? "#2563EB" : "rgba(255, 213, 79, 0.08)",
-                          color: isActive ? "#FFFFFF" : "rgba(255, 255, 255, 0.90)",
+                          backgroundColor: isActive ? "#FFF0F4" : "transparent",
+                          color: isActive ? "#A20A3A" : "#292329",
                           textDecoration: "none",
-                          boxShadow: isActive ? "0 4px 12px rgba(37, 99, 235, 0.35)" : "none",
+                          borderLeft: isActive ? "3px solid #A20A3A" : "3px solid transparent",
                           transition: "all 0.15s ease",
-                          "&:hover": { backgroundColor: isActive ? "#1D4ED8" : "rgba(255, 255, 255, 0.12)", color: "#FFFFFF" },
+                          "&:hover": { backgroundColor: isActive ? "#FFF0F4" : "#FAF8F9", color: "#A20A3A" },
                           "&:hover .fav-star": { opacity: 1 },
                         }}
                       >
                         <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", minWidth: 0 }}>
-                          <IconComponent sx={{ fontSize: 20, color: isActive ? "#FFFFFF" : "#FFD54F" }} />
+                          <IconComponent sx={{ fontSize: 20, color: isActive ? "#A20A3A" : "#EDC11E" }} />
                           {!isCollapsed && (
-                            <Typography sx={{ fontSize: "13.5px", fontWeight: isActive ? 700 : 600, lineHeight: "20px", whiteSpace: "nowrap", color: "#FFFFFF" }}>
+                            <Typography sx={{ fontSize: "13.5px", fontWeight: isActive ? 800 : 600, lineHeight: "20px", whiteSpace: "nowrap", color: isActive ? "#A20A3A" : "#292329" }}>
                               {item.label}
                             </Typography>
                           )}
@@ -660,9 +661,9 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                                   height: 18,
                                   fontSize: "8.5px",
                                   fontWeight: 800,
-                                  backgroundColor: "rgba(245, 158, 11, 0.15)",
-                                  color: "#F59E0B",
-                                  border: "1px solid rgba(245, 158, 11, 0.3)",
+                                  backgroundColor: "#FFF8DC",
+                                  color: "#EDC11E",
+                                  border: "1px solid #FFF3C4",
                                 }}
                               />
                             )}
@@ -670,7 +671,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                               size="small"
                               className="fav-star"
                               onClick={(e) => toggleFavorite(item.path, e)}
-                              sx={{ p: 0.3, color: "#FFD54F" }}
+                              sx={{ p: 0.3, color: "#EDC11E" }}
                             >
                               <StarIcon sx={{ fontSize: 16 }} />
                             </IconButton>
@@ -699,7 +700,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           .map((cat) => (
             <Box key={cat.title} sx={{ mb: 1.5 }}>
               {!isCollapsed && (
-                <Typography variant="caption" sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", px: "14px", display: "block", mb: 0.5 }}>
+                <Typography variant="caption" sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", px: "14px", display: "block", mb: 0.5 }}>
                   {cat.title}
                 </Typography>
               )}
@@ -738,10 +739,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                           borderRadius: "10px",
                           px: isCollapsed ? 0 : "14px",
                           justifyContent: isCollapsed ? "center" : "space-between",
-                          backgroundColor: isActive ? "rgba(37, 99, 235, 0.35)" : "transparent",
-                          color: isActive ? "#FFFFFF" : itemLocked ? "rgba(255, 255, 255, 0.50)" : "rgba(255, 255, 255, 0.90)",
+                          backgroundColor: isActive ? "#FFF0F4" : "transparent",
+                          color: isActive ? "#A20A3A" : itemLocked ? "#B8B0B6" : "#292329",
                           textDecoration: "none",
-                          boxShadow: isActive ? "0 4px 12px rgba(37, 99, 235, 0.35)" : "none",
+                          boxShadow: "none",
                           transition: "all 0.15s cubic-bezier(0.4, 0, 0.2, 1)",
                           "&::before": isActive
                             ? {
@@ -752,20 +753,20 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                                 bottom: "6px",
                                 width: "3px",
                                 borderRadius: "2px",
-                                backgroundColor: "#2563EB",
+                                backgroundColor: "#A20A3A",
                               }
                             : {},
                           "&:hover": {
-                            backgroundColor: isActive ? "rgba(37, 99, 235, 0.45)" : "rgba(255, 255, 255, 0.08)",
-                            color: "#FFFFFF",
+                            backgroundColor: isActive ? "#FFF0F4" : "#FAF8F9",
+                            color: "#A20A3A",
                           },
                           "&:hover .fav-star": { opacity: 1 },
                         }}
                       >
                         <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", minWidth: 0 }}>
-                          <IconComponent sx={{ fontSize: 20, color: isActive ? "#60A5FA" : itemLocked ? "#F59E0B" : "rgba(255, 255, 255, 0.88)" }} />
+                          <IconComponent sx={{ fontSize: 20, color: isActive ? "#A20A3A" : itemLocked ? "#EDC11E" : "#625B60" }} />
                           {!isCollapsed && (
-                            <Typography sx={{ fontSize: "13.5px", fontWeight: isActive ? 700 : 500, lineHeight: "20px", whiteSpace: "nowrap", color: isActive ? "#FFFFFF" : itemLocked ? "rgba(255, 255, 255, 0.60)" : "rgba(255, 255, 255, 0.90)" }}>
+                            <Typography sx={{ fontSize: "13.5px", fontWeight: isActive ? 800 : 500, lineHeight: "20px", whiteSpace: "nowrap", color: isActive ? "#A20A3A" : itemLocked ? "#B8B0B6" : "#292329" }}>
                               {item.label}
                             </Typography>
                           )}
@@ -775,16 +776,16 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                           <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
                             {itemLocked && (
                               <Chip
-                                icon={<LockIcon sx={{ "&&": { fontSize: 10, color: "#F59E0B" } }} />}
+                                icon={<LockIcon sx={{ "&&": { fontSize: 10, color: "#EDC11E" } }} />}
                                 label="LOCKED"
                                 size="small"
                                 sx={{
                                   height: 18,
                                   fontSize: "8.5px",
                                   fontWeight: 800,
-                                  backgroundColor: "rgba(245, 158, 11, 0.15)",
-                                  color: "#F59E0B",
-                                  border: "1px solid rgba(245, 158, 11, 0.3)",
+                                  backgroundColor: "#FFF8DC",
+                                  color: "#EDC11E",
+                                  border: "1px solid #FFF3C4",
                                 }}
                               />
                             )}
@@ -828,11 +829,11 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           ))}
       </Box>
 
-      <Divider sx={{ borderColor: "rgba(255,255,255,0.08)" }} />
+      <Divider sx={{ borderColor: "#E8E2E5" }} />
 
       {/* Logged-in Retailer Profile Footer at Bottom of Dark Sidebar */}
       {!isCollapsed ? (
-        <Box sx={{ p: 1.5, bgcolor: "rgba(15, 23, 42, 0.6)" }}>
+        <Box sx={{ p: 1.5, bgcolor: "#FAF8F9" }}>
           <Paper
             elevation={0}
             onClick={(e) => setProfileAnchor(e.currentTarget)}
@@ -840,7 +841,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               p: 1.2,
               borderRadius: "12px",
               backgroundColor: "rgba(18, 27, 48, 0.72)",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
+              border: "1px solid #E8E2E5",
               display: "flex",
               alignItems: "center",
               gap: 1.2,
@@ -855,7 +856,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               {(profileDetails.owner_name || profileDetails.retailer_name || outlet.ownerName || outlet.name || "").charAt(0).toUpperCase()}
             </Avatar>
             <Box sx={{ minWidth: 0, flex: 1 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#F8FAFC", fontSize: "12px", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#292329", fontSize: "12px", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {profileDetails.owner_name || profileDetails.retailer_name || outlet.ownerName || outlet.name || "—"}
               </Typography>
               <Typography variant="caption" sx={{ fontSize: "10px", color: "#4ADE80", fontWeight: 700, display: "block" }}>
@@ -868,7 +869,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         <Box sx={{ py: 1.5, display: "flex", justifyContent: "center" }}>
           <Avatar
             src={profileDetails.photo_url || outlet.avatar || undefined}
-            sx={{ bgcolor: "#2563EB", width: 34, height: 34, fontWeight: 900, fontSize: "13px", border: "1.5px solid #3B82F6" }}
+            sx={{ bgcolor: "#A20A3A", width: 34, height: 34, fontWeight: 900, fontSize: "13px", border: "1.5px solid #EDC11E" }}
           >
             {(profileDetails.owner_name || profileDetails.retailer_name || outlet.ownerName || outlet.name || "").charAt(0).toUpperCase()}
           </Avatar>
@@ -877,7 +878,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     </Box>
   );
 
-  const activeTheme = THEME_CONFIGS[kpiTheme] || THEME_CONFIGS["classic-blue"];
+  const activeTheme = THEME_CONFIGS[kpiTheme] || THEME_CONFIGS["corporate-white"];
 
   if (!isAuthenticatedSession && typeof window !== "undefined") {
     const isAuthPage =
@@ -894,8 +895,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            bgcolor: "#0B0F19",
-            color: "#FFFFFF",
+            bgcolor: "#FFFFFF",
+            color: "#292329",
             gap: 2,
           }}
         >
@@ -903,8 +904,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             sx={{
               width: 40,
               height: 40,
-              border: "3px solid rgba(59, 130, 246, 0.2)",
-              borderTopColor: "#3B82F6",
+              border: "3px solid #FFF0F4",
+              borderTopColor: "#A20A3A",
               borderRadius: "50%",
               animation: "spin 0.8s linear infinite",
               "@keyframes spin": {
@@ -913,7 +914,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               },
             }}
           />
-          <Typography variant="body2" sx={{ fontWeight: 600, color: "#94A3B8" }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, color: "#625B60" }}>
             Verifying secure session...
           </Typography>
         </Box>
@@ -926,8 +927,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       sx={{
         display: "flex",
         minHeight: "100vh",
-        backgroundColor: activeTheme.pageBg,
-        color: activeTheme.textColor,
+        backgroundColor: "#FFFFFF",
+        color: "#292329",
         transition: "background-color 0.3s ease",
       }}
     >
@@ -939,10 +940,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           height: 56,
           width: { lg: `calc(100% - ${activeDrawerWidth}px)` },
           ml: { lg: `${activeDrawerWidth}px` },
-          backgroundColor: activeTheme.headerBg,
+          backgroundColor: "#FFFFFF",
           backdropFilter: "blur(20px)",
-          color: activeTheme.headerText,
-          borderBottom: `1px solid ${activeTheme.cardBorder}`,
+          color: "#292329",
+          borderBottom: "1px solid #E8E2E5",
           zIndex: (theme) => theme.zIndex.drawer + 1,
           justifyContent: "center",
           transition: "width 0.25s cubic-bezier(0.4, 0, 0.2, 1), margin 0.25s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease",
@@ -968,9 +969,9 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 size="small"
                 sx={{
                   p: { xs: 0.5, sm: 0.75 },
-                  color: "#F59E0B",
+                  color: "#A20A3A",
                   "&:hover": {
-                    backgroundColor: "rgba(245, 158, 11, 0.15)",
+                    backgroundColor: "#FFF0F4",
                   },
                 }}
               >
@@ -978,15 +979,13 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               </IconButton>
             </Tooltip>
 
-            {/* Page Title with Premium Gold-Yellow Gradient */}
+            {/* Page Title */}
             <Typography
               variant="h6"
               sx={{
                 fontSize: { xs: "15px", sm: "18px" },
-                fontWeight: 900,
-                background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 60%, #FBBF24 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
+                fontWeight: 800,
+                color: "#292329",
                 letterSpacing: "-0.3px",
                 whiteSpace: "nowrap",
                 overflow: "hidden",
@@ -1008,17 +1007,17 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 width: 260,
                 height: 36,
                 borderRadius: "10px",
-                backgroundColor: "rgba(255, 255, 255, 0.05)",
-                border: "1px solid rgba(255, 255, 255, 0.12)",
+                backgroundColor: "#FAF8F9",
+                border: "1px solid #E8E2E5",
                 cursor: "pointer",
-                "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(245, 158, 11, 0.4)" },
+                "&:hover": { backgroundColor: "#FFFFFF", borderColor: "#A20A3A" },
               }}
             >
-              <SearchIcon sx={{ color: "#F59E0B", fontSize: 18, mr: 0.75 }} />
-              <Typography variant="caption" sx={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.70)", flex: 1, fontWeight: 700 }}>
+              <SearchIcon sx={{ color: "#A20A3A", fontSize: 18, mr: 0.75 }} />
+              <Typography variant="caption" sx={{ fontSize: "12px", color: "#8A8288", flex: 1, fontWeight: 700 }}>
                 Universal Search...
               </Typography>
-              <Chip label="Ctrl+K" size="small" sx={{ height: 18, fontSize: "0.6rem", fontWeight: 800, bgcolor: "rgba(245, 158, 11, 0.2)", color: "#FDE68A" }} />
+              <Chip label="Ctrl+K" size="small" sx={{ height: 18, fontSize: "0.6rem", fontWeight: 800, bgcolor: "#FFF0F4", color: "#A20A3A", border: "1px solid #E8E2E5" }} />
             </Paper>
           </Stack>
 
@@ -1051,18 +1050,18 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 px: { xs: 0.8, sm: 1.5 },
                 py: 0.3,
                 borderRadius: "10px",
-                bgcolor: "rgba(15, 23, 42, 0.9)",
-                border: "1px solid rgba(245, 158, 11, 0.35)",
+                bgcolor: "#FFFFFF",
+                border: "1px solid #E8E2E5",
                 display: "flex",
                 alignItems: "center",
                 gap: { xs: 0.5, sm: 0.8 },
                 flexShrink: 0,
                 height: { xs: 32, sm: 38 },
-                boxShadow: "0 2px 10px rgba(0,0,0,0.4), 0 0 8px rgba(245, 158, 11, 0.12)",
+                boxShadow: "0 1px 3px rgba(41, 35, 41, 0.05)",
                 transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
                 "&:hover": {
-                  bgcolor: "rgba(24, 34, 53, 0.95)",
-                  borderColor: "rgba(245, 158, 11, 0.6)",
+                  bgcolor: "#FAF8F9",
+                  borderColor: "#EDC11E",
                 },
               }}
             >
@@ -1085,15 +1084,15 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                       width: { xs: 20, sm: 24 },
                       height: { xs: 20, sm: 24 },
                       borderRadius: "6px",
-                      bgcolor: "rgba(245, 158, 11, 0.2)",
-                      border: "1px solid rgba(245, 158, 11, 0.4)",
+                      bgcolor: "#FFF8DC",
+                      border: "1px solid #FFF3C4",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       flexShrink: 0,
                     }}
                   >
-                    <AccountBalanceWalletIcon sx={{ color: "#FBBF24", fontSize: { xs: 12, sm: 14 } }} />
+                    <AccountBalanceWalletIcon sx={{ color: "#EDC11E", fontSize: { xs: 12, sm: 14 } }} />
                   </Box>
 
                   <Typography
@@ -1101,14 +1100,11 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                     suppressHydrationWarning
                     sx={{
                       fontWeight: 900,
-                      background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 100%)",
-                      WebkitBackgroundClip: "text",
-                      WebkitTextFillColor: "transparent",
+                      color: "#A20A3A",
                       fontSize: { xs: "12px", sm: "14.5px" },
                       lineHeight: 1.1,
                       letterSpacing: "-0.2px",
                       fontFamily: "var(--font-geist-mono), 'Inter', monospace, sans-serif",
-                      textShadow: "0 0 10px rgba(245, 158, 11, 0.3)",
                       whiteSpace: "nowrap",
                     }}
                   >
@@ -1127,11 +1123,11 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   disabled={isSyncing}
                   sx={{
                     p: 0.2,
-                    color: "#F59E0B",
+                    color: "#EDC11E",
                     borderRadius: "4px",
                     "&:hover": {
-                      color: "#FDE68A",
-                      bgcolor: "rgba(245, 158, 11, 0.15)",
+                      color: "#D4A915",
+                      bgcolor: "#FFF8DC",
                     },
                   }}
                 >
@@ -1154,8 +1150,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   size="small"
                   sx={{
                     p: 0.75,
-                    color: "#94A3B8",
-                    "&:hover": { color: "#F59E0B", bgcolor: "rgba(245, 158, 11, 0.1)" },
+                    color: "#625B60",
+                    "&:hover": { color: "#A20A3A", bgcolor: "#FFF0F4" },
                   }}
                 >
                   <PaletteIcon sx={{ fontSize: 20 }} />
@@ -1174,16 +1170,16 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                     width: 180,
                     mt: 1,
                     p: 0.5,
-                    bgcolor: effectiveTheme === "dark" ? "#0F172A" : "#FFFFFF",
-                    color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A",
-                    border: effectiveTheme === "dark" ? "1px solid #1E293B" : "1px solid #E2E8F0",
-                    boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+                    bgcolor: "#FFFFFF",
+                    color: "#292329",
+                    border: "1px solid #E8E2E5",
+                    boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
                   },
                 },
               }}
             >
-              <Box sx={{ p: 1, px: 1.5, borderBottom: effectiveTheme === "dark" ? "1px solid #1E293B" : "1px solid #F1F5F9" }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: "12px", color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A" }}>
+              <Box sx={{ p: 1, px: 1.5, borderBottom: "1px solid #E8E2E5" }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: "12px", color: "#292329" }}>
                   Theme
                 </Typography>
               </Box>
@@ -1211,19 +1207,13 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                       alignItems: "center",
                       justifyContent: "space-between",
                       bgcolor: isSelected
-                        ? effectiveTheme === "dark"
-                          ? "rgba(59, 130, 246, 0.15)"
-                          : "rgba(37, 99, 235, 0.08)"
+                        ? "#FFF0F4"
                         : "transparent",
                       color: isSelected
-                        ? effectiveTheme === "dark"
-                          ? "#60A5FA"
-                          : "#2563EB"
-                        : effectiveTheme === "dark"
-                        ? "#CBD5E1"
-                        : "#334155",
+                        ? "#A20A3A"
+                        : "#292329",
                       "&:hover": {
-                        bgcolor: effectiveTheme === "dark" ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.04)",
+                        bgcolor: "#FAF8F9",
                       },
                     }}
                   >
@@ -1266,13 +1256,14 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 <Avatar
                   src={profileDetails.photo_url || outlet.avatar || undefined}
                   sx={{
-                    bgcolor: "#1E3A8A",
+                    bgcolor: "#A20A3A",
+                    color: "#FFFFFF",
                     width: { xs: 30, sm: 34 },
                     height: { xs: 30, sm: 34 },
                     fontWeight: 800,
                     fontSize: { xs: "0.75rem", sm: "0.85rem" },
-                    border: "2px solid #3B82F6",
-                    boxShadow: "0 2px 6px rgba(30,58,138,0.25)",
+                    border: "2px solid #FFF0F4",
+                    boxShadow: "0 2px 6px rgba(162,10,58,0.25)",
                   }}
                 >
                   {(profileDetails.owner_name || profileDetails.retailer_name || outlet.ownerName || outlet.name || "").charAt(0).toUpperCase()}
@@ -1294,10 +1285,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                     width: 330,
                     mt: 1.5,
                     p: "20px",
-                    bgcolor: effectiveTheme === "dark" ? "#111B2B" : "#FFFFFF",
-                    color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A",
-                    boxShadow: effectiveTheme === "dark" ? "0 16px 48px rgba(0,0,0,0.5)" : "0 12px 36px rgba(0,0,0,0.12)",
-                    border: effectiveTheme === "dark" ? "1px solid rgba(148, 163, 184, 0.2)" : "1px solid rgba(15, 23, 42, 0.12)",
+                    bgcolor: "#FFFFFF",
+                    color: "#292329",
+                    boxShadow: "0 12px 36px rgba(41, 35, 41, 0.12)",
+                    border: "1px solid #E8E2E5",
                   },
                 },
               }}
@@ -1309,34 +1300,34 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   sx={{
                     width: 48,
                     height: 48,
-                    bgcolor: "#1E3A8A",
+                    bgcolor: "#A20A3A",
                     color: "#FFFFFF",
                     fontWeight: 800,
                     fontSize: "1.2rem",
-                    border: "2px solid #3B82F6",
-                    boxShadow: "0 4px 12px rgba(30, 58, 138, 0.3)",
+                    border: "2px solid #FFF0F4",
+                    boxShadow: "0 4px 12px rgba(162, 10, 58, 0.25)",
                     flexShrink: 0,
                   }}
                 >
                   {(profileDetails.retailer_name || profileDetails.owner_name || outlet.name || outlet.ownerName || "").charAt(0).toUpperCase()}
                 </Avatar>
                 <Box sx={{ minWidth: 0, flex: 1 }}>
-                  <Typography variant="subtitle1" sx={{ fontSize: "16px", fontWeight: 800, color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A", lineHeight: 1.2 }}>
+                  <Typography variant="subtitle1" sx={{ fontSize: "16px", fontWeight: 800, color: "#292329", lineHeight: 1.2 }}>
                     {profileDetails.retailer_name || profileDetails.owner_name || outlet.name || outlet.ownerName || "—"}
                   </Typography>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5, flexWrap: "wrap" }}>
                     {profileDetails.plan_name && (
                       <Chip
-                        icon={<WorkspacePremiumIcon sx={{ "&&": { color: "#D4AF37", fontSize: 13 } }} />}
+                        icon={<WorkspacePremiumIcon sx={{ "&&": { color: "#EDC11E", fontSize: 13 } }} />}
                         label={profileDetails.plan_name}
                         size="small"
                         sx={{
-                          backgroundColor: effectiveTheme === "dark" ? "rgba(234, 179, 8, 0.15)" : "#FEF9C3",
-                          color: effectiveTheme === "dark" ? "#FACC15" : "#854D0E",
+                          backgroundColor: "#FFF8DC",
+                          color: "#D4A915",
                           fontWeight: 800,
                           fontSize: "0.65rem",
                           height: 20,
-                          border: effectiveTheme === "dark" ? "1px solid rgba(250, 204, 21, 0.3)" : "1px solid #FDE047",
+                          border: "1px solid #FFF3C4",
                         }}
                       />
                     )}
@@ -1344,9 +1335,9 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                       label="● Active Session"
                       size="small"
                       sx={{
-                        backgroundColor: effectiveTheme === "dark" ? "rgba(34, 197, 94, 0.15)" : "#DCFCE7",
-                        color: effectiveTheme === "dark" ? "#4ADE80" : "#16A34A",
-                        border: effectiveTheme === "dark" ? "1px solid rgba(74, 222, 128, 0.3)" : "1px solid #BBF7D0",
+                        backgroundColor: "#FFF0F4",
+                        color: "#A20A3A",
+                        border: "1px solid #FFD6E2",
                         fontWeight: 800,
                         fontSize: "0.65rem",
                         height: 20,
@@ -1356,19 +1347,19 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 </Box>
               </Box>
 
-              <Divider sx={{ my: 1.5, borderColor: effectiveTheme === "dark" ? "rgba(148, 163, 184, 0.2)" : "rgba(15, 23, 42, 0.12)" }} />
+              <Divider sx={{ my: 1.5, borderColor: "#E8E2E5" }} />
 
               {/* Wallet Balance Display */}
               <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, mb: 1.5 }}>
-                <Typography variant="caption" sx={{ fontSize: "10px", fontWeight: 700, color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                <Typography variant="caption" sx={{ fontSize: "10px", fontWeight: 700, color: "#625B60", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                   WALLET BALANCE
                 </Typography>
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <Typography variant="h5" suppressHydrationWarning sx={{ fontSize: "22px", fontWeight: 800, color: effectiveTheme === "dark" ? "#FFFFFF" : "#0F172A", fontFamily: "monospace", lineHeight: 1.1 }}>
+                  <Typography variant="h5" suppressHydrationWarning sx={{ fontSize: "22px", fontWeight: 800, color: "#A20A3A", fontFamily: "monospace", lineHeight: 1.1 }}>
                     ₹{(wallet?.mainBalance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Typography>
                   <IconButton size="small" onClick={syncBalance} disabled={isSyncing} sx={{ p: 0.25 }}>
-                    <RefreshIcon sx={{ fontSize: 16, color: effectiveTheme === "dark" ? "#60A5FA" : "#2563EB", animation: isSyncing ? "spin 1s linear infinite" : "none" }} />
+                    <RefreshIcon sx={{ fontSize: 16, color: "#EDC11E", animation: isSyncing ? "spin 1s linear infinite" : "none" }} />
                   </IconButton>
                 </Box>
               </Box>
@@ -1376,16 +1367,16 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               {/* Details List */}
               <Stack spacing={1} sx={{ mb: 2 }}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>Retailer ID</Typography>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#625B60", fontWeight: 600 }}>Retailer ID</Typography>
                   <Chip
                     label={
                       profileDetails.retailer_code || outlet.code || "—"
                     }
                     size="small"
                     sx={{
-                      backgroundColor: effectiveTheme === "dark" ? "rgba(59, 130, 246, 0.15)" : "#EFF6FF",
-                      color: effectiveTheme === "dark" ? "#60A5FA" : "#2563EB",
-                      border: effectiveTheme === "dark" ? "1px solid rgba(96, 165, 250, 0.3)" : "1px solid #BFDBFE",
+                      backgroundColor: "#FFF0F4",
+                      color: "#A20A3A",
+                      border: "1px solid #FFD6E2",
                       fontWeight: 800,
                       height: 20,
                       fontSize: "0.68rem",
@@ -1394,26 +1385,26 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 </Box>
 
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>Merchant Outlet</Typography>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A", fontWeight: 700, textAlign: "right", maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#625B60", fontWeight: 600 }}>Merchant Outlet</Typography>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#292329", fontWeight: 700, textAlign: "right", maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {profileDetails.retailer_name || outlet.name || "—"}
                   </Typography>
                 </Box>
 
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>Account Approval</Typography>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#625B60", fontWeight: 600 }}>Account Approval</Typography>
                   {(() => {
                     const statusVal = profileDetails.approval_status || outlet.approvalStatus || (isApproved ? "APPROVED" : "PENDING");
                     const isAppr = statusVal.toUpperCase() === "ACTIVE" || statusVal.toUpperCase() === "APPROVED";
                     return (
                       <Chip
-                        icon={isAppr ? <ShieldIcon sx={{ "&&": { color: effectiveTheme === "dark" ? "#4ADE80" : "#16A34A", fontSize: 12 } }} /> : <LockIcon sx={{ "&&": { color: effectiveTheme === "dark" ? "#FBBF24" : "#D97706", fontSize: 12 } }} />}
+                        icon={isAppr ? <ShieldIcon sx={{ "&&": { color: "#A20A3A", fontSize: 12 } }} /> : <LockIcon sx={{ "&&": { color: "#EDC11E", fontSize: 12 } }} />}
                         label={statusVal}
                         size="small"
                         sx={{
-                          backgroundColor: isAppr ? (effectiveTheme === "dark" ? "rgba(34, 197, 94, 0.15)" : "#DCFCE7") : (effectiveTheme === "dark" ? "rgba(245, 158, 11, 0.15)" : "#FEF3C7"),
-                          color: isAppr ? (effectiveTheme === "dark" ? "#4ADE80" : "#16A34A") : (effectiveTheme === "dark" ? "#FBBF24" : "#D97706"),
-                          border: isAppr ? (effectiveTheme === "dark" ? "1px solid rgba(74, 222, 128, 0.3)" : "1px solid #BBF7D0") : (effectiveTheme === "dark" ? "1px solid rgba(251, 191, 36, 0.3)" : "1px solid #FDE68A"),
+                          backgroundColor: isAppr ? "#FFF0F4" : "#FFF8DC",
+                          color: isAppr ? "#A20A3A" : "#D4A915",
+                          border: isAppr ? "1px solid #FFD6E2" : "1px solid #FFF3C4",
                           fontWeight: 800,
                           height: 22,
                           fontSize: "0.68rem",
@@ -1424,19 +1415,19 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 </Box>
 
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>KYC Status</Typography>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#625B60", fontWeight: 600 }}>KYC Status</Typography>
                   {(() => {
                     const kycVal = profileDetails.kyc_status || outlet.kycStatus || (isApproved ? "VERIFIED" : "PENDING");
                     const isKyc = kycVal.toUpperCase() === "VERIFIED" || kycVal.toUpperCase() === "APPROVED";
                     return (
                       <Chip
-                        icon={<ShieldIcon sx={{ "&&": { color: isKyc ? (effectiveTheme === "dark" ? "#4ADE80" : "#16A34A") : (effectiveTheme === "dark" ? "#FBBF24" : "#D97706"), fontSize: 12 } }} />}
+                        icon={<ShieldIcon sx={{ "&&": { color: isKyc ? "#A20A3A" : "#EDC11E", fontSize: 12 } }} />}
                         label={kycVal}
                         size="small"
                         sx={{
-                          backgroundColor: isKyc ? (effectiveTheme === "dark" ? "rgba(34, 197, 94, 0.15)" : "#DCFCE7") : (effectiveTheme === "dark" ? "rgba(245, 158, 11, 0.15)" : "#FEF3C7"),
-                          color: isKyc ? (effectiveTheme === "dark" ? "#4ADE80" : "#16A34A") : (effectiveTheme === "dark" ? "#FBBF24" : "#D97706"),
-                          border: isKyc ? (effectiveTheme === "dark" ? "1px solid rgba(74, 222, 128, 0.3)" : "1px solid #BBF7D0") : (effectiveTheme === "dark" ? "1px solid rgba(251, 191, 36, 0.3)" : "1px solid #FDE68A"),
+                          backgroundColor: isKyc ? "#FFF0F4" : "#FFF8DC",
+                          color: isKyc ? "#A20A3A" : "#D4A915",
+                          border: isKyc ? "1px solid #FFD6E2" : "1px solid #FFF3C4",
                           fontWeight: 800,
                           height: 20,
                           fontSize: "0.68rem",
@@ -1447,21 +1438,21 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 </Box>
 
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>Location</Typography>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A", fontWeight: 600, textAlign: "right", maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#625B60", fontWeight: 600 }}>Location</Typography>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#292329", fontWeight: 600, textAlign: "right", maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {profileDetails.location || outlet.location || "—"}
                   </Typography>
                 </Box>
 
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>Last Login</Typography>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#625B60", fontWeight: 600 }}>Last Login</Typography>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#8A8288", fontWeight: 600 }}>
                     {formatLastLogin(profileDetails.last_login_at)}
                   </Typography>
                 </Box>
               </Stack>
 
-              <Divider sx={{ my: 1.5, borderColor: effectiveTheme === "dark" ? "rgba(148, 163, 184, 0.2)" : "rgba(15, 23, 42, 0.12)" }} />
+              <Divider sx={{ my: 1.5, borderColor: "#E8E2E5" }} />
 
               {/* Action Buttons */}
               <Stack spacing={1}>
@@ -1471,7 +1462,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   fullWidth
                   size="small"
                   variant="outlined"
-                  startIcon={<PersonIcon sx={{ fontSize: 18, color: effectiveTheme === "dark" ? "#60A5FA" : "#2563EB" }} />}
+                  startIcon={<PersonIcon sx={{ fontSize: 18, color: "#A20A3A" }} />}
                   onClick={() => setProfileAnchor(null)}
                   sx={{
                     borderRadius: "10px",
@@ -1479,11 +1470,11 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                     fontWeight: 700,
                     textTransform: "none",
                     fontSize: "12px",
-                    borderColor: effectiveTheme === "dark" ? "rgba(59, 130, 246, 0.5)" : "#3B82F6",
-                    color: effectiveTheme === "dark" ? "#60A5FA" : "#2563EB",
+                    borderColor: "#A20A3A",
+                    color: "#A20A3A",
                     "&:hover": {
-                      borderColor: "#3B82F6",
-                      backgroundColor: effectiveTheme === "dark" ? "rgba(59, 130, 246, 0.12)" : "#EFF6FF",
+                      borderColor: "#85072F",
+                      backgroundColor: "#FFF0F4",
                     },
                   }}
                 >
@@ -1493,7 +1484,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   fullWidth
                   size="small"
                   variant="outlined"
-                  startIcon={<LockIcon sx={{ fontSize: 18, color: "#F59E0B" }} />}
+                  startIcon={<LockIcon sx={{ fontSize: 18, color: "#EDC11E" }} />}
                   onClick={() => {
                     setProfileAnchor(null);
                     lockSession();
@@ -1504,12 +1495,12 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                     fontWeight: 700,
                     textTransform: "none",
                     fontSize: "12px",
-                    borderColor: "rgba(245, 158, 11, 0.4)",
-                    color: "#F59E0B",
-                    backgroundColor: effectiveTheme === "dark" ? "rgba(245, 158, 11, 0.08)" : "rgba(245, 158, 11, 0.05)",
+                    borderColor: "#EDC11E",
+                    color: "#EDC11E",
+                    backgroundColor: "#FFF8DC",
                     "&:hover": {
-                      borderColor: "#F59E0B",
-                      backgroundColor: "rgba(245, 158, 11, 0.16)",
+                      borderColor: "#D4A915",
+                      backgroundColor: "#FFF3C4",
                     },
                   }}
                 >
@@ -1527,10 +1518,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                     fontWeight: 700,
                     textTransform: "none",
                     fontSize: "12px",
-                    backgroundColor: "#DC2626",
+                    backgroundColor: "#A20A3A",
                     color: "#FFFFFF",
                     "&:hover": {
-                      backgroundColor: "#B91C1C",
+                      backgroundColor: "#85072F",
                     },
                   }}
                 >
@@ -1606,22 +1597,22 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 mb: 3,
                 p: 2,
                 borderRadius: "16px",
-                background: "linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.10) 100%)",
-                border: "1px solid rgba(245, 158, 11, 0.35)",
+                background: "#FFF8DC",
+                border: "1px solid #FFF3C4",
                 display: "flex",
                 flexDirection: { xs: "column", sm: "row" },
                 alignItems: { xs: "flex-start", sm: "center" },
                 justifyContent: "space-between",
                 gap: 2,
-                boxShadow: "0 6px 20px rgba(245, 158, 11, 0.12)",
+                boxShadow: "0 2px 8px rgba(237, 193, 30, 0.08)",
               }}
             >
               <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-                <Box sx={{ p: 1, borderRadius: "12px", bgcolor: "rgba(245, 158, 11, 0.2)", color: "#FBBF24" }}>
+                <Box sx={{ p: 1, borderRadius: "12px", bgcolor: "#FFF3C4", color: "#D4A915" }}>
                   <LockIcon sx={{ fontSize: 24 }} />
                 </Box>
                 <Box>
-                  <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.85)", fontSize: "12px", fontWeight: 500 }}>
+                  <Typography variant="caption" sx={{ color: "#292329", fontSize: "12px", fontWeight: 500 }}>
                     Your retailer account (Mobile: <strong>{outlet.mobile ? `+91 ${outlet.mobile.replace(/\D/g, "")}` : "your registered mobile"}</strong>) is currently <strong>PENDING ADMIN APPROVAL</strong>. All financial services (DMT, Card to Cash, AEPS, UPI, BBPS, Recharge, Wallet Top-Up) are restricted until Admin approves your application.
                   </Typography>
                 </Box>
@@ -1633,7 +1624,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   href="/register/submitted"
                   size="small"
                   variant="contained"
-                  sx={{ bgcolor: "#F59E0B", color: "#000", fontWeight: 800, textTransform: "none", fontSize: "12px", "&:hover": { bgcolor: "#D97706" } }}
+                  sx={{ bgcolor: "#EDC11E", color: "#FFFFFF", fontWeight: 800, textTransform: "none", fontSize: "12px", "&:hover": { bgcolor: "#D4A915" } }}
                 >
                   Check KYC Status
                 </Button>
@@ -1641,7 +1632,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   size="small"
                   variant="outlined"
                   onClick={() => openContactSupportModal()}
-                  sx={{ borderColor: "rgba(255,255,255,0.3)", color: "#FFFFFF", fontWeight: 800, textTransform: "none", fontSize: "12px", "&:hover": { borderColor: "#FFFFFF", bgcolor: "rgba(255,255,255,0.1)" } }}
+                  sx={{ borderColor: "#E8E2E5", color: "#292329", fontWeight: 800, textTransform: "none", fontSize: "12px", "&:hover": { borderColor: "#A20A3A", bgcolor: "#FFF0F4" } }}
                 >
                   Contact Admin Support
                 </Button>
@@ -1652,7 +1643,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           {/* HARD LOCKED ROUTE ENFORCEMENT: Block page content if unapproved & path is locked */}
           {isPathLocked(pathname) ? (
             <ApprovalGuardOverlay featureName={activeMenuItem?.label || "Financial Service"}>
-              <Box sx={{ p: 4, textAlign: "center", color: "#94A3B8" }}>
+              <Box sx={{ p: 4, textAlign: "center", color: "#625B60" }}>
                 <Typography variant="h6" sx={{ fontWeight: 800 }}>Service Restricted</Typography>
               </Box>
             </ApprovalGuardOverlay>
@@ -1669,18 +1660,18 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               mt: 4,
               pt: 2.5,
               pb: 1.5,
-              borderTop: "1px solid #E5E7EB",
+              borderTop: "1px solid #E8E2E5",
               display: "flex",
               flexDirection: { xs: "column", sm: "row" },
               alignItems: "center",
               justifyContent: "space-between",
               gap: 1.5,
-              color: "#6B7280",
+              color: "#625B60",
             }}
           >
             <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
               <Typography variant="caption" sx={{ fontWeight: 600, fontSize: "12px" }}>
-                © 2021 SUPER REX PRODUCTS PRIVATE LIMITED · Pay2Pay Retailer Portal
+                © 2021 Sathus Technology Pvt. Ltd. · Near4You Retailer Portal
               </Typography>
               <Chip label="v2.4.0-ENT" size="small" sx={{ height: 20, fontSize: "0.65rem", fontWeight: 800 }} />
             </Stack>
@@ -1688,13 +1679,13 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
               <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
                 <ShieldIcon sx={{ fontSize: 14, color: "#16A34A" }} />
-                <Typography variant="caption" sx={{ fontWeight: 700, color: "#111827", fontSize: "12px" }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: "#292329", fontSize: "12px" }}>
                   256-bit SSL
                 </Typography>
               </Stack>
               <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-                <LockIcon sx={{ fontSize: 14, color: "#2563EB" }} />
-                <Typography variant="caption" sx={{ fontWeight: 700, color: "#111827", fontSize: "12px" }}>
+                <LockIcon sx={{ fontSize: 14, color: "#EDC11E" }} />
+                <Typography variant="caption" sx={{ fontWeight: 700, color: "#292329", fontSize: "12px" }}>
                   NPCI & BBPS Certified
                 </Typography>
               </Stack>
@@ -1720,25 +1711,25 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         paper: {
           sx: {
             borderRadius: "24px",
-            bgcolor: "#0F172A",
-            color: "#FFFFFF",
+            bgcolor: "#FFFFFF",
+            color: "#292329",
             p: 3.5,
             maxWidth: 440,
             width: "100%",
-            border: "1px solid rgba(245, 158, 11, 0.4)",
-            boxShadow: "0 24px 48px rgba(0,0,0,0.6)",
+            border: "1px solid #E8E2E5",
+            boxShadow: "0 16px 40px rgba(41, 35, 41, 0.12)",
           },
         },
       }}
     >
       <Box sx={{ textCenter: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
-        <Box sx={{ w: 14, h: 14, p: 1.5, borderRadius: "50%", bgcolor: "rgba(245, 158, 11, 0.15)", border: "2px solid rgba(245, 158, 11, 0.4)", color: "#FBBF24", mb: 2, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Box sx={{ w: 14, h: 14, p: 1.5, borderRadius: "50%", bgcolor: "#FFF8DC", border: "2px solid #FFF3C4", color: "#EDC11E", mb: 2, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <LockIcon sx={{ fontSize: 32 }} />
         </Box>
-        <Typography variant="h6" sx={{ fontWeight: 900, color: "#FFFFFF", textAlign: "center" }}>
+        <Typography variant="h6" sx={{ fontWeight: 900, color: "#292329", textAlign: "center" }}>
           {lockedModalItem?.label || "Feature"} Restricted
         </Typography>
-        <Typography variant="body2" sx={{ color: "#CBD5E1", mt: 1.5, textAlign: "center", fontSize: "13px", lineHeight: 1.5 }}>
+        <Typography variant="body2" sx={{ color: "#625B60", mt: 1.5, textAlign: "center", fontSize: "13px", lineHeight: 1.5 }}>
           Your retailer account (Mobile: <strong>{outlet.mobile ? `+91 ${outlet.mobile.replace(/\D/g, "")}` : "your registered mobile"}</strong>) is currently <strong>PENDING ADMIN APPROVAL</strong>. All financial services, wallet top-ups, and transaction tools remain locked until Admin completes verification.
         </Typography>
 
@@ -1749,7 +1740,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             onClick={() => setLockedModalItem(null)}
             variant="contained"
             fullWidth
-            sx={{ bgcolor: "#2563EB", color: "#FFF", fontWeight: 800, borderRadius: "12px", height: 44, textTransform: "none", fontSize: "13px" }}
+            sx={{ bgcolor: "#A20A3A", color: "#FFF", fontWeight: 800, borderRadius: "12px", height: 44, textTransform: "none", fontSize: "13px", "&:hover": { bgcolor: "#85072F" } }}
           >
             Check Application & KYC Status
           </Button>
@@ -1760,7 +1751,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             }}
             variant="outlined"
             fullWidth
-            sx={{ borderColor: "#3B82F6", color: "#60A5FA", fontWeight: 800, borderRadius: "12px", height: 44, textTransform: "none", fontSize: "13px", "&:hover": { bgcolor: "rgba(59, 130, 246, 0.1)" } }}
+            sx={{ borderColor: "#E8E2E5", color: "#292329", fontWeight: 800, borderRadius: "12px", height: 44, textTransform: "none", fontSize: "13px", "&:hover": { borderColor: "#A20A3A", bgcolor: "#FFF0F4" } }}
           >
             Contact Admin Support
           </Button>
@@ -1768,7 +1759,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             onClick={() => setLockedModalItem(null)}
             variant="text"
             fullWidth
-            sx={{ color: "#94A3B8", fontWeight: 700, borderRadius: "12px", height: 38, textTransform: "none", fontSize: "13px" }}
+            sx={{ color: "#8A8288", fontWeight: 700, borderRadius: "12px", height: 38, textTransform: "none", fontSize: "13px" }}
           >
             Close Window
           </Button>

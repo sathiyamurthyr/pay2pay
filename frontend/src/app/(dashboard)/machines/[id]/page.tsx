@@ -62,13 +62,13 @@ export default function MachineDetailsPage() {
         <div className="flex items-center gap-4">
           <Link
             href="/machines"
-            className="flex items-center justify-center rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#6B7280] hover:text-[#111827] hover:bg-[#FAFBFC]"
+            className="flex items-center justify-center rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#6B7280] hover:text-[#FAF8F9] hover:bg-[#FAFBFC]"
           >
             <ChevronLeft className="h-5 w-5" />
           </Link>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-extrabold text-[#111827]">{machine.pos_model}</h1>
+              <h1 className="text-2xl font-extrabold text-[#FAF8F9]">{machine.pos_model}</h1>
               <span className="font-mono text-xs text-[#2563EB] font-extrabold px-2.5 py-0.5 rounded bg-[#DBEAFE] border border-[#BFDBFE]">
                 SN: {machine.serial_number}
               </span>
@@ -86,7 +86,7 @@ export default function MachineDetailsPage() {
         <button
           onClick={() => setActiveTab("specs")}
           className={`flex items-center gap-2 px-4 py-2 text-xs font-extrabold rounded-lg transition-all ${
-            activeTab === "specs" ? "bg-white text-[#2563EB] shadow-2xs border border-[#E5E7EB]" : "text-[#6B7280] hover:text-[#111827]"
+            activeTab === "specs" ? "bg-white text-[#2563EB] shadow-2xs border border-[#E5E7EB]" : "text-[#6B7280] hover:text-[#FAF8F9]"
           }`}
         >
           <Cpu className="h-4 w-4" /> Terminal Specs
@@ -94,7 +94,7 @@ export default function MachineDetailsPage() {
         <button
           onClick={() => setActiveTab("telemetry")}
           className={`flex items-center gap-2 px-4 py-2 text-xs font-extrabold rounded-lg transition-all ${
-            activeTab === "telemetry" ? "bg-white text-[#2563EB] shadow-2xs border border-[#E5E7EB]" : "text-[#6B7280] hover:text-[#111827]"
+            activeTab === "telemetry" ? "bg-white text-[#2563EB] shadow-2xs border border-[#E5E7EB]" : "text-[#6B7280] hover:text-[#FAF8F9]"
           }`}
         >
           <Activity className="h-4 w-4" /> Live Health &amp; Telemetry
@@ -102,7 +102,7 @@ export default function MachineDetailsPage() {
         <button
           onClick={() => setActiveTab("security")}
           className={`flex items-center gap-2 px-4 py-2 text-xs font-extrabold rounded-lg transition-all ${
-            activeTab === "security" ? "bg-white text-[#2563EB] shadow-2xs border border-[#E5E7EB]" : "text-[#6B7280] hover:text-[#111827]"
+            activeTab === "security" ? "bg-white text-[#2563EB] shadow-2xs border border-[#E5E7EB]" : "text-[#6B7280] hover:text-[#FAF8F9]"
           }`}
         >
           <Lock className="h-4 w-4" /> DUKPT Key Profile
@@ -110,7 +110,7 @@ export default function MachineDetailsPage() {
         <button
           onClick={() => setActiveTab("history")}
           className={`flex items-center gap-2 px-4 py-2 text-xs font-extrabold rounded-lg transition-all ${
-            activeTab === "history" ? "bg-white text-[#2563EB] shadow-2xs border border-[#E5E7EB]" : "text-[#6B7280] hover:text-[#111827]"
+            activeTab === "history" ? "bg-white text-[#2563EB] shadow-2xs border border-[#E5E7EB]" : "text-[#6B7280] hover:text-[#FAF8F9]"
           }`}
         >
           <History className="h-4 w-4" /> Status Audit Trail
@@ -118,7 +118,7 @@ export default function MachineDetailsPage() {
       </div>
 
       {/* Tab Contents */}
-      <div className="rounded-xl border border-[#E5E7EB] bg-white p-6 shadow-2xs text-[#111827]">
+      <div className="rounded-xl border border-[#E5E7EB] bg-white p-6 shadow-2xs text-[#FAF8F9]">
         {activeTab === "specs" && (
           <div className="grid grid-cols-2 gap-6 text-sm">
             <div>
@@ -127,15 +127,15 @@ export default function MachineDetailsPage() {
             </div>
             <div>
               <span className="text-xs text-[#6B7280] font-mono font-bold">Terminal ID (TID)</span>
-              <div className="font-mono text-[#111827] font-extrabold">{machine.tid}</div>
+              <div className="font-mono text-[#FAF8F9] font-extrabold">{machine.tid}</div>
             </div>
             <div>
               <span className="text-xs text-[#6B7280] font-mono font-bold">Merchant ID (MID)</span>
-              <div className="font-mono text-[#111827] font-extrabold">{machine.mid}</div>
+              <div className="font-mono text-[#FAF8F9] font-extrabold">{machine.mid}</div>
             </div>
             <div>
               <span className="text-xs text-[#6B7280] font-mono font-bold">SIM ICCID / Provider</span>
-              <div className="font-mono text-[#111827] font-semibold">{machine.sim_iccid || "N/A"} ({machine.telecom_provider})</div>
+              <div className="font-mono text-[#FAF8F9] font-semibold">{machine.sim_iccid || "N/A"} ({machine.telecom_provider})</div>
             </div>
           </div>
         )}
@@ -152,14 +152,14 @@ export default function MachineDetailsPage() {
             </div>
             <div className="p-4 rounded-xl border border-[#E5E7EB] bg-[#FAFBFC]">
               <span className="text-xs text-[#6B7280] font-bold flex items-center gap-1.5"><Radio className="h-4 w-4 text-[#2563EB]" /> App Version</span>
-              <div className="font-mono text-xl font-extrabold text-[#111827] mt-2">{telemetry?.app_version || "v1.8.0"}</div>
+              <div className="font-mono text-xl font-extrabold text-[#FAF8F9] mt-2">{telemetry?.app_version || "v1.8.0"}</div>
             </div>
           </div>
         )}
 
         {activeTab === "security" && (
           <div className="space-y-4 text-sm">
-            <h3 className="font-extrabold text-[#111827]">DUKPT Key Profile &amp; Master Key</h3>
+            <h3 className="font-extrabold text-[#FAF8F9]">DUKPT Key Profile &amp; Master Key</h3>
             <div className="grid grid-cols-2 gap-4 p-4 rounded-xl border border-[#E5E7EB] bg-[#FAFBFC] font-mono">
               <div>
                 <span className="text-xs text-[#6B7280] font-bold">DUKPT KSN</span>
@@ -167,7 +167,7 @@ export default function MachineDetailsPage() {
               </div>
               <div>
                 <span className="text-xs text-[#6B7280] font-bold">Encryption Standard</span>
-                <div className="text-[#111827] font-bold">{key_profile?.encryption || "AES-256"}</div>
+                <div className="text-[#FAF8F9] font-bold">{key_profile?.encryption || "AES-256"}</div>
               </div>
             </div>
           </div>
@@ -175,11 +175,11 @@ export default function MachineDetailsPage() {
 
         {activeTab === "history" && (
           <div className="space-y-3 text-xs">
-            <h3 className="font-extrabold text-[#111827] text-sm mb-2">Status Audit Trail</h3>
+            <h3 className="font-extrabold text-[#FAF8F9] text-sm mb-2">Status Audit Trail</h3>
             {status_history.map((h: any, i: number) => (
               <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-[#E5E7EB] bg-[#FAFBFC]">
                 <div>
-                  <span className="font-bold text-[#111827]">{h.previous}</span> → <span className="font-bold text-[#166534]">{h.new}</span>
+                  <span className="font-bold text-[#FAF8F9]">{h.previous}</span> → <span className="font-bold text-[#166534]">{h.new}</span>
                   <div className="text-[#6B7280] font-medium mt-0.5">{h.reason}</div>
                 </div>
                 <div className="text-right text-[#6B7280] font-mono font-bold">

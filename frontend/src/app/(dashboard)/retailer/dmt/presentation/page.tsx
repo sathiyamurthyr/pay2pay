@@ -38,14 +38,14 @@ import SpeedIcon from "@mui/icons-material/Speed";
 // ─────────────────────────────────────────────────────────────────────────────
 // LUXURY BANKING COLOR PALETTE TOKENS
 // ─────────────────────────────────────────────────────────────────────────────
-const NAVY_PRIMARY = "#0F2C59";
+const NAVY_PRIMARY = "#A20A3A";
 const MAROON_PRIMARY = "#7B1E3A";
 const GOLD_PREMIUM = "#D4AF37";
 const GOLD_CHAMPAGNE = "#F7E7B6";
 const WHITE = "#FFFFFF";
 
 const MAROON_GOLD_GRADIENT = "linear-gradient(135deg, #7B1E3A 0%, #912544 45%, #D4AF37 100%)";
-const NAVY_GRADIENT = "linear-gradient(135deg, #0F2C59 0%, #1A407B 100%)";
+const NAVY_GRADIENT = "linear-gradient(135deg, #A20A3A 0%, #1A407B 100%)";
 
 const GLASS_CARD = {
   background: "rgba(255, 255, 255, 0.75)",
@@ -61,9 +61,9 @@ export default function DmtPresentationPage() {
 
   return (
     <ApprovalGuardOverlay featureName="Money Transfer (DMT)">
-      <Box sx={{ width: "100vw", minHeight: "100vh", bgcolor: "#0B132B", color: WHITE, overflowX: "hidden", p: 0 }}>
+      <Box sx={{ width: "100vw", minHeight: "100vh", bgcolor: "#FFFFFF", color: WHITE, overflowX: "hidden", p: 0 }}>
         {/* ── TOP PRESENTATION CONTROLS BAR ── */}
-        <Box sx={{ px: 4, py: 2, bgcolor: "#070D1E", borderBottom: "1px solid rgba(212,175,55,0.2)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Box sx={{ px: 4, py: 2, bgcolor: "#FFFFFF", borderBottom: "1px solid rgba(212,175,55,0.2)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
         </Stack>
 
@@ -128,7 +128,7 @@ export default function DmtPresentationPage() {
 
             {/* SIMULATED OLD DMT SCREEN */}
             <Paper elevation={0} sx={{ p: 3, bgcolor: "#FFFFFF", borderRadius: "8px", border: "1px solid #E5E7EB", position: "relative" }}>
-              <Typography variant="h6" sx={{ color: "#111827", fontWeight: 700, mb: 2 }}>DMT Money Transfer</Typography>
+              <Typography variant="h6" sx={{ color: "#FAF8F9", fontWeight: 700, mb: 2 }}>DMT Money Transfer</Typography>
 
               <Grid container spacing={2} sx={{ mb: 2 }}>
                 <Grid size={{ xs: 8 }}>
@@ -145,7 +145,7 @@ export default function DmtPresentationPage() {
                 <Grid size={{ xs: 4 }}>
                   <Box sx={{ p: 2, border: "1px solid #D1D5DB", borderRadius: "6px", bgcolor: "#F9FAFB" }}>
                     <Typography variant="caption" sx={{ color: "#6B7280" }}>Balance</Typography>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "#111827" }}>₹48,250.00</Typography>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "#FAF8F9" }}>₹48,250.00</Typography>
                   </Box>
                 </Grid>
               </Grid>
@@ -180,7 +180,7 @@ export default function DmtPresentationPage() {
         <Grid
           size={{ xs: 12, lg: activeTab === "NEW_ONLY" ? 12 : 6 }}
           sx={{
-            bgcolor: "#0F2C59",
+            bgcolor: "#A20A3A",
             p: 3,
             color: WHITE,
             backgroundImage: "radial-gradient(circle at 80% 20%, rgba(212, 175, 55, 0.12) 0%, transparent 60%)",
@@ -260,7 +260,7 @@ export default function DmtPresentationPage() {
 
             {/* CENTER WORKSPACE: CUSTOMER CARD & MAROON-GOLD GRADIENT CTA */}
             <Grid size={{ xs: 6 }}>
-              <Paper elevation={0} sx={{ p: 3, borderRadius: "18px", bgcolor: "#FFFFFF", color: "#0F172A", border: `2px solid ${GOLD_PREMIUM}`, boxShadow: "0 12px 40px rgba(0,0,0,0.25)" }}>
+              <Paper elevation={0} sx={{ p: 3, borderRadius: "18px", bgcolor: "#FFFFFF", color: "#FFFFFF", border: `2px solid ${GOLD_PREMIUM}`, boxShadow: "0 12px 40px rgba(0,0,0,0.25)" }}>
                 <Typography variant="h6" sx={{ fontWeight: 800, color: NAVY_PRIMARY, fontSize: "20px", mb: 2 }}>
                   Customer Identification
                 </Typography>
@@ -268,7 +268,7 @@ export default function DmtPresentationPage() {
                 <Stack direction="row" spacing={1.5} sx={{ mb: 2.5 }}>
                   <Box sx={{ flex: 1, p: 1.5, borderRadius: "12px", border: `2px solid ${GOLD_PREMIUM}`, bgcolor: "#FFFFFF", display: "flex", alignItems: "center", gap: 1 }}>
                     <SearchIcon sx={{ color: GOLD_PREMIUM }} />
-                    <Typography variant="body2" sx={{ color: "#64748B", fontWeight: 600 }}>Enter 10-digit mobile number...</Typography>
+                    <Typography variant="body2" sx={{ color: "#625B60", fontWeight: 600 }}>Enter 10-digit mobile number...</Typography>
                   </Box>
                   {/* MAROON TO GOLD GRADIENT CTA */}
                   <Button
@@ -288,7 +288,7 @@ export default function DmtPresentationPage() {
                 </Stack>
 
                 {/* CUSTOMER CARD WITH EKYC PROFILE & PHOTO */}
-                <Paper elevation={0} sx={{ p: 2.5, borderRadius: "14px", bgcolor: "#F8FAFC", border: "1px solid #E2E8F0" }}>
+                <Paper elevation={0} sx={{ p: 2.5, borderRadius: "14px", bgcolor: "#292329", border: "1px solid #E2E8F0" }}>
                   <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
                     <Avatar
                       alt="Sathiya Murthy.R"
@@ -305,7 +305,7 @@ export default function DmtPresentationPage() {
                         <Chip label="✓ Cashfree eKYC Verified" size="small" sx={{ bgcolor: "#ECFDF3", color: "#16A34A", fontWeight: 800, fontSize: "11px" }} />
                         <Chip label="Low Risk" size="small" sx={{ bgcolor: "#ECFDF3", color: "#16A34A", fontWeight: 800, fontSize: "11px" }} />
                       </Stack>
-                      <Typography variant="caption" sx={{ color: "#64748B", display: "block" }}>
+                      <Typography variant="caption" sx={{ color: "#625B60", display: "block" }}>
                         Customer ID: CUST-992664 • Mobile: +91 70139 14767
                       </Typography>
                     </Box>
@@ -315,15 +315,15 @@ export default function DmtPresentationPage() {
                   <Box sx={{ mt: 2, p: 1.5, borderRadius: "10px", bgcolor: "rgba(15,44,89,0.06)", border: "1px solid rgba(15,44,89,0.15)" }}>
                     <Grid container spacing={1.5}>
                       <Grid size={{ xs: 6 }}>
-                        <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600, fontSize: "11px" }}>Masked Aadhaar</Typography>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#0F2C59", fontFamily: "monospace" }}>XXXX-XXXX-4748</Typography>
+                        <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 600, fontSize: "11px" }}>Masked Aadhaar</Typography>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#A20A3A", fontFamily: "monospace" }}>XXXX-XXXX-4748</Typography>
                       </Grid>
                       <Grid size={{ xs: 6 }}>
-                        <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600, fontSize: "11px" }}>DOB / Gender</Typography>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#0F2C59" }}>09-06-1983 (Male)</Typography>
+                        <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 600, fontSize: "11px" }}>DOB / Gender</Typography>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#A20A3A" }}>09-06-1983 (Male)</Typography>
                       </Grid>
                       <Grid size={{ xs: 12 }}>
-                        <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600, fontSize: "11px", display: "block" }}>Verified Address</Typography>
+                        <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 600, fontSize: "11px", display: "block" }}>Verified Address</Typography>
                         <Typography variant="body2" sx={{ fontWeight: 600, color: "#334155", fontSize: "12px", lineHeight: "1.3" }}>
                           S/O RAMASAMY, No. 42/B, GST Main Road, Near Bus Stand, Chromepet, Chengalpattu, Tamil Nadu - 600044
                         </Typography>
@@ -335,12 +335,12 @@ export default function DmtPresentationPage() {
 
                   <Grid container spacing={2}>
                     <Grid size={{ xs: 6 }}>
-                      <Typography variant="caption" sx={{ color: "#64748B" }}>Monthly Limit Remaining</Typography>
+                      <Typography variant="caption" sx={{ color: "#625B60" }}>Monthly Limit Remaining</Typography>
                       <Typography variant="h6" sx={{ fontWeight: 800, color: NAVY_PRIMARY }}>₹200,000.00</Typography>
                     </Grid>
                     <Grid size={{ xs: 6 }}>
-                      <Typography variant="caption" sx={{ color: "#64748B" }}>Recent Activity</Typography>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#0F172A" }}>eKYC Verified (Just now)</Typography>
+                      <Typography variant="caption" sx={{ color: "#625B60" }}>Recent Activity</Typography>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#FFFFFF" }}>eKYC Verified (Just now)</Typography>
                     </Grid>
                   </Grid>
                 </Paper>

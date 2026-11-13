@@ -61,7 +61,7 @@ export const AmountValidation: React.FC<AmountValidationProps> = ({
                 TRANSFER READY
               </Typography>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.85)", fontSize: "12px", mt: 0.25 }}>
-                Wallet: <strong>₹{validationResult.walletBalance.toLocaleString()}</strong> · Wallet Debit: <strong>₹{validationResult.totalPayable.toLocaleString()}</strong> · Remaining: <strong style={{ color: "#FBBF24" }}>₹{validationResult.walletBalanceAfter.toLocaleString()}</strong>
+                Wallet: <strong>₹{validationResult.walletBalance.toLocaleString()}</strong> · Wallet Debit: <strong>₹{validationResult.totalPayable.toLocaleString()}</strong> · Remaining: <strong style={{ color: "#A20A3A" }}>₹{validationResult.walletBalanceAfter.toLocaleString()}</strong>
               </Typography>
             </Box>
             <Chip label="Ready to Proceed" size="small" sx={{ bgcolor: "#22C55E", color: "#FFFFFF", fontWeight: 800, height: 22, fontSize: "10px" }} />
@@ -129,7 +129,7 @@ export const AmountValidation: React.FC<AmountValidationProps> = ({
           <Stack direction="row" spacing={1.25} sx={{ alignItems: "flex-start" }}>
             <WarningAmberIcon sx={{ color: "#F59E0B", fontSize: 20, mt: 0.2 }} />
             <Box sx={{ flex: 1 }}>
-              <Typography sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "13px" }}>
+              <Typography sx={{ fontWeight: 800, color: "#A20A3A", fontSize: "13px" }}>
                 ⚠ {warn.title}
               </Typography>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.9)", fontSize: "12px", mt: 0.25 }}>

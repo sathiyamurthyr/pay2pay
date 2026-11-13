@@ -97,12 +97,12 @@ export default function WhatsAppAlertsConfigurationPage() {
     phone_number_id: "497102120160245",
     admin_phone_numbers: "7013914767",
     language_code: "en",
-    button_base_url: "https://receipt.pay2pay.in/r/",
+    button_base_url: "https://receipt.near4you.store/r/",
     retailer_alert_enabled: true,
     retailer_template_id: "1586618753193150",
     retailer_template_name: "topup_status_retailer",
     retailer_language_code: "en",
-    retailer_button_base_url: "https://receipt.pay2pay.in/r/",
+    retailer_button_base_url: "https://receipt.near4you.store/r/",
   });
 
   const [loading, setLoading] = useState<boolean>(true);
@@ -175,11 +175,11 @@ export default function WhatsAppAlertsConfigurationPage() {
           template_name: res.data.config.template_name || "topup_request_admin",
           phone_number_id: res.data.config.phone_number_id || "497102120160245",
           admin_phone_numbers: res.data.config.admin_phone_numbers || "7013914767",
-          button_base_url: res.data.config.button_base_url || "https://receipt.pay2pay.in/r/",
+          button_base_url: res.data.config.button_base_url || "https://receipt.near4you.store/r/",
           retailer_template_id: res.data.config.retailer_template_id || "1586618753193150",
           retailer_template_name: res.data.config.retailer_template_name || "topup_status_retailer",
           retailer_language_code: res.data.config.retailer_language_code || "en",
-          retailer_button_base_url: res.data.config.retailer_button_base_url || "https://receipt.pay2pay.in/r/",
+          retailer_button_base_url: res.data.config.retailer_button_base_url || "https://receipt.near4you.store/r/",
         });
         const firstNum = (res.data.config.admin_phone_numbers || "7013914767")
           .split(",")[0]
@@ -413,11 +413,11 @@ export default function WhatsAppAlertsConfigurationPage() {
       {/* Top Header & Breadcrumbs */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
-          <div className="flex items-center gap-2 text-xs font-medium text-slate-500 mb-1">
+          <div className="flex items-center gap-2 text-xs font-medium text-[#8A8288] mb-1">
             <Link href="/configuration/services" className="hover:text-slate-700">
               Configuration
             </Link>
-            <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+            <ChevronRight className="w-3.5 h-3.5 text-[#625B60]" />
             <span className="text-emerald-700 font-semibold">WhatsApp Alerts</span>
           </div>
           <div className="flex items-center gap-3">
@@ -434,7 +434,7 @@ export default function WhatsAppAlertsConfigurationPage() {
                   DUAL-FLOW ENGINE
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-[#8A8288] mt-0.5">
                 Automated WhatsApp communications for both incoming retailer top-up submissions and admin approval/rejection updates.
               </p>
             </div>
@@ -521,7 +521,7 @@ export default function WhatsAppAlertsConfigurationPage() {
           </div>
           <button
             onClick={() => setAlertState({ type: null, message: "" })}
-            className="text-slate-400 hover:text-slate-700 p-1"
+            className="text-[#625B60] hover:text-slate-700 p-1"
           >
             <X className="w-4 h-4" />
           </button>
@@ -545,7 +545,7 @@ export default function WhatsAppAlertsConfigurationPage() {
                       Incoming Submissions
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-[#8A8288]">
                     Control automated WhatsApp alerts to Admin phones when retailers submit wallet top-up requests.
                   </p>
                 </div>
@@ -577,7 +577,7 @@ export default function WhatsAppAlertsConfigurationPage() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <Info className="w-4 h-4 text-slate-500 shrink-0" />
+                    <Info className="w-4 h-4 text-[#8A8288] shrink-0" />
                     <span>
                       <strong>Admin Alerts are PAUSED:</strong> Requests process normally in the portal, but no WhatsApp messages are sent.
                     </span>
@@ -594,7 +594,7 @@ export default function WhatsAppAlertsConfigurationPage() {
                     <PhoneCall className="w-4 h-4 text-emerald-600" />
                     Admin Recipient Phone Numbers
                   </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className="text-xs text-[#8A8288] mt-0.5">
                     10-digit Indian mobile numbers that receive WhatsApp notifications.
                   </p>
                 </div>
@@ -630,7 +630,7 @@ export default function WhatsAppAlertsConfigurationPage() {
 
               <div className="flex gap-2 pt-2">
                 <div className="relative flex-1">
-                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-xs font-mono text-slate-400">
+                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-xs font-mono text-[#625B60]">
                     +91
                   </span>
                   <input
@@ -661,7 +661,7 @@ export default function WhatsAppAlertsConfigurationPage() {
                     <KeyRound className="w-4 h-4 text-emerald-600" />
                     Meta Cloud API & Template ID
                   </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Approved Meta WhatsApp credentials.</p>
+                  <p className="text-xs text-[#8A8288] mt-0.5">Approved Meta WhatsApp credentials.</p>
                 </div>
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
                   <ShieldCheck className="w-3 h-3" />
@@ -678,7 +678,7 @@ export default function WhatsAppAlertsConfigurationPage() {
                     onChange={(e) => setConfig({ ...config, template_id: e.target.value })}
                     className="w-full font-mono bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs focus:bg-white focus:ring-2 focus:ring-emerald-500"
                   />
-                  <p className="text-[10px] text-slate-500 mt-1">Official ID: 1043386768499813</p>
+                  <p className="text-[10px] text-[#8A8288] mt-1">Official ID: 1043386768499813</p>
                 </div>
 
                 <div>
@@ -689,7 +689,7 @@ export default function WhatsAppAlertsConfigurationPage() {
                     onChange={(e) => setConfig({ ...config, template_name: e.target.value })}
                     className="w-full font-mono bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs focus:bg-white focus:ring-2 focus:ring-emerald-500"
                   />
-                  <p className="text-[10px] text-slate-500 mt-1">topup_request_admin</p>
+                  <p className="text-[10px] text-[#8A8288] mt-1">topup_request_admin</p>
                 </div>
 
                 <div>
@@ -722,7 +722,7 @@ export default function WhatsAppAlertsConfigurationPage() {
                     <Send className="w-4 h-4 text-emerald-600" />
                     Test Dispatcher (To Admin)
                   </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Send a real sample alert to verify Meta connection.</p>
+                  <p className="text-xs text-[#8A8288] mt-0.5">Send a real sample alert to verify Meta connection.</p>
                 </div>
                 <button
                   type="button"
@@ -788,7 +788,7 @@ export default function WhatsAppAlertsConfigurationPage() {
                       {adminTestResult.success ? "✓ Meta Delivery Acknowledged (200 OK)" : "✕ Delivery Failed"}
                     </span>
                     {adminTestResult.timestamp && (
-                      <span className="text-[10px] text-slate-500">{adminTestResult.timestamp}</span>
+                      <span className="text-[10px] text-[#8A8288]">{adminTestResult.timestamp}</span>
                     )}
                   </div>
                   {adminTestResult.wamid && (
@@ -836,14 +836,14 @@ export default function WhatsAppAlertsConfigurationPage() {
             </div>
 
             {/* Smartphone Shell */}
-            <div className="mx-auto max-w-sm w-full bg-slate-900 rounded-[2.5rem] p-3.5 shadow-2xl border-4 border-slate-800">
+            <div className="mx-auto max-w-sm w-full bg-[#FAF8F9] rounded-[2.5rem] p-3.5 shadow-2xl border-4 border-[#E8E2E5]">
               <div className="relative mb-2 flex justify-center items-center">
-                <div className="w-20 h-4 bg-slate-950 rounded-full flex items-center justify-center">
-                  <div className="w-8 h-1 bg-slate-800 rounded-full" />
+                <div className="w-20 h-4 bg-[#FFFFFF] rounded-full flex items-center justify-center">
+                  <div className="w-8 h-1 bg-[#F5F2F4] rounded-full" />
                 </div>
               </div>
 
-              <div className="bg-[#ECE5DD] rounded-[2rem] overflow-hidden shadow-inner flex flex-col h-[560px] border border-slate-700/50">
+              <div className="bg-[#ECE5DD] rounded-[2rem] overflow-hidden shadow-inner flex flex-col h-[560px] border border-[#E8E2E5]/50">
                 <div className="bg-[#075E54] text-white px-3 py-2.5 flex items-center justify-between shadow-md">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-emerald-700 flex items-center justify-center text-xs font-bold ring-1 ring-white/30">
@@ -851,7 +851,7 @@ export default function WhatsAppAlertsConfigurationPage() {
                     </div>
                     <div>
                       <div className="flex items-center gap-1">
-                        <span className="text-xs font-bold tracking-tight">Pay2Pay Alerts</span>
+                        <span className="text-xs font-bold tracking-tight">Near4You Alerts</span>
                         <ShieldCheck className="w-3 h-3 text-emerald-300" />
                       </div>
                       <span className="text-[9px] text-emerald-200 block -mt-0.5">
@@ -881,49 +881,49 @@ export default function WhatsAppAlertsConfigurationPage() {
 
                     <div className="space-y-1 text-[11px] leading-relaxed py-1">
                       <div className="flex items-start">
-                        <span className="text-slate-500 w-24 shrink-0">Retailer:</span>
+                        <span className="text-[#8A8288] w-24 shrink-0">Retailer:</span>
                         <span className="font-semibold text-slate-800">
                           {previewModeAdmin === "sample" ? adminTestForm.retailer_name : "{{1}}"}
                         </span>
                       </div>
 
                       <div className="flex items-start">
-                        <span className="text-slate-500 w-24 shrink-0">Retailer ID:</span>
+                        <span className="text-[#8A8288] w-24 shrink-0">Retailer ID:</span>
                         <span className="font-mono font-medium text-slate-800">
                           {previewModeAdmin === "sample" ? adminTestForm.retailer_id : "{{2}}"}
                         </span>
                       </div>
 
                       <div className="flex items-start">
-                        <span className="text-slate-500 w-24 shrink-0">Request ID:</span>
+                        <span className="text-[#8A8288] w-24 shrink-0">Request ID:</span>
                         <span className="font-mono font-medium text-slate-800">
                           {previewModeAdmin === "sample" ? adminTestForm.request_id : "{{3}}"}
                         </span>
                       </div>
 
                       <div className="flex items-start">
-                        <span className="text-slate-500 w-24 shrink-0">Amount:</span>
+                        <span className="text-[#8A8288] w-24 shrink-0">Amount:</span>
                         <span className="font-bold text-emerald-700">
                           ₹{previewModeAdmin === "sample" ? adminTestForm.amount.toLocaleString("en-IN") : "{{4}}"}
                         </span>
                       </div>
 
                       <div className="flex items-start">
-                        <span className="text-slate-500 w-24 shrink-0">Payment Mode:</span>
+                        <span className="text-[#8A8288] w-24 shrink-0">Payment Mode:</span>
                         <span className="font-medium text-slate-800 capitalize">
                           {previewModeAdmin === "sample" ? adminTestForm.payment_mode : "{{5}}"}
                         </span>
                       </div>
 
                       <div className="flex items-start">
-                        <span className="text-slate-500 w-24 shrink-0">Requested Date & Time:</span>
+                        <span className="text-[#8A8288] w-24 shrink-0">Requested Date & Time:</span>
                         <span className="text-slate-700">
                           {previewModeAdmin === "sample" ? "03-09-2026 14:30" : "{{6}}"}
                         </span>
                       </div>
 
                       <div className="flex items-start">
-                        <span className="text-slate-500 w-24 shrink-0">Status:</span>
+                        <span className="text-[#8A8288] w-24 shrink-0">Status:</span>
                         <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
                           {previewModeAdmin === "sample" ? adminTestForm.status_text : "{{7}}"}
                         </span>
@@ -934,7 +934,7 @@ export default function WhatsAppAlertsConfigurationPage() {
                       Please review and approve/reject the request.
                     </div>
 
-                    <div className="flex items-center justify-end gap-1 text-[9px] text-slate-400 mt-1">
+                    <div className="flex items-center justify-end gap-1 text-[9px] text-[#625B60] mt-1">
                       <span>14:30</span>
                       <span className="text-[#34B7F1] font-bold">✓✓</span>
                     </div>
@@ -975,7 +975,7 @@ export default function WhatsAppAlertsConfigurationPage() {
                       Approval & Rejection
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-[#8A8288]">
                     Automatically notify retailers on WhatsApp when their top-up request is approved or rejected by admin.
                   </p>
                 </div>
@@ -1007,7 +1007,7 @@ export default function WhatsAppAlertsConfigurationPage() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <Info className="w-4 h-4 text-slate-500 shrink-0" />
+                    <Info className="w-4 h-4 text-[#8A8288] shrink-0" />
                     <span>
                       <strong>Retailer Alerts are PAUSED:</strong> Approval and rejection workflows continue as normal, but no status message is dispatched to retailers.
                     </span>
@@ -1024,7 +1024,7 @@ export default function WhatsAppAlertsConfigurationPage() {
                     <KeyRound className="w-4 h-4 text-teal-600" />
                     Retailer Template Configuration
                   </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Template registered for retailer wallet top-up updates.</p>
+                  <p className="text-xs text-[#8A8288] mt-0.5">Template registered for retailer wallet top-up updates.</p>
                 </div>
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-300 px-2 py-0.5 rounded">
                   <Clock className="w-3 h-3 text-amber-600" />
@@ -1041,7 +1041,7 @@ export default function WhatsAppAlertsConfigurationPage() {
                     onChange={(e) => setConfig({ ...config, retailer_template_id: e.target.value })}
                     className="w-full font-mono bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs focus:bg-white focus:ring-2 focus:ring-teal-500"
                   />
-                  <p className="text-[10px] text-slate-500 mt-1">Official ID: 1586618753193150</p>
+                  <p className="text-[10px] text-[#8A8288] mt-1">Official ID: 1586618753193150</p>
                 </div>
 
                 <div>
@@ -1052,7 +1052,7 @@ export default function WhatsAppAlertsConfigurationPage() {
                     onChange={(e) => setConfig({ ...config, retailer_template_name: e.target.value })}
                     className="w-full font-mono bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs focus:bg-white focus:ring-2 focus:ring-teal-500"
                   />
-                  <p className="text-[10px] text-slate-500 mt-1">topup_status_retailer</p>
+                  <p className="text-[10px] text-[#8A8288] mt-1">topup_status_retailer</p>
                 </div>
 
                 <div>
@@ -1073,7 +1073,7 @@ export default function WhatsAppAlertsConfigurationPage() {
                     onChange={(e) => setConfig({ ...config, retailer_button_base_url: e.target.value })}
                     className="w-full font-mono bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs focus:bg-white focus:ring-2 focus:ring-teal-500"
                   />
-                  <p className="text-[10px] text-slate-500 mt-1">https://receipt.pay2pay.in/r/&lt;id&gt;</p>
+                  <p className="text-[10px] text-[#8A8288] mt-1">https://receipt.near4you.store/r/&lt;id&gt;</p>
                 </div>
               </div>
             </div>
@@ -1086,7 +1086,7 @@ export default function WhatsAppAlertsConfigurationPage() {
                     <Send className="w-4 h-4 text-teal-600" />
                     Test Dispatcher (To Retailer)
                   </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Send a test status notification with sample values.</p>
+                  <p className="text-xs text-[#8A8288] mt-0.5">Send a test status notification with sample values.</p>
                 </div>
                 <button
                   type="button"
@@ -1217,7 +1217,7 @@ export default function WhatsAppAlertsConfigurationPage() {
                       {retailerTestResult.success ? "✓ Meta Delivery Successful" : "ℹ Delivery Result (Pending Meta Translation Approval)"}
                     </span>
                     {retailerTestResult.timestamp && (
-                      <span className="text-[10px] text-slate-500">{retailerTestResult.timestamp}</span>
+                      <span className="text-[10px] text-[#8A8288]">{retailerTestResult.timestamp}</span>
                     )}
                   </div>
                   {retailerTestResult.wamid && (
@@ -1270,14 +1270,14 @@ export default function WhatsAppAlertsConfigurationPage() {
             </div>
 
             {/* Smartphone Shell */}
-            <div className="mx-auto max-w-sm w-full bg-slate-900 rounded-[2.5rem] p-3.5 shadow-2xl border-4 border-slate-800">
+            <div className="mx-auto max-w-sm w-full bg-[#FAF8F9] rounded-[2.5rem] p-3.5 shadow-2xl border-4 border-[#E8E2E5]">
               <div className="relative mb-2 flex justify-center items-center">
-                <div className="w-20 h-4 bg-slate-950 rounded-full flex items-center justify-center">
-                  <div className="w-8 h-1 bg-slate-800 rounded-full" />
+                <div className="w-20 h-4 bg-[#FFFFFF] rounded-full flex items-center justify-center">
+                  <div className="w-8 h-1 bg-[#F5F2F4] rounded-full" />
                 </div>
               </div>
 
-              <div className="bg-[#ECE5DD] rounded-[2rem] overflow-hidden shadow-inner flex flex-col h-[590px] border border-slate-700/50">
+              <div className="bg-[#ECE5DD] rounded-[2rem] overflow-hidden shadow-inner flex flex-col h-[590px] border border-[#E8E2E5]/50">
                 <div className="bg-[#075E54] text-white px-3 py-2.5 flex items-center justify-between shadow-md">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-teal-700 flex items-center justify-center text-xs font-bold ring-1 ring-white/30">
@@ -1285,7 +1285,7 @@ export default function WhatsAppAlertsConfigurationPage() {
                     </div>
                     <div>
                       <div className="flex items-center gap-1">
-                        <span className="text-xs font-bold tracking-tight">Pay2Pay</span>
+                        <span className="text-xs font-bold tracking-tight">Near4You</span>
                         <ShieldCheck className="w-3 h-3 text-emerald-300" />
                       </div>
                       <span className="text-[9px] text-emerald-200 block -mt-0.5">
@@ -1318,56 +1318,56 @@ export default function WhatsAppAlertsConfigurationPage() {
 
                     <div className="space-y-1 text-[11px] leading-relaxed py-1">
                       <div className="flex items-start">
-                        <span className="text-slate-500 w-28 shrink-0">Request ID:</span>
+                        <span className="text-[#8A8288] w-28 shrink-0">Request ID:</span>
                         <span className="font-mono font-medium text-slate-800">
                           {previewModeRetailer === "sample" ? retailerTestForm.request_id : "{{2}}"}
                         </span>
                       </div>
 
                       <div className="flex items-start">
-                        <span className="text-slate-500 w-28 shrink-0">Amount Requested:</span>
+                        <span className="text-[#8A8288] w-28 shrink-0">Amount Requested:</span>
                         <span className="font-medium text-slate-800">
                           ₹{previewModeRetailer === "sample" ? retailerTestForm.amount_requested.toLocaleString("en-IN") : "{{3}}"}
                         </span>
                       </div>
 
                       <div className="flex items-start">
-                        <span className="text-slate-500 w-28 shrink-0">Approved Amount:</span>
+                        <span className="text-[#8A8288] w-28 shrink-0">Approved Amount:</span>
                         <span className="font-bold text-emerald-700">
                           ₹{previewModeRetailer === "sample" ? retailerTestForm.approved_amount.toLocaleString("en-IN") : "{{4}}"}
                         </span>
                       </div>
 
                       <div className="flex items-start">
-                        <span className="text-slate-500 w-28 shrink-0">Wallet Credit:</span>
+                        <span className="text-[#8A8288] w-28 shrink-0">Wallet Credit:</span>
                         <span className="font-bold text-emerald-700">
                           ₹{previewModeRetailer === "sample" ? retailerTestForm.wallet_credit.toLocaleString("en-IN") : "{{5}}"}
                         </span>
                       </div>
 
                       <div className="flex items-start">
-                        <span className="text-slate-500 w-28 shrink-0">Payment Mode:</span>
+                        <span className="text-[#8A8288] w-28 shrink-0">Payment Mode:</span>
                         <span className="font-medium text-slate-800 capitalize">
                           {previewModeRetailer === "sample" ? retailerTestForm.payment_mode : "{{6}}"}
                         </span>
                       </div>
 
                       <div className="flex items-start">
-                        <span className="text-slate-500 w-28 shrink-0">Transaction ID:</span>
+                        <span className="text-[#8A8288] w-28 shrink-0">Transaction ID:</span>
                         <span className="font-mono font-medium text-slate-800">
                           {previewModeRetailer === "sample" ? retailerTestForm.transaction_id : "{{7}}"}
                         </span>
                       </div>
 
                       <div className="flex items-start">
-                        <span className="text-slate-500 w-28 shrink-0">Approved Date & Time:</span>
+                        <span className="text-[#8A8288] w-28 shrink-0">Approved Date & Time:</span>
                         <span className="text-slate-700">
                           {previewModeRetailer === "sample" ? retailerTestForm.approved_date_time : "{{8}}"}
                         </span>
                       </div>
 
                       <div className="flex items-start">
-                        <span className="text-slate-500 w-28 shrink-0">Status:</span>
+                        <span className="text-[#8A8288] w-28 shrink-0">Status:</span>
                         <span
                           className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
                             retailerTestForm.status_text.toLowerCase().includes("app") || retailerTestForm.status_text.toLowerCase().includes("suc")
@@ -1380,12 +1380,12 @@ export default function WhatsAppAlertsConfigurationPage() {
                       </div>
                     </div>
 
-                    <div className="text-[10px] text-slate-500 pt-1.5 border-t border-slate-100 space-y-0.5">
-                      <p>Thank you for using Pay2Pay.</p>
+                    <div className="text-[10px] text-[#8A8288] pt-1.5 border-t border-slate-100 space-y-0.5">
+                      <p>Thank you for using Near4You.</p>
                       <p className="font-semibold text-slate-700">SUPER REX PRODUCTS PRIVATE LIMITED</p>
                     </div>
 
-                    <div className="flex items-center justify-end gap-1 text-[9px] text-slate-400 mt-1">
+                    <div className="flex items-center justify-end gap-1 text-[9px] text-[#625B60] mt-1">
                       <span>14:30</span>
                       <span className="text-[#34B7F1] font-bold">✓✓</span>
                     </div>
@@ -1400,7 +1400,7 @@ export default function WhatsAppAlertsConfigurationPage() {
                         <ExternalLink className="w-3.5 h-3.5" />
                         <span>Receipt</span>
                       </a>
-                      <p className="text-[9px] text-center text-slate-400 mt-1 font-mono">
+                      <p className="text-[9px] text-center text-[#625B60] mt-1 font-mono">
                         Opens: {config.retailer_button_base_url}&lt;id&gt;
                       </p>
                     </div>

@@ -92,7 +92,7 @@ export const DeleteBeneficiaryDialog: React.FC<DeleteBeneficiaryDialogProps> = (
             borderRadius: 5,
             overflow: "hidden",
             p: 0,
-            bgcolor: "rgba(15, 23, 42, 0.95)",
+            bgcolor: "#FFFFFF",
             backdropFilter: "blur(24px)",
             color: "#FFFFFF",
             border: "1px solid rgba(239, 68, 68, 0.35)",
@@ -133,13 +133,13 @@ export const DeleteBeneficiaryDialog: React.FC<DeleteBeneficiaryDialogProps> = (
             Soft-Delete Beneficiary
           </Typography>
         </Stack>
-        <IconButton onClick={onClose} disabled={isDeleting} sx={{ color: "#94A3B8" }}>
+        <IconButton onClick={onClose} disabled={isDeleting} sx={{ color: "#625B60" }}>
           <CloseIcon fontSize="small" />
         </IconButton>
       </DialogTitle>
 
       <DialogContent sx={{ px: 3, pb: 2 }}>
-        <Typography variant="body2" sx={{ color: "#CBD5E1", mb: 2, fontSize: "13px", lineHeight: 1.5 }}>
+        <Typography variant="body2" sx={{ color: "#625B60", mb: 2, fontSize: "13px", lineHeight: 1.5 }}>
           Are you sure you want to deactivate and soft-delete this beneficiary? This will mark the record as{" "}
           <strong style={{ color: "#F87171" }}>INACTIVE</strong> and remove it from active transfer workflows.
         </Typography>
@@ -171,18 +171,18 @@ export const DeleteBeneficiaryDialog: React.FC<DeleteBeneficiaryDialogProps> = (
             />
           </Stack>
 
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center", color: "#94A3B8", fontSize: "12px", mb: 0.5 }}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center", color: "#625B60", fontSize: "12px", mb: 0.5 }}>
             <AccountBalanceIcon sx={{ fontSize: 16, color: "#60A5FA" }} />
             <Typography variant="caption" sx={{ fontWeight: 700, color: "#FFFFFF" }}>
               {beneficiary.bankName}
             </Typography>
           </Stack>
 
-          <Stack direction="row" spacing={2} sx={{ color: "#CBD5E1", fontSize: "12px" }}>
+          <Stack direction="row" spacing={2} sx={{ color: "#625B60", fontSize: "12px" }}>
             <Typography variant="caption" sx={{ fontFamily: "monospace", letterSpacing: "0.5px" }}>
               Acc: {maskedAcc}
             </Typography>
-            <Typography variant="caption" sx={{ fontFamily: "monospace", color: "#94A3B8" }}>
+            <Typography variant="caption" sx={{ fontFamily: "monospace", color: "#625B60" }}>
               IFSC: {beneficiary.ifsc}
             </Typography>
           </Stack>
@@ -190,7 +190,7 @@ export const DeleteBeneficiaryDialog: React.FC<DeleteBeneficiaryDialogProps> = (
 
         {/* Reason Dropdown */}
         <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-          <InputLabel id="delete-reason-label" sx={{ color: "#94A3B8", fontWeight: 700 }}>
+          <InputLabel id="delete-reason-label" sx={{ color: "#625B60", fontWeight: 700 }}>
             Deactivation Reason
           </InputLabel>
           <Select
@@ -200,14 +200,14 @@ export const DeleteBeneficiaryDialog: React.FC<DeleteBeneficiaryDialogProps> = (
             onChange={(e) => setReason(e.target.value)}
             disabled={isDeleting}
             sx={{
-              bgcolor: "#0F172A",
+              bgcolor: "#FFFFFF",
               color: "#FFFFFF",
               borderRadius: 2.5,
               fontWeight: 700,
               fontSize: "13px",
               "& .MuiOutlinedInput-notchedOutline": { borderColor: "#334155" },
               "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#F87171" },
-              "& .MuiSvgIcon-root": { color: "#94A3B8" },
+              "& .MuiSvgIcon-root": { color: "#625B60" },
             }}
           >
             {REASON_OPTIONS.map((opt) => (
@@ -224,15 +224,15 @@ export const DeleteBeneficiaryDialog: React.FC<DeleteBeneficiaryDialogProps> = (
           sx={{
             p: 1.5,
             borderRadius: 2.5,
-            bgcolor: "rgba(15, 23, 42, 0.6)",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
+            bgcolor: "#FAF8F9",
+            border: "1px solid #E8E2E5",
             display: "flex",
             alignItems: "center",
             gap: 1.25,
           }}
         >
           <ShieldIcon sx={{ fontSize: 18, color: "#38BDF8" }} />
-          <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px", fontWeight: 600 }}>
+          <Typography variant="caption" sx={{ color: "#625B60", fontSize: "11px", fontWeight: 600 }}>
             Audit log entry will record retailer ID, timestamp, and specified deactivation reason.
           </Typography>
         </Paper>
@@ -248,7 +248,7 @@ export const DeleteBeneficiaryDialog: React.FC<DeleteBeneficiaryDialogProps> = (
         <Button
           onClick={onClose}
           disabled={isDeleting}
-          sx={{ color: "#94A3B8", fontWeight: 700, borderRadius: 2.5 }}
+          sx={{ color: "#625B60", fontWeight: 700, borderRadius: 2.5 }}
         >
           Cancel
         </Button>

@@ -39,7 +39,7 @@ export const Step3Authentication: React.FC<Step3AuthenticationProps> = ({
         sx={{
           p: 4,
           borderRadius: "20px",
-          bgcolor: "rgba(18, 27, 48, 0.85)",
+          bgcolor: "#FFFFFF",
           backdropFilter: "blur(24px)",
           border: "1px solid rgba(255, 255, 255, 0.12)",
           boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
@@ -57,7 +57,7 @@ export const Step3Authentication: React.FC<Step3AuthenticationProps> = ({
           </Box>
         </Stack>
 
-        <Paper elevation={0} sx={{ p: 3, borderRadius: "16px", bgcolor: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.08)", mb: 3 }}>
+        <Paper elevation={0} sx={{ p: 3, borderRadius: "16px", bgcolor: "rgba(255, 255, 255, 0.04)", border: "1px solid #E8E2E5", mb: 3 }}>
           <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "12px", letterSpacing: "0.08em", textTransform: "uppercase", mb: 2 }}>
             FINAL TRANSACTION PREVIEW
           </Typography>
@@ -78,7 +78,7 @@ export const Step3Authentication: React.FC<Step3AuthenticationProps> = ({
               <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "14px" }}>{beneficiary?.bankName} · {beneficiary?.accountNumber}</Typography>
             </Stack>
 
-            <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 1 }} />
+            <Divider sx={{ borderColor: "#E8E2E5", my: 1 }} />
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "13px" }}>Transfer Amount</Typography>

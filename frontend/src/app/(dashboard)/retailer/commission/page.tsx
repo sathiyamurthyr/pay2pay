@@ -55,7 +55,7 @@ export default function CommissionPage() {
             </Typography>
             <MonetizationOnIcon sx={{ color: "#2563EB" }} />
           </Box>
-          <Typography variant="h4" sx={{ color: "#111827", fontWeight: 800, fontFamily: "monospace", fontSize: "32px" }}>
+          <Typography variant="h4" sx={{ color: "#FAF8F9", fontWeight: 800, fontFamily: "monospace", fontSize: "32px" }}>
             ₹38,450.00
           </Typography>
           <Typography variant="caption" sx={{ color: "#6B7280", mt: 0.5, display: "block" }}>
@@ -82,7 +82,7 @@ export default function CommissionPage() {
       {/* Progress to Platinum Status */}
       <Paper elevation={0} sx={{ p: "20px 24px", borderRadius: "20px", border: "1px solid #E5E7EB", backgroundColor: "#FFFFFF" }}>
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#111827" }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#FAF8F9" }}>
             Monthly Gold Tier Target Progress
           </Typography>
           <Typography variant="caption" sx={{ fontWeight: 800, color: "#2563EB" }}>
@@ -94,7 +94,7 @@ export default function CommissionPage() {
 
       {/* Official Commission Slab Matrix */}
       <Paper elevation={0} sx={{ p: "24px", borderRadius: "20px", border: "1px solid #E5E7EB", backgroundColor: "#FFFFFF" }}>
-        <Typography variant="h6" sx={{ fontSize: "18px", fontWeight: 800, color: "#111827", mb: 2 }}>
+        <Typography variant="h6" sx={{ fontSize: "18px", fontWeight: 800, color: "#FAF8F9", mb: 2 }}>
           Official Service-wise Commission Slabs
         </Typography>
         <Table>
@@ -110,7 +110,7 @@ export default function CommissionPage() {
           <TableBody>
             {COMMISSION_SLABS.map((slab) => (
               <TableRow key={slab.service} hover>
-                <TableCell sx={{ fontWeight: 800, color: "#111827" }}>{slab.service}</TableCell>
+                <TableCell sx={{ fontWeight: 800, color: "#FAF8F9" }}>{slab.service}</TableCell>
                 <TableCell sx={{ fontFamily: "monospace" }}>{slab.volumeRange}</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>{slab.regularMargin}</TableCell>
                 <TableCell sx={{ fontWeight: 800, color: "#16A34A" }}>

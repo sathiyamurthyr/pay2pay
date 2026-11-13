@@ -99,7 +99,7 @@ export const DuplicateBeneficiaryModal: React.FC<DuplicateBeneficiaryModalProps>
             borderRadius: 5,
             overflow: "hidden",
             p: 0,
-            bgcolor: "rgba(15, 23, 42, 0.95)",
+            bgcolor: "#FFFFFF",
             backdropFilter: "blur(24px)",
             color: "#FFFFFF",
             border: "1px solid rgba(245, 158, 11, 0.4)",
@@ -130,18 +130,18 @@ export const DuplicateBeneficiaryModal: React.FC<DuplicateBeneficiaryModalProps>
         }}
       >
         <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-          <WarningAmberIcon sx={{ color: "#FBBF24", fontSize: 24 }} />
+          <WarningAmberIcon sx={{ color: "#A20A3A", fontSize: 24 }} />
           <Typography variant="h6" sx={{ fontWeight: 900, fontSize: "17px", color: "#FFFFFF" }}>
             Beneficiary Already Exists
           </Typography>
         </Stack>
-        <IconButton onClick={onClose} sx={{ color: "#94A3B8" }}>
+        <IconButton onClick={onClose} sx={{ color: "#625B60" }}>
           <CloseIcon fontSize="small" />
         </IconButton>
       </DialogTitle>
 
       <DialogContent sx={{ px: 3, pb: 2 }}>
-        <Typography variant="body2" sx={{ color: "#CBD5E1", mb: 2, fontSize: "13px", lineHeight: 1.5 }}>
+        <Typography variant="body2" sx={{ color: "#625B60", mb: 2, fontSize: "13px", lineHeight: 1.5 }}>
           An active beneficiary with this account number and IFSC code is already registered for this customer.
         </Typography>
 
@@ -158,7 +158,7 @@ export const DuplicateBeneficiaryModal: React.FC<DuplicateBeneficiaryModalProps>
         >
           <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
             <Box>
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "10px", display: "block" }}>
+              <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, fontSize: "10px", display: "block" }}>
                 BENEFICIARY NAME
               </Typography>
               <Typography variant="body1" sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "16px" }}>
@@ -173,28 +173,28 @@ export const DuplicateBeneficiaryModal: React.FC<DuplicateBeneficiaryModalProps>
             />
           </Stack>
 
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center", color: "#CBD5E1", fontSize: "13px", mb: 1 }}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center", color: "#625B60", fontSize: "13px", mb: 1 }}>
             <AccountBalanceIcon sx={{ fontSize: 16, color: "#60A5FA" }} />
             <Typography variant="caption" sx={{ fontWeight: 700, color: "#FFFFFF", fontSize: "13px" }}>
               {bank}
             </Typography>
           </Stack>
 
-          <Box sx={{ p: 1.25, bgcolor: "rgba(15, 23, 42, 0.6)", borderRadius: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Box sx={{ p: 1.25, bgcolor: "#FAF8F9", borderRadius: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Box>
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "10px", fontWeight: 700, display: "block" }}>
+              <Typography variant="caption" sx={{ color: "#625B60", fontSize: "10px", fontWeight: 700, display: "block" }}>
                 ACCOUNT NUMBER (MASKED)
               </Typography>
-              <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#FBBF24", fontSize: "13px" }}>
+              <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#A20A3A", fontSize: "13px" }}>
                 {maskedAcc}
               </Typography>
             </Box>
             {ifsc && (
               <Box sx={{ textAlign: "right" }}>
-                <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "10px", fontWeight: 700, display: "block" }}>
+                <Typography variant="caption" sx={{ color: "#625B60", fontSize: "10px", fontWeight: 700, display: "block" }}>
                   IFSC CODE
                 </Typography>
-                <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: "#94A3B8", fontSize: "12px" }}>
+                <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: "#625B60", fontSize: "12px" }}>
                   {ifsc}
                 </Typography>
               </Box>
@@ -204,7 +204,7 @@ export const DuplicateBeneficiaryModal: React.FC<DuplicateBeneficiaryModalProps>
       </DialogContent>
 
       <DialogActions sx={{ p: 2.5, pt: 0, px: 3, justifyContent: "space-between" }}>
-        <Button onClick={onClose} sx={{ color: "#94A3B8", fontWeight: 700, borderRadius: 2.5 }}>
+        <Button onClick={onClose} sx={{ color: "#625B60", fontWeight: 700, borderRadius: 2.5 }}>
           Cancel
         </Button>
         <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}>

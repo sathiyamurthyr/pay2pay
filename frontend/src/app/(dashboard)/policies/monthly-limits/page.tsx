@@ -136,7 +136,7 @@ export default function GlobalMonthlyLimitsPage() {
           <ArrowLeft className="w-4 h-4" />
         </Link>
         <div>
-          <h1 className="text-2xl font-extrabold text-[#0F172A] tracking-tight flex items-center gap-3">
+          <h1 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight flex items-center gap-3">
             <Sliders className="w-7 h-7 text-[#2563EB]" /> Overall Customer Monthly Limit & Midnight Reset Rules
           </h1>
           <p className="text-sm font-medium text-[#64748B] mt-0.5">
@@ -174,7 +174,7 @@ export default function GlobalMonthlyLimitsPage() {
         {/* Overall Limit Configuration Card */}
         <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-2xs space-y-5">
           <div className="border-b border-[#E5E7EB] pb-3 flex items-center justify-between">
-            <h2 className="text-base font-extrabold text-[#0F172A] flex items-center gap-2">
+            <h2 className="text-base font-extrabold text-[#FFFFFF] flex items-center gap-2">
               <Sliders className="w-5 h-5 text-[#2563EB]" /> Global Customer Limit Rules
             </h2>
             <button
@@ -208,7 +208,7 @@ export default function GlobalMonthlyLimitsPage() {
                 required
                 value={config.monthly_limit_amount}
                 onChange={(e) => setConfig({ ...config, monthly_limit_amount: parseFloat(e.target.value) || 0 })}
-                className="w-full rounded-lg border border-[#D1D5DB] bg-white p-3 font-mono text-base text-[#0F172A] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-extrabold"
+                className="w-full rounded-lg border border-[#D1D5DB] bg-white p-3 font-mono text-base text-[#FFFFFF] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-extrabold"
               />
               <p className="text-[11px] text-[#64748B] mt-1">
                 If a customer reaches this overall limit in a month, further transactions will be blocked automatically.
@@ -267,7 +267,7 @@ export default function GlobalMonthlyLimitsPage() {
         {/* Midnight Auto-Reset Schedule Card */}
         <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-2xs space-y-5">
           <div className="border-b border-[#E5E7EB] pb-3">
-            <h2 className="text-base font-extrabold text-[#0F172A] flex items-center gap-2">
+            <h2 className="text-base font-extrabold text-[#FFFFFF] flex items-center gap-2">
               <Calendar className="w-5 h-5 text-[#16A34A]" /> Monthly Auto-Reset Schedule
             </h2>
             <p className="text-xs text-[#64748B] mt-0.5 font-medium">Automatic reset resets all customer monthly accumulated balances back to ₹0.00</p>
@@ -319,7 +319,7 @@ export default function GlobalMonthlyLimitsPage() {
       {/* Real-time Rule Evaluator Test Bench */}
       <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-2xs space-y-4">
         <div className="border-b border-[#E5E7EB] pb-3">
-          <h2 className="text-base font-extrabold text-[#0F172A] flex items-center gap-2">
+          <h2 className="text-base font-extrabold text-[#FFFFFF] flex items-center gap-2">
             <Zap className="w-5 h-5 text-[#2563EB]" /> Test Customer Limit Rule Evaluator
           </h2>
           <p className="text-xs text-[#64748B] mt-0.5 font-medium">Test whether a transfer amount will be ALLOWED or BLOCKED based on current limit settings</p>
@@ -331,7 +331,7 @@ export default function GlobalMonthlyLimitsPage() {
             <select
               value={testService}
               onChange={(e) => setTestService(e.target.value)}
-              className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] font-bold"
+              className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#FAF8F9] font-bold"
             >
               <option value="DMT">DMT Money Transfer</option>
               <option value="PAYOUT">Bank Payout</option>
@@ -345,7 +345,7 @@ export default function GlobalMonthlyLimitsPage() {
               required
               value={testAmount}
               onChange={(e) => setTestAmount(parseFloat(e.target.value) || 0)}
-              className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#111827] font-bold"
+              className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#FAF8F9] font-bold"
             />
           </div>
 

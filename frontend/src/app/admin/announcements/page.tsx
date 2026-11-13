@@ -132,8 +132,8 @@ export default function AdminAnnouncementsPage() {
     setDisplayType("MODAL");
     setIsActive(true);
     setLinks([
-      { label: "Pay2Pay WhatsApp Channel", url: "https://whatsapp.com/channel/0029Vb94N1mKQuJB1o6T5L0Q" },
-      { label: "Play Store Link: Pay2Pay Mobile Application", url: "https://play.google.com/store/apps/details?id=com.slpe.pay" }
+      { label: "Near4You WhatsApp Channel", url: "https://whatsapp.com/channel/0029Vb94N1mKQuJB1o6T5L0Q" },
+      { label: "Play Store Link: Near4You Mobile Application", url: "https://play.google.com/store/apps/details?id=com.slpe.pay" }
     ]);
     setDialogOpen(true);
   };
@@ -283,7 +283,7 @@ export default function AdminAnnouncementsPage() {
   };
 
   return (
-    <Box sx={{ p: 4, bgcolor: "#0B0F19", minHeight: "100vh", color: "#F8FAFC" }}>
+    <Box sx={{ p: 4, bgcolor: "#FFFFFF", minHeight: "100vh", color: "#292329" }}>
       {/* Header */}
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 4 }}>
         <Box>
@@ -306,7 +306,7 @@ export default function AdminAnnouncementsPage() {
               <Typography variant="h5" sx={{ fontWeight: 800, color: "#FFF" }}>
                 Dashboard Announcement Center
               </Typography>
-              <Typography variant="body2" sx={{ color: "#94A3B8" }}>
+              <Typography variant="body2" sx={{ color: "#625B60" }}>
                 Create, schedule, and manage Backblaze B2-backed dynamic announcements for retail workstations
               </Typography>
             </Box>
@@ -349,21 +349,21 @@ export default function AdminAnnouncementsPage() {
         sx={{
           borderRadius: "16px",
           bgcolor: "#131C2E",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
+          border: "1px solid #E8E2E5",
           overflow: "hidden"
         }}
       >
         <TableContainer>
           <Table>
-            <TableHead sx={{ bgcolor: "#0F172A" }}>
+            <TableHead sx={{ bgcolor: "#FFFFFF" }}>
               <TableRow>
-                <TableCell sx={{ color: "#94A3B8", fontWeight: 700 }}>Code</TableCell>
-                <TableCell sx={{ color: "#94A3B8", fontWeight: 700 }}>Title & Content</TableCell>
-                <TableCell sx={{ color: "#94A3B8", fontWeight: 700 }}>Audience</TableCell>
-                <TableCell sx={{ color: "#94A3B8", fontWeight: 700 }}>Priority</TableCell>
-                <TableCell sx={{ color: "#94A3B8", fontWeight: 700 }}>B2 Images</TableCell>
-                <TableCell sx={{ color: "#94A3B8", fontWeight: 700 }}>Status</TableCell>
-                <TableCell sx={{ color: "#94A3B8", fontWeight: 700 }} align="right">Actions</TableCell>
+                <TableCell sx={{ color: "#625B60", fontWeight: 700 }}>Code</TableCell>
+                <TableCell sx={{ color: "#625B60", fontWeight: 700 }}>Title & Content</TableCell>
+                <TableCell sx={{ color: "#625B60", fontWeight: 700 }}>Audience</TableCell>
+                <TableCell sx={{ color: "#625B60", fontWeight: 700 }}>Priority</TableCell>
+                <TableCell sx={{ color: "#625B60", fontWeight: 700 }}>B2 Images</TableCell>
+                <TableCell sx={{ color: "#625B60", fontWeight: 700 }}>Status</TableCell>
+                <TableCell sx={{ color: "#625B60", fontWeight: 700 }} align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -375,7 +375,7 @@ export default function AdminAnnouncementsPage() {
                 </TableRow>
               ) : announcements.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 6, color: "#64748B" }}>
+                  <TableCell colSpan={7} align="center" sx={{ py: 6, color: "#625B60" }}>
                     No announcements found. Click &quot;Create Announcement&quot; to add one.
                   </TableCell>
                 </TableRow>
@@ -389,7 +389,7 @@ export default function AdminAnnouncementsPage() {
                       <Typography variant="body2" sx={{ color: "#FFF", fontWeight: 700 }}>
                         {ann.title}
                       </Typography>
-                      <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <Typography variant="caption" sx={{ color: "#625B60", display: "block", maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {ann.message}
                       </Typography>
                     </TableCell>
@@ -400,7 +400,7 @@ export default function AdminAnnouncementsPage() {
                         sx={{ bgcolor: "rgba(59, 130, 246, 0.15)", color: "#60A5FA", fontWeight: 700, borderRadius: "6px" }}
                       />
                     </TableCell>
-                    <TableCell sx={{ color: "#F8FAFC", fontWeight: 700 }}>
+                    <TableCell sx={{ color: "#292329", fontWeight: 700 }}>
                       {ann.priority}
                     </TableCell>
                     <TableCell>
@@ -410,8 +410,8 @@ export default function AdminAnnouncementsPage() {
                         startIcon={<PhotoCamera />}
                         onClick={() => handleOpenImageManager(ann)}
                         sx={{
-                          borderColor: "rgba(255, 255, 255, 0.2)",
-                          color: "#CBD5E1",
+                          borderColor: "#E8E2E5",
+                          color: "#625B60",
                           textTransform: "none",
                           fontSize: "12px",
                           borderRadius: "8px",
@@ -467,14 +467,14 @@ export default function AdminAnnouncementsPage() {
         fullWidth
         PaperProps={{
           sx: {
-            bgcolor: "#0F172A",
+            bgcolor: "#FFFFFF",
             color: "#FFF",
             borderRadius: "16px",
             border: "1px solid rgba(255, 255, 255, 0.1)"
           }
         }}
       >
-        <DialogTitle sx={{ fontWeight: 800, borderBottom: "1px solid rgba(255, 255, 255, 0.08)" }}>
+        <DialogTitle sx={{ fontWeight: 800, borderBottom: "1px solid #E8E2E5" }}>
           {editingId ? "Edit Announcement" : "Create New Announcement"}
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
@@ -486,7 +486,7 @@ export default function AdminAnnouncementsPage() {
               fullWidth
               variant="outlined"
               placeholder="e.g. Announcement"
-              InputLabelProps={{ sx: { color: "#94A3B8" } }}
+              InputLabelProps={{ sx: { color: "#625B60" } }}
               sx={{ input: { color: "#FFF" }, fieldset: { borderColor: "rgba(255, 255, 255, 0.15)" } }}
             />
 
@@ -498,8 +498,8 @@ export default function AdminAnnouncementsPage() {
               multiline
               rows={4}
               variant="outlined"
-              placeholder="e.g. Get latest update on Pay2Pay official channel"
-              InputLabelProps={{ sx: { color: "#94A3B8" } }}
+              placeholder="e.g. Get latest update on Near4You official channel"
+              InputLabelProps={{ sx: { color: "#625B60" } }}
               sx={{ textarea: { color: "#FFF" }, fieldset: { borderColor: "rgba(255, 255, 255, 0.15)" } }}
             />
 
@@ -511,7 +511,7 @@ export default function AdminAnnouncementsPage() {
                   value={audience}
                   onChange={(e) => setAudience(e.target.value)}
                   fullWidth
-                  InputLabelProps={{ sx: { color: "#94A3B8" } }}
+                  InputLabelProps={{ sx: { color: "#625B60" } }}
                   sx={{ select: { color: "#FFF" }, fieldset: { borderColor: "rgba(255, 255, 255, 0.15)" } }}
                 >
                   <MenuItem value="ALL_RETAILERS">All Retailers</MenuItem>
@@ -527,7 +527,7 @@ export default function AdminAnnouncementsPage() {
                   value={priority}
                   onChange={(e) => setPriority(Number(e.target.value))}
                   fullWidth
-                  InputLabelProps={{ sx: { color: "#94A3B8" } }}
+                  InputLabelProps={{ sx: { color: "#625B60" } }}
                   sx={{ input: { color: "#FFF" }, fieldset: { borderColor: "rgba(255, 255, 255, 0.15)" } }}
                 />
               </Grid>
@@ -548,10 +548,10 @@ export default function AdminAnnouncementsPage() {
 
               <Stack spacing={1.5} sx={{ mb: 2 }}>
                 {links.map((lnk, idx) => (
-                  <Stack key={idx} direction="row" alignItems="center" justifyContent="space-between" sx={{ bgcolor: "#0F172A", p: 1.5, borderRadius: "8px" }}>
+                  <Stack key={idx} direction="row" alignItems="center" justifyContent="space-between" sx={{ bgcolor: "#FFFFFF", p: 1.5, borderRadius: "8px" }}>
                     <Box>
                       <Typography variant="body2" sx={{ fontWeight: 700, color: "#FFF" }}>{lnk.label}</Typography>
-                      <Typography variant="caption" sx={{ color: "#94A3B8" }}>{lnk.url}</Typography>
+                      <Typography variant="caption" sx={{ color: "#625B60" }}>{lnk.url}</Typography>
                     </Box>
                     <IconButton size="small" onClick={() => handleRemoveLink(idx)} sx={{ color: "#F87171" }}>
                       <Close fontSize="small" />
@@ -564,11 +564,11 @@ export default function AdminAnnouncementsPage() {
                 <TextField
                   size="small"
                   label="Link Button Label"
-                  placeholder="e.g. Pay2Pay WhatsApp Channel"
+                  placeholder="e.g. Near4You WhatsApp Channel"
                   value={newLinkLabel}
                   onChange={(e) => setNewLinkLabel(e.target.value)}
                   sx={{ flex: 1, input: { color: "#FFF" }, fieldset: { borderColor: "rgba(255, 255, 255, 0.15)" } }}
-                  InputLabelProps={{ sx: { color: "#94A3B8" } }}
+                  InputLabelProps={{ sx: { color: "#625B60" } }}
                 />
                 <TextField
                   size="small"
@@ -577,7 +577,7 @@ export default function AdminAnnouncementsPage() {
                   value={newLinkUrl}
                   onChange={(e) => setNewLinkUrl(e.target.value)}
                   sx={{ flex: 2, input: { color: "#FFF" }, fieldset: { borderColor: "rgba(255, 255, 255, 0.15)" } }}
-                  InputLabelProps={{ sx: { color: "#94A3B8" } }}
+                  InputLabelProps={{ sx: { color: "#625B60" } }}
                 />
                 <Button onClick={handleAddLink} variant="outlined" sx={{ textTransform: "none", fontWeight: 700, borderRadius: "8px" }}>
                   Add Link
@@ -586,8 +586,8 @@ export default function AdminAnnouncementsPage() {
             </Box>
           </Stack>
         </DialogContent>
-        <DialogActions sx={{ p: 3, borderTop: "1px solid rgba(255, 255, 255, 0.08)" }}>
-          <Button onClick={() => setDialogOpen(false)} sx={{ color: "#94A3B8", textTransform: "none" }}>
+        <DialogActions sx={{ p: 3, borderTop: "1px solid #E8E2E5" }}>
+          <Button onClick={() => setDialogOpen(false)} sx={{ color: "#625B60", textTransform: "none" }}>
             Cancel
           </Button>
           <Button onClick={handleSaveAnnouncement} variant="contained" sx={{ bgcolor: "#2563EB", fontWeight: 800, textTransform: "none", borderRadius: "8px" }}>
@@ -604,19 +604,19 @@ export default function AdminAnnouncementsPage() {
         fullWidth
         PaperProps={{
           sx: {
-            bgcolor: "#0F172A",
+            bgcolor: "#FFFFFF",
             color: "#FFF",
             borderRadius: "16px",
             border: "1px solid rgba(255, 255, 255, 0.1)"
           }
         }}
       >
-        <DialogTitle sx={{ fontWeight: 800, borderBottom: "1px solid rgba(255, 255, 255, 0.08)" }}>
+        <DialogTitle sx={{ fontWeight: 800, borderBottom: "1px solid #E8E2E5" }}>
           Backblaze B2 Image Manager — {activeAnnouncement?.announcement_code}
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
           <Box sx={{ mb: 3 }}>
-            <Typography variant="body2" sx={{ color: "#94A3B8", mb: 2 }}>
+            <Typography variant="body2" sx={{ color: "#625B60", mb: 2 }}>
               Upload images directly to Backblaze B2 storage bucket. All images are dynamically rendered in the retailer dashboard popup.
             </Typography>
 
@@ -658,7 +658,7 @@ export default function AdminAnnouncementsPage() {
                     bgcolor: "#1E293B",
                     borderRadius: "12px",
                     overflow: "hidden",
-                    border: "1px solid rgba(255, 255, 255, 0.08)"
+                    border: "1px solid #E8E2E5"
                   }}
                 >
                   <Box
@@ -671,7 +671,7 @@ export default function AdminAnnouncementsPage() {
                     <Typography variant="body2" sx={{ fontWeight: 700, color: "#FFF", fontSize: "12px", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
                       {img.original_filename}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: "#94A3B8", display: "block" }}>
+                    <Typography variant="caption" sx={{ color: "#625B60", display: "block" }}>
                       Order: #{img.display_order} • {(img.file_size / 1024).toFixed(1)} KB
                     </Typography>
 
@@ -686,7 +686,7 @@ export default function AdminAnnouncementsPage() {
             ))}
           </Grid>
         </DialogContent>
-        <DialogActions sx={{ p: 2, borderTop: "1px solid rgba(255, 255, 255, 0.08)" }}>
+        <DialogActions sx={{ p: 2, borderTop: "1px solid #E8E2E5" }}>
           <Button onClick={() => setImageDialogOpen(false)} variant="contained" sx={{ bgcolor: "#2563EB", fontWeight: 800, textTransform: "none" }}>
             Done
           </Button>

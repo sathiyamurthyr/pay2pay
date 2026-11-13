@@ -825,10 +825,10 @@ export default function RetailerTopupRequestPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-6 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 min-h-screen text-slate-100 font-sans">
+    <div className="p-4 md:p-6 space-y-6 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 min-h-screen text-[#292329] font-sans">
       {/* ── Page Header & Wallet Balance Card ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-slate-800/80 pb-5 lg:pb-0 lg:pr-5">
+        <div className="lg:col-span-2 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-[#E8E2E5]/80 pb-5 lg:pb-0 lg:pr-5">
           <div>
             <div className="flex items-center gap-3.5">
               <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-amber-500/20 to-yellow-500/10 border border-amber-500/40 flex items-center justify-center text-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.15)]">
@@ -842,14 +842,14 @@ export default function RetailerTopupRequestPage() {
                     Instant UPI
                   </span>
                 </h1>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-[#625B60] mt-1">
                   Generate dynamic UPI QR codes, upload payment screenshots with automated AI OCR verification, and receive immediate wallet credits.
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 mt-4 text-xs text-slate-400 bg-slate-900/60 p-3 rounded-xl border border-slate-800/80 backdrop-blur">
+          <div className="flex items-center gap-2 mt-4 text-xs text-[#625B60] bg-[#FAF8F9]/60 p-3 rounded-xl border border-[#E8E2E5]/80 backdrop-blur">
             <Lock className="h-4 w-4 text-emerald-400 shrink-0" />
             <span>
               <strong>Authenticated Identity:</strong> Funds will be credited strictly to Retailer Wallet <span className="font-mono text-amber-400 font-semibold">({retailerInfo?.code || "Retailer"})</span> with automated WhatsApp receipts.
@@ -858,7 +858,7 @@ export default function RetailerTopupRequestPage() {
         </div>
 
         {/* Live Wallet Balance Indicator */}
-        <div className="relative overflow-hidden rounded-2xl p-5 border border-amber-500/30 bg-gradient-to-br from-slate-900/90 via-slate-800/70 to-slate-900/90 shadow-[0_10px_30px_rgba(0,0,0,0.5)] backdrop-blur-xl flex flex-col justify-between">
+        <div className="relative overflow-hidden rounded-2xl p-5 border border-amber-500/30 bg-gradient-to-br from-slate-900/90 via-slate-800/70 to-slate-900/90 shadow-[0_10px_30px_rgba(41, 35, 41, 0.06)] backdrop-blur-xl flex flex-col justify-between">
           <div className="absolute top-0 right-0 -mr-8 -mt-8 w-28 h-28 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400">
@@ -872,7 +872,7 @@ export default function RetailerTopupRequestPage() {
                 triggerWalletSync();
               }}
               disabled={loadingRequests}
-              className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+              className="p-1.5 rounded-lg bg-[#F5F2F4]/80 hover:bg-slate-700 text-[#625B60] hover:text-white transition-colors"
               title="Refresh Balance"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loadingRequests ? "animate-spin text-emerald-400" : ""}`} />
@@ -883,7 +883,7 @@ export default function RetailerTopupRequestPage() {
             <div className="text-3xl font-black tracking-tight bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-500 bg-clip-text text-transparent">
               ₹{walletBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </div>
-            <div className="text-xs text-slate-400 mt-1 flex items-center gap-2">
+            <div className="text-xs text-[#625B60] mt-1 flex items-center gap-2">
               <span>{retailerInfo?.name || "Retailer Account"}</span>
               <span className="font-mono text-amber-400 font-semibold">{retailerInfo?.code}</span>
             </div>
@@ -897,7 +897,7 @@ export default function RetailerTopupRequestPage() {
       </div>
 
       {/* ── Mode Switcher Tabs ── */}
-      <div className="flex items-center gap-3 p-1.5 bg-slate-900/80 border border-slate-800 rounded-2xl backdrop-blur max-w-xl">
+      <div className="flex items-center gap-3 p-1.5 bg-[#FAF8F9]/80 border border-[#E8E2E5] rounded-2xl backdrop-blur max-w-xl">
         <button
           type="button"
           onClick={() => {
@@ -908,7 +908,7 @@ export default function RetailerTopupRequestPage() {
           className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
             topupMode === "UPI"
               ? "bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 shadow-lg shadow-amber-500/20"
-              : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+              : "text-[#625B60] hover:text-white hover:bg-[#F5F2F4]/50"
           }`}
         >
           <QrCode className="h-4 w-4" />
@@ -925,13 +925,13 @@ export default function RetailerTopupRequestPage() {
           className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
             topupMode === "POS"
               ? "bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 shadow-lg shadow-amber-500/20"
-              : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+              : "text-[#625B60] hover:text-white hover:bg-[#F5F2F4]/50"
           }`}
         >
           <Store className={`h-4 w-4 ${topupMode === "POS" ? "text-slate-950" : "text-amber-400"}`} />
           <span>POS Settlement Top-Up</span>
           <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold uppercase ${
-            topupMode === "POS" ? "bg-slate-950/20 text-slate-950" : "bg-amber-500/10 text-amber-400 border border-amber-500/30"
+            topupMode === "POS" ? "bg-[#FFFFFF]/20 text-slate-950" : "bg-amber-500/10 text-amber-400 border border-amber-500/30"
           }`}>
             Terminal
           </span>
@@ -960,11 +960,11 @@ export default function RetailerTopupRequestPage() {
             /* ══════════════════════════════════════════════════════════════════════
                UPI TOP-UP MULTI-STEP FLOW (Glassmorphism + Gold-Yellow Gradient)
                ══════════════════════════════════════════════════════════════════════ */
-            <div className="bg-slate-900/80 border border-amber-500/20 rounded-3xl p-5 md:p-6 shadow-2xl backdrop-blur-2xl space-y-5 relative overflow-hidden">
+            <div className="bg-[#FAF8F9]/80 border border-amber-500/20 rounded-3xl p-5 md:p-6 shadow-2xl backdrop-blur-2xl space-y-5 relative overflow-hidden">
               <div className="absolute -top-10 -right-10 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
               {/* Header */}
-              <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+              <div className="flex items-center justify-between border-b border-[#E8E2E5]/80 pb-3">
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-amber-400 animate-ping" />
                   <h2 className="text-sm font-extrabold text-white tracking-wide uppercase">
@@ -986,14 +986,14 @@ export default function RetailerTopupRequestPage() {
                 <div className="space-y-5">
                   <div>
                     <h3 className="text-lg font-bold text-white">How much do you want to add?</h3>
-                    <p className="text-xs text-slate-400 mt-1">
+                    <p className="text-xs text-[#625B60] mt-1">
                       Enter the top-up amount to generate an instant dynamic UPI QR code.
                     </p>
                   </div>
 
                   {/* Amount Input with Gold Accent */}
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-300">
+                    <label className="text-xs font-semibold text-[#292329]">
                       Top-Up Amount (₹) <span className="text-amber-400">*</span>
                     </label>
                     <div className="relative">
@@ -1008,10 +1008,10 @@ export default function RetailerTopupRequestPage() {
                         placeholder="0.00"
                         value={upiAmount}
                         onChange={(e) => setUpiAmount(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3.5 bg-slate-950/90 border border-slate-700/80 focus:border-amber-500 rounded-2xl text-2xl font-black text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                        className="w-full pl-10 pr-4 py-3.5 bg-[#FFFFFF]/90 border border-[#E8E2E5]/80 focus:border-amber-500 rounded-2xl text-2xl font-black text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
                       />
                     </div>
-                    <div className="flex justify-between text-[11px] text-slate-400 pt-0.5">
+                    <div className="flex justify-between text-[11px] text-[#625B60] pt-0.5">
                       <span>Min: ₹100.00</span>
                       <span>Max: ₹2,00,000.00</span>
                     </div>
@@ -1019,7 +1019,7 @@ export default function RetailerTopupRequestPage() {
 
                   {/* Quick Preset Chips */}
                   <div className="space-y-2">
-                    <label className="text-xs font-medium text-slate-400">Quick Select Amount:</label>
+                    <label className="text-xs font-medium text-[#625B60]">Quick Select Amount:</label>
                     <div className="flex flex-wrap gap-2">
                       {amountPresets.map((amt) => (
                         <button
@@ -1029,7 +1029,7 @@ export default function RetailerTopupRequestPage() {
                           className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all ${
                             upiAmount === amt.toString()
                               ? "bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm shadow-amber-500/20"
-                              : "bg-slate-950/60 hover:bg-slate-800 text-slate-300 border-slate-800"
+                              : "bg-[#FFFFFF]/60 hover:bg-[#F5F2F4] text-[#292329] border-[#E8E2E5]"
                           }`}
                         >
                           ₹{amt.toLocaleString("en-IN")}
@@ -1051,7 +1051,7 @@ export default function RetailerTopupRequestPage() {
                           <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
                           <div className="space-y-1">
                             <h5 className="text-xs font-bold text-amber-300">UPI Top-Up Service Unavailable</h5>
-                            <p className="text-[11px] text-slate-300 leading-relaxed">
+                            <p className="text-[11px] text-[#292329] leading-relaxed">
                               UPI Top-Up is currently disabled by administrator. Please use POS Settlement or contact support.
                             </p>
                           </div>
@@ -1061,8 +1061,8 @@ export default function RetailerTopupRequestPage() {
 
                     if (upiAmtNum > 0 && upiVendorConfig) {
                       return (
-                        <div className="rounded-2xl border border-amber-500/20 bg-slate-950/90 p-4.5 space-y-3.5 shadow-xl relative overflow-hidden">
-                          <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                        <div className="rounded-2xl border border-amber-500/20 bg-[#FFFFFF]/90 p-4.5 space-y-3.5 shadow-xl relative overflow-hidden">
+                          <div className="flex items-center justify-between border-b border-[#E8E2E5] pb-2.5">
                             <span className="text-xs font-bold text-white flex items-center gap-2">
                               <Calculator className="h-4 w-4 text-amber-400" />
                               Live Fee & Settlement Breakdown
@@ -1073,27 +1073,27 @@ export default function RetailerTopupRequestPage() {
                           </div>
 
                           <div className="grid grid-cols-2 gap-y-2 text-xs">
-                            <span className="text-slate-400">Payment Mode</span>
+                            <span className="text-[#625B60]">Payment Mode</span>
                             <span className="text-right font-semibold text-white">
                               UPI Top-Up ({upiVendorConfig.vendor_name})
                             </span>
 
-                            <span className="text-slate-400">Transaction Amount</span>
+                            <span className="text-[#625B60]">Transaction Amount</span>
                             <span className="text-right font-black text-amber-400">
                               ₹{upiAmtNum.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
 
-                            <span className="text-slate-400">MDR ({upiMdrPct}%)</span>
+                            <span className="text-[#625B60]">MDR ({upiMdrPct}%)</span>
                             <span className="text-right font-semibold text-amber-300">
                               ₹{upiMdrAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
 
-                            <span className="text-slate-400">Charges</span>
-                            <span className="text-right font-semibold text-slate-300">
+                            <span className="text-[#625B60]">Charges</span>
+                            <span className="text-right font-semibold text-[#292329]">
                               ₹{upiMdrAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
 
-                            <div className="col-span-2 pt-3 mt-1 border-t border-slate-800/80 flex items-center justify-between">
+                            <div className="col-span-2 pt-3 mt-1 border-t border-[#E8E2E5]/80 flex items-center justify-between">
                               <div>
                                 <span className="text-xs font-bold text-white block">Received Amount</span>
                                 <span className="text-[10px] text-emerald-400/80">Credited to Retailer Wallet</span>
@@ -1108,9 +1108,9 @@ export default function RetailerTopupRequestPage() {
                     }
 
                     return (
-                      <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-2 text-xs text-slate-400">
+                      <div className="p-3.5 rounded-2xl bg-[#FFFFFF]/60 border border-[#E8E2E5] space-y-2 text-xs text-[#625B60]">
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-slate-300 font-semibold">
+                          <div className="flex items-center gap-2 text-[#292329] font-semibold">
                             <ShieldCheck className="h-4 w-4 text-amber-400" />
                             <span>Configured MDR: {upiMdrPct}%</span>
                           </div>
@@ -1120,7 +1120,7 @@ export default function RetailerTopupRequestPage() {
                             </span>
                           )}
                         </div>
-                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                        <p className="text-[11px] text-[#625B60] leading-relaxed">
                           Instant verification with any UPI app including Google Pay, PhonePe, Paytm, BHIM, CRED and Amazon Pay.
                         </p>
                       </div>
@@ -1160,13 +1160,13 @@ export default function RetailerTopupRequestPage() {
               {upiStep === "QR_DISPLAY" && upiQrData && (
                 <div className="space-y-4">
                   {/* Company Branding & Amount Card */}
-                  <div className="rounded-3xl border border-amber-500/30 bg-slate-950/90 p-5 text-center shadow-inner space-y-3 relative overflow-hidden">
+                  <div className="rounded-3xl border border-amber-500/30 bg-[#FFFFFF]/90 p-5 text-center shadow-inner space-y-3 relative overflow-hidden">
                     <div className="flex flex-col items-center justify-center gap-1">
                       <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-600 flex items-center justify-center text-slate-950 font-black text-base shadow-lg shadow-amber-500/20 mb-1">
                         P2P
                       </div>
                       <h4 className="text-base font-black tracking-wider text-white">
-                        Pay2Pay
+                        Near4You
                       </h4>
                       <p className="text-[10px] uppercase font-bold tracking-widest text-amber-400/90">
                         {upiQrData.company_name}
@@ -1174,8 +1174,8 @@ export default function RetailerTopupRequestPage() {
                     </div>
 
                     {/* Amount in Gold-Yellow Gradient */}
-                    <div className="py-2 border-y border-slate-800/80">
-                      <span className="text-[11px] text-slate-400 uppercase tracking-wider font-semibold block mb-0.5">
+                    <div className="py-2 border-y border-[#E8E2E5]/80">
+                      <span className="text-[11px] text-[#625B60] uppercase tracking-wider font-semibold block mb-0.5">
                         Amount to Pay
                       </span>
                       <div className="text-3xl md:text-4xl font-black bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-500 bg-clip-text text-transparent">
@@ -1192,15 +1192,15 @@ export default function RetailerTopupRequestPage() {
                           className="w-52 h-52 object-contain rounded-xl"
                         />
                       </div>
-                      <p className="text-xs font-semibold text-slate-300 mt-3 flex items-center gap-1.5">
+                      <p className="text-xs font-semibold text-[#292329] mt-3 flex items-center gap-1.5">
                         <Smartphone className="h-4 w-4 text-amber-400" />
                         Scan using GPay / PhonePe / Paytm / BHIM
                       </p>
                     </div>
 
                     {/* Countdown Expiry Timer */}
-                    <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
-                      <span className="text-slate-400 flex items-center gap-1.5">
+                    <div className="p-2.5 rounded-xl bg-[#FAF8F9] border border-[#E8E2E5] flex items-center justify-between text-xs">
+                      <span className="text-[#625B60] flex items-center gap-1.5">
                         <Clock className={`h-3.5 w-3.5 ${isQrExpired ? "text-rose-400" : "text-amber-400"}`} />
                         Payment Request Expires In:
                       </span>
@@ -1212,13 +1212,13 @@ export default function RetailerTopupRequestPage() {
                     </div>
 
                     {/* Request Reference ID */}
-                    <div className="text-[11px] text-slate-400 font-mono flex items-center justify-center gap-1.5">
+                    <div className="text-[11px] text-[#625B60] font-mono flex items-center justify-center gap-1.5">
                       <span>Request ID:</span>
-                      <span className="text-slate-200 font-semibold">{upiQrData.request_id}</span>
+                      <span className="text-[#292329] font-semibold">{upiQrData.request_id}</span>
                       <button
                         type="button"
                         onClick={() => copyToClipboard(upiQrData.request_id, "req_id")}
-                        className="text-slate-500 hover:text-white p-0.5"
+                        className="text-[#8A8288] hover:text-white p-0.5"
                         title="Copy Request ID"
                       >
                         {copiedId === "req_id" ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
@@ -1231,7 +1231,7 @@ export default function RetailerTopupRequestPage() {
                     <button
                       type="button"
                       onClick={() => copyToClipboard(upiQrData.upi_id, "upi_id")}
-                      className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-amber-500/40 text-slate-300 hover:text-white transition-all flex flex-col items-center gap-1 text-center"
+                      className="p-2.5 rounded-xl bg-[#FFFFFF] border border-[#E8E2E5] hover:border-amber-500/40 text-[#292329] hover:text-white transition-all flex flex-col items-center gap-1 text-center"
                     >
                       {copiedId === "upi_id" ? (
                         <Check className="h-4 w-4 text-emerald-400" />
@@ -1244,7 +1244,7 @@ export default function RetailerTopupRequestPage() {
                     <button
                       type="button"
                       onClick={() => copyToClipboard(upiQrData.amount.toFixed(2), "amt")}
-                      className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-amber-500/40 text-slate-300 hover:text-white transition-all flex flex-col items-center gap-1 text-center"
+                      className="p-2.5 rounded-xl bg-[#FFFFFF] border border-[#E8E2E5] hover:border-amber-500/40 text-[#292329] hover:text-white transition-all flex flex-col items-center gap-1 text-center"
                     >
                       {copiedId === "amt" ? (
                         <Check className="h-4 w-4 text-emerald-400" />
@@ -1257,7 +1257,7 @@ export default function RetailerTopupRequestPage() {
                     <a
                       href={upiQrData.qr_data_url}
                       download={`pay2pay-qr-${upiQrData.request_id}.png`}
-                      className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-amber-500/40 text-slate-300 hover:text-white transition-all flex flex-col items-center gap-1 text-center"
+                      className="p-2.5 rounded-xl bg-[#FFFFFF] border border-[#E8E2E5] hover:border-amber-500/40 text-[#292329] hover:text-white transition-all flex flex-col items-center gap-1 text-center"
                     >
                       <Download className="h-4 w-4 text-amber-400" />
                       <span className="text-[10px] font-bold">Download QR</span>
@@ -1277,7 +1277,7 @@ export default function RetailerTopupRequestPage() {
                   <button
                     type="button"
                     onClick={handleResetUpiFlow}
-                    className="w-full text-center text-xs text-slate-400 hover:text-slate-200 py-1"
+                    className="w-full text-center text-xs text-[#625B60] hover:text-[#292329] py-1"
                   >
                     ← Cancel / Change Amount
                   </button>
@@ -1291,12 +1291,12 @@ export default function RetailerTopupRequestPage() {
                     <button
                       type="button"
                       onClick={() => setUpiStep("QR_DISPLAY")}
-                      className="text-xs text-slate-400 hover:text-amber-400 flex items-center gap-1 mb-2"
+                      className="text-xs text-[#625B60] hover:text-amber-400 flex items-center gap-1 mb-2"
                     >
                       <ArrowLeft className="h-3.5 w-3.5" /> Back to QR Code
                     </button>
                     <h3 className="text-lg font-bold text-white">Upload Payment Screenshot</h3>
-                    <p className="text-xs text-slate-400 mt-1">
+                    <p className="text-xs text-[#625B60] mt-1">
                       Upload the successful GPay/PhonePe/UPI payment screenshot so our AI engine can automatically verify your transaction.
                     </p>
                   </div>
@@ -1312,7 +1312,7 @@ export default function RetailerTopupRequestPage() {
                   />
 
                   {uploadingAndScanning ? (
-                    <div className="p-8 rounded-3xl border-2 border-amber-500/40 bg-slate-950/90 flex flex-col items-center justify-center space-y-4 text-center relative overflow-hidden">
+                    <div className="p-8 rounded-3xl border-2 border-amber-500/40 bg-[#FFFFFF]/90 flex flex-col items-center justify-center space-y-4 text-center relative overflow-hidden">
                       {/* Radar scan line effect */}
                       <div className="absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent animate-pulse top-1/2" />
                       <div className="relative">
@@ -1320,23 +1320,23 @@ export default function RetailerTopupRequestPage() {
                       </div>
                       <div className="space-y-1">
                         <p className="text-sm font-bold text-white">{scanStatusMessage}</p>
-                        <p className="text-[11px] text-slate-400">
+                        <p className="text-[11px] text-[#625B60]">
                           Extracting Amount, 12-digit UTR, Payment App, and UPI ID...
                         </p>
                       </div>
                     </div>
                   ) : upiSlipPreview ? (
-                    <div className="rounded-2xl border border-slate-700 bg-slate-950/80 p-3 space-y-3">
+                    <div className="rounded-2xl border border-[#E8E2E5] bg-[#FFFFFF]/80 p-3 space-y-3">
                       <div className="flex items-center gap-3">
                         <img
                           src={upiSlipPreview}
                           alt="Screenshot Proof"
-                          className="h-20 w-20 object-cover rounded-xl border border-slate-800 cursor-pointer"
+                          className="h-20 w-20 object-cover rounded-xl border border-[#E8E2E5] cursor-pointer"
                           onClick={() => setLightboxImage(upiSlipPreview)}
                         />
                         <div className="flex-1 min-w-0 text-xs">
-                          <p className="font-semibold text-slate-200 truncate">{upiSlipFile?.name}</p>
-                          <p className="text-[11px] text-slate-400 mt-0.5">
+                          <p className="font-semibold text-[#292329] truncate">{upiSlipFile?.name}</p>
+                          <p className="text-[11px] text-[#625B60] mt-0.5">
                             {upiSlipFile ? `${Math.round(upiSlipFile.size / 1024)} KB` : ""}
                           </p>
                           <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1 mt-1.5">
@@ -1350,7 +1350,7 @@ export default function RetailerTopupRequestPage() {
                         <button
                           type="button"
                           onClick={() => upiFileInputRef.current?.click()}
-                          className="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-medium"
+                          className="flex-1 py-2 rounded-xl bg-[#F5F2F4] hover:bg-slate-700 text-xs text-[#292329] font-medium"
                         >
                           Replace Image
                         </button>
@@ -1371,13 +1371,13 @@ export default function RetailerTopupRequestPage() {
                     <div className="space-y-3">
                       <label
                         htmlFor="upi-proof-file"
-                        className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-amber-500/30 hover:border-amber-400/70 rounded-3xl bg-slate-950/60 cursor-pointer transition-all group"
+                        className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-amber-500/30 hover:border-amber-400/70 rounded-3xl bg-[#FFFFFF]/60 cursor-pointer transition-all group"
                       >
-                        <UploadCloud className="h-10 w-10 text-slate-500 group-hover:text-amber-400 transition-colors mb-2" />
-                        <p className="text-xs font-bold text-slate-200 group-hover:text-white">
+                        <UploadCloud className="h-10 w-10 text-[#8A8288] group-hover:text-amber-400 transition-colors mb-2" />
+                        <p className="text-xs font-bold text-[#292329] group-hover:text-white">
                           Click to select payment screenshot
                         </p>
-                        <p className="text-[11px] text-slate-400 mt-1 text-center max-w-xs">
+                        <p className="text-[11px] text-[#625B60] mt-1 text-center max-w-xs">
                           Supports PNG, JPG, JPEG, or WEBP from GPay, PhonePe, Paytm, or BHIM.
                         </p>
                       </label>
@@ -1386,7 +1386,7 @@ export default function RetailerTopupRequestPage() {
                       <button
                         type="button"
                         onClick={() => upiFileInputRef.current?.click()}
-                        className="w-full py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-2 border border-slate-700"
+                        className="w-full py-2.5 px-3 rounded-xl bg-[#F5F2F4] hover:bg-slate-700 text-[#292329] text-xs font-semibold flex items-center justify-center gap-2 border border-[#E8E2E5]"
                       >
                         <Camera className="h-4 w-4 text-amber-400" />
                         Take Photo / Choose From Gallery
@@ -1426,10 +1426,10 @@ export default function RetailerTopupRequestPage() {
                   )}
 
                   {/* Editable Fields Form */}
-                  <div className="space-y-3 bg-slate-950/80 p-4 rounded-2xl border border-slate-800">
+                  <div className="space-y-3 bg-[#FFFFFF]/80 p-4 rounded-2xl border border-[#E8E2E5]">
                     {/* Amount */}
                     <div className="space-y-1">
-                      <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                      <label className="text-xs font-semibold text-[#292329] flex items-center justify-between">
                         <span>Payment Amount (₹) <span className="text-amber-400">*</span></span>
                         <Edit3 className="h-3 w-3 text-amber-400" />
                       </label>
@@ -1438,13 +1438,13 @@ export default function RetailerTopupRequestPage() {
                         step="0.01"
                         value={verifiedAmount}
                         onChange={(e) => setVerifiedAmount(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm font-bold text-white focus:outline-none focus:border-amber-500"
+                        className="w-full px-3 py-2 bg-[#FAF8F9] border border-[#E8E2E5] rounded-xl text-sm font-bold text-white focus:outline-none focus:border-amber-500"
                       />
                     </div>
 
                     {/* Transaction ID / UTR */}
                     <div className="space-y-1">
-                      <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                      <label className="text-xs font-semibold text-[#292329] flex items-center justify-between">
                         <span>Transaction ID / 12-Digit UTR <span className="text-amber-400">*</span></span>
                         <Edit3 className="h-3 w-3 text-amber-400" />
                       </label>
@@ -1453,20 +1453,20 @@ export default function RetailerTopupRequestPage() {
                         placeholder="e.g. 425812345678"
                         value={verifiedUtr}
                         onChange={(e) => setVerifiedUtr(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-mono font-bold text-amber-300 focus:outline-none focus:border-amber-500"
+                        className="w-full px-3 py-2 bg-[#FAF8F9] border border-[#E8E2E5] rounded-xl text-xs font-mono font-bold text-amber-300 focus:outline-none focus:border-amber-500"
                       />
                     </div>
 
                     {/* Payment App */}
                     <div className="space-y-1">
-                      <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                      <label className="text-xs font-semibold text-[#292329] flex items-center justify-between">
                         <span>Payment Application</span>
                         <Edit3 className="h-3 w-3 text-amber-400" />
                       </label>
                       <select
                         value={verifiedPaymentApp}
                         onChange={(e) => setVerifiedPaymentApp(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-semibold text-white focus:outline-none focus:border-amber-500"
+                        className="w-full px-3 py-2 bg-[#FAF8F9] border border-[#E8E2E5] rounded-xl text-xs font-semibold text-white focus:outline-none focus:border-amber-500"
                       >
                         <option value="Google Pay">Google Pay</option>
                         <option value="PhonePe">PhonePe</option>
@@ -1480,7 +1480,7 @@ export default function RetailerTopupRequestPage() {
 
                     {/* Payer UPI ID */}
                     <div className="space-y-1">
-                      <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                      <label className="text-xs font-semibold text-[#292329] flex items-center justify-between">
                         <span>Payer UPI ID (VPA)</span>
                         <Edit3 className="h-3 w-3 text-amber-400" />
                       </label>
@@ -1489,13 +1489,13 @@ export default function RetailerTopupRequestPage() {
                         placeholder="retailer@okhdfcbank"
                         value={verifiedUpiId}
                         onChange={(e) => setVerifiedUpiId(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-mono text-slate-200 focus:outline-none focus:border-amber-500"
+                        className="w-full px-3 py-2 bg-[#FAF8F9] border border-[#E8E2E5] rounded-xl text-xs font-mono text-[#292329] focus:outline-none focus:border-amber-500"
                       />
                     </div>
 
                     {/* Payer Name */}
                     <div className="space-y-1">
-                      <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                      <label className="text-xs font-semibold text-[#292329] flex items-center justify-between">
                         <span>Payer Name</span>
                         <Edit3 className="h-3 w-3 text-amber-400" />
                       </label>
@@ -1504,7 +1504,7 @@ export default function RetailerTopupRequestPage() {
                         placeholder="Retailer Account Name"
                         value={verifiedPayerName}
                         onChange={(e) => setVerifiedPayerName(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-amber-500"
+                        className="w-full px-3 py-2 bg-[#FAF8F9] border border-[#E8E2E5] rounded-xl text-xs text-[#292329] focus:outline-none focus:border-amber-500"
                       />
                     </div>
                   </div>
@@ -1514,7 +1514,7 @@ export default function RetailerTopupRequestPage() {
                     <button
                       type="button"
                       onClick={() => setUpiStep("UPLOAD")}
-                      className="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300"
+                      className="py-3 px-4 rounded-xl bg-[#F5F2F4] hover:bg-slate-700 text-xs font-bold text-[#292329]"
                     >
                       Re-Upload
                     </button>
@@ -1535,51 +1535,51 @@ export default function RetailerTopupRequestPage() {
                 <div className="space-y-4">
                   <div>
                     <h3 className="text-base font-bold text-white">Confirm UPI Top-Up Request</h3>
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <p className="text-xs text-[#625B60] mt-0.5">
                       Verify your top-up details before dispatching for administrative approval.
                     </p>
                   </div>
 
                   {/* Summary Box */}
-                  <div className="rounded-2xl border border-slate-700/80 bg-slate-950 p-4 space-y-2.5 text-xs">
-                    <div className="flex justify-between py-1 border-b border-slate-800">
-                      <span className="text-slate-400">Requested Amount:</span>
+                  <div className="rounded-2xl border border-[#E8E2E5]/80 bg-[#FFFFFF] p-4 space-y-2.5 text-xs">
+                    <div className="flex justify-between py-1 border-b border-[#E8E2E5]">
+                      <span className="text-[#625B60]">Requested Amount:</span>
                       <span className="font-bold text-white">
                         ₹{upiQrData ? upiQrData.amount.toFixed(2) : parseFloat(verifiedAmount).toFixed(2)}
                       </span>
                     </div>
 
-                    <div className="flex justify-between py-1 border-b border-slate-800">
-                      <span className="text-slate-400">Payment Amount:</span>
+                    <div className="flex justify-between py-1 border-b border-[#E8E2E5]">
+                      <span className="text-[#625B60]">Payment Amount:</span>
                       <span className="font-bold text-emerald-400">
                         ₹{parseFloat(verifiedAmount).toFixed(2)}
                       </span>
                     </div>
 
-                    <div className="flex justify-between py-1 border-b border-slate-800">
-                      <span className="text-slate-400">Payment App:</span>
-                      <span className="font-semibold text-slate-200">{verifiedPaymentApp}</span>
+                    <div className="flex justify-between py-1 border-b border-[#E8E2E5]">
+                      <span className="text-[#625B60]">Payment App:</span>
+                      <span className="font-semibold text-[#292329]">{verifiedPaymentApp}</span>
                     </div>
 
                     {verifiedUpiId && (
-                      <div className="flex justify-between py-1 border-b border-slate-800">
-                        <span className="text-slate-400">UPI ID:</span>
-                        <span className="font-mono text-slate-200">{verifiedUpiId}</span>
+                      <div className="flex justify-between py-1 border-b border-[#E8E2E5]">
+                        <span className="text-[#625B60]">UPI ID:</span>
+                        <span className="font-mono text-[#292329]">{verifiedUpiId}</span>
                       </div>
                     )}
 
-                    <div className="flex justify-between py-1 border-b border-slate-800">
-                      <span className="text-slate-400">Transaction ID / UTR:</span>
+                    <div className="flex justify-between py-1 border-b border-[#E8E2E5]">
+                      <span className="text-[#625B60]">Transaction ID / UTR:</span>
                       <span className="font-mono font-bold text-amber-300">{verifiedUtr}</span>
                     </div>
 
-                    <div className="flex justify-between py-1 border-b border-slate-800">
-                      <span className="text-slate-400">Payment Status:</span>
+                    <div className="flex justify-between py-1 border-b border-[#E8E2E5]">
+                      <span className="text-[#625B60]">Payment Status:</span>
                       <span className="font-bold text-emerald-400">✓ Successful</span>
                     </div>
 
                     <div className="flex justify-between py-1 items-center">
-                      <span className="text-slate-400">Payment Screenshot:</span>
+                      <span className="text-[#625B60]">Payment Screenshot:</span>
                       <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
                         <Check className="h-3 w-3" /> Stored in B2 Cloud
                       </span>
@@ -1588,13 +1588,13 @@ export default function RetailerTopupRequestPage() {
 
                   {/* Optional Remarks */}
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300">Remarks (Optional)</label>
+                    <label className="text-xs font-semibold text-[#292329]">Remarks (Optional)</label>
                     <input
                       type="text"
                       placeholder="e.g. Daily UPI working capital credit"
                       value={retailerRemarks}
                       onChange={(e) => setRetailerRemarks(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-amber-500"
+                      className="w-full px-3 py-2 bg-[#FAF8F9] border border-[#E8E2E5] rounded-xl text-xs text-[#292329] focus:outline-none focus:border-amber-500"
                     />
                   </div>
 
@@ -1603,7 +1603,7 @@ export default function RetailerTopupRequestPage() {
                     <button
                       type="button"
                       onClick={() => setUpiStep("VERIFY")}
-                      className="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300"
+                      className="py-3 px-4 rounded-xl bg-[#F5F2F4] hover:bg-slate-700 text-xs font-bold text-[#292329]"
                     >
                       ✎ Edit Details
                     </button>
@@ -1631,38 +1631,38 @@ export default function RetailerTopupRequestPage() {
 
               {/* ── SUB-STEP 6: SUCCESS MODAL ── */}
               {upiStep === "SUCCESS" && upiCreatedRequest && (
-                <div className="p-6 rounded-3xl bg-slate-950/90 border border-emerald-500/30 text-center space-y-4">
+                <div className="p-6 rounded-3xl bg-[#FFFFFF]/90 border border-emerald-500/30 text-center space-y-4">
                   <div className="h-14 w-14 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
                     <CheckCircle2 className="h-8 w-8" />
                   </div>
 
                   <div className="space-y-1">
                     <h3 className="text-lg font-black text-white">Top-Up Request Submitted!</h3>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-[#625B60]">
                       Your request has been successfully created and forwarded for immediate administrative verification.
                     </p>
                   </div>
 
-                  <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 text-xs text-left space-y-1.5">
+                  <div className="p-3.5 rounded-2xl bg-[#FAF8F9] border border-[#E8E2E5] text-xs text-left space-y-1.5">
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Request ID:</span>
+                      <span className="text-[#625B60]">Request ID:</span>
                       <span className="font-mono font-bold text-amber-300">{upiCreatedRequest.request_id}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Amount:</span>
+                      <span className="text-[#625B60]">Amount:</span>
                       <span className="font-bold text-emerald-400">₹{upiCreatedRequest.amount.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Transaction UTR:</span>
-                      <span className="font-mono text-slate-200">{upiCreatedRequest.utr}</span>
+                      <span className="text-[#625B60]">Transaction UTR:</span>
+                      <span className="font-mono text-[#292329]">{upiCreatedRequest.utr}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Status:</span>
+                      <span className="text-[#625B60]">Status:</span>
                       <span className="text-amber-400 font-semibold">Pending Approval</span>
                     </div>
                   </div>
 
-                  <div className="text-[11px] text-slate-400 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                  <div className="text-[11px] text-[#625B60] bg-[#FAF8F9]/60 p-2.5 rounded-xl border border-[#E8E2E5]">
                     📲 <strong>WhatsApp Alert Dispatched:</strong> Admin has been alerted. Upon approval, your wallet will be credited automatically and you will receive a WhatsApp receipt.
                   </div>
 
@@ -1680,11 +1680,11 @@ export default function RetailerTopupRequestPage() {
             /* ══════════════════════════════════════════════════════════════════════
                POS SETTLEMENT TOP-UP (Glassmorphism + Gold-Yellow Gradient Flow)
                ══════════════════════════════════════════════════════════════════════ */
-            <div className="bg-slate-900/80 border border-amber-500/20 rounded-3xl p-5 md:p-6 shadow-2xl backdrop-blur-2xl space-y-5 relative overflow-hidden">
+            <div className="bg-[#FAF8F9]/80 border border-amber-500/20 rounded-3xl p-5 md:p-6 shadow-2xl backdrop-blur-2xl space-y-5 relative overflow-hidden">
               <div className="absolute -top-10 -right-10 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
               {/* Header */}
-              <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+              <div className="flex items-center justify-between border-b border-[#E8E2E5]/80 pb-3">
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-amber-400 animate-ping" />
                   <h2 className="text-sm font-extrabold text-white tracking-wide uppercase">
@@ -1698,7 +1698,7 @@ export default function RetailerTopupRequestPage() {
 
               <div>
                 <h3 className="text-lg font-bold text-white">POS Working Capital Request</h3>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-[#625B60] mt-1">
                   Enter amount from your swipe terminal slip for instant verification and ledger credit.
                 </p>
               </div>
@@ -1706,9 +1706,9 @@ export default function RetailerTopupRequestPage() {
               <form onSubmit={handlePosSubmit} className="space-y-5">
                 {/* 1. Settlement Mode * */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                  <label className="text-xs font-semibold text-[#292329] flex items-center justify-between">
                     <span>Settlement Mode <span className="text-amber-400">*</span></span>
-                    <span className="text-[10px] text-slate-400 font-normal">Choose Instant or T+1</span>
+                    <span className="text-[10px] text-[#625B60] font-normal">Choose Instant or T+1</span>
                   </label>
 
                   {/* Both Instant & T+1 Settlement Selector Cards */}
@@ -1730,7 +1730,7 @@ export default function RetailerTopupRequestPage() {
                             className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
                               isSelected
                                 ? "bg-gradient-to-br from-amber-500/20 via-yellow-500/10 to-transparent border-amber-500 shadow-md shadow-amber-500/10 ring-1 ring-amber-500/40"
-                                : "bg-slate-950/70 border-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-200"
+                                : "bg-[#FFFFFF]/70 border-[#E8E2E5] hover:border-[#E8E2E5] text-[#625B60] hover:text-[#292329]"
                             }`}
                           >
                             <div className="flex items-center justify-between w-full mb-1">
@@ -1752,7 +1752,7 @@ export default function RetailerTopupRequestPage() {
                                 <span
                                   className={`w-1.5 h-1.5 rounded-full ${
                                     isSelected
-                                      ? "bg-slate-950"
+                                      ? "bg-[#FFFFFF]"
                                       : isActive
                                       ? "bg-emerald-400"
                                       : "bg-rose-400"
@@ -1761,7 +1761,7 @@ export default function RetailerTopupRequestPage() {
                                 {isActive ? "Active" : "Inactive"}
                               </span>
                             </div>
-                            <p className="text-[11px] text-slate-400 leading-tight">
+                            <p className="text-[11px] text-[#625B60] leading-tight">
                               {isInstant
                                 ? "Instant wallet credit upon verification"
                                 : "T+1 Next business day wallet credit"}
@@ -1774,22 +1774,22 @@ export default function RetailerTopupRequestPage() {
                 </div>
 
                 {/* 2. Card Type * & Card Last 4 Digits */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-[#FFFFFF]/60 border border-[#E8E2E5]/80">
                   {/* Card Type */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                    <label className="text-xs font-semibold text-[#292329] flex items-center justify-between">
                       <span>Card Type <span className="text-amber-400">*</span></span>
-                      <span className="text-[10px] text-slate-400 font-normal">Select Card</span>
+                      <span className="text-[10px] text-[#625B60] font-normal">Select Card</span>
                     </label>
                     <select
                       value={selectedCardType}
                       onChange={(e) => setSelectedCardType(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700/80 rounded-xl text-xs font-bold text-slate-200 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 transition-all cursor-pointer"
+                      className="w-full px-3.5 py-2.5 bg-[#FAF8F9] border border-[#E8E2E5]/80 rounded-xl text-xs font-bold text-[#292329] focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 transition-all cursor-pointer"
                       required
                     >
-                      <option value="" disabled className="text-slate-500">-- Select Card Type --</option>
+                      <option value="" disabled className="text-[#8A8288]">-- Select Card Type --</option>
                       {cardTypes.map((c) => (
-                        <option key={c.code} value={c.code} className="bg-slate-900 text-white font-semibold">
+                        <option key={c.code} value={c.code} className="bg-[#FAF8F9] text-white font-semibold">
                           {c.name || c.code}
                         </option>
                       ))}
@@ -1798,9 +1798,9 @@ export default function RetailerTopupRequestPage() {
 
                   {/* Card Last 4 Digits (Optional) */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                    <label className="text-xs font-semibold text-[#292329] flex items-center justify-between">
                       <span>Card Last 4 Digits</span>
-                      <span className="text-[10px] text-slate-400 font-normal">Optional</span>
+                      <span className="text-[10px] text-[#625B60] font-normal">Optional</span>
                     </label>
                     <input
                       type="text"
@@ -1813,14 +1813,14 @@ export default function RetailerTopupRequestPage() {
                         const val = e.target.value.replace(/\D/g, "").slice(0, 4);
                         setCardLast4(val);
                       }}
-                      className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700/80 rounded-xl text-xs font-mono font-bold text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 transition-all tracking-wider"
+                      className="w-full px-3.5 py-2.5 bg-[#FAF8F9] border border-[#E8E2E5]/80 rounded-xl text-xs font-mono font-bold text-[#292329] placeholder-slate-600 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 transition-all tracking-wider"
                     />
                   </div>
                 </div>
 
                 {/* 3. Transaction Amount (₹) * */}
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-300 flex justify-between">
+                  <label className="text-xs font-semibold text-[#292329] flex justify-between">
                     <span>Transaction Amount (₹) <span className="text-amber-400">*</span></span>
                   </label>
                   <div className="relative">
@@ -1834,7 +1834,7 @@ export default function RetailerTopupRequestPage() {
                       placeholder="0.00"
                       value={requestedAmount}
                       onChange={(e) => setRequestedAmount(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3.5 bg-slate-950/90 border border-slate-700/80 focus:border-amber-500 rounded-2xl text-2xl font-black text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                      className="w-full pl-10 pr-4 py-3.5 bg-[#FFFFFF]/90 border border-[#E8E2E5]/80 focus:border-amber-500 rounded-2xl text-2xl font-black text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
                       required
                     />
                   </div>
@@ -1842,18 +1842,18 @@ export default function RetailerTopupRequestPage() {
 
                 {/* 5. Payment Date */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-300">Payment Date</label>
+                  <label className="text-xs font-semibold text-[#292329]">Payment Date</label>
                   <input
                     type="date"
                     value={paymentDate}
                     onChange={(e) => setPaymentDate(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-950/90 border border-slate-700/80 rounded-xl text-xs font-medium text-slate-200 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 transition-all"
+                    className="w-full px-3.5 py-2.5 bg-[#FFFFFF]/90 border border-[#E8E2E5]/80 rounded-xl text-xs font-medium text-[#292329] focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 transition-all"
                   />
                 </div>
 
                 {/* 6. Live Fee & Settlement Breakdown */}
-                <div className="rounded-2xl border border-amber-500/20 bg-slate-950/90 p-4.5 space-y-3.5 shadow-xl relative overflow-hidden">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                <div className="rounded-2xl border border-amber-500/20 bg-[#FFFFFF]/90 p-4.5 space-y-3.5 shadow-xl relative overflow-hidden">
+                  <div className="flex items-center justify-between border-b border-[#E8E2E5] pb-2.5">
                     <span className="text-xs font-bold text-white flex items-center gap-2">
                       <Calculator className="h-4 w-4 text-amber-400" />
                       Live Fee & Settlement Breakdown
@@ -1870,32 +1870,32 @@ export default function RetailerTopupRequestPage() {
 
                   {parseFloat(requestedAmount || "0") > 0 ? (
                     <div className="grid grid-cols-2 gap-y-2 text-xs">
-                      <span className="text-slate-400">Payment Mode & Card</span>
+                      <span className="text-[#625B60]">Payment Mode & Card</span>
                       <span className="text-right font-semibold text-white">
                         {paymentMethod.toLowerCase().includes("instant") ? "POS - Instant" : "POS+T1"} {selectedCardType ? `(${selectedCardType})` : ""}
                       </span>
 
-                      <span className="text-slate-400">Transaction Amount</span>
+                      <span className="text-[#625B60]">Transaction Amount</span>
                       <span className="text-right font-black text-amber-400">
                         ₹{parseFloat(requestedAmount || "0").toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </span>
 
-                      <span className="text-slate-400">MDR</span>
+                      <span className="text-[#625B60]">MDR</span>
                       <span className="text-right font-semibold text-amber-300">
                         {mdrBreakdown ? `₹${mdrBreakdown.mdr.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : (calculatingMdr ? "..." : "₹0.00")}
                       </span>
 
-                      <span className="text-slate-400">GST (18%)</span>
+                      <span className="text-[#625B60]">GST (18%)</span>
                       <span className="text-right font-semibold text-amber-300/90">
                         {mdrBreakdown ? `₹${mdrBreakdown.gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : (calculatingMdr ? "..." : "₹0.00")}
                       </span>
 
-                      <span className="text-slate-400">Charges</span>
-                      <span className="text-right font-semibold text-slate-300">
+                      <span className="text-[#625B60]">Charges</span>
+                      <span className="text-right font-semibold text-[#292329]">
                         {mdrBreakdown ? `₹${mdrBreakdown.charges.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : (calculatingMdr ? "..." : "₹0.00")}
                       </span>
 
-                      <div className="col-span-2 pt-3 mt-1 border-t border-slate-800/80 flex items-center justify-between">
+                      <div className="col-span-2 pt-3 mt-1 border-t border-[#E8E2E5]/80 flex items-center justify-between">
                         <div>
                           <span className="text-xs font-bold text-white block">Received Amount</span>
                           <span className="text-[10px] text-emerald-400/80">Credited to Retailer Wallet</span>
@@ -1908,7 +1908,7 @@ export default function RetailerTopupRequestPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="p-3 rounded-xl bg-slate-900/50 border border-slate-800 text-xs text-slate-400 flex items-center gap-2.5">
+                    <div className="p-3 rounded-xl bg-[#FAF8F9] border border-[#E8E2E5] text-xs text-[#625B60] flex items-center gap-2.5">
                       <Info className="h-4 w-4 text-amber-400 shrink-0" />
                       <span>Enter transaction amount above to see instant live fee & wallet credit breakdown.</span>
                     </div>
@@ -1917,9 +1917,9 @@ export default function RetailerTopupRequestPage() {
 
                 {/* 7. Upload Payment Slip / Receipt * */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-300 flex justify-between">
+                  <label className="text-xs font-semibold text-[#292329] flex justify-between">
                     <span>Upload Payment Slip / Receipt <span className="text-amber-400">*</span></span>
-                    <span className="text-[10px] text-slate-400">JPG, PNG, WEBP (Max 10MB)</span>
+                    <span className="text-[10px] text-[#625B60]">JPG, PNG, WEBP (Max 10MB)</span>
                   </label>
 
                   <input
@@ -1932,7 +1932,7 @@ export default function RetailerTopupRequestPage() {
                   />
 
                   {posSlipPreview ? (
-                    <div className="relative border border-amber-500/30 rounded-2xl p-3.5 bg-slate-950/90 flex items-center gap-3.5">
+                    <div className="relative border border-amber-500/30 rounded-2xl p-3.5 bg-[#FFFFFF]/90 flex items-center gap-3.5">
                       <img
                         src={posSlipPreview}
                         alt="Slip Preview"
@@ -1940,8 +1940,8 @@ export default function RetailerTopupRequestPage() {
                         onClick={() => setLightboxImage(posSlipPreview)}
                       />
                       <div className="flex-1 min-w-0 text-xs">
-                        <p className="font-semibold text-slate-200 truncate">{posSlipFile?.name}</p>
-                        <p className="text-[11px] text-slate-400">
+                        <p className="font-semibold text-[#292329] truncate">{posSlipFile?.name}</p>
+                        <p className="text-[11px] text-[#625B60]">
                           {posSlipFile ? `${Math.round(posSlipFile.size / 1024)} KB` : ""}
                         </p>
                         {uploadingPosSlip ? (
@@ -1964,7 +1964,7 @@ export default function RetailerTopupRequestPage() {
                           setUploadedPosSlipData(null);
                           if (posFileInputRef.current) posFileInputRef.current.value = "";
                         }}
-                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                        className="p-1.5 rounded-lg bg-[#F5F2F4] hover:bg-slate-700 text-[#625B60] hover:text-white transition-colors"
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -1972,13 +1972,13 @@ export default function RetailerTopupRequestPage() {
                   ) : (
                     <label
                       htmlFor="pos-slip-upload-input"
-                      className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-700/80 hover:border-amber-400/80 rounded-2xl bg-slate-950/60 hover:bg-slate-950/90 cursor-pointer transition-all group"
+                      className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-[#E8E2E5]/80 hover:border-amber-400/80 rounded-2xl bg-[#FFFFFF]/60 hover:bg-[#FFFFFF]/90 cursor-pointer transition-all group"
                     >
                       <UploadCloud className="h-8 w-8 text-amber-400/70 group-hover:text-amber-400 transition-colors mb-2 group-hover:scale-110 transform duration-200" />
-                      <p className="text-xs font-bold text-slate-300 group-hover:text-white">
+                      <p className="text-xs font-bold text-[#292329] group-hover:text-white">
                         Click or drag & drop payment receipt
                       </p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">
+                      <p className="text-[10px] text-[#625B60] mt-0.5">
                         JPG, PNG, WEBP (Max 10MB) • Auto-reads Transaction ID / UTR
                       </p>
                     </label>
@@ -1987,7 +1987,7 @@ export default function RetailerTopupRequestPage() {
 
                 {/* 8. Bank Reference / UTR Number * (Auto-bound from uploaded slip) */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                  <label className="text-xs font-semibold text-[#292329] flex items-center justify-between">
                     <span>Bank Reference / UTR Number <span className="text-amber-400">*</span></span>
                     {uploadedPosSlipData?.extracted_details?.transaction_id && (
                       <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
@@ -2000,20 +2000,20 @@ export default function RetailerTopupRequestPage() {
                     placeholder="e.g. UTR123456789 or Terminal Txn Ref"
                     value={paymentReference}
                     onChange={(e) => setPaymentReference(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-950/90 border border-slate-700/80 rounded-xl text-xs font-mono font-semibold text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 transition-all"
+                    className="w-full px-3.5 py-2.5 bg-[#FFFFFF]/90 border border-[#E8E2E5]/80 rounded-xl text-xs font-mono font-semibold text-[#292329] placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 transition-all"
                     required
                   />
                 </div>
 
                 {/* 9. Remarks / Note (Optional) */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-300">Remarks / Note (Optional)</label>
+                  <label className="text-xs font-semibold text-[#292329]">Remarks / Note (Optional)</label>
                   <textarea
                     rows={2}
                     placeholder="e.g. Daily POS working capital top-up"
                     value={retailerRemarks}
                     onChange={(e) => setRetailerRemarks(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-950/90 border border-slate-700/80 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 transition-all"
+                    className="w-full px-3.5 py-2.5 bg-[#FFFFFF]/90 border border-[#E8E2E5]/80 rounded-xl text-xs text-[#292329] placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 transition-all"
                   />
                 </div>
 
@@ -2041,19 +2041,19 @@ export default function RetailerTopupRequestPage() {
         </div>
 
         {/* ── Right Column: My Topup Requests History (7 cols) ── */}
-        <div className="lg:col-span-7 bg-slate-900/80 border border-slate-800 rounded-3xl p-5 shadow-2xl backdrop-blur space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="lg:col-span-7 bg-[#FAF8F9]/80 border border-[#E8E2E5] rounded-3xl p-5 shadow-2xl backdrop-blur space-y-4">
+          <div className="flex items-center justify-between border-b border-[#E8E2E5] pb-3">
             <div>
               <h2 className="text-sm font-bold text-white flex items-center gap-2">
                 <Receipt className="h-4 w-4 text-amber-400" />
                 My Top-up History & Claims
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">Live status of your submitted UPI & POS requests</p>
+              <p className="text-xs text-[#625B60] mt-0.5">Live status of your submitted UPI & POS requests</p>
             </div>
             <button
               onClick={() => fetchMyTopups()}
               disabled={loadingRequests}
-              className="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 text-xs font-medium bg-[#F5F2F4] hover:bg-slate-700 text-[#292329] border border-[#E8E2E5] rounded-xl transition-colors inline-flex items-center gap-1.5 cursor-pointer"
             >
               <RefreshCw className={`h-3 w-3 ${loadingRequests ? "animate-spin text-amber-400" : ""}`} />
               Refresh
@@ -2061,8 +2061,8 @@ export default function RetailerTopupRequestPage() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-slate-950 text-slate-400 uppercase font-semibold text-[10px] border-b border-slate-800">
+            <table className="w-full text-left text-xs text-[#292329]">
+              <thead className="bg-[#FFFFFF] text-[#625B60] uppercase font-semibold text-[10px] border-b border-[#E8E2E5]">
                 <tr>
                   <th className="py-3 px-3">Request ID</th>
                   <th className="py-3 px-3">Mode</th>
@@ -2074,31 +2074,31 @@ export default function RetailerTopupRequestPage() {
                   <th className="py-3 px-3">Date</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-[#E8E2E5]/60">
                 {loadingRequests ? (
                   <tr>
-                    <td colSpan={8} className="py-10 text-center text-slate-400">
+                    <td colSpan={8} className="py-10 text-center text-[#625B60]">
                       <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2 text-amber-400" />
                       Loading history...
                     </td>
                   </tr>
                 ) : myRequests.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-10 text-center text-slate-400">
-                      <Info className="h-6 w-6 text-slate-500 mx-auto mb-2" />
+                    <td colSpan={8} className="py-10 text-center text-[#625B60]">
+                      <Info className="h-6 w-6 text-[#8A8288] mx-auto mb-2" />
                       No topup requests submitted yet. Use the form on the left to request your first wallet top-up.
                     </td>
                   </tr>
                 ) : (
                   myRequests.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-800/40 transition-colors">
+                    <tr key={item.id} className="hover:bg-[#F5F2F4]/40 transition-colors">
                       {/* Request ID */}
-                      <td className="py-3 px-3 font-mono font-medium text-slate-200">
+                      <td className="py-3 px-3 font-mono font-medium text-[#292329]">
                         <div className="flex items-center gap-1">
                           <span>{item.topup_request_id}</span>
                           <button
                             onClick={() => copyToClipboard(item.topup_request_id, item.id)}
-                            className="text-slate-500 hover:text-slate-300 p-0.5"
+                            className="text-[#8A8288] hover:text-[#292329] p-0.5"
                           >
                             {copiedId === item.id ? (
                               <Check className="h-3 w-3 text-emerald-400" />
@@ -2110,7 +2110,7 @@ export default function RetailerTopupRequestPage() {
                       </td>
 
                       {/* Payment Mode & Card Info */}
-                      <td className="py-3 px-3 font-medium text-slate-300">
+                      <td className="py-3 px-3 font-medium text-[#292329]">
                         <div className="flex flex-col gap-1">
                           <span className={`px-2 py-0.5 rounded text-[11px] font-mono border w-fit ${
                             (item.payment_mode || item.payment_method || "").toUpperCase().includes("UPI")
@@ -2120,12 +2120,12 @@ export default function RetailerTopupRequestPage() {
                             {item.payment_mode || item.payment_method}
                           </span>
                           {item.card_type && (
-                            <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1.5 mt-0.5">
+                            <div className="text-[10px] text-[#625B60] font-mono flex items-center gap-1.5 mt-0.5">
                               <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-semibold">
                                 {item.card_type}
                               </span>
                               {(item.card_last_4 || item.card_last_4_masked) && (
-                                <span className="text-slate-400 font-bold">
+                                <span className="text-[#625B60] font-bold">
                                   {item.card_last_4 ? `****${item.card_last_4}` : item.card_last_4_masked}
                                 </span>
                               )}
@@ -2135,7 +2135,7 @@ export default function RetailerTopupRequestPage() {
                       </td>
 
                       {/* Requested Amount */}
-                      <td className="py-3 px-3 text-right font-semibold text-slate-100">
+                      <td className="py-3 px-3 text-right font-semibold text-[#292329]">
                         ₹{item.requested_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </td>
 
@@ -2150,7 +2150,7 @@ export default function RetailerTopupRequestPage() {
                             ₹{item.approved_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                           </span>
                         ) : (
-                          <span className="text-slate-400">
+                          <span className="text-[#625B60]">
                             ₹{item.requested_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                           </span>
                         )}
@@ -2158,7 +2158,7 @@ export default function RetailerTopupRequestPage() {
 
                       {/* Mode / Ref */}
                       <td className="py-3 px-3">
-                        <div className="font-mono text-slate-200 truncate max-w-[120px]" title={item.payment_reference}>
+                        <div className="font-mono text-[#292329] truncate max-w-[120px]" title={item.payment_reference}>
                           {item.payment_reference}
                         </div>
                       </td>
@@ -2168,13 +2168,13 @@ export default function RetailerTopupRequestPage() {
                         {item.slip_url ? (
                           <button
                             onClick={() => setLightboxImage(item.slip_url || null)}
-                            className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 text-[10px] inline-flex items-center gap-1 border border-slate-700"
+                            className="p-1 rounded bg-[#F5F2F4] hover:bg-slate-700 text-amber-300 text-[10px] inline-flex items-center gap-1 border border-[#E8E2E5]"
                           >
                             <FileImage className="h-3 w-3 text-amber-400" />
                             Proof
                           </button>
                         ) : (
-                          <span className="text-slate-500 text-[10px]">-</span>
+                          <span className="text-[#8A8288] text-[10px]">-</span>
                         )}
                       </td>
 
@@ -2187,7 +2187,7 @@ export default function RetailerTopupRequestPage() {
                             ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
                             : item.status === "REJECTED"
                             ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
-                            : "bg-slate-700 text-slate-300"
+                            : "bg-slate-700 text-[#292329]"
                         }`}>
                           {item.status === "PENDING" && <Clock className="h-2.5 w-2.5 animate-pulse" />}
                           {item.status === "APPROVED" && <Check className="h-2.5 w-2.5" />}
@@ -2197,7 +2197,7 @@ export default function RetailerTopupRequestPage() {
                       </td>
 
                       {/* Submitted At */}
-                      <td className="py-3 px-3 text-slate-400 text-[10px] whitespace-nowrap">
+                      <td className="py-3 px-3 text-[#625B60] text-[10px] whitespace-nowrap">
                         {item.submitted_at ? new Date(item.submitted_at).toLocaleDateString("en-IN", {
                           day: "2-digit",
                           month: "short",
@@ -2222,14 +2222,14 @@ export default function RetailerTopupRequestPage() {
         >
           <button
             onClick={() => setLightboxImage(null)}
-            className="absolute top-4 right-4 p-2 rounded-full bg-slate-800 text-white hover:bg-slate-700 transition-colors"
+            className="absolute top-4 right-4 p-2 rounded-full bg-[#F5F2F4] text-white hover:bg-slate-700 transition-colors"
           >
             <X className="h-6 w-6" />
           </button>
           <img
             src={lightboxImage}
             alt="Payment Slip Proof"
-            className="max-h-[90vh] max-w-[90vw] object-contain rounded-2xl shadow-2xl border border-slate-700"
+            className="max-h-[90vh] max-w-[90vw] object-contain rounded-2xl shadow-2xl border border-[#E8E2E5]"
             onClick={(e) => e.stopPropagation()}
           />
         </div>

@@ -63,7 +63,7 @@ export const CompactBeneficiaryStrip: React.FC<CompactBeneficiaryStripProps> = (
           px: 1.75,
           py: 1,
           borderRadius: "10px",
-          bgcolor: "rgba(18, 27, 48, 0.85)",
+          bgcolor: "#FFFFFF",
           backdropFilter: "blur(16px)",
           border: "1px solid rgba(255, 255, 255, 0.12)",
           cursor: "pointer",
@@ -78,7 +78,7 @@ export const CompactBeneficiaryStrip: React.FC<CompactBeneficiaryStripProps> = (
         }}
       >
         <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", flex: 1, minWidth: 0 }}>
-          <StarIcon sx={{ color: "#FBBF24", fontSize: 18, flexShrink: 0 }} />
+          <StarIcon sx={{ color: "#A20A3A", fontSize: 18, flexShrink: 0 }} />
           <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13px", whiteSpace: "nowrap" }}>
             {beneficiary.name}
           </Typography>
@@ -125,7 +125,7 @@ export const CompactBeneficiaryStrip: React.FC<CompactBeneficiaryStripProps> = (
           paper: {
             sx: {
               width: 420,
-              bgcolor: "#0B1120",
+              bgcolor: "#FFFFFF",
               color: "#FFFFFF",
               borderLeft: "1px solid rgba(255, 255, 255, 0.12)",
               p: 2.5,
@@ -147,7 +147,7 @@ export const CompactBeneficiaryStrip: React.FC<CompactBeneficiaryStripProps> = (
           <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.1)" }} />
 
           {/* Profile Header Card */}
-          <Paper elevation={0} sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(18, 27, 48, 0.85)", border: "1px solid rgba(255, 255, 255, 0.1)" }}>
+          <Paper elevation={0} sx={{ p: 2, borderRadius: "12px", bgcolor: "#FFFFFF", border: "1px solid rgba(255, 255, 255, 0.1)" }}>
             <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "15px" }}>{beneficiary.name}</Typography>
             <Typography sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "12px", mt: 0.25 }}>
               {beneficiary.bankName} · Account: {beneficiary.accountNumber} · IFSC: {beneficiary.ifsc}
@@ -159,7 +159,7 @@ export const CompactBeneficiaryStrip: React.FC<CompactBeneficiaryStripProps> = (
           </Paper>
 
           {/* Detailed Capacity & History Metrics */}
-          <Paper elevation={0} sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+          <Paper elevation={0} sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(255, 255, 255, 0.03)", border: "1px solid #E8E2E5" }}>
             <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "12px", mb: 1, textTransform: "uppercase" }}>
               TRANSFER CAPACITY & RISK
             </Typography>

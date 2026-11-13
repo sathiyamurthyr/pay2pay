@@ -43,7 +43,7 @@ export default function KycPage() {
       <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 0.5 }}>
         <VerifiedUserIcon sx={{ color: "#16A34A", fontSize: 32 }} />
         <Box>
-          <Typography variant="h5" sx={{ fontWeight: 800, color: "#111827" }}>
+          <Typography variant="h5" sx={{ fontWeight: 800, color: "#FAF8F9" }}>
             Retailer KYC Compliance & Document Verification
           </Typography>
           <Typography variant="body2" sx={{ color: "#6B7280" }}>

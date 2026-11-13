@@ -49,7 +49,7 @@ export const DmtEnterpriseHeader: React.FC<DmtEnterpriseHeaderProps> = ({
         p: { xs: "20px", sm: "24px", lg: "28px" },
         mb: 3,
         borderRadius: "24px",
-        background: "linear-gradient(90deg, #0F2C59 0%, #184A8C 100%)",
+        background: "linear-gradient(90deg, #A20A3A 0%, #184A8C 100%)",
         color: "#FFFFFF",
         boxShadow: "0 12px 36px rgba(15, 44, 89, 0.22)",
         border: "1px solid rgba(255, 255, 255, 0.15)",

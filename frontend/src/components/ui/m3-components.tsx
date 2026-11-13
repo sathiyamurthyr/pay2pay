@@ -90,7 +90,7 @@ export const M3Dialog: React.FC<{
         paper: { sx: { borderRadius: 3, p: 1, border: "1px solid #E5E7EB", backgroundColor: "#FFFFFF" } },
       }}
     >
-      <DialogTitle sx={{ fontWeight: 800, fontSize: "1.25rem", color: "#111827", pb: 1 }}>
+      <DialogTitle sx={{ fontWeight: 800, fontSize: "1.25rem", color: "#FAF8F9", pb: 1 }}>
         {title}
       </DialogTitle>
       <DialogContent sx={{ py: 2 }}>{children}</DialogContent>

@@ -7,7 +7,7 @@ export const AIRouteAnalysis: React.FC = () => {
   const routes = [
     { bank: "HDFC Bank (DirectSwitch)", success: "99.94%", failure: "0.06%", latency: "42ms", retry: "0%", status: "RECOMMENDED", color: "#4ADE80" },
     { bank: "ICICI Bank (InstantPay)", success: "99.70%", failure: "0.30%", latency: "65ms", retry: "0.1%", status: "BACKUP 1", color: "#60A5FA" },
-    { bank: "State Bank of India", success: "98.40%", failure: "1.60%", latency: "140ms", retry: "1.2%", status: "BACKUP 2", color: "#FBBF24" },
+    { bank: "State Bank of India", success: "98.40%", failure: "1.60%", latency: "140ms", retry: "1.2%", status: "BACKUP 2", color: "#A20A3A" },
     { bank: "Axis Bank Express", success: "99.50%", failure: "0.50%", latency: "80ms", retry: "0.3%", status: "STABLE", color: "#60A5FA" },
   ];
 
@@ -35,7 +35,7 @@ export const AIRouteAnalysis: React.FC = () => {
 
       <Table size="small">
         <TableHead>
-          <TableRow sx={{ "& th": { bgcolor: "rgba(15, 23, 42, 0.9)", color: "rgba(255, 255, 255, 0.6)", fontSize: "11px", fontWeight: 800 } }}>
+          <TableRow sx={{ "& th": { bgcolor: "#FFFFFF", color: "rgba(255, 255, 255, 0.6)", fontSize: "11px", fontWeight: 800 } }}>
             <TableCell>GATEWAY ROUTE</TableCell>
             <TableCell>SUCCESS %</TableCell>
             <TableCell>FAILURE %</TableCell>
@@ -46,7 +46,7 @@ export const AIRouteAnalysis: React.FC = () => {
         </TableHead>
         <TableBody>
           {routes.map((r) => (
-            <TableRow key={r.bank} sx={{ "& td": { color: "#FFFFFF", fontSize: "13px", py: 1, borderColor: "rgba(255, 255, 255, 0.08)" } }}>
+            <TableRow key={r.bank} sx={{ "& td": { color: "#FFFFFF", fontSize: "13px", py: 1, borderColor: "#E8E2E5" } }}>
               <TableCell sx={{ fontWeight: 700 }}>{r.bank}</TableCell>
               <TableCell sx={{ color: "#4ADE80", fontWeight: 800 }}>{r.success}</TableCell>
               <TableCell sx={{ color: "rgba(255, 255, 255, 0.50)" }}>{r.failure}</TableCell>

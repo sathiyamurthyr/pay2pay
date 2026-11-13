@@ -28,7 +28,7 @@ export const AuditPanel: React.FC<AuditPanelProps> = ({
         <Table size="small">
           <TableBody>
             {auditData.map((item) => (
-              <TableRow key={item.label} sx={{ "& td": { color: "#FFFFFF", fontSize: "13px", py: 1, borderColor: "rgba(255, 255, 255, 0.08)" } }}>
+              <TableRow key={item.label} sx={{ "& td": { color: "#FFFFFF", fontSize: "13px", py: 1, borderColor: "#E8E2E5" } }}>
                 <TableCell sx={{ color: "rgba(255, 255, 255, 0.50)", fontWeight: 700, width: "35%" }}>{item.label}</TableCell>
                 <TableCell sx={{ fontWeight: 800, fontFamily: "monospace", color: "#60A5FA" }}>{item.value}</TableCell>
               </TableRow>

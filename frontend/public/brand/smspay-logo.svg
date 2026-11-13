@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 48" fill="none">
+  <rect width="40" height="40" rx="10" fill="#059669" y="4" />
+  <path d="M12 24L18 30L28 16" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="50" y="31" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="800" fill="#059669" letter-spacing="-0.5">SMS<tspan fill="#047857">PAY</tspan></text>
+</svg>
+

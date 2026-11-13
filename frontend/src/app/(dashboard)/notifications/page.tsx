@@ -22,7 +22,7 @@ const STATUS_STYLES: Record<string, string> = {
   DELIVERED: "bg-green-500/20 text-green-400 border-green-500/30",
   FAILED: "bg-red-500/20 text-red-400 border-red-500/30",
   SENT: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  PENDING: "bg-slate-500/20 text-slate-400 border-slate-500/30",
+  PENDING: "bg-slate-500/20 text-[#625B60] border-slate-500/30",
 };
 
 const CHANNEL_ICONS: Record<string, React.ReactNode> = {
@@ -117,13 +117,13 @@ export default function NotificationsPage() {
             </div>
             Notification Log
           </h1>
-          <p className="text-slate-400 text-sm mt-1">All outbound communications — audit trail</p>
+          <p className="text-[#625B60] text-sm mt-1">All outbound communications — audit trail</p>
         </div>
         <div className="flex gap-3">
           <button
             onClick={fetchNotifications}
             disabled={refreshing}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 transition-all text-sm"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#F5F2F4] border border-[#E8E2E5] text-[#292329] hover:bg-slate-700 transition-all text-sm"
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
           </button>
@@ -148,18 +148,18 @@ export default function NotificationsPage() {
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#625B60]" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search recipient, subject, event..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-slate-800/60 border border-slate-700 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-violet-500 text-sm"
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-[#F5F2F4]/60 border border-[#E8E2E5] text-[#292329] placeholder-slate-500 focus:outline-none focus:border-violet-500 text-sm"
           />
         </div>
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-3 py-2.5 rounded-lg bg-slate-800/60 border border-slate-700 text-slate-300 text-sm focus:outline-none focus:border-violet-500"
+          className="px-3 py-2.5 rounded-lg bg-[#F5F2F4]/60 border border-[#E8E2E5] text-[#292329] text-sm focus:outline-none focus:border-violet-500"
         >
           <option value="">All Statuses</option>
           <option value="QUEUED">Queued</option>
@@ -170,7 +170,7 @@ export default function NotificationsPage() {
         <select
           value={filterChannel}
           onChange={(e) => setFilterChannel(e.target.value)}
-          className="px-3 py-2.5 rounded-lg bg-slate-800/60 border border-slate-700 text-slate-300 text-sm focus:outline-none focus:border-violet-500"
+          className="px-3 py-2.5 rounded-lg bg-[#F5F2F4]/60 border border-[#E8E2E5] text-[#292329] text-sm focus:outline-none focus:border-violet-500"
         >
           <option value="">All Channels</option>
           <option value="EMAIL">Email</option>
@@ -182,40 +182,40 @@ export default function NotificationsPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
+      <div className="bg-[#FAF8F9]/60 border border-[#E8E2E5] rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-800 bg-slate-900/80">
-                <th className="text-left px-4 py-3 text-slate-400 font-medium">Channel</th>
-                <th className="text-left px-4 py-3 text-slate-400 font-medium">Recipient</th>
-                <th className="text-left px-4 py-3 text-slate-400 font-medium">Subject / Event</th>
-                <th className="text-left px-4 py-3 text-slate-400 font-medium">Type</th>
-                <th className="text-left px-4 py-3 text-slate-400 font-medium">Priority</th>
-                <th className="text-left px-4 py-3 text-slate-400 font-medium">Status</th>
-                <th className="text-left px-4 py-3 text-slate-400 font-medium">Retries</th>
-                <th className="text-left px-4 py-3 text-slate-400 font-medium">Sent At</th>
+              <tr className="border-b border-[#E8E2E5] bg-[#FAF8F9]/80">
+                <th className="text-left px-4 py-3 text-[#625B60] font-medium">Channel</th>
+                <th className="text-left px-4 py-3 text-[#625B60] font-medium">Recipient</th>
+                <th className="text-left px-4 py-3 text-[#625B60] font-medium">Subject / Event</th>
+                <th className="text-left px-4 py-3 text-[#625B60] font-medium">Type</th>
+                <th className="text-left px-4 py-3 text-[#625B60] font-medium">Priority</th>
+                <th className="text-left px-4 py-3 text-[#625B60] font-medium">Status</th>
+                <th className="text-left px-4 py-3 text-[#625B60] font-medium">Retries</th>
+                <th className="text-left px-4 py-3 text-[#625B60] font-medium">Sent At</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-16 text-slate-500">
+                  <td colSpan={8} className="text-center py-16 text-[#8A8288]">
                     <Bell className="h-10 w-10 mx-auto mb-3 opacity-30" />
                     No notifications found
                   </td>
                 </tr>
               ) : (
                 filtered.map((n) => (
-                  <tr key={n.public_id} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
+                  <tr key={n.public_id} className="border-b border-[#E8E2E5]/50 hover:bg-[#F5F2F4]/30 transition-colors">
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2 text-slate-300">
+                      <div className="flex items-center gap-2 text-[#292329]">
                         {CHANNEL_ICONS[n.channel] || <Bell className="h-4 w-4" />}
                         <span className="text-xs font-medium">{n.channel}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-slate-300 font-mono text-xs">{n.recipient_address}</td>
-                    <td className="px-4 py-3 text-slate-300 max-w-[200px] truncate">
+                    <td className="px-4 py-3 text-[#292329] font-mono text-xs">{n.recipient_address}</td>
+                    <td className="px-4 py-3 text-[#292329] max-w-[200px] truncate">
                       {n.subject || n.business_event || <span className="text-slate-600">—</span>}
                     </td>
                     <td className="px-4 py-3">
@@ -224,17 +224,17 @@ export default function NotificationsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs px-2 py-1 rounded-full border ${n.priority === "HIGH" ? "bg-red-500/20 text-red-400 border-red-500/30" : n.priority === "LOW" ? "bg-slate-500/20 text-slate-400 border-slate-500/30" : "bg-blue-500/20 text-blue-400 border-blue-500/30"}`}>
+                      <span className={`text-xs px-2 py-1 rounded-full border ${n.priority === "HIGH" ? "bg-red-500/20 text-red-400 border-red-500/30" : n.priority === "LOW" ? "bg-slate-500/20 text-[#625B60] border-slate-500/30" : "bg-blue-500/20 text-blue-400 border-blue-500/30"}`}>
                         {n.priority}
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs px-2 py-1 rounded-full border ${STATUS_STYLES[n.notif_status] || "bg-slate-500/20 text-slate-400 border-slate-500/30"}`}>
+                      <span className={`text-xs px-2 py-1 rounded-full border ${STATUS_STYLES[n.notif_status] || "bg-slate-500/20 text-[#625B60] border-slate-500/30"}`}>
                         {n.notif_status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-slate-400 text-xs text-center">{n.retry_count}</td>
-                    <td className="px-4 py-3 text-slate-500 text-xs">
+                    <td className="px-4 py-3 text-[#625B60] text-xs text-center">{n.retry_count}</td>
+                    <td className="px-4 py-3 text-[#8A8288] text-xs">
                       {new Date(n.created_date).toLocaleString()}
                     </td>
                   </tr>
@@ -248,7 +248,7 @@ export default function NotificationsPage() {
       {/* Send Modal */}
       {showSend && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-[#0f1623] border border-slate-700 rounded-2xl p-6 w-full max-w-lg shadow-2xl">
+          <div className="bg-[#FFFFFF] border border-[#E8E2E5] rounded-2xl p-6 w-full max-w-lg shadow-2xl">
             <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
               <Send className="h-5 w-5 text-violet-400" />
               Send Notification
@@ -256,11 +256,11 @@ export default function NotificationsPage() {
             <form onSubmit={handleSend} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Channel *</label>
+                  <label className="block text-xs text-[#625B60] mb-1">Channel *</label>
                   <select
                     value={sendForm.channel}
                     onChange={(e) => setSendForm({ ...sendForm, channel: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm focus:outline-none focus:border-violet-500"
+                    className="w-full px-3 py-2 rounded-lg bg-[#F5F2F4] border border-[#E8E2E5] text-[#292329] text-sm focus:outline-none focus:border-violet-500"
                     required
                   >
                     <option>EMAIL</option>
@@ -271,11 +271,11 @@ export default function NotificationsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Priority</label>
+                  <label className="block text-xs text-[#625B60] mb-1">Priority</label>
                   <select
                     value={sendForm.priority}
                     onChange={(e) => setSendForm({ ...sendForm, priority: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm focus:outline-none focus:border-violet-500"
+                    className="w-full px-3 py-2 rounded-lg bg-[#F5F2F4] border border-[#E8E2E5] text-[#292329] text-sm focus:outline-none focus:border-violet-500"
                   >
                     <option>LOW</option>
                     <option>NORMAL</option>
@@ -285,48 +285,48 @@ export default function NotificationsPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Recipient Address *</label>
+                <label className="block text-xs text-[#625B60] mb-1">Recipient Address *</label>
                 <input
                   value={sendForm.recipient_address}
                   onChange={(e) => setSendForm({ ...sendForm, recipient_address: e.target.value })}
                   placeholder="email@example.com or +91XXXXXXXXXX"
-                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm focus:outline-none focus:border-violet-500"
+                  className="w-full px-3 py-2 rounded-lg bg-[#F5F2F4] border border-[#E8E2E5] text-[#292329] text-sm focus:outline-none focus:border-violet-500"
                   required
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Subject</label>
+                <label className="block text-xs text-[#625B60] mb-1">Subject</label>
                 <input
                   value={sendForm.subject}
                   onChange={(e) => setSendForm({ ...sendForm, subject: e.target.value })}
                   placeholder="Notification subject line"
-                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm focus:outline-none focus:border-violet-500"
+                  className="w-full px-3 py-2 rounded-lg bg-[#F5F2F4] border border-[#E8E2E5] text-[#292329] text-sm focus:outline-none focus:border-violet-500"
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Body</label>
+                <label className="block text-xs text-[#625B60] mb-1">Body</label>
                 <textarea
                   value={sendForm.body}
                   onChange={(e) => setSendForm({ ...sendForm, body: e.target.value })}
                   rows={3}
                   placeholder="Message body..."
-                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm focus:outline-none focus:border-violet-500 resize-none"
+                  className="w-full px-3 py-2 rounded-lg bg-[#F5F2F4] border border-[#E8E2E5] text-[#292329] text-sm focus:outline-none focus:border-violet-500 resize-none"
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Business Event</label>
+                <label className="block text-xs text-[#625B60] mb-1">Business Event</label>
                 <input
                   value={sendForm.business_event}
                   onChange={(e) => setSendForm({ ...sendForm, business_event: e.target.value })}
                   placeholder="e.g. PAYOUT_SUCCESS, KYC_APPROVED"
-                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm focus:outline-none focus:border-violet-500"
+                  className="w-full px-3 py-2 rounded-lg bg-[#F5F2F4] border border-[#E8E2E5] text-[#292329] text-sm focus:outline-none focus:border-violet-500"
                 />
               </div>
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowSend(false)}
-                  className="flex-1 px-4 py-2 rounded-lg border border-slate-700 text-slate-400 hover:bg-slate-800 transition-all text-sm"
+                  className="flex-1 px-4 py-2 rounded-lg border border-[#E8E2E5] text-[#625B60] hover:bg-[#F5F2F4] transition-all text-sm"
                 >
                   Cancel
                 </button>

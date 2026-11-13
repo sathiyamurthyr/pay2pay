@@ -92,11 +92,15 @@ def set_auth_session_cookies(
     destination: str,
     approve_status: bool,
     active_status: bool,
+    user_type_ref_id: Optional[int] = None,
     retailer_code: Optional[str] = None,
     retailer_id: Optional[str] = None,
     distributor_code: Optional[str] = None,
     distributor_id: Optional[str] = None,
-    distributor_ref_id: Optional[int] = None
+    distributor_ref_id: Optional[int] = None,
+    super_distributor_code: Optional[str] = None,
+    super_distributor_id: Optional[str] = None,
+    super_distributor_ref_id: Optional[int] = None
 ):
     """
     Sets dynamic, enterprise session cookies directly on the HTTP response.
@@ -113,9 +117,8 @@ def set_auth_session_cookies(
     host = request.headers.get("host", "").lower()
     cookie_domain = None
 
-    if "near4you.store" in host:
-        cookie_domain = ".near4you.store"
-    elif "pay2pay.in" in host:
+    # Clear any legacy cross-subdomain parent cookies that cause role collision
+    if "pay2pay.in" in host:
         try:
             response.delete_cookie(key="p2p_user_role", domain=".pay2pay.in", path="/")
             response.delete_cookie(key="pay2pay_user_role", domain=".pay2pay.in", path="/")
@@ -124,7 +127,7 @@ def set_auth_session_cookies(
             pass
 
     # 1. Token cookies
-    for key in ["p2p_access_token", "pay2pay_access_token"]:
+    for key in ["p2p_access_token", "pay2pay_access_token", "pay2pay_auth_token"]:
         response.set_cookie(
             key=key,
             value=access_token,
@@ -135,16 +138,6 @@ def set_auth_session_cookies(
             httponly=False,
             samesite="lax"
         )
-    response.set_cookie(
-        key="pay2pay_auth_token",
-        value=access_token,
-        max_age=cookie_max_age,
-        path="/",
-        domain=cookie_domain,
-        secure=is_secure,
-        httponly=True,
-        samesite="lax"
-    )
 
     # 2. User role cookies
     for key in ["p2p_user_role", "pay2pay_user_role", "pay2pay_active_role"]:
@@ -158,6 +151,20 @@ def set_auth_session_cookies(
             httponly=False,
             samesite="lax"
         )
+
+    # 2b. Authoritative user_type_ref_id cookie (1=ADMIN, 2=RETAILER, 3=DISTRIBUTOR, 4=SUPER_DISTRIBUTOR)
+    if user_type_ref_id is not None:
+        for key in ["p2p_user_type_ref_id", "pay2pay_user_type_ref_id"]:
+            response.set_cookie(
+                key=key,
+                value=str(user_type_ref_id),
+                max_age=cookie_max_age,
+                path="/",
+                domain=cookie_domain,
+                secure=is_secure,
+                httponly=False,
+                samesite="lax"
+            )
 
     # 3. Destination and account access cookies
     response.set_cookie(
@@ -241,6 +248,41 @@ def set_auth_session_cookies(
         response.set_cookie(
             key="p2p_distributor_ref_id",
             value=str(distributor_ref_id),
+            max_age=cookie_max_age,
+            path="/",
+            domain=cookie_domain,
+            secure=is_secure,
+            httponly=False,
+            samesite="lax"
+        )
+
+    # 5. Super Distributor-specific cookies
+    if super_distributor_code:
+        response.set_cookie(
+            key="p2p_super_distributor_code",
+            value=str(super_distributor_code),
+            max_age=cookie_max_age,
+            path="/",
+            domain=cookie_domain,
+            secure=is_secure,
+            httponly=False,
+            samesite="lax"
+        )
+    if super_distributor_id:
+        response.set_cookie(
+            key="p2p_active_super_distributor_id",
+            value=str(super_distributor_id),
+            max_age=cookie_max_age,
+            path="/",
+            domain=cookie_domain,
+            secure=is_secure,
+            httponly=False,
+            samesite="lax"
+        )
+    if super_distributor_ref_id:
+        response.set_cookie(
+            key="p2p_super_distributor_ref_id",
+            value=str(super_distributor_ref_id),
             max_age=cookie_max_age,
             path="/",
             domain=cookie_domain,
@@ -362,18 +404,14 @@ async def login_with_password(
         or "admin." in host_header
     )
     has_letters = bool(re.search(r"[a-zA-Z]", raw_input))
-    raw_digits = re.sub(r"\D", "", raw_input)
 
-    # Support both 10-digit mobile numbers and alphanumeric UIDs
-    if not has_letters and len(raw_digits) >= 10:
-        clean_mobile = raw_digits[-10:]
-    elif not has_letters and len(raw_digits) > 0 and len(raw_digits) < 10:
+    if has_letters or is_admin_portal:
         clean_mobile = raw_input
     else:
-        clean_mobile = raw_input
-
-    if not clean_mobile:
-        raise HTTPException(status_code=400, detail="Account UID or mobile number is required.")
+        raw_digits = re.sub(r"\D", "", raw_input)
+        clean_mobile = raw_digits[-10:] if len(raw_digits) >= 10 else raw_input
+        if len(clean_mobile) != 10:
+            raise HTTPException(status_code=400, detail="Mobile number must be exactly 10 digits.")
 
     session_id = f"SESS-{uuid.uuid4().hex[:12].upper()}"
     correlation_id = f"CORR-{uuid.uuid4().hex[:12].upper()}"
@@ -405,18 +443,12 @@ async def login_with_password(
 
     mobile_variants = [
         clean_mobile,
+        f"91{clean_mobile}",
+        f"+91{clean_mobile}",
         raw_input,
         raw_input.lower(),
         raw_input.upper()
     ]
-    if len(raw_digits) >= 10:
-        norm_10 = raw_digits[-10:]
-        mobile_variants.extend([
-            norm_10,
-            f"91{norm_10}",
-            f"+91{norm_10}"
-        ])
-    mobile_variants = list(dict.fromkeys(mobile_variants))
 
     # 1. Check if user is an Admin User (admin_user table)
     admin_user = None
@@ -437,20 +469,17 @@ async def login_with_password(
         logger.warning(f"admin_user table check: {e}")
         admin_user = None
 
-    # 2. Check if user is in auth_user or retailer table (by mobile OR retailer_code/UID)
+    # 2. Check if user is in auth_user or retailer table
     existing_retailer = None
     auth_user = None
     try:
         r_stmt = (
             select(RetailerContactModel, RetailerModel)
-            .outerjoin(RetailerContactModel, (RetailerContactModel.retailer_id == RetailerModel.public_id) & (RetailerContactModel.is_deleted == False))
+            .join(RetailerModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
             .where(
-                or_(
-                    RetailerContactModel.mobile.in_(mobile_variants),
-                    RetailerModel.retailer_code.in_(mobile_variants),
-                    RetailerModel.retailer_code.ilike(raw_input)
-                ),
-                RetailerModel.is_deleted == False
+                RetailerContactModel.mobile.in_(mobile_variants),
+                RetailerModel.is_deleted == False,
+                RetailerContactModel.is_deleted == False
             )
             .order_by(
                 case((RetailerModel.status == "ACTIVE", 1), else_=2),
@@ -462,31 +491,12 @@ async def login_with_password(
         if r_res:
             _, existing_retailer = r_res
 
-        if not existing_retailer:
-            r_direct = await db.execute(
-                select(RetailerModel).where(
-                    or_(
-                        RetailerModel.retailer_code.in_(mobile_variants),
-                        RetailerModel.retailer_code.ilike(raw_input)
-                    ),
-                    RetailerModel.is_deleted == False
-                )
-            )
-            existing_retailer = r_direct.scalars().first()
-
-        auth_user_stmt = select(AuthUserModel).where(
-            or_(
-                AuthUserModel.mobile_number.in_(mobile_variants),
-                (AuthUserModel.user_id == existing_retailer.public_id) if existing_retailer else False
-            ),
-            AuthUserModel.is_deleted == False
-        )
+        auth_user_stmt = select(AuthUserModel).where(AuthUserModel.mobile_number.in_(mobile_variants))
         auth_user = (await db.execute(auth_user_stmt)).scalars().first()
         if auth_user and not existing_retailer:
-            ret_stmt = select(RetailerModel).where(RetailerModel.public_id == auth_user.user_id, RetailerModel.is_deleted == False)
+            ret_stmt = select(RetailerModel).where(RetailerModel.public_id == auth_user.user_id)
             existing_retailer = (await db.execute(ret_stmt)).scalars().first()
-    except Exception as e:
-        logger.warning(f"Retailer / auth_user lookup: {e}")
+    except Exception:
         pass
 
     req_portal = (payload.portal_role or "").strip().upper()
@@ -494,11 +504,14 @@ async def login_with_password(
     referer_header = request.headers.get("referer", "").lower()
     host_header = request.headers.get("host", "").lower()
 
-    is_centralized_portal = (
-        req_portal in ("NEAR4YOU", "ALL", "CENTRAL", "SHARED", "")
-        or "near4you.store" in host_header
-        or "near4you.store" in origin_header
-        or "near4you.store" in referer_header
+    auth_role = (getattr(auth_user, "role", "") or "").strip().upper() if auth_user else ""
+
+    is_common_portal = (
+        req_portal in ("", "COMMON", "ALL", "UNIFIED", None)
+        or "login." in host_header
+        or "login." in referer_header
+        or "login." in origin_header
+        or "/login" in referer_header
     )
 
     # ── SUPER DISTRIBUTOR (MASTER DISTRIBUTOR) PORTAL DETECTION ──────────────
@@ -514,32 +527,66 @@ async def login_with_password(
         or "master-distributor." in origin_header
     )
 
+    is_distributor_portal = (
+        req_portal in ("DIST", "DISTRIBUTOR")
+        or "dist." in origin_header
+        or "dist." in referer_header
+        or "/dist" in referer_header
+        or "dist." in host_header
+    )
+
+    is_retailer_portal = (
+        req_portal in ("RETAILER", "MERCHANT")
+        or "retailer." in origin_header
+        or "retailer." in referer_header
+        or "/retailer" in referer_header
+        or "retailer." in host_header
+    )
+
+    # Common portal resets any referrer-based bias so routing is 100% dynamic
+    if is_common_portal:
+        is_super_distributor_portal = False
+        is_distributor_portal = False
+        is_retailer_portal = False
+        is_admin_portal = False
+
+    is_sd_auth_user = bool(auth_role in ("SUPER_DISTRIBUTOR", "SD", "MASTER_DISTRIBUTOR"))
+    is_dist_auth_user = bool(auth_role in ("DISTRIBUTOR", "DIST"))
+    is_ret_auth_user = bool(auth_role in ("RETAILER", "MERCHANT"))
+
+    if is_common_portal:
+        if is_sd_auth_user:
+            should_check_sd = True
+            should_check_distributor = False
+        elif is_dist_auth_user:
+            should_check_sd = False
+            should_check_distributor = True
+        elif is_ret_auth_user or existing_retailer:
+            should_check_sd = False
+            should_check_distributor = False
+            is_retailer_portal = True
+        else:
+            should_check_sd = True
+            should_check_distributor = True
+    else:
+        should_check_sd = (
+            is_super_distributor_portal
+            or is_sd_auth_user
+        )
+        should_check_distributor = (
+            is_distributor_portal
+            or is_dist_auth_user
+        )
+
     # ── SUPER DISTRIBUTOR AUTHENTICATION VIA STORED PROCEDURE ────────────────
-    should_check_sd = is_super_distributor_portal or (is_centralized_portal and not is_admin_portal)
     if should_check_sd:
         sd_record = None
         try:
             sd_sp_res = await db.execute(
                 text("SELECT * FROM public.sp_super_distributor_login_lookup(:m)"),
-                {"m": raw_input}
+                {"m": clean_mobile}
             )
             sd_record = sd_sp_res.mappings().first()
-            if not sd_record and clean_mobile != raw_input:
-                sd_sp_res2 = await db.execute(
-                    text("SELECT * FROM public.sp_super_distributor_login_lookup(:m)"),
-                    {"m": clean_mobile}
-                )
-                sd_record = sd_sp_res2.mappings().first()
-            if not sd_record:
-                direct_sd = await db.execute(
-                    text("""
-                        SELECT * FROM public.view_super_distributor_auth_profile
-                        WHERE super_distributor_code = :v OR super_distributor_code ILIKE :v
-                        LIMIT 1
-                    """),
-                    {"v": raw_input}
-                )
-                sd_record = direct_sd.mappings().first()
         except Exception as e:
             logger.warning(f"Error executing sp_super_distributor_login_lookup: {e}")
             sd_record = None
@@ -547,7 +594,7 @@ async def login_with_password(
         if is_super_distributor_portal and not sd_record:
             raise HTTPException(
                 status_code=401,
-                detail="Master Distributor account not found for this identifier. Please check your UID/mobile number or contact support."
+                detail="Master Distributor account not found for this mobile number. Please check your number or contact support."
             )
 
         if sd_record:
@@ -560,28 +607,29 @@ async def login_with_password(
                 except Exception:
                     is_valid_sd_pass = False
 
-            if not is_valid_sd_pass and is_super_distributor_portal:
-                try:
-                    failed_attempt = await EnterpriseAuthService.record_failed_attempt(
-                        db=db,
-                        mobile_number=clean_mobile,
-                        ip_address=request.client.host if request.client else "127.0.0.1"
-                    )
-                    if failed_attempt.get("is_locked", False):
-                        raise HTTPException(
-                            status_code=429,
-                            detail="Invalid mobile number or password. Account locked for 30 minutes."
+            if not is_valid_sd_pass:
+                # If explicitly SD portal or account is known SD, reject immediately
+                if is_super_distributor_portal or is_sd_auth_user:
+                    try:
+                        failed_attempt = await EnterpriseAuthService.record_failed_attempt(
+                            db=db,
+                            mobile_number=clean_mobile,
+                            ip_address=request.client.host if request.client else "127.0.0.1"
                         )
-                except HTTPException:
-                    raise
-                except Exception:
-                    pass
-                raise HTTPException(
-                    status_code=401,
-                    detail="Invalid mobile number or password. Please verify your credentials and try again."
-                )
-
-            if is_valid_sd_pass:
+                        if failed_attempt.get("is_locked", False):
+                            raise HTTPException(
+                                status_code=429,
+                                detail="Invalid mobile number or password. Account locked for 30 minutes."
+                            )
+                    except HTTPException:
+                        raise
+                    except Exception:
+                        pass
+                    raise HTTPException(
+                        status_code=401,
+                        detail="Invalid mobile number or password. Please verify your credentials and try again."
+                    )
+            else:
                 # Successful password match for Super Distributor
                 try:
                     await EnterpriseAuthService.reset_failed_attempts(db=db, mobile_number=clean_mobile)
@@ -651,6 +699,10 @@ async def login_with_password(
                     destination=sd_destination,
                     approve_status=sd_approve_status,
                     active_status=sd_active_status,
+                    user_type_ref_id=4,
+                    super_distributor_code=sd_code,
+                    super_distributor_id=sd_public_id,
+                    super_distributor_ref_id=sd_ref_id
                 )
 
                 sd_msg = (
@@ -725,44 +777,30 @@ async def login_with_password(
         or "/retailer" in referer_header
         or "retailer." in host_header
     )
-    if is_admin_portal or is_distributor_portal:
-        is_retailer_portal = False
-    if is_distributor_portal:
-        is_admin_portal = False
+    if is_common_portal:
+        is_retailer_portal = not (is_sd_auth_user or is_dist_auth_user)
+    else:
+        if is_admin_portal or is_distributor_portal:
+            is_retailer_portal = False
+        if is_distributor_portal:
+            is_admin_portal = False
 
     # ── DISTRIBUTOR AUTHENTICATION VIA STORED PROCEDURE ──
-    is_dist_auth_user = bool(auth_user and getattr(auth_user, "role", "").upper() == "DISTRIBUTOR")
-    should_check_distributor = (
-        is_distributor_portal
-        or (is_centralized_portal and not is_admin_portal)
-        or (not is_admin_portal and not is_retailer_portal and not existing_retailer)
-        or is_dist_auth_user
-    )
+    if not is_common_portal:
+        is_dist_auth_user = bool(auth_user and getattr(auth_user, "role", "").upper() == "DISTRIBUTOR")
+        should_check_distributor = (
+            is_distributor_portal
+            or is_dist_auth_user
+        )
 
     if should_check_distributor:
         distributor_record = None
         try:
             sp_res = await db.execute(
                 text("SELECT * FROM public.sp_distributor_login_lookup(:m)"),
-                {"m": raw_input}
+                {"m": clean_mobile}
             )
             distributor_record = sp_res.mappings().first()
-            if not distributor_record and clean_mobile != raw_input:
-                sp_res2 = await db.execute(
-                    text("SELECT * FROM public.sp_distributor_login_lookup(:m)"),
-                    {"m": clean_mobile}
-                )
-                distributor_record = sp_res2.mappings().first()
-            if not distributor_record:
-                direct_dist = await db.execute(
-                    text("""
-                        SELECT * FROM public.view_distributor_auth_profile
-                        WHERE distributor_code = :v OR distributor_code ILIKE :v
-                        LIMIT 1
-                    """),
-                    {"v": raw_input}
-                )
-                distributor_record = direct_dist.mappings().first()
         except Exception as e:
             logger.warning(f"Error executing sp_distributor_login_lookup: {e}")
             distributor_record = None
@@ -770,7 +808,7 @@ async def login_with_password(
         if is_distributor_portal and not distributor_record:
             raise HTTPException(
                 status_code=401,
-                detail="Distributor account not found for this identifier. Please check your UID/mobile number or contact support."
+                detail="Distributor account not found for this mobile number. Please check your number or contact support."
             )
 
         if distributor_record:
@@ -783,29 +821,29 @@ async def login_with_password(
                 except Exception:
                     is_valid_dist_pass = False
 
-            if not is_valid_dist_pass and is_distributor_portal:
-                try:
-                    failed_attempt = await EnterpriseAuthService.record_failed_attempt(
-                        db=db,
-                        mobile_number=clean_mobile,
-                        ip_address=request.client.host if request.client else "127.0.0.1"
-                    )
-                    if failed_attempt.get("is_locked", False):
-                        raise HTTPException(
-                            status_code=429,
-                            detail="Invalid mobile number or password. 5 consecutive failed login attempts reached! Account locked for 30 minutes."
+            if not is_valid_dist_pass:
+                if is_distributor_portal or is_dist_auth_user:
+                    try:
+                        failed_attempt = await EnterpriseAuthService.record_failed_attempt(
+                            db=db,
+                            mobile_number=clean_mobile,
+                            ip_address=request.client.host if request.client else "127.0.0.1"
                         )
-                except HTTPException:
-                    raise
-                except Exception:
-                    pass
+                        if failed_attempt.get("is_locked", False):
+                            raise HTTPException(
+                                status_code=429,
+                                detail="Invalid mobile number or password. 5 consecutive failed login attempts reached! Account locked for 30 minutes."
+                            )
+                    except HTTPException:
+                        raise
+                    except Exception:
+                        pass
 
-                raise HTTPException(
-                    status_code=401,
-                    detail="Invalid mobile number or password. Please verify your credentials and try again."
-                )
-
-            if is_valid_dist_pass:
+                    raise HTTPException(
+                        status_code=401,
+                        detail="Invalid mobile number or password. Please verify your credentials and try again."
+                    )
+            else:
                 # Successful password match for Distributor
                 try:
                     await EnterpriseAuthService.reset_failed_attempts(db=db, mobile_number=clean_mobile)
@@ -875,76 +913,77 @@ async def login_with_password(
                     destination=destination,
                     approve_status=approve_status,
                     active_status=active_status,
+                    user_type_ref_id=3,
                     distributor_code=dist_code,
                     distributor_id=dist_public_id,
                     distributor_ref_id=dist_ref_id
                 )
 
-                dist_msg = "Distributor authentication successful" if (approve_status and active_status) else "Your distributor account approval/activation is pending. Please contact admin."
+            dist_msg = "Distributor authentication successful" if (approve_status and active_status) else "Your distributor account approval/activation is pending. Please contact admin."
 
-                return {
-                    "success": True,
-                    "status": "SUCCESS",
+            return {
+                "success": True,
+                "status": "SUCCESS",
+                "approve_status": approve_status,
+                "active_status": active_status,
+                "message": dist_msg,
+                "data": {
+                    "session_id": session_id,
+                    "correlation_id": correlation_id,
+                    "trace_id": trace_id,
+                    "access_token": access_token,
+                    "token_type": "Bearer",
+                    "destination": destination,
                     "approve_status": approve_status,
                     "active_status": active_status,
-                    "message": dist_msg,
-                    "data": {
-                        "session_id": session_id,
-                        "correlation_id": correlation_id,
-                        "trace_id": trace_id,
-                        "access_token": access_token,
-                        "token_type": "Bearer",
-                        "destination": destination,
-                        "approve_status": approve_status,
-                        "active_status": active_status,
-                        "is_approved": approve_status,
-                        "account_status": distributor_record["status"],
+                    "is_approved": approve_status,
+                    "account_status": distributor_record["status"],
+                    "user_ref_id": dist_ref_id,
+                    "user_type_ref_id": 3,
+                    "distributor_ref_id": dist_ref_id,
+                    "tenant_ref_id": ten_ref_id,
+                    "company_ref_id": comp_ref_id,
+                    "user": {
+                        "id": dist_public_id,
+                        "public_id": dist_public_id,
                         "user_ref_id": dist_ref_id,
                         "user_type_ref_id": 3,
                         "distributor_ref_id": dist_ref_id,
                         "tenant_ref_id": ten_ref_id,
                         "company_ref_id": comp_ref_id,
-                        "user": {
-                            "id": dist_public_id,
-                            "public_id": dist_public_id,
-                            "user_ref_id": dist_ref_id,
-                            "user_type_ref_id": 3,
-                            "distributor_ref_id": dist_ref_id,
-                            "tenant_ref_id": ten_ref_id,
-                            "company_ref_id": comp_ref_id,
-                            "distributor_id": dist_public_id,
-                            "distributor_code": dist_code,
-                            "mobile_number": clean_mobile,
-                            "full_name": dist_full_name,
-                            "owner_name": dist_full_name,
-                            "store_name": dist_business_name,
-                            "company_name": dist_business_name,
-                            "outlet_name": dist_business_name,
-                            "business_name": dist_business_name,
-                            "role": "DISTRIBUTOR",
-                            "roles": ["DISTRIBUTOR"],
-                            "user_type": "DISTRIBUTOR",
-                            "status": distributor_record["status"],
-                            "approve_status": approve_status,
-                            "active_status": active_status,
-                            "is_approved": approve_status,
-                            "wallet_balance": float(distributor_record["wallet_balance"]),
-                            "wallet_id": None
-                        },
-                        "onboarding": {
-                            "completed": (approve_status and active_status),
-                            "current_step": 14 if (approve_status and active_status) else 12,
-                            "progress_percentage": 100 if (approve_status and active_status) else 90,
-                            "status": "COMPLETED" if (approve_status and active_status) else "UNDER_REVIEW",
-                            "redirect_url": redirect_url
-                        },
-                        "redirect_url": redirect_url,
-                        "risk_assessment": risk_info,
-                        "require_otp": False
-                    }
+                        "distributor_id": dist_public_id,
+                        "distributor_code": dist_code,
+                        "mobile_number": clean_mobile,
+                        "full_name": dist_full_name,
+                        "owner_name": dist_full_name,
+                        "store_name": dist_business_name,
+                        "company_name": dist_business_name,
+                        "outlet_name": dist_business_name,
+                        "business_name": dist_business_name,
+                        "role": "DISTRIBUTOR",
+                        "roles": ["DISTRIBUTOR"],
+                        "user_type": "DISTRIBUTOR",
+                        "status": distributor_record["status"],
+                        "approve_status": approve_status,
+                        "active_status": active_status,
+                        "is_approved": approve_status,
+                        "wallet_balance": float(distributor_record["wallet_balance"]),
+                        "wallet_id": None
+                    },
+                    "onboarding": {
+                        "completed": (approve_status and active_status),
+                        "current_step": 14 if (approve_status and active_status) else 12,
+                        "progress_percentage": 100 if (approve_status and active_status) else 90,
+                        "status": "COMPLETED" if (approve_status and active_status) else "UNDER_REVIEW",
+                        "redirect_url": redirect_url
+                    },
+                    "redirect_url": redirect_url,
+                    "risk_assessment": risk_info,
+                    "require_otp": False
                 }
+            }
 
-    if (is_retailer_portal or is_centralized_portal) and not existing_retailer:
+    if is_retailer_portal and not existing_retailer:
         if admin_user and admin_user.phone:
             a_mob = re.sub(r"\D", "", str(admin_user.phone))[-10:]
             r_stmt_a = (
@@ -961,13 +1000,9 @@ async def login_with_password(
         if not existing_retailer and mobile_variants:
             r_stmt_c = (
                 select(RetailerContactModel, RetailerModel)
-                .outerjoin(RetailerContactModel, (RetailerContactModel.retailer_id == RetailerModel.public_id) & (RetailerContactModel.is_deleted == False))
+                .join(RetailerModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
                 .where(
-                    or_(
-                        RetailerContactModel.mobile.in_(mobile_variants),
-                        RetailerModel.retailer_code.in_(mobile_variants),
-                        RetailerModel.retailer_code.ilike(raw_input)
-                    ),
+                    RetailerContactModel.mobile.in_(mobile_variants),
                     RetailerModel.is_deleted == False
                 )
             )
@@ -976,21 +1011,9 @@ async def login_with_password(
                 _, existing_retailer = r_res_c
             else:
                 from app.infrastructure.db.verification_models import RetailerVerificationModel
-                v_row = (await db.execute(select(RetailerVerificationModel).where(
-                    or_(
-                        RetailerVerificationModel.mobile_number.in_(mobile_variants),
-                        RetailerVerificationModel.retailer_id.in_(mobile_variants),
-                        RetailerVerificationModel.retailer_id.ilike(raw_input)
-                    )
-                ))).scalars().first()
+                v_row = (await db.execute(select(RetailerVerificationModel).where(RetailerVerificationModel.mobile_number.in_(mobile_variants)))).scalars().first()
                 if v_row and v_row.retailer_id:
-                    existing_retailer = (await db.execute(select(RetailerModel).where(
-                        or_(
-                            RetailerModel.retailer_code == v_row.retailer_id,
-                            RetailerModel.retailer_code.ilike(raw_input)
-                        ),
-                        RetailerModel.is_deleted == False
-                    ))).scalars().first()
+                    existing_retailer = (await db.execute(select(RetailerModel).where(RetailerModel.retailer_code == v_row.retailer_id, RetailerModel.is_deleted == False))).scalars().first()
 
     is_admin = False
     is_valid_pass = False
@@ -1207,6 +1230,7 @@ async def login_with_password(
                 retailer_ref_id=ret_ref_id if (existing_retailer and not is_admin) else None,
                 company_ref_id=comp_ref_id,
                 tenant_ref_id=ten_ref_id,
+                user_type_ref_id=1 if is_admin else 2,
                 mobile=clean_mobile,
                 approve_status=approve_status,
                 active_status=active_status
@@ -1225,7 +1249,8 @@ async def login_with_password(
                 user_role="SUPER_ADMIN",
                 destination="DASHBOARD",
                 approve_status=True,
-                active_status=True
+                active_status=True,
+                user_type_ref_id=1
             )
             return {
                 "success": True,
@@ -1265,9 +1290,9 @@ async def login_with_password(
                         "current_step": 13,
                         "progress_percentage": 100,
                         "status": "COMPLETED",
-                        "redirect_url": "https://admin.pay2pay.in/admin/dashboard" if is_retailer_portal else "/admin/dashboard"
+                        "redirect_url": "/admin/dashboard"
                     },
-                    "redirect_url": "https://admin.pay2pay.in/admin/dashboard" if is_retailer_portal else "/admin/dashboard",
+                    "redirect_url": "/admin/dashboard",
                     "risk_assessment": risk_info,
                     "require_otp": False
                 }
@@ -1303,6 +1328,7 @@ async def login_with_password(
             destination=destination,
             approve_status=approve_status,
             active_status=active_status,
+            user_type_ref_id=2,
             retailer_code=ret_code,
             retailer_id=ret_public_id
         )
@@ -1667,6 +1693,7 @@ async def verify_login_otp(
                 retailer_ref_id=ret_ref_id,
                 company_ref_id=comp_ref_id,
                 tenant_ref_id=ten_ref_id,
+                user_type_ref_id=2,
                 mobile=clean_mobile,
                 approve_status=approve_status,
                 active_status=active_status
@@ -1705,6 +1732,7 @@ async def verify_login_otp(
             destination=destination,
             approve_status=approve_status,
             active_status=active_status,
+            user_type_ref_id=2,
             retailer_code=retailer_code,
             retailer_id=retailer_id
         )
@@ -1802,7 +1830,8 @@ async def verify_login_otp(
                     tenant_id=str(DEFAULT_TENANT_ID),
                     company_id=str(DEFAULT_COMPANY_ID),
                     roles=["RETAILER"],
-                    expires_delta=timedelta(days=7)
+                    expires_delta=timedelta(days=7),
+                    user_type_ref_id=2
                 )
             except Exception:
                 access_token = f"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.{session_id}.auth_token"
@@ -1815,6 +1844,7 @@ async def verify_login_otp(
                 destination="DASHBOARD",
                 approve_status=True,
                 active_status=True,
+                user_type_ref_id=2,
                 retailer_code=None,
                 retailer_id=reg_id
             )
@@ -2589,10 +2619,16 @@ async def enterprise_logout(request: Request, response: Response, db: AsyncSessi
 
     # Clear authentication cookies across paths and domains
     cookie_names = [
+        "p2p_token", "pay2pay_token",
         "p2p_access_token", "pay2pay_access_token", "pay2pay_auth_token",
         "p2p_sales_token", "pay2pay_sales_token",
         "p2p_retailer_token", "p2p_dist_token", "p2p_sd_token", "p2p_admin_token",
         "p2p_user_role", "pay2pay_user_role", "pay2pay_active_role",
+        "p2p_user_type_ref_id", "pay2pay_user_type_ref_id",
+        "p2p_active_role", "p2p_active_destination",
+        "p2p_active_retailer_id", "p2p_retailer_code",
+        "p2p_active_distributor_id", "p2p_distributor_code", "p2p_distributor_ref_id",
+        "p2p_active_super_distributor_id", "p2p_super_distributor_code", "p2p_super_distributor_ref_id",
         "p2p_session_locked", "p2p_session_locked_at", "p2p_session_last_active",
         "p2p_session_start_time", "p2p_session_id", "p2p_destination",
         "access_token", "token"

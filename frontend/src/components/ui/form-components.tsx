@@ -59,11 +59,11 @@ export const M3TextField = React.forwardRef<HTMLInputElement, M3TextFieldProps>(
             },
           },
           "& .MuiInputBase-input": {
-            color: "#0F172A",
+            color: "#FFFFFF",
             fontWeight: 600,
             "&.Mui-disabled": {
-              WebkitTextFillColor: "#0F172A !important",
-              color: "#0F172A !important",
+              WebkitTextFillColor: "#FFFFFF !important",
+              color: "#FFFFFF !important",
               fontWeight: 700,
               opacity: 1,
             },
@@ -191,7 +191,7 @@ export const M3FileUpload: React.FC<M3FileUploadProps> = ({
           }}
         />
         <CloudUploadIcon sx={{ fontSize: 36, color: "#2563EB", mb: 1 }} />
-        <Typography variant="body2" sx={{ fontWeight: 600, color: "#111827" }}>
+        <Typography variant="body2" sx={{ fontWeight: 600, color: "#FAF8F9" }}>
           {fileName ? fileName : "Click or drag to upload document"}
         </Typography>
         <Typography variant="caption" sx={{ color: "#6B7280", display: "block", mt: 0.5 }}>

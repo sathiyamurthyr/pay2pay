@@ -63,7 +63,7 @@ export const BeneficiaryToolbar: React.FC<BeneficiaryToolbarProps> = ({
                 color: "#FFFFFF",
                 borderRadius: "12px",
                 bgcolor: "rgba(8, 17, 31, 0.85)",
-                "& fieldset": { borderColor: "rgba(255, 255, 255, 0.12)" },
+                "& fieldset": { borderColor: "#E8E2E5" },
                 "&:hover fieldset": { borderColor: "#3B82F6" },
               },
             },

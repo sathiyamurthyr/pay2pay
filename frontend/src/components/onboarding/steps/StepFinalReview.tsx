@@ -72,15 +72,15 @@ function SuccessScreen({ appRef, estimatedApproval = "Usually within 2–24 hour
           <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
             Application Submitted Successfully
           </h2>
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">
-            Your application is now under review by the Pay2Pay compliance team.
+          <p className="text-xs font-medium text-[#8A8288] dark:text-[#625B60] mt-1">
+            Your application is now under review by the Near4You compliance team.
           </p>
         </div>
       </div>
 
       {/* ── Application ID ───────────────────────────────── */}
-      <div className="px-4 py-3 rounded-xl bg-blue-50 dark:bg-slate-900 border-2 border-blue-200 dark:border-slate-700">
-        <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
+      <div className="px-4 py-3 rounded-xl bg-blue-50 dark:bg-[#FAF8F9] border-2 border-blue-200 dark:border-[#E8E2E5]">
+        <p className="text-[10px] font-bold text-[#8A8288] dark:text-[#625B60] uppercase tracking-widest mb-1.5">
           Application ID
         </p>
         <div className="flex items-center justify-between gap-2">
@@ -151,8 +151,8 @@ function SuccessScreen({ appRef, estimatedApproval = "Usually within 2–24 hour
       </div>
 
       {/* ── Onboarding Progress Timeline ─────────────────── */}
-      <div className="px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Onboarding Progress</p>
+      <div className="px-4 py-3 rounded-xl bg-slate-50 dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5]">
+        <p className="text-[10px] font-black text-[#8A8288] uppercase tracking-widest mb-3">Onboarding Progress</p>
         <div className="space-y-2">
           {timelineItems.map(({ label, status }) => (
             <div key={label} className="flex items-center gap-2.5">
@@ -170,7 +170,7 @@ function SuccessScreen({ appRef, estimatedApproval = "Usually within 2–24 hour
               <span className={`text-xs font-semibold ${
                 status === "done"    ? "text-emerald-700 dark:text-emerald-400" :
                 status === "pending" ? "text-amber-700 dark:text-amber-400" :
-                                      "text-slate-400 dark:text-slate-600"
+                                      "text-[#625B60] dark:text-slate-600"
               }`}>
                 {status === "done" ? "✓ " : status === "pending" ? "⏳ " : "○ "}
                 {label}
@@ -182,7 +182,7 @@ function SuccessScreen({ appRef, estimatedApproval = "Usually within 2–24 hour
                 <span className="ml-auto text-[9px] font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wide">Pending</span>
               )}
               {status === "upcoming" && (
-                <span className="ml-auto text-[9px] font-bold text-slate-400 uppercase tracking-wide">Upcoming</span>
+                <span className="ml-auto text-[9px] font-bold text-[#625B60] uppercase tracking-wide">Upcoming</span>
               )}
             </div>
           ))}
@@ -203,7 +203,7 @@ function SuccessScreen({ appRef, estimatedApproval = "Usually within 2–24 hour
         {/* Secondary */}
         <button
           onClick={() => (window.location.href = `/track?id=${appId}`)}
-          className="w-full py-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white text-sm font-bold transition-colors flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700"
+          className="w-full py-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#F5F2F4] dark:hover:bg-slate-700 text-slate-800 dark:text-white text-sm font-bold transition-colors flex items-center justify-center gap-2 border border-slate-200 dark:border-[#E8E2E5]"
         >
           <BadgeCheck className="w-4 h-4 text-blue-600" />
           Track Application
@@ -213,7 +213,7 @@ function SuccessScreen({ appRef, estimatedApproval = "Usually within 2–24 hour
         <button
           type="button"
           onClick={() => openContactSupportModal(appId)}
-          className="w-full py-3 rounded-xl bg-transparent border-2 border-slate-300 dark:border-slate-700 hover:border-blue-400 text-slate-600 dark:text-slate-300 text-sm font-bold transition-colors flex items-center justify-center gap-2"
+          className="w-full py-3 rounded-xl bg-transparent border-2 border-slate-300 dark:border-[#E8E2E5] hover:border-blue-400 text-slate-600 dark:text-[#292329] text-sm font-bold transition-colors flex items-center justify-center gap-2"
         >
           <Headphones className="w-4 h-4 text-blue-500" />
           Contact Support
@@ -303,7 +303,7 @@ export const StepFinalReview: React.FC<StepFinalProps> = ({
         <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
           Review & Submit Application
         </h2>
-        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
+        <p className="text-xs font-semibold text-[#8A8288] dark:text-[#625B60] mt-1">
           Confirm all details are correct before locking your application.
         </p>
       </div>
@@ -313,19 +313,19 @@ export const StepFinalReview: React.FC<StepFinalProps> = ({
         {reviewRows.map((row) => (
           <div
             key={row.section}
-            className="px-3.5 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center gap-3"
+            className="px-3.5 py-3 rounded-2xl bg-slate-50 dark:bg-[#FFFFFF] border border-slate-200 dark:border-[#E8E2E5] flex items-center gap-3"
           >
             <div className="w-7 h-7 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
               {row.icon || <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{row.section}</p>
+              <p className="text-[10px] font-black text-[#625B60] uppercase tracking-wider">{row.section}</p>
               <p className="text-xs font-extrabold text-slate-900 dark:text-white truncate leading-tight">{row.value}</p>
-              <p className="text-[10px] font-semibold text-slate-400 truncate">{row.sub}</p>
+              <p className="text-[10px] font-semibold text-[#625B60] truncate">{row.sub}</p>
             </div>
             <button
               onClick={() => onEditStep(row.step)}
-              className="w-7 h-7 rounded-lg bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-blue-500 hover:bg-blue-500/10 transition-all shrink-0"
+              className="w-7 h-7 rounded-lg bg-slate-200 dark:bg-[#F5F2F4] flex items-center justify-center text-[#8A8288] hover:text-blue-500 hover:bg-blue-500/10 transition-all shrink-0"
               title={`Edit ${row.section}`}
             >
               <Edit3 className="w-3.5 h-3.5" />

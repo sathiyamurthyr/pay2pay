@@ -101,7 +101,7 @@ export const CompliancePopover: React.FC<CompliancePopoverProps> = ({ rowId, dat
           <div className="flex items-center justify-between px-3.5 py-2.5 bg-[#F3F6FA] border-b border-[#D9E2EC]">
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-[#15803D]" />
-              <span className="text-[13px] font-semibold text-[#111827]">Compliance Details</span>
+              <span className="text-[13px] font-semibold text-[#FAF8F9]">Compliance Details</span>
             </div>
             <button
               onClick={() => setOpen(false)}
@@ -125,7 +125,7 @@ export const CompliancePopover: React.FC<CompliancePopoverProps> = ({ rowId, dat
                   {field.label}
                 </span>
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="font-mono text-[12px] font-semibold text-[#111827] truncate">
+                  <span className="font-mono text-[12px] font-semibold text-[#FAF8F9] truncate">
                     {field.value}
                   </span>
                   {field.copyable && field.value && (

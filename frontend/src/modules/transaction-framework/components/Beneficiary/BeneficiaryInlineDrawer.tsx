@@ -76,10 +76,10 @@ export const BeneficiaryInlineDrawer: React.FC<BeneficiaryInlineDrawerProps> = (
         sx={{
           p: 2.5,
           borderRadius: "14px",
-          bgcolor: "rgba(15, 23, 42, 0.96)",
+          bgcolor: "#FFFFFF",
           backdropFilter: "blur(20px)",
           border: "1px solid rgba(37, 99, 235, 0.4)",
-          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)",
+          boxShadow: "0 8px 32px rgba(41, 35, 41, 0.06)",
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
@@ -97,10 +97,10 @@ export const BeneficiaryInlineDrawer: React.FC<BeneficiaryInlineDrawerProps> = (
               </Typography>
               {beneficiary.isFavorite && (
                 <Chip
-                  icon={<StarIcon sx={{ "&&": { color: "#FBBF24", fontSize: 13 } }} />}
+                  icon={<StarIcon sx={{ "&&": { color: "#A20A3A", fontSize: 13 } }} />}
                   label="Preferred"
                   size="small"
-                  sx={{ height: 20, bgcolor: "rgba(251, 191, 36, 0.15)", color: "#FBBF24", fontWeight: 800, fontSize: "10px" }}
+                  sx={{ height: 20, bgcolor: "rgba(251, 191, 36, 0.15)", color: "#A20A3A", fontWeight: 800, fontSize: "10px" }}
                 />
               )}
               {beneficiary.isVerified !== false && (
@@ -138,7 +138,7 @@ export const BeneficiaryInlineDrawer: React.FC<BeneficiaryInlineDrawerProps> = (
             </Typography>
 
             <Typography sx={{ color: "rgba(255, 255, 255, 0.70)", fontSize: "12px", mb: 1.5 }}>
-              Relationship: <strong style={{ color: "#FBBF24" }}>{beneficiary.relationship || "Self"}</strong> · Added: {details.registeredDate}
+              Relationship: <strong style={{ color: "#A20A3A" }}>{beneficiary.relationship || "Self"}</strong> · Added: {details.registeredDate}
             </Typography>
 
             {/* REMOVE BENEFICIARY ACTION BUTTON (DEDICATED PAGE NAVIGATION) */}
@@ -192,7 +192,7 @@ export const BeneficiaryInlineDrawer: React.FC<BeneficiaryInlineDrawerProps> = (
 
             <Box sx={{ bgcolor: "rgba(255, 255, 255, 0.03)", p: 1, borderRadius: "8px", border: "1px solid rgba(255, 255, 255, 0.05)" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10px", fontWeight: 800 }}>AVG TRANSFER / RISK</Typography>
-              <Typography sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "12px" }}>₹{details.averageTransferAmount.toLocaleString()} · <span style={{ color: "#4ADE80" }}>{details.riskLevel}</span></Typography>
+              <Typography sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "12px" }}>₹{details.averageTransferAmount.toLocaleString()} · <span style={{ color: "#4ADE80" }}>{details.riskLevel}</span></Typography>
             </Box>
           </Box>
         </Box>
@@ -205,7 +205,7 @@ export const BeneficiaryInlineDrawer: React.FC<BeneficiaryInlineDrawerProps> = (
             RECENT TRANSACTIONS (LAST 5)
           </Typography>
 
-          <TableContainer component={Paper} elevation={0} sx={{ bgcolor: "rgba(255, 255, 255, 0.02)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "8px" }}>
+          <TableContainer component={Paper} elevation={0} sx={{ bgcolor: "rgba(255, 255, 255, 0.02)", border: "1px solid #E8E2E5", borderRadius: "8px" }}>
             <Table size="small">
               <TableHead>
                 <TableRow sx={{ bgcolor: "rgba(255, 255, 255, 0.05)" }}>

@@ -117,7 +117,7 @@ export default function TransactionLedgerReportPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 bg-[#0B0F19] text-white min-h-screen">
+    <div className="p-6 space-y-6 bg-[#FFFFFF] text-white min-h-screen">
       
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -127,7 +127,7 @@ export default function TransactionLedgerReportPage() {
             </div>
             <h1 className="text-xl font-bold text-white tracking-tight">Transaction Ledger Report</h1>
           </div>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-[#625B60] mt-1">
             Authoritative financial double-entry ledger showing debit, credit, balance, and opening/closing balances.
           </p>
         </div>
@@ -135,7 +135,7 @@ export default function TransactionLedgerReportPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={fetchLedgerData}
-            className="px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-xs font-semibold text-slate-300 hover:text-white transition-all flex items-center gap-2"
+            className="px-3.5 py-2 rounded-xl bg-[#FAF8F9] border border-[#E8E2E5] hover:border-[#E8E2E5] text-xs font-semibold text-[#292329] hover:text-white transition-all flex items-center gap-2"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-purple-400" : ""}`} />
             Refresh
@@ -153,16 +153,16 @@ export default function TransactionLedgerReportPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80">
-          <span className="text-xs font-semibold text-slate-400 block mb-1">Opening Balance</span>
+        <div className="p-4 rounded-2xl bg-[#FAF8F9]/60 border border-[#E8E2E5]/80">
+          <span className="text-xs font-semibold text-[#625B60] block mb-1">Opening Balance</span>
           <span className="text-xl font-extrabold text-white">
             ₹{summary ? summary.opening_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}
           </span>
-          <span className="text-[11px] text-slate-500 block mt-1">Start of Period</span>
+          <span className="text-[11px] text-[#8A8288] block mt-1">Start of Period</span>
         </div>
 
-        <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 border-l-4 border-l-rose-500">
-          <span className="text-xs font-semibold text-slate-400 block mb-1">Total Debit</span>
+        <div className="p-4 rounded-2xl bg-[#FAF8F9]/60 border border-[#E8E2E5]/80 border-l-4 border-l-rose-500">
+          <span className="text-xs font-semibold text-[#625B60] block mb-1">Total Debit</span>
           <span className="text-xl font-extrabold text-rose-400 flex items-center gap-1">
             <ArrowUpRight className="w-5 h-5 shrink-0" />
             ₹{summary ? summary.total_debit.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}
@@ -170,8 +170,8 @@ export default function TransactionLedgerReportPage() {
           <span className="text-[11px] text-rose-500/80 block mt-1">Outflow</span>
         </div>
 
-        <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 border-l-4 border-l-emerald-500">
-          <span className="text-xs font-semibold text-slate-400 block mb-1">Total Credit</span>
+        <div className="p-4 rounded-2xl bg-[#FAF8F9]/60 border border-[#E8E2E5]/80 border-l-4 border-l-emerald-500">
+          <span className="text-xs font-semibold text-[#625B60] block mb-1">Total Credit</span>
           <span className="text-xl font-extrabold text-emerald-400 flex items-center gap-1">
             <ArrowDownLeft className="w-5 h-5 shrink-0" />
             ₹{summary ? summary.total_credit.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}
@@ -179,26 +179,26 @@ export default function TransactionLedgerReportPage() {
           <span className="text-[11px] text-emerald-500/80 block mt-1">Inflow</span>
         </div>
 
-        <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 border-l-4 border-l-purple-500">
-          <span className="text-xs font-semibold text-slate-400 block mb-1">Closing Balance</span>
+        <div className="p-4 rounded-2xl bg-[#FAF8F9]/60 border border-[#E8E2E5]/80 border-l-4 border-l-purple-500">
+          <span className="text-xs font-semibold text-[#625B60] block mb-1">Closing Balance</span>
           <span className="text-xl font-extrabold text-purple-400">
             ₹{summary ? summary.closing_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}
           </span>
-          <span className="text-[11px] text-slate-500 block mt-1">{summary?.total_entries || 0} Total Entries</span>
+          <span className="text-[11px] text-[#8A8288] block mt-1">{summary?.total_entries || 0} Total Entries</span>
         </div>
       </div>
 
-      <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
+      <div className="p-4 rounded-2xl bg-[#FAF8F9]/80 border border-[#E8E2E5]">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           
           <div className="relative">
-            <Search className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+            <Search className="w-4 h-4 text-[#8A8288] absolute left-3 top-3" />
             <input
               type="text"
               placeholder="Search Transaction ID or Ledger No..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              className="w-full h-10 pl-9 pr-3 bg-slate-950/80 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:border-purple-500 outline-none"
+              className="w-full h-10 pl-9 pr-3 bg-[#FFFFFF]/80 border border-[#E8E2E5] rounded-xl text-xs text-white placeholder-slate-500 focus:border-purple-500 outline-none"
             />
           </div>
 
@@ -206,7 +206,7 @@ export default function TransactionLedgerReportPage() {
             <select
               value={entryType}
               onChange={(e) => { setEntryType(e.target.value); setPage(1); }}
-              className="w-full h-10 px-3 bg-slate-950/80 border border-slate-800 rounded-xl text-xs text-slate-300 focus:border-purple-500 outline-none"
+              className="w-full h-10 px-3 bg-[#FFFFFF]/80 border border-[#E8E2E5] rounded-xl text-xs text-[#292329] focus:border-purple-500 outline-none"
             >
               <option value="">All Entries (Debit & Credit)</option>
               <option value="DEBIT">Debit Entries Only</option>
@@ -219,7 +219,7 @@ export default function TransactionLedgerReportPage() {
               type="date"
               value={fromDate}
               onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
-              className="w-full h-10 px-3 bg-slate-950/80 border border-slate-800 rounded-xl text-xs text-slate-300 focus:border-purple-500 outline-none"
+              className="w-full h-10 px-3 bg-[#FFFFFF]/80 border border-[#E8E2E5] rounded-xl text-xs text-[#292329] focus:border-purple-500 outline-none"
             />
           </div>
 
@@ -228,18 +228,18 @@ export default function TransactionLedgerReportPage() {
               type="date"
               value={toDate}
               onChange={(e) => { setToDate(e.target.value); setPage(1); }}
-              className="w-full h-10 px-3 bg-slate-950/80 border border-slate-800 rounded-xl text-xs text-slate-300 focus:border-purple-500 outline-none"
+              className="w-full h-10 px-3 bg-[#FFFFFF]/80 border border-[#E8E2E5] rounded-xl text-xs text-[#292329] focus:border-purple-500 outline-none"
             />
           </div>
 
         </div>
       </div>
 
-      <div className="rounded-2xl bg-slate-900/60 border border-slate-800/80 overflow-hidden shadow-xl">
+      <div className="rounded-2xl bg-[#FAF8F9]/60 border border-[#E8E2E5]/80 overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="bg-slate-900/90 text-slate-400 font-semibold border-b border-slate-800 uppercase tracking-wider text-[11px]">
+              <tr className="bg-[#FAF8F9]/90 text-[#625B60] font-semibold border-b border-[#E8E2E5] uppercase tracking-wider text-[11px]">
                 <th className="py-3.5 px-4">Ledger ID / Txn ID</th>
                 <th className="py-3.5 px-4">Date & Time</th>
                 <th className="py-3.5 px-4">Hierarchy (SD / DIST / Ret)</th>
@@ -251,10 +251,10 @@ export default function TransactionLedgerReportPage() {
                 <th className="py-3.5 px-4">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 font-medium text-slate-200">
+            <tbody className="divide-y divide-[#E8E2E5]/60 font-medium text-[#292329]">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-500 font-medium">
+                  <td colSpan={9} className="py-12 text-center text-[#8A8288] font-medium">
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
                       Loading authoritative financial ledger...
@@ -263,28 +263,28 @@ export default function TransactionLedgerReportPage() {
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-500 font-medium">
+                  <td colSpan={9} className="py-12 text-center text-[#8A8288] font-medium">
                     No ledger records found for the selected filters.
                   </td>
                 </tr>
               ) : (
                 rows.map((row) => (
-                  <tr key={row.id} className="hover:bg-slate-800/40 transition-colors">
+                  <tr key={row.id} className="hover:bg-[#F5F2F4]/40 transition-colors">
                     <td className="py-3 px-4">
                       <div className="font-bold text-white font-mono">{row.ledger_id}</div>
-                      <div className="text-[11px] text-slate-500 font-mono">{row.transaction_id}</div>
+                      <div className="text-[11px] text-[#8A8288] font-mono">{row.transaction_id}</div>
                     </td>
                     <td className="py-3 px-4 whitespace-nowrap">
                       <div>{row.date}</div>
-                      <div className="text-[11px] text-slate-500 font-mono">{row.time}</div>
+                      <div className="text-[11px] text-[#8A8288] font-mono">{row.time}</div>
                     </td>
                     <td className="py-3 px-4">
                       <div className="font-semibold text-blue-400">{row.sd_name}</div>
-                      <div className="text-[11px] text-slate-400">{row.distributor_name} • {row.retailer_name}</div>
+                      <div className="text-[11px] text-[#625B60]">{row.distributor_name} • {row.retailer_name}</div>
                     </td>
                     <td className="py-3 px-4">
-                      <div className="font-semibold text-slate-200">{row.service}</div>
-                      <div className="text-[11px] text-slate-500 font-mono">{row.ledger_type}</div>
+                      <div className="font-semibold text-[#292329]">{row.service}</div>
+                      <div className="text-[11px] text-[#8A8288] font-mono">{row.ledger_type}</div>
                     </td>
                     <td className="py-3 px-4 text-right font-mono font-bold text-rose-400">
                       {row.debit > 0 ? `₹${row.debit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : "-"}
@@ -295,7 +295,7 @@ export default function TransactionLedgerReportPage() {
                     <td className="py-3 px-4 text-right font-mono font-bold text-purple-400">
                       ₹{row.balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="py-3 px-4 font-mono text-xs text-slate-400">{row.reference}</td>
+                    <td className="py-3 px-4 font-mono text-xs text-[#625B60]">{row.reference}</td>
                     <td className="py-3 px-4">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20">
                         {row.status}
@@ -308,7 +308,7 @@ export default function TransactionLedgerReportPage() {
           </table>
         </div>
 
-        <div className="p-4 border-t border-slate-800/80 bg-slate-900/60 flex items-center justify-between text-xs text-slate-400">
+        <div className="p-4 border-t border-[#E8E2E5]/80 bg-[#FAF8F9]/60 flex items-center justify-between text-xs text-[#625B60]">
           <div>
             Showing <strong className="text-white">{rows.length}</strong> of <strong className="text-white">{totalRecords}</strong> ledger entries
           </div>
@@ -316,17 +316,17 @@ export default function TransactionLedgerReportPage() {
             <button
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white disabled:opacity-40 transition-all"
+              className="p-1.5 rounded-lg bg-[#F5F2F4] text-[#292329] hover:text-white disabled:opacity-40 transition-all"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="font-semibold text-slate-300">
+            <span className="font-semibold text-[#292329]">
               Page {page} of {totalPages}
             </span>
             <button
               disabled={page >= totalPages}
               onClick={() => setPage((p) => p + 1)}
-              className="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white disabled:opacity-40 transition-all"
+              className="p-1.5 rounded-lg bg-[#F5F2F4] text-[#292329] hover:text-white disabled:opacity-40 transition-all"
             >
               <ChevronRight className="w-4 h-4" />
             </button>

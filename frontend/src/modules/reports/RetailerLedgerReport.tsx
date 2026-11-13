@@ -210,14 +210,14 @@ export const RetailerLedgerReport: React.FC = () => {
   };
 
   return (
-    <Box sx={{ width: "100%", minHeight: "100vh", bgcolor: "#08111F", color: "#F8FAFC", p: { xs: 2.5, md: 4 }, fontFamily: "'Inter', 'Source Sans 3', 'IBM Plex Sans', sans-serif" }}>
+    <Box sx={{ width: "100%", minHeight: "100vh", bgcolor: "#FFFFFF", color: "#292329", p: { xs: 2.5, md: 4 }, fontFamily: "'Inter', 'Source Sans 3', 'IBM Plex Sans', sans-serif" }}>
       {/* ── HEADER ── */}
       <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 4, flexWrap: "wrap", gap: 2 }}>
         <Box>
           <Typography sx={{ fontWeight: 800, fontSize: "28px", color: "#FFFFFF", letterSpacing: "-0.5px" }}>
             Ledger Statement
           </Typography>
-          <Typography sx={{ color: "#CBD5E1", fontSize: "16px", mt: 0.5, fontWeight: 500 }}>
+          <Typography sx={{ color: "#625B60", fontSize: "16px", mt: 0.5, fontWeight: 500 }}>
             Complete wallet debit, credit and running balance history.
           </Typography>
         </Box>
@@ -259,12 +259,12 @@ export const RetailerLedgerReport: React.FC = () => {
               sx={{
                 p: 3,
                 borderRadius: "16px",
-                bgcolor: "rgba(15, 23, 42, 0.85)",
+                bgcolor: "#FFFFFF",
                 border: "1px solid rgba(255, 255, 255, 0.14)",
                 textAlign: "left",
               }}
             >
-              <Typography sx={{ color: "#E2E8F0", fontSize: "16px", fontWeight: 700 }}>
+              <Typography sx={{ color: "#292329", fontSize: "16px", fontWeight: 700 }}>
                 {card.title}
               </Typography>
               <Typography sx={{ color: card.color, fontWeight: 800, fontSize: "36px", mt: 1 }}>
@@ -282,7 +282,7 @@ export const RetailerLedgerReport: React.FC = () => {
           p: 3.5,
           mb: 4,
           borderRadius: "16px",
-          bgcolor: "rgba(15, 23, 42, 0.85)",
+          bgcolor: "#FFFFFF",
           border: "1px solid rgba(255, 255, 255, 0.14)",
         }}
       >
@@ -406,7 +406,7 @@ export const RetailerLedgerReport: React.FC = () => {
       </Paper>
 
       {/* ── GRID TABLE VIEW ── */}
-      <Paper elevation={0} sx={{ borderRadius: "16px", bgcolor: "rgba(15, 23, 42, 0.85)", border: "1px solid rgba(255, 255, 255, 0.14)", overflow: "hidden" }}>
+      <Paper elevation={0} sx={{ borderRadius: "16px", bgcolor: "#FFFFFF", border: "1px solid rgba(255, 255, 255, 0.14)", overflow: "hidden" }}>
         {isLoading ? (
           <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", p: 8 }}>
             <CircularProgress size={48} sx={{ color: "#60A5FA" }} />
@@ -416,7 +416,7 @@ export const RetailerLedgerReport: React.FC = () => {
             <TableContainer sx={{ maxHeight: 600 }}>
               <Table stickyHeader size="medium">
                 <TableHead>
-                  <TableRow sx={{ "& th": { bgcolor: "#0F172A", color: "#FFFFFF", fontWeight: 800, fontSize: "16px", py: 2 } }}>
+                  <TableRow sx={{ "& th": { bgcolor: "#FFFFFF", color: "#FFFFFF", fontWeight: 800, fontSize: "16px", py: 2 } }}>
                     <TableCell align="center">S.No</TableCell>
                     <TableCell>Date & Time</TableCell>
                     <TableCell>Txn ID</TableCell>
@@ -434,16 +434,16 @@ export const RetailerLedgerReport: React.FC = () => {
 
                 <TableBody>
                   {items.map((row) => (
-                    <TableRow key={row.ledger_id} hover sx={{ "& td": { borderColor: "rgba(255,255,255,0.08)", color: "#E2E8F0", fontSize: "16px", fontWeight: 500, py: 2 } }}>
+                    <TableRow key={row.ledger_id} hover sx={{ "& td": { borderColor: "#E8E2E5", color: "#292329", fontSize: "16px", fontWeight: 500, py: 2 } }}>
                       <TableCell align="center">{row.s_no}</TableCell>
-                      <TableCell sx={{ whiteSpace: "nowrap", color: "#CBD5E1" }}>
+                      <TableCell sx={{ whiteSpace: "nowrap", color: "#625B60" }}>
                         {row.transaction_date ? new Date(row.transaction_date).toLocaleString("en-IN") : "--"}
                       </TableCell>
                       <TableCell sx={{ fontWeight: 800, color: "#60A5FA", fontFamily: "monospace" }}>{row.transaction_id}</TableCell>
-                      <TableCell sx={{ fontFamily: "monospace", color: "#CBD5E1" }}>{row.reference_id}</TableCell>
+                      <TableCell sx={{ fontFamily: "monospace", color: "#625B60" }}>{row.reference_id}</TableCell>
                       <TableCell sx={{ fontWeight: 700, color: "#FFFFFF" }}>{row.service}</TableCell>
-                      <TableCell sx={{ color: "#CBD5E1" }}>{row.description}</TableCell>
-                      <TableCell align="right" sx={{ color: "#94A3B8" }}>
+                      <TableCell sx={{ color: "#625B60" }}>{row.description}</TableCell>
+                      <TableCell align="right" sx={{ color: "#625B60" }}>
                         ₹{row.opening_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </TableCell>
                       <TableCell align="right" sx={{ fontWeight: 800, color: "#4ADE80" }}>
@@ -483,22 +483,22 @@ export const RetailerLedgerReport: React.FC = () => {
 
             {/* ── FOOTER TOTALS ── */}
             {footerTotals && (
-              <Box sx={{ p: 2.5, bgcolor: "#0B1528", borderTop: "1px solid rgba(255,255,255,0.14)", display: "flex", flexWrap: "wrap", gap: 3, justifyContent: "space-between", alignItems: "center" }}>
+              <Box sx={{ p: 2.5, bgcolor: "#FFFFFF", borderTop: "1px solid rgba(255,255,255,0.14)", display: "flex", flexWrap: "wrap", gap: 3, justifyContent: "space-between", alignItems: "center" }}>
                 <Typography sx={{ fontWeight: 800, fontSize: "16px", color: "#60A5FA" }}>
                   PASSBOOK MOVEMENT SUMMARY ({footerTotals.total_records} Records)
                 </Typography>
 
                 <Stack direction="row" spacing={3} sx={{ flexWrap: "wrap" }}>
                   <Box>
-                    <Typography sx={{ fontSize: "14px", color: "#CBD5E1" }}>Total Credits (+)</Typography>
+                    <Typography sx={{ fontSize: "14px", color: "#625B60" }}>Total Credits (+)</Typography>
                     <Typography sx={{ fontSize: "18px", fontWeight: 800, color: "#4ADE80" }}>+₹{footerTotals.total_credit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Typography>
                   </Box>
                   <Box>
-                    <Typography sx={{ fontSize: "14px", color: "#CBD5E1" }}>Total Debits (-)</Typography>
+                    <Typography sx={{ fontSize: "14px", color: "#625B60" }}>Total Debits (-)</Typography>
                     <Typography sx={{ fontSize: "18px", fontWeight: 800, color: "#F87171" }}>-₹{footerTotals.total_debit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Typography>
                   </Box>
                   <Box>
-                    <Typography sx={{ fontSize: "14px", color: "#CBD5E1" }}>Net Wallet Movement</Typography>
+                    <Typography sx={{ fontSize: "14px", color: "#625B60" }}>Net Wallet Movement</Typography>
                     <Typography sx={{ fontSize: "18px", fontWeight: 800, color: footerTotals.net_movement >= 0 ? "#4ADE80" : "#F87171" }}>
                       {footerTotals.net_movement >= 0 ? "+" : ""}₹{footerTotals.net_movement.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                     </Typography>
@@ -527,7 +527,7 @@ export const RetailerLedgerReport: React.FC = () => {
       {/* ── DETAILS DRAWER ── */}
       <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
         {selectedLedger && (
-          <Box sx={{ width: { xs: "100vw", sm: 500 }, p: 4, bgcolor: "#0F172A", color: "#FFFFFF", height: "100%", overflowY: "auto" }}>
+          <Box sx={{ width: { xs: "100vw", sm: 500 }, p: 4, bgcolor: "#FFFFFF", color: "#FFFFFF", height: "100%", overflowY: "auto" }}>
             <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 3 }}>
               <Typography sx={{ fontWeight: 800, fontSize: "22px", color: "#FFFFFF" }}>Ledger Entry Details</Typography>
               <IconButton onClick={() => setDrawerOpen(false)} sx={{ color: "#FFFFFF" }}>
@@ -538,19 +538,19 @@ export const RetailerLedgerReport: React.FC = () => {
 
             <Paper sx={{ p: 3, bgcolor: "rgba(255,255,255,0.04)", borderRadius: 3, mb: 3 }}>
               <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "16px", mb: 1 }}>Entry Identifiers</Typography>
-              <Typography sx={{ fontSize: "16px", color: "#E2E8F0" }}>Ledger ID: <strong>{selectedLedger.ledger_id}</strong></Typography>
-              <Typography sx={{ fontSize: "16px", color: "#E2E8F0", mt: 0.5 }}>Txn ID: <strong>{selectedLedger.transaction_id}</strong></Typography>
-              <Typography sx={{ fontSize: "16px", color: "#E2E8F0", mt: 0.5 }}>Service: <strong>{selectedLedger.service}</strong></Typography>
+              <Typography sx={{ fontSize: "16px", color: "#292329" }}>Ledger ID: <strong>{selectedLedger.ledger_id}</strong></Typography>
+              <Typography sx={{ fontSize: "16px", color: "#292329", mt: 0.5 }}>Txn ID: <strong>{selectedLedger.transaction_id}</strong></Typography>
+              <Typography sx={{ fontSize: "16px", color: "#292329", mt: 0.5 }}>Service: <strong>{selectedLedger.service}</strong></Typography>
             </Paper>
 
             <Paper sx={{ p: 3, bgcolor: "rgba(255,255,255,0.04)", borderRadius: 3, mb: 3 }}>
               <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "16px", mb: 1 }}>Running Balance Impact</Typography>
               <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1 }}>
-                <Typography sx={{ fontSize: "16px", color: "#CBD5E1" }}>Opening Balance:</Typography>
+                <Typography sx={{ fontSize: "16px", color: "#625B60" }}>Opening Balance:</Typography>
                 <Typography sx={{ fontSize: "18px", fontWeight: 800, color: "#FFFFFF" }}>₹{selectedLedger.opening_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Typography>
               </Box>
               <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1 }}>
-                <Typography sx={{ fontSize: "16px", color: "#CBD5E1" }}>Amount:</Typography>
+                <Typography sx={{ fontSize: "16px", color: "#625B60" }}>Amount:</Typography>
                 <Typography sx={{ fontSize: "18px", fontWeight: 800, color: selectedLedger.entry_type === "CREDIT" ? "#4ADE80" : "#F87171" }}>
                   {selectedLedger.entry_type === "CREDIT" ? `+₹${selectedLedger.credit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : `-₹${selectedLedger.debit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}
                 </Typography>

@@ -64,7 +64,7 @@ export const EnterpriseWizardModule: React.FC<EnterpriseWizardProps> = ({
   }, [currentStep, customer, selectedBeneficiary, amount]);
 
   return (
-    <Box sx={{ width: "100%", minHeight: "100vh", bgcolor: "#0B132B", color: "#FFFFFF", display: "flex", flexDirection: "column" }}>
+    <Box sx={{ width: "100%", minHeight: "100vh", bgcolor: "#FFFFFF", color: "#FFFFFF", display: "flex", flexDirection: "column" }}>
       {/* 1. STICKY 68px HEADER BAR */}
       <WizardHeader currentStep={currentStep} walletBalance={customer?.walletBalance ?? 0} />
 

@@ -24,15 +24,30 @@ import {
   Tab,
   Tabs,
   Stack,
-  Dialog
+  Dialog,
+  Skeleton
 } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import NotificationsIcon from "@mui/icons-material/Notifications";
-import { DashboardAnnouncementModal } from "@/components/common/DashboardAnnouncementModal";
 import WarningIcon from "@mui/icons-material/Warning";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import HistoryIcon from "@mui/icons-material/History";
 import LockIcon from "@mui/icons-material/Lock";
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
+import PercentIcon from "@mui/icons-material/Percent";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
+import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
+import SendIcon from "@mui/icons-material/Send";
+import FingerprintIcon from "@mui/icons-material/Fingerprint";
+import QrCodeIcon from "@mui/icons-material/QrCode";
+import PhoneAndroidIcon from "@mui/icons-material/PhoneAndroid";
+import ReceiptIcon from "@mui/icons-material/Receipt";
+import CreditCardIcon from "@mui/icons-material/CreditCard";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import SearchIcon from "@mui/icons-material/Search";
+import { DashboardAnnouncementModal } from "@/components/common/DashboardAnnouncementModal";
 import { useWalletSync } from "@/context/WalletSyncProvider";
 import { useRetailerStore, THEME_CONFIGS } from "@/stores/use-retailer-store";
 import { useRetailerApprovalGuard } from "@/hooks/useRetailerApprovalGuard";
@@ -50,8 +65,6 @@ import {
   Bar
 } from "recharts";
 
-
-
 interface HeaderWalletData {
   greeting: string;
   retailer_name: string;
@@ -65,6 +78,11 @@ interface HeaderWalletData {
   todays_credit: number;
   todays_commission: number;
   unread_notifications_count: number;
+  current_time_iso?: string;
+  retailer_info?: {
+    role_title?: string;
+    approval_status?: string;
+  };
 }
 
 interface FinancialKPIData {
@@ -143,13 +161,121 @@ const formatAmount = (val?: number | null): string => {
   return Number(val).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+const formatDateTime = (dateStr?: string) => {
+  if (!dateStr) return "--";
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  } catch {
+    return dateStr;
+  }
+};
+
+const DualCurveSwoosh: React.FC = () => (
+  <svg
+    viewBox="0 0 120 45"
+    preserveAspectRatio="none"
+    fill="none"
+    style={{
+      position: "absolute",
+      bottom: 0,
+      right: 0,
+      width: 96,
+      height: 38,
+      pointerEvents: "none",
+      userSelect: "none",
+      borderBottomRightRadius: "16px",
+      overflow: "hidden",
+    }}
+  >
+    {/* Gold Yellow Accent Ribbon */}
+    <path
+      d="M 5,45 C 45,42 70,25 120,0 L 120,16 C 75,36 45,45 5,45 Z"
+      fill="#EDC11E"
+    />
+    {/* Primary Burgundy Wave */}
+    <path
+      d="M 20,45 C 60,45 80,32 120,14 L 120,45 Z"
+      fill="#A20A3A"
+    />
+  </svg>
+);
+
+const QUICK_SERVICES = [
+  {
+    id: "dmt",
+    title: "DMT",
+    subtitle: "Direct Money Transfer",
+    route: "/retailer/dmt",
+    requiresApproval: true,
+    icon: <SendIcon sx={{ fontSize: 20 }} />,
+    iconBg: "#FFF0F4",
+    iconColor: "#A20A3A",
+  },
+  {
+    id: "aeps",
+    title: "AEPS",
+    subtitle: "Aadhaar ATM & MicroATM",
+    route: "/retailer/aeps",
+    requiresApproval: true,
+    icon: <FingerprintIcon sx={{ fontSize: 20 }} />,
+    iconBg: "#FFF8DC",
+    iconColor: "#D4A915",
+  },
+  {
+    id: "upi",
+    title: "UPI",
+    subtitle: "Dynamic QR & Collect",
+    route: "/retailer/upi",
+    requiresApproval: true,
+    icon: <QrCodeIcon sx={{ fontSize: 20 }} />,
+    iconBg: "#FFF0F4",
+    iconColor: "#A20A3A",
+  },
+  {
+    id: "recharge",
+    title: "Recharge",
+    subtitle: "Prepaid, Postpaid, DTH",
+    route: "/retailer/recharge",
+    requiresApproval: false,
+    icon: <PhoneAndroidIcon sx={{ fontSize: 20 }} />,
+    iconBg: "#FFF8DC",
+    iconColor: "#D4A915",
+  },
+  {
+    id: "bbps",
+    title: "BBPS",
+    subtitle: "Electricity, Water, Gas",
+    route: "/retailer/bbps",
+    requiresApproval: false,
+    icon: <ReceiptIcon sx={{ fontSize: 20 }} />,
+    iconBg: "#FFF0F4",
+    iconColor: "#A20A3A",
+  },
+  {
+    id: "pos",
+    title: "Card to Cash",
+    subtitle: "mPOS / POS Swipe Cashout",
+    route: "/retailer/card-to-cash",
+    requiresApproval: true,
+    icon: <CreditCardIcon sx={{ fontSize: 20 }} />,
+    iconBg: "#FFF8DC",
+    iconColor: "#D4A915",
+  },
+];
+
 export const RetailerDashboardView: React.FC = () => {
   const router = useRouter();
   const { walletData: headerWallet } = useWalletSync();
-  const { isApproved, setApprovalStatus } = useRetailerApprovalGuard();
+  const { isApproved } = useRetailerApprovalGuard();
   const { openContactSupportModal } = useContactSupportModal();
-  const { kpiTheme, wallet, outlet } = useRetailerStore();
-  const activeTheme = THEME_CONFIGS[kpiTheme] || THEME_CONFIGS["classic-blue"];
+  const { wallet, outlet } = useRetailerStore();
   const [dashboardLockedModal, setDashboardLockedModal] = useState<{ label: string } | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [hasLoaded, setHasLoaded] = useState<boolean>(false);
@@ -175,9 +301,7 @@ export const RetailerDashboardView: React.FC = () => {
 
   const fetchDashboardData = async () => {
     setLoading(true);
-    setHasLoaded(true);
     try {
-      // Build auth header from cookie → localStorage fallback (same pattern as apiClient interceptor)
       let authHeader: Record<string, string> = {};
       if (typeof window !== "undefined") {
         const cookies = document.cookie ? document.cookie.split("; ") : [];
@@ -203,14 +327,10 @@ export const RetailerDashboardView: React.FC = () => {
         }
       }
 
-      // Authenticated fetch helper — sends cookie + Bearer token so the
-      // backend's resolve_retailer_context can identify the logged-in retailer.
-      // No localStorage identity reads are needed; the JWT carries the identity.
       const fetchAuth = (url: string) =>
         fetch(url, { credentials: "include", headers: { ...authHeader } });
 
       const baseUrl = `${getApiBaseUrl()}/payout/dashboard/retailer`;
-      // user_type_ref_id=2 → RETAILER. Backend resolves exact retailer from JWT.
       const qPrefix = "?user_type_ref_id=2";
       const qAnd = "&user_type_ref_id=2";
 
@@ -246,19 +366,18 @@ export const RetailerDashboardView: React.FC = () => {
         setNotifications(items);
       }
     } catch (e) {
-      console.error("Failed to load enterprise dashboard data", e);
+      console.error("Failed to load retailer dashboard data", e);
     } finally {
       setLoading(false);
+      setHasLoaded(true);
     }
   };
 
-  // Auto-fetch immediately on mount and when timeframe changes
   useEffect(() => {
     fetchDashboardData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeframe]);
 
-  // Real-time synchronization from NotificationCenter header component
   useEffect(() => {
     const handleSync = (e: any) => {
       if (e.detail?.notifications && Array.isArray(e.detail.notifications)) {
@@ -271,7 +390,6 @@ export const RetailerDashboardView: React.FC = () => {
     };
   }, []);
 
-  // Keyboard Shortcuts Listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.altKey) {
@@ -295,90 +413,175 @@ export const RetailerDashboardView: React.FC = () => {
   }, [router]);
 
   const getStatusChip = (st: string) => {
-    let color = "#3B82F6";
-    let bg = "rgba(59, 130, 246, 0.20)";
-    const u = st.toUpperCase();
-
-    if (u === "SUCCESS") {
-      color = "#4ADE80";
-      bg = "rgba(22, 163, 74, 0.20)";
+    const u = (st || "SUCCESS").toUpperCase();
+    if (u === "SUCCESS" || u === "COMPLETED") {
+      return (
+        <Chip
+          label="SUCCESS"
+          size="small"
+          sx={{
+            bgcolor: "#DCFCE7",
+            color: "#166534",
+            fontWeight: 700,
+            fontSize: "11px",
+            height: "22px",
+            border: "1px solid #BBF7D0",
+          }}
+        />
+      );
     } else if (u === "PENDING" || u === "PROCESSING" || u === "INITIATED") {
-      color = "#FBBF24";
-      bg = "rgba(217, 119, 6, 0.20)";
+      return (
+        <Chip
+          label={u}
+          size="small"
+          sx={{
+            bgcolor: "#FFF8DC",
+            color: "#B45309",
+            fontWeight: 700,
+            fontSize: "11px",
+            height: "22px",
+            border: "1px solid #FDE68A",
+          }}
+        />
+      );
     } else if (u === "FAILED") {
-      color = "#F87171";
-      bg = "rgba(220, 38, 38, 0.20)";
+      return (
+        <Chip
+          label="FAILED"
+          size="small"
+          sx={{
+            bgcolor: "#FEE2E2",
+            color: "#991B1B",
+            fontWeight: 700,
+            fontSize: "11px",
+            height: "22px",
+            border: "1px solid #FECACA",
+          }}
+        />
+      );
     } else if (u === "REVERSED") {
-      color = "#C084FC";
-      bg = "rgba(168, 85, 247, 0.20)";
+      return (
+        <Chip
+          label="REVERSED"
+          size="small"
+          sx={{
+            bgcolor: "#FFF0F4",
+            color: "#A20A3A",
+            fontWeight: 700,
+            fontSize: "11px",
+            height: "22px",
+            border: "1px solid #FCD3DE",
+          }}
+        />
+      );
     }
-
     return (
       <Chip
         label={u}
         size="small"
-        style={{
-          backgroundColor: bg,
-          color: color,
-          fontWeight: 800,
-          fontSize: "14px",
-          padding: "4px 8px",
-          border: `1px solid ${color}60`
+        sx={{
+          bgcolor: "#F3F4F6",
+          color: "#374151",
+          fontWeight: 700,
+          fontSize: "11px",
+          height: "22px",
         }}
       />
     );
   };
 
+  const retailerName =
+    headerWallet?.retailer_name ||
+    headerWallet?.owner_name ||
+    outlet.ownerName ||
+    outlet.name ||
+    (typeof window !== "undefined" && (localStorage.getItem("p2p_retailer_name") || localStorage.getItem("pay2pay_user_name"))) ||
+    "Retailer Partner";
+
+  const retailerCode =
+    headerWallet?.retailer_code ||
+    outlet.code ||
+    (typeof window !== "undefined" && (localStorage.getItem("p2p_retailer_code") || localStorage.getItem("retailer_code"))) ||
+    "RET-10928";
+
+  const accountType =
+    headerWallet?.retailer_info?.role_title || "Enterprise Retailer";
+
+  const currentDate = new Date().toLocaleDateString("en-IN", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric"
+  });
+
+  const totTxns = opsKpis
+    ? (opsKpis.successful_transactions + opsKpis.pending_transactions + opsKpis.processing_transactions + opsKpis.failed_transactions + opsKpis.reversed_transactions)
+    : 0;
+
   return (
     <Box
       sx={{
-        backgroundColor: "#08111F",
-        color: "#F8FAFC",
+        backgroundColor: "#FFFFFF",
+        color: "#292329",
         minHeight: "100vh",
         p: { xs: 2, md: 3 },
         fontFamily: "'Inter', 'Source Sans 3', 'IBM Plex Sans', sans-serif"
       }}
     >
-      {/* 1. COMPACT DASHBOARD HEADER */}
+      <DashboardAnnouncementModal />
+
+      {/* SECTION A & B: COMPACT HEADER & RETAILER INFORMATION */}
       <Paper
         elevation={0}
         sx={{
-          p: { xs: 1.5, md: 2 },
-          mb: 2.5,
-          borderRadius: 2.5,
-          backgroundColor: activeTheme.cardBg || "#0F172A",
-          backdropFilter: "blur(16px)",
-          border: `1px solid ${activeTheme.cardBorder || "rgba(255, 255, 255, 0.1)"}`,
+          p: { xs: 1.75, md: 2.2 },
+          mb: 3,
+          borderRadius: "16px",
+          backgroundColor: "#FFFFFF",
+          border: "1px solid #E8E2E5",
           display: "flex",
           flexDirection: { xs: "column", sm: "row" },
           justifyContent: "space-between",
           alignItems: { xs: "flex-start", sm: "center" },
           gap: 1.5,
-          transition: "background-color 0.3s ease, border-color 0.3s ease",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.02)",
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-          <Typography variant="h1" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "20px", letterSpacing: "-0.5px" }}>
-            Pay2Pay
+          <Typography variant="h1" sx={{ fontWeight: 800, color: "#292329", fontSize: "19px", letterSpacing: "-0.4px" }}>
+            Retailer Dashboard
           </Typography>
-          <Box sx={{ width: "1px", height: 16, bgcolor: "rgba(255,255,255,0.2)", display: { xs: "none", sm: "block" } }} />
-          <Typography variant="body2" sx={{ fontWeight: 600, color: "#E2E8F0", fontSize: "14px" }}>
-            {headerWallet?.retailer_name || headerWallet?.owner_name || outlet.ownerName || outlet.name || (typeof window !== "undefined" && (localStorage.getItem("p2p_retailer_name") || localStorage.getItem("pay2pay_user_name"))) || "Sathiya Murthy"}
+          <Box sx={{ width: "1px", height: 16, bgcolor: "#E8E2E5", display: { xs: "none", sm: "block" } }} />
+          <Typography variant="body2" sx={{ fontWeight: 700, color: "#292329", fontSize: "14px" }}>
+            {retailerName}
           </Typography>
           <Chip
-            label={headerWallet?.retailer_code || outlet.code || "RET-10928"}
+            label={retailerCode}
             size="small"
             sx={{
-              backgroundColor: "rgba(37, 99, 235, 0.2)",
-              color: "#60A5FA",
+              backgroundColor: "#FFF0F4",
+              color: "#A20A3A",
               fontWeight: 700,
               fontSize: "11px",
               height: 22,
-              border: "1px solid rgba(96, 165, 250, 0.3)",
+              border: "1px solid #FCD3DE",
             }}
           />
-          <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "12px", display: { xs: "none", md: "inline" } }}>
-            {new Date().toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
+          <Chip
+            label={accountType}
+            size="small"
+            sx={{
+              backgroundColor: "#FFF8DC",
+              color: "#B45309",
+              fontWeight: 600,
+              fontSize: "11px",
+              height: 22,
+              border: "1px solid #FDE68A",
+              display: { xs: "none", md: "inline-flex" }
+            }}
+          />
+          <Typography variant="caption" sx={{ color: "#625B60", fontSize: "12px", display: { xs: "none", md: "inline" } }}>
+            {currentDate}
           </Typography>
         </Box>
 
@@ -391,9 +594,9 @@ export const RetailerDashboardView: React.FC = () => {
               fontWeight: 700,
               fontSize: "11px",
               height: 24,
-              color: "#4ADE80",
-              bgcolor: "rgba(34, 197, 94, 0.1)",
-              border: "1px solid rgba(34, 197, 94, 0.3)",
+              color: "#166534",
+              bgcolor: "#DCFCE7",
+              border: "1px solid #BBF7D0",
             }}
           />
           <Tooltip title={hasLoaded ? "Refresh Dashboard Data" : "Click to Load Dashboard Data"}>
@@ -402,11 +605,12 @@ export const RetailerDashboardView: React.FC = () => {
               disabled={loading}
               size="small"
               sx={{
-                color: hasLoaded ? "#CBD5E1" : "#60A5FA",
-                backgroundColor: hasLoaded ? "rgba(255,255,255,0.06)" : "rgba(37, 99, 235, 0.15)",
-                border: hasLoaded ? "none" : "1px solid rgba(59, 130, 246, 0.4)",
+                color: "#625B60",
+                backgroundColor: "#FAF8F9",
+                border: "1px solid #E8E2E5",
                 width: 34,
                 height: 34,
+                "&:hover": { backgroundColor: "#FFF0F4", color: "#A20A3A", borderColor: "#FCD3DE" }
               }}
             >
               <RefreshIcon sx={{ fontSize: 18, animation: loading ? "spin 1s linear infinite" : "none" }} />
@@ -416,294 +620,626 @@ export const RetailerDashboardView: React.FC = () => {
         </Box>
       </Paper>
 
-      {/* 2. WALLET OVERVIEW SECTION */}
+      {/* SECTION C & SECTION F: PROMINENT WALLET SUMMARY & QUICK ACTIONS */}
+      <Grid container spacing={2.5} sx={{ mb: 3 }}>
+        {/* SECTION C: PROMINENT WALLET SUMMARY CARD */}
+        <Grid size={{ xs: 12, lg: 5 }}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: { xs: 2.5, sm: 3 },
+              borderRadius: "20px",
+              background: "linear-gradient(135deg, #A20A3A 0%, #6B0525 50%, #EDC11E 100%)",
+              color: "#FFFFFF",
+              position: "relative",
+              overflow: "hidden",
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              boxShadow: "0 8px 24px rgba(162, 10, 58, 0.22)",
+            }}
+          >
+            {/* Subtle decorative gradient shapes */}
+            <Box
+              sx={{
+                position: "absolute",
+                top: -30,
+                right: -30,
+                width: 140,
+                height: 140,
+                borderRadius: "50%",
+                background: "radial-gradient(circle, rgba(237, 193, 30, 0.35) 0%, rgba(237, 193, 30, 0) 70%)",
+                pointerEvents: "none",
+              }}
+            />
+            <Box
+              sx={{
+                position: "absolute",
+                bottom: -40,
+                left: -20,
+                width: 120,
+                height: 120,
+                borderRadius: "50%",
+                background: "radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0) 70%)",
+                pointerEvents: "none",
+              }}
+            />
+
+            <Box sx={{ position: "relative", zIndex: 1 }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
+                <Box>
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.88)", fontSize: "12px", fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase" }}>
+                    Available Wallet Balance
+                  </Typography>
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.70)", fontSize: "11px", mt: 0.2 }}>
+                    Near4You Settlement & Liquidity Ledger
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    p: 1,
+                    borderRadius: "12px",
+                    bgcolor: "rgba(255, 255, 255, 0.15)",
+                    backdropFilter: "blur(8px)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <AccountBalanceWalletIcon sx={{ fontSize: 22, color: "#FFFFFF" }} />
+                </Box>
+              </Box>
+
+              {loading && !hasLoaded ? (
+                <Skeleton variant="text" width={220} height={56} sx={{ bgcolor: "rgba(255, 255, 255, 0.2)" }} />
+              ) : (
+                <Typography
+                  variant="h2"
+                  sx={{
+                    color: "#FFFFFF",
+                    fontWeight: 900,
+                    fontSize: { xs: "28px", sm: "36px" },
+                    letterSpacing: "-0.5px",
+                    my: 1,
+                    textShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                  }}
+                >
+                  ₹{formatAmount(headerWallet?.available_balance ?? wallet.availableBalance ?? wallet.mainBalance)}
+                </Typography>
+              )}
+
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mt: 1, flexWrap: "wrap" }}>
+                <Typography sx={{ color: "rgba(255, 255, 255, 0.85)", fontSize: "12px" }}>
+                  Reserved: <strong>₹{formatAmount(headerWallet?.blocked_balance)}</strong>
+                </Typography>
+                <Box sx={{ width: 4, height: 4, borderRadius: "50%", bgcolor: "rgba(255, 255, 255, 0.5)", display: { xs: "none", sm: "block" } }} />
+                <Typography sx={{ color: "rgba(255, 255, 255, 0.85)", fontSize: "12px" }}>
+                  Today's Debit: <strong>-₹{formatAmount(headerWallet?.todays_debit)}</strong>
+                </Typography>
+              </Box>
+            </Box>
+
+            {/* Buttons & Status */}
+            <Box sx={{ position: "relative", zIndex: 1, mt: 3, pt: 2, borderTop: "1px solid rgba(255, 255, 255, 0.18)" }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1.5 }}>
+                <Stack direction="row" spacing={1.5}>
+                  <Button
+                    variant="contained"
+                    size="medium"
+                    startIcon={<AddCircleIcon sx={{ fontSize: 18 }} />}
+                    onClick={() => {
+                      if (!isApproved) {
+                        setDashboardLockedModal({ label: "Wallet Top-Up" });
+                        return;
+                      }
+                      router.push("/retailer/wallet");
+                    }}
+                    sx={{
+                      py: 0.9,
+                      px: 2.8,
+                      fontSize: "13px",
+                      fontWeight: 800,
+                      borderRadius: "9999px",
+                      backgroundColor: "#FFFFFF",
+                      color: "#A20A3A",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                      "&:hover": {
+                        backgroundColor: "#FFF8DC",
+                        color: "#6B0525",
+                        boxShadow: "0 6px 16px rgba(0,0,0,0.25)",
+                      },
+                      textTransform: "none",
+                    }}
+                  >
+                    ＋ Top Up
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="medium"
+                    startIcon={<HistoryIcon sx={{ fontSize: 18 }} />}
+                    onClick={() => router.push("/retailer/dmt/ledger")}
+                    sx={{
+                      py: 0.9,
+                      px: 2.8,
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      borderRadius: "9999px",
+                      borderColor: "rgba(255, 255, 255, 0.8)",
+                      color: "#FFFFFF",
+                      backgroundColor: "rgba(255, 255, 255, 0.10)",
+                      "&:hover": {
+                        borderColor: "#FFFFFF",
+                        backgroundColor: "rgba(255, 255, 255, 0.20)",
+                      },
+                      textTransform: "none",
+                    }}
+                  >
+                    Passbook
+                  </Button>
+                </Stack>
+                <Typography sx={{ color: "rgba(255, 255, 255, 0.75)", fontSize: "11px", fontWeight: 500 }}>
+                  ● Realtime sync
+                </Typography>
+              </Box>
+            </Box>
+          </Paper>
+        </Grid>
+
+        {/* SECTION F: QUICK ACTIONS (6 SERVICE SHORTCUTS) */}
+        <Grid size={{ xs: 12, lg: 7 }}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: { xs: 2, sm: 2.5 },
+              borderRadius: "20px",
+              backgroundColor: "#FFFFFF",
+              border: "1px solid #E8E2E5",
+              boxShadow: "0 2px 10px rgba(0,0,0,0.02)",
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+            }}
+          >
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+              <Box>
+                <Typography sx={{ fontWeight: 800, color: "#292329", fontSize: "16px" }}>
+                  Quick Actions
+                </Typography>
+                <Typography sx={{ color: "#625B60", fontSize: "12px", mt: 0.2 }}>
+                  Instant access to high-velocity financial services
+                </Typography>
+              </Box>
+              <Chip
+                label="6 Services Active"
+                size="small"
+                sx={{
+                  bgcolor: "#FFF8DC",
+                  color: "#B45309",
+                  fontWeight: 700,
+                  fontSize: "11px",
+                  border: "1px solid #FDE68A",
+                }}
+              />
+            </Box>
+
+            <Grid container spacing={1.5}>
+              {QUICK_SERVICES.map((s) => (
+                <Grid size={{ xs: 6, sm: 4 }} key={s.id}>
+                  <Box
+                    onClick={() => {
+                      if (!isApproved && s.requiresApproval) {
+                        setDashboardLockedModal({ label: s.title });
+                        return;
+                      }
+                      router.push(s.route);
+                    }}
+                    sx={{
+                      p: 1.75,
+                      borderRadius: "14px",
+                      backgroundColor: "#FFFFFF",
+                      border: "1px solid #E8E2E5",
+                      cursor: "pointer",
+                      transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 1,
+                      "&:hover": {
+                        borderColor: "#EDC11E",
+                        transform: "translateY(-3px)",
+                        boxShadow: "0 6px 16px rgba(162, 10, 58, 0.08)",
+                        backgroundColor: "#FAF8F9",
+                      },
+                    }}
+                  >
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <Box
+                        sx={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: "10px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          backgroundColor: s.iconBg,
+                          color: s.iconColor,
+                        }}
+                      >
+                        {s.icon}
+                      </Box>
+                      <ArrowForwardIcon sx={{ fontSize: 16, color: "#8A8288" }} />
+                    </Box>
+                    <Box>
+                      <Typography sx={{ fontWeight: 700, color: "#292329", fontSize: "13px" }}>
+                        {s.title}
+                      </Typography>
+                      <Typography sx={{ color: "#625B60", fontSize: "11px", mt: 0.2 }}>
+                        {s.subtitle}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Grid>
+              ))}
+            </Grid>
+          </Paper>
+        </Grid>
+      </Grid>
+
+      {/* SECTION D: TODAY'S BUSINESS (4 ESSENTIAL KPI CARDS) */}
+      <Box sx={{ mb: 3 }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
+          <Typography variant="h2" sx={{ fontWeight: 800, color: "#292329", fontSize: "16px" }}>
+            Today's Business
+          </Typography>
+          <Typography sx={{ color: "#625B60", fontSize: "12px" }}>
+            Real-time business summary for {new Date().toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
+          </Typography>
+        </Box>
+
+        <Grid container spacing={2}>
+          {/* 1. TOTAL TRANSACTIONS */}
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2.2,
+                borderRadius: "16px",
+                backgroundColor: "#FFFFFF",
+                border: "1px solid #E8E2E5",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                position: "relative",
+                overflow: "hidden",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
+                <Box
+                  sx={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: "10px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "#FFF0F4",
+                    color: "#A20A3A",
+                  }}
+                >
+                  <ReceiptLongIcon sx={{ fontSize: 20 }} />
+                </Box>
+                <Box>
+                  <Typography sx={{ color: "#625B60", fontSize: "13px", fontWeight: 600 }}>
+                    Total Transactions
+                  </Typography>
+                  <Typography sx={{ color: "#8A8288", fontSize: "11px" }}>
+                    Completed & Queued
+                  </Typography>
+                </Box>
+              </Box>
+              {loading && !hasLoaded ? (
+                <Skeleton variant="text" width={80} height={40} />
+              ) : (
+                <Typography variant="h4" sx={{ fontWeight: 800, color: "#292329", fontSize: "24px", mt: 0.5, zIndex: 1 }}>
+                  {totTxns}
+                </Typography>
+              )}
+              <DualCurveSwoosh />
+            </Paper>
+          </Grid>
+
+          {/* 2. TOTAL TRANSACTION AMOUNT */}
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2.2,
+                borderRadius: "16px",
+                backgroundColor: "#FFFFFF",
+                border: "1px solid #E8E2E5",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                position: "relative",
+                overflow: "hidden",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
+                <Box
+                  sx={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: "10px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "#FFF8DC",
+                    color: "#D4A915",
+                  }}
+                >
+                  <TrendingUpIcon sx={{ fontSize: 20 }} />
+                </Box>
+                <Box>
+                  <Typography sx={{ color: "#625B60", fontSize: "13px", fontWeight: 600 }}>
+                    Transaction Amount
+                  </Typography>
+                  <Typography sx={{ color: "#8A8288", fontSize: "11px" }}>
+                    Gross Throughput Volume
+                  </Typography>
+                </Box>
+              </Box>
+              {loading && !hasLoaded ? (
+                <Skeleton variant="text" width={120} height={40} />
+              ) : (
+                <Typography variant="h4" sx={{ fontWeight: 800, color: "#292329", fontSize: "24px", mt: 0.5, zIndex: 1 }}>
+                  ₹{formatAmount(finKpis?.todays_transfer ?? headerWallet?.todays_debit)}
+                </Typography>
+              )}
+              <DualCurveSwoosh />
+            </Paper>
+          </Grid>
+
+          {/* 3. COMMISSION */}
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2.2,
+                borderRadius: "16px",
+                backgroundColor: "#FFFFFF",
+                border: "1px solid #E8E2E5",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                position: "relative",
+                overflow: "hidden",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
+                <Box
+                  sx={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: "10px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "#FFF0F4",
+                    color: "#A20A3A",
+                  }}
+                >
+                  <PercentIcon sx={{ fontSize: 20 }} />
+                </Box>
+                <Box>
+                  <Typography sx={{ color: "#625B60", fontSize: "13px", fontWeight: 600 }}>
+                    Commission
+                  </Typography>
+                  <Typography sx={{ color: "#8A8288", fontSize: "11px" }}>
+                    Instant Net Earnings
+                  </Typography>
+                </Box>
+              </Box>
+              {loading && !hasLoaded ? (
+                <Skeleton variant="text" width={100} height={40} />
+              ) : (
+                <Typography variant="h4" sx={{ fontWeight: 800, color: "#292329", fontSize: "24px", mt: 0.5, zIndex: 1 }}>
+                  +₹{formatAmount(headerWallet?.todays_commission ?? finKpis?.todays_commission)}
+                </Typography>
+              )}
+              <DualCurveSwoosh />
+            </Paper>
+          </Grid>
+
+          {/* 4. PENDING SETTLEMENT */}
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2.2,
+                borderRadius: "16px",
+                backgroundColor: "#FFFFFF",
+                border: "1px solid #E8E2E5",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                position: "relative",
+                overflow: "hidden",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
+                <Box
+                  sx={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: "10px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "#FFF8DC",
+                    color: "#D4A915",
+                  }}
+                >
+                  <AccountBalanceIcon sx={{ fontSize: 20 }} />
+                </Box>
+                <Box>
+                  <Typography sx={{ color: "#625B60", fontSize: "13px", fontWeight: 600 }}>
+                    Pending Settlement
+                  </Typography>
+                  <Typography sx={{ color: "#8A8288", fontSize: "11px" }}>
+                    Awaiting Bank Payout
+                  </Typography>
+                </Box>
+              </Box>
+              {loading && !hasLoaded ? (
+                <Skeleton variant="text" width={110} height={40} />
+              ) : (
+                <Typography variant="h4" sx={{ fontWeight: 800, color: "#292329", fontSize: "24px", mt: 0.5, zIndex: 1 }}>
+                  ₹{formatAmount(headerWallet?.settlement_pending_amount ?? finKpis?.settlement_pending_amount)}
+                </Typography>
+              )}
+              <DualCurveSwoosh />
+            </Paper>
+          </Grid>
+        </Grid>
+      </Box>
+
+      {/* SECTION E: RECENT TRANSACTIONS (LATEST 5 RECORDS) */}
       <Paper
         elevation={0}
         sx={{
-          p: { xs: 2, md: 2.5 },
+          p: { xs: 2, sm: 2.5 },
           mb: 3,
-          borderRadius: 3,
-          background: "linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.85) 100%)",
-          border: "1px solid rgba(255, 255, 255, 0.10)",
-          boxShadow: "0 12px 28px -6px rgba(0,0,0,0.4)",
+          borderRadius: "20px",
+          backgroundColor: "#FFFFFF",
+          border: "1px solid #E8E2E5",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.02)",
         }}
       >
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1.5, mb: 2 }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, flexWrap: "wrap", gap: 1 }}>
           <Box>
-            <Typography variant="h2" sx={{ color: "#FFFFFF", fontWeight: 700, fontSize: "18px" }}>
-              Wallet
+            <Typography variant="h3" sx={{ fontWeight: 800, color: "#292329", fontSize: "16px" }}>
+              Recent Transactions
             </Typography>
-            <Typography variant="body2" sx={{ color: "#94A3B8", fontSize: "12px", mt: 0.2 }}>
-              Balance & today's movement
+            <Typography sx={{ color: "#625B60", fontSize: "12px", mt: 0.2 }}>
+              Latest 5 records from your live business ledger
             </Typography>
           </Box>
-          <Stack direction="row" spacing={1.5}>
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<AddCircleIcon sx={{ fontSize: 16 }} />}
-              onClick={() => router.push("/retailer/wallet")}
-              sx={{
-                py: 0.8,
-                px: 2,
-                fontSize: "13px",
-                fontWeight: 700,
-                borderRadius: "8px",
-                backgroundColor: "#F59E0B",
-                color: "#000000",
-                "&:hover": { backgroundColor: "#D97706", color: "#FFFFFF" },
-                textTransform: "none",
-              }}
-            >
-              ＋ Top Up
-            </Button>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<HistoryIcon sx={{ fontSize: 16 }} />}
-              onClick={() => router.push("/retailer/dmt/ledger")}
-              sx={{
-                py: 0.8,
-                px: 2,
-                fontSize: "13px",
-                fontWeight: 600,
-                borderRadius: "8px",
-                borderColor: "rgba(255,255,255,0.2)",
-                color: "#E2E8F0",
-                "&:hover": { borderColor: "rgba(255,255,255,0.4)", bgcolor: "rgba(255,255,255,0.05)" },
-                textTransform: "none",
-              }}
-            >
-              ↻ Passbook
-            </Button>
-          </Stack>
+          <Button
+            variant="outlined"
+            size="small"
+            endIcon={<ArrowForwardIcon sx={{ fontSize: 16 }} />}
+            onClick={() => router.push("/retailer/reports/transactions")}
+            sx={{
+              borderColor: "#E8E2E5",
+              color: "#A20A3A",
+              fontWeight: 700,
+              fontSize: "12px",
+              borderRadius: "9999px",
+              px: 2,
+              py: 0.6,
+              textTransform: "none",
+              "&:hover": {
+                borderColor: "#A20A3A",
+                backgroundColor: "#FFF0F4",
+              },
+            }}
+          >
+            View All
+          </Button>
         </Box>
 
-        {/* PRIMARY ROW (4 Cards) */}
-        <Grid container spacing={2} sx={{ mb: 2 }}>
-          {/* AVAILABLE */}
-          <Grid size={{ xs: 6, sm: 3 }}>
-            <Box
-              sx={{
-                p: 2,
-                borderRadius: 2.5,
-                bgcolor: "rgba(34, 197, 94, 0.08)",
-                border: "1px solid rgba(34, 197, 94, 0.25)",
-                height: "100%",
-              }}
-            >
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px", fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", display: "block" }}>
-                AVAILABLE
-              </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 800, color: "#4ADE80", fontSize: "22px", mt: 0.5 }}>
-                ₹{formatAmount(headerWallet?.available_balance ?? wallet.availableBalance ?? wallet.mainBalance)}
-              </Typography>
-            </Box>
-          </Grid>
-
-          {/* RESERVED */}
-          <Grid size={{ xs: 6, sm: 3 }}>
-            <Box
-              sx={{
-                p: 2,
-                borderRadius: 2.5,
-                bgcolor: "rgba(245, 158, 11, 0.08)",
-                border: "1px solid rgba(245, 158, 11, 0.25)",
-                height: "100%",
-              }}
-            >
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px", fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", display: "block" }}>
-                RESERVED
-              </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "22px", mt: 0.5 }}>
-                ₹{formatAmount(headerWallet?.blocked_balance)}
-              </Typography>
-            </Box>
-          </Grid>
-
-          {/* DEBIT */}
-          <Grid size={{ xs: 6, sm: 3 }}>
-            <Box
-              sx={{
-                p: 2,
-                borderRadius: 2.5,
-                bgcolor: "rgba(239, 68, 68, 0.08)",
-                border: "1px solid rgba(239, 68, 68, 0.25)",
-                height: "100%",
-              }}
-            >
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px", fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", display: "block" }}>
-                DEBIT
-              </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 800, color: "#F87171", fontSize: "22px", mt: 0.5 }}>
-                -₹{formatAmount(headerWallet?.todays_debit)}
-              </Typography>
-            </Box>
-          </Grid>
-
-          {/* REVERSAL */}
-          <Grid size={{ xs: 6, sm: 3 }}>
-            <Box
-              sx={{
-                p: 2,
-                borderRadius: 2.5,
-                bgcolor: "rgba(59, 130, 246, 0.08)",
-                border: "1px solid rgba(59, 130, 246, 0.25)",
-                height: "100%",
-              }}
-            >
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px", fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", display: "block" }}>
-                REVERSAL
-              </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "22px", mt: 0.5 }}>
-                +₹{formatAmount(headerWallet?.todays_credit)}
-              </Typography>
-            </Box>
-          </Grid>
-        </Grid>
-
-        {/* SECONDARY ROW (4 Cards) */}
-        <Grid container spacing={2}>
-          {/* COMMISSION */}
-          <Grid size={{ xs: 6, sm: 3 }}>
-            <Box
-              sx={{
-                p: 2,
-                borderRadius: 2.5,
-                bgcolor: "rgba(168, 85, 247, 0.08)",
-                border: "1px solid rgba(168, 85, 247, 0.25)",
-                height: "100%",
-              }}
-            >
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px", fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", display: "block" }}>
-                COMMISSION
-              </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 700, color: "#C084FC", fontSize: "20px", mt: 0.5 }}>
-                +₹{formatAmount(headerWallet?.todays_commission)}
-              </Typography>
-            </Box>
-          </Grid>
-
-          {/* GST */}
-          <Grid size={{ xs: 6, sm: 3 }}>
-            <Box
-              sx={{
-                p: 2,
-                borderRadius: 2.5,
-                bgcolor: "rgba(255, 255, 255, 0.03)",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
-                height: "100%",
-              }}
-            >
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px", fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", display: "block" }}>
-                GST
-              </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 700, color: "#E2E8F0", fontSize: "20px", mt: 0.5 }}>
-                ₹{formatAmount(headerWallet?.todays_gst)}
-              </Typography>
-            </Box>
-          </Grid>
-
-          {/* TDS */}
-          <Grid size={{ xs: 6, sm: 3 }}>
-            <Box
-              sx={{
-                p: 2,
-                borderRadius: 2.5,
-                bgcolor: "rgba(255, 255, 255, 0.03)",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
-                height: "100%",
-              }}
-            >
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px", fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", display: "block" }}>
-                TDS
-              </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 700, color: "#E2E8F0", fontSize: "20px", mt: 0.5 }}>
-                ₹{formatAmount(headerWallet?.todays_tds)}
-              </Typography>
-            </Box>
-          </Grid>
-
-          {/* POS PENDING */}
-          <Grid size={{ xs: 6, sm: 3 }}>
-            <Box
-              sx={{
-                p: 2,
-                borderRadius: 2.5,
-                bgcolor: "rgba(20, 184, 166, 0.08)",
-                border: "1px solid rgba(20, 184, 166, 0.25)",
-                height: "100%",
-              }}
-            >
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px", fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", display: "block" }}>
-                POS PENDING
-              </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 700, color: "#2DD4BF", fontSize: "20px", mt: 0.5 }}>
-                ₹{formatAmount(headerWallet?.settlement_pending_amount)}
-              </Typography>
-            </Box>
-          </Grid>
-        </Grid>
+        <TableContainer sx={{ overflowX: "auto" }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow
+                sx={{
+                  "& th": {
+                    backgroundColor: "#FAF8F9",
+                    color: "#625B60",
+                    fontWeight: 700,
+                    fontSize: "11px",
+                    py: 1.4,
+                    textTransform: "uppercase",
+                    borderBottom: "1px solid #E8E2E5",
+                  },
+                }}
+              >
+                <TableCell sx={{ width: 60 }}>#</TableCell>
+                <TableCell>Service</TableCell>
+                <TableCell>Date & Time</TableCell>
+                <TableCell align="right">Amount</TableCell>
+                <TableCell align="center">Status</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {loading && !hasLoaded ? (
+                [1, 2, 3, 4, 5].map((i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton width={20} /></TableCell>
+                    <TableCell><Skeleton width={80} /></TableCell>
+                    <TableCell><Skeleton width={120} /></TableCell>
+                    <TableCell align="right"><Skeleton width={70} /></TableCell>
+                    <TableCell align="center"><Skeleton width={60} /></TableCell>
+                  </TableRow>
+                ))
+              ) : liveFeed.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} align="center" sx={{ py: 4, color: "#8A8288", fontSize: "13px" }}>
+                    No transactions recorded today. Use Quick Actions above to begin transacting.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                liveFeed.slice(0, 5).map((tx, idx) => (
+                  <TableRow
+                    key={tx.transaction_id || idx}
+                    sx={{
+                      "&:hover": { backgroundColor: "#FAF8F9" },
+                      "& td": { borderBottom: "1px solid #F5F2F4", py: 1.4 },
+                    }}
+                  >
+                    <TableCell sx={{ fontWeight: 600, color: "#8A8288", fontSize: "12px" }}>
+                      {idx + 1}
+                    </TableCell>
+                    <TableCell>
+                      <Typography sx={{ fontWeight: 700, color: "#292329", fontSize: "13px" }}>
+                        {tx.mode || "DMT / IMPS"}
+                      </Typography>
+                      <Typography sx={{ color: "#8A8288", fontSize: "11px" }}>
+                        {tx.transaction_number || tx.vendor_ref || "--"}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ color: "#625B60", fontSize: "12px" }}>
+                      {formatDateTime(tx.initiated_at)}
+                    </TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 800, color: "#292329", fontSize: "14px" }}>
+                      ₹{formatAmount(tx.amount)}
+                    </TableCell>
+                    <TableCell align="center">
+                      {getStatusChip(tx.status)}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
       </Paper>
 
-      {/* 4. FINANCIAL ACCOUNTING KPIS */}
-      <Typography variant="h3" sx={{ fontWeight: 700, color: "#FFFFFF", fontSize: "16px", mb: 1.5, letterSpacing: "0.2px" }}>
-        Financial Accounting KPIs
-      </Typography>
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        {[
-          { label: "TODAY'S TRANSFER", value: `₹${formatAmount(finKpis?.todays_transfer)}`, color: "#3B82F6", sub: "Gross Beneficiary Credit" },
-          { label: "TODAY'S WALLET DEBIT", value: `₹${formatAmount(finKpis?.todays_wallet_debit)}`, color: "#F87171", sub: "Amount + Fee + GST" },
-          { label: "TODAY'S COMMISSION", value: `₹${formatAmount(finKpis?.todays_commission)}`, color: "#4ADE80", sub: "Instant Net Revenue" },
-          { label: "TODAY'S GST", value: `₹${formatAmount(finKpis?.todays_gst)}`, color: "#FBBF24", sub: "18% GST Deduction" },
-          { label: "TODAY'S TDS", value: `₹${formatAmount(finKpis?.todays_tds)}`, color: "#C084FC", sub: "Sec 194O Tax Withheld" },
-          { label: "SETTLEMENT PENDING", value: `₹${formatAmount(finKpis?.settlement_pending_amount)}`, color: "#FBBF24", sub: "Awaiting Bank Settlement" },
-          { label: "SETTLEMENT SETTLED", value: `₹${formatAmount(finKpis?.settlement_completed_amount)}`, color: "#4ADE80", sub: "Credited to Bank Account" },
-          { label: "CURRENT WALLET BALANCE", value: `₹${formatAmount(finKpis?.wallet_balance)}`, color: "#38BDF8", sub: "Live Account Ledger" }
-        ].map((k) => (
-          <Grid size={{ xs: 6, sm: 4, md: 3 }} key={k.label}>
-            <Paper elevation={0} sx={{ p: 2, borderRadius: 2.5, backgroundColor: "rgba(15, 23, 42, 0.85)", border: "1px solid rgba(255, 255, 255, 0.08)", borderLeft: `4px solid ${k.color}` }}>
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 600, fontSize: "11px", letterSpacing: "0.4px" }}>{k.label}</Typography>
-              <Typography variant="h4" sx={{ fontWeight: 700, color: "#FFFFFF", mt: 0.5, fontSize: "20px" }}>{k.value}</Typography>
-              <Typography variant="caption" sx={{ color: "#64748B", fontSize: "11px", mt: 0.3, display: "block" }}>{k.sub}</Typography>
-            </Paper>
-          </Grid>
-        ))}
-      </Grid>
-
-      {/* 5. OPERATIONS & VELOCITY METRICS */}
-      <Typography variant="h3" sx={{ fontWeight: 700, color: "#FFFFFF", fontSize: "16px", mb: 1.5, letterSpacing: "0.2px" }}>
-        Operations & Velocity
-      </Typography>
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        {[
-          { label: "PENDING", value: opsKpis ? opsKpis.pending_transactions : 0, color: "#FBBF24", sub: "Queued" },
-          { label: "PROCESSING", value: opsKpis ? opsKpis.processing_transactions : 0, color: "#60A5FA", sub: "Active Handshake" },
-          { label: "SUCCESSFUL", value: opsKpis ? opsKpis.successful_transactions : 0, color: "#4ADE80", sub: "Confirmed" },
-          { label: "FAILED", value: opsKpis ? opsKpis.failed_transactions : 0, color: "#F87171", sub: "Rejected" },
-          { label: "REVERSED", value: opsKpis ? opsKpis.reversed_transactions : 0, color: "#C084FC", sub: "Auto-Refunded" },
-          { label: "CUSTOMERS TODAY", value: opsKpis ? opsKpis.todays_customers : 0, color: "#38BDF8", sub: "Unique Senders" },
-          { label: "BENEFICIARIES", value: opsKpis ? opsKpis.todays_beneficiaries : 0, color: "#F472B6", sub: "Receivers" },
-          { label: "AVG SPEED", value: `${opsKpis ? opsKpis.average_processing_time_seconds : 2.4}s`, color: "#60A5FA", sub: "Latency" },
-          { label: "SUCCESS RATE", value: `${opsKpis ? opsKpis.success_rate_pct : 98.6}%`, color: "#4ADE80", sub: "Benchmark" },
-          { label: "HEALTH STATUS", value: opsKpis ? opsKpis.business_health : "EXCELLENT", color: "#4ADE80", sub: "State" }
-        ].map((k) => (
-          <Grid size={{ xs: 6, sm: 4, md: 2.4 }} key={k.label}>
-            <Paper elevation={0} sx={{ p: 1.75, borderRadius: 2.5, backgroundColor: "rgba(15, 23, 42, 0.85)", border: "1px solid rgba(255, 255, 255, 0.08)", borderLeft: `4px solid ${k.color}` }}>
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 600, fontSize: "11px", letterSpacing: "0.4px" }}>{k.label}</Typography>
-              <Typography variant="h4" sx={{ fontWeight: 700, color: "#FFFFFF", mt: 0.5, fontSize: "20px" }}>{k.value}</Typography>
-              <Typography variant="caption" sx={{ color: "#64748B", fontSize: "11px", mt: 0.2, display: "block" }}>{k.sub}</Typography>
-            </Paper>
-          </Grid>
-        ))}
-      </Grid>
-
-      {/* 6. FINANCIAL CHARTS & BUSINESS ALERTS */}
+      {/* ADDITIONAL SECTIONS: INTERACTIVE ANALYTICS & BUSINESS INSIGHTS */}
       <Grid container spacing={2.5} sx={{ mb: 3 }}>
         <Grid size={{ xs: 12, md: 8 }}>
-          <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, backgroundColor: "rgba(15, 23, 42, 0.85)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+          <Paper elevation={0} sx={{ p: 2.5, borderRadius: "20px", backgroundColor: "#FFFFFF", border: "1px solid #E8E2E5" }}>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, flexWrap: "wrap", gap: 1.5 }}>
-              <Typography variant="h3" sx={{ fontWeight: 700, color: "#FFFFFF", fontSize: "16px" }}>
+              <Typography variant="h3" sx={{ fontWeight: 800, color: "#292329", fontSize: "16px" }}>
                 Interactive Analytics
               </Typography>
               <Box sx={{ display: "flex", gap: 1 }}>
@@ -713,279 +1249,133 @@ export const RetailerDashboardView: React.FC = () => {
                     label={tf}
                     size="small"
                     onClick={() => setTimeframe(tf)}
-                    sx={{ backgroundColor: timeframe === tf ? "#2563EB" : "rgba(255,255,255,0.06)", color: "#FFFFFF", fontWeight: 700, fontSize: "12px", px: 0.5, cursor: "pointer" }}
+                    sx={{
+                      backgroundColor: timeframe === tf ? "#A20A3A" : "#FAF8F9",
+                      color: timeframe === tf ? "#FFFFFF" : "#625B60",
+                      fontWeight: 700,
+                      fontSize: "12px",
+                      px: 0.5,
+                      cursor: "pointer",
+                      border: timeframe === tf ? "1px solid #A20A3A" : "1px solid #E8E2E5"
+                    }}
                   />
                 ))}
               </Box>
             </Box>
 
-            <Box sx={{ borderBottom: 1, borderColor: "rgba(255,255,255,0.08)", mb: 2 }}>
-              <Tabs value={chartTab} onChange={(_, val) => setChartTab(val)} textColor="inherit" indicatorColor="primary">
-                <Tab label="Volume" sx={{ textTransform: "none", fontWeight: 600, fontSize: "13px", color: "#E2E8F0" }} />
-                <Tab label="Commission" sx={{ textTransform: "none", fontWeight: 600, fontSize: "13px", color: "#E2E8F0" }} />
-                <Tab label="Wallet Flow" sx={{ textTransform: "none", fontWeight: 600, fontSize: "13px", color: "#E2E8F0" }} />
-                <Tab label="Settlement" sx={{ textTransform: "none", fontWeight: 600, fontSize: "13px", color: "#E2E8F0" }} />
-              </Tabs>
-            </Box>
+            <Tabs
+              value={chartTab}
+              onChange={(_, v) => setChartTab(v)}
+              sx={{
+                mb: 2,
+                minHeight: 36,
+                "& .MuiTab-root": {
+                  minHeight: 36,
+                  py: 0.5,
+                  px: 2,
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  textTransform: "none",
+                  color: "#625B60",
+                  "&.Mui-selected": { color: "#A20A3A" }
+                },
+                "& .MuiTabs-indicator": { backgroundColor: "#A20A3A" }
+              }}
+            >
+              <Tab label="Transaction Volume" />
+              <Tab label="Commission Earnings" />
+              <Tab label="Settlements" />
+            </Tabs>
 
             <Box sx={{ height: 260, width: "100%" }}>
               <ResponsiveContainer width="100%" height="100%">
                 {chartTab === 0 ? (
-                  <AreaChart data={charts.transaction_trend}>
+                  <AreaChart data={charts.transaction_trend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
-                      <linearGradient id="colorAmt" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
+                      <linearGradient id="txGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#A20A3A" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#A20A3A" stopOpacity={0.0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                    <XAxis dataKey="date" stroke="#64748B" tick={{ fontSize: 12 }} />
-                    <YAxis stroke="#64748B" tick={{ fontSize: 12 }} />
-                    <RechartsTooltip contentStyle={{ backgroundColor: "#0F172A", borderColor: "rgba(255,255,255,0.1)", borderRadius: 8, fontSize: "13px" }} />
-                    <Area type="monotone" dataKey="amount" stroke="#3B82F6" strokeWidth={2} fillOpacity={1} fill="url(#colorAmt)" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F5F2F4" vertical={false} />
+                    <XAxis dataKey="date" stroke="#8A8288" fontSize={11} tickLine={false} />
+                    <YAxis stroke="#8A8288" fontSize={11} tickLine={false} tickFormatter={(v) => `₹${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`} />
+                    <RechartsTooltip
+                      contentStyle={{ backgroundColor: "#FFFFFF", border: "1px solid #E8E2E5", borderRadius: "10px", color: "#292329", fontSize: "12px" }}
+                    />
+                    <Area type="monotone" dataKey="amount" stroke="#A20A3A" strokeWidth={2.5} fillOpacity={1} fill="url(#txGradient)" />
                   </AreaChart>
                 ) : chartTab === 1 ? (
-                  <BarChart data={charts.commission_trend}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                    <XAxis dataKey="date" stroke="#64748B" tick={{ fontSize: 12 }} />
-                    <YAxis stroke="#64748B" tick={{ fontSize: 12 }} />
-                    <RechartsTooltip contentStyle={{ backgroundColor: "#0F172A", borderColor: "rgba(255,255,255,0.1)", borderRadius: 8, fontSize: "13px" }} />
-                    <Bar dataKey="commission" fill="#4ADE80" radius={[4, 4, 0, 0]} />
+                  <BarChart data={charts.commission_trend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F5F2F4" vertical={false} />
+                    <XAxis dataKey="date" stroke="#8A8288" fontSize={11} tickLine={false} />
+                    <YAxis stroke="#8A8288" fontSize={11} tickLine={false} tickFormatter={(v) => `₹${v}`} />
+                    <RechartsTooltip
+                      contentStyle={{ backgroundColor: "#FFFFFF", border: "1px solid #E8E2E5", borderRadius: "10px", color: "#292329", fontSize: "12px" }}
+                    />
+                    <Bar dataKey="commission" fill="#EDC11E" radius={[6, 6, 0, 0]} />
                   </BarChart>
-                ) : chartTab === 2 ? (
-                  <AreaChart data={charts.wallet_trend}>
+                ) : (
+                  <AreaChart data={charts.settlement_trend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
-                      <linearGradient id="colorWal" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#4ADE80" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#4ADE80" stopOpacity={0} />
+                      <linearGradient id="settleGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#EDC11E" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#EDC11E" stopOpacity={0.0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                    <XAxis dataKey="date" stroke="#64748B" tick={{ fontSize: 12 }} />
-                    <YAxis stroke="#64748B" tick={{ fontSize: 12 }} />
-                    <RechartsTooltip contentStyle={{ backgroundColor: "#0F172A", borderColor: "rgba(255,255,255,0.1)", borderRadius: 8, fontSize: "13px" }} />
-                    <Area type="monotone" dataKey="closing_balance" stroke="#4ADE80" strokeWidth={2} fillOpacity={1} fill="url(#colorWal)" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F5F2F4" vertical={false} />
+                    <XAxis dataKey="date" stroke="#8A8288" fontSize={11} tickLine={false} />
+                    <YAxis stroke="#8A8288" fontSize={11} tickLine={false} tickFormatter={(v) => `₹${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`} />
+                    <RechartsTooltip
+                      contentStyle={{ backgroundColor: "#FFFFFF", border: "1px solid #E8E2E5", borderRadius: "10px", color: "#292329", fontSize: "12px" }}
+                    />
+                    <Area type="monotone" dataKey="settled" stroke="#EDC11E" strokeWidth={2.5} fillOpacity={1} fill="url(#settleGradient)" />
                   </AreaChart>
-                ) : (
-                  <BarChart data={charts.settlement_trend}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                    <XAxis dataKey="date" stroke="#64748B" tick={{ fontSize: 12 }} />
-                    <YAxis stroke="#64748B" tick={{ fontSize: 12 }} />
-                    <RechartsTooltip contentStyle={{ backgroundColor: "#0F172A", borderColor: "rgba(255,255,255,0.1)", borderRadius: 8, fontSize: "13px" }} />
-                    <Bar dataKey="settled" fill="#38BDF8" stackId="a" />
-                    <Bar dataKey="pending" fill="#FBBF24" stackId="a" />
-                  </BarChart>
                 )}
               </ResponsiveContainer>
             </Box>
           </Paper>
         </Grid>
 
-        {/* Business Alerts & System Notifications */}
         <Grid size={{ xs: 12, md: 4 }}>
-          <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, backgroundColor: "rgba(15, 23, 42, 0.85)", border: "1px solid rgba(255, 255, 255, 0.08)", height: "100%", display: "flex", flexDirection: "column" }}>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-              <Typography variant="h3" sx={{ fontWeight: 700, color: "#FFFFFF", fontSize: "16px", display: "flex", alignItems: "center", gap: 1 }}>
-                <WarningIcon color="warning" sx={{ fontSize: 20 }} /> Live Alerts & Updates
-                {(alerts.length > 0 || notifications.length > 0) && (
-                  <Chip
-                    label={alerts.length + notifications.length}
-                    size="small"
-                    sx={{
-                      height: 18,
-                      fontSize: "10px",
-                      fontWeight: 900,
-                      bgcolor: "rgba(251, 191, 36, 0.2)",
-                      color: "#FDE047",
-                      border: "1px solid rgba(251, 191, 36, 0.4)",
-                    }}
-                  />
-                )}
+          <Paper elevation={0} sx={{ p: 2.5, borderRadius: "20px", backgroundColor: "#FFFFFF", border: "1px solid #E8E2E5", height: "100%" }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+              <Typography variant="h3" sx={{ fontWeight: 800, color: "#292329", fontSize: "16px", display: "flex", alignItems: "center", gap: 1 }}>
+                <WarningIcon sx={{ fontSize: 18, color: "#EDC11E" }} />
+                Business Alerts
               </Typography>
-              <Button
-                size="small"
-                onClick={() => router.push("/retailer/notifications")}
-                sx={{
-                  textTransform: "none",
-                  fontWeight: 700,
-                  fontSize: "11.5px",
-                  color: "#FDE047",
-                  minWidth: 0,
-                  p: "2px 6px",
-                  "&:hover": { color: "#FEF08A", backgroundColor: "rgba(251, 191, 36, 0.12)" },
-                }}
-              >
-                View All →
-              </Button>
+              <Chip label={`${alerts.length} Active`} size="small" sx={{ bgcolor: "#FFF0F4", color: "#A20A3A", fontWeight: 700, fontSize: "11px", border: "1px solid #FCD3DE" }} />
             </Box>
 
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, flex: 1, overflowY: "auto", maxHeight: 290, pr: 0.5 }}>
-              {alerts.length === 0 && notifications.length === 0 ? (
-                <Typography sx={{ color: "#64748B", fontSize: "12px", textAlign: "center", py: 4 }}>
-                  All systems operating normally.
-                </Typography>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, maxHeight: 290, overflowY: "auto", pr: 0.5 }}>
+              {alerts.length === 0 ? (
+                <Box sx={{ p: 3, textAlign: "center", bgcolor: "#FAF8F9", borderRadius: "12px", border: "1px solid #E8E2E5" }}>
+                  <Typography variant="body2" sx={{ color: "#625B60", fontSize: "13px" }}>
+                    All financial pipes and switches are operating nominally. Zero alerts.
+                  </Typography>
+                </Box>
               ) : (
-                <>
-                  {alerts.map((alt) => (
-                    <Box
-                      key={alt.id}
-                      sx={{
-                        p: 1.75,
-                        borderRadius: 2,
-                        backgroundColor: alt.priority === "CRITICAL" ? "rgba(220, 38, 38, 0.1)" : "rgba(217, 119, 6, 0.1)",
-                        border: `1px solid ${alt.priority === "CRITICAL" ? "rgba(248, 113, 113, 0.3)" : "rgba(251, 191, 36, 0.3)"}`
-                      }}
-                    >
-                      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5, alignItems: "center" }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: alt.priority === "CRITICAL" ? "#FCA5A5" : "#FDE047", fontSize: "13px" }}>
-                          {alt.title}
-                        </Typography>
-                        <Chip label={alt.priority} size="small" sx={{ height: 18, fontSize: "10px", fontWeight: 700 }} />
-                      </Box>
-                      <Typography variant="body2" sx={{ color: "#CBD5E1", fontSize: "12px", lineHeight: 1.4 }}>{alt.message}</Typography>
-                    </Box>
-                  ))}
-
-                  {notifications.map((notif: any) => {
-                    const isSuccess = (notif.status || "").toUpperCase() === "SUCCESS";
-                    const isTxn = (notif.type || "").toUpperCase() === "TRANSACTION";
-                    const isCredit = (notif.type || "").toUpperCase() === "CREDIT";
-
-                    return (
-                      <Box
-                        key={notif.id}
-                        sx={{
-                          p: 1.5,
-                          borderRadius: 2,
-                          backgroundColor: isSuccess ? "rgba(34, 197, 94, 0.12)" : "rgba(56, 189, 248, 0.12)",
-                          border: isSuccess ? "1px solid rgba(74, 222, 128, 0.3)" : "1px solid rgba(56, 189, 248, 0.3)",
-                        }}
-                      >
-                        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.4, alignItems: "center" }}>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: isSuccess ? "#86EFAC" : "#7DD3FC", fontSize: "13px" }}>
-                            {notif.title}
-                          </Typography>
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.6 }}>
-                            {notif.amount && Number(notif.amount) > 0 && (
-                              <Typography sx={{ fontWeight: 800, color: "#4ADE80", fontSize: "12px", fontFamily: "monospace" }}>
-                                {isCredit || isTxn ? "+" : ""}₹{formatAmount(notif.amount)}
-                              </Typography>
-                            )}
-                            <Chip
-                              label={notif.status || notif.type || "INFO"}
-                              size="small"
-                              sx={{
-                                height: 17,
-                                fontSize: "9px",
-                                fontWeight: 800,
-                                bgcolor: isSuccess ? "rgba(34, 197, 94, 0.2)" : "rgba(56, 189, 248, 0.2)",
-                                color: isSuccess ? "#4ADE80" : "#38BDF8",
-                              }}
-                            />
-                          </Box>
-                        </Box>
-                        <Typography variant="body2" sx={{ color: "#CBD5E1", fontSize: "12px", lineHeight: 1.35 }}>
-                          {notif.message}
-                        </Typography>
-                        {notif.reference && (
-                          <Box sx={{ mt: 0.5, pt: 0.4, borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-between" }}>
-                            <Chip
-                              label={notif.reference}
-                              size="small"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigator.clipboard.writeText(notif.reference);
-                              }}
-                              sx={{
-                                height: 18,
-                                fontSize: "9.5px",
-                                fontFamily: "monospace",
-                                bgcolor: "rgba(251, 191, 36, 0.12)",
-                                color: "#FDE68A",
-                                cursor: "pointer",
-                              }}
-                            />
-                            <Typography sx={{ color: "#94A3B8", fontSize: "10px" }}>
-                              {notif.created_at ? new Date(notif.created_at).toLocaleTimeString("en-IN", { timeStyle: "short" }) : ""}
-                            </Typography>
-                          </Box>
-                        )}
-                      </Box>
-                    );
-                  })}
-                </>
-              )}
-            </Box>
-          </Paper>
-        </Grid>
-      </Grid>
-
-      {/* 7. LIVE TRANSACTION FEED & RECENT ACTIVITY */}
-      <Grid container spacing={2.5} sx={{ mb: 3 }}>
-        <Grid size={{ xs: 12, md: 8 }}>
-          <Paper sx={{ borderRadius: 3, backgroundColor: "rgba(15, 23, 42, 0.85)", border: "1px solid rgba(255, 255, 255, 0.08)", overflow: "hidden" }}>
-            <Box sx={{ p: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <Typography variant="h3" sx={{ fontWeight: 700, color: "#FFFFFF", fontSize: "16px" }}>Live Transaction Feed</Typography>
-              <Button size="small" variant="outlined" onClick={() => router.push("/retailer/dmt/reports")} sx={{ textTransform: "none", fontWeight: 600, fontSize: "12px", borderColor: "rgba(255,255,255,0.2)", color: "#E2E8F0" }}>
-                Full Report
-              </Button>
-            </Box>
-            <TableContainer sx={{ maxHeight: 320 }}>
-              <Table stickyHeader size="small">
-                <TableHead>
-                  <TableRow sx={{ "& th": { backgroundColor: "#0F172A", color: "#94A3B8", fontWeight: 700, fontSize: "11px", py: 1.2, textTransform: "uppercase" } }}>
-                    <TableCell>Time</TableCell>
-                    <TableCell>Txn ID</TableCell>
-                    <TableCell align="right">Amount</TableCell>
-                    <TableCell align="right">Debit</TableCell>
-                    <TableCell>Mode</TableCell>
-                    <TableCell>UTR</TableCell>
-                    <TableCell align="center">Status</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {liveFeed.map((tx) => (
-                    <TableRow key={tx.transaction_id} hover sx={{ "& td": { borderColor: "rgba(255,255,255,0.06)", color: "#E2E8F0", fontSize: "13px", fontWeight: 500, py: 1 } }}>
-                      <TableCell sx={{ color: "#94A3B8" }}>{tx.initiated_at ? new Date(tx.initiated_at).toLocaleTimeString("en-IN", { timeStyle: "short" }) : "--"}</TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: "#60A5FA" }}>{tx.transaction_number}</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 700, color: "#FFFFFF" }}>₹{formatAmount(tx?.amount)}</TableCell>
-                      <TableCell align="right" sx={{ color: "#F87171", fontWeight: 600 }}>₹{formatAmount(tx?.net_debit)}</TableCell>
-                      <TableCell>{tx.mode}</TableCell>
-                      <TableCell sx={{ fontFamily: "monospace", fontSize: "12px", color: "#94A3B8" }}>{tx.utr_number}</TableCell>
-                      <TableCell align="center">{getStatusChip(tx.status)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
-        </Grid>
-
-        <Grid size={{ xs: 12, md: 4 }}>
-          <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, backgroundColor: "rgba(15, 23, 42, 0.85)", border: "1px solid rgba(255, 255, 255, 0.08)", height: "100%" }}>
-            <Typography variant="h3" sx={{ fontWeight: 700, color: "#FFFFFF", fontSize: "16px", mb: 2 }}>Activity Log</Typography>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-              {activities.length === 0 && notifications.length === 0 ? (
-                <Typography sx={{ color: "#64748B", fontSize: "12px", textAlign: "center", py: 3 }}>
-                  No recent activities recorded.
-                </Typography>
-              ) : activities.length > 0 ? (
-                activities.map((act) => (
-                  <Box key={act.id} sx={{ p: 1.75, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#60A5FA", fontSize: "13px" }}>{act.title}</Typography>
-                    <Typography variant="body2" sx={{ color: "#CBD5E1", fontSize: "12px", mt: 0.3, lineHeight: 1.4 }}>{act.desc}</Typography>
-                  </Box>
-                ))
-              ) : (
-                notifications.slice(0, 4).map((notif: any) => (
-                  <Box key={notif.id} sx={{ p: 1.5, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#60A5FA", fontSize: "13px" }}>{notif.title}</Typography>
-                      <Typography sx={{ color: "#94A3B8", fontSize: "10px" }}>
-                        {notif.created_at ? new Date(notif.created_at).toLocaleTimeString("en-IN", { timeStyle: "short" }) : ""}
+                alerts.map((alt) => (
+                  <Box
+                    key={alt.id}
+                    sx={{
+                      p: 1.75,
+                      borderRadius: "12px",
+                      bgcolor: alt.priority === "HIGH" ? "#FFF0F4" : "#FAF8F9",
+                      border: alt.priority === "HIGH" ? "1px solid #FCD3DE" : "1px solid #E8E2E5",
+                    }}
+                  >
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
+                      <Typography sx={{ fontWeight: 700, fontSize: "13px", color: alt.priority === "HIGH" ? "#A20A3A" : "#292329" }}>
+                        {alt.title}
+                      </Typography>
+                      <Typography sx={{ fontSize: "10px", color: "#8A8288" }}>
+                        {alt.timestamp ? new Date(alt.timestamp).toLocaleTimeString("en-IN", { timeStyle: "short" }) : ""}
                       </Typography>
                     </Box>
-                    <Typography variant="body2" sx={{ color: "#CBD5E1", fontSize: "12px", mt: 0.3, lineHeight: 1.4 }}>{notif.message}</Typography>
+                    <Typography sx={{ fontSize: "12px", color: "#625B60", lineHeight: 1.4 }}>
+                      {alt.message}
+                    </Typography>
                   </Box>
                 ))
               )}
@@ -994,37 +1384,7 @@ export const RetailerDashboardView: React.FC = () => {
         </Grid>
       </Grid>
 
-      {/* 8. ONE-CLICK QUICK REPORTS */}
-      <Typography variant="h3" sx={{ fontWeight: 700, color: "#FFFFFF", fontSize: "16px", mb: 1.5 }}>
-        Quick Reports
-      </Typography>
-      <Grid container spacing={2}>
-        {[
-          { title: "Payout Report", path: "/retailer/dmt/reports", desc: "Transfer and status history" },
-          { title: "Passbook Ledger", path: "/retailer/dmt/ledger", desc: "Wallet debit & credit statement" },
-          { title: "POS Settlement Report", path: "/retailer/pos/settlement-report", desc: "Terminal MDR & bank credit statement" }
-        ].map((rep) => (
-          <Grid size={{ xs: 12, md: 4 }} key={rep.title}>
-            <Paper
-              onClick={() => router.push(rep.path)}
-              elevation={0}
-              sx={{
-                p: 2,
-                borderRadius: 2.5,
-                backgroundColor: "rgba(15, 23, 42, 0.85)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
-                cursor: "pointer",
-                transition: "all 0.2s ease-in-out",
-                "&:hover": { transform: "translateY(-2px)", borderColor: "#F59E0B" }
-              }}
-            >
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#FFFFFF", fontSize: "14px" }}>{rep.title}</Typography>
-              <Typography variant="body2" sx={{ color: "#94A3B8", fontSize: "12px", mt: 0.3 }}>{rep.desc}</Typography>
-            </Paper>
-          </Grid>
-        ))}
-      </Grid>
-      {/* ── Dashboard Locked Feature Modal ────────────────────────────────────── */}
+      {/* DASHBOARD LOCKED FEATURE MODAL */}
       <Dialog
         open={Boolean(dashboardLockedModal)}
         onClose={() => setDashboardLockedModal(null)}
@@ -1032,64 +1392,61 @@ export const RetailerDashboardView: React.FC = () => {
           paper: {
             sx: {
               borderRadius: "24px",
-              bgcolor: "#0F172A",
-              color: "#FFFFFF",
+              bgcolor: "#FFFFFF",
+              color: "#292329",
               p: 3.5,
               maxWidth: 440,
               width: "100%",
-              border: "1px solid rgba(245, 158, 11, 0.4)",
-              boxShadow: "0 24px 48px rgba(0,0,0,0.6)",
+              border: "1px solid #E8E2E5",
+              boxShadow: "0 24px 48px rgba(0,0,0,0.15)",
             },
           },
         }}
       >
-        <Box sx={{ textCenter: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <Box sx={{ w: 14, h: 14, p: 1.5, borderRadius: "50%", bgcolor: "rgba(245, 158, 11, 0.15)", border: "2px solid rgba(245, 158, 11, 0.4)", color: "#FBBF24", mb: 2, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <LockIcon sx={{ fontSize: 32 }} />
+        <Box sx={{ textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <Box sx={{ width: 56, height: 56, p: 1.5, borderRadius: "50%", bgcolor: "#FFF0F4", border: "2px solid #FCD3DE", color: "#A20A3A", mb: 2, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <LockIcon sx={{ fontSize: 28 }} />
           </Box>
-          <Typography variant="h6" sx={{ fontWeight: 900, color: "#FFFFFF", textAlign: "center" }}>
+          <Typography variant="h6" sx={{ fontWeight: 900, color: "#292329", textAlign: "center" }}>
             {dashboardLockedModal?.label || "Action"} Restricted
           </Typography>
-          <Typography variant="body2" sx={{ color: "#CBD5E1", mt: 1.5, textAlign: "center", fontSize: "13px", lineHeight: 1.5 }}>
+          <Typography variant="body2" sx={{ color: "#625B60", mt: 1.5, textAlign: "center", fontSize: "13px", lineHeight: 1.5 }}>
             Your retailer account is currently <strong>PENDING ADMIN APPROVAL</strong>. Financial services, wallet top-ups, and transaction actions are restricted until Admin approves your application.
           </Typography>
 
-          <Stack spacing={1.5} sx={{ mt: 3, width: "100%" }}>
-            <Button
-              component={Link}
-              href="/register/submitted"
-              onClick={() => setDashboardLockedModal(null)}
-              variant="contained"
-              fullWidth
-              sx={{ bgcolor: "#2563EB", color: "#FFF", fontWeight: 800, borderRadius: "12px", height: 44, textTransform: "none", fontSize: "13px" }}
-            >
-              View Application Status
-            </Button>
+          <Box sx={{ width: "100%", mt: 3, display: "flex", flexDirection: "column", gap: 1.5 }}>
             <Button
               onClick={() => {
                 setDashboardLockedModal(null);
-                openContactSupportModal();
+                openContactSupportModal("Account Approval Assistance");
               }}
-              variant="outlined"
+              variant="contained"
               fullWidth
-              sx={{ borderColor: "#3B82F6", color: "#60A5FA", fontWeight: 800, borderRadius: "12px", height: 44, textTransform: "none", fontSize: "13px", "&:hover": { bgcolor: "rgba(59, 130, 246, 0.1)" } }}
+              sx={{
+                bgcolor: "#A20A3A",
+                color: "#FFFFFF",
+                fontWeight: 700,
+                textTransform: "none",
+                borderRadius: "9999px",
+                py: 1,
+                "&:hover": { bgcolor: "#85072F" }
+              }}
             >
-              Contact Admin Support
+              Contact Support
             </Button>
             <Button
               onClick={() => setDashboardLockedModal(null)}
               variant="text"
               fullWidth
-              sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "none", fontSize: "13px" }}
+              sx={{ color: "#625B60", fontWeight: 700, textTransform: "none", fontSize: "13px" }}
             >
               Dismiss
             </Button>
-          </Stack>
+          </Box>
         </Box>
       </Dialog>
-
-      {/* Dynamic Database & Backblaze B2 Driven Announcement Modal */}
-      <DashboardAnnouncementModal audience="RETAILER" />
     </Box>
   );
 };
+
+export default RetailerDashboardView;

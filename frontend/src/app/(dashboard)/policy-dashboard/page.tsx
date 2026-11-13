@@ -45,14 +45,14 @@ export default function PolicyDashboardPage() {
           <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
             <Sliders className="w-7 h-7 text-cyan-400" /> Central Policy & Rule Telemetry
           </h1>
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-[#625B60] text-sm mt-1">
             Single Source of Truth for 11-Tier Hierarchy Overrides, Limits & Pre-Transaction Controls
           </p>
         </div>
         <button
           onClick={fetchMetrics}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 text-sm font-medium transition-all"
+          className="flex items-center gap-2 px-4 py-2 bg-[#F5F2F4] hover:bg-slate-700 text-[#292329] rounded-lg border border-[#E8E2E5] text-sm font-medium transition-all"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh Telemetry
         </button>
@@ -60,10 +60,10 @@ export default function PolicyDashboardPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="glass-card p-5 rounded-xl border border-slate-800 bg-slate-900/60 relative overflow-hidden">
+        <div className="glass-card p-5 rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 relative overflow-hidden">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Total Policy Masters</p>
+              <p className="text-[#625B60] text-xs font-semibold uppercase tracking-wider">Total Policy Masters</p>
               <h3 className="text-2xl font-bold text-white mt-1">
                 {metrics?.total_policies ?? 0}
               </h3>
@@ -77,14 +77,14 @@ export default function PolicyDashboardPage() {
           </div>
         </div>
 
-        <div className="glass-card p-5 rounded-xl border border-slate-800 bg-slate-900/60 relative overflow-hidden">
+        <div className="glass-card p-5 rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 relative overflow-hidden">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Published Policies</p>
+              <p className="text-[#625B60] text-xs font-semibold uppercase tracking-wider">Published Policies</p>
               <h3 className="text-2xl font-bold text-emerald-400 mt-1">
                 {metrics?.active_policies ?? 0}
               </h3>
-              <p className="text-xs text-slate-500 mt-2">Active in production pipeline</p>
+              <p className="text-xs text-[#8A8288] mt-2">Active in production pipeline</p>
             </div>
             <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
               <CheckCircle2 className="w-5 h-5" />
@@ -92,10 +92,10 @@ export default function PolicyDashboardPage() {
           </div>
         </div>
 
-        <div className="glass-card p-5 rounded-xl border border-slate-800 bg-slate-900/60 relative overflow-hidden">
+        <div className="glass-card p-5 rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 relative overflow-hidden">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Evaluation Latency</p>
+              <p className="text-[#625B60] text-xs font-semibold uppercase tracking-wider">Evaluation Latency</p>
               <h3 className="text-2xl font-bold text-cyan-400 mt-1">
                 {metrics?.average_evaluation_latency_ms ?? 1.2} ms
               </h3>
@@ -107,10 +107,10 @@ export default function PolicyDashboardPage() {
           </div>
         </div>
 
-        <div className="glass-card p-5 rounded-xl border border-slate-800 bg-slate-900/60 relative overflow-hidden">
+        <div className="glass-card p-5 rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 relative overflow-hidden">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Active Overrides</p>
+              <p className="text-[#625B60] text-xs font-semibold uppercase tracking-wider">Active Overrides</p>
               <h3 className="text-2xl font-bold text-purple-400 mt-1">
                 {metrics?.overrides_count ?? 0}
               </h3>
@@ -124,11 +124,11 @@ export default function PolicyDashboardPage() {
       </div>
 
       {/* 11-Tier Hierarchy Map */}
-      <div className="glass-card p-6 rounded-xl border border-slate-800 bg-slate-900/60 space-y-4">
+      <div className="glass-card p-6 rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 space-y-4">
         <h3 className="text-base font-semibold text-white flex items-center gap-2">
           <GitBranch className="w-4 h-4 text-cyan-400" /> 11-Tier Configuration Resolution Cascade
         </h3>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-[#625B60]">
           Rule Evaluation Principle: <strong className="text-cyan-400 font-mono">"Nearest Configuration Overrides Parent"</strong>
         </p>
 
@@ -138,7 +138,7 @@ export default function PolicyDashboardPage() {
             "5. Super Dist", "6. Distributor", "7. Retailer",
             "8. Cust Cat", "9. Customer", "10. Ben Cat", "11. Beneficiary"
           ].map((tier, idx) => (
-            <div key={idx} className="p-3 rounded-lg bg-slate-800/40 border border-slate-800 text-center">
+            <div key={idx} className="p-3 rounded-lg bg-[#F5F2F4]/40 border border-[#E8E2E5] text-center">
               <span className="text-xs font-semibold text-cyan-300 block font-mono">{tier}</span>
             </div>
           ))}

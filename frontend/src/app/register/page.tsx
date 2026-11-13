@@ -25,7 +25,7 @@ export default function RegisterIndexPage() {
   return (
     <div className="py-8 text-center">
       <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-      <p className="text-sm font-bold text-slate-400">Loading your registration portal step...</p>
+      <p className="text-sm font-bold text-[#625B60]">Loading your registration portal step...</p>
     </div>
   );
 }

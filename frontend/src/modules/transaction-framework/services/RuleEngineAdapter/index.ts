@@ -47,7 +47,7 @@ export const DATABASE_TRANSACTION_MODES: TransactionModeRecord[] = [
     enabled: true,
     display_order: 1,
     minimum_amount: 1,
-    maximum_amount: 500000,
+    maximum_amount: 100, // TEST LIMIT — was 500000
     estimated_settlement_seconds: 1,
     supports_24x7: true,
     pricing_version: "v2.4.0-ENT",
@@ -318,12 +318,12 @@ export class RuleEngineService {
       });
     }
 
-    if (amount > 0 && amount < 100) {
+    if (amount > 0 && amount < 1) {
       validationErrors.push({
         code: "ERR_MIN_AMOUNT",
         ruleStep: 3,
         title: "Minimum Amount Violation",
-        message: `Transfer amount ₹${amount.toLocaleString()} is below minimum permitted limit of ₹100`,
+        message: `Transfer amount ₹${amount.toLocaleString()} is below minimum permitted limit of ₹1`,
         severity: "ERROR",
       });
     }
@@ -356,7 +356,7 @@ export class RuleEngineService {
 
     const beneficiaryRemaining = Math.min(effectiveBeneDailyRem, effectiveBeneMonthlyRem);
     const customerRemaining = Math.min(effectiveDailyRemaining, effectiveMonthlyRemaining);
-    const maximumAllowed = Math.min(50000, effectiveDailyRemaining, effectiveMonthlyRemaining, beneficiaryRemaining, Math.max(0, walletBalance - netFee));
+    const maximumAllowed = Math.min(100, effectiveDailyRemaining, effectiveMonthlyRemaining, beneficiaryRemaining, Math.max(0, walletBalance - netFee)); // TEST LIMIT — was 50000
     const allowed = amount > 0 && validationErrors.length === 0;
     const canProceed = allowed;
 

@@ -14,8 +14,8 @@ export default function AccountRestrictedPage() {
     <Box
       sx={{
         minHeight: "100vh",
-        backgroundColor: "#060D19",
-        backgroundImage: "radial-gradient(ellipse 80% 80% at 50% -20%, rgba(245, 158, 11, 0.20), rgba(255, 255, 255, 0))",
+        backgroundColor: "#FFFFFF",
+        backgroundImage: "none",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -28,10 +28,10 @@ export default function AccountRestrictedPage() {
           sx={{
             p: { xs: 3.5, sm: 4.5 },
             borderRadius: "24px",
-            backgroundColor: "rgba(15, 23, 42, 0.95)",
+            backgroundColor: "#FFFFFF",
             backdropFilter: "blur(20px)",
             border: "1px solid rgba(245, 158, 11, 0.35)",
-            boxShadow: "0 24px 48px -12px rgba(0,0,0,0.7), 0 0 40px rgba(245, 158, 11, 0.15)",
+            boxShadow: "0 24px 48px -12px rgba(41, 35, 41, 0.08), 0 0 40px rgba(245, 158, 11, 0.15)",
             textAlign: "center",
           }}
         >
@@ -40,9 +40,9 @@ export default function AccountRestrictedPage() {
               width: 72,
               height: 72,
               borderRadius: "50%",
-              backgroundColor: "rgba(245, 158, 11, 0.15)",
-              border: "2px solid rgba(245, 158, 11, 0.4)",
-              color: "#FBBF24",
+              backgroundColor: "#FFF8DC",
+              border: "2px solid #EDC11E",
+              color: "#EDC11E",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -53,10 +53,10 @@ export default function AccountRestrictedPage() {
             <LockIcon sx={{ fontSize: 38 }} />
           </Box>
 
-          <Typography variant="h5" sx={{ fontWeight: 900, color: "#FFFFFF", mb: 1 }}>
+          <Typography variant="h5" sx={{ fontWeight: 900, color: "#292329", mb: 1 }}>
             Account Restricted / Suspended
           </Typography>
-          <Typography variant="body2" sx={{ color: "#94A3B8", lineHeight: 1.6, mb: 3 }}>
+          <Typography variant="body2" sx={{ color: "#625B60", lineHeight: 1.6, mb: 3 }}>
             Your retailer workstation account has been temporarily restricted or suspended by platform operations. Financial transactions and workstation tools are disabled.
           </Typography>
 
@@ -65,32 +65,32 @@ export default function AccountRestrictedPage() {
               variant="outlined"
               startIcon={<ContactPhoneIcon />}
               onClick={() => {
-                window.location.href = "mailto:support@pay2pay.in";
+                window.location.href = "mailto:support@near4you.store";
               }}
               sx={{
-                borderColor: "rgba(255,255,255,0.2)",
-                color: "#FFFFFF",
+                borderColor: "#E8E2E5",
+                color: "#292329",
                 fontWeight: 700,
                 borderRadius: "12px",
                 height: 44,
                 textTransform: "none",
-                "&:hover": { borderColor: "#FFFFFF", bgcolor: "rgba(255,255,255,0.05)" },
+                "&:hover": { borderColor: "#A20A3A", bgcolor: "#FFF0F4" },
               }}
             >
-              Contact Support Desk (support@pay2pay.in)
+              Contact Support Desk (support@near4you.store)
             </Button>
             <Button
               variant="contained"
               startIcon={<LogoutIcon />}
               onClick={logout}
               sx={{
-                bgcolor: "#D97706",
+                bgcolor: "#A20A3A",
                 color: "#FFFFFF",
                 fontWeight: 800,
                 borderRadius: "12px",
                 height: 44,
                 textTransform: "none",
-                "&:hover": { bgcolor: "#B45309" },
+                "&:hover": { bgcolor: "#85072F" },
               }}
             >
               Logout Session

@@ -218,7 +218,7 @@ export default function ComplianceDashboardPage() {
               </div>
               <div>
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <h1 className="text-2xl font-extrabold text-[#0F172A] tracking-tight">
+                  <h1 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight">
                     Compliance & Regulatory Dashboard
                   </h1>
                   <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-400/30 text-[10px] font-extrabold text-amber-600 tracking-wider">
@@ -261,7 +261,7 @@ export default function ComplianceDashboardPage() {
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider">{kpi.label}</p>
-                    <p className="text-2xl font-extrabold text-[#0F172A] mt-1 tracking-tight">{kpi.value}</p>
+                    <p className="text-2xl font-extrabold text-[#FFFFFF] mt-1 tracking-tight">{kpi.value}</p>
                     <p className="text-[11px] text-[#94A3B8] mt-0.5 font-medium">{kpi.sub}</p>
                   </div>
                   <div className={`p-2.5 rounded-xl border ${kpi.iconBg} shrink-0`}>
@@ -293,7 +293,7 @@ export default function ComplianceDashboardPage() {
                 <ScrollText className="w-5 h-5 text-amber-600" />
               </div>
               <div>
-                <h3 className="font-extrabold text-[#0F172A] text-base">Regulatory Filing Status</h3>
+                <h3 className="font-extrabold text-[#FFFFFF] text-base">Regulatory Filing Status</h3>
                 <p className="text-[11px] text-[#64748B] mt-0.5">Statutory returns · TDS · GST · Income Tax</p>
               </div>
             </div>
@@ -330,7 +330,7 @@ export default function ComplianceDashboardPage() {
                 <Activity className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <h3 className="font-extrabold text-[#0F172A] text-base">Today's Audit Trail</h3>
+                <h3 className="font-extrabold text-[#FFFFFF] text-base">Today's Audit Trail</h3>
                 <p className="text-[11px] text-[#64748B] mt-0.5">Real-time compliance event stream</p>
               </div>
             </div>
@@ -364,7 +364,7 @@ export default function ComplianceDashboardPage() {
                 <Zap className="w-5 h-5 text-cyan-600" />
               </div>
               <div>
-                <h3 className="font-extrabold text-[#0F172A] text-base">System Component Response Latencies</h3>
+                <h3 className="font-extrabold text-[#FFFFFF] text-base">System Component Response Latencies</h3>
                 <p className="text-[11px] text-[#64748B] mt-0.5">
                   Compliance microservices · colour-coded by response threshold
                 </p>

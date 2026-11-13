@@ -157,7 +157,7 @@ export default function ServicesConfigurationPage() {
       {/* Top Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#0F172A] tracking-tight flex items-center gap-3">
+          <h1 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight flex items-center gap-3">
             <Sliders className="w-7 h-7 text-[#2563EB]" /> Service Availability Configuration
           </h1>
           <p className="mt-1 text-sm font-medium text-[#64748B]">
@@ -208,7 +208,7 @@ export default function ServicesConfigurationPage() {
               <span className="px-2.5 py-0.5 rounded-full bg-[#2563EB] text-white text-[11px] font-black uppercase tracking-wider">
                 Independent Controls
               </span>
-              <h3 className="text-base font-extrabold text-[#0F172A]">
+              <h3 className="text-base font-extrabold text-[#FFFFFF]">
                 POS Top-Up Settlement Mode Controls
               </h3>
             </div>
@@ -233,7 +233,7 @@ export default function ServicesConfigurationPage() {
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-base font-extrabold text-[#0F172A]">
+                    <span className="font-mono text-base font-extrabold text-[#FFFFFF]">
                       {mode.name}
                     </span>
                     <span
@@ -292,7 +292,7 @@ export default function ServicesConfigurationPage() {
             <span className="px-2.5 py-0.5 rounded-full bg-[#6C63FF] text-white text-[11px] font-black uppercase tracking-wider">
               Stored Procedure Engine
             </span>
-            <h3 className="text-base font-extrabold text-[#0F172A]">
+            <h3 className="text-base font-extrabold text-[#FFFFFF]">
               Platform Customer Service Configuration
             </h3>
           </div>
@@ -318,7 +318,7 @@ export default function ServicesConfigurationPage() {
                 const isToggling = togglingServiceCode === svc.code;
                 return (
                   <tr key={svc.code} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-3.5 px-4 font-bold text-[#0F172A]">
+                    <td className="py-3.5 px-4 font-bold text-[#FFFFFF]">
                       <div className="flex items-center gap-2.5">
                         {svc.code === "RECHARGE" ? (
                           <Smartphone className="w-4 h-4 text-[#2563EB]" />

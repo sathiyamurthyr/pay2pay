@@ -97,7 +97,7 @@ export default function ScannableQrCode({
       {label && (
         <Typography
           variant="subtitle2"
-          sx={{ fontWeight: 800, color: "#111827", mt: 2, textAlign: "center", fontSize: "14px" }}
+          sx={{ fontWeight: 800, color: "#FAF8F9", mt: 2, textAlign: "center", fontSize: "14px" }}
         >
           {label}
         </Typography>

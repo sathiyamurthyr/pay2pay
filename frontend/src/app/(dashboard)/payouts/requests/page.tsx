@@ -106,59 +106,59 @@ export default function PayoutRequestsPage() {
   return (
     <div className="space-y-4 select-none">
       {/* 1. SINGLE INTEGRATED COMPACT HEADER + FINANCIAL TOOLBAR CONTAINER (HEIGHT ~75-90px) */}
-      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121B28] p-4 px-5 min-h-[82px] flex items-center shadow-xs">
+      <div className="rounded-xl border border-slate-200 dark:border-[#E8E2E5] bg-white dark:bg-[#FAF8F9] p-4 px-5 min-h-[82px] flex items-center shadow-xs">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-0 w-full items-center">
           {/* SECTION 1 — PAGE TITLE */}
           <div className="lg:pr-5">
             <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight leading-snug">
               Payouts
             </h1>
-            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
+            <p className="text-[11px] font-medium text-[#8A8288] dark:text-[#625B60] mt-0.5 leading-snug">
               View and manage retailer payout transactions
             </p>
           </div>
 
           {/* SECTION 2 — TOTAL PAYOUTS */}
-          <div className="lg:border-l lg:border-slate-200 dark:lg:border-slate-800 lg:pl-5 lg:pr-4">
-            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
+          <div className="lg:border-l lg:border-slate-200 dark:lg:border-[#E8E2E5] lg:pl-5 lg:pr-4">
+            <span className="text-[10px] font-bold text-[#625B60] dark:text-[#625B60] uppercase tracking-wider block">
               TOTAL PAYOUTS
             </span>
             <div className="text-lg font-black text-slate-900 dark:text-white my-0.5 leading-none">
               ₹{totalAmount.toLocaleString("en-IN")}
             </div>
-            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-500">
+            <span className="text-[11px] font-medium text-[#8A8288] dark:text-[#8A8288]">
               {totalTxns} txns
             </span>
           </div>
 
           {/* SECTION 3 — SUCCESSFUL */}
-          <div className="lg:border-l lg:border-slate-200 dark:lg:border-slate-800 lg:pl-5 lg:pr-4">
+          <div className="lg:border-l lg:border-slate-200 dark:lg:border-[#E8E2E5] lg:pl-5 lg:pr-4">
             <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
               SUCCESSFUL
             </span>
             <div className="text-lg font-black text-emerald-600 dark:text-emerald-400 my-0.5 leading-none">
               ₹{successAmount.toLocaleString("en-IN")}
             </div>
-            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+            <span className="text-[11px] font-medium text-[#8A8288] dark:text-[#625B60]">
               {successTxns} success
             </span>
           </div>
 
           {/* SECTION 4 — PENDING */}
-          <div className="lg:border-l lg:border-slate-200 dark:lg:border-slate-800 lg:pl-5 lg:pr-4">
+          <div className="lg:border-l lg:border-slate-200 dark:lg:border-[#E8E2E5] lg:pl-5 lg:pr-4">
             <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider block">
               PENDING
             </span>
             <div className="text-lg font-black text-amber-600 dark:text-amber-400 my-0.5 leading-none">
               ₹{pendingAmount.toLocaleString("en-IN")}
             </div>
-            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+            <span className="text-[11px] font-medium text-[#8A8288] dark:text-[#625B60]">
               {pendingTxns} proc.
             </span>
           </div>
 
           {/* SECTION 5 — FAILED / REVERSED */}
-          <div className="lg:border-l lg:border-slate-200 dark:lg:border-slate-800 lg:pl-5 flex items-center justify-between">
+          <div className="lg:border-l lg:border-slate-200 dark:lg:border-[#E8E2E5] lg:pl-5 flex items-center justify-between">
             <div>
               <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider block">
                 FAILED / REVERSED
@@ -166,7 +166,7 @@ export default function PayoutRequestsPage() {
               <div className="text-lg font-black text-rose-600 dark:text-rose-400 my-0.5 leading-none">
                 ₹{failedAmount.toLocaleString("en-IN")}
               </div>
-              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+              <span className="text-[11px] font-medium text-[#8A8288] dark:text-[#625B60]">
                 {failedTxns} txns
               </span>
             </div>
@@ -184,16 +184,16 @@ export default function PayoutRequestsPage() {
       {/* Table */}
       <div className="rounded-xl border border-[#E2E8F0] bg-white overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-[#0F172A]">
-            <thead className="bg-[#F8FAFC] uppercase font-mono text-xs text-[#111827] border-b border-[#E2E8F0]">
+          <table className="w-full text-left text-sm text-[#FFFFFF]">
+            <thead className="bg-[#F8FAFC] uppercase font-mono text-xs text-[#FAF8F9] border-b border-[#E2E8F0]">
               <tr>
-                <th className="px-5 py-4 font-extrabold text-[#111827]">Payout #</th>
-                <th className="px-5 py-4 font-extrabold text-[#111827]">Gross Amount</th>
-                <th className="px-5 py-4 font-extrabold text-[#111827]">Net Payout</th>
-                <th className="px-5 py-4 font-extrabold text-[#111827]">UTR Number</th>
-                <th className="px-5 py-4 font-extrabold text-[#111827]">Requested By</th>
-                <th className="px-5 py-4 font-extrabold text-[#111827]">Status</th>
-                <th className="px-5 py-4 font-extrabold text-right text-[#111827]">Actions</th>
+                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Payout #</th>
+                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Gross Amount</th>
+                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Net Payout</th>
+                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">UTR Number</th>
+                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Requested By</th>
+                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Status</th>
+                <th className="px-5 py-4 font-extrabold text-right text-[#FAF8F9]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E2E8F0]">
@@ -205,7 +205,7 @@ export default function PayoutRequestsPage() {
                 payouts.map((p) => (
                   <tr key={p.public_id} className="hover:bg-[#F8FAFC] transition-colors">
                     <td className="px-5 py-4 font-mono text-xs text-[#2563EB] font-extrabold">{p.payout_number}</td>
-                    <td className="px-5 py-4 font-mono text-xs text-[#0F172A] font-bold">₹{p.amount.toLocaleString("en-IN")}</td>
+                    <td className="px-5 py-4 font-mono text-xs text-[#FFFFFF] font-bold">₹{p.amount.toLocaleString("en-IN")}</td>
                     <td className="px-5 py-4 font-mono text-xs font-extrabold text-[#15803D]">₹{p.net_amount.toLocaleString("en-IN")}</td>
                     <td className="px-5 py-4 font-mono text-xs text-[#475569] font-medium">{p.utr_number || "-"}</td>
                     <td className="px-5 py-4 text-xs font-mono text-[#334155] font-semibold">{p.requested_by}</td>
@@ -255,51 +255,51 @@ export default function PayoutRequestsPage() {
       {/* Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 overflow-y-auto">
-          <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl space-y-4 my-8">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-              <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+          <div className="w-full max-w-md rounded-2xl border border-[#E8E2E5] bg-[#FAF8F9] p-6 shadow-2xl space-y-4 my-8">
+            <div className="flex items-center justify-between border-b border-[#E8E2E5] pb-4">
+              <h2 className="text-xl font-bold text-[#292329] flex items-center gap-2">
                 <Send className="h-5 w-5 text-emerald-400" /> Request Outbound Bank Payout
               </h2>
-              <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-slate-200">
+              <button onClick={() => setShowCreateModal(false)} className="text-[#625B60] hover:text-[#292329]">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <form onSubmit={handleCreateSubmit} className="space-y-4 text-xs">
               <div>
-                <label className="font-medium text-slate-300">Wallet GUID *</label>
+                <label className="font-medium text-[#292329]">Wallet GUID *</label>
                 <input
                   type="text"
                   required
                   value={createData.wallet_id}
                   onChange={(e) => setCreateData({ ...createData, wallet_id: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 font-mono text-slate-100 focus:border-emerald-500 focus:outline-none"
+                  className="mt-1 w-full rounded-lg border border-[#E8E2E5] bg-[#FFFFFF] p-2.5 font-mono text-[#292329] focus:border-emerald-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="font-medium text-slate-300">Retailer GUID *</label>
+                <label className="font-medium text-[#292329]">Retailer GUID *</label>
                 <input
                   type="text"
                   required
                   value={createData.retailer_id}
                   onChange={(e) => setCreateData({ ...createData, retailer_id: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 font-mono text-slate-100 focus:border-emerald-500 focus:outline-none"
+                  className="mt-1 w-full rounded-lg border border-[#E8E2E5] bg-[#FFFFFF] p-2.5 font-mono text-[#292329] focus:border-emerald-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="font-medium text-slate-300">Payout Amount (₹) *</label>
+                <label className="font-medium text-[#292329]">Payout Amount (₹) *</label>
                 <input
                   type="number"
                   required
                   value={createData.amount}
                   onChange={(e) => setCreateData({ ...createData, amount: parseFloat(e.target.value) || 0 })}
-                  className="mt-1 w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 font-mono text-slate-100 focus:border-emerald-500 focus:outline-none"
+                  className="mt-1 w-full rounded-lg border border-[#E8E2E5] bg-[#FFFFFF] p-2.5 font-mono text-[#292329] focus:border-emerald-500 focus:outline-none"
                 />
               </div>
 
-              <div className="flex justify-end pt-4 border-t border-slate-800">
+              <div className="flex justify-end pt-4 border-t border-[#E8E2E5]">
                 <button type="submit" className="rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 shadow-lg">
                   Submit Payout Request
                 </button>

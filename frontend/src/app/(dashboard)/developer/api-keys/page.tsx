@@ -306,7 +306,7 @@ export default function ApiKeysPage() {
       sortable: true,
       cell: (k) => (
         <div>
-          <span className="font-extrabold text-[#0F172A] block text-xs">{k.key_name}</span>
+          <span className="font-extrabold text-[#FFFFFF] block text-xs">{k.key_name}</span>
           <span className="text-[10px] text-[#64748B]">Created: {new Date(k.created_at || Date.now()).toLocaleDateString("en-IN")}</span>
         </div>
       ),
@@ -483,7 +483,7 @@ export default function ApiKeysPage() {
       {/* Title Header Bar */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#0F172A] flex items-center gap-3">
+          <h1 className="text-2xl font-extrabold text-[#FFFFFF] flex items-center gap-3">
             <Key className="h-7 w-7 text-[#2563EB]" />
             API Keys &amp; Webhooks Developer Gateway
           </h1>
@@ -500,7 +500,7 @@ export default function ApiKeysPage() {
             <select
               value={currentUserRole}
               onChange={(e) => handleSwitchRole(e.target.value)}
-              className="rounded-xl bg-[#F8FAFC] border border-[#CBD5E1] px-3 py-1 font-mono font-extrabold text-xs text-[#0F172A] focus:outline-none cursor-pointer"
+              className="rounded-xl bg-[#F8FAFC] border border-[#CBD5E1] px-3 py-1 font-mono font-extrabold text-xs text-[#FFFFFF] focus:outline-none cursor-pointer"
             >
               <option value="SUPER_ADMIN">👑 SUPER_ADMIN (Allowed)</option>
               <option value="DEVELOPER_ADMIN">💻 DEVELOPER_ADMIN (Allowed)</option>
@@ -546,7 +546,7 @@ export default function ApiKeysPage() {
             <span className="px-3 py-1 rounded-full bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] font-mono text-xs font-extrabold tracking-wider uppercase inline-block">
               403 Forbidden — Developer Gateway Restricted
             </span>
-            <h2 className="text-2xl font-extrabold text-[#0F172A] tracking-tight">
+            <h2 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight">
               Developer Authorization Required
             </h2>
             <p className="text-xs text-[#7F1D1D] font-medium leading-relaxed">
@@ -604,7 +604,7 @@ export default function ApiKeysPage() {
                 <label className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">
                   Choose Vendor / Partner Scope:
                 </label>
-                <p className="text-xs text-[#0F172A] font-bold">
+                <p className="text-xs text-[#FFFFFF] font-bold">
                   Filter developer keys &amp; webhook subscriptions by specific vendor
                 </p>
               </div>
@@ -614,7 +614,7 @@ export default function ApiKeysPage() {
               <select
                 value={selectedVendorFilter}
                 onChange={(e) => setSelectedVendorFilter(e.target.value)}
-                className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] px-3.5 py-2.5 font-bold text-xs text-[#0F172A] focus:border-[#2563EB] focus:outline-none cursor-pointer shadow-2xs transition-all"
+                className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] px-3.5 py-2.5 font-bold text-xs text-[#FFFFFF] focus:border-[#2563EB] focus:outline-none cursor-pointer shadow-2xs transition-all"
               >
                 {VENDOR_LIST.map((v) => (
                   <option key={v.id} value={v.id}>
@@ -649,7 +649,7 @@ export default function ApiKeysPage() {
               <div className="p-3 rounded-xl bg-white/80 border border-[#BFDBFE] space-y-1 shadow-2xs">
                 <span className="font-extrabold text-[#1E40AF] block">3. HMAC-SHA256 Payload Signature</span>
                 <p className="font-medium text-[#475569]">
-                  Webhooks are signed using HMAC-SHA256 header <code className="font-mono text-[10px] bg-[#EFF6FF] px-1 py-0.5 rounded border border-[#BFDBFE]">X-PAY2PAY-SIGNATURE</code> for end-to-end data integrity.
+                  Webhooks are signed using HMAC-SHA256 header <code className="font-mono text-[10px] bg-[#EFF6FF] px-1 py-0.5 rounded border border-[#BFDBFE]">X-NEAR4YOU-SIGNATURE</code> for end-to-end data integrity.
                 </p>
               </div>
             </div>
@@ -659,7 +659,7 @@ export default function ApiKeysPage() {
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <Key className="w-5 h-5 text-[#2563EB]" />
-              <h2 className="text-base font-extrabold text-[#0F172A]">Active API Client Keys</h2>
+              <h2 className="text-base font-extrabold text-[#FFFFFF]">Active API Client Keys</h2>
             </div>
 
             <DataTable
@@ -689,7 +689,7 @@ export default function ApiKeysPage() {
           <div className="space-y-3 pt-4">
             <div className="flex items-center gap-2">
               <Webhook className="w-5 h-5 text-[#7C3AED]" />
-              <h2 className="text-base font-extrabold text-[#0F172A]">Webhook Subscriptions</h2>
+              <h2 className="text-base font-extrabold text-[#FFFFFF]">Webhook Subscriptions</h2>
             </div>
 
             <DataTable
@@ -716,13 +716,13 @@ export default function ApiKeysPage() {
 
       {/* API Key Modal */}
       {showKeyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FAF8F9]/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="w-full max-w-md rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xl space-y-4 my-8">
             <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-4">
-              <h2 className="text-lg font-bold text-[#0F172A] flex items-center gap-2">
+              <h2 className="text-lg font-bold text-[#FFFFFF] flex items-center gap-2">
                 <Key className="h-5 w-5 text-[#2563EB]" /> Generate API Secret Key
               </h2>
-              <button onClick={() => setShowKeyModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+              <button onClick={() => setShowKeyModal(false)} className="text-[#625B60] hover:text-slate-600 cursor-pointer">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -734,7 +734,7 @@ export default function ApiKeysPage() {
                   <p className="mt-1 font-semibold text-[11px]">
                     For security compliance, this secret key will never be displayed again. Store it securely in your environment variables.
                   </p>
-                  <div className="mt-3 font-mono p-3 rounded-xl bg-white text-[#0F172A] font-bold break-all border border-[#BBF7D0] flex items-center justify-between gap-2 shadow-2xs">
+                  <div className="mt-3 font-mono p-3 rounded-xl bg-white text-[#FFFFFF] font-bold break-all border border-[#BBF7D0] flex items-center justify-between gap-2 shadow-2xs">
                     <span className="text-xs text-[#16A34A]">{createdSecret}</span>
                     <button
                       type="button"
@@ -760,7 +760,7 @@ export default function ApiKeysPage() {
                   <select
                     value={keyFormData.vendor_id}
                     onChange={(e) => setKeyFormData({ ...keyFormData, vendor_id: e.target.value })}
-                    className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 text-[#0F172A] focus:border-[#2563EB] focus:outline-none font-bold cursor-pointer"
+                    className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 text-[#FFFFFF] focus:border-[#2563EB] focus:outline-none font-bold cursor-pointer"
                   >
                     {VENDOR_LIST.map((v) => (
                       <option key={v.id} value={v.id}>
@@ -777,7 +777,7 @@ export default function ApiKeysPage() {
                     placeholder="Partner API Core Integration"
                     value={keyFormData.key_name}
                     onChange={(e) => setKeyFormData({ ...keyFormData, key_name: e.target.value })}
-                    className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 text-[#0F172A] focus:border-[#2563EB] focus:outline-none"
+                    className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 text-[#FFFFFF] focus:border-[#2563EB] focus:outline-none"
                   />
                 </div>
                 <div>
@@ -786,7 +786,7 @@ export default function ApiKeysPage() {
                     type="text"
                     value={keyFormData.scopes}
                     onChange={(e) => setKeyFormData({ ...keyFormData, scopes: e.target.value })}
-                    className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 font-mono text-[#0F172A] focus:border-[#2563EB] focus:outline-none text-[11px]"
+                    className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 font-mono text-[#FFFFFF] focus:border-[#2563EB] focus:outline-none text-[11px]"
                   />
                 </div>
                 <div className="flex justify-end pt-4 border-t border-[#F1F5F9]">
@@ -802,13 +802,13 @@ export default function ApiKeysPage() {
 
       {/* Webhook Modal */}
       {showWhModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FAF8F9]/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="w-full max-w-md rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xl space-y-4 my-8">
             <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-4">
-              <h2 className="text-lg font-bold text-[#0F172A] flex items-center gap-2">
+              <h2 className="text-lg font-bold text-[#FFFFFF] flex items-center gap-2">
                 <Webhook className="h-5 w-5 text-[#7C3AED]" /> Add Webhook Endpoint
               </h2>
-              <button onClick={() => setShowWhModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+              <button onClick={() => setShowWhModal(false)} className="text-[#625B60] hover:text-slate-600 cursor-pointer">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -819,7 +819,7 @@ export default function ApiKeysPage() {
                 <select
                   value={whFormData.vendor_id}
                   onChange={(e) => setWhFormData({ ...whFormData, vendor_id: e.target.value })}
-                  className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 text-[#0F172A] focus:border-[#2563EB] focus:outline-none font-bold cursor-pointer"
+                  className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 text-[#FFFFFF] focus:border-[#2563EB] focus:outline-none font-bold cursor-pointer"
                 >
                   {VENDOR_LIST.map((v) => (
                     <option key={v.id} value={v.id}>
@@ -836,7 +836,7 @@ export default function ApiKeysPage() {
                   placeholder="https://api.merchant.com/webhooks/pay2pay"
                   value={whFormData.target_url}
                   onChange={(e) => setWhFormData({ ...whFormData, target_url: e.target.value })}
-                  className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 font-mono text-[#0F172A] focus:border-[#2563EB] focus:outline-none text-[11px]"
+                  className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 font-mono text-[#FFFFFF] focus:border-[#2563EB] focus:outline-none text-[11px]"
                 />
               </div>
               <div>
@@ -845,7 +845,7 @@ export default function ApiKeysPage() {
                   type="text"
                   value={whFormData.events}
                   onChange={(e) => setWhFormData({ ...whFormData, events: e.target.value })}
-                  className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 font-mono text-[#0F172A] focus:border-[#2563EB] focus:outline-none text-[11px]"
+                  className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 font-mono text-[#FFFFFF] focus:border-[#2563EB] focus:outline-none text-[11px]"
                 />
               </div>
               <div className="flex justify-end pt-4 border-t border-[#F1F5F9]">

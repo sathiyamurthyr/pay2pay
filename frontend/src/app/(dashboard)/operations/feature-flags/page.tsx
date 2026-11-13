@@ -58,11 +58,11 @@ export default function FeatureFlagsPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100 flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-[#292329] flex items-center gap-3">
             <Sliders className="h-8 w-8 text-emerald-400" />
             Runtime Feature Flags & Maintenance Mode Matrix
           </h1>
-          <p className="mt-1 text-slate-400">
+          <p className="mt-1 text-[#625B60]">
             Dynamically enable/disable production system features and emergency maintenance mode
           </p>
         </div>
@@ -82,10 +82,10 @@ export default function FeatureFlagsPage() {
       {/* Flags Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {loading ? (
-          <div className="col-span-2 p-12 text-center text-slate-400">Loading Feature Flags...</div>
+          <div className="col-span-2 p-12 text-center text-[#625B60]">Loading Feature Flags...</div>
         ) : (
           flags.map((f) => (
-            <div key={f.flag_key} className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 backdrop-blur-xl shadow-xl space-y-3">
+            <div key={f.flag_key} className="rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 p-5 backdrop-blur-xl shadow-xl space-y-3">
               <div className="flex items-center justify-between">
                 <span className="font-mono text-xs text-emerald-400 font-bold">{f.flag_key}</span>
                 <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
@@ -96,9 +96,9 @@ export default function FeatureFlagsPage() {
                   {f.is_enabled ? "ENABLED" : "DISABLED"}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 leading-relaxed">{f.description}</p>
-              <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
-                <span className="font-mono text-xs text-slate-400">Rollout: {f.rollout_percentage}%</span>
+              <p className="text-xs text-[#625B60] leading-relaxed">{f.description}</p>
+              <div className="pt-3 border-t border-[#E8E2E5] flex items-center justify-between">
+                <span className="font-mono text-xs text-[#625B60]">Rollout: {f.rollout_percentage}%</span>
                 <button
                   onClick={() => handleToggleFlag(f.flag_key)}
                   className={`rounded-lg px-4 py-1.5 text-xs font-semibold transition-all ${

@@ -234,17 +234,17 @@ export default function NotificationsPage() {
     let phrase = "";
     switch (lang) {
       case "hi":
-        phrase = `Pay2Pay par ${amount} rupaye praapt hue. Transaction safal raha.`;
+        phrase = `Near4You par ${amount} rupaye praapt hue. Transaction safal raha.`;
         break;
       case "ta":
-        phrase = `Pay2Pay-il ${amount} roobai pera-pattathu. Vetrikaramaaga mudinthathu.`;
+        phrase = `Near4You-il ${amount} roobai pera-pattathu. Vetrikaramaaga mudinthathu.`;
         break;
       case "te":
-        phrase = `Pay2Pay lo ${amount} roopayalu andindhi. Transaction vijayavanthamaindhi.`;
+        phrase = `Near4You lo ${amount} roopayalu andindhi. Transaction vijayavanthamaindhi.`;
         break;
       case "en":
       default:
-        phrase = `Received ${amount} Rupees on Pay2Pay. Transaction Successful.`;
+        phrase = `Received ${amount} Rupees on Near4You. Transaction Successful.`;
         break;
     }
 
@@ -292,7 +292,7 @@ export default function NotificationsPage() {
       case "TRANSACTION":
         return <PaidIcon sx={{ color: "#4ADE80", fontSize: 20 }} />;
       case "CREDIT":
-        return <AccountBalanceWalletIcon sx={{ color: "#FBBF24", fontSize: 20 }} />;
+        return <AccountBalanceWalletIcon sx={{ color: "#A20A3A", fontSize: 20 }} />;
       case "APPROVAL":
         return <VerifiedUserIcon sx={{ color: "#38BDF8", fontSize: 20 }} />;
       case "SYSTEM":
@@ -469,7 +469,7 @@ export default function NotificationsPage() {
             disabled={isRefreshing}
             sx={{
               background: "linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%)",
-              color: "#050B14",
+              color: "#FFFFFF",
               fontWeight: 800,
               fontSize: "12px",
               textTransform: "none",
@@ -513,7 +513,7 @@ export default function NotificationsPage() {
               },
             },
             "& .MuiTabs-indicator": {
-              backgroundColor: "#FBBF24",
+              backgroundcolor: "#A20A3A",
               height: 3,
               borderRadius: "3px 3px 0 0",
             },
@@ -560,8 +560,8 @@ export default function NotificationsPage() {
               p: 2,
               mb: 2.5,
               borderRadius: "16px",
-              background: "linear-gradient(145deg, #0A0F1D 0%, #111827 100%)",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
+              background: "linear-gradient(145deg, #FFFFFF 0%, #FAF8F9 100%)",
+              border: "1px solid #E8E2E5",
               display: "flex",
               flexDirection: { xs: "column", sm: "row" },
               gap: 2,
@@ -586,7 +586,7 @@ export default function NotificationsPage() {
                   bgcolor: "rgba(255, 255, 255, 0.04)",
                   fontSize: "12.5px",
                   color: "#FFFFFF",
-                  "& fieldset": { borderColor: "rgba(255, 255, 255, 0.12)" },
+                  "& fieldset": { borderColor: "#E8E2E5" },
                   "&:hover fieldset": { borderColor: "rgba(251, 191, 36, 0.4)" },
                 },
               }}
@@ -634,8 +634,8 @@ export default function NotificationsPage() {
           {/* Notifications Feed List */}
           {loadingNotifs && notifications.length === 0 ? (
             <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 8 }}>
-              <CircularProgress size={36} sx={{ color: "#FBBF24", mb: 2 }} />
-              <Typography variant="body2" sx={{ color: "#94A3B8", fontWeight: 600 }}>
+              <CircularProgress size={36} sx={{ color: "#A20A3A", mb: 2 }} />
+              <Typography variant="body2" sx={{ color: "#625B60", fontWeight: 600 }}>
                 Loading live notifications...
               </Typography>
             </Box>
@@ -668,15 +668,15 @@ export default function NotificationsPage() {
                 p: 6,
                 textAlign: "center",
                 borderRadius: "16px",
-                bgcolor: "rgba(15, 23, 42, 0.6)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
+                bgcolor: "#FAF8F9",
+                border: "1px solid #E8E2E5",
               }}
             >
               <NotificationsActiveIcon sx={{ color: "rgba(255, 255, 255, 0.2)", fontSize: 48, mb: 1.5 }} />
-              <Typography variant="h6" sx={{ fontWeight: 800, color: "#E2E8F0" }}>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: "#292329" }}>
                 No Notifications Found
               </Typography>
-              <Typography variant="body2" sx={{ color: "#94A3B8", mt: 0.5 }}>
+              <Typography variant="body2" sx={{ color: "#625B60", mt: 0.5 }}>
                 {searchQuery
                   ? "No alerts match your search query."
                   : "All live payouts, wallet credits, and banking updates will appear here."}
@@ -694,8 +694,8 @@ export default function NotificationsPage() {
                       p: 2.2,
                       borderRadius: "14px",
                       background: item.is_read
-                        ? "linear-gradient(145deg, rgba(15, 23, 42, 0.7) 0%, rgba(30, 41, 59, 0.4) 100%)"
-                        : "linear-gradient(145deg, rgba(30, 58, 138, 0.25) 0%, rgba(15, 23, 42, 0.8) 100%)",
+                        ? "linear-gradient(145deg, #FFFFFF 0%, rgba(30, 41, 59, 0.4) 100%)"
+                        : "linear-gradient(145deg, rgba(30, 58, 138, 0.25) 0%, #FFFFFF 100%)",
                       border: item.is_read
                         ? "1px solid rgba(255, 255, 255, 0.08)"
                         : "1px solid rgba(251, 191, 36, 0.35)",
@@ -812,7 +812,7 @@ export default function NotificationsPage() {
                                   sx={{
                                     height: 22,
                                     bgcolor: "rgba(255, 255, 255, 0.05)",
-                                    color: "#CBD5E1",
+                                    color: "#625B60",
                                     fontFamily: "monospace",
                                     fontSize: "11px",
                                     cursor: "pointer",
@@ -823,7 +823,7 @@ export default function NotificationsPage() {
                               </Tooltip>
                             )}
 
-                            <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px" }}>
+                            <Typography variant="caption" sx={{ color: "#625B60", fontSize: "11px" }}>
                               {formatTimestamp(item.created_at)} ({getRelativeTime(item.created_at)})
                             </Typography>
                           </Stack>
@@ -878,7 +878,7 @@ export default function NotificationsPage() {
               borderRadius: "20px",
               background: soundboxEnabled
                 ? "linear-gradient(145deg, #0A2218 0%, #05160E 100%)"
-                : "linear-gradient(145deg, #181C26 0%, #0D111A 100%)",
+                : "linear-gradient(145deg, #181C26 0%, #FFFFFF 100%)",
               border: soundboxEnabled
                 ? "1px solid rgba(74, 222, 128, 0.35)"
                 : "1px solid rgba(255, 255, 255, 0.1)",
@@ -983,7 +983,7 @@ export default function NotificationsPage() {
               p: 3,
               borderRadius: "20px",
               bgcolor: "rgba(17, 24, 39, 0.7)",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
+              border: "1px solid #E8E2E5",
             }}
           >
             <Typography variant="subtitle1" sx={{ fontWeight: 800, fontSize: "15px", mb: 2 }}>
@@ -1019,7 +1019,7 @@ export default function NotificationsPage() {
                         : "1px solid rgba(255, 255, 255, 0.08)",
                       transition: "all 0.2s ease",
                       "&:hover": {
-                        borderColor: "#FBBF24",
+                        bordercolor: "#A20A3A",
                         bgcolor: "rgba(251, 191, 36, 0.08)",
                       },
                     }}
@@ -1028,7 +1028,7 @@ export default function NotificationsPage() {
                       <Typography sx={{ fontWeight: 800, fontSize: "13px", color: isSel ? "#FEF08A" : "#FFFFFF" }}>
                         {lang.label}
                       </Typography>
-                      {isSel && <CheckCircleIcon sx={{ fontSize: 16, color: "#FBBF24" }} />}
+                      {isSel && <CheckCircleIcon sx={{ fontSize: 16, color: "#A20A3A" }} />}
                     </Box>
                     <Typography sx={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.5)" }}>
                       {lang.script}
@@ -1073,7 +1073,7 @@ export default function NotificationsPage() {
               p: 3,
               borderRadius: "20px",
               bgcolor: "rgba(17, 24, 39, 0.7)",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
+              border: "1px solid #E8E2E5",
             }}
           >
             <Typography variant="subtitle1" sx={{ fontWeight: 800, fontSize: "15px", mb: 2 }}>
@@ -1084,7 +1084,7 @@ export default function NotificationsPage() {
               {/* Volume Slider */}
               <Box>
                 <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-                  <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#E2E8F0" }}>
+                  <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#292329" }}>
                     Soundbox Volume
                   </Typography>
                   <Typography sx={{ fontSize: "13px", fontWeight: 800, color: "#FDE047" }}>
@@ -1108,7 +1108,7 @@ export default function NotificationsPage() {
               {/* Speed Slider */}
               <Box>
                 <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-                  <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#E2E8F0" }}>
+                  <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#292329" }}>
                     Voice Speech Speed
                   </Typography>
                   <Typography sx={{ fontSize: "13px", fontWeight: 800, color: "#FDE047" }}>
@@ -1139,7 +1139,7 @@ export default function NotificationsPage() {
               p: 3,
               borderRadius: "20px",
               bgcolor: "rgba(17, 24, 39, 0.7)",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
+              border: "1px solid #E8E2E5",
             }}
           >
             <Typography variant="subtitle1" sx={{ fontWeight: 800, fontSize: "15px", mb: 2 }}>

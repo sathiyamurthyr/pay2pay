@@ -380,12 +380,12 @@ export function DataTable<T = any>({
       window.print();
     }
     if (format === "whatsapp") {
-      const text = `📊 Pay2Pay Report: ${document.title}\n📍 Page Link: ${window.location.href}\n🔢 Total Records: ${rows.length}`;
+      const text = `📊 Near4You Report: ${document.title}\n📍 Page Link: ${window.location.href}\n🔢 Total Records: ${rows.length}`;
       window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
     }
     if (format === "email") {
-      const subject = encodeURIComponent(`Pay2Pay Data Report - ${document.title}`);
-      const body = encodeURIComponent(`Hello,\n\nPlease find the Pay2Pay data report summary below:\n\nTitle: ${document.title}\nTotal Records: ${rows.length}\nDirect Page Link: ${window.location.href}\n\nRegards,\nPay2Pay Enterprise Portal`);
+      const subject = encodeURIComponent(`Near4You Data Report - ${document.title}`);
+      const body = encodeURIComponent(`Hello,\n\nPlease find the Near4You data report summary below:\n\nTitle: ${document.title}\nTotal Records: ${rows.length}\nDirect Page Link: ${window.location.href}\n\nRegards,\nPay2Pay Enterprise Portal`);
       window.open(`mailto:?subject=${subject}&body=${body}`, "_blank");
     }
     if (format === "link") {
@@ -711,7 +711,7 @@ export function DataTable<T = any>({
           <button
             onClick={() => setSelectedKeys(new Set())}
             aria-label="Deselect all rows"
-            className="inline-flex items-center gap-1 text-[12px] font-bold text-[#334155] hover:text-[#111827] ml-auto"
+            className="inline-flex items-center gap-1 text-[12px] font-bold text-[#334155] hover:text-[#FAF8F9] ml-auto"
           >
             <X className="w-3.5 h-3.5" />
             Deselect All

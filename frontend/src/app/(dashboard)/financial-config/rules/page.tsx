@@ -314,7 +314,7 @@ export default function FinancialRulesPage() {
       accessorKey: "config_name",
       sortable: true,
       cell: (c) => (
-        <span className="font-bold text-[#0F172A]">{c.config_name}</span>
+        <span className="font-bold text-[#FFFFFF]">{c.config_name}</span>
       ),
     },
     {
@@ -402,7 +402,7 @@ export default function FinancialRulesPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#0F172A] flex items-center gap-3">
+          <h1 className="text-2xl font-extrabold text-[#FFFFFF] flex items-center gap-3">
             <Sliders className="h-7 w-7 text-[#2563EB]" />
             Financial Rule Configurations &amp; Retailer Setup
           </h1>
@@ -419,7 +419,7 @@ export default function FinancialRulesPage() {
               className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-extrabold transition-all cursor-pointer ${
                 viewMode === "table"
                   ? "bg-white text-[#2563EB] shadow-2xs"
-                  : "text-[#64748B] hover:text-[#0F172A]"
+                  : "text-[#64748B] hover:text-[#FFFFFF]"
               }`}
             >
               <List className="h-4 w-4" />
@@ -430,7 +430,7 @@ export default function FinancialRulesPage() {
               className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-extrabold transition-all cursor-pointer ${
                 viewMode === "grid"
                   ? "bg-white text-[#2563EB] shadow-2xs"
-                  : "text-[#64748B] hover:text-[#0F172A]"
+                  : "text-[#64748B] hover:text-[#FFFFFF]"
               }`}
             >
               <LayoutGrid className="h-4 w-4" />
@@ -489,7 +489,7 @@ export default function FinancialRulesPage() {
               className={`flex items-center gap-2 px-4 py-3 text-xs font-extrabold transition-all border-b-2 cursor-pointer ${
                 isActive
                   ? "border-[#2563EB] text-[#2563EB] bg-[#EFF6FF]"
-                  : "border-transparent text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8FAFC]"
+                  : "border-transparent text-[#64748B] hover:text-[#FFFFFF] hover:bg-[#F8FAFC]"
               }`}
             >
               <Icon className="h-4 w-4" />
@@ -502,7 +502,7 @@ export default function FinancialRulesPage() {
       {/* Rule Resolution Simulator Tool */}
       <div className="p-4 rounded-2xl bg-white border border-[#E2E8F0] shadow-2xs space-y-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs font-extrabold text-[#0F172A]">
+          <div className="flex items-center gap-2 text-xs font-extrabold text-[#FFFFFF]">
             <Zap className="w-4 h-4 text-[#D97706]" /> Test Effective Rule Resolution for Retailer
           </div>
           <span className="text-[11px] font-bold text-[#64748B]">Search Retailers &amp; Test Resolution</span>
@@ -522,7 +522,7 @@ export default function FinancialRulesPage() {
           <button
             onClick={handleSimulateResolve}
             disabled={simLoading}
-            className="px-5 py-3 rounded-xl bg-[#0F172A] text-white text-xs font-extrabold hover:bg-[#1E293B] cursor-pointer flex items-center gap-2 shrink-0 shadow-2xs"
+            className="px-5 py-3 rounded-xl bg-[#FFFFFF] text-white text-xs font-extrabold hover:bg-[#1E293B] cursor-pointer flex items-center gap-2 shrink-0 shadow-2xs"
           >
             {simLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
             Resolve Effective {activeTab} Rule
@@ -547,7 +547,7 @@ export default function FinancialRulesPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-3">
-              <h3 className="text-sm font-extrabold text-[#0F172A]">Financial Rule Cards</h3>
+              <h3 className="text-sm font-extrabold text-[#FFFFFF]">Financial Rule Cards</h3>
               <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-extrabold bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]">
                 {configs.length} Cards
               </span>
@@ -577,7 +577,7 @@ export default function FinancialRulesPage() {
                         <span className="font-mono text-xs font-extrabold text-[#2563EB] tracking-wide block">
                           {c.config_code}
                         </span>
-                        <span className="font-bold text-xs text-[#0F172A] truncate max-w-[140px] block">
+                        <span className="font-bold text-xs text-[#FFFFFF] truncate max-w-[140px] block">
                           {c.config_name}
                         </span>
                       </div>
@@ -622,7 +622,7 @@ export default function FinancialRulesPage() {
                       </div>
                       <div className="p-2 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
                         <span className="text-[10px] text-[#64748B] font-sans font-extrabold block uppercase">Version</span>
-                        <span className="font-bold text-[#0F172A]">v{c.version || "1.0"}</span>
+                        <span className="font-bold text-[#FFFFFF]">v{c.version || "1.0"}</span>
                       </div>
                     </div>
                   </div>
@@ -680,14 +680,14 @@ export default function FinancialRulesPage() {
 
       {/* Creation Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FAF8F9]/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="w-full max-w-xl rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xl space-y-4 my-8">
             <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-4">
-              <h2 className="text-lg font-bold text-[#111827] flex items-center gap-2">
+              <h2 className="text-lg font-bold text-[#FAF8F9] flex items-center gap-2">
                 <Sliders className="h-5 w-5 text-[#2563EB]" />
                 Create {activeTab} Financial Rule
               </h2>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setShowModal(false)} className="text-[#625B60] hover:text-slate-600">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -712,7 +712,7 @@ export default function FinancialRulesPage() {
                     placeholder={activeTab === "MDR" ? "mdr-001" : activeTab === "GST" ? "gst-18" : activeTab === "TDS" ? "tds-194o" : activeTab === "COMMISSION" ? "comm-dist" : "settle-t1"}
                     value={configCode}
                     onChange={(e) => setConfigCode(e.target.value)}
-                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#111827] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#FAF8F9] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all"
                   />
                 </div>
                 <div>
@@ -723,7 +723,7 @@ export default function FinancialRulesPage() {
                     placeholder="Standard Rule Name"
                     value={configName}
                     onChange={(e) => setConfigName(e.target.value)}
-                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#FAF8F9] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all"
                   />
                 </div>
               </div>
@@ -734,7 +734,7 @@ export default function FinancialRulesPage() {
                 <select
                   value={serviceType}
                   onChange={(e) => setServiceType(e.target.value)}
-                  className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all cursor-pointer"
+                  className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#FAF8F9] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all cursor-pointer"
                 >
                   {SERVICE_TYPE_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -750,7 +750,7 @@ export default function FinancialRulesPage() {
                 <select
                   value={hierarchyLevel}
                   onChange={(e) => setHierarchyLevel(e.target.value)}
-                  className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all cursor-pointer"
+                  className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#FAF8F9] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all cursor-pointer"
                 >
                   <option value="RETAILER">🏬 Retailer Outlet Specific Override (Priority #2)</option>
                   <option value="DISTRIBUTOR">🏢 Distributor Specific Override (Priority #3)</option>
@@ -787,7 +787,7 @@ export default function FinancialRulesPage() {
                     step="0.01"
                     value={mdrPct}
                     onChange={(e) => setMdrPct(parseFloat(e.target.value) || 0)}
-                    className="w-full rounded-lg border border-[#D1D5DB] bg-[#F8FAFC] p-2.5 font-mono text-[#111827] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-[#F8FAFC] p-2.5 font-mono text-[#FAF8F9] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all"
                   />
                 </div>
               )}
@@ -799,7 +799,7 @@ export default function FinancialRulesPage() {
                     type="text"
                     value={gstCode}
                     onChange={(e) => setGstCode(e.target.value)}
-                    className="w-full rounded-lg border border-[#D1D5DB] bg-[#F8FAFC] p-2.5 font-mono text-[#111827] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-[#F8FAFC] p-2.5 font-mono text-[#FAF8F9] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all"
                   />
                 </div>
               )}
@@ -811,7 +811,7 @@ export default function FinancialRulesPage() {
                     type="text"
                     value={tdsSection}
                     onChange={(e) => setTdsSection(e.target.value)}
-                    className="w-full rounded-lg border border-[#D1D5DB] bg-[#F8FAFC] p-2.5 font-mono text-[#111827] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-[#F8FAFC] p-2.5 font-mono text-[#FAF8F9] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all"
                   />
                 </div>
               )}
@@ -825,7 +825,7 @@ export default function FinancialRulesPage() {
                       step="0.01"
                       value={retCommPct}
                       onChange={(e) => setRetCommPct(parseFloat(e.target.value) || 0)}
-                      className="w-full rounded-lg border border-[#D1D5DB] bg-[#F8FAFC] p-2.5 font-mono text-[#111827] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all"
+                      className="w-full rounded-lg border border-[#D1D5DB] bg-[#F8FAFC] p-2.5 font-mono text-[#FAF8F9] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all"
                     />
                   </div>
                   <div>
@@ -835,7 +835,7 @@ export default function FinancialRulesPage() {
                       step="0.01"
                       value={distCommPct}
                       onChange={(e) => setDistCommPct(parseFloat(e.target.value) || 0)}
-                      className="w-full rounded-lg border border-[#D1D5DB] bg-[#F8FAFC] p-2.5 font-mono text-[#111827] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all"
+                      className="w-full rounded-lg border border-[#D1D5DB] bg-[#F8FAFC] p-2.5 font-mono text-[#FAF8F9] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all"
                     />
                   </div>
                 </div>
@@ -847,7 +847,7 @@ export default function FinancialRulesPage() {
                   <select
                     value={settlementCycle}
                     onChange={(e) => setSettlementCycle(e.target.value)}
-                    className="w-full rounded-lg border border-[#D1D5DB] bg-[#F8FAFC] p-2.5 text-[#111827] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all cursor-pointer"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-[#F8FAFC] p-2.5 text-[#FAF8F9] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all cursor-pointer"
                   >
                     <option value="T_0">T+0 (Same Day Instant)</option>
                     <option value="T_1">T+1 (Next Business Day)</option>

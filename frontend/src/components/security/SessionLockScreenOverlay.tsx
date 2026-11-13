@@ -368,7 +368,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
   const overlayContent = (
     <div
       id="pay2pay-session-lockscreen-root"
-      className="fixed inset-0 z-[9999999] flex flex-col items-center justify-center p-4 sm:p-6 select-none overflow-y-auto overflow-x-hidden bg-[#080B11]/95 backdrop-blur-xl transition-all duration-300"
+      className="fixed inset-0 z-[9999999] flex flex-col items-center justify-center p-4 sm:p-6 select-none overflow-y-auto overflow-x-hidden bg-[#FFFFFF]/95 backdrop-blur-xl transition-all duration-300"
       style={{
         minHeight: "100vh",
         minWidth: "100vw",
@@ -402,7 +402,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
       `}</style>
 
       {/* ── 1. DYNAMIC 4K WALLPAPER BACKGROUND WITH BLURHASH PLACEHOLDER ── */}
-      <div className="absolute inset-0 z-0 bg-[#080B11] overflow-hidden pointer-events-none">
+      <div className="absolute inset-0 z-0 bg-[#FFFFFF] overflow-hidden pointer-events-none">
         {/* Instant 0ms BlurHash Canvas Placeholder */}
         <div className="absolute inset-0 z-0 transform scale-110 filter blur-[10px] opacity-75 transition-opacity duration-1000">
           <BlurHashCanvas
@@ -426,8 +426,8 @@ export const SessionLockScreenOverlay: React.FC = () => {
           />
         )}
 
-        {/* Dark Vignette & Pay2Pay Ambient Gold Glass Overlay */}
-        <div className="absolute inset-0 z-10 bg-gradient-to-b from-[#080B11]/90 via-[#0B0F19]/80 to-[#080B11]/95 backdrop-blur-[10px]" />
+        {/* Dark Vignette & Near4You Ambient Gold Glass Overlay */}
+        <div className="absolute inset-0 z-10 bg-gradient-to-b from-[#FFFFFF]/90 via-[#FFFFFF]/80 to-[#FFFFFF]/95 backdrop-blur-[10px]" />
         <div
           className="absolute inset-0 z-10 pointer-events-none opacity-40"
           style={{
@@ -438,7 +438,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
 
       {/* ── 2. WALLPAPER INFO & SWITCHER BADGE (TOP-RIGHT) ── */}
       <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-30 flex items-center gap-2">
-        <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#0B0F19]/85 border border-amber-500/20 text-white/90 text-[11px] backdrop-blur-xl shadow-lg shadow-black/40">
+        <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FFFFFF]/85 border border-amber-500/20 text-white/90 text-[11px] backdrop-blur-xl shadow-lg shadow-black/40">
           <ImageIcon className="w-3.5 h-3.5 text-amber-400" />
           <span className="font-semibold">{currentWallpaper.title}</span>
           <span className="text-white/30">·</span>
@@ -484,7 +484,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
           </h1>
 
           {/* 2. Enter your 4-digit Security PIN Subtitle */}
-          <p className="text-xs sm:text-[13px] font-medium text-slate-300 mt-1">
+          <p className="text-xs sm:text-[13px] font-medium text-[#292329] mt-1">
             Enter your 4-digit PIN to resume your session
           </p>
         </div>
@@ -501,7 +501,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
                   className={`w-3.5 h-3.5 rounded-full border transition-all duration-200 ${
                     isFilled
                       ? "bg-gradient-to-br from-[#FEF08A] to-[#F59E0B] border-[#FEF08A] scale-110 shadow-lg shadow-amber-500/60 ring-2 ring-amber-400/30"
-                      : "bg-[#080B11] border-white/25"
+                      : "bg-[#FFFFFF] border-white/25"
                   }`}
                 />
               );
@@ -531,7 +531,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
                 border: failedAttempts > 0 ? "1.5px solid rgba(245, 158, 11, 0.6)" : "1.5px solid rgba(245, 158, 11, 0.35)",
                 color: "#FFFFFF",
               }}
-              className="w-full h-12 px-4 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/40 rounded-xl text-center text-lg font-mono font-black tracking-[0.45em] outline-none transition-all placeholder:tracking-normal placeholder:font-sans placeholder:font-semibold placeholder:text-slate-400 placeholder:text-xs shadow-inner"
+              className="w-full h-12 px-4 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/40 rounded-xl text-center text-lg font-mono font-black tracking-[0.45em] outline-none transition-all placeholder:tracking-normal placeholder:font-sans placeholder:font-semibold placeholder:text-[#625B60] placeholder:text-xs shadow-inner"
             />
           </div>
 
@@ -549,9 +549,9 @@ export const SessionLockScreenOverlay: React.FC = () => {
               type="button"
               onClick={handleLogout}
               title="Terminate session and return to login"
-              className="w-full h-12 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 border bg-white/[0.04] hover:bg-rose-500/15 text-slate-300 hover:text-rose-200 border-white/10 hover:border-rose-500/40 active:scale-[0.98] cursor-pointer shadow-md backdrop-blur-md"
+              className="w-full h-12 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 border bg-white/[0.04] hover:bg-rose-500/15 text-[#292329] hover:text-rose-200 border-white/10 hover:border-rose-500/40 active:scale-[0.98] cursor-pointer shadow-md backdrop-blur-md"
             >
-              <LogOut className="w-4 h-4 text-slate-400 shrink-0" />
+              <LogOut className="w-4 h-4 text-[#625B60] shrink-0" />
               <span>LOGOUT</span>
             </button>
 
@@ -564,8 +564,8 @@ export const SessionLockScreenOverlay: React.FC = () => {
               }}
               className={`w-full h-12 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 border ${
                 pin.length === 4 && !isLoading
-                  ? "bg-gradient-to-r from-[#FEF08A] via-[#FBBF24] to-[#D97706] text-[#080B11] border-amber-300 hover:from-[#FEF08A] hover:via-[#F59E0B] hover:to-[#B45309] active:scale-[0.98] cursor-pointer shadow-lg"
-                  : "bg-[#0B0F19]/80 text-slate-500 border-white/10 opacity-60 cursor-not-allowed"
+                  ? "bg-gradient-to-r from-[#FEF08A] via-[#FBBF24] to-[#D97706] text-[#FFFFFF] border-amber-300 hover:from-[#FEF08A] hover:via-[#F59E0B] hover:to-[#B45309] active:scale-[0.98] cursor-pointer shadow-lg"
+                  : "bg-[#FFFFFF]/80 text-[#8A8288] border-white/10 opacity-60 cursor-not-allowed"
               }`}
             >
               {isLoading ? (
@@ -602,9 +602,9 @@ export const SessionLockScreenOverlay: React.FC = () => {
             {/* Left: P2P Branding & Store Name */}
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-9 h-9 rounded-xl p-0.5 bg-gradient-to-br from-amber-400/60 to-amber-600/60 shadow-md shadow-amber-500/20 shrink-0">
-                <div className="w-full h-full rounded-[10px] flex items-center justify-center bg-[#080B11]/95 border border-amber-400/40">
+                <div className="w-full h-full rounded-[10px] flex items-center justify-center bg-[#FFFFFF]/95 border border-amber-400/40">
                   <span className="text-xs font-black tracking-tighter gold-gradient-text">
-                    P2P
+                    N4U
                   </span>
                 </div>
               </div>
@@ -615,7 +615,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
                   </h2>
                   <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />
                 </div>
-                <p className="text-[9.5px] font-bold tracking-widest uppercase text-slate-400 truncate">
+                <p className="text-[9.5px] font-bold tracking-widest uppercase text-[#625B60] truncate">
                   RETAILER BUSINESS PORTAL
                 </p>
               </div>
@@ -623,7 +623,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
 
             {/* Right: Retailer Profile Pill (Retailer Name & Retailer ID) */}
             <div className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-white/[0.04] border border-white/10 shrink-0">
-              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#FEF08A] to-[#F59E0B] flex items-center justify-center text-[#080B11] font-black text-[10px] shrink-0 shadow-sm shadow-amber-500/30">
+              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#FEF08A] to-[#F59E0B] flex items-center justify-center text-[#FFFFFF] font-black text-[10px] shrink-0 shadow-sm shadow-amber-500/30">
                 {retailerName ? String(retailerName).charAt(0).toUpperCase() : "S"}
               </div>
               <div className="text-right">
@@ -644,10 +644,10 @@ export const SessionLockScreenOverlay: React.FC = () => {
               className="rounded-xl px-3 py-2 flex flex-col justify-center"
               style={{
                 backgroundColor: "rgba(255, 255, 255, 0.02)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
+                border: "1px solid #E8E2E5",
               }}
             >
-              <span className="text-[9.5px] font-semibold uppercase tracking-wider text-slate-400 truncate">
+              <span className="text-[9.5px] font-semibold uppercase tracking-wider text-[#625B60] truncate">
                 {formattedDate}
               </span>
               <span className="text-sm font-mono font-black tracking-wider text-amber-300 mt-0.5">
@@ -663,7 +663,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
                 border: "1px solid rgba(245, 158, 11, 0.2)",
               }}
             >
-              <div className="flex items-center gap-1 text-[9.5px] font-semibold text-slate-400">
+              <div className="flex items-center gap-1 text-[9.5px] font-semibold text-[#625B60]">
                 <Clock className="w-3 h-3 text-amber-400 shrink-0" />
                 <span>Locked Duration</span>
               </div>
@@ -678,7 +678,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
             className={`p-2.5 rounded-xl text-xs transition-all backdrop-blur-md flex flex-col gap-1 border ${
               failedAttempts > 0
                 ? "bg-amber-500/10 border-amber-500/40 text-amber-200 shadow-sm"
-                : "bg-white/[0.02] border-white/8 text-slate-400"
+                : "bg-white/[0.02] border-white/8 text-[#625B60]"
             }`}
           >
             <div className="flex items-center justify-between gap-2">
@@ -688,7 +688,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
                   {failedAttempts > 0 ? (
                     <span className="text-amber-300 font-bold">Incorrect Security PIN</span>
                   ) : (
-                    <span className="text-slate-300 font-semibold">Security Notice</span>
+                    <span className="text-[#292329] font-semibold">Security Notice</span>
                   )}
                 </span>
               </div>
@@ -700,7 +700,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
               )}
             </div>
 
-            <p className={`text-[10.5px] leading-relaxed ${failedAttempts > 0 ? "text-amber-200/90 font-medium" : "text-slate-400"}`}>
+            <p className={`text-[10.5px] leading-relaxed ${failedAttempts > 0 ? "text-amber-200/90 font-medium" : "text-[#625B60]"}`}>
               For your security, session auto-logs out after 3 incorrect PIN attempts.
             </p>
 
@@ -712,10 +712,10 @@ export const SessionLockScreenOverlay: React.FC = () => {
           </div>
 
           {/* 4. 256-Bit Encrypted & Switch Account Link */}
-          <div className="pt-2 border-t border-white/8 flex items-center justify-between text-xs font-semibold text-slate-400">
+          <div className="pt-2 border-t border-white/8 flex items-center justify-between text-xs font-semibold text-[#625B60]">
             <span className="flex items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="text-slate-300 font-bold text-[11px]">256-Bit Encrypted</span>
+              <span className="text-[#292329] font-bold text-[11px]">256-Bit Encrypted</span>
             </span>
             <button
               type="button"

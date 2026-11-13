@@ -44,8 +44,8 @@ export const AppShellContent: React.FC<AppShellProps> = ({
         sx={{
           width: "100vw",
           height: "100vh",
-          bgcolor: "#090D16",
-          color: "#F8FAFC",
+          bgcolor: "#FFFFFF",
+          color: "#292329",
           display: "grid",
           gridTemplateAreas: gridLayoutAreas,
           gridTemplateColumns: `${activeSidebarWidth} minmax(0, 1fr) ${operationsWidth}`,

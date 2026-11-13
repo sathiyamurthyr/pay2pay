@@ -133,7 +133,7 @@ export function BeneficiarySummaryCard({ beneficiary, onEdit, compact = false }:
 
             <Box>
               <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#0F172A" }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#FFFFFF" }}>
                   {beneficiary.account_holder_name}
                 </Typography>
                 <Chip
@@ -148,7 +148,7 @@ export function BeneficiarySummaryCard({ beneficiary, onEdit, compact = false }:
                   }}
                 />
               </Stack>
-              <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>
+              <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 600 }}>
                 {beneficiary.bank_name} • {branchName}
               </Typography>
             </Box>
@@ -176,7 +176,7 @@ export function BeneficiarySummaryCard({ beneficiary, onEdit, compact = false }:
         {/* Account Number & IFSC Detail Cards */}
         <Grid container spacing={1.5} sx={{ p: 1.8, borderRadius: 2.5, backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0" }}>
           <Grid size={{ xs: 6 }}>
-            <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, display: "block" }}>
+            <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, display: "block" }}>
               MASKED ACCOUNT NUMBER
             </Typography>
             <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#1E1B4B" }}>
@@ -185,7 +185,7 @@ export function BeneficiarySummaryCard({ beneficiary, onEdit, compact = false }:
           </Grid>
 
           <Grid size={{ xs: 6 }}>
-            <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, display: "block" }}>
+            <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, display: "block" }}>
               IFSC CODE
             </Typography>
             <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#1E1B4B" }}>
@@ -236,8 +236,8 @@ export function BeneficiarySummaryCard({ beneficiary, onEdit, compact = false }:
           </Stack>
 
           <Stack direction="row" spacing={0.8} sx={{ alignItems: "center" }}>
-            <HistoryIcon sx={{ fontSize: 16, color: "#64748B" }} />
-            <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>
+            <HistoryIcon sx={{ fontSize: 16, color: "#625B60" }} />
+            <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700 }}>
               Last Txn: ₹{lastTxnAmount.toLocaleString("en-IN")} on {lastTxnDate}
             </Typography>
           </Stack>

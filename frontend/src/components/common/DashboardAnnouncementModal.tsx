@@ -46,7 +46,7 @@ function AnnouncementBannerImage({
   const resolvedUrl = imageUrl.startsWith("/uploads/") ? imageUrl : imageUrl;
 
   return (
-    <div className="relative w-full bg-gradient-to-b from-[#040711] via-[#070d1d] to-[#0a1226] flex items-center justify-center border-b border-amber-500/20 overflow-hidden max-h-[300px] sm:max-h-[360px] md:max-h-[400px]">
+    <div className="relative w-full bg-gradient-to-b from-[#040711] via-[#070d1d] to-[#FAF8F9] flex items-center justify-center border-b border-amber-500/20 overflow-hidden max-h-[300px] sm:max-h-[360px] md:max-h-[400px]">
       {/* Soft blurred ambient image backdrop to seamlessly fill any aspect-ratio gaps without distortion */}
       <div
         className="absolute inset-0 bg-cover bg-center blur-2xl opacity-20 scale-110 pointer-events-none"
@@ -57,7 +57,7 @@ function AnnouncementBannerImage({
       <img
         src={resolvedUrl}
         alt={title}
-        className="relative z-10 w-auto max-w-full h-auto max-h-[300px] sm:max-h-[360px] md:max-h-[400px] object-contain block select-none drop-shadow-[0_12px_28px_rgba(0,0,0,0.7)]"
+        className="relative z-10 w-auto max-w-full h-auto max-h-[300px] sm:max-h-[360px] md:max-h-[400px] object-contain block select-none drop-shadow-[0_12px_28px_rgba(41, 35, 41, 0.08)]"
         loading="eager"
         onError={() => setImgError(true)}
       />
@@ -193,7 +193,7 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
       <div
         className="relative w-full max-w-lg sm:max-w-xl md:max-w-2xl lg:max-w-3xl max-h-[92vh] flex flex-col rounded-[26px] sm:rounded-[30px] overflow-hidden border border-amber-500/25 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9),0_0_35px_rgba(245,158,11,0.12)] animate-in fade-in zoom-in-95 duration-250"
         style={{
-          background: "linear-gradient(150deg, #070b14 0%, #0b1122 55%, #101833 100%)",
+          background: "linear-gradient(150deg, #FFFFFF 0%, #FFFFFF 55%, #FAF8F9 100%)",
         }}
       >
         {/* Subtle Top Gold Hairline Glow */}
@@ -205,10 +205,10 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
         {/* Top Dismiss Button (X) */}
         <button
           onClick={dismissCurrent}
-          className="absolute top-3.5 right-3.5 z-50 w-9 h-9 flex items-center justify-center rounded-full bg-[#070b14]/80 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 border border-white/15 hover:border-amber-400/50 transition-all duration-200 cursor-pointer shadow-lg backdrop-blur-md active:scale-95 group"
+          className="absolute top-3.5 right-3.5 z-50 w-9 h-9 flex items-center justify-center rounded-full bg-[#FFFFFF]/80 hover:bg-amber-500/20 text-[#292329] hover:text-amber-300 border border-white/15 hover:border-amber-400/50 transition-all duration-200 cursor-pointer shadow-lg backdrop-blur-md active:scale-95 group"
           aria-label="Dismiss Announcement"
         >
-          <X className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90 text-slate-300 group-hover:text-amber-300" />
+          <X className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90 text-[#292329] group-hover:text-amber-300" />
         </button>
 
         {/* Scrollable Container */}
@@ -255,7 +255,7 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
                   </h2>
                 )}
                 {item.body && (
-                  <p className="text-sm sm:text-[14.5px] text-slate-300/90 leading-relaxed font-normal whitespace-pre-line">
+                  <p className="text-sm sm:text-[14.5px] text-[#292329]/90 leading-relaxed font-normal whitespace-pre-line">
                     {item.body}
                   </p>
                 )}
@@ -271,7 +271,7 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
                     href={link.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.03] hover:bg-amber-500/[0.08] border border-amber-500/20 hover:border-amber-400/50 shadow-sm transition-all text-xs sm:text-sm font-semibold text-slate-100 group"
+                    className="flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.03] hover:bg-amber-500/[0.08] border border-amber-500/20 hover:border-amber-400/50 shadow-sm transition-all text-xs sm:text-sm font-semibold text-[#292329] group"
                   >
                     <div className="flex items-center gap-2.5">
                       {link.icon === "whatsapp" || link.url.includes("whatsapp") ? (
@@ -283,7 +283,7 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
                         {link.label || link.url}
                       </span>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-amber-300 transition-transform group-hover:translate-x-1" />
+                    <ChevronRight className="w-4 h-4 text-[#625B60] group-hover:text-amber-300 transition-transform group-hover:translate-x-1" />
                   </a>
                 ))}
               </div>
@@ -317,7 +317,7 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
                 {announcements.length > 1 && current > 0 && (
                   <button
                     onClick={goToPrev}
-                    className="px-4 py-3 sm:py-3.5 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 hover:text-white font-bold text-xs sm:text-sm border border-white/10 hover:border-amber-500/30 transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-[0.98]"
+                    className="px-4 py-3 sm:py-3.5 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] text-[#292329] hover:text-white font-bold text-xs sm:text-sm border border-white/10 hover:border-amber-500/30 transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-[0.98]"
                   >
                     <ChevronLeft className="w-4 h-4" />
                     <span>Back</span>

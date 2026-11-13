@@ -468,7 +468,7 @@ export function AadhaarEkycWizard() {
       </div>
 
       {/* Enterprise Stepper Bar */}
-      <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-x-auto scrollbar-none">
+      <div className="p-4 rounded-2xl bg-white dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5] shadow-xs overflow-x-auto scrollbar-none">
         <div className="flex items-center justify-between min-w-[850px] gap-2">
           {STEPPER.map((s, idx) => {
             const isCompleted = currentStep > s.num;
@@ -483,7 +483,7 @@ export function AadhaarEkycWizard() {
                       ? "text-blue-600 dark:text-blue-400 font-extrabold"
                       : isCompleted
                       ? "text-emerald-600 dark:text-emerald-400 font-bold"
-                      : "text-slate-400 dark:text-slate-600 font-medium"
+                      : "text-[#625B60] dark:text-slate-600 font-medium"
                   }`}
                 >
                   <div
@@ -492,7 +492,7 @@ export function AadhaarEkycWizard() {
                         ? "bg-blue-600 text-white border-blue-600 ring-4 ring-blue-600/20"
                         : isCompleted
                         ? "bg-emerald-500 text-white border-emerald-500"
-                        : "bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700"
+                        : "bg-slate-100 dark:bg-[#F5F2F4] border-slate-300 dark:border-[#E8E2E5]"
                     }`}
                   >
                     {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : s.num}
@@ -502,7 +502,7 @@ export function AadhaarEkycWizard() {
                 {idx < STEPPER.length - 1 && (
                   <div
                     className={`h-0.5 flex-1 mx-1 rounded-full ${
-                      currentStep > s.num ? "bg-emerald-500" : "bg-slate-200 dark:bg-slate-800"
+                      currentStep > s.num ? "bg-emerald-500" : "bg-slate-200 dark:bg-[#F5F2F4]"
                     }`}
                   />
                 )}
@@ -514,20 +514,20 @@ export function AadhaarEkycWizard() {
 
       {/* STEP 1: CUSTOMER SEARCH */}
       {currentStep === 1 && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-6 shadow-sm">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-3xl bg-white dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5] space-y-6 shadow-sm">
           <div className="space-y-1">
             <h2 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
               <Search className="w-5 h-5 text-blue-600" />
               <span>Step 1: Search Customer Record</span>
             </h2>
-            <p className="text-xs text-slate-500 font-medium">
+            <p className="text-xs text-[#8A8288] font-medium">
               Search by Mobile Number, Customer ID, Masked Aadhaar (XXXX XXXX 2837), PAN, or Name.
             </p>
           </div>
 
           <div className="flex gap-3 max-w-xl">
             <div className="relative flex-1">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#625B60]" />
               <input
                 type="text"
                 placeholder="Enter Mobile, Customer ID, PAN or Aadhaar..."
@@ -542,7 +542,7 @@ export function AadhaarEkycWizard() {
                 data-1p-ignore="true"
                 data-bwignore="true"
                 aria-autocomplete="none"
-                className="w-full h-11 pl-10 pr-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold outline-none focus:border-blue-600"
+                className="w-full h-11 pl-10 pr-4 rounded-xl bg-slate-50 dark:bg-[#F5F2F4] border border-slate-200 dark:border-[#E8E2E5] text-xs font-bold outline-none focus:border-blue-600"
               />
             </div>
             <button
@@ -560,10 +560,10 @@ export function AadhaarEkycWizard() {
             <span>If the customer does not exist in database, click Next to initiate new onboarding.</span>
           </div>
 
-          <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-[#E8E2E5]">
             <button
               onClick={() => setCurrentStep(2)}
-              className="h-11 px-6 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-extrabold text-xs inline-flex items-center gap-2"
+              className="h-11 px-6 rounded-xl bg-[#FAF8F9] dark:bg-white text-white dark:text-slate-900 font-extrabold text-xs inline-flex items-center gap-2"
             >
               <span>Continue to Customer Details</span>
               <ChevronRight className="w-4 h-4" />
@@ -574,59 +574,59 @@ export function AadhaarEkycWizard() {
 
       {/* STEP 2: CUSTOMER BASIC DETAILS */}
       {currentStep === 2 && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-6 shadow-sm">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-3xl bg-white dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5] space-y-6 shadow-sm">
           <div className="space-y-1">
             <h2 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
               <UserPlus className="w-5 h-5 text-blue-600" />
               <span>Step 2: Customer Basic Details</span>
             </h2>
-            <p className="text-xs text-slate-500 font-medium">Capture core identity and contact information for mandatory eKYC records.</p>
+            <p className="text-xs text-[#8A8288] font-medium">Capture core identity and contact information for mandatory eKYC records.</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-bold">
             <div>
-              <label className="block text-slate-600 dark:text-slate-400 mb-1">First Name *</label>
+              <label className="block text-slate-600 dark:text-[#625B60] mb-1">First Name *</label>
               <input
                 type="text"
                 value={formData.first_name}
                 onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none focus:border-blue-600"
+                className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-[#F5F2F4] border border-slate-200 dark:border-[#E8E2E5] outline-none focus:border-blue-600"
               />
             </div>
             <div>
-              <label className="block text-slate-600 dark:text-slate-400 mb-1">Middle Name</label>
+              <label className="block text-slate-600 dark:text-[#625B60] mb-1">Middle Name</label>
               <input
                 type="text"
                 value={formData.middle_name}
                 onChange={(e) => setFormData({ ...formData, middle_name: e.target.value })}
-                className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none focus:border-blue-600"
+                className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-[#F5F2F4] border border-slate-200 dark:border-[#E8E2E5] outline-none focus:border-blue-600"
               />
             </div>
             <div>
-              <label className="block text-slate-600 dark:text-slate-400 mb-1">Last Name *</label>
+              <label className="block text-slate-600 dark:text-[#625B60] mb-1">Last Name *</label>
               <input
                 type="text"
                 value={formData.last_name}
                 onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none focus:border-blue-600"
+                className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-[#F5F2F4] border border-slate-200 dark:border-[#E8E2E5] outline-none focus:border-blue-600"
               />
             </div>
 
             <div>
-              <label className="block text-slate-600 dark:text-slate-400 mb-1">Date of Birth (YYYY-MM-DD) *</label>
+              <label className="block text-slate-600 dark:text-[#625B60] mb-1">Date of Birth (YYYY-MM-DD) *</label>
               <input
                 type="date"
                 value={formData.dob}
                 onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none focus:border-blue-600"
+                className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-[#F5F2F4] border border-slate-200 dark:border-[#E8E2E5] outline-none focus:border-blue-600"
               />
             </div>
             <div>
-              <label className="block text-slate-600 dark:text-slate-400 mb-1">Gender *</label>
+              <label className="block text-slate-600 dark:text-[#625B60] mb-1">Gender *</label>
               <select
                 value={formData.gender}
                 onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none focus:border-blue-600"
+                className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-[#F5F2F4] border border-slate-200 dark:border-[#E8E2E5] outline-none focus:border-blue-600"
               >
                 <option value="FEMALE">Female</option>
                 <option value="MALE">Male</option>
@@ -634,55 +634,55 @@ export function AadhaarEkycWizard() {
               </select>
             </div>
             <div>
-              <label className="block text-slate-600 dark:text-slate-400 mb-1">Mobile Number *</label>
+              <label className="block text-slate-600 dark:text-[#625B60] mb-1">Mobile Number *</label>
               <input
                 type="text"
                 value={formData.mobile}
                 onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
-                className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none focus:border-blue-600 font-mono"
+                className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-[#F5F2F4] border border-slate-200 dark:border-[#E8E2E5] outline-none focus:border-blue-600 font-mono"
               />
             </div>
 
             <div>
-              <label className="block text-slate-600 dark:text-slate-400 mb-1">Email Address</label>
+              <label className="block text-slate-600 dark:text-[#625B60] mb-1">Email Address</label>
               <input
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none focus:border-blue-600"
+                className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-[#F5F2F4] border border-slate-200 dark:border-[#E8E2E5] outline-none focus:border-blue-600"
               />
             </div>
             <div>
-              <label className="block text-slate-600 dark:text-slate-400 mb-1">Pincode *</label>
+              <label className="block text-slate-600 dark:text-[#625B60] mb-1">Pincode *</label>
               <input
                 type="text"
                 value={formData.pincode}
                 onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
-                className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none focus:border-blue-600 font-mono"
+                className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-[#F5F2F4] border border-slate-200 dark:border-[#E8E2E5] outline-none focus:border-blue-600 font-mono"
               />
             </div>
             <div>
-              <label className="block text-slate-600 dark:text-slate-400 mb-1">Nationality</label>
+              <label className="block text-slate-600 dark:text-[#625B60] mb-1">Nationality</label>
               <input
                 type="text"
                 value={formData.nationality}
                 disabled
-                className="w-full h-10 px-3 rounded-xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 font-bold"
+                className="w-full h-10 px-3 rounded-xl bg-slate-100 dark:bg-[#F5F2F4]/50 border border-slate-200 dark:border-[#E8E2E5] font-bold"
               />
             </div>
 
             <div className="sm:col-span-3">
-              <label className="block text-slate-600 dark:text-slate-400 mb-1">Full Residential Address *</label>
+              <label className="block text-slate-600 dark:text-[#625B60] mb-1">Full Residential Address *</label>
               <textarea
                 rows={2}
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none focus:border-blue-600 text-xs"
+                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-[#F5F2F4] border border-slate-200 dark:border-[#E8E2E5] outline-none focus:border-blue-600 text-xs"
               />
             </div>
           </div>
 
-          <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-[#E8E2E5]">
             <button
               onClick={() => setCurrentStep(1)}
               className="h-11 px-5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs inline-flex items-center gap-1.5"
@@ -706,13 +706,13 @@ export function AadhaarEkycWizard() {
 
       {/* STEP 3: AADHAAR VERIFICATION OPTION CHOICE */}
       {currentStep === 3 && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-6 shadow-sm">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-3xl bg-white dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5] space-y-6 shadow-sm">
           <div className="space-y-1">
             <h2 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
               <Lock className="w-5 h-5 text-blue-600" />
               <span>Step 3: Select Aadhaar Verification Option</span>
             </h2>
-            <p className="text-xs text-slate-500 font-medium">Choose one of the 4 UIDAI compliant verification methods.</p>
+            <p className="text-xs text-[#8A8288] font-medium">Choose one of the 4 UIDAI compliant verification methods.</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -755,7 +755,7 @@ export function AadhaarEkycWizard() {
                   className={`p-5 rounded-2xl border-2 transition-all cursor-pointer space-y-3 relative ${
                     isSel
                       ? "bg-blue-50/50 dark:bg-blue-950/40 border-blue-600 ring-2 ring-blue-600/20"
-                      : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300"
+                      : "bg-white dark:bg-[#FAF8F9] border-slate-200 dark:border-[#E8E2E5] hover:border-slate-300"
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -768,14 +768,14 @@ export function AadhaarEkycWizard() {
                   </div>
                   <div>
                     <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">{opt.title}</h3>
-                    <p className="text-xs text-slate-500 font-medium mt-0.5">{opt.desc}</p>
+                    <p className="text-xs text-[#8A8288] font-medium mt-0.5">{opt.desc}</p>
                   </div>
                 </div>
               );
             })}
           </div>
 
-          <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-[#E8E2E5]">
             <button
               onClick={() => setCurrentStep(2)}
               className="h-11 px-5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs inline-flex items-center gap-1.5"
@@ -800,14 +800,14 @@ export function AadhaarEkycWizard() {
 
       {/* STEP 4: OCR EXTRACTION */}
       {currentStep === 4 && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-6 shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-3xl bg-white dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5] space-y-6 shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#E8E2E5] pb-4">
             <div className="space-y-1">
               <h2 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                 <FileText className="w-5 h-5 text-blue-600" />
                 <span>Step 4: OCR Image Extraction & Confidence Analysis</span>
               </h2>
-              <p className="text-xs text-slate-500 font-medium">Auto-extracted document metadata from uploaded or captured Aadhaar card.</p>
+              <p className="text-xs text-[#8A8288] font-medium">Auto-extracted document metadata from uploaded or captured Aadhaar card.</p>
             </div>
             <button
               onClick={handleRunOcr}
@@ -838,27 +838,27 @@ export function AadhaarEkycWizard() {
               {/* Extracted Editable Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-bold">
                 <div>
-                  <label className="block text-slate-500 mb-1">Extracted Name</label>
+                  <label className="block text-[#8A8288] mb-1">Extracted Name</label>
                   <input type="text" value={ocrData.extracted_name} readOnly className="w-full h-10 px-3 rounded-xl bg-slate-50 border font-bold" />
                 </div>
                 <div>
-                  <label className="block text-slate-500 mb-1">Extracted DOB</label>
+                  <label className="block text-[#8A8288] mb-1">Extracted DOB</label>
                   <input type="text" value={ocrData.extracted_dob} readOnly className="w-full h-10 px-3 rounded-xl bg-slate-50 border font-mono font-bold" />
                 </div>
                 <div>
-                  <label className="block text-slate-500 mb-1">Extracted Gender</label>
+                  <label className="block text-[#8A8288] mb-1">Extracted Gender</label>
                   <input type="text" value={ocrData.extracted_gender} readOnly className="w-full h-10 px-3 rounded-xl bg-slate-50 border font-bold" />
                 </div>
                 <div>
-                  <label className="block text-slate-500 mb-1">Masked Aadhaar Number</label>
+                  <label className="block text-[#8A8288] mb-1">Masked Aadhaar Number</label>
                   <input type="text" value={ocrData.masked_aadhaar} readOnly className="w-full h-10 px-3 rounded-xl bg-slate-50 border font-mono font-bold text-blue-600" />
                 </div>
                 <div>
-                  <label className="block text-slate-500 mb-1">Extracted Pincode</label>
+                  <label className="block text-[#8A8288] mb-1">Extracted Pincode</label>
                   <input type="text" value={ocrData.extracted_pincode} readOnly className="w-full h-10 px-3 rounded-xl bg-slate-50 border font-mono font-bold" />
                 </div>
                 <div>
-                  <label className="block text-slate-500 mb-1">Status Tag</label>
+                  <label className="block text-[#8A8288] mb-1">Status Tag</label>
                   <span className="h-10 px-3 rounded-xl bg-emerald-100 text-emerald-800 font-extrabold flex items-center gap-1.5">
                     <CheckCircle2 className="w-4 h-4" /> OCR Verified
                   </span>
@@ -867,7 +867,7 @@ export function AadhaarEkycWizard() {
             </div>
           )}
 
-          <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-[#E8E2E5]">
             <button onClick={() => setCurrentStep(3)} className="h-11 px-5 rounded-xl border text-xs font-bold">Back</button>
             <button onClick={handleRunQr} className="h-11 px-6 rounded-xl bg-[#2563EB] text-white text-xs font-extrabold flex items-center gap-1.5">
               <span>Proceed to Secure QR Verification</span>
@@ -879,13 +879,13 @@ export function AadhaarEkycWizard() {
 
       {/* STEP 5: SECURE QR VERIFICATION */}
       {currentStep === 5 && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-6 shadow-sm">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-3xl bg-white dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5] space-y-6 shadow-sm">
           <div className="space-y-1">
             <h2 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
               <QrCode className="w-5 h-5 text-blue-600" />
               <span>Step 5: Secure Aadhaar QR Signature Verification</span>
             </h2>
-            <p className="text-xs text-slate-500 font-medium">Validates UIDAI 2048-bit Digital Signature from offline encrypted QR code.</p>
+            <p className="text-xs text-[#8A8288] font-medium">Validates UIDAI 2048-bit Digital Signature from offline encrypted QR code.</p>
           </div>
 
           <div className="p-5 rounded-2xl bg-blue-50/60 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -906,7 +906,7 @@ export function AadhaarEkycWizard() {
             </div>
           </div>
 
-          <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-[#E8E2E5]">
             <button onClick={() => setCurrentStep(4)} className="h-11 px-5 rounded-xl border text-xs font-bold">Back</button>
             <button onClick={() => setCurrentStep(6)} className="h-11 px-6 rounded-xl bg-[#2563EB] text-white text-xs font-extrabold flex items-center gap-1.5">
               <span>Proceed to OTP eKYC</span>
@@ -918,13 +918,13 @@ export function AadhaarEkycWizard() {
 
       {/* STEP 6: OTP eKYC */}
       {currentStep === 6 && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-6 shadow-sm">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-3xl bg-white dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5] space-y-6 shadow-sm">
           <div className="space-y-1">
             <h2 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
               <KeyRound className="w-5 h-5 text-blue-600" />
               <span>Step 6: Aadhaar OTP eKYC Verification</span>
             </h2>
-            <p className="text-xs text-slate-500 font-medium">Direct UIDAI OTP dispatched to Aadhaar linked mobile number.</p>
+            <p className="text-xs text-[#8A8288] font-medium">Direct UIDAI OTP dispatched to Aadhaar linked mobile number.</p>
           </div>
 
           <div className="max-w-md space-y-4 text-xs font-bold">
@@ -1004,7 +1004,7 @@ export function AadhaarEkycWizard() {
             )}
           </div>
 
-          <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-[#E8E2E5]">
             <button onClick={() => setCurrentStep(3)} className="h-11 px-5 rounded-xl border text-xs font-bold">Back</button>
             <button onClick={() => setCurrentStep(7)} className="h-11 px-6 rounded-xl bg-[#2563EB] text-white text-xs font-extrabold flex items-center gap-1.5">
               <span>Proceed to Customer Validation</span>
@@ -1016,18 +1016,18 @@ export function AadhaarEkycWizard() {
 
       {/* STEP 7: CUSTOMER VALIDATION (OCR VS OTP COMPARISON) */}
       {currentStep === 7 && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-6 shadow-sm">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-3xl bg-white dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5] space-y-6 shadow-sm">
           <div className="space-y-1">
             <h2 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
               <FileCheck2 className="w-5 h-5 text-blue-600" />
               <span>Step 7: OCR vs OTP Cross-Validation Engine</span>
             </h2>
-            <p className="text-xs text-slate-500 font-medium">Automatic multi-field comparison between extracted OCR data and official UIDAI OTP record.</p>
+            <p className="text-xs text-[#8A8288] font-medium">Automatic multi-field comparison between extracted OCR data and official UIDAI OTP record.</p>
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-[#E8E2E5]">
             <table className="w-full text-xs text-left">
-              <thead className="bg-slate-50 dark:bg-slate-800 font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+              <thead className="bg-slate-50 dark:bg-[#F5F2F4] font-black text-slate-600 dark:text-[#292329] uppercase tracking-wider">
                 <tr>
                   <th className="p-3.5">Attribute</th>
                   <th className="p-3.5">OCR Extracted Value</th>
@@ -1035,7 +1035,7 @@ export function AadhaarEkycWizard() {
                   <th className="p-3.5 text-right">Validation Result</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold">
+              <tbody className="divide-y divide-slate-100 dark:divide-[#E8E2E5] font-semibold">
                 {[
                   { attr: "Full Name", ocr: `${formData.first_name} ${formData.last_name}`, otp: `${formData.first_name} ${formData.last_name}`, res: "MATCH" },
                   { attr: "Date of Birth", ocr: formData.dob, otp: formData.dob, res: "MATCH" },
@@ -1046,8 +1046,8 @@ export function AadhaarEkycWizard() {
                 ].map((row, idx) => (
                   <tr key={idx} className="hover:bg-slate-50/50">
                     <td className="p-3.5 font-bold text-slate-900 dark:text-white">{row.attr}</td>
-                    <td className="p-3.5 text-slate-600 dark:text-slate-400">{row.ocr}</td>
-                    <td className="p-3.5 text-slate-600 dark:text-slate-400">{row.otp}</td>
+                    <td className="p-3.5 text-slate-600 dark:text-[#625B60]">{row.ocr}</td>
+                    <td className="p-3.5 text-slate-600 dark:text-[#625B60]">{row.otp}</td>
                     <td className="p-3.5 text-right">
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-700">
                         <CheckCircle2 className="w-3.5 h-3.5" /> ✔ {row.res}
@@ -1059,7 +1059,7 @@ export function AadhaarEkycWizard() {
             </table>
           </div>
 
-          <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-[#E8E2E5]">
             <button onClick={() => setCurrentStep(6)} className="h-11 px-5 rounded-xl border text-xs font-bold">Back</button>
             <button onClick={handleRunFaceLiveness} className="h-11 px-6 rounded-xl bg-[#2563EB] text-white text-xs font-extrabold flex items-center gap-1.5">
               <span>Proceed to Face Match & Liveness</span>
@@ -1071,13 +1071,13 @@ export function AadhaarEkycWizard() {
 
       {/* STEP 8: FACE MATCH & LIVENESS */}
       {currentStep === 8 && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-6 shadow-sm">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-3xl bg-white dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5] space-y-6 shadow-sm">
           <div className="space-y-1">
             <h2 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
               <Camera className="w-5 h-5 text-blue-600" />
               <span>Step 8: Biometric Face Match & Liveness Detection</span>
             </h2>
-            <p className="text-xs text-slate-500 font-medium">Live selfie camera capture with 3D anti-spoofing liveness detection and facial similarity scoring.</p>
+            <p className="text-xs text-[#8A8288] font-medium">Live selfie camera capture with 3D anti-spoofing liveness detection and facial similarity scoring.</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -1120,7 +1120,7 @@ export function AadhaarEkycWizard() {
             </div>
           )}
 
-          <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-[#E8E2E5]">
             <button onClick={() => setCurrentStep(7)} className="h-11 px-5 rounded-xl border text-xs font-bold">Back</button>
             <button onClick={handleRunRiskEngine} className="h-11 px-6 rounded-xl bg-[#2563EB] text-white text-xs font-extrabold flex items-center gap-1.5">
               <span>Proceed to Fraud & Risk Engine</span>
@@ -1132,13 +1132,13 @@ export function AadhaarEkycWizard() {
 
       {/* STEP 9: RISK ENGINE */}
       {currentStep === 9 && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-6 shadow-sm">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-3xl bg-white dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5] space-y-6 shadow-sm">
           <div className="space-y-1">
             <h2 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
               <ShieldAlert className="w-5 h-5 text-blue-600" />
               <span>Step 9: Enterprise Risk Engine & Duplicate Checks</span>
             </h2>
-            <p className="text-xs text-slate-500 font-medium">Validates duplicates across Aadhaar, PAN, Mobile, Device, Face, AML, and Sanction lists.</p>
+            <p className="text-xs text-[#8A8288] font-medium">Validates duplicates across Aadhaar, PAN, Mobile, Device, Face, AML, and Sanction lists.</p>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-bold">
@@ -1161,7 +1161,7 @@ export function AadhaarEkycWizard() {
             ))}
           </div>
 
-          <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-[#E8E2E5]">
             <button onClick={() => setCurrentStep(8)} className="h-11 px-5 rounded-xl border text-xs font-bold">Back</button>
             <button onClick={handleRunFinalDecision} className="h-11 px-6 rounded-xl bg-[#2563EB] text-white text-xs font-extrabold flex items-center gap-1.5">
               <span>Execute Decision Engine</span>
@@ -1173,7 +1173,7 @@ export function AadhaarEkycWizard() {
 
       {/* STEP 10 & 11: DECISION & PROFILE */}
       {currentStep >= 10 && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-6 shadow-sm">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-3xl bg-white dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5] space-y-6 shadow-sm">
           <div className="p-6 rounded-3xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white space-y-3 text-center shadow-lg">
             <CheckCircle2 className="w-12 h-12 mx-auto" />
             <h2 className="text-2xl font-black">eKYC VERIFICATION APPROVED</h2>
@@ -1200,8 +1200,8 @@ export function AadhaarEkycWizard() {
             }}
           />
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-            <button onClick={() => setCurrentStep(1)} className="h-11 px-6 rounded-xl bg-slate-900 text-white text-xs font-extrabold">
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-[#E8E2E5]">
+            <button onClick={() => setCurrentStep(1)} className="h-11 px-6 rounded-xl bg-[#FAF8F9] text-white text-xs font-extrabold">
               Start Another Customer eKYC
             </button>
           </div>

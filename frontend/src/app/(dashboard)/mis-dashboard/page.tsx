@@ -111,7 +111,7 @@ export default function MISDashboardPage() {
               <BarChart3 className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-extrabold text-[#0F172A] tracking-tight">Executive Reporting & MIS Platform</h1>
+              <h1 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight">Executive Reporting & MIS Platform</h1>
               <p className="text-xs font-medium text-[#64748B] mt-0.5">
                 Real-time management dashboard · pre-aggregated daily summaries · financial analytics
               </p>
@@ -167,7 +167,7 @@ export default function MISDashboardPage() {
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-[#3B82F6]" />
-          <h2 className="text-sm font-extrabold text-[#0F172A]">Pre-Aggregated Daily Financial Summaries</h2>
+          <h2 className="text-sm font-extrabold text-[#FFFFFF]">Pre-Aggregated Daily Financial Summaries</h2>
         </div>
 
         {/* Toolbar */}
@@ -228,7 +228,7 @@ export default function MISDashboardPage() {
                         <span className="font-mono font-extrabold text-[#D97706] text-[11px] bg-[#FFFBEB] border border-[#FDE68A] px-2 py-0.5 rounded-lg">{ds.summary_date}</span>
                       </td>
                       <td className="px-4 py-3.5 font-mono font-semibold text-[#1D4ED8] text-[12px]">{ds.total_transactions.toLocaleString()}</td>
-                      <td className="px-4 py-3.5 font-mono font-extrabold text-[#0F172A] text-[12px]">{fmt(ds.gross_amount)}</td>
+                      <td className="px-4 py-3.5 font-mono font-extrabold text-[#FFFFFF] text-[12px]">{fmt(ds.gross_amount)}</td>
                       <td className="px-4 py-3.5 font-mono font-extrabold text-[#16A34A] text-[12px]">{fmt(ds.mdr_revenue)}</td>
                       <td className="px-4 py-3.5 font-mono text-[#B45309] text-[11px] font-semibold">{fmt(ds.gst_collected)}</td>
                       <td className="px-4 py-3.5 font-mono text-[#9333EA] text-[11px] font-semibold">{fmt(ds.tds_deducted)}</td>
@@ -243,7 +243,7 @@ export default function MISDashboardPage() {
           {dailySummaries.length > 0 && (
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 border-t border-[#F1F5F9] bg-gradient-to-r from-[#F8FAFC] to-[#EFF6FF] text-[11px] font-semibold text-[#64748B]">
               <span>
-                Total Gross: <strong className="text-[#0F172A] font-mono">{fmt(dailySummaries.reduce((s, d) => s + d.gross_amount, 0))}</strong>
+                Total Gross: <strong className="text-[#FFFFFF] font-mono">{fmt(dailySummaries.reduce((s, d) => s + d.gross_amount, 0))}</strong>
                 <span className="mx-2">·</span>
                 Total MDR: <strong className="text-[#16A34A] font-mono">{fmt(dailySummaries.reduce((s, d) => s + d.mdr_revenue, 0))}</strong>
               </span>

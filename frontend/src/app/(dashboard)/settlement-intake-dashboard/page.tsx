@@ -72,18 +72,18 @@ export default function SettlementIntakeDashboardPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100 flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-[#292329] flex items-center gap-3">
             <FileCheck className="h-8 w-8 text-emerald-400" />
             Settlement File Intake Telemetry
           </h1>
-          <p className="mt-1 text-slate-400">
+          <p className="mt-1 text-[#625B60]">
             SHA-256 Checksum verification, Bank format header/trailer validation, MID/TID mapping, and rejection staging
           </p>
         </div>
         <button
           onClick={fetchMetrics}
           disabled={refreshing}
-          className="flex items-center gap-2 rounded-lg bg-slate-800/80 px-4 py-2.5 text-sm font-medium text-slate-200 border border-slate-700 hover:bg-slate-700/80 transition-all"
+          className="flex items-center gap-2 rounded-lg bg-[#F5F2F4]/80 px-4 py-2.5 text-sm font-medium text-[#292329] border border-[#E8E2E5] hover:bg-slate-700/80 transition-all"
         >
           <RefreshCw className={`h-4 w-4 text-emerald-400 ${refreshing ? "animate-spin" : ""}`} />
           Refresh
@@ -100,7 +100,7 @@ export default function SettlementIntakeDashboardPage() {
               className={`relative overflow-hidden rounded-xl border bg-gradient-to-br p-5 backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] shadow-lg ${kpi.color}`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-300">{kpi.label}</span>
+                <span className="text-sm font-medium text-[#292329]">{kpi.label}</span>
                 <Icon className="h-5 w-5 opacity-80" />
               </div>
               <div className="mt-3 text-3xl font-extrabold text-white">{kpi.value}</div>
@@ -110,26 +110,26 @@ export default function SettlementIntakeDashboardPage() {
       </div>
 
       {/* Supported Bank Gateways */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur-xl shadow-xl space-y-4">
-        <h3 className="font-semibold text-slate-200 text-lg flex items-center gap-2">
+      <div className="rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 p-6 backdrop-blur-xl shadow-xl space-y-4">
+        <h3 className="font-semibold text-[#292329] text-lg flex items-center gap-2">
           <UploadCloud className="h-5 w-5 text-emerald-400" /> Integrated Bank File Formats
         </h3>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 text-xs">
-          <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/40">
+          <div className="p-4 rounded-xl border border-[#E8E2E5] bg-[#FFFFFF]/40">
             <span className="font-semibold text-blue-400 text-sm">HDFC Bank Settlement</span>
-            <p className="mt-1 text-slate-400">CSV & Fixed-width format with Trailer checksum reconciliation.</p>
+            <p className="mt-1 text-[#625B60]">CSV & Fixed-width format with Trailer checksum reconciliation.</p>
           </div>
-          <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/40">
+          <div className="p-4 rounded-xl border border-[#E8E2E5] bg-[#FFFFFF]/40">
             <span className="font-semibold text-emerald-400 text-sm">ICICI Bank Merchant Feed</span>
-            <p className="mt-1 text-slate-400">Encrypted ZIP archive with SHA-256 header validation.</p>
+            <p className="mt-1 text-[#625B60]">Encrypted ZIP archive with SHA-256 header validation.</p>
           </div>
-          <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/40">
+          <div className="p-4 rounded-xl border border-[#E8E2E5] bg-[#FFFFFF]/40">
             <span className="font-semibold text-amber-400 text-sm">State Bank of India (SBI)</span>
-            <p className="mt-1 text-slate-400">T+1 Daily batch CSV stream with MID/TID mapping.</p>
+            <p className="mt-1 text-[#625B60]">T+1 Daily batch CSV stream with MID/TID mapping.</p>
           </div>
-          <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/40">
+          <div className="p-4 rounded-xl border border-[#E8E2E5] bg-[#FFFFFF]/40">
             <span className="font-semibold text-purple-400 text-sm">Axis Bank File Parser</span>
-            <p className="mt-1 text-slate-400">XLSX merchant batch stream with auto-reject isolation.</p>
+            <p className="mt-1 text-[#625B60]">XLSX merchant batch stream with auto-reject isolation.</p>
           </div>
         </div>
       </div>

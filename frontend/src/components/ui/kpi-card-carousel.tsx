@@ -55,7 +55,7 @@ export const KpiCardCarousel: React.FC = () => {
     { id: "royal-gold", label: "Royal Gold", swatch: "#FFD54F" },
     { id: "emerald-green", label: "Emerald Green", swatch: "#16A34A" },
     { id: "purple", label: "Purple Velvet", swatch: "#7C3AED" },
-    { id: "dark", label: "Dark Onyx", swatch: "#0F172A" },
+    { id: "dark", label: "Dark Onyx", swatch: "#FFFFFF" },
     { id: "corporate-white", label: "Corporate White", swatch: "#FFFFFF" },
   ];
 
@@ -82,19 +82,19 @@ export const KpiCardCarousel: React.FC = () => {
 
       case "dark":
         if (cardType === "wallet") {
-          return { bg: "#0F172A", color: "#FFFFFF", iconBg: "rgba(255,255,255,0.15)", iconColor: "#FFD54F" };
+          return { bg: "#FFFFFF", color: "#FFFFFF", iconBg: "rgba(255,255,255,0.15)", iconColor: "#FFD54F" };
         }
-        return { bg: "#1E293B", color: "#F8FAFC", iconBg: "#334155", iconColor: "#38BDF8", border: "1px solid #334155" };
+        return { bg: "#1E293B", color: "#292329", iconBg: "#334155", iconColor: "#38BDF8", border: "1px solid #334155" };
 
       case "corporate-white":
-        return { bg: "#FFFFFF", color: "#111827", iconBg: "#F1F5F9", iconColor: "#2563EB", border: "1px solid #E5E7EB" };
+        return { bg: "#FFFFFF", color: "#FAF8F9", iconBg: "#F1F5F9", iconColor: "#2563EB", border: "1px solid #E5E7EB" };
 
       case "classic-blue":
       default:
         if (cardType === "wallet") {
           return { bg: "#1E3A8A", color: "#FFFFFF", iconBg: "rgba(255, 213, 79, 0.20)", iconColor: "#FFD54F" };
         }
-        return { bg: "#FFFFFF", color: "#111827", iconBg: cardType === "txns" ? "#EFF6FF" : cardType === "margin" ? "#DCFCE7" : "#F3E8FF", iconColor: cardType === "txns" ? "#2563EB" : cardType === "margin" ? "#16A34A" : "#7C3AED", border: "1px solid #E5E7EB" };
+        return { bg: "#FFFFFF", color: "#FAF8F9", iconBg: cardType === "txns" ? "#EFF6FF" : cardType === "margin" ? "#DCFCE7" : "#F3E8FF", iconColor: cardType === "txns" ? "#2563EB" : cardType === "margin" ? "#16A34A" : "#7C3AED", border: "1px solid #E5E7EB" };
     }
   };
 

@@ -15,7 +15,7 @@ const CATEGORY_ICONS: Record<string, { icon: React.ElementType; color: string; b
   SECURITY:     { icon: Lock,      color: "#EF4444", bg: "#FEE2E2", border: "#FECACA" },
   API:          { icon: Server,    color: "#3B82F6", bg: "#DBEAFE", border: "#93C5FD" },
   NOTIFICATION: { icon: Bell,      color: "#8B5CF6", bg: "#F3E8FF", border: "#DDD6FE" },
-  SYSTEM:       { icon: Settings,  color: "#64748B", bg: "#F1F5F9", border: "#CBD5E1" },
+  SYSTEM:       { icon: Settings,  color: "#625B60", bg: "#F1F5F9", border: "#CBD5E1" },
 };
 
 export default function SettingsPage() {
@@ -69,7 +69,7 @@ export default function SettingsPage() {
               <div className="w-7 h-7 rounded-lg flex items-center justify-center mb-2" style={{ background: meta.bg }}>
                 <Icon style={{ color: meta.color, width: "14px", height: "14px" }} />
               </div>
-              <div className="font-mono text-[18px] font-bold text-[#0F172A]">{count}</div>
+              <div className="font-mono text-[18px] font-bold text-[#FFFFFF]">{count}</div>
               <p className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider mt-0.5 truncate">{cat}</p>
             </button>
           );

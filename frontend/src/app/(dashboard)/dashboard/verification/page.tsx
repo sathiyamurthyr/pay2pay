@@ -42,9 +42,9 @@ export default function TrackVerificationPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto select-none">
       {/* Header Bar */}
-      <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+      <div className="flex items-center justify-between pb-4 border-b border-[#E8E2E5]">
         <div className="flex items-center gap-3">
-          <Link href="/dashboard" className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white">
+          <Link href="/dashboard" className="p-2 rounded-xl bg-[#FAF8F9] border border-[#E8E2E5] text-[#625B60] hover:text-white">
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div>
@@ -54,7 +54,7 @@ export default function TrackVerificationPage() {
                 RBI Verification Portal
               </span>
             </h1>
-            <p className="text-xs text-slate-400 font-medium">Real-time enterprise retailer compliance tracking</p>
+            <p className="text-xs text-[#625B60] font-medium">Real-time enterprise retailer compliance tracking</p>
           </div>
         </div>
 
@@ -71,7 +71,7 @@ export default function TrackVerificationPage() {
       {loading ? (
         <div className="py-12 text-center">
           <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-xs font-bold text-slate-400">Fetching live verification details...</p>
+          <p className="text-xs font-bold text-[#625B60]">Fetching live verification details...</p>
         </div>
       ) : (
         <VerificationPendingDashboard

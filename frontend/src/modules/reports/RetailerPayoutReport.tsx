@@ -453,7 +453,7 @@ export const RetailerPayoutReport: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `Pay2Pay_Payout_Report_${new Date().toISOString().split("T")[0]}.csv`);
+    link.setAttribute("download", `Near4You_Payout_Report_${new Date().toISOString().split("T")[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -497,7 +497,7 @@ export const RetailerPayoutReport: React.FC = () => {
     const bankName = t.bank || t.bank_name || "N/A";
     const mode = t.mode || t.payment_mode || "IMPS";
 
-    const compLogo = branding.logo_url || "/branding/logo.png";
+    const compLogo = branding.logo_url || "/branding/logo.svg";
     const compName = branding.company_name || branding.legal_name || "";
     const compLegal = branding.legal_name || compName;
     const retailerShop = outlet?.name || "";
@@ -543,7 +543,7 @@ export const RetailerPayoutReport: React.FC = () => {
             body {
               font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
               background: #F1F5F9;
-              color: #0F172A;
+              color: #FFFFFF;
               margin: 0;
               padding: 24px;
               -webkit-print-color-adjust: exact;
@@ -571,7 +571,7 @@ export const RetailerPayoutReport: React.FC = () => {
               box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
             }
             .btn-download {
-              background: #0F172A;
+              background: #FFFFFF;
               color: #FFF;
               border: 1px solid #334155;
             }
@@ -610,7 +610,7 @@ export const RetailerPayoutReport: React.FC = () => {
             .brand-name {
               font-size: 18px;
               font-weight: 900;
-              color: #0F172A;
+              color: #FFFFFF;
               line-height: 1.2;
             }
             .brand-legal {
@@ -655,7 +655,7 @@ export const RetailerPayoutReport: React.FC = () => {
             .retailer-name {
               font-size: 14px;
               font-weight: 800;
-              color: #0F172A;
+              color: #FFFFFF;
             }
             .retailer-meta {
               font-size: 12px;
@@ -695,7 +695,7 @@ export const RetailerPayoutReport: React.FC = () => {
             .amount-value {
               font-size: 36px;
               font-weight: 900;
-              color: #0F172A;
+              color: #FFFFFF;
               margin: 4px 0;
             }
             .amount-mode {
@@ -734,7 +734,7 @@ export const RetailerPayoutReport: React.FC = () => {
             .item-val {
               font-size: 13px;
               font-weight: 700;
-              color: #0F172A;
+              color: #FFFFFF;
               word-break: break-all;
             }
             .item-val-mono {
@@ -823,7 +823,7 @@ export const RetailerPayoutReport: React.FC = () => {
               </div>
               <div style="text-align: right;">
                 <div class="retailer-title">Outlet ID</div>
-                <div style="font-size: 13px; font-weight: 800; font-family: monospace; color: #0F172A;">${retailerCode}</div>
+                <div style="font-size: 13px; font-weight: 800; font-family: monospace; color: #FFFFFF;">${retailerCode}</div>
                 <div style="font-size: 11px; color: #64748B;">${retailerCity}</div>
               </div>
             </div>
@@ -906,7 +906,7 @@ export const RetailerPayoutReport: React.FC = () => {
             <!-- Audit & Security Footer -->
             <div class="footer-info">
               <strong>Official Electronic Transaction Voucher</strong><br />
-              This is a computer-generated transaction advice issued via the Pay2Pay Platform.<br />
+              This is a computer-generated transaction advice issued via the Near4You Platform.<br />
               Authorized and processed through banking partner switch. No physical signature required.<br />
               Generated on: ${new Date().toLocaleString("en-IN")}
             </div>
@@ -952,7 +952,7 @@ export const RetailerPayoutReport: React.FC = () => {
         width: "100%",
         maxWidth: "100%",
         bgcolor: "transparent",
-        color: "#0F172A",
+        color: "#FFFFFF",
         pt: { xs: 1, md: 1.5 },
         pb: { xs: 16, md: 6 },
         overflowX: "hidden",
@@ -1035,7 +1035,7 @@ export const RetailerPayoutReport: React.FC = () => {
                 fontSize: "11.5px",
                 fontWeight: 700,
                 bgcolor: "rgba(255, 255, 255, 0.05)",
-                color: "#F8FAFC",
+                color: "#292329",
                 border: "1px solid rgba(255, 255, 255, 0.12)",
               }}
             />
@@ -1048,8 +1048,8 @@ export const RetailerPayoutReport: React.FC = () => {
                   fontSize: "11px",
                   fontWeight: 600,
                   bgcolor: "rgba(255, 255, 255, 0.03)",
-                  color: "#94A3B8",
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  color: "#625B60",
+                  border: "1px solid #E8E2E5",
                   display: { xs: "none", sm: "inline-flex" },
                 }}
               />
@@ -1073,7 +1073,7 @@ export const RetailerPayoutReport: React.FC = () => {
           sx={{
             p: 2,
             borderRadius: "14px",
-            bgcolor: "rgba(15, 23, 42, 0.75)",
+            bgcolor: "#FFFFFF",
             backdropFilter: "blur(20px)",
             border: "1px solid rgba(254, 240, 138, 0.25)",
             boxShadow: "0 8px 32px rgba(0, 0, 0, 0.35), 0 0 20px rgba(245, 158, 11, 0.08)",
@@ -1085,10 +1085,10 @@ export const RetailerPayoutReport: React.FC = () => {
           }}
         >
           <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-            <Typography sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.8px" }}>
+            <Typography sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.8px" }}>
               TRANSFER VOLUME
             </Typography>
-            <Box sx={{ width: 28, height: 28, borderRadius: "8px", bgcolor: "rgba(245, 158, 11, 0.15)", display: "flex", alignItems: "center", justifyContent: "center", color: "#FBBF24" }}>
+            <Box sx={{ width: 28, height: 28, borderRadius: "8px", bgcolor: "rgba(245, 158, 11, 0.15)", display: "flex", alignItems: "center", justifyContent: "center", color: "#A20A3A" }}>
               <TrendingUpIcon sx={{ fontSize: 16 }} />
             </Box>
           </Stack>
@@ -1121,7 +1121,7 @@ export const RetailerPayoutReport: React.FC = () => {
           sx={{
             p: 2,
             borderRadius: "14px",
-            bgcolor: "rgba(15, 23, 42, 0.75)",
+            bgcolor: "#FFFFFF",
             backdropFilter: "blur(20px)",
             border: "1px solid rgba(239, 68, 68, 0.3)",
             boxShadow: "0 8px 32px rgba(0, 0, 0, 0.35), 0 0 20px rgba(239, 68, 68, 0.08)",
@@ -1159,7 +1159,7 @@ export const RetailerPayoutReport: React.FC = () => {
           sx={{
             p: 2,
             borderRadius: "14px",
-            bgcolor: "rgba(15, 23, 42, 0.75)",
+            bgcolor: "#FFFFFF",
             backdropFilter: "blur(20px)",
             border: "1px solid rgba(16, 185, 129, 0.3)",
             boxShadow: "0 8px 32px rgba(0, 0, 0, 0.35), 0 0 20px rgba(16, 185, 129, 0.08)",
@@ -1197,7 +1197,7 @@ export const RetailerPayoutReport: React.FC = () => {
           sx={{
             p: 2,
             borderRadius: "14px",
-            bgcolor: "rgba(15, 23, 42, 0.75)",
+            bgcolor: "#FFFFFF",
             backdropFilter: "blur(20px)",
             border: "1px solid rgba(96, 165, 250, 0.3)",
             boxShadow: "0 8px 32px rgba(0, 0, 0, 0.35), 0 0 20px rgba(96, 165, 250, 0.08)",
@@ -1237,10 +1237,10 @@ export const RetailerPayoutReport: React.FC = () => {
           p: 1.2,
           px: { xs: 1.5, sm: 2 },
           borderRadius: "12px",
-          bgcolor: "rgba(15, 23, 42, 0.75)",
+          bgcolor: "#FFFFFF",
           backdropFilter: "blur(20px)",
-          border: "1px solid rgba(254, 240, 138, 0.2)",
-          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.35)",
+          border: "1px solid #E8E2E5",
+          boxShadow: "0 4px 20px rgba(41, 35, 41, 0.05)",
           mb: 2,
           display: "flex",
           flexDirection: { xs: "column", lg: "row" },
@@ -1250,9 +1250,9 @@ export const RetailerPayoutReport: React.FC = () => {
         }}
       >
         <Stack direction="row" alignItems="center" spacing={1} sx={{ overflowX: "auto", maxWidth: "100%", width: "100%", pb: { xs: 0.5, lg: 0 } }}>
-          <Stack direction="row" alignItems="center" spacing={0.8} sx={{ color: "#FBBF24", mr: 1, flexShrink: 0 }}>
+          <Stack direction="row" alignItems="center" spacing={0.8} sx={{ color: "#A20A3A", mr: 1, flexShrink: 0 }}>
             <CalendarMonthIcon sx={{ fontSize: 18 }} />
-            <Typography sx={{ fontSize: "12.5px", fontWeight: 800, color: "#FBBF24", whiteSpace: "nowrap" }}>
+            <Typography sx={{ fontSize: "12.5px", fontWeight: 800, color: "#A20A3A", whiteSpace: "nowrap" }}>
               Date Range:
             </Typography>
           </Stack>
@@ -1291,13 +1291,13 @@ export const RetailerPayoutReport: React.FC = () => {
                   flexShrink: 0,
                   bgcolor: isSelected ? undefined : "rgba(255, 255, 255, 0.05)",
                   background: isSelected ? "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)" : "none",
-                  color: isSelected ? "#080B11" : "rgba(255, 255, 255, 0.8)",
+                  color: isSelected ? "#FFFFFF" : "rgba(255, 255, 255, 0.8)",
                   border: isSelected ? "1px solid #FEF08A" : "1px solid rgba(255, 255, 255, 0.12)",
                   boxShadow: isSelected ? "0 0 12px rgba(245, 158, 11, 0.35)" : "none",
                   "&:hover": {
                     bgcolor: isSelected ? undefined : "rgba(255, 255, 255, 0.1)",
                     borderColor: isSelected ? "#FEF08A" : "rgba(254, 240, 138, 0.35)",
-                    color: isSelected ? "#080B11" : "#F8FAFC",
+                    color: isSelected ? "#FFFFFF" : "#F8FAFC",
                   },
                 }}
               >
@@ -1319,10 +1319,10 @@ export const RetailerPayoutReport: React.FC = () => {
           p: 1.2,
           px: { xs: 1.5, sm: 2 },
           borderRadius: "12px",
-          bgcolor: "rgba(15, 23, 42, 0.75)",
+          bgcolor: "#FFFFFF",
           backdropFilter: "blur(20px)",
-          border: "1px solid rgba(254, 240, 138, 0.2)",
-          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.35)",
+          border: "1px solid #E8E2E5",
+          boxShadow: "0 4px 20px rgba(41, 35, 41, 0.05)",
           mb: 2,
           display: "flex",
           flexDirection: { xs: "column", lg: "row" },
@@ -1345,7 +1345,7 @@ export const RetailerPayoutReport: React.FC = () => {
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchIcon sx={{ color: "#FBBF24", fontSize: 18 }} />
+                  <SearchIcon sx={{ color: "#A20A3A", fontSize: 18 }} />
                 </InputAdornment>
               ),
               endAdornment: globalSearch ? (
@@ -1357,7 +1357,7 @@ export const RetailerPayoutReport: React.FC = () => {
               ) : null,
               sx: {
                 bgcolor: "rgba(8, 11, 17, 0.85)",
-                color: "#F8FAFC",
+                color: "#292329",
                 borderRadius: "8px",
                 fontSize: "12.5px",
                 height: "38px",
@@ -1365,7 +1365,7 @@ export const RetailerPayoutReport: React.FC = () => {
                 "& fieldset": { border: "none" },
                 "&:hover": { borderColor: "rgba(254, 240, 138, 0.4)" },
                 "&.Mui-focused": {
-                  borderColor: "#FBBF24",
+                  bordercolor: "#A20A3A",
                   boxShadow: "0 0 14px rgba(245, 158, 11, 0.25)",
                 },
               },
@@ -1401,14 +1401,14 @@ export const RetailerPayoutReport: React.FC = () => {
             size="small"
             variant="outlined"
             onClick={(e) => setDensityAnchorEl(e.currentTarget)}
-            startIcon={<TableRowsIcon sx={{ fontSize: 16, color: "#FBBF24" }} />}
+            startIcon={<TableRowsIcon sx={{ fontSize: 16, color: "#A20A3A" }} />}
             sx={{
               height: "38px",
               fontSize: "12px",
               fontWeight: 700,
               textTransform: "none",
               borderRadius: "8px",
-              color: "#F8FAFC",
+              color: "#292329",
               borderColor: "rgba(255, 255, 255, 0.14)",
               bgcolor: "rgba(8, 11, 17, 0.85)",
               "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(254, 240, 138, 0.35)" },
@@ -1422,14 +1422,14 @@ export const RetailerPayoutReport: React.FC = () => {
             size="small"
             variant="outlined"
             onClick={(e) => setColumnsAnchorEl(e.currentTarget)}
-            startIcon={<ViewColumnIcon sx={{ fontSize: 16, color: "#FBBF24" }} />}
+            startIcon={<ViewColumnIcon sx={{ fontSize: 16, color: "#A20A3A" }} />}
             sx={{
               height: "38px",
               fontSize: "12px",
               fontWeight: 700,
               textTransform: "none",
               borderRadius: "8px",
-              color: "#F8FAFC",
+              color: "#292329",
               borderColor: "rgba(255, 255, 255, 0.14)",
               bgcolor: "rgba(8, 11, 17, 0.85)",
               "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(254, 240, 138, 0.35)" },
@@ -1443,7 +1443,7 @@ export const RetailerPayoutReport: React.FC = () => {
             size="small"
             variant="outlined"
             onClick={(e) => setExportAnchorEl(e.currentTarget)}
-            startIcon={<FileDownloadIcon sx={{ fontSize: 16, color: "#FBBF24" }} />}
+            startIcon={<FileDownloadIcon sx={{ fontSize: 16, color: "#A20A3A" }} />}
             endIcon={<ArrowDropDownIcon sx={{ fontSize: 16, color: "rgba(255,255,255,0.7)" }} />}
             sx={{
               height: "38px",
@@ -1451,7 +1451,7 @@ export const RetailerPayoutReport: React.FC = () => {
               fontWeight: 700,
               textTransform: "none",
               borderRadius: "8px",
-              color: "#F8FAFC",
+              color: "#292329",
               borderColor: "rgba(255, 255, 255, 0.14)",
               bgcolor: "rgba(8, 11, 17, 0.85)",
               "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(254, 240, 138, 0.35)" },
@@ -1475,7 +1475,7 @@ export const RetailerPayoutReport: React.FC = () => {
                 borderRadius: "8px",
                 border: "1px solid rgba(255, 255, 255, 0.14)",
                 bgcolor: "rgba(8, 11, 17, 0.85)",
-                color: "#FBBF24",
+                color: "#A20A3A",
                 "&:hover": { bgcolor: "rgba(245, 158, 11, 0.15)", borderColor: "rgba(254, 240, 138, 0.35)" },
               }}
             >
@@ -1514,7 +1514,7 @@ export const RetailerPayoutReport: React.FC = () => {
                 border: "1px solid rgba(255, 255, 255, 0.14)",
                 bgcolor: "rgba(8, 11, 17, 0.85)",
                 color: "rgba(255, 255, 255, 0.6)",
-                "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(254, 240, 138, 0.35)", color: "#F8FAFC" },
+                "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(254, 240, 138, 0.35)", color: "#292329" },
               }}
             >
               {isFullscreen ? <FullscreenExitIcon sx={{ fontSize: 18 }} /> : <FullscreenIcon sx={{ fontSize: 18 }} />}
@@ -1523,7 +1523,7 @@ export const RetailerPayoutReport: React.FC = () => {
 
           {/* Record Count */}
           <Typography sx={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.65)", fontWeight: 700, pl: 1, whiteSpace: "nowrap" }}>
-            Showing <strong style={{ color: "#F8FAFC" }}>{totalRecords}</strong> records
+            Showing <strong style={{ color: "#292329" }}>{totalRecords}</strong> records
           </Typography>
         </Stack>
       </Paper>
@@ -1533,7 +1533,7 @@ export const RetailerPayoutReport: React.FC = () => {
         anchorEl={densityAnchorEl}
         open={Boolean(densityAnchorEl)}
         onClose={() => setDensityAnchorEl(null)}
-        slotProps={{ paper: { sx: { borderRadius: "10px", width: 150, p: 0.5, bgcolor: "#0F172A", border: "1px solid rgba(254, 240, 138, 0.25)", color: "#F8FAFC" } } }}
+        slotProps={{ paper: { sx: { borderRadius: "10px", width: 150, p: 0.5, bgcolor: "#FFFFFF", border: "1px solid rgba(254, 240, 138, 0.25)", color: "#292329" } } }}
       >
         <MenuItem onClick={() => { setDensity("compact"); setDensityAnchorEl(null); }} sx={{ fontSize: "12px", fontWeight: density === "compact" ? 800 : 500, color: density === "compact" ? "#FBBF24" : "#F8FAFC" }}>
           Compact
@@ -1551,12 +1551,12 @@ export const RetailerPayoutReport: React.FC = () => {
         anchorEl={columnsAnchorEl}
         open={Boolean(columnsAnchorEl)}
         onClose={() => setColumnsAnchorEl(null)}
-        slotProps={{ paper: { sx: { borderRadius: "10px", width: 220, p: 1, bgcolor: "#0F172A", border: "1px solid rgba(254, 240, 138, 0.25)", maxHeight: 360, color: "#F8FAFC" } } }}
+        slotProps={{ paper: { sx: { borderRadius: "10px", width: 220, p: 1, bgcolor: "#FFFFFF", border: "1px solid rgba(254, 240, 138, 0.25)", maxHeight: 360, color: "#292329" } } }}
       >
-        <Typography sx={{ fontSize: "11px", fontWeight: 800, color: "#FBBF24", textTransform: "uppercase", px: 1, mb: 0.5 }}>
+        <Typography sx={{ fontSize: "11px", fontWeight: 800, color: "#A20A3A", textTransform: "uppercase", px: 1, mb: 0.5 }}>
           Toggle Columns
         </Typography>
-        <Divider sx={{ my: 0.5, borderColor: "rgba(255, 255, 255, 0.08)" }} />
+        <Divider sx={{ my: 0.5, borderColor: "#E8E2E5" }} />
         {[
           { id: "s_no", label: "S.No" },
           { id: "txn_id", label: "Txn ID & Ref ID" },
@@ -1573,10 +1573,10 @@ export const RetailerPayoutReport: React.FC = () => {
           <MenuItem
             key={col.id}
             onClick={() => toggleColumn(col.id)}
-            sx={{ fontSize: "12px", py: 0.5, px: 1, display: "flex", alignItems: "center", gap: 1, color: "#F8FAFC" }}
+            sx={{ fontSize: "12px", py: 0.5, px: 1, display: "flex", alignItems: "center", gap: 1, color: "#292329" }}
           >
-            <Checkbox size="small" checked={!hiddenColumns.has(col.id)} sx={{ p: 0.2, color: "rgba(255,255,255,0.4)", "&.Mui-checked": { color: "#FBBF24" } }} />
-            <Typography sx={{ fontSize: "12px", fontWeight: !hiddenColumns.has(col.id) ? 700 : 400, color: "#F8FAFC" }}>
+            <Checkbox size="small" checked={!hiddenColumns.has(col.id)} sx={{ p: 0.2, color: "rgba(255,255,255,0.4)", "&.Mui-checked": { color: "#A20A3A" } }} />
+            <Typography sx={{ fontSize: "12px", fontWeight: !hiddenColumns.has(col.id) ? 700 : 400, color: "#292329" }}>
               {col.label}
             </Typography>
           </MenuItem>
@@ -1589,14 +1589,14 @@ export const RetailerPayoutReport: React.FC = () => {
         open={Boolean(filterAnchorEl)}
         onClose={() => setFilterAnchorEl(null)}
         anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-        slotProps={{ paper: { sx: { borderRadius: "12px", width: 280, p: 2, bgcolor: "#0F172A", border: "1px solid rgba(254, 240, 138, 0.25)", boxShadow: "0 8px 32px rgba(0,0,0,0.6)", color: "#F8FAFC" } } }}
+        slotProps={{ paper: { sx: { borderRadius: "12px", width: 280, p: 2, bgcolor: "#FFFFFF", border: "1px solid rgba(254, 240, 138, 0.25)", boxShadow: "0 8px 32px rgba(0,0,0,0.6)", color: "#292329" } } }}
       >
-        <Typography sx={{ fontSize: "13px", fontWeight: 800, color: "#F8FAFC", mb: 1.5 }}>
+        <Typography sx={{ fontSize: "13px", fontWeight: 800, color: "#292329", mb: 1.5 }}>
           Filter Payout Records
         </Typography>
         <Stack spacing={1.5}>
           <Box>
-            <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#FBBF24", mb: 0.5 }}>STATUS</Typography>
+            <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#A20A3A", mb: 0.5 }}>STATUS</Typography>
             <FormControl fullWidth size="small">
               <Select
                 value={statusFilter}
@@ -1605,22 +1605,22 @@ export const RetailerPayoutReport: React.FC = () => {
                   height: 36,
                   fontSize: "12px",
                   bgcolor: "rgba(8, 11, 17, 0.85)",
-                  color: "#F8FAFC",
+                  color: "#292329",
                   border: "1px solid rgba(255, 255, 255, 0.14)",
                   "& fieldset": { border: "none" },
-                  "& .MuiSvgIcon-root": { color: "#FBBF24" },
+                  "& .MuiSvgIcon-root": { color: "#A20A3A" },
                 }}
               >
-                <MenuItem value="ALL" sx={{ bgcolor: "#0F172A", color: "#F8FAFC" }}>All Statuses</MenuItem>
-                <MenuItem value="SUCCESS" sx={{ bgcolor: "#0F172A", color: "#34D399" }}>Success</MenuItem>
-                <MenuItem value="PENDING" sx={{ bgcolor: "#0F172A", color: "#FBBF24" }}>Pending</MenuItem>
-                <MenuItem value="FAILED" sx={{ bgcolor: "#0F172A", color: "#F87171" }}>Failed</MenuItem>
-                <MenuItem value="REVERSED" sx={{ bgcolor: "#0F172A", color: "#C084FC" }}>Reversed</MenuItem>
+                <MenuItem value="ALL" sx={{ bgcolor: "#FFFFFF", color: "#292329" }}>All Statuses</MenuItem>
+                <MenuItem value="SUCCESS" sx={{ bgcolor: "#FFFFFF", color: "#34D399" }}>Success</MenuItem>
+                <MenuItem value="PENDING" sx={{ bgcolor: "#FFFFFF", color: "#A20A3A" }}>Pending</MenuItem>
+                <MenuItem value="FAILED" sx={{ bgcolor: "#FFFFFF", color: "#F87171" }}>Failed</MenuItem>
+                <MenuItem value="REVERSED" sx={{ bgcolor: "#FFFFFF", color: "#C084FC" }}>Reversed</MenuItem>
               </Select>
             </FormControl>
           </Box>
           <Box>
-            <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#FBBF24", mb: 0.5 }}>PAYMENT MODE</Typography>
+            <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#A20A3A", mb: 0.5 }}>PAYMENT MODE</Typography>
             <FormControl fullWidth size="small">
               <Select
                 value={paymentModeFilter}
@@ -1629,17 +1629,17 @@ export const RetailerPayoutReport: React.FC = () => {
                   height: 36,
                   fontSize: "12px",
                   bgcolor: "rgba(8, 11, 17, 0.85)",
-                  color: "#F8FAFC",
+                  color: "#292329",
                   border: "1px solid rgba(255, 255, 255, 0.14)",
                   "& fieldset": { border: "none" },
-                  "& .MuiSvgIcon-root": { color: "#FBBF24" },
+                  "& .MuiSvgIcon-root": { color: "#A20A3A" },
                 }}
               >
-                <MenuItem value="ALL" sx={{ bgcolor: "#0F172A", color: "#F8FAFC" }}>All Modes</MenuItem>
-                <MenuItem value="IMPS" sx={{ bgcolor: "#0F172A", color: "#F8FAFC" }}>IMPS</MenuItem>
-                <MenuItem value="NEFT" sx={{ bgcolor: "#0F172A", color: "#F8FAFC" }}>NEFT</MenuItem>
-                <MenuItem value="RTGS" sx={{ bgcolor: "#0F172A", color: "#F8FAFC" }}>RTGS</MenuItem>
-                <MenuItem value="UPI" sx={{ bgcolor: "#0F172A", color: "#F8FAFC" }}>UPI</MenuItem>
+                <MenuItem value="ALL" sx={{ bgcolor: "#FFFFFF", color: "#292329" }}>All Modes</MenuItem>
+                <MenuItem value="IMPS" sx={{ bgcolor: "#FFFFFF", color: "#292329" }}>IMPS</MenuItem>
+                <MenuItem value="NEFT" sx={{ bgcolor: "#FFFFFF", color: "#292329" }}>NEFT</MenuItem>
+                <MenuItem value="RTGS" sx={{ bgcolor: "#FFFFFF", color: "#292329" }}>RTGS</MenuItem>
+                <MenuItem value="UPI" sx={{ bgcolor: "#FFFFFF", color: "#292329" }}>UPI</MenuItem>
               </Select>
             </FormControl>
           </Box>
@@ -1673,15 +1673,15 @@ export const RetailerPayoutReport: React.FC = () => {
               borderRadius: "14px",
               p: 1,
               width: 340,
-              bgcolor: "#0F172A",
+              bgcolor: "#FFFFFF",
               border: "1px solid rgba(254, 240, 138, 0.25)",
-              color: "#F8FAFC",
-              boxShadow: "0 10px 30px rgba(0,0,0,0.7)",
+              color: "#292329",
+              boxShadow: "0 10px 30px rgba(41, 35, 41, 0.08)",
             },
           },
         }}
       >
-        <DialogTitle sx={{ fontWeight: 800, fontSize: "15px", color: "#F8FAFC" }}>Select Custom Date Range</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 800, fontSize: "15px", color: "#292329" }}>Select Custom Date Range</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 1.5, pt: "8px !important" }}>
           <TextField
             label="From Date"
@@ -1693,7 +1693,7 @@ export const RetailerPayoutReport: React.FC = () => {
             InputProps={{
               sx: {
                 bgcolor: "rgba(8, 11, 17, 0.85)",
-                color: "#F8FAFC",
+                color: "#292329",
                 border: "1px solid rgba(255, 255, 255, 0.14)",
                 "& fieldset": { border: "none" },
               },
@@ -1709,7 +1709,7 @@ export const RetailerPayoutReport: React.FC = () => {
             InputProps={{
               sx: {
                 bgcolor: "rgba(8, 11, 17, 0.85)",
-                color: "#F8FAFC",
+                color: "#292329",
                 border: "1px solid rgba(255, 255, 255, 0.14)",
                 "& fieldset": { border: "none" },
               },
@@ -1729,7 +1729,7 @@ export const RetailerPayoutReport: React.FC = () => {
             }}
             sx={{
               background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
-              color: "#080B11",
+              color: "#FFFFFF",
               textTransform: "none",
               fontWeight: 800,
             }}
@@ -1747,7 +1747,7 @@ export const RetailerPayoutReport: React.FC = () => {
         slotProps={{
           paper: {
             sx: {
-              bgcolor: "#0F172A",
+              bgcolor: "#FFFFFF",
               border: "1px solid rgba(254, 240, 138, 0.25)",
               borderRadius: "10px",
               boxShadow: "0 10px 30px rgba(0,0,0,0.6)",
@@ -1755,11 +1755,11 @@ export const RetailerPayoutReport: React.FC = () => {
           },
         }}
       >
-        <MenuItem onClick={() => { handleExportCsv(); setExportAnchorEl(null); }} sx={{ fontSize: "12.5px", color: "#F8FAFC", gap: 1.5, py: 1, px: 2 }}>
+        <MenuItem onClick={() => { handleExportCsv(); setExportAnchorEl(null); }} sx={{ fontSize: "12.5px", color: "#292329", gap: 1.5, py: 1, px: 2 }}>
           <TableChartIcon sx={{ fontSize: 17, color: "#34D399" }} />
           Export to CSV / Excel
         </MenuItem>
-        <MenuItem onClick={() => { handleExportPdf(); setExportAnchorEl(null); }} sx={{ fontSize: "12.5px", color: "#F8FAFC", gap: 1.5, py: 1, px: 2 }}>
+        <MenuItem onClick={() => { handleExportPdf(); setExportAnchorEl(null); }} sx={{ fontSize: "12.5px", color: "#292329", gap: 1.5, py: 1, px: 2 }}>
           <PrintIcon sx={{ fontSize: 17, color: "#60A5FA" }} />
           Print / Save as PDF
         </MenuItem>
@@ -1771,10 +1771,10 @@ export const RetailerPayoutReport: React.FC = () => {
           elevation={0}
           sx={{
             borderRadius: "14px",
-            bgcolor: "rgba(15, 23, 42, 0.75)",
+            bgcolor: "#FFFFFF",
             backdropFilter: "blur(20px)",
-            border: "1px solid rgba(254, 240, 138, 0.2)",
-            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.35)",
+            border: "1px solid #E8E2E5",
+            boxShadow: "0 4px 20px rgba(41, 35, 41, 0.05)",
             overflow: "hidden",
             width: "100%",
           }}
@@ -1782,7 +1782,7 @@ export const RetailerPayoutReport: React.FC = () => {
           <TableContainer sx={{ overflowX: "auto" }}>
             <Table sx={{ minWidth: 1050, tableLayout: "auto" }}>
               <TableHead>
-                <TableRow sx={{ bgcolor: "#0A0E17", borderBottom: "1px solid rgba(254, 240, 138, 0.2)" }}>
+                <TableRow sx={{ bgcolor: "#FAF8F9", borderBottom: "1px solid rgba(254, 240, 138, 0.2)" }}>
                   <TableCell padding="checkbox" sx={{ py: 1.2, pl: 2, borderBottom: "1px solid rgba(254, 240, 138, 0.2)" }}>
                     <Checkbox
                       size="small"
@@ -1797,67 +1797,67 @@ export const RetailerPayoutReport: React.FC = () => {
                       }}
                       sx={{
                         color: "rgba(255, 255, 255, 0.4)",
-                        "&.Mui-checked": { color: "#FBBF24" },
-                        "&.MuiCheckbox-indeterminate": { color: "#FBBF24" },
+                        "&.Mui-checked": { color: "#A20A3A" },
+                        "&.MuiCheckbox-indeterminate": { color: "#A20A3A" },
                       }}
                     />
                   </TableCell>
                   {!hiddenColumns.has("s_no") && (
-                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
+                    <TableCell sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
                       S.NO
                     </TableCell>
                   )}
                   {!hiddenColumns.has("txn_id") && (
-                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
+                    <TableCell sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
                       TXN ID &amp; REF ID ⇅
                     </TableCell>
                   )}
                   {!hiddenColumns.has("amount") && (
-                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
+                    <TableCell sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
                       AMOUNT (₹) ⇅
                     </TableCell>
                   )}
                   {!hiddenColumns.has("tax") && (
-                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
+                    <TableCell sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
                       TAX &amp; CHARGES
                     </TableCell>
                   )}
                   {!hiddenColumns.has("net_amount") && (
-                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
+                    <TableCell sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
                       NET AMOUNT (₹) ⇅
                     </TableCell>
                   )}
                   {!hiddenColumns.has("bene_name") && (
-                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
+                    <TableCell sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
                       BENE NAME
                     </TableCell>
                   )}
                   {!hiddenColumns.has("account") && (
-                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
+                    <TableCell sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
                       ACCOUNT &amp; BANK
                     </TableCell>
                   )}
                   {!hiddenColumns.has("utr") && (
-                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
+                    <TableCell sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
                       UTR ⇅
                     </TableCell>
                   )}
                   {!hiddenColumns.has("status") && (
-                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
+                    <TableCell sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
                       STATUS ⇅
                     </TableCell>
                   )}
                   {!hiddenColumns.has("retailer") && (
-                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
+                    <TableCell sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
                       RETAILER NAME
                     </TableCell>
                   )}
                   {!hiddenColumns.has("date_time") && (
-                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
+                    <TableCell sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
                       DATE &amp; TIME ⇅
                     </TableCell>
                   )}
-                  <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, pr: 2, textAlign: "right", borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
+                  <TableCell sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, pr: 2, textAlign: "right", borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
                     ACTION
                   </TableCell>
                 </TableRow>
@@ -1875,7 +1875,7 @@ export const RetailerPayoutReport: React.FC = () => {
                   <TableRow>
                     <TableCell colSpan={13} align="center" sx={{ py: 8, borderColor: "rgba(255,255,255,0.06)" }}>
                       <SendIcon sx={{ fontSize: 44, color: "rgba(254, 240, 138, 0.3)", mb: 1 }} />
-                      <Typography sx={{ fontWeight: 800, fontSize: "15px", color: "#F8FAFC" }}>
+                      <Typography sx={{ fontWeight: 800, fontSize: "15px", color: "#292329" }}>
                         No Payout Records Found
                       </Typography>
                       <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.55)", display: "block", mt: 0.5 }}>
@@ -1929,7 +1929,7 @@ export const RetailerPayoutReport: React.FC = () => {
                             }}
                             sx={{
                               color: "rgba(255, 255, 255, 0.4)",
-                              "&.Mui-checked": { color: "#FBBF24" },
+                              "&.Mui-checked": { color: "#A20A3A" },
                             }}
                           />
                         </TableCell>
@@ -1945,7 +1945,7 @@ export const RetailerPayoutReport: React.FC = () => {
                         {!hiddenColumns.has("txn_id") && (
                           <TableCell sx={{ py: pyVal, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                             <Stack direction="row" alignItems="center" spacing={0.6}>
-                              <Typography sx={{ fontWeight: 800, fontSize: "12.5px", color: "#FBBF24", fontFamily: "monospace", whiteSpace: "nowrap" }}>
+                              <Typography sx={{ fontWeight: 800, fontSize: "12.5px", color: "#A20A3A", fontFamily: "monospace", whiteSpace: "nowrap" }}>
                                 {txnId}
                               </Typography>
                               <IconButton
@@ -1970,7 +1970,7 @@ export const RetailerPayoutReport: React.FC = () => {
                         {/* AMOUNT (₹) */}
                         {!hiddenColumns.has("amount") && (
                           <TableCell sx={{ py: pyVal, borderBottom: "1px solid rgba(255,255,255,0.06)", whiteSpace: "nowrap" }}>
-                            <Typography sx={{ fontWeight: 900, fontSize: "13px", color: "#F8FAFC" }}>
+                            <Typography sx={{ fontWeight: 900, fontSize: "13px", color: "#292329" }}>
                               ₹{amt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                             </Typography>
                           </TableCell>
@@ -1991,7 +1991,7 @@ export const RetailerPayoutReport: React.FC = () => {
                         {/* NET AMOUNT (₹) / WALLET DEBIT */}
                         {!hiddenColumns.has("net_amount") && (
                           <TableCell sx={{ py: pyVal, borderBottom: "1px solid rgba(255,255,255,0.06)", whiteSpace: "nowrap" }}>
-                            <Typography sx={{ fontWeight: 800, fontSize: "13px", color: "#FBBF24" }}>
+                            <Typography sx={{ fontWeight: 800, fontSize: "13px", color: "#A20A3A" }}>
                               ₹{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                             </Typography>
                           </TableCell>
@@ -2000,7 +2000,7 @@ export const RetailerPayoutReport: React.FC = () => {
                         {/* BENE NAME */}
                         {!hiddenColumns.has("bene_name") && (
                           <TableCell sx={{ py: pyVal, borderBottom: "1px solid rgba(255,255,255,0.06)", whiteSpace: "nowrap" }}>
-                            <Typography sx={{ fontWeight: 700, fontSize: "12.5px", color: "#F8FAFC" }}>
+                            <Typography sx={{ fontWeight: 700, fontSize: "12.5px", color: "#292329" }}>
                               {beneName}
                             </Typography>
                           </TableCell>
@@ -2009,7 +2009,7 @@ export const RetailerPayoutReport: React.FC = () => {
                         {/* ACCOUNT & BANK */}
                         {!hiddenColumns.has("account") && (
                           <TableCell sx={{ py: pyVal, borderBottom: "1px solid rgba(255,255,255,0.06)", whiteSpace: "nowrap" }}>
-                            <Typography sx={{ fontWeight: 700, fontSize: "12px", color: "#F8FAFC", fontFamily: "monospace" }}>
+                            <Typography sx={{ fontWeight: 700, fontSize: "12px", color: "#292329", fontFamily: "monospace" }}>
                               {accNo}
                             </Typography>
                             <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "11px", display: "block" }}>
@@ -2080,7 +2080,7 @@ export const RetailerPayoutReport: React.FC = () => {
                         {/* DATE & TIME */}
                         {!hiddenColumns.has("date_time") && (
                           <TableCell sx={{ py: pyVal, borderBottom: "1px solid rgba(255,255,255,0.06)", whiteSpace: "nowrap" }}>
-                            <Typography sx={{ fontSize: "12px", color: "#F8FAFC", fontWeight: 600 }}>
+                            <Typography sx={{ fontSize: "12px", color: "#292329", fontWeight: 600 }}>
                               {dt.date}
                             </Typography>
                             <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.55)", fontSize: "11px", display: "block" }}>
@@ -2118,9 +2118,9 @@ export const RetailerPayoutReport: React.FC = () => {
                                   height: 32,
                                   borderRadius: "6px",
                                   bgcolor: "rgba(255, 255, 255, 0.05)",
-                                  color: "#F8FAFC",
+                                  color: "#292329",
                                   border: "1px solid rgba(255, 255, 255, 0.12)",
-                                  "&:hover": { bgcolor: "rgba(255, 255, 255, 0.1)", color: "#FBBF24" },
+                                  "&:hover": { bgcolor: "rgba(255, 255, 255, 0.1)", color: "#A20A3A" },
                                 }}
                               >
                                 <PrintIcon sx={{ fontSize: 16 }} />
@@ -2151,11 +2151,11 @@ export const RetailerPayoutReport: React.FC = () => {
             sx={{
               color: "rgba(255, 255, 255, 0.7)",
               borderTop: "1px solid rgba(254, 240, 138, 0.2)",
-              bgcolor: "#0A0E17",
-              "& .MuiSvgIcon-root": { color: "#FBBF24" },
+              bgcolor: "#FAF8F9",
+              "& .MuiSvgIcon-root": { color: "#A20A3A" },
               "& .MuiTablePagination-select": {
-                bgcolor: "rgba(15, 23, 42, 0.75)",
-                color: "#F8FAFC",
+                bgcolor: "#FFFFFF",
+                color: "#292329",
                 border: "1px solid rgba(255, 255, 255, 0.15)",
                 borderRadius: "6px",
                 py: 0.3,
@@ -2174,8 +2174,8 @@ export const RetailerPayoutReport: React.FC = () => {
                 sx={{
                   p: 2,
                   borderRadius: "14px",
-                  bgcolor: "rgba(15, 23, 42, 0.75)",
-                  border: "1px solid rgba(255,255,255,0.08)",
+                  bgcolor: "#FFFFFF",
+                  border: "1px solid #E8E2E5",
                 }}
               >
                 <Skeleton variant="rectangular" height={100} sx={{ bgcolor: "rgba(255,255,255,0.06)", borderRadius: "8px" }} />
@@ -2189,13 +2189,13 @@ export const RetailerPayoutReport: React.FC = () => {
               p: 4,
               textAlign: "center",
               borderRadius: "14px",
-              bgcolor: "rgba(15, 23, 42, 0.75)",
+              bgcolor: "#FFFFFF",
               backdropFilter: "blur(20px)",
-              border: "1px solid rgba(254, 240, 138, 0.2)",
+              border: "1px solid #E8E2E5",
             }}
           >
             <SendIcon sx={{ fontSize: 40, color: "rgba(254, 240, 138, 0.35)", mb: 1 }} />
-            <Typography sx={{ fontWeight: 800, fontSize: "15px", color: "#F8FAFC" }}>
+            <Typography sx={{ fontWeight: 800, fontSize: "15px", color: "#292329" }}>
               No Payout Records Found
             </Typography>
             <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.55)", display: "block", mt: 0.5 }}>
@@ -2227,9 +2227,9 @@ export const RetailerPayoutReport: React.FC = () => {
                   sx={{
                     p: 2,
                     borderRadius: "14px",
-                    bgcolor: "rgba(15, 23, 42, 0.75)",
+                    bgcolor: "#FFFFFF",
                     backdropFilter: "blur(20px)",
-                    border: "1px solid rgba(254, 240, 138, 0.2)",
+                    border: "1px solid #E8E2E5",
                     boxShadow: "0 4px 20px rgba(0, 0, 0, 0.35)",
                     transition: "all 0.2s",
                     cursor: "pointer",
@@ -2289,7 +2289,7 @@ export const RetailerPayoutReport: React.FC = () => {
                       />
                     </Stack>
 
-                    <Typography sx={{ fontSize: "16px", fontWeight: 900, color: "#F8FAFC" }}>
+                    <Typography sx={{ fontSize: "16px", fontWeight: 900, color: "#292329" }}>
                       ₹{amt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                     </Typography>
                   </Stack>
@@ -2305,7 +2305,7 @@ export const RetailerPayoutReport: React.FC = () => {
                             fontSize: "12px",
                             fontWeight: 700,
                             fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-                            color: "#FBBF24",
+                            color: "#A20A3A",
                           }}
                         >
                           {txnId}
@@ -2333,7 +2333,7 @@ export const RetailerPayoutReport: React.FC = () => {
                             sx={{
                               fontSize: "11px",
                               fontWeight: 600,
-                              color: "#94A3B8",
+                              color: "#625B60",
                               maxWidth: "200px",
                               overflow: "hidden",
                               textOverflow: "ellipsis",
@@ -2359,7 +2359,7 @@ export const RetailerPayoutReport: React.FC = () => {
 
                   <Stack direction="row" alignItems="center" justifyContent="space-between">
                     <Box>
-                      <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#F8FAFC" }}>
+                      <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#292329" }}>
                         {beneName}
                       </Typography>
                       <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.6)", fontSize: "11px" }}>
@@ -2385,17 +2385,17 @@ export const RetailerPayoutReport: React.FC = () => {
                   </Stack>
 
                   <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-                    <Divider sx={{ my: 1.2, borderColor: "rgba(255, 255, 255, 0.08)" }} />
+                    <Divider sx={{ my: 1.2, borderColor: "#E8E2E5" }} />
                     <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 1, fontSize: "11px" }}>
                       <Box>
                         <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)", fontSize: "10px" }}>Account Number</Typography>
-                        <Typography sx={{ fontWeight: 700, color: "#F8FAFC", fontSize: "12px" }}>
+                        <Typography sx={{ fontWeight: 700, color: "#292329", fontSize: "12px" }}>
                           {accNo}
                         </Typography>
                       </Box>
                       <Box>
                         <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)", fontSize: "10px" }}>Total Wallet Debit</Typography>
-                        <Typography sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "12px" }}>
+                        <Typography sx={{ fontWeight: 800, color: "#A20A3A", fontSize: "12px" }}>
                           ₹{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                         </Typography>
                       </Box>
@@ -2435,7 +2435,7 @@ export const RetailerPayoutReport: React.FC = () => {
                   fontSize: "12px",
                   fontWeight: 700,
                   bgcolor: "rgba(255,255,255,0.05)",
-                  color: "#F8FAFC",
+                  color: "#292329",
                   borderRadius: "8px",
                   border: "1px solid rgba(255,255,255,0.1)",
                 }}
@@ -2451,7 +2451,7 @@ export const RetailerPayoutReport: React.FC = () => {
                   fontSize: "12px",
                   fontWeight: 700,
                   background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
-                  color: "#080B11",
+                  color: "#FFFFFF",
                   borderRadius: "8px",
                 }}
               >
@@ -2476,10 +2476,10 @@ export const RetailerPayoutReport: React.FC = () => {
             zIndex: 1401,
             width: { xs: "100%", sm: 540, md: 580 },
             maxWidth: "100vw",
-            bgcolor: "#0B0F17",
-            color: "#F8FAFC",
+            bgcolor: "#FFFFFF",
+            color: "#292329",
             borderLeft: { sm: "1px solid rgba(254, 240, 138, 0.25)" },
-            boxShadow: "-8px 0 36px rgba(0, 0, 0, 0.5)",
+            boxShadow: "-8px 0 36px rgba(41, 35, 41, 0.06)",
             p: 0,
             display: "flex",
             flexDirection: "column",
@@ -2491,7 +2491,7 @@ export const RetailerPayoutReport: React.FC = () => {
           backdrop: {
             sx: {
               zIndex: 1400,
-              bgcolor: "rgba(15, 23, 42, 0.65)",
+              bgcolor: "#FFFFFF",
               backdropFilter: "blur(6px)",
             },
           },
@@ -2546,7 +2546,7 @@ export const RetailerPayoutReport: React.FC = () => {
               : "rgba(239, 68, 68, 0.35)";
 
           return (
-            <Box sx={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", position: "relative", bgcolor: "#0B0F17" }}>
+            <Box sx={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", position: "relative", bgcolor: "#FFFFFF" }}>
               {/* ── 1. FIXED DEEP NAVY HEADER ── */}
               <Box
                 sx={{
@@ -2554,7 +2554,7 @@ export const RetailerPayoutReport: React.FC = () => {
                   top: 0,
                   zIndex: 20,
                   p: { xs: 2, sm: 2.5 },
-                  bgcolor: "#080B11",
+                  bgcolor: "#FFFFFF",
                   color: "#FFFFFF",
                   borderBottom: "1px solid rgba(254, 240, 138, 0.2)",
                   boxShadow: "0 2px 10px rgba(0, 0, 0, 0.4)",
@@ -2564,8 +2564,8 @@ export const RetailerPayoutReport: React.FC = () => {
                   <Stack direction="row" alignItems="center" spacing={1.5}>
                     <Box
                       component="img"
-                      src={branding.logo_url || "/branding/logo.png"}
-                      alt="Pay2Pay Logo"
+                      src={branding.logo_url || "/branding/logo.svg"}
+                      alt="Near4You Logo"
                       onError={(e: any) => {
                         e.currentTarget.style.display = "none";
                       }}
@@ -2584,7 +2584,7 @@ export const RetailerPayoutReport: React.FC = () => {
                         Payout Transaction Details
                       </Typography>
                       <Typography sx={{ fontSize: "12.5px", color: "rgba(255, 255, 255, 0.65)", mt: 0.4 }}>
-                        Retailer: <strong style={{ color: "#FDE68A" }}>{outlet?.name || outlet?.ownerName || selectedTxn.retailer || "Pay2Pay Merchant"}</strong>
+                        Retailer: <strong style={{ color: "#FDE68A" }}>{outlet?.name || outlet?.ownerName || selectedTxn.retailer || "Near4You Merchant"}</strong>
                         {outlet?.code ? ` · ID: ${outlet.code}` : ""}
                       </Typography>
                     </Box>
@@ -2641,9 +2641,9 @@ export const RetailerPayoutReport: React.FC = () => {
                   overflowY: "auto",
                   p: { xs: 2, sm: 3 },
                   pb: "160px",
-                  bgcolor: "#0B0F17",
+                  bgcolor: "#FFFFFF",
                   "&::-webkit-scrollbar": { width: "6px" },
-                  "&::-webkit-scrollbar-track": { background: "#080B11" },
+                  "&::-webkit-scrollbar-track": { background: "#FFFFFF" },
                   "&::-webkit-scrollbar-thumb": { background: "#334155", borderRadius: "4px" },
                   "&::-webkit-scrollbar-thumb:hover": { background: "#475569" },
                 }}
@@ -2651,9 +2651,9 @@ export const RetailerPayoutReport: React.FC = () => {
                 {/* 2A. TRANSACTION HERO AREA */}
                 <Box
                   sx={{
-                    bgcolor: "rgba(15, 23, 42, 0.75)",
+                    bgcolor: "#FFFFFF",
                     borderRadius: "14px",
-                    border: "1px solid rgba(254, 240, 138, 0.2)",
+                    border: "1px solid #E8E2E5",
                     p: { xs: 2.2, sm: 2.8 },
                     boxShadow: "0 4px 20px rgba(0, 0, 0, 0.35)",
                     mb: 3,
@@ -2677,7 +2677,7 @@ export const RetailerPayoutReport: React.FC = () => {
                     sx={{
                       fontSize: { xs: "34px", sm: "40px" },
                       fontWeight: 900,
-                      color: "#F8FAFC",
+                      color: "#292329",
                       lineHeight: 1.1,
                       mb: 0.8,
                     }}
@@ -2699,24 +2699,24 @@ export const RetailerPayoutReport: React.FC = () => {
                     }}
                   />
 
-                  <Divider sx={{ mb: 2, borderColor: "rgba(255, 255, 255, 0.08)" }} />
+                  <Divider sx={{ mb: 2, borderColor: "#E8E2E5" }} />
 
                   {/* Horizontal Accounting Summary */}
                   <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1.5, textAlign: "center" }}>
-                    <Box sx={{ p: 1.2, borderRadius: "10px", bgcolor: "rgba(8, 11, 17, 0.65)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                    <Box sx={{ p: 1.2, borderRadius: "10px", bgcolor: "rgba(8, 11, 17, 0.65)", border: "1px solid #E8E2E5" }}>
                       <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "rgba(255, 255, 255, 0.5)", textTransform: "uppercase" }}>
                         SERVICE CHARGE
                       </Typography>
-                      <Typography sx={{ fontSize: "14.5px", fontWeight: 800, color: "#F8FAFC", mt: 0.4 }}>
+                      <Typography sx={{ fontSize: "14.5px", fontWeight: 800, color: "#292329", mt: 0.4 }}>
                         ₹{fee.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>
 
-                    <Box sx={{ p: 1.2, borderRadius: "10px", bgcolor: "rgba(8, 11, 17, 0.65)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                    <Box sx={{ p: 1.2, borderRadius: "10px", bgcolor: "rgba(8, 11, 17, 0.65)", border: "1px solid #E8E2E5" }}>
                       <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "rgba(255, 255, 255, 0.5)", textTransform: "uppercase" }}>
                         GST
                       </Typography>
-                      <Typography sx={{ fontSize: "14.5px", fontWeight: 800, color: "#F8FAFC", mt: 0.4 }}>
+                      <Typography sx={{ fontSize: "14.5px", fontWeight: 800, color: "#292329", mt: 0.4 }}>
                         ₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>
@@ -2725,7 +2725,7 @@ export const RetailerPayoutReport: React.FC = () => {
                       <Typography sx={{ fontSize: "11px", fontWeight: 800, color: "#FDE68A", textTransform: "uppercase" }}>
                         TOTAL WALLET DEBIT
                       </Typography>
-                      <Typography sx={{ fontSize: "15px", fontWeight: 900, color: "#FBBF24", mt: 0.4 }}>
+                      <Typography sx={{ fontSize: "15px", fontWeight: 900, color: "#A20A3A", mt: 0.4 }}>
                         ₹{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>
@@ -2734,16 +2734,16 @@ export const RetailerPayoutReport: React.FC = () => {
 
                 {/* 2B. TRANSACTION INFORMATION TABLE */}
                 <Box sx={{ mb: 3 }}>
-                  <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#FBBF24", mb: 1.2, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#A20A3A", mb: 1.2, textTransform: "uppercase", letterSpacing: "0.5px" }}>
                     TRANSACTION INFORMATION
                   </Typography>
 
-                  <Box sx={{ bgcolor: "rgba(15, 23, 42, 0.75)", borderRadius: "12px", border: "1px solid rgba(255, 255, 255, 0.08)", overflow: "hidden" }}>
+                  <Box sx={{ bgcolor: "#FFFFFF", borderRadius: "12px", border: "1px solid #E8E2E5", overflow: "hidden" }}>
                     {/* Transaction ID */}
                     <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
                       <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Transaction ID</Typography>
                       <Stack direction="row" alignItems="center" spacing={0.8}>
-                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#FBBF24", fontFamily: "ui-monospace, monospace" }}>
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#A20A3A", fontFamily: "ui-monospace, monospace" }}>
                           {txnId}
                         </Typography>
                         <IconButton size="small" onClick={() => copyToClipboard(txnId, "Transaction ID")} sx={{ color: "rgba(254, 240, 138, 0.6)", p: 0.3 }}>
@@ -2770,7 +2770,7 @@ export const RetailerPayoutReport: React.FC = () => {
                     {/* Date & Time */}
                     <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
                       <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Transaction Date &amp; Time</Typography>
-                      <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#F8FAFC" }}>
+                      <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#292329" }}>
                         {dt.date} · {dt.time}
                       </Typography>
                     </Box>
@@ -2778,7 +2778,7 @@ export const RetailerPayoutReport: React.FC = () => {
                     {/* Payout Amount */}
                     <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
                       <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Payout Amount</Typography>
-                      <Typography sx={{ fontSize: "14.5px", fontWeight: 800, color: "#F8FAFC" }}>
+                      <Typography sx={{ fontSize: "14.5px", fontWeight: 800, color: "#292329" }}>
                         ₹{amt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>
@@ -2818,7 +2818,7 @@ export const RetailerPayoutReport: React.FC = () => {
                     {refNumber !== "--" && (
                       <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                         <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Reference Number</Typography>
-                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#F8FAFC", fontFamily: "ui-monospace, monospace" }}>
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#292329", fontFamily: "ui-monospace, monospace" }}>
                           {refNumber}
                         </Typography>
                       </Box>
@@ -2828,15 +2828,15 @@ export const RetailerPayoutReport: React.FC = () => {
 
                 {/* 2C. BENEFICIARY DETAILS */}
                 <Box sx={{ mb: 3 }}>
-                  <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#FBBF24", mb: 1.2, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#A20A3A", mb: 1.2, textTransform: "uppercase", letterSpacing: "0.5px" }}>
                     BENEFICIARY DETAILS
                   </Typography>
 
-                  <Box sx={{ bgcolor: "rgba(15, 23, 42, 0.75)", borderRadius: "12px", border: "1px solid rgba(255, 255, 255, 0.08)", overflow: "hidden" }}>
+                  <Box sx={{ bgcolor: "#FFFFFF", borderRadius: "12px", border: "1px solid #E8E2E5", overflow: "hidden" }}>
                     {/* Beneficiary Name */}
                     <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
                       <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Beneficiary Name</Typography>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#F8FAFC" }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#292329" }}>
                         {beneName}
                       </Typography>
                     </Box>
@@ -2845,7 +2845,7 @@ export const RetailerPayoutReport: React.FC = () => {
                     <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
                       <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Account Number</Typography>
                       <Stack direction="row" alignItems="center" spacing={0.8}>
-                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#F8FAFC", fontFamily: "ui-monospace, monospace" }}>
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#292329", fontFamily: "ui-monospace, monospace" }}>
                           {accNo}
                         </Typography>
                         {accNo !== "--" && (
@@ -2874,7 +2874,7 @@ export const RetailerPayoutReport: React.FC = () => {
                     {/* Bank Name */}
                     <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", ...(beneMobile !== "--" || beneId !== "--" ? { borderBottom: "1px solid rgba(255, 255, 255, 0.06)" } : {}) }}>
                       <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Bank Name</Typography>
-                      <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#F8FAFC" }}>
+                      <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#292329" }}>
                         {bankName}
                       </Typography>
                     </Box>
@@ -2883,7 +2883,7 @@ export const RetailerPayoutReport: React.FC = () => {
                     {beneMobile !== "--" && (
                       <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", ...(beneId !== "--" ? { borderBottom: "1px solid rgba(255, 255, 255, 0.06)" } : {}) }}>
                         <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Beneficiary Mobile</Typography>
-                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#F8FAFC" }}>
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#292329" }}>
                           {beneMobile}
                         </Typography>
                       </Box>
@@ -2893,7 +2893,7 @@ export const RetailerPayoutReport: React.FC = () => {
                     {beneId !== "--" && (
                       <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                         <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Beneficiary ID</Typography>
-                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#F8FAFC", fontFamily: "ui-monospace, monospace" }}>
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#292329", fontFamily: "ui-monospace, monospace" }}>
                           {beneId}
                         </Typography>
                       </Box>
@@ -2903,28 +2903,28 @@ export const RetailerPayoutReport: React.FC = () => {
 
                 {/* 2D. WALLET ACCOUNTING */}
                 <Box sx={{ mb: 3 }}>
-                  <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#FBBF24", mb: 1.2, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#A20A3A", mb: 1.2, textTransform: "uppercase", letterSpacing: "0.5px" }}>
                     WALLET ACCOUNTING
                   </Typography>
 
-                  <Box sx={{ bgcolor: "rgba(15, 23, 42, 0.75)", borderRadius: "12px", border: "1px solid rgba(255, 255, 255, 0.08)", overflow: "hidden" }}>
+                  <Box sx={{ bgcolor: "#FFFFFF", borderRadius: "12px", border: "1px solid #E8E2E5", overflow: "hidden" }}>
                     <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
                       <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Payout Amount</Typography>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#F8FAFC" }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#292329" }}>
                         ₹{amt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>
 
                     <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
                       <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Service Charge</Typography>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#F8FAFC" }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#292329" }}>
                         ₹{fee.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>
 
                     <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
                       <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>GST (18%)</Typography>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#F8FAFC" }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#292329" }}>
                         ₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>
@@ -2932,7 +2932,7 @@ export const RetailerPayoutReport: React.FC = () => {
                     {/* Total Debit Row */}
                     <Box sx={{ px: 2.2, py: 1.6, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(254, 240, 138, 0.25)", bgcolor: "rgba(245, 158, 11, 0.12)" }}>
                       <Typography sx={{ fontSize: "13.5px", fontWeight: 800, color: "#FDE68A" }}>Total Wallet Debit</Typography>
-                      <Typography sx={{ fontSize: "15px", fontWeight: 900, color: "#FBBF24" }}>
+                      <Typography sx={{ fontSize: "15px", fontWeight: 900, color: "#A20A3A" }}>
                         ₹{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>
@@ -2954,33 +2954,33 @@ export const RetailerPayoutReport: React.FC = () => {
 
                 {/* 2E. TRANSACTION AUDIT TIMELINE */}
                 <Box sx={{ mb: 3 }}>
-                  <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#FBBF24", mb: 1.2, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#A20A3A", mb: 1.2, textTransform: "uppercase", letterSpacing: "0.5px" }}>
                     TRANSACTION AUDIT TIMELINE
                   </Typography>
 
-                  <Box sx={{ bgcolor: "rgba(15, 23, 42, 0.75)", borderRadius: "12px", border: "1px solid rgba(255, 255, 255, 0.08)", p: 2.5 }}>
+                  <Box sx={{ bgcolor: "#FFFFFF", borderRadius: "12px", border: "1px solid #E8E2E5", p: 2.5 }}>
                     <Box sx={{ position: "relative", pl: 3.5 }}>
                       {/* Vertical line connecting nodes */}
                       <Box sx={{ position: "absolute", left: 11, top: 8, bottom: 8, width: 2, bgcolor: "rgba(255, 255, 255, 0.15)" }} />
 
                       {/* Node 1: Request Created */}
                       <Box sx={{ position: "relative", mb: 2.5 }}>
-                        <Box sx={{ position: "absolute", left: -28, top: 4, width: 10, height: 10, borderRadius: "50%", bgcolor: "#34D399", border: "2px solid #0F172A", boxShadow: "0 0 0 2px rgba(16, 185, 129, 0.4)" }} />
-                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#F8FAFC" }}>Request Created</Typography>
+                        <Box sx={{ position: "absolute", left: -28, top: 4, width: 10, height: 10, borderRadius: "50%", bgcolor: "#34D399", border: "2px solid #FFFFFF", boxShadow: "0 0 0 2px rgba(16, 185, 129, 0.4)" }} />
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#292329" }}>Request Created</Typography>
                         <Typography sx={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.55)", mt: 0.2 }}>{dt.date} · {dt.time}</Typography>
                       </Box>
 
                       {/* Node 2: Processing */}
                       <Box sx={{ position: "relative", mb: 2.5 }}>
-                        <Box sx={{ position: "absolute", left: -28, top: 4, width: 10, height: 10, borderRadius: "50%", bgcolor: status === "PENDING" ? "#FBBF24" : "#34D399", border: "2px solid #0F172A", boxShadow: `0 0 0 2px ${status === "PENDING" ? "rgba(245, 158, 11, 0.4)" : "rgba(16, 185, 129, 0.4)"}` }} />
-                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#F8FAFC" }}>Switch Processing &amp; Validation</Typography>
+                        <Box sx={{ position: "absolute", left: -28, top: 4, width: 10, height: 10, borderRadius: "50%", bgcolor: status === "PENDING" ? "#FBBF24" : "#34D399", border: "2px solid #FFFFFF", boxShadow: `0 0 0 2px ${status === "PENDING" ? "rgba(245, 158, 11, 0.4)" : "rgba(16, 185, 129, 0.4)"}` }} />
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#292329" }}>Switch Processing &amp; Validation</Typography>
                         <Typography sx={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.55)", mt: 0.2 }}>Mode: {mode} · Route: Direct Bank IMPS Switch</Typography>
                       </Box>
 
                       {/* Node 3: Bank Response / UTR */}
                       <Box sx={{ position: "relative", mb: 2.5 }}>
-                        <Box sx={{ position: "absolute", left: -28, top: 4, width: 10, height: 10, borderRadius: "50%", bgcolor: utr !== "--" ? "#34D399" : status === "PENDING" ? "#FBBF24" : "#F87171", border: "2px solid #0F172A", boxShadow: `0 0 0 2px ${utr !== "--" ? "rgba(16, 185, 129, 0.4)" : status === "PENDING" ? "rgba(245, 158, 11, 0.4)" : "rgba(239, 68, 68, 0.4)"}` }} />
-                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#F8FAFC" }}>Bank Response &amp; Settlement</Typography>
+                        <Box sx={{ position: "absolute", left: -28, top: 4, width: 10, height: 10, borderRadius: "50%", bgcolor: utr !== "--" ? "#34D399" : status === "PENDING" ? "#FBBF24" : "#F87171", border: "2px solid #FFFFFF", boxShadow: `0 0 0 2px ${utr !== "--" ? "rgba(16, 185, 129, 0.4)" : status === "PENDING" ? "rgba(245, 158, 11, 0.4)" : "rgba(239, 68, 68, 0.4)"}` }} />
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#292329" }}>Bank Response &amp; Settlement</Typography>
                         <Typography sx={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.55)", mt: 0.2 }}>
                           {utr !== "--" ? `Bank UTR: ${utr}` : "Awaiting Bank Settlement Acknowledgement"}
                         </Typography>
@@ -2988,7 +2988,7 @@ export const RetailerPayoutReport: React.FC = () => {
 
                       {/* Node 4: Final Status */}
                       <Box sx={{ position: "relative" }}>
-                        <Box sx={{ position: "absolute", left: -28, top: 4, width: 10, height: 10, borderRadius: "50%", bgcolor: statusColor, border: "2px solid #0F172A", boxShadow: `0 0 0 2px ${statusBorder}` }} />
+                        <Box sx={{ position: "absolute", left: -28, top: 4, width: 10, height: 10, borderRadius: "50%", bgcolor: statusColor, border: "2px solid #FFFFFF", boxShadow: `0 0 0 2px ${statusBorder}` }} />
                         <Typography sx={{ fontSize: "13.5px", fontWeight: 800, color: statusColor }}>
                           {status === "SUCCESS" ? "Transaction Completed Successfully" : status === "PENDING" ? "Transaction Processing / Pending" : `Transaction ${status}`}
                         </Typography>
@@ -3014,11 +3014,11 @@ export const RetailerPayoutReport: React.FC = () => {
 
                 {/* 2F. REFERENCE DETAILS */}
                 <Box sx={{ mb: 2 }}>
-                  <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#FBBF24", mb: 1.2, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#A20A3A", mb: 1.2, textTransform: "uppercase", letterSpacing: "0.5px" }}>
                     REFERENCE DETAILS
                   </Typography>
 
-                  <Box sx={{ bgcolor: "rgba(15, 23, 42, 0.75)", borderRadius: "12px", border: "1px solid rgba(255, 255, 255, 0.08)", overflow: "hidden" }}>
+                  <Box sx={{ bgcolor: "#FFFFFF", borderRadius: "12px", border: "1px solid #E8E2E5", overflow: "hidden" }}>
                     <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
                       <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Vendor Reference</Typography>
                       <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "rgba(255, 255, 255, 0.8)", fontFamily: "ui-monospace, monospace" }}>
@@ -3050,9 +3050,9 @@ export const RetailerPayoutReport: React.FC = () => {
                   bottom: 0,
                   zIndex: 20,
                   p: { xs: 2, sm: 2.5 },
-                  bgcolor: "#080B11",
+                  bgcolor: "#FFFFFF",
                   borderTop: "1px solid rgba(254, 240, 138, 0.2)",
-                  boxShadow: "0 -4px 16px rgba(0, 0, 0, 0.5)",
+                  boxShadow: "0 -4px 16px rgba(41, 35, 41, 0.06)",
                 }}
               >
                 <Stack spacing={1.2}>
@@ -3068,7 +3068,7 @@ export const RetailerPayoutReport: React.FC = () => {
                       fontWeight: 900,
                       textTransform: "none",
                       borderRadius: "10px",
-                      color: "#080B11",
+                      color: "#FFFFFF",
                       background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
                       boxShadow: "0 4px 14px rgba(245, 158, 11, 0.35)",
                       "&:hover": {
@@ -3091,7 +3091,7 @@ export const RetailerPayoutReport: React.FC = () => {
                       fontWeight: 700,
                       textTransform: "none",
                       borderRadius: "10px",
-                      color: "#F8FAFC",
+                      color: "#292329",
                       borderColor: "rgba(255, 255, 255, 0.15)",
                       bgcolor: "rgba(255, 255, 255, 0.05)",
                       "&:hover": {
@@ -3120,12 +3120,12 @@ export const RetailerPayoutReport: React.FC = () => {
           onClose={() => setSnackbarOpen(false)}
           severity="success"
           sx={{
-            bgcolor: "#0F172A",
+            bgcolor: "#FFFFFF",
             color: "#FEF08A",
             border: "1px solid rgba(254, 240, 138, 0.3)",
             fontWeight: 700,
             fontSize: "12.5px",
-            "& .MuiAlert-icon": { color: "#FBBF24" },
+            "& .MuiAlert-icon": { color: "#A20A3A" },
           }}
         >
           {snackbarMsg}

@@ -77,7 +77,7 @@ export const Step4LiveProcessing: React.FC<Step4LiveProcessingProps> = ({
           sx={{
             p: 4,
             borderRadius: "20px",
-            bgcolor: "rgba(18, 27, 48, 0.85)",
+            bgcolor: "#FFFFFF",
             backdropFilter: "blur(24px)",
             border: "1px solid rgba(255, 255, 255, 0.12)",
             textAlign: "center",
@@ -148,7 +148,7 @@ export const Step4LiveProcessing: React.FC<Step4LiveProcessingProps> = ({
             </Box>
           </Stack>
 
-          <Paper elevation={0} sx={{ p: 3, borderRadius: "14px", bgcolor: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.08)", mb: 3 }}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: "14px", bgcolor: "rgba(255, 255, 255, 0.04)", border: "1px solid #E8E2E5", mb: 3 }}>
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(4, 1fr)" }, gap: 2 }}>
               <Box>
                 <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "11px", fontWeight: 700 }}>CUSTOMER</Typography>
@@ -174,13 +174,13 @@ export const Step4LiveProcessing: React.FC<Step4LiveProcessingProps> = ({
             <Button variant="contained" startIcon={<PrintIcon />} sx={{ height: 44, borderRadius: "10px", fontWeight: 800, bgcolor: "#2563EB" }}>
               Print Receipt
             </Button>
-            <Button variant="outlined" startIcon={<PictureAsPdfIcon />} sx={{ height: 44, borderRadius: "10px", fontWeight: 700, color: "#FFFFFF", borderColor: "rgba(255, 255, 255, 0.2)" }}>
+            <Button variant="outlined" startIcon={<PictureAsPdfIcon />} sx={{ height: 44, borderRadius: "10px", fontWeight: 700, color: "#FFFFFF", borderColor: "#E8E2E5" }}>
               Download PDF
             </Button>
-            <Button variant="outlined" startIcon={<ShareIcon />} sx={{ height: 44, borderRadius: "10px", fontWeight: 700, color: "#FFFFFF", borderColor: "rgba(255, 255, 255, 0.2)" }}>
+            <Button variant="outlined" startIcon={<ShareIcon />} sx={{ height: 44, borderRadius: "10px", fontWeight: 700, color: "#FFFFFF", borderColor: "#E8E2E5" }}>
               Share WhatsApp
             </Button>
-            <Button variant="outlined" startIcon={<ContentCopyIcon />} onClick={() => navigator.clipboard.writeText(utr)} sx={{ height: 44, borderRadius: "10px", fontWeight: 700, color: "#FFFFFF", borderColor: "rgba(255, 255, 255, 0.2)" }}>
+            <Button variant="outlined" startIcon={<ContentCopyIcon />} onClick={() => navigator.clipboard.writeText(utr)} sx={{ height: 44, borderRadius: "10px", fontWeight: 700, color: "#FFFFFF", borderColor: "#E8E2E5" }}>
               Copy UTR
             </Button>
 
@@ -223,7 +223,7 @@ export const Step4LiveProcessing: React.FC<Step4LiveProcessingProps> = ({
             <Button variant="contained" color="primary" onClick={onNewTransfer} startIcon={<RepeatIcon />}>
               Retry via Alternative Route (ICICI Bank)
             </Button>
-            <Button variant="outlined" sx={{ color: "#FFFFFF", borderColor: "rgba(255, 255, 255, 0.2)" }}>
+            <Button variant="outlined" sx={{ color: "#FFFFFF", borderColor: "#E8E2E5" }}>
               Raise Support Ticket
             </Button>
           </Stack>

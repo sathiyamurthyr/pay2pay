@@ -98,7 +98,7 @@ export const UniversalSearchDialog: React.FC<{
           sx={{
             "& .MuiOutlinedInput-root": {
               borderRadius: 3,
-              bgcolor: "#F8FAFC",
+              bgcolor: "#292329",
             },
           }}
         />
@@ -109,7 +109,7 @@ export const UniversalSearchDialog: React.FC<{
       <DialogContent sx={{ p: 1, maxHeight: 380 }}>
         {filtered.length === 0 ? (
           <Box sx={{ p: 4, textAlign: "center" }}>
-            <Typography variant="body2" sx={{ color: "#64748B" }}>
+            <Typography variant="body2" sx={{ color: "#625B60" }}>
               No matching modules or customers found for "{query}".
             </Typography>
           </Box>
@@ -127,10 +127,10 @@ export const UniversalSearchDialog: React.FC<{
                     <IconComp sx={{ color: "#0284C7" }} />
                   </ListItemIcon>
                   <ListItemText
-                    primary={<Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>{item.label}</Typography>}
-                    secondary={<Typography variant="caption" sx={{ color: "#64748B" }}>{item.category}</Typography>}
+                    primary={<Typography variant="body2" sx={{ fontWeight: 800, color: "#FFFFFF" }}>{item.label}</Typography>}
+                    secondary={<Typography variant="caption" sx={{ color: "#625B60" }}>{item.category}</Typography>}
                   />
-                  <Chip label="Jump →" size="small" sx={{ fontSize: "0.65rem", fontWeight: 800, bgcolor: "#F1F5F9" }} />
+                  <Chip label="Jump →" size="small" sx={{ fontSize: "0.65rem", fontWeight: 800, bgcolor: "#292329" }} />
                 </ListItemButton>
               );
             })}

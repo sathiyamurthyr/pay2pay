@@ -368,7 +368,7 @@ export const Sidebar: React.FC = () => {
         ${isCollapsed ? "w-[64px]" : "w-[275px]"}
       `}
       style={{
-        background: "rgba(15, 23, 42, 0.94)",
+        background: "#FFFFFF",
         backdropFilter: "blur(20px) saturate(180%)",
         WebkitBackdropFilter: "blur(20px) saturate(180%)",
         borderRight: "1px solid rgba(255, 255, 255, 0.10)",
@@ -378,17 +378,17 @@ export const Sidebar: React.FC = () => {
       {/* ── Brand Header ── */}
       <div
         className="h-14 px-3 flex items-center justify-between shrink-0"
-        style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.08)" }}
+        style={{ borderBottom: "1px solid #E8E2E5" }}
       >
         {!isCollapsed && (
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 overflow-hidden shadow-xs bg-gradient-to-tr from-[#2563EB] to-[#1D4ED8] border border-white/20"
+              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 overflow-hidden shadow-xs bg-gradient-to-tr from-[#A20A3A] to-[#85072F] border border-[#EDC11E]/30"
             >
               <img
                 src="/logo.svg"
-                alt="Pay2Pay Logo"
-                className="w-5 h-5 object-contain"
+                alt="Near 4 You"
+                className="w-6 h-6 object-contain"
                 onError={(e) => {
                   (e.target as HTMLElement).style.display = "none";
                 }}
@@ -397,10 +397,10 @@ export const Sidebar: React.FC = () => {
             <div className="min-w-0">
               <h1
                 className="text-[14px] font-extrabold tracking-tight truncate leading-tight flex items-center gap-1"
-                style={{ color: "#F8FAFC" }}
+                style={{ color: "#292329" }}
               >
-                PAY2PAY
-                <Sparkles className="w-3.5 h-3.5 text-[#60A5FA]" />
+                NEAR4YOU
+                <Sparkles className="w-3.5 h-3.5 text-[#EDC11E]" />
               </h1>
               <span
                 className="text-[10px] font-mono font-bold tracking-wider uppercase block text-[#94A3B8]"
@@ -413,12 +413,12 @@ export const Sidebar: React.FC = () => {
 
         {isCollapsed && (
           <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center mx-auto overflow-hidden shadow-xs bg-gradient-to-tr from-[#2563EB] to-[#1D4ED8] border border-white/20"
+            className="w-8 h-8 rounded-lg flex items-center justify-center mx-auto overflow-hidden shadow-xs bg-gradient-to-tr from-[#A20A3A] to-[#85072F] border border-[#EDC11E]/30"
           >
             <img
               src="/logo.svg"
-              alt="Pay2Pay Logo"
-              className="w-5 h-5 object-contain"
+              alt="Near 4 You"
+              className="w-6 h-6 object-contain"
               onError={(e) => {
                 (e.target as HTMLElement).style.display = "none";
               }}
@@ -461,7 +461,7 @@ export const Sidebar: React.FC = () => {
               style={{
                 background: "rgba(255, 255, 255, 0.05)",
                 border: "1px solid rgba(255, 255, 255, 0.10)",
-                color: "#F8FAFC",
+                color: "#292329",
               }}
               onFocus={(e) => {
                 e.target.style.borderColor = "rgba(96, 165, 250, 0.6)";
@@ -568,7 +568,7 @@ export const Sidebar: React.FC = () => {
                                     "0 2px 10px rgba(37, 99, 235, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
                                 }
                               : {
-                                  color: "#CBD5E1",
+                                  color: "#625B60",
                                   border: "1px solid transparent",
                                 }
                           }
@@ -661,7 +661,7 @@ export const Sidebar: React.FC = () => {
       {/* ── Ultra-Compact Minimal Footer ── */}
       <div
         className="shrink-0 px-3 py-2 flex items-center justify-between"
-        style={{ borderTop: "1px solid rgba(255, 255, 255, 0.08)", background: "rgba(15, 23, 42, 0.6)" }}
+        style={{ borderTop: "1px solid #E8E2E5", background: "#FAF8F9" }}
       >
         {!isCollapsed ? (
           <>

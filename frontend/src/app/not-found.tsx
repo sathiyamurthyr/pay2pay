@@ -15,7 +15,7 @@ export default function NotFound() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        bgcolor: "#08111F",
+        bgcolor: "#FFFFFF",
         p: 3,
       }}
     >
@@ -26,27 +26,26 @@ export default function NotFound() {
           width: "100%",
           p: 5,
           borderRadius: "24px",
-          bgcolor: "rgba(18, 27, 48, 0.85)",
-          backdropFilter: "blur(20px)",
-          border: "1px solid rgba(255, 255, 255, 0.12)",
+          bgcolor: "#FFFFFF",
+          border: "1px solid #E8E2E5",
           textAlign: "center",
-          boxShadow: "0 20px 60px rgba(0, 0, 0, 0.5)",
+          boxShadow: "0 20px 60px rgba(41, 35, 41, 0.06)",
         }}
       >
-        <WarningAmberIcon sx={{ fontSize: 80, color: "#60A5FA", mb: 2 }} />
+        <WarningAmberIcon sx={{ fontSize: 80, color: "#EDC11E", mb: 2 }} />
 
-        <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "36px", mb: 1 }}>
+        <Typography sx={{ fontWeight: 900, color: "#292329", fontSize: "36px", mb: 1 }}>
           404 — Page Not Found
         </Typography>
 
-        <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "15px", mb: 4, lineHeight: 1.6 }}>
+        <Typography sx={{ color: "#625B60", fontSize: "15px", mb: 4, lineHeight: 1.6 }}>
           The enterprise screen or resource you requested could not be located on the platform server. Please check the URL or return to the main workstation.
         </Typography>
 
         <Stack direction="row" spacing={2} sx={{ justifyContent: "center" }}>
           <Button
             component={Link}
-            href="/dmt"
+            href="/retailer/dashboard"
             variant="contained"
             startIcon={<HomeIcon />}
             sx={{
@@ -55,17 +54,21 @@ export default function NotFound() {
               borderRadius: "12px",
               fontWeight: 900,
               fontSize: "15px",
-              bgcolor: "#2563EB",
+              bgcolor: "#A20A3A",
               color: "#FFFFFF",
-              boxShadow: "0 4px 20px rgba(37, 99, 235, 0.4)",
+              boxShadow: "0 4px 20px rgba(162, 10, 58, 0.25)",
+              textTransform: "none",
+              "&:hover": {
+                bgcolor: "#85072F",
+              },
             }}
           >
-            Go to DMT Workstation
+            Go to Workstation
           </Button>
 
           <Button
             component={Link}
-            href="/dashboard"
+            href="/retailer/dashboard"
             variant="outlined"
             startIcon={<ArrowBackIcon />}
             sx={{
@@ -74,8 +77,13 @@ export default function NotFound() {
               borderRadius: "12px",
               fontWeight: 700,
               fontSize: "14px",
-              color: "rgba(255, 255, 255, 0.8)",
-              borderColor: "rgba(255, 255, 255, 0.2)",
+              color: "#292329",
+              borderColor: "#E8E2E5",
+              textTransform: "none",
+              "&:hover": {
+                borderColor: "#A20A3A",
+                bgcolor: "#FFF0F4",
+              },
             }}
           >
             Dashboard

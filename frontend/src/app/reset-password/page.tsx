@@ -57,7 +57,7 @@ function ResetPasswordContent() {
   }, [token]);
 
   const getPasswordStrength = (pass: string) => {
-    if (!pass) return { score: 0, label: "", color: "bg-slate-800" };
+    if (!pass) return { score: 0, label: "", color: "bg-[#F5F2F4]" };
     let score = 0;
     if (pass.length >= 8) score += 1;
     if (/[A-Z]/.test(pass)) score += 1;
@@ -74,7 +74,7 @@ function ResetPasswordContent() {
       case 4:
         return { score: 100, label: "Enterprise Grade", color: "bg-blue-500" };
       default:
-        return { score: 0, label: "", color: "bg-slate-800" };
+        return { score: 0, label: "", color: "bg-[#F5F2F4]" };
     }
   };
 
@@ -127,10 +127,10 @@ function ResetPasswordContent() {
 
   if (verifying) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#090d16] text-white">
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#FFFFFF] text-white">
         <div className="flex flex-col items-center space-y-4">
           <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
-          <p className="text-sm font-medium text-slate-400">Verifying secure password reset token...</p>
+          <p className="text-sm font-medium text-[#625B60]">Verifying secure password reset token...</p>
         </div>
       </div>
     );
@@ -138,15 +138,15 @@ function ResetPasswordContent() {
 
   if (!tokenValid) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-[#090d16] text-white">
-        <div className="w-full max-w-md p-8 rounded-2xl shadow-2xl border border-slate-800 bg-slate-900/90 backdrop-blur-xl text-center space-y-6">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-[#FFFFFF] text-white">
+        <div className="w-full max-w-md p-8 rounded-2xl shadow-2xl border border-[#E8E2E5] bg-[#FAF8F9]/90 backdrop-blur-xl text-center space-y-6">
           <div className="inline-flex w-14 h-14 rounded-full bg-rose-500/10 text-rose-400 items-center justify-center border border-rose-500/20">
             <ShieldAlert className="w-7 h-7" />
           </div>
           
           <div className="space-y-2">
             <h2 className="text-xl font-bold text-white">Link Expired or Invalid</h2>
-            <p className="text-xs text-slate-400 leading-relaxed">
+            <p className="text-xs text-[#625B60] leading-relaxed">
               {tokenError || "This password reset link has expired. Please request a new password reset link."}
             </p>
           </div>
@@ -165,15 +165,15 @@ function ResetPasswordContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[#090d16] text-white">
-      <div className="w-full max-w-md p-8 rounded-2xl shadow-2xl border border-slate-800 bg-slate-900/90 backdrop-blur-xl">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[#FFFFFF] text-white">
+      <div className="w-full max-w-md p-8 rounded-2xl shadow-2xl border border-[#E8E2E5] bg-[#FAF8F9]/90 backdrop-blur-xl">
         <div className="text-center mb-8">
           <div className="inline-flex w-14 h-14 rounded-2xl bg-blue-600/20 text-blue-400 items-center justify-center mb-4 border border-blue-500/20">
             <Lock className="w-7 h-7" />
           </div>
           <h2 className="text-2xl font-bold text-white tracking-tight">Create New Password</h2>
-          <p className="text-xs text-slate-400 mt-1 font-medium">
-            Enter a strong new password for your Pay2Pay account
+          <p className="text-xs text-[#625B60] mt-1 font-medium">
+            Enter a strong new password for your Near4You account
           </p>
         </div>
 
@@ -190,12 +190,12 @@ function ResetPasswordContent() {
               <CheckCircle2 className="w-7 h-7" />
             </div>
             <p className="text-sm font-semibold text-emerald-400">{successMsg}</p>
-            <p className="text-xs text-slate-400">Redirecting to Sign In...</p>
+            <p className="text-xs text-[#625B60]">Redirecting to Sign In...</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-2">
+              <label className="block text-xs font-semibold text-[#292329] mb-2">
                 New Password
               </label>
               <div className="relative">
@@ -204,13 +204,13 @@ function ResetPasswordContent() {
                   placeholder="Enter new password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full pl-4 pr-11 py-3 bg-slate-950/80 border border-slate-800 rounded-xl text-sm font-medium text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
+                  className="w-full pl-4 pr-11 py-3 bg-[#FFFFFF]/80 border border-[#E8E2E5] rounded-xl text-sm font-medium text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-white"
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#625B60] hover:text-white"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -218,11 +218,11 @@ function ResetPasswordContent() {
 
               {newPassword && (
                 <div className="mt-2.5 space-y-1.5">
-                  <div className="flex justify-between items-center text-[11px] font-medium text-slate-400">
+                  <div className="flex justify-between items-center text-[11px] font-medium text-[#625B60]">
                     <span>Password Strength</span>
-                    <span className="font-semibold text-slate-200">{strength.label}</span>
+                    <span className="font-semibold text-[#292329]">{strength.label}</span>
                   </div>
-                  <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                  <div className="h-1.5 w-full bg-[#F5F2F4] rounded-full overflow-hidden">
                     <div
                       className={`h-full ${strength.color} transition-all duration-300`}
                       style={{ width: `${strength.score}%` }}
@@ -233,7 +233,7 @@ function ResetPasswordContent() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-2">
+              <label className="block text-xs font-semibold text-[#292329] mb-2">
                 Confirm New Password
               </label>
               <input
@@ -241,7 +241,7 @@ function ResetPasswordContent() {
                 placeholder="Confirm new password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-950/80 border border-slate-800 rounded-xl text-sm font-medium text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
+                className="w-full px-4 py-3 bg-[#FFFFFF]/80 border border-[#E8E2E5] rounded-xl text-sm font-medium text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
                 required
               />
             </div>
@@ -249,7 +249,7 @@ function ResetPasswordContent() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm transition shadow-lg shadow-blue-600/25 flex items-center justify-center"
+              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#A20A3A] to-[#85072F] hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm transition shadow-lg shadow-blue-600/25 flex items-center justify-center"
             >
               {submitting ? (
                 <>
@@ -270,7 +270,7 @@ function ResetPasswordContent() {
 export default function ResetPasswordPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center p-4 bg-[#090d16] text-white">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-[#FFFFFF] text-white">
         <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
       </div>
     }>

@@ -110,6 +110,8 @@ apiClient.interceptors.response.use(
             "pay2pay_sales_token",
             "p2p_user_role",
             "pay2pay_user_role",
+            "p2p_user_type_ref_id",
+            "pay2pay_user_type_ref_id",
             "p2p_session_locked",
             "p2p_session_id",
             "p2p_destination",
@@ -122,7 +124,6 @@ apiClient.interceptors.response.use(
               document.cookie = `${name}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
             } catch {}
           });
-
           try {
             localStorage.removeItem("p2p_access_token");
             localStorage.removeItem("pay2pay_access_token");
@@ -137,13 +138,7 @@ apiClient.interceptors.response.use(
           } catch {}
 
           const currentPath = window.location.pathname;
-          let loginPath = "/retailer/login";
-          if (currentPath.startsWith("/admin")) loginPath = "/admin/login";
-          else if (currentPath.startsWith("/sd")) loginPath = "/sd/login";
-          else if (currentPath.startsWith("/dist")) loginPath = "/dist/login";
-          else if (currentPath.startsWith("/super-admin")) loginPath = "/super-admin/login";
-
-          window.location.replace(`${loginPath}?reason=session_expired&redirect=${encodeURIComponent(currentPath)}`);
+          window.location.replace(`/login?reason=session_expired&redirect=${encodeURIComponent(currentPath)}`);
         }
       }
     }
@@ -583,7 +578,7 @@ export const retailerApi = {
       const res = await apiClient.post("/retailer/upi/generate-qr", payload);
       return res.data;
     } catch {
-      const ref = `PAY2PAY${Date.now()}`;
+      const ref = `NEAR4YOU${Date.now()}`;
       const vpa = "pay2pay.retailer@icici";
       const qrString = `upi://pay?pa=${vpa}&pn=Pay2PayStore&am=${payload.amount}&tr=${ref}&mc=5411&cu=INR`;
       return {

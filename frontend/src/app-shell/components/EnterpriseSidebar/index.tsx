@@ -230,8 +230,8 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
       sx={{
         width: isCollapsed ? 76 : 280,
         height: "100vh",
-        bgcolor: "#0B132B",
-        borderRight: "1px solid rgba(255, 255, 255, 0.14)",
+        bgcolor: "#FFFFFF",
+        borderRight: "1px solid #E8E2E5",
         display: "flex",
         flexDirection: "column",
         position: "sticky",
@@ -243,11 +243,11 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
       {/* Sidebar Top Header & Collapse Toggle */}
       <Box sx={{ p: 2, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         {!isCollapsed && (
-          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "16px" }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#A20A3A", fontSize: "16px" }}>
             Workspace Menu
           </Typography>
         )}
-        <IconButton onClick={onToggle} size="medium" sx={{ color: "#FFFFFF", bgcolor: "rgba(255,255,255,0.08)" }}>
+        <IconButton onClick={onToggle} size="medium" sx={{ color: "#292329", bgcolor: "#FAF8F9", "&:hover": { bgcolor: "#FFF0F4", color: "#A20A3A" } }}>
           {isCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
         </IconButton>
       </Box>
@@ -260,19 +260,19 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
             mb: 1.5,
             p: 1.5,
             borderRadius: "10px",
-            background: "linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(234, 88, 12, 0.10) 100%)",
-            border: "1px solid rgba(245, 158, 11, 0.35)",
+            background: "#FFF8DC",
+            border: "1px solid #FFF3C4",
             display: "flex",
             alignItems: "flex-start",
             gap: 1,
           }}
         >
-          <VerifiedUserIcon sx={{ fontSize: 16, color: "#F59E0B", mt: 0.2, flexShrink: 0 }} />
+          <VerifiedUserIcon sx={{ fontSize: 16, color: "#EDC11E", mt: 0.2, flexShrink: 0 }} />
           <Box>
-            <Typography sx={{ fontSize: "11px", fontWeight: 800, color: "#F59E0B", lineHeight: 1.3 }}>
+            <Typography sx={{ fontSize: "11px", fontWeight: 800, color: "#D4A915", lineHeight: 1.3 }}>
               Verification Pending
             </Typography>
-            <Typography sx={{ fontSize: "10px", color: "rgba(255,255,255,0.55)", mt: 0.3, lineHeight: 1.4 }}>
+            <Typography sx={{ fontSize: "10px", color: "#625B60", mt: 0.3, lineHeight: 1.4 }}>
               Financial services unlock after admin approval.
             </Typography>
           </Box>
@@ -292,12 +292,12 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
               input: {
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon sx={{ color: "#60A5FA", fontSize: 20 }} />
+                    <SearchIcon sx={{ color: "#A20A3A", fontSize: 20 }} />
                   </InputAdornment>
                 ),
                 endAdornment: searchQuery ? (
                   <InputAdornment position="end">
-                    <IconButton size="small" onClick={() => setSearchQuery("")} sx={{ p: 0.5, color: "rgba(255, 255, 255, 0.7)" }}>
+                    <IconButton size="small" onClick={() => setSearchQuery("")} sx={{ p: 0.5, color: "#8A8288" }}>
                       <ClearIcon sx={{ fontSize: 16 }} />
                     </IconButton>
                   </InputAdornment>
@@ -305,12 +305,12 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                 sx: {
                   height: 44,
                   fontSize: "16px",
-                  color: "#FFFFFF",
+                  color: "#292329",
                   borderRadius: "10px",
-                  bgcolor: "rgba(255, 255, 255, 0.08)",
-                  "& fieldset": { borderColor: "rgba(255, 255, 255, 0.16)" },
-                  "&:hover fieldset": { borderColor: "#3B82F6" },
-                  "&.Mui-focused fieldset": { borderColor: "#2563EB" },
+                  bgcolor: "#FFFFFF",
+                  "& fieldset": { borderColor: "#E8E2E5" },
+                  "&:hover fieldset": { borderColor: "#A20A3A" },
+                  "&.Mui-focused fieldset": { borderColor: "#A20A3A" },
                 },
               },
             }}
@@ -335,8 +335,8 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
           <Box sx={{ mb: 2 }}>
             {!isCollapsed && (
               <Stack direction="row" spacing={1} sx={{ alignItems: "center", px: "14px", mb: 1 }}>
-                <StarIcon sx={{ color: "#FFD54F", fontSize: 16 }} />
-                <Typography variant="body1" sx={{ color: "#FFD54F", fontWeight: 800, fontSize: "15px" }}>
+                <StarIcon sx={{ color: "#EDC11E", fontSize: 16 }} />
+                <Typography variant="body1" sx={{ color: "#EDC11E", fontWeight: 800, fontSize: "15px" }}>
                   Favorites
                 </Typography>
               </Stack>
@@ -368,22 +368,21 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                         px: isCollapsed ? 0 : "14px",
                         justifyContent: isCollapsed ? "center" : "space-between",
                         bgcolor: locked
-                          ? "rgba(255, 255, 255, 0.04)"
+                          ? "#FAF8F9"
                           : isActive
-                          ? "#2563EB"
-                          : "rgba(255, 213, 79, 0.10)",
-                        color: locked ? "rgba(255,255,255,0.35)" : "#FFFFFF",
+                          ? "#FFF0F4"
+                          : "transparent",
+                        color: locked ? "#B8B0B6" : isActive ? "#A20A3A" : "#292329",
                         cursor: locked ? "not-allowed" : "pointer",
-                        boxShadow: isActive && !locked ? "0 4px 14px rgba(37, 99, 235, 0.40)" : "none",
+                        borderLeft: isActive ? "3px solid #A20A3A" : "3px solid transparent",
                         transition: "all 150ms ease",
                         "&:hover": {
                           bgcolor: locked
-                            ? "rgba(255, 255, 255, 0.04)"
-                            : isActive
-                            ? "#1D4ED8"
-                            : "rgba(255, 255, 255, 0.14)",
+                            ? "#FAF8F9"
+                            : "#FFF0F4",
+                          color: locked ? "#B8B0B6" : "#A20A3A",
                         },
-                        ...(locked && { borderLeft: "2px solid rgba(245, 158, 11, 0.35)" }),
+                        ...(locked && { borderLeft: "3px solid #EDC11E" }),
                       }}
                     >
                       <Stack direction="row" spacing={1.8} sx={{ alignItems: "center" }}>
@@ -391,14 +390,14 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                           sx={{
                             fontSize: 22,
                             color: locked
-                              ? "rgba(255,255,255,0.25)"
+                              ? "#B8B0B6"
                               : isActive
-                              ? "#FFFFFF"
-                              : "#FFD54F",
+                              ? "#A20A3A"
+                              : "#EDC11E",
                           }}
                         />
                         {!isCollapsed && (
-                          <Typography sx={{ fontSize: "17px", fontWeight: isActive ? 700 : 600 }}>
+                          <Typography sx={{ fontSize: "15px", fontWeight: isActive ? 800 : 600 }}>
                             {item.label}
                           </Typography>
                         )}
@@ -406,12 +405,12 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
 
                       {!isCollapsed && (
                         locked ? (
-                          <LockIcon sx={{ fontSize: 14, color: "rgba(245, 158, 11, 0.7)", flexShrink: 0 }} />
+                          <LockIcon sx={{ fontSize: 14, color: "#EDC11E", flexShrink: 0 }} />
                         ) : (
                           <IconButton
                             size="small"
                             onClick={(e) => toggleFavorite(item.path, e, item.label, "Favorites")}
-                            sx={{ p: 0.5, color: isFav ? "#FFD54F" : "rgba(255,255,255,0.5)" }}
+                            sx={{ p: 0.5, color: isFav ? "#EDC11E" : "#B8B0B6" }}
                           >
                             <StarIcon sx={{ fontSize: 18 }} />
                           </IconButton>
@@ -431,7 +430,7 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
             {!isCollapsed && (
               <Typography
                 variant="body1"
-                sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "15px", px: "14px", mb: 1, display: "block" }}
+                sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "13px", px: "14px", mb: 1, display: "block", textTransform: "uppercase", letterSpacing: "0.5px" }}
               >
                 {cat.title}
               </Typography>
@@ -462,22 +461,21 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                         px: isCollapsed ? 0 : "14px",
                         justifyContent: isCollapsed ? "center" : "space-between",
                         bgcolor: locked
-                          ? "rgba(255, 255, 255, 0.03)"
+                          ? "#FAF8F9"
                           : isActive
-                          ? "#2563EB"
+                          ? "#FFF0F4"
                           : "transparent",
-                        color: locked ? "rgba(255,255,255,0.3)" : "#FFFFFF",
+                        color: locked ? "#B8B0B6" : isActive ? "#A20A3A" : "#292329",
                         cursor: locked ? "not-allowed" : "pointer",
-                        boxShadow: isActive && !locked ? "0 4px 14px rgba(37, 99, 235, 0.40)" : "none",
+                        borderLeft: isActive ? "3px solid #A20A3A" : "3px solid transparent",
                         transition: "all 150ms ease",
                         "&:hover": {
                           bgcolor: locked
-                            ? "rgba(255, 255, 255, 0.03)"
-                            : isActive
-                            ? "#1D4ED8"
-                            : "rgba(255, 255, 255, 0.12)",
+                            ? "#FAF8F9"
+                            : "#FFF0F4",
+                          color: locked ? "#B8B0B6" : "#A20A3A",
                         },
-                        ...(locked && { borderLeft: "2px solid rgba(245, 158, 11, 0.35)" }),
+                        ...(locked && { borderLeft: "3px solid #EDC11E" }),
                       }}
                     >
                       <Stack direction="row" spacing={1.8} sx={{ alignItems: "center", minWidth: 0 }}>
@@ -485,19 +483,19 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                           sx={{
                             fontSize: 22,
                             color: locked
-                              ? "rgba(255,255,255,0.25)"
+                              ? "#B8B0B6"
                               : isActive
-                              ? "#FFFFFF"
-                              : "#CBD5E1",
+                              ? "#A20A3A"
+                              : "#625B60",
                             flexShrink: 0,
                           }}
                         />
                         {!isCollapsed && (
                           <Typography
                             sx={{
-                              fontSize: "17px",
-                              fontWeight: isActive ? 700 : 600,
-                              color: locked ? "rgba(255,255,255,0.35)" : "inherit",
+                              fontSize: "15px",
+                              fontWeight: isActive ? 800 : 500,
+                              color: locked ? "#B8B0B6" : isActive ? "#A20A3A" : "#292329",
                               overflow: "hidden",
                               textOverflow: "ellipsis",
                               whiteSpace: "nowrap",
@@ -510,7 +508,7 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
 
                       {!isCollapsed && (
                         locked ? (
-                          <LockIcon sx={{ fontSize: 14, color: "rgba(245, 158, 11, 0.6)", flexShrink: 0 }} />
+                          <LockIcon sx={{ fontSize: 14, color: "#EDC11E", flexShrink: 0 }} />
                         ) : (
                           <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
                             {item.badge && (
@@ -518,11 +516,11 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                                 label={item.badge}
                                 size="small"
                                 sx={{
-                                  bgcolor: "rgba(59, 130, 246, 0.25)",
-                                  color: "#60A5FA",
+                                  bgcolor: "#FFF0F4",
+                                  color: "#A20A3A",
                                   fontWeight: 800,
-                                  fontSize: "12px",
-                                  height: 22,
+                                  fontSize: "11px",
+                                  height: 20,
                                   flexShrink: 0,
                                 }}
                               />
@@ -532,8 +530,8 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                               onClick={(e) => toggleFavorite(item.path, e, item.label, cat.title)}
                               sx={{
                                 p: 0.5,
-                                color: favorites.includes(item.path) ? "#FFD54F" : "rgba(255, 255, 255, 0.25)",
-                                "&:hover": { color: "#FFD54F" },
+                                color: favorites.includes(item.path) ? "#EDC11E" : "#B8B0B6",
+                                "&:hover": { color: "#EDC11E" },
                               }}
                               title={favorites.includes(item.path) ? "Remove from Favorites" : "Add to Favorites"}
                             >

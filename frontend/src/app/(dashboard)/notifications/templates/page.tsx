@@ -101,7 +101,7 @@ export default function NotificationTemplatesPage() {
             </div>
             Notification Templates
           </h1>
-          <p className="text-slate-400 text-sm mt-1">Manage multi-channel message templates</p>
+          <p className="text-[#625B60] text-sm mt-1">Manage multi-channel message templates</p>
         </div>
         <button
           onClick={() => setShowCreate(true)}
@@ -121,18 +121,18 @@ export default function NotificationTemplatesPage() {
 
       <div className="flex gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#625B60]" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search template code or name..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-slate-800/60 border border-slate-700 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-violet-500 text-sm"
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-[#F5F2F4]/60 border border-[#E8E2E5] text-[#292329] placeholder-slate-500 focus:outline-none focus:border-violet-500 text-sm"
           />
         </div>
         <select
           value={filterChannel}
           onChange={(e) => setFilterChannel(e.target.value)}
-          className="px-3 py-2.5 rounded-lg bg-slate-800/60 border border-slate-700 text-slate-300 text-sm focus:outline-none focus:border-violet-500"
+          className="px-3 py-2.5 rounded-lg bg-[#F5F2F4]/60 border border-[#E8E2E5] text-[#292329] text-sm focus:outline-none focus:border-violet-500"
         >
           <option value="">All Channels</option>
           <option value="EMAIL">Email</option>
@@ -145,7 +145,7 @@ export default function NotificationTemplatesPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.length === 0 ? (
-          <div className="col-span-3 text-center py-16 text-slate-500">
+          <div className="col-span-3 text-center py-16 text-[#8A8288]">
             <FileText className="h-10 w-10 mx-auto mb-3 opacity-30" />
             No templates found. Create your first template.
           </div>
@@ -153,26 +153,26 @@ export default function NotificationTemplatesPage() {
           filtered.map((t) => (
             <div
               key={t.public_id}
-              className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 hover:border-violet-500/40 transition-all group"
+              className="bg-[#FAF8F9]/60 border border-[#E8E2E5] rounded-2xl p-5 hover:border-violet-500/40 transition-all group"
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <span className={`text-xs px-2 py-1 rounded-full border ${CHANNEL_COLORS[t.channel] || "bg-slate-500/20 text-slate-400 border-slate-500/30"}`}>
+                  <span className={`text-xs px-2 py-1 rounded-full border ${CHANNEL_COLORS[t.channel] || "bg-slate-500/20 text-[#625B60] border-slate-500/30"}`}>
                     {t.channel}
                   </span>
                   <span className="text-xs px-2 py-1 rounded-full bg-violet-500/20 text-violet-400 border border-violet-500/30">
                     {t.notification_type}
                   </span>
                 </div>
-                <span className={`text-xs px-2 py-1 rounded-full border ${t.template_status === "ACTIVE" ? "bg-green-500/20 text-green-400 border-green-500/30" : "bg-slate-500/20 text-slate-400 border-slate-500/30"}`}>
+                <span className={`text-xs px-2 py-1 rounded-full border ${t.template_status === "ACTIVE" ? "bg-green-500/20 text-green-400 border-green-500/30" : "bg-slate-500/20 text-[#625B60] border-slate-500/30"}`}>
                   {t.template_status}
                 </span>
               </div>
               <h3 className="text-white font-semibold">{t.template_name}</h3>
-              <p className="text-slate-500 text-xs font-mono mt-1">{t.template_code}</p>
-              {t.subject && <p className="text-slate-400 text-sm mt-2 truncate">{t.subject}</p>}
-              <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-800">
-                <span className="text-xs text-slate-500">Lang: {t.language.toUpperCase()}</span>
+              <p className="text-[#8A8288] text-xs font-mono mt-1">{t.template_code}</p>
+              {t.subject && <p className="text-[#625B60] text-sm mt-2 truncate">{t.subject}</p>}
+              <div className="flex items-center gap-3 mt-3 pt-3 border-t border-[#E8E2E5]">
+                <span className="text-xs text-[#8A8288]">Lang: {t.language.toUpperCase()}</span>
                 <span className={`text-xs px-2 py-0.5 rounded-full border ${t.approval_status === "APPROVED" ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-amber-500/10 text-amber-400 border-amber-500/20"}`}>
                   {t.approval_status}
                 </span>
@@ -185,26 +185,26 @@ export default function NotificationTemplatesPage() {
       {/* Create Modal */}
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-[#0f1623] border border-slate-700 rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-[#FFFFFF] border border-[#E8E2E5] rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-bold text-white mb-4">New Notification Template</h2>
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Template Code *</label>
+                  <label className="block text-xs text-[#625B60] mb-1">Template Code *</label>
                   <input
                     value={form.template_code}
                     onChange={(e) => setForm({ ...form, template_code: e.target.value })}
                     placeholder="PAYOUT_SUCCESS_EMAIL"
-                    className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm focus:outline-none focus:border-violet-500 font-mono"
+                    className="w-full px-3 py-2 rounded-lg bg-[#F5F2F4] border border-[#E8E2E5] text-[#292329] text-sm focus:outline-none focus:border-violet-500 font-mono"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Channel *</label>
+                  <label className="block text-xs text-[#625B60] mb-1">Channel *</label>
                   <select
                     value={form.channel}
                     onChange={(e) => setForm({ ...form, channel: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm focus:outline-none focus:border-violet-500"
+                    className="w-full px-3 py-2 rounded-lg bg-[#F5F2F4] border border-[#E8E2E5] text-[#292329] text-sm focus:outline-none focus:border-violet-500"
                     required
                   >
                     <option>EMAIL</option>
@@ -216,22 +216,22 @@ export default function NotificationTemplatesPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Template Name *</label>
+                <label className="block text-xs text-[#625B60] mb-1">Template Name *</label>
                 <input
                   value={form.template_name}
                   onChange={(e) => setForm({ ...form, template_name: e.target.value })}
                   placeholder="Payout Success Email"
-                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm focus:outline-none focus:border-violet-500"
+                  className="w-full px-3 py-2 rounded-lg bg-[#F5F2F4] border border-[#E8E2E5] text-[#292329] text-sm focus:outline-none focus:border-violet-500"
                   required
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Notification Type</label>
+                  <label className="block text-xs text-[#625B60] mb-1">Notification Type</label>
                   <select
                     value={form.notification_type}
                     onChange={(e) => setForm({ ...form, notification_type: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm focus:outline-none focus:border-violet-500"
+                    className="w-full px-3 py-2 rounded-lg bg-[#F5F2F4] border border-[#E8E2E5] text-[#292329] text-sm focus:outline-none focus:border-violet-500"
                   >
                     <option>TRANSACTIONAL</option>
                     <option>MARKETING</option>
@@ -241,36 +241,36 @@ export default function NotificationTemplatesPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Language</label>
+                  <label className="block text-xs text-[#625B60] mb-1">Language</label>
                   <input
                     value={form.language}
                     onChange={(e) => setForm({ ...form, language: e.target.value })}
                     placeholder="en"
-                    className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm focus:outline-none focus:border-violet-500"
+                    className="w-full px-3 py-2 rounded-lg bg-[#F5F2F4] border border-[#E8E2E5] text-[#292329] text-sm focus:outline-none focus:border-violet-500"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Subject</label>
+                <label className="block text-xs text-[#625B60] mb-1">Subject</label>
                 <input
                   value={form.subject}
                   onChange={(e) => setForm({ ...form, subject: e.target.value })}
                   placeholder="Your payout of ₹{{amount}} is processed"
-                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm focus:outline-none focus:border-violet-500"
+                  className="w-full px-3 py-2 rounded-lg bg-[#F5F2F4] border border-[#E8E2E5] text-[#292329] text-sm focus:outline-none focus:border-violet-500"
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Body Text</label>
+                <label className="block text-xs text-[#625B60] mb-1">Body Text</label>
                 <textarea
                   value={form.body_text}
                   onChange={(e) => setForm({ ...form, body_text: e.target.value })}
                   rows={4}
                   placeholder="Dear {{name}}, your payout..."
-                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm focus:outline-none focus:border-violet-500 resize-none font-mono"
+                  className="w-full px-3 py-2 rounded-lg bg-[#F5F2F4] border border-[#E8E2E5] text-[#292329] text-sm focus:outline-none focus:border-violet-500 resize-none font-mono"
                 />
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowCreate(false)} className="flex-1 px-4 py-2 rounded-lg border border-slate-700 text-slate-400 hover:bg-slate-800 transition-all text-sm">
+                <button type="button" onClick={() => setShowCreate(false)} className="flex-1 px-4 py-2 rounded-lg border border-[#E8E2E5] text-[#625B60] hover:bg-[#F5F2F4] transition-all text-sm">
                   Cancel
                 </button>
                 <button type="submit" disabled={saving} className="flex-1 px-4 py-2 rounded-lg bg-violet-600 text-white hover:bg-violet-700 transition-all text-sm font-medium disabled:opacity-50">

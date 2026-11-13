@@ -1,7 +1,7 @@
 export const getApiBaseUrl = (): string => {
   if (typeof window !== "undefined") {
-    if (window.location.hostname.includes("pay2pay.in")) {
-      return "https://api.pay2pay.in/api/v1";
+    if (window.location.hostname.includes("near4you.store")) {
+      return "https://api.near4you.store/api/v1";
     }
     return "/api/v1";
   }
@@ -13,7 +13,7 @@ export const getApiBaseUrl = (): string => {
     const url = process.env.BACKEND_URL.replace(/\/$/, "");
     return url.endsWith("/api/v1") ? url : `${url}/api/v1`;
   }
-  return "https://api.pay2pay.in/api/v1";
+  return "https://api.near4you.store/api/v1";
 };
 
 export default getApiBaseUrl;

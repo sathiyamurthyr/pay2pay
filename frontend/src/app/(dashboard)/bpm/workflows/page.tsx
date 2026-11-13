@@ -53,11 +53,11 @@ export default function WorkflowsPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100 flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-[#292329] flex items-center gap-3">
             <GitMerge className="h-8 w-8 text-blue-400" />
             Workflow Designer & Business Process Engine
           </h1>
-          <p className="mt-1 text-slate-400">
+          <p className="mt-1 text-[#625B60]">
             Configure multi-step sequential, parallel, & rule-based approval workflows
           </p>
         </div>
@@ -72,13 +72,13 @@ export default function WorkflowsPage() {
       {/* Table */}
       <div className="rounded-xl border border-[#E2E8F0] bg-white overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-[#0F172A]">
-            <thead className="bg-[#F8FAFC] uppercase text-xs font-bold text-[#111827] border-b border-[#E2E8F0]">
+          <table className="w-full text-left text-sm text-[#FFFFFF]">
+            <thead className="bg-[#F8FAFC] uppercase text-xs font-bold text-[#FAF8F9] border-b border-[#E2E8F0]">
               <tr>
-                <th className="px-5 py-4 font-extrabold text-[#111827]">Workflow #</th>
-                <th className="px-5 py-4 font-extrabold text-[#111827]">Workflow Name</th>
-                <th className="px-5 py-4 font-extrabold text-[#111827]">Target Entity</th>
-                <th className="px-5 py-4 font-mono font-extrabold text-right text-[#111827]">Status</th>
+                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Workflow #</th>
+                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Workflow Name</th>
+                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Target Entity</th>
+                <th className="px-5 py-4 font-mono font-extrabold text-right text-[#FAF8F9]">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E2E8F0] font-mono text-xs">
@@ -88,7 +88,7 @@ export default function WorkflowsPage() {
                 workflows.map((w) => (
                   <tr key={w.public_id} className="hover:bg-[#F8FAFC] transition-colors">
                     <td className="px-5 py-4 text-[#2563EB] font-extrabold">{w.workflow_code}</td>
-                    <td className="px-5 py-4 font-sans text-xs font-bold text-[#0F172A]">{w.workflow_name}</td>
+                    <td className="px-5 py-4 font-sans text-xs font-bold text-[#FFFFFF]">{w.workflow_name}</td>
                     <td className="px-5 py-4 text-[#475569] font-medium">{w.entity_type}</td>
                     <td className="px-5 py-4 text-right">
                       <span className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold bg-[#F0FDF4] text-[#15803D] border border-[#BBF7D0]">
@@ -105,24 +105,24 @@ export default function WorkflowsPage() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-xl border border-[#E5E7EB] bg-white p-6 shadow-xl space-y-6 text-[#111827]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FAF8F9] backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-xl border border-[#E5E7EB] bg-white p-6 shadow-xl space-y-6 text-[#FAF8F9]">
             <div className="flex items-center justify-between">
-              <h3 className="text-xl font-extrabold text-[#111827] flex items-center gap-2">
+              <h3 className="text-xl font-extrabold text-[#FAF8F9] flex items-center gap-2">
                 <GitMerge className="h-5 w-5 text-[#2563EB]" /> Create Workflow Definition
               </h3>
-              <button onClick={() => setShowModal(false)} className="text-[#6B7280] hover:text-[#111827]">
+              <button onClick={() => setShowModal(false)} className="text-[#6B7280] hover:text-[#FAF8F9]">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <form onSubmit={handleCreateWorkflow} className="space-y-4 text-sm">
               <div>
                 <label className="block text-[#6B7280] text-xs font-bold mb-1">Workflow Name</label>
-                <input type="text" required value={workflowName} onChange={(e) => setWorkflowName(e.target.value)} placeholder="e.g. High-Value Payout Maker-Checker Approval" className="w-full rounded-lg bg-white border border-[#D1D5DB] p-2.5 text-[#111827] focus:border-[#2563EB] focus:outline-none" />
+                <input type="text" required value={workflowName} onChange={(e) => setWorkflowName(e.target.value)} placeholder="e.g. High-Value Payout Maker-Checker Approval" className="w-full rounded-lg bg-white border border-[#D1D5DB] p-2.5 text-[#FAF8F9] focus:border-[#2563EB] focus:outline-none" />
               </div>
               <div>
                 <label className="block text-[#6B7280] text-xs font-bold mb-1">Target Entity Type</label>
-                <select value={entityType} onChange={(e) => setEntityType(e.target.value)} className="w-full rounded-lg bg-white border border-[#D1D5DB] p-2.5 text-[#111827] focus:border-[#2563EB] focus:outline-none font-bold">
+                <select value={entityType} onChange={(e) => setEntityType(e.target.value)} className="w-full rounded-lg bg-white border border-[#D1D5DB] p-2.5 text-[#FAF8F9] focus:border-[#2563EB] focus:outline-none font-bold">
                   <option value="SETTLEMENT">Settlement Batch</option>
                   <option value="PAYOUT">Outbound Bank Payout</option>
                   <option value="RETAILER">Merchant Retailer</option>

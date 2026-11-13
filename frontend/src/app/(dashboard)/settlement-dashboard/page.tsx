@@ -232,7 +232,7 @@ export default function SettlementDashboardPage() {
               </div>
               <div>
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <h1 className="text-2xl font-extrabold text-[#0F172A] tracking-tight">
+                  <h1 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight">
                     Settlement Engine &amp; MDR Telemetry
                   </h1>
                   <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-500/15 border border-violet-400/30 text-[10px] font-extrabold text-violet-400 tracking-wider">
@@ -302,7 +302,7 @@ export default function SettlementDashboardPage() {
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider">{kpi.label}</p>
-                    <p className="text-2xl font-extrabold text-[#0F172A] mt-1 tracking-tight leading-tight">{kpi.value}</p>
+                    <p className="text-2xl font-extrabold text-[#FFFFFF] mt-1 tracking-tight leading-tight">{kpi.value}</p>
                     <p className="text-[11px] text-[#94A3B8] mt-0.5 font-medium">{kpi.sub}</p>
                   </div>
                   <div className={`p-2.5 rounded-xl border ${kpi.iconBg} shrink-0`}>
@@ -334,7 +334,7 @@ export default function SettlementDashboardPage() {
                 <CreditCard className="w-5 h-5 text-violet-400" />
               </div>
               <div>
-                <h3 className="font-extrabold text-[#0F172A] text-base">Volume by Payment Mode</h3>
+                <h3 className="font-extrabold text-[#FFFFFF] text-base">Volume by Payment Mode</h3>
                 <p className="text-[11px] text-[#94A3B8] mt-0.5">Gross volume split across channels</p>
               </div>
             </div>
@@ -383,7 +383,7 @@ export default function SettlementDashboardPage() {
                 <BarChart3 className="w-5 h-5 text-blue-400" />
               </div>
               <div>
-                <h3 className="font-extrabold text-[#0F172A] text-base">Hourly Cumulative Settlement Trend</h3>
+                <h3 className="font-extrabold text-[#FFFFFF] text-base">Hourly Cumulative Settlement Trend</h3>
                 <p className="text-[11px] text-[#94A3B8] mt-0.5">Intraday volume accumulation — hover bars for detail</p>
               </div>
             </div>
@@ -433,7 +433,7 @@ export default function SettlementDashboardPage() {
               <PieChart className="w-5 h-5 text-indigo-400" />
             </div>
             <div>
-              <h3 className="font-extrabold text-[#0F172A] text-base">MDR Fee Split Analysis</h3>
+              <h3 className="font-extrabold text-[#FFFFFF] text-base">MDR Fee Split Analysis</h3>
               <p className="text-[11px] text-[#94A3B8] mt-0.5">Gross MDR → GST deduction → Distributor commission → Net platform retention</p>
             </div>
           </div>

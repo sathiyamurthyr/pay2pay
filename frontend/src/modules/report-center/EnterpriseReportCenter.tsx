@@ -540,13 +540,13 @@ export const EnterpriseReportCenter: React.FC = () => {
   };
 
   return (
-    <Box sx={{ width: "100%", minHeight: "100vh", bgcolor: "#08111F", color: "#F8FAFC", p: { xs: 1.5, md: 2.5 }, fontFamily: "'Inter', sans-serif" }}>
+    <Box sx={{ width: "100%", minHeight: "100vh", bgcolor: "#FFFFFF", color: "#292329", p: { xs: 1.5, md: 2.5 }, fontFamily: "'Inter', sans-serif" }}>
       {/* 1. BREADCRUMB & HEADER BAR */}
       <Box sx={{ mb: 1.5, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
         <Box>
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center", color: "#64748B", fontSize: "14px", fontWeight: 600, mb: 0.3 }}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center", color: "#625B60", fontSize: "14px", fontWeight: 600, mb: 0.3 }}>
             <span>Reports</span>
-            <ArrowForwardIosIcon sx={{ fontSize: 10, color: "#64748B" }} />
+            <ArrowForwardIosIcon sx={{ fontSize: 10, color: "#625B60" }} />
             <span style={{ color: "#60A5FA", fontWeight: 700 }}>{activeTabObj.label}</span>
           </Stack>
           <Typography variant="h1" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "22px", letterSpacing: "-0.02em" }}>
@@ -600,7 +600,7 @@ export const EnterpriseReportCenter: React.FC = () => {
         sx={{
           mb: 1.5,
           borderRadius: "12px",
-          bgcolor: "#0F172A",
+          bgcolor: "#FFFFFF",
           border: "1px solid #2E3C57",
           px: 1,
         }}
@@ -621,7 +621,7 @@ export const EnterpriseReportCenter: React.FC = () => {
               px: 2,
               fontWeight: 700,
               fontSize: "14px",
-              color: "#94A3B8",
+              color: "#625B60",
               textTransform: "none",
               "&.Mui-selected": {
                 color: "#60A5FA",
@@ -673,7 +673,7 @@ export const EnterpriseReportCenter: React.FC = () => {
               py: 1.2,
               px: 1.5,
               borderRadius: "12px",
-              bgcolor: "#0F172A",
+              bgcolor: "#FFFFFF",
               border: "1px solid #2E3C57",
               display: "flex",
               flexDirection: "column",
@@ -690,7 +690,7 @@ export const EnterpriseReportCenter: React.FC = () => {
               variant="caption"
               title={metric.label}
               sx={{
-                color: "#94A3B8",
+                color: "#625B60",
                 fontSize: "12px",
                 fontWeight: 600,
                 whiteSpace: "nowrap",
@@ -711,7 +711,7 @@ export const EnterpriseReportCenter: React.FC = () => {
                 </Tooltip>
                 <Typography variant="caption" sx={{ color: "#334155", fontWeight: 700 }}>|</Typography>
                 <Tooltip title="Pending Transactions" arrow>
-                  <Typography variant="body1" sx={{ fontWeight: 800, color: "#FBBF24", fontSize: { xs: "16px", md: "18px" } }}>
+                  <Typography variant="body1" sx={{ fontWeight: 800, color: "#A20A3A", fontSize: { xs: "16px", md: "18px" } }}>
                     {metric.pending ?? (metric.value ? metric.value.split("|")[1].trim() : "0")}
                   </Typography>
                 </Tooltip>
@@ -756,7 +756,7 @@ export const EnterpriseReportCenter: React.FC = () => {
           p: 1.5,
           mb: 1.5,
           borderRadius: "12px",
-          bgcolor: "#0F172A",
+          bgcolor: "#FFFFFF",
           border: "1px solid #2E3C57",
         }}
       >
@@ -778,7 +778,7 @@ export const EnterpriseReportCenter: React.FC = () => {
               }}
               slotProps={{
                 input: {
-                  startAdornment: <SearchIcon sx={{ color: "#94A3B8", mr: 1, fontSize: 20 }} />,
+                  startAdornment: <SearchIcon sx={{ color: "#625B60", mr: 1, fontSize: 20 }} />,
                 },
               }}
               sx={darkSearchInputSx}
@@ -830,7 +830,7 @@ export const EnterpriseReportCenter: React.FC = () => {
                   slotProps: {
                     paper: {
                       sx: {
-                        bgcolor: "#0F172A",
+                        bgcolor: "#FFFFFF",
                         color: "#FFFFFF",
                         border: "1px solid #2E3C57",
                         borderRadius: "12px",
@@ -909,7 +909,7 @@ export const EnterpriseReportCenter: React.FC = () => {
                   type="date"
                   value={fromDate}
                   onChange={(e) => { setFromDate(e.target.value); setActivePreset("CUSTOM"); }}
-                  slotProps={{ inputLabel: { shrink: true, style: { color: "#CBD5E1" } } }}
+                  slotProps={{ inputLabel: { shrink: true, style: { color: "#625B60" } } }}
                   sx={darkSearchInputSx}
                 />
               </Grid>
@@ -921,7 +921,7 @@ export const EnterpriseReportCenter: React.FC = () => {
                   type="date"
                   value={toDate}
                   onChange={(e) => { setToDate(e.target.value); setActivePreset("CUSTOM"); }}
-                  slotProps={{ inputLabel: { shrink: true, style: { color: "#CBD5E1" } } }}
+                  slotProps={{ inputLabel: { shrink: true, style: { color: "#625B60" } } }}
                   sx={darkSearchInputSx}
                 />
               </Grid>
@@ -934,7 +934,7 @@ export const EnterpriseReportCenter: React.FC = () => {
                   placeholder="1000"
                   value={minimumAmount}
                   onChange={(e) => setMinimumAmount(e.target.value)}
-                  slotProps={{ inputLabel: { shrink: true, style: { color: "#CBD5E1" } } }}
+                  slotProps={{ inputLabel: { shrink: true, style: { color: "#625B60" } } }}
                   sx={darkSearchInputSx}
                 />
               </Grid>
@@ -947,7 +947,7 @@ export const EnterpriseReportCenter: React.FC = () => {
                   placeholder="50000"
                   value={maximumAmount}
                   onChange={(e) => setMaximumAmount(e.target.value)}
-                  slotProps={{ inputLabel: { shrink: true, style: { color: "#CBD5E1" } } }}
+                  slotProps={{ inputLabel: { shrink: true, style: { color: "#625B60" } } }}
                   sx={darkSearchInputSx}
                 />
               </Grid>
@@ -961,7 +961,7 @@ export const EnterpriseReportCenter: React.FC = () => {
         elevation={0}
         sx={{
           borderRadius: "12px",
-          bgcolor: "#0F172A",
+          bgcolor: "#FFFFFF",
           border: "1px solid #2E3C57",
           overflow: "hidden",
         }}
@@ -969,7 +969,7 @@ export const EnterpriseReportCenter: React.FC = () => {
         <TableContainer sx={{ maxHeight: "calc(100vh - 290px)", minHeight: 480 }}>
           <Table stickyHeader size="small">
             <TableHead>
-              <TableRow sx={{ "& th": { bgcolor: "#1E293B", color: "#F8FAFC", fontWeight: 800, fontSize: "14px", py: 1.5 } }}>
+              <TableRow sx={{ "& th": { bgcolor: "#1E293B", color: "#292329", fontWeight: 800, fontSize: "14px", py: 1.5 } }}>
                 <TableCell style={{ position: "sticky", left: 0, zIndex: 5, backgroundColor: "#1E293B", width: 50 }}>S.No</TableCell>
                 <TableCell style={{ position: "sticky", left: 50, zIndex: 5, backgroundColor: "#1E293B", minWidth: 150 }}>Date & Time</TableCell>
                 <TableCell style={{ position: "sticky", left: 200, zIndex: 5, backgroundColor: "#1E293B", minWidth: 160 }}>Transaction ID</TableCell>
@@ -986,9 +986,9 @@ export const EnterpriseReportCenter: React.FC = () => {
               {isLoading ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <TableRow key={i}>
-                    <TableCell style={{ position: "sticky", left: 0, backgroundColor: "#0F172A" }}><Skeleton variant="text" width={25} height={20} /></TableCell>
-                    <TableCell style={{ position: "sticky", left: 50, backgroundColor: "#0F172A" }}><Skeleton variant="text" width={110} height={20} /></TableCell>
-                    <TableCell style={{ position: "sticky", left: 200, backgroundColor: "#0F172A" }}><Skeleton variant="text" width={120} height={20} /></TableCell>
+                    <TableCell style={{ position: "sticky", left: 0, backgroundColor: "#FFFFFF" }}><Skeleton variant="text" width={25} height={20} /></TableCell>
+                    <TableCell style={{ position: "sticky", left: 50, backgroundColor: "#FFFFFF" }}><Skeleton variant="text" width={110} height={20} /></TableCell>
+                    <TableCell style={{ position: "sticky", left: 200, backgroundColor: "#FFFFFF" }}><Skeleton variant="text" width={120} height={20} /></TableCell>
                     {Array.from({ length: 7 }).map((_, j) => (
                       <TableCell key={j}><Skeleton variant="text" height={20} /></TableCell>
                     ))}
@@ -998,8 +998,8 @@ export const EnterpriseReportCenter: React.FC = () => {
                 <TableRow>
                   <TableCell colSpan={10} sx={{ textAlign: "center", py: 8 }}>
                     <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-                      <SearchIcon sx={{ fontSize: 40, color: "#64748B" }} />
-                      <Typography variant="h3" sx={{ fontWeight: 800, color: "#94A3B8", fontSize: "18px" }}>
+                      <SearchIcon sx={{ fontSize: 40, color: "#625B60" }} />
+                      <Typography variant="h3" sx={{ fontWeight: 800, color: "#625B60", fontSize: "18px" }}>
                         No transactions found.
                       </Typography>
                       <Button variant="outlined" size="small" onClick={handleResetFilters} sx={{ mt: 1, borderColor: "#2E3C57", color: "#60A5FA", bgcolor: "#161F2F" }}>
@@ -1017,13 +1017,13 @@ export const EnterpriseReportCenter: React.FC = () => {
                     sx={{ cursor: "pointer", "&:hover": { bgcolor: "rgba(255,255,255,0.04)" } }}
                   >
                     {/* FROZEN STICKY COLUMNS */}
-                    <TableCell style={{ position: "sticky", left: 0, zIndex: 2, backgroundColor: "#0F172A", color: "#94A3B8", fontWeight: 700, fontSize: "14px" }}>
+                    <TableCell style={{ position: "sticky", left: 0, zIndex: 2, backgroundColor: "#FFFFFF", color: "#625B60", fontWeight: 700, fontSize: "14px" }}>
                       {row.s_no}
                     </TableCell>
-                    <TableCell style={{ position: "sticky", left: 50, zIndex: 2, backgroundColor: "#0F172A", color: "#E2E8F0", fontSize: "14px", fontWeight: 600 }}>
+                    <TableCell style={{ position: "sticky", left: 50, zIndex: 2, backgroundColor: "#FFFFFF", color: "#292329", fontSize: "14px", fontWeight: 600 }}>
                       {row.initiated_at ? new Date(row.initiated_at).toLocaleString("en-IN") : "--"}
                     </TableCell>
-                    <TableCell style={{ position: "sticky", left: 200, zIndex: 2, backgroundColor: "#0F172A", color: "#60A5FA", fontWeight: 800, fontSize: "14px" }}>
+                    <TableCell style={{ position: "sticky", left: 200, zIndex: 2, backgroundColor: "#FFFFFF", color: "#60A5FA", fontWeight: 800, fontSize: "14px" }}>
                       <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
                         <span>{row.transaction_number}</span>
                         <Tooltip title="Copy ID">
@@ -1046,7 +1046,7 @@ export const EnterpriseReportCenter: React.FC = () => {
                     {/* API VENDOR */}
                     <TableCell sx={{ color: "#C084FC", fontWeight: 700, fontSize: "13px" }}>
                       <Chip
-                        label={row.vendor_name || "PAY2PAY"}
+                        label={row.vendor_name || "NEAR4YOU"}
                         size="small"
                         sx={{
                           bgcolor: "rgba(147, 51, 234, 0.15)",
@@ -1073,7 +1073,7 @@ export const EnterpriseReportCenter: React.FC = () => {
                     <TableCell>{renderStatusBadge(row.status)}</TableCell>
 
                     {/* UTR */}
-                    <TableCell sx={{ color: "#CBD5E1", fontSize: "13px" }}>{row.utr_number}</TableCell>
+                    <TableCell sx={{ color: "#625B60", fontSize: "13px" }}>{row.utr_number}</TableCell>
 
                     {/* ACTIONS */}
                     <TableCell sx={{ textAlign: "center" }}>
@@ -1121,7 +1121,7 @@ export const EnterpriseReportCenter: React.FC = () => {
             setTimeout(fetchGridData, 50);
           }}
           rowsPerPageOptions={[15, 30, 50, 100]}
-          sx={{ color: "#CBD5E1", borderTop: "1px solid #2E3C57" }}
+          sx={{ color: "#625B60", borderTop: "1px solid #2E3C57" }}
         />
       </Paper>
 
@@ -1130,7 +1130,7 @@ export const EnterpriseReportCenter: React.FC = () => {
         anchor="right"
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        slotProps={{ paper: { sx: { width: { xs: "100%", sm: 600 }, bgcolor: "#0F172A", color: "#FFFFFF", p: 3 } } }}
+        slotProps={{ paper: { sx: { width: { xs: "100%", sm: 600 }, bgcolor: "#FFFFFF", color: "#FFFFFF", p: 3 } } }}
       >
         {selectedItem && (
           <Box>
@@ -1156,7 +1156,7 @@ export const EnterpriseReportCenter: React.FC = () => {
                 borderBottom: "1px solid #2E3C57",
                 mb: 2.5,
                 "& .MuiTab-root": {
-                  color: "#94A3B8",
+                  color: "#625B60",
                   fontWeight: 700,
                   fontSize: "13px",
                   minHeight: 40,
@@ -1181,7 +1181,7 @@ export const EnterpriseReportCenter: React.FC = () => {
             {drawerTab === 0 && (
               <Stack spacing={2}>
                 <Box sx={{ p: 2, borderRadius: "12px", bgcolor: "#161F2F", border: "1px solid #2E3C57" }}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "12px", fontWeight: 600 }}>Transaction ID</Typography>
+                  <Typography variant="caption" sx={{ color: "#625B60", fontSize: "12px", fontWeight: 600 }}>Transaction ID</Typography>
                   <Stack direction="row" spacing={1} sx={{ alignItems: "center", justifyContent: "space-between", mt: 0.3 }}>
                     <Typography variant="h5" sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "18px" }}>
                       {selectedItem.transaction_details?.transaction_number || selectedItem.transaction_number || selectedItem.id}
@@ -1194,50 +1194,50 @@ export const EnterpriseReportCenter: React.FC = () => {
 
                 <Grid container spacing={2}>
                   <Grid size={{ xs: 6 }}>
-                    <Typography variant="caption" sx={{ color: "#94A3B8" }}>Retailer Name</Typography>
+                    <Typography variant="caption" sx={{ color: "#625B60" }}>Retailer Name</Typography>
                     <Typography variant="body1" sx={{ fontWeight: 800, color: "#FFFFFF" }}>
                       {selectedItem.transaction_details?.retailer_name || selectedItem.retailer_name || "--"}
                     </Typography>
                   </Grid>
                   <Grid size={{ xs: 6 }}>
-                    <Typography variant="caption" sx={{ color: "#94A3B8" }}>API Vendor</Typography>
+                    <Typography variant="caption" sx={{ color: "#625B60" }}>API Vendor</Typography>
                     <Typography variant="body1" sx={{ fontWeight: 800, color: "#C084FC" }}>
-                      {selectedItem.transaction_details?.vendor_name || selectedItem.vendor_name || "PAY2PAY"}
+                      {selectedItem.transaction_details?.vendor_name || selectedItem.vendor_name || "NEAR4YOU"}
                     </Typography>
                   </Grid>
                   <Grid size={{ xs: 6 }}>
-                    <Typography variant="caption" sx={{ color: "#94A3B8" }}>Transfer Amount</Typography>
+                    <Typography variant="caption" sx={{ color: "#625B60" }}>Transfer Amount</Typography>
                     <Typography variant="h6" sx={{ fontWeight: 800, color: "#4ADE80" }}>
                       ₹{(selectedItem.amount_details?.transfer_amount || selectedItem.transfer_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                     </Typography>
                   </Grid>
                   <Grid size={{ xs: 6 }}>
-                    <Typography variant="caption" sx={{ color: "#94A3B8" }}>GST Amount (18%)</Typography>
+                    <Typography variant="caption" sx={{ color: "#625B60" }}>GST Amount (18%)</Typography>
                     <Typography variant="h6" sx={{ fontWeight: 800, color: "#FCD34D" }}>
                       ₹{(selectedItem.amount_details?.gst_amount || selectedItem.gst_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                     </Typography>
                   </Grid>
                   <Grid size={{ xs: 6 }}>
-                    <Typography variant="caption" sx={{ color: "#94A3B8" }}>Wallet Debit</Typography>
+                    <Typography variant="caption" sx={{ color: "#625B60" }}>Wallet Debit</Typography>
                     <Typography variant="h6" sx={{ fontWeight: 800, color: "#F87171" }}>
                       ₹{(selectedItem.amount_details?.wallet_debit || selectedItem.wallet_debit || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                     </Typography>
                   </Grid>
                   <Grid size={{ xs: 6 }}>
-                    <Typography variant="caption" sx={{ color: "#94A3B8" }}>Retailer Commission</Typography>
+                    <Typography variant="caption" sx={{ color: "#625B60" }}>Retailer Commission</Typography>
                     <Typography variant="h6" sx={{ fontWeight: 800, color: "#C084FC" }}>
                       ₹{(selectedItem.amount_details?.retailer_commission || selectedItem.commission || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                     </Typography>
                   </Grid>
                   <Grid size={{ xs: 6 }}>
-                    <Typography variant="caption" sx={{ color: "#94A3B8" }}>UTR Number</Typography>
+                    <Typography variant="caption" sx={{ color: "#625B60" }}>UTR Number</Typography>
                     <Typography variant="body1" sx={{ fontWeight: 800, color: "#FFFFFF" }}>
                       {selectedItem.transaction_details?.utr_number || selectedItem.utr_number || "--"}
                     </Typography>
                   </Grid>
                   <Grid size={{ xs: 6 }}>
-                    <Typography variant="caption" sx={{ color: "#94A3B8" }}>Reference ID</Typography>
-                    <Typography variant="body1" sx={{ fontWeight: 700, color: "#CBD5E1", fontSize: "13px" }}>
+                    <Typography variant="caption" sx={{ color: "#625B60" }}>Reference ID</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 700, color: "#625B60", fontSize: "13px" }}>
                       {selectedItem.transaction_details?.reference_id || selectedItem.reference_id || "--"}
                     </Typography>
                   </Grid>
@@ -1256,7 +1256,7 @@ export const EnterpriseReportCenter: React.FC = () => {
                     <Typography variant="h6" sx={{ fontWeight: 800, color: "#FFFFFF" }}>
                       {selectedItem.customer_details?.name || selectedItem.customer_name || "Direct Customer"}
                     </Typography>
-                    <Typography variant="body2" sx={{ color: "#94A3B8" }}>
+                    <Typography variant="body2" sx={{ color: "#625B60" }}>
                       Mobile: {selectedItem.customer_details?.mobile || selectedItem.customer_mobile || "--"}
                     </Typography>
                   </Box>
@@ -1265,7 +1265,7 @@ export const EnterpriseReportCenter: React.FC = () => {
                   <Typography variant="body2" sx={{ color: "#4ADE80", fontWeight: 700 }}>
                     KYC Status: VERIFIED (Aadhaar & PAN Matched)
                   </Typography>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", mt: 0.5 }}>
+                  <Typography variant="caption" sx={{ color: "#625B60", display: "block", mt: 0.5 }}>
                     Customer Risk Grade: LOW (Standard Retailer Walk-in)
                   </Typography>
                 </Box>
@@ -1292,7 +1292,7 @@ export const EnterpriseReportCenter: React.FC = () => {
                   <Typography variant="body2" sx={{ color: "#4ADE80", fontWeight: 700 }}>
                     Account Verification: VERIFIED (Penny-drop Validated)
                   </Typography>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", mt: 0.5 }}>
+                  <Typography variant="caption" sx={{ color: "#625B60", display: "block", mt: 0.5 }}>
                     IFSC Code: {selectedItem.beneficiary_details?.ifsc_code || selectedItem.ifsc_code || "UTIB0000123"}
                   </Typography>
                 </Box>
@@ -1314,7 +1314,7 @@ export const EnterpriseReportCenter: React.FC = () => {
                       <CheckCircleIcon sx={{ color: "#4ADE80", fontSize: 18 }} />
                       <Typography variant="body2" sx={{ fontWeight: 700, color: "#FFFFFF" }}>{st.step}</Typography>
                     </Stack>
-                    <Typography variant="caption" sx={{ color: "#94A3B8" }}>{st.time}</Typography>
+                    <Typography variant="caption" sx={{ color: "#625B60" }}>{st.time}</Typography>
                   </Box>
                 ))}
               </Stack>
@@ -1324,7 +1324,7 @@ export const EnterpriseReportCenter: React.FC = () => {
             {drawerTab === 4 && (
               <Stack spacing={1.5}>
                 <Box sx={{ p: 2, borderRadius: "12px", bgcolor: "#161F2F", border: "1px solid #2E3C57" }}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8" }}>Double-Entry Passbook Posting</Typography>
+                  <Typography variant="caption" sx={{ color: "#625B60" }}>Double-Entry Passbook Posting</Typography>
                   <Typography variant="body1" sx={{ color: "#F87171", fontWeight: 800, mt: 0.5 }}>
                     DEBIT: Wallet Balance ₹{(selectedItem.amount_details?.wallet_debit || selectedItem.wallet_debit || 0).toFixed(2)}
                   </Typography>
@@ -1340,8 +1340,8 @@ export const EnterpriseReportCenter: React.FC = () => {
               <Stack spacing={1.5}>
                 <Box sx={{ p: 2, borderRadius: "12px", bgcolor: "#161F2F", border: "1px solid #2E3C57" }}>
                   <Typography variant="body2" sx={{ color: "#FFFFFF", fontWeight: 700 }}>Security Workstation Audit</Typography>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", mt: 0.5 }}>IP Address: 49.207.182.14 (Verified TLS 1.3 Workstation)</Typography>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", display: "block" }}>Session Hash: 89a2f1c8... (MPIN Authenticated)</Typography>
+                  <Typography variant="caption" sx={{ color: "#625B60", display: "block", mt: 0.5 }}>IP Address: 49.207.182.14 (Verified TLS 1.3 Workstation)</Typography>
+                  <Typography variant="caption" sx={{ color: "#625B60", display: "block" }}>Session Hash: 89a2f1c8... (MPIN Authenticated)</Typography>
                 </Box>
               </Stack>
             )}
@@ -1363,7 +1363,7 @@ export const EnterpriseReportCenter: React.FC = () => {
                   variant="outlined"
                   startIcon={<ReportProblemIcon />}
                   onClick={() => setComplaintOpen(true)}
-                  sx={{ py: 1.5, fontSize: "14px", fontWeight: 700, borderRadius: "12px", borderColor: "#F59E0B", color: "#FBBF24" }}
+                  sx={{ py: 1.5, fontSize: "14px", fontWeight: 700, borderRadius: "12px", borderColor: "#F59E0B", color: "#A20A3A" }}
                 >
                   Raise Complaint Ticket
                 </Button>
@@ -1392,7 +1392,7 @@ export const EnterpriseReportCenter: React.FC = () => {
       </Drawer>
 
       {/* RAISE COMPLAINT DIALOG */}
-      <Dialog open={complaintOpen} onClose={() => setComplaintOpen(false)} slotProps={{ paper: { sx: { bgcolor: "#0F172A", color: "#FFFFFF", borderRadius: "16px", p: 1, minWidth: 400 } } }}>
+      <Dialog open={complaintOpen} onClose={() => setComplaintOpen(false)} slotProps={{ paper: { sx: { bgcolor: "#FFFFFF", color: "#FFFFFF", borderRadius: "16px", p: 1, minWidth: 400 } } }}>
         <DialogTitle sx={{ fontWeight: 800, fontSize: "20px" }}>Raise Support Complaint</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
@@ -1416,7 +1416,7 @@ export const EnterpriseReportCenter: React.FC = () => {
           </Stack>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setComplaintOpen(false)} sx={{ color: "#94A3B8" }}>Cancel</Button>
+          <Button onClick={() => setComplaintOpen(false)} sx={{ color: "#625B60" }}>Cancel</Button>
           <Button variant="contained" onClick={handleSubmitComplaint} disabled={isSubmittingComplaint} sx={{ bgcolor: "#2563EB", fontWeight: 700 }}>
             {isSubmittingComplaint ? "Filing..." : "Submit Complaint"}
           </Button>
@@ -1424,7 +1424,7 @@ export const EnterpriseReportCenter: React.FC = () => {
       </Dialog>
 
       {/* SHARE DIALOG */}
-      <Dialog open={shareOpen} onClose={() => setShareOpen(false)} slotProps={{ paper: { sx: { bgcolor: "#0F172A", color: "#FFFFFF", borderRadius: "16px", p: 1, minWidth: 380 } } }}>
+      <Dialog open={shareOpen} onClose={() => setShareOpen(false)} slotProps={{ paper: { sx: { bgcolor: "#FFFFFF", color: "#FFFFFF", borderRadius: "16px", p: 1, minWidth: 380 } } }}>
         <DialogTitle sx={{ fontWeight: 800, fontSize: "20px" }}>Share Transaction Receipt</DialogTitle>
         <DialogContent>
           <Stack spacing={1.5} sx={{ mt: 1 }}>
@@ -1434,7 +1434,7 @@ export const EnterpriseReportCenter: React.FC = () => {
             <Button variant="outlined" startIcon={<ShareIcon />} onClick={() => { setToastMessage("Shared via Email!"); setShareOpen(false); }} sx={{ borderColor: "#3B82F6", color: "#60A5FA", justifyContent: "flex-start", py: 1.2 }}>
               Share via Email
             </Button>
-            <Button variant="outlined" startIcon={<ContentCopyIcon />} onClick={() => { copyToClipboard("https://pay2pay.in/receipt/892415", "Secure Receipt Link"); setShareOpen(false); }} sx={{ borderColor: "#2E3C57", color: "#FFFFFF", justifyContent: "flex-start", py: 1.2 }}>
+            <Button variant="outlined" startIcon={<ContentCopyIcon />} onClick={() => { copyToClipboard("https://near4you.store/receipt/892415", "Secure Receipt Link"); setShareOpen(false); }} sx={{ borderColor: "#2E3C57", color: "#FFFFFF", justifyContent: "flex-start", py: 1.2 }}>
               Copy Secure Receipt Link
             </Button>
           </Stack>

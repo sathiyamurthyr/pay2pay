@@ -55,7 +55,7 @@ function PipelineStep({
         <Icon className="w-5 h-5" />
       </div>
       <p className="text-[11px] font-extrabold text-white text-center leading-tight">{label}</p>
-      <p className="text-[10px] text-slate-500 text-center">{sub}</p>
+      <p className="text-[10px] text-[#8A8288] text-center">{sub}</p>
     </div>
   );
 }
@@ -176,10 +176,10 @@ export default function ReconciliationPage() {
                     AUTO-ENGINE
                   </span>
                 </div>
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-[#625B60]">
                   Real-time balance verification · Digital Wallets vs General Ledger · variance flagging
                 </p>
-                <p className="text-[11px] text-slate-500 mt-0.5 font-mono">
+                <p className="text-[11px] text-[#8A8288] mt-0.5 font-mono">
                   Last run: {lastUpdated.toLocaleTimeString("en-IN")} · {totalRuns} total reconciliation cycles
                 </p>
               </div>
@@ -238,7 +238,7 @@ export default function ReconciliationPage() {
             </div>
             <div>
               <h3 className="font-extrabold text-white text-base">Reconciliation Pipeline</h3>
-              <p className="text-[11px] text-slate-500 mt-0.5">5-stage automated balance verification engine</p>
+              <p className="text-[11px] text-[#8A8288] mt-0.5">5-stage automated balance verification engine</p>
             </div>
             {reconciling && (
               <span className="ml-auto text-[11px] font-extrabold text-emerald-400 font-mono animate-pulse">
@@ -320,9 +320,9 @@ export default function ReconciliationPage() {
             <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${accent} opacity-70 pointer-events-none`} />
             <div className="relative z-10 flex items-start justify-between">
               <div>
-                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">{label}</p>
+                <p className="text-[10px] font-extrabold text-[#625B60] uppercase tracking-wider">{label}</p>
                 <p className="text-2xl font-extrabold text-white mt-1">{value}</p>
-                <p className="text-[10px] text-slate-500 mt-0.5 font-medium">{sub}</p>
+                <p className="text-[10px] text-[#8A8288] mt-0.5 font-medium">{sub}</p>
               </div>
               <div className={`p-2.5 rounded-xl border ${iconBg} shrink-0`}>
                 <Icon className="w-4 h-4" />
@@ -353,7 +353,7 @@ export default function ReconciliationPage() {
                     ? "bg-emerald-500/10 border-emerald-400/20"
                     : "bg-amber-500/10 border-amber-400/20"
                 }`}>
-                  <span className="text-[11px] font-semibold text-slate-400">Audit Status</span>
+                  <span className="text-[11px] font-semibold text-[#625B60]">Audit Status</span>
                   <span className={`flex items-center gap-1.5 text-[11px] font-extrabold ${
                     lastRec.status === "BALANCED" ? "text-emerald-400" : "text-amber-400"
                   }`}>
@@ -374,8 +374,8 @@ export default function ReconciliationPage() {
                   { label: "Duration", value: `${lastRec.duration_ms ?? 0} ms`, mono: true },
                 ].map(({ label, value, mono }) => (
                   <div key={label} className="flex items-center justify-between py-1.5 border-b border-white/5">
-                    <span className="text-[11px] text-slate-400 font-semibold">{label}</span>
-                    <span className={`text-[11px] text-slate-200 font-bold max-w-[180px] text-right truncate ${mono ? "font-mono" : ""}`}>
+                    <span className="text-[11px] text-[#625B60] font-semibold">{label}</span>
+                    <span className={`text-[11px] text-[#292329] font-bold max-w-[180px] text-right truncate ${mono ? "font-mono" : ""}`}>
                       {String(value)}
                     </span>
                   </div>
@@ -384,9 +384,9 @@ export default function ReconciliationPage() {
             ) : (
               <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
                 <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-                  <Scale className="w-8 h-8 text-slate-500" />
+                  <Scale className="w-8 h-8 text-[#8A8288]" />
                 </div>
-                <p className="text-[12px] text-slate-500 font-semibold">No reconciliation run yet</p>
+                <p className="text-[12px] text-[#8A8288] font-semibold">No reconciliation run yet</p>
                 <p className="text-[11px] text-slate-600">Click "Trigger Auto Reconciliation" to start</p>
               </div>
             )}
@@ -403,7 +403,7 @@ export default function ReconciliationPage() {
                 </div>
                 <div>
                   <h3 className="font-extrabold text-white text-base">Reconciliation History</h3>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Last {history.length} completed audit cycles</p>
+                  <p className="text-[11px] text-[#8A8288] mt-0.5">Last {history.length} completed audit cycles</p>
                 </div>
               </div>
             </div>
@@ -413,7 +413,7 @@ export default function ReconciliationPage() {
                 <thead>
                   <tr className="bg-white/5 border-b border-white/8">
                     {["Batch #", "Matched", "Mismatches", "Variance", "Status", "Run At"].map((h) => (
-                      <th key={h} className="px-3 py-3 font-extrabold text-slate-400 uppercase tracking-wider whitespace-nowrap text-[10px]">
+                      <th key={h} className="px-3 py-3 font-extrabold text-[#625B60] uppercase tracking-wider whitespace-nowrap text-[10px]">
                         {h}
                       </th>
                     ))}
@@ -422,7 +422,7 @@ export default function ReconciliationPage() {
                 <tbody className="divide-y divide-white/5">
                   {history.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-3 py-8 text-center text-slate-500 font-semibold">
+                      <td colSpan={6} className="px-3 py-8 text-center text-[#8A8288] font-semibold">
                         No reconciliation runs recorded yet.
                       </td>
                     </tr>
@@ -435,7 +435,7 @@ export default function ReconciliationPage() {
                             <span className="font-mono font-bold text-cyan-400 text-[10px]">{run.reconciliation_number}</span>
                           </div>
                         </td>
-                        <td className="px-3 py-3 font-mono text-slate-300 font-semibold">
+                        <td className="px-3 py-3 font-mono text-[#292329] font-semibold">
                           {run.records_matched.toLocaleString("en-IN")}
                         </td>
                         <td className="px-3 py-3">
@@ -443,7 +443,7 @@ export default function ReconciliationPage() {
                             {run.records_mismatched}
                           </span>
                         </td>
-                        <td className="px-3 py-3 font-mono font-bold text-slate-300">
+                        <td className="px-3 py-3 font-mono font-bold text-[#292329]">
                           ₹{run.difference_amount.toFixed(2)}
                         </td>
                         <td className="px-3 py-3">
@@ -458,7 +458,7 @@ export default function ReconciliationPage() {
                             {run.status}
                           </span>
                         </td>
-                        <td className="px-3 py-3 font-mono text-slate-500 text-[10px] whitespace-nowrap">
+                        <td className="px-3 py-3 font-mono text-[#8A8288] text-[10px] whitespace-nowrap">
                           {new Date(run.ran_at).toLocaleString("en-IN", {
                             day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit"
                           })}
@@ -472,7 +472,7 @@ export default function ReconciliationPage() {
 
             {/* Balance rate footer bar */}
             <div className="mt-4 pt-3 border-t border-white/8 flex items-center justify-between">
-              <span className="text-[11px] text-slate-500 font-semibold">Balance Rate</span>
+              <span className="text-[11px] text-[#8A8288] font-semibold">Balance Rate</span>
               <div className="flex items-center gap-2">
                 <div className="w-24 h-1.5 rounded-full bg-white/10 overflow-hidden">
                   <div

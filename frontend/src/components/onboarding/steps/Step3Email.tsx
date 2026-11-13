@@ -55,7 +55,7 @@ export const Step3Email: React.FC<Step3Props> = ({ registrationId, onSuccess }) 
         <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
           Verify Email Address
         </h2>
-        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
+        <p className="text-xs font-semibold text-[#8A8288] dark:text-[#625B60] mt-1">
           Provide your business email for official notices & statements.
         </p>
       </div>
@@ -69,11 +69,11 @@ export const Step3Email: React.FC<Step3Props> = ({ registrationId, onSuccess }) 
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+          <label className="block text-xs font-bold text-slate-700 dark:text-[#292329] mb-1">
             Email Address <span className="text-red-500">*</span>
           </label>
           <div className="relative">
-            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#625B60]" />
             <input
               type="email"
               value={email}
@@ -81,9 +81,9 @@ export const Step3Email: React.FC<Step3Props> = ({ registrationId, onSuccess }) 
                 setEmail(e.target.value);
                 setErrorMsg("");
               }}
-              placeholder="retailer@pay2pay.in"
+              placeholder="retailer@near4you.store"
               required
-              className="w-full pl-11 pr-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+              className="w-full pl-11 pr-4 py-3 rounded-2xl bg-slate-50 dark:bg-[#FFFFFF] border border-slate-200 dark:border-[#E8E2E5] text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
             />
           </div>
         </div>
@@ -91,7 +91,7 @@ export const Step3Email: React.FC<Step3Props> = ({ registrationId, onSuccess }) 
         <button
           type="submit"
           disabled={loading || !email.includes("@")}
-          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#A20A3A] to-[#85072F] text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
         >
           {loading ? (
             <>

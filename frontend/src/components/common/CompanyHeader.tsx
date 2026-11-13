@@ -17,9 +17,9 @@ export interface CompanyHeaderProps {
 }
 
 export const CompanyHeader: React.FC<CompanyHeaderProps> = ({
-  logoUrl = "/branding/logo.png",
-  companyName = "SUPER REX PRODUCTS PRIVATE LIMITED",
-  legalName,
+  logoUrl = "/branding/logo.svg",
+  companyName = "Near 4 You",
+  legalName = "Sathus Technology Pvt. Ltd.",
   title,
   subtitle,
   variant = "modal",
@@ -45,8 +45,8 @@ export const CompanyHeader: React.FC<CompanyHeaderProps> = ({
           gap: 2,
           p: 2,
           px: 2.5,
-          bgcolor: "#0F172A",
-          borderBottom: "1px solid #1E293B",
+          bgcolor: "#FFFFFF",
+          borderBottom: "1px solid #E8E2E5",
           borderRadius: "8px 8px 0 0",
           ...sx
         }}
@@ -58,15 +58,15 @@ export const CompanyHeader: React.FC<CompanyHeaderProps> = ({
               width: 46,
               height: 46,
               borderRadius: "10px",
-              bgcolor: "#1E293B",
-              border: "1px solid #334155",
+              bgcolor: "#FFFFFF",
+              border: "1px solid #E8E2E5",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               overflow: "hidden",
               p: 0.5,
               flexShrink: 0,
-              boxShadow: "0 2px 8px rgba(0,0,0,0.3)"
+              boxShadow: "0 1px 3px rgba(41, 35, 41, 0.05)"
             }}
           >
             {!imgError && logoUrl ? (
@@ -87,14 +87,14 @@ export const CompanyHeader: React.FC<CompanyHeaderProps> = ({
                 sx={{
                   width: "100%",
                   height: "100%",
-                  bgcolor: "#3B82F6",
+                  bgcolor: "#A20A3A",
                   color: "#FFFFFF",
                   fontSize: "18px",
                   fontWeight: 700,
                   borderRadius: "8px"
                 }}
               >
-                {companyName ? companyName.charAt(0).toUpperCase() : "P"}
+                {companyName ? companyName.charAt(0).toUpperCase() : "N"}
               </Avatar>
             )}
           </Box>
@@ -107,7 +107,7 @@ export const CompanyHeader: React.FC<CompanyHeaderProps> = ({
                 fontWeight: 700,
                 fontSize: "12px",
                 letterSpacing: "0.5px",
-                color: "#60A5FA",
+                color: "#A20A3A",
                 textTransform: "uppercase",
                 display: "block",
                 lineHeight: 1.2
@@ -121,7 +121,7 @@ export const CompanyHeader: React.FC<CompanyHeaderProps> = ({
               sx={{
                 fontWeight: 800,
                 fontSize: "18px",
-                color: "#F8FAFC",
+                color: "#292329",
                 letterSpacing: "-0.3px",
                 lineHeight: 1.3
               }}
@@ -133,7 +133,7 @@ export const CompanyHeader: React.FC<CompanyHeaderProps> = ({
               <Typography
                 variant="caption"
                 sx={{
-                  color: "#94A3B8",
+                  color: "#625B60",
                   fontSize: "11px",
                   fontWeight: 500,
                   display: "block",
@@ -173,8 +173,8 @@ export const CompanyHeader: React.FC<CompanyHeaderProps> = ({
             width: 44,
             height: 44,
             borderRadius: "10px",
-            bgcolor: "#1E293B",
-            border: "1px solid #334155",
+            bgcolor: "#FFFFFF",
+            border: "1px solid #E8E2E5",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -200,14 +200,14 @@ export const CompanyHeader: React.FC<CompanyHeaderProps> = ({
               sx={{
                 width: "100%",
                 height: "100%",
-                bgcolor: "#3B82F6",
+                bgcolor: "#A20A3A",
                 color: "#FFFFFF",
                 fontSize: "16px",
                 fontWeight: 700,
                 borderRadius: "8px"
               }}
             >
-              {companyName ? companyName.charAt(0).toUpperCase() : "P"}
+              {companyName ? companyName.charAt(0).toUpperCase() : "N"}
             </Avatar>
           )}
         </Box>
@@ -219,7 +219,7 @@ export const CompanyHeader: React.FC<CompanyHeaderProps> = ({
               fontWeight: 700,
               fontSize: "11px",
               letterSpacing: "0.5px",
-              color: "#38BDF8",
+              color: "#A20A3A",
               textTransform: "uppercase",
               display: "block",
               lineHeight: 1.2,
@@ -235,7 +235,7 @@ export const CompanyHeader: React.FC<CompanyHeaderProps> = ({
             sx={{
               fontWeight: 800,
               fontSize: "18px",
-              color: "#FFFFFF",
+              color: "#292329",
               letterSpacing: "-0.3px",
               lineHeight: 1.2,
               whiteSpace: "nowrap",
@@ -249,7 +249,7 @@ export const CompanyHeader: React.FC<CompanyHeaderProps> = ({
             <Typography
               variant="caption"
               sx={{
-                color: "#94A3B8",
+                color: "#625B60",
                 fontSize: "11px",
                 fontWeight: 500,
                 display: "block",
@@ -275,7 +275,8 @@ export const CompanyHeader: React.FC<CompanyHeaderProps> = ({
           width: 36,
           height: 36,
           borderRadius: "8px",
-          bgcolor: "#1E293B",
+          bgcolor: "#FAF8F9",
+          border: "1px solid #E8E2E5",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -292,15 +293,15 @@ export const CompanyHeader: React.FC<CompanyHeaderProps> = ({
             sx={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
           />
         ) : (
-          <BusinessIcon sx={{ color: "#94A3B8", fontSize: 20 }} />
+          <BusinessIcon sx={{ color: "#A20A3A", fontSize: 20 }} />
         )}
       </Box>
       <Box>
-        <Typography sx={{ fontWeight: 700, fontSize: "14px", color: "#F8FAFC" }}>
+        <Typography sx={{ fontWeight: 700, fontSize: "14px", color: "#292329" }}>
           {companyName}
         </Typography>
         {title && (
-          <Typography sx={{ fontSize: "12px", color: "#94A3B8" }}>
+          <Typography sx={{ fontSize: "12px", color: "#625B60" }}>
             {title}
           </Typography>
         )}

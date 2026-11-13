@@ -39,7 +39,7 @@ export const KeyboardHelper: React.FC<KeyboardHelperProps> = ({ open, onClose })
       slotProps={{
         paper: {
           sx: {
-            bgcolor: "rgba(15, 23, 42, 0.95)",
+            bgcolor: "#FFFFFF",
             backdropFilter: "blur(20px)",
             border: "1px solid rgba(255, 255, 255, 0.15)",
             borderRadius: "16px",
@@ -61,7 +61,7 @@ export const KeyboardHelper: React.FC<KeyboardHelperProps> = ({ open, onClose })
         </IconButton>
       </DialogTitle>
 
-      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.12)" }} />
+      <Divider sx={{ borderColor: "#E8E2E5" }} />
 
       <DialogContent sx={{ py: 2 }}>
         <Stack spacing={1.5}>

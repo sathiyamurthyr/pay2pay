@@ -81,7 +81,7 @@ export const SessionWarningDialog: React.FC = () => {
             <Typography variant="h1" sx={{ fontSize: "36px", fontWeight: 900, color: "#FFFFFF", lineHeight: 1 }}>
               {remainingWarningSeconds}
             </Typography>
-            <Typography variant="caption" sx={{ fontSize: "11px", color: "#FBBF24", fontWeight: 800, textTransform: "uppercase" }}>
+            <Typography variant="caption" sx={{ fontSize: "11px", color: "#A20A3A", fontWeight: 800, textTransform: "uppercase" }}>
               SEC
             </Typography>
           </Box>
@@ -101,7 +101,7 @@ export const SessionWarningDialog: React.FC = () => {
           Inactivity Security Warning
         </Typography>
 
-        <Typography variant="body1" sx={{ color: "#CBD5E1", fontSize: "14px", lineHeight: 1.6, px: 1, mb: 3 }}>
+        <Typography variant="body1" sx={{ color: "#625B60", fontSize: "14px", lineHeight: 1.6, px: 1, mb: 3 }}>
           For your banking security, your session will close and log out in{" "}
           <strong style={{ color: "#F59E0B" }}>{remainingWarningSeconds} seconds</strong> due to 15 minutes of inactivity.
         </Typography>
@@ -119,7 +119,7 @@ export const SessionWarningDialog: React.FC = () => {
               borderRadius: "12px",
               fontWeight: 700,
               fontSize: "14px",
-              color: "#F8FAFC",
+              color: "#292329",
               borderColor: "rgba(255, 255, 255, 0.25)",
               "&:hover": { borderColor: "#EF4444", color: "#EF4444" },
             }}

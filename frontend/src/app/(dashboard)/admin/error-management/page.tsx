@@ -162,7 +162,7 @@ export default function AdminErrorManagementPage() {
   };
 
   return (
-    <Box sx={{ p: 3, bgcolor: "#0B0F19", minHeight: "100vh", color: "#FFFFFF" }}>
+    <Box sx={{ p: 3, bgcolor: "#FFFFFF", minHeight: "100vh", color: "#FFFFFF" }}>
       {/* ── PAGE HEADER ── */}
       <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 3 }}>
         <Box>
@@ -217,8 +217,8 @@ export default function AdminErrorManagementPage() {
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Paper elevation={0} sx={{ p: 2.5, borderRadius: "14px", bgcolor: "rgba(18, 27, 48, 0.8)", border: "1px solid rgba(251, 191, 36, 0.2)" }}>
             <Typography sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "12px", fontWeight: 700 }}>Error Master Rules</Typography>
-            <Typography sx={{ color: "#FBBF24", fontSize: "28px", fontWeight: 900, my: 0.5 }}>{rules.length}</Typography>
-            <Typography sx={{ color: "#FBBF24", fontSize: "11px", fontWeight: 800 }}>PAY-1001 to PAY-1012 Active</Typography>
+            <Typography sx={{ color: "#A20A3A", fontSize: "28px", fontWeight: 900, my: 0.5 }}>{rules.length}</Typography>
+            <Typography sx={{ color: "#A20A3A", fontSize: "11px", fontWeight: 800 }}>PAY-1001 to PAY-1012 Active</Typography>
           </Paper>
         </Grid>
       </Grid>
@@ -457,7 +457,7 @@ export default function AdminErrorManagementPage() {
         slotProps={{
           paper: {
             sx: {
-              bgcolor: "#0F172A",
+              bgcolor: "#FFFFFF",
               color: "#FFFFFF",
               borderRadius: "16px",
               border: "1px solid #2563EB",
@@ -486,7 +486,7 @@ export default function AdminErrorManagementPage() {
 
                   <Grid size={{ xs: 6, md: 3 }}>
                     <Typography sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "11px" }}>Latency</Typography>
-                    <Typography sx={{ fontWeight: 800, color: "#FBBF24", fontFamily: "monospace" }}>{selectedLog.latency_ms} ms</Typography>
+                    <Typography sx={{ fontWeight: 800, color: "#A20A3A", fontFamily: "monospace" }}>{selectedLog.latency_ms} ms</Typography>
                   </Grid>
 
                   <Grid size={{ xs: 6, md: 3 }}>
@@ -504,7 +504,7 @@ export default function AdminErrorManagementPage() {
                   sx={{
                     p: 2,
                     borderRadius: "10px",
-                    bgcolor: "#08111F",
+                    bgcolor: "#FFFFFF",
                     border: "1px solid rgba(255, 255, 255, 0.1)",
                     fontFamily: "monospace",
                     fontSize: "12px",
@@ -525,7 +525,7 @@ export default function AdminErrorManagementPage() {
                   sx={{
                     p: 2,
                     borderRadius: "10px",
-                    bgcolor: "#08111F",
+                    bgcolor: "#FFFFFF",
                     border: "1px solid rgba(255, 255, 255, 0.1)",
                     fontFamily: "monospace",
                     fontSize: "12px",
@@ -542,7 +542,7 @@ export default function AdminErrorManagementPage() {
         )}
 
         <DialogActions sx={{ p: 2 }}>
-          <Button variant="outlined" onClick={() => setSelectedLog(null)} sx={{ color: "rgba(255, 255, 255, 0.7)", borderColor: "rgba(255, 255, 255, 0.2)" }}>
+          <Button variant="outlined" onClick={() => setSelectedLog(null)} sx={{ color: "rgba(255, 255, 255, 0.7)", borderColor: "#E8E2E5" }}>
             Close
           </Button>
         </DialogActions>

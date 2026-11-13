@@ -80,18 +80,18 @@ export default function FinancialConfigDashboardPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100 flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-[#292329] flex items-center gap-3">
             <Sliders className="h-8 w-8 text-emerald-400" />
             Financial Configuration Telemetry
           </h1>
-          <p className="mt-1 text-slate-400">
+          <p className="mt-1 text-[#625B60]">
             Centralized 7-tier priority override resolution, MDR matrix, GST/TDS tax rules, and approval queue
           </p>
         </div>
         <button
           onClick={fetchMetrics}
           disabled={refreshing}
-          className="flex items-center gap-2 rounded-lg bg-slate-800/80 px-4 py-2.5 text-sm font-medium text-slate-200 border border-slate-700 hover:bg-slate-700/80 transition-all"
+          className="flex items-center gap-2 rounded-lg bg-[#F5F2F4]/80 px-4 py-2.5 text-sm font-medium text-[#292329] border border-[#E8E2E5] hover:bg-slate-700/80 transition-all"
         >
           <RefreshCw className={`h-4 w-4 text-emerald-400 ${refreshing ? "animate-spin" : ""}`} />
           Refresh
@@ -108,7 +108,7 @@ export default function FinancialConfigDashboardPage() {
               className={`relative overflow-hidden rounded-xl border bg-gradient-to-br p-5 backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] shadow-lg ${kpi.color}`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-300">{kpi.label}</span>
+                <span className="text-sm font-medium text-[#292329]">{kpi.label}</span>
                 <Icon className="h-5 w-5 opacity-80" />
               </div>
               <div className="mt-3 text-3xl font-extrabold text-white">{kpi.value}</div>
@@ -118,22 +118,22 @@ export default function FinancialConfigDashboardPage() {
       </div>
 
       {/* 7-Tier Priority Override Chain Visualizer */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur-xl shadow-xl space-y-6">
+      <div className="rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 p-6 backdrop-blur-xl shadow-xl space-y-6">
         <div className="flex items-center gap-2">
           <Zap className="h-5 w-5 text-amber-400" />
-          <h3 className="font-semibold text-slate-200 text-lg">7-Tier Dynamic Priority Resolution Cascade</h3>
+          <h3 className="font-semibold text-[#292329] text-lg">7-Tier Dynamic Priority Resolution Cascade</h3>
         </div>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-[#625B60]">
           The platform evaluates financial parameters by inspecting the nearest entity level first. Specific rules at lower numbers override standard defaults.
         </p>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7">
           {priorityChain.map((p) => (
-            <div key={p.step} className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 relative flex flex-col justify-between">
+            <div key={p.step} className="p-3 rounded-xl border border-[#E8E2E5] bg-[#FFFFFF]/60 relative flex flex-col justify-between">
               <div>
                 <span className="text-[10px] font-mono font-bold text-amber-400 uppercase">Priority #{p.step}</span>
-                <div className="mt-1 font-bold text-sm text-slate-100">{p.name}</div>
-                <div className="mt-1 text-[11px] text-slate-400">{p.desc}</div>
+                <div className="mt-1 font-bold text-sm text-[#292329]">{p.name}</div>
+                <div className="mt-1 text-[11px] text-[#625B60]">{p.desc}</div>
               </div>
             </div>
           ))}

@@ -20,7 +20,7 @@ export const RecentTransfers: React.FC<RecentTransfersProps> = ({ onRepeatTransf
     <Box sx={{ p: 1, overflowX: "auto" }}>
       <Table size="small">
         <TableHead>
-          <TableRow sx={{ "& th": { bgcolor: "rgba(15, 23, 42, 0.9)", color: "rgba(255, 255, 255, 0.6)", fontSize: "11px", fontWeight: 800 } }}>
+          <TableRow sx={{ "& th": { bgcolor: "#FFFFFF", color: "rgba(255, 255, 255, 0.6)", fontSize: "11px", fontWeight: 800 } }}>
             <TableCell>TXN REFERENCE</TableCell>
             <TableCell>AMOUNT</TableCell>
             <TableCell>DESTINATION BANK</TableCell>
@@ -32,7 +32,7 @@ export const RecentTransfers: React.FC<RecentTransfersProps> = ({ onRepeatTransf
         </TableHead>
         <TableBody>
           {transfers.map((t) => (
-            <TableRow key={t.id} sx={{ "& td": { color: "#FFFFFF", fontSize: "13px", py: 1, borderColor: "rgba(255, 255, 255, 0.08)" } }}>
+            <TableRow key={t.id} sx={{ "& td": { color: "#FFFFFF", fontSize: "13px", py: 1, borderColor: "#E8E2E5" } }}>
               <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{t.id}</TableCell>
               <TableCell sx={{ fontWeight: 800 }}>₹{t.amount.toLocaleString()}.00</TableCell>
               <TableCell>{t.bank}</TableCell>

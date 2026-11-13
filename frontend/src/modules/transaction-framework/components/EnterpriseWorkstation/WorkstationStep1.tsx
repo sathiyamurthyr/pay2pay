@@ -320,7 +320,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                                 onClick={handleClear}
                                 sx={{
                                   p: 0.5,
-                                  color: "#94A3B8",
+                                  color: "#625B60",
                                   "&:hover": { color: "#FDE68A", bgcolor: "rgba(245, 158, 11, 0.15)" },
                                 }}
                               >
@@ -408,7 +408,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                   fontWeight: 900,
                   fontSize: { xs: "13.5px", sm: "14.5px" },
                   background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%)",
-                  color: "#080B11",
+                  color: "#FFFFFF",
                   whiteSpace: "nowrap",
                   boxShadow: "0 4px 20px rgba(245, 158, 11, 0.4)",
                   textTransform: "none",
@@ -438,7 +438,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                   <Button
                     variant="outlined"
                     onClick={handleNavigateToRegister}
-                    startIcon={<PersonAddIcon sx={{ fontSize: 18, color: "#FBBF24" }} />}
+                    startIcon={<PersonAddIcon sx={{ fontSize: 18, color: "#A20A3A" }} />}
                     aria-label="Register new customer"
                     sx={{
                       flex: 1,
@@ -518,7 +518,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
               bgcolor: "rgba(245, 158, 11, 0.09)",
               borderColor: "#F59E0B",
               transform: "translateY(-2px)",
-              boxShadow: "0 12px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(245, 158, 11, 0.15)",
+              boxShadow: "0 12px 30px rgba(41, 35, 41, 0.06), 0 0 20px rgba(245, 158, 11, 0.15)",
             },
           }}
         >
@@ -537,7 +537,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
               boxShadow: "0 0 20px rgba(245, 158, 11, 0.2)",
             }}
           >
-            <PersonAddIcon sx={{ fontSize: 32, color: "#FBBF24" }} />
+            <PersonAddIcon sx={{ fontSize: 32, color: "#A20A3A" }} />
           </Box>
           <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "19px", mb: 0.5 }}>
             Customer Not Found
@@ -547,7 +547,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
           </Typography>
           <Button
             variant="contained"
-            startIcon={<PersonAddIcon sx={{ color: "#080B11" }} />}
+            startIcon={<PersonAddIcon sx={{ color: "#FFFFFF" }} />}
             onClick={(e) => {
               e.stopPropagation();
               handleNavigateToRegister();
@@ -559,7 +559,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
               fontWeight: 900,
               fontSize: "14px",
               background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%)",
-              color: "#080B11",
+              color: "#FFFFFF",
               boxShadow: "0 4px 20px rgba(245, 158, 11, 0.4)",
               textTransform: "none",
               "&:hover": {
@@ -582,7 +582,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
             bgcolor: "rgba(11, 15, 25, 0.9)",
             backdropFilter: "blur(24px)",
             border: "1px solid rgba(245, 158, 11, 0.25)",
-            boxShadow: "0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(245, 158, 11, 0.1)",
+            boxShadow: "0 20px 50px rgba(41, 35, 41, 0.08), 0 0 30px rgba(245, 158, 11, 0.1)",
             position: "relative",
             overflow: "hidden",
           }}
@@ -616,7 +616,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                 sx={{
                   width: { xs: 50, sm: 58 },
                   height: { xs: 50, sm: 58 },
-                  background: "linear-gradient(135deg, #1E293B 0%, #0F172A 100%)",
+                  background: "linear-gradient(135deg, #1E293B 0%, #FFFFFF 100%)",
                   color: "#FDE68A",
                   fontSize: { xs: "20px", sm: "24px" },
                   fontWeight: 900,
@@ -762,7 +762,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                       sx={{
                         bgcolor: "rgba(245, 158, 11, 0.15)",
                         border: "1px solid rgba(245, 158, 11, 0.4)",
-                        color: "#FBBF24",
+                        color: "#A20A3A",
                         fontWeight: 800,
                         fontSize: "9.5px",
                         height: 22,
@@ -773,20 +773,20 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
 
                 <Typography
                   sx={{
-                    color: "#94A3B8",
+                    color: "#625B60",
                     fontSize: "12px",
                     fontWeight: 500,
                     lineHeight: 1.3,
                   }}
                 >
-                  Customer Code: <strong style={{ color: "#FDE68A", fontFamily: "monospace" }}>{customer.customerCode || `CUST-${customer.mobile}`}</strong> · Mobile: <strong style={{ color: "#F8FAFC" }}>{customer.mobile}</strong>
+                  Customer Code: <strong style={{ color: "#FDE68A", fontFamily: "monospace" }}>{customer.customerCode || `CUST-${customer.mobile}`}</strong> · Mobile: <strong style={{ color: "#292329" }}>{customer.mobile}</strong>
                 </Typography>
               </Box>
             </Box>
 
             {/* Desktop Wallet Balance */}
             <Box sx={{ display: { xs: "none", sm: "block" }, textAlign: "right" }}>
-              <Typography sx={{ color: "#94A3B8", fontSize: "10px", fontWeight: 700, letterSpacing: "0.5px" }}>
+              <Typography sx={{ color: "#625B60", fontSize: "10px", fontWeight: 700, letterSpacing: "0.5px" }}>
                 WALLET BALANCE
               </Typography>
               <Typography
@@ -805,7 +805,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
             </Box>
           </Box>
 
-          <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 2 }} />
+          <Divider sx={{ borderColor: "#E8E2E5", my: 2 }} />
 
           {/* ── CUSTOMER LIMIT INFORMATION (RESPONSIVE 2x2 MOBILE / 4-COL DESKTOP GRID) ── */}
           <Box
@@ -833,7 +833,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
             >
               <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 0.5 }}>
                 <AccountBalanceWalletRoundedIcon sx={{ fontSize: 15, color: "#F59E0B" }} />
-                <Typography sx={{ color: "#94A3B8", fontSize: "10px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                <Typography sx={{ color: "#625B60", fontSize: "10px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
                   DAILY REMAINING
                 </Typography>
               </Stack>
@@ -870,7 +870,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
             >
               <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 0.5 }}>
                 <AccountBalanceRoundedIcon sx={{ fontSize: 15, color: "#4ADE80" }} />
-                <Typography sx={{ color: "#94A3B8", fontSize: "10px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                <Typography sx={{ color: "#625B60", fontSize: "10px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
                   MONTHLY REMAINING
                 </Typography>
               </Stack>
@@ -897,7 +897,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                 p: 1.5,
                 borderRadius: "14px",
                 bgcolor: "rgba(255, 255, 255, 0.03)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
+                border: "1px solid #E8E2E5",
                 transition: "all 0.2s ease",
                 "&:hover": {
                   bgcolor: "rgba(255, 255, 255, 0.06)",
@@ -907,8 +907,8 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
               }}
             >
               <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 0.5 }}>
-                <CategoryRoundedIcon sx={{ fontSize: 15, color: "#94A3B8" }} />
-                <Typography sx={{ color: "#94A3B8", fontSize: "10px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                <CategoryRoundedIcon sx={{ fontSize: 15, color: "#625B60" }} />
+                <Typography sx={{ color: "#625B60", fontSize: "10px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
                   CATEGORY
                 </Typography>
               </Stack>
@@ -934,12 +934,12 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
               }}
             >
               <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 0.5 }}>
-                <VerifiedUserRoundedIcon sx={{ fontSize: 15, color: "#FBBF24" }} />
-                <Typography sx={{ color: "#94A3B8", fontSize: "10px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                <VerifiedUserRoundedIcon sx={{ fontSize: 15, color: "#A20A3A" }} />
+                <Typography sx={{ color: "#625B60", fontSize: "10px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
                   KYC LEVEL
                 </Typography>
               </Stack>
-              <Typography sx={{ fontWeight: 800, color: "#FBBF24", fontSize: { xs: "14px", sm: "15px" } }}>
+              <Typography sx={{ fontWeight: 800, color: "#A20A3A", fontSize: { xs: "14px", sm: "15px" } }}>
                 {customer.kycLevel || customer.kyc_level || (isAadhaarVerified ? "FULL_KYC" : "MINIMUM_KYC")}
               </Typography>
             </Box>
@@ -962,7 +962,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                 borderRadius: "12px",
                 fontWeight: 800,
                 fontSize: "13.5px",
-                color: "#E2E8F0",
+                color: "#292329",
                 borderColor: "rgba(245, 158, 11, 0.3)",
                 bgcolor: "rgba(255, 255, 255, 0.03)",
                 textTransform: "none",
@@ -1027,7 +1027,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                 onClick={() => {
                   window.location.href = `/customers/create-pin?customer_id=${customer.id}`;
                 }}
-                startIcon={<ShieldIcon sx={{ color: "#080B11" }} />}
+                startIcon={<ShieldIcon sx={{ color: "#FFFFFF" }} />}
                 sx={{
                   width: { xs: "100%", sm: "auto" },
                   height: { xs: 48, sm: 52 },
@@ -1036,7 +1036,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                   fontWeight: 900,
                   fontSize: "14.5px",
                   background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%)",
-                  color: "#080B11",
+                  color: "#FFFFFF",
                   textTransform: "none",
                   letterSpacing: "-0.2px",
                   boxShadow: "0 6px 24px rgba(245, 158, 11, 0.45)",
@@ -1056,7 +1056,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                   <ArrowForwardIcon
                     className="arrow-icon"
                     sx={{
-                      color: "#080B11",
+                      color: "#FFFFFF",
                       transition: "transform 0.2s ease-in-out",
                     }}
                   />
@@ -1069,7 +1069,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                   fontWeight: 900,
                   fontSize: "14.5px",
                   background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%)",
-                  color: "#080B11",
+                  color: "#FFFFFF",
                   textTransform: "none",
                   letterSpacing: "-0.2px",
                   boxShadow: "0 6px 24px rgba(245, 158, 11, 0.45), 0 0 12px rgba(245, 158, 11, 0.3)",

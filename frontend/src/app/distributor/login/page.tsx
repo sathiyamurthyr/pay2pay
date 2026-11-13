@@ -4,7 +4,7 @@ import { ShieldCheck, Users, TrendingUp } from "lucide-react";
 
 export default function DistributorLoginPage() {
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-white flex flex-col justify-between overflow-x-hidden relative select-none">
+    <div className="min-h-screen bg-[#FFFFFF] text-white flex flex-col justify-between overflow-x-hidden relative select-none">
       {/* Background Ambient Glows */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-600/15 rounded-full filter blur-[120px] pointer-events-none" />
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-yellow-500/15 rounded-full filter blur-[120px] pointer-events-none" />
@@ -14,9 +14,9 @@ export default function DistributorLoginPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center w-full">
           {/* Left Column — Hero / Marketing (Hidden on Mobile) */}
           <div className="hidden lg:flex lg:col-span-6 flex-col justify-center space-y-6 pr-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700/80 w-fit backdrop-blur-md">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#F5F2F4]/80 border border-[#E8E2E5]/80 w-fit backdrop-blur-md">
               <ShieldCheck className="w-4 h-4 text-amber-400" />
-              <span className="text-xs font-semibold text-slate-300">
+              <span className="text-xs font-semibold text-[#292329]">
                 Distributor Network Management Portal
               </span>
             </div>
@@ -28,30 +28,30 @@ export default function DistributorLoginPage() {
                   Management Console
                 </span>
               </h1>
-              <p className="text-sm text-slate-400 leading-relaxed max-w-md">
+              <p className="text-sm text-[#625B60] leading-relaxed max-w-md">
                 Manage retailer networks, monitor daily transaction volumes, disburse commissions, and track channel growth in real time.
               </p>
             </div>
 
             {/* Feature Pills */}
             <div className="grid grid-cols-2 gap-3 pt-2">
-              <div className="p-3 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md flex items-start gap-3">
+              <div className="p-3 rounded-2xl bg-[#FAF8F9]/60 border border-[#E8E2E5]/80 backdrop-blur-md flex items-start gap-3">
                 <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 shrink-0">
                   <Users className="w-4 h-4" />
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-white">Retailer Onboarding</h4>
-                  <p className="text-[11px] text-slate-400">Instant agent KYC & activation</p>
+                  <p className="text-[11px] text-[#625B60]">Instant agent KYC & activation</p>
                 </div>
               </div>
 
-              <div className="p-3 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md flex items-start gap-3">
+              <div className="p-3 rounded-2xl bg-[#FAF8F9]/60 border border-[#E8E2E5]/80 backdrop-blur-md flex items-start gap-3">
                 <div className="p-2 rounded-xl bg-yellow-500/10 text-yellow-400 shrink-0">
                   <TrendingUp className="w-4 h-4" />
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-white">Commission Engine</h4>
-                  <p className="text-[11px] text-slate-400">Automated real-time margin splits</p>
+                  <p className="text-[11px] text-[#625B60]">Automated real-time margin splits</p>
                 </div>
               </div>
             </div>

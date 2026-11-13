@@ -134,7 +134,7 @@ export default function PosPage() {
       {tabIndex === 0 && (
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "7fr 5fr" }, gap: 3 }}>
           <Paper elevation={0} sx={{ p: "24px", borderRadius: "20px", border: "1px solid #E5E7EB", backgroundColor: "#FFFFFF" }}>
-            <Typography variant="h6" sx={{ fontSize: "18px", fontWeight: 800, color: "#111827", mb: 2 }}>
+            <Typography variant="h6" sx={{ fontSize: "18px", fontWeight: 800, color: "#FAF8F9", mb: 2 }}>
               Initiate Card Swipe Transaction
             </Typography>
             <form onSubmit={handleSwipeTransaction}>
@@ -207,17 +207,17 @@ export default function PosPage() {
 
           {/* Right Column: POS Device Info */}
           <Paper elevation={0} sx={{ p: "24px", borderRadius: "20px", border: "1px solid #E5E7EB", backgroundColor: "#FFFFFF" }}>
-            <Typography variant="h6" sx={{ fontSize: "18px", fontWeight: 800, color: "#111827", mb: 2 }}>
+            <Typography variant="h6" sx={{ fontSize: "18px", fontWeight: 800, color: "#FAF8F9", mb: 2 }}>
               Connected mPOS Hardware
             </Typography>
 
             {terminals.length === 0 ? (
-              <Box sx={{ p: 4, textAlign: "center", color: "#64748B" }}>
-                <PointOfSaleIcon sx={{ fontSize: 40, mb: 1, color: "#94A3B8" }} />
+              <Box sx={{ p: 4, textAlign: "center", color: "#625B60" }}>
+                <PointOfSaleIcon sx={{ fontSize: 40, mb: 1, color: "#625B60" }} />
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
                   No POS hardware assigned to this outlet.
                 </Typography>
-                <Typography variant="caption" sx={{ color: "#94A3B8" }}>
+                <Typography variant="caption" sx={{ color: "#625B60" }}>
                   Contact support/distributor to pair your Android POS machine.
                 </Typography>
               </Box>
@@ -226,7 +226,7 @@ export default function PosPage() {
                 <Card key={t.id} elevation={0} sx={{ mb: 2, borderRadius: "14px", border: "1px solid #E5E7EB", backgroundColor: "#F8FAFC" }}>
                   <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#111827" }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#FAF8F9" }}>
                         {t.model}
                       </Typography>
                       <Chip label={t.status} size="small" sx={{ backgroundColor: "#DCFCE7", color: "#16A34A", fontWeight: 800, height: 20 }} />
@@ -256,7 +256,7 @@ export default function PosPage() {
       {/* TAB 1: Terminal Management */}
       {tabIndex === 1 && (
         <Paper elevation={0} sx={{ p: "24px", borderRadius: "20px", border: "1px solid #E5E7EB", backgroundColor: "#FFFFFF" }}>
-          <Typography variant="h6" sx={{ fontSize: "18px", fontWeight: 800, color: "#111827", mb: 2 }}>
+          <Typography variant="h6" sx={{ fontSize: "18px", fontWeight: 800, color: "#FAF8F9", mb: 2 }}>
             Registered mPOS Terminals
           </Typography>
           <Table>
@@ -274,7 +274,7 @@ export default function PosPage() {
             <TableBody>
               {terminals.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 6, color: "#64748B" }}>
+                  <TableCell colSpan={7} align="center" sx={{ py: 6, color: "#625B60" }}>
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
                       No registered POS terminals found for this outlet.
                     </Typography>
@@ -303,7 +303,7 @@ export default function PosPage() {
       {/* TAB 2: History & Refunds */}
       {tabIndex === 2 && (
         <Paper elevation={0} sx={{ p: "24px", borderRadius: "20px", border: "1px solid #E5E7EB", backgroundColor: "#FFFFFF" }}>
-          <Typography variant="h6" sx={{ fontSize: "18px", fontWeight: 800, color: "#111827", mb: 2 }}>
+          <Typography variant="h6" sx={{ fontSize: "18px", fontWeight: 800, color: "#FAF8F9", mb: 2 }}>
             mPOS Swipe Transaction Log
           </Typography>
           <Table>
@@ -323,7 +323,7 @@ export default function PosPage() {
             <TableBody>
               {posTxns.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6, color: "#64748B" }}>
+                  <TableCell colSpan={9} align="center" sx={{ py: 6, color: "#625B60" }}>
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
                       No POS swipe transactions recorded yet.
                     </Typography>

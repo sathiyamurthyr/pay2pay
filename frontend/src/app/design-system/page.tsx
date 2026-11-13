@@ -18,7 +18,7 @@ export default function DesignSystemShowcase() {
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: tokens.colors.neutral.dark.bg, color: tokens.colors.neutral.dark.textPrimary, p: 4 }}>
       <Typography variant="h3" sx={{ fontWeight: 900, mb: 1, color: tokens.colors.brand.secondary }}>
-        PAY2PAY ENTERPRISE DESIGN SYSTEM
+        NEAR4YOU ENTERPRISE DESIGN SYSTEM
       </Typography>
       <Typography variant="body1" sx={{ color: tokens.colors.neutral.dark.textSecondary, mb: 4 }}>
         Sprint 0 Component & Token Interactive Showcase Gallery

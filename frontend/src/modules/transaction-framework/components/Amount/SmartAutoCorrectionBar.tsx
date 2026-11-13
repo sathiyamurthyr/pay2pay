@@ -98,7 +98,7 @@ export const SmartAutoCorrectionBar: React.FC<SmartAutoCorrectionBarProps> = ({
             variant="outlined"
             startIcon={<CallSplitIcon sx={{ fontSize: 14 }} />}
             onClick={() => onAutoFixAmount(Math.floor(amount / 2))}
-            sx={{ height: 30, px: 1, fontSize: "11px", fontWeight: 700, color: "rgba(255, 255, 255, 0.8)", borderColor: "rgba(255, 255, 255, 0.2)" }}
+            sx={{ height: 30, px: 1, fontSize: "11px", fontWeight: 700, color: "rgba(255, 255, 255, 0.8)", borderColor: "#E8E2E5" }}
           >
             Split Transaction
           </Button>
@@ -108,7 +108,7 @@ export const SmartAutoCorrectionBar: React.FC<SmartAutoCorrectionBarProps> = ({
             variant="outlined"
             startIcon={<EventIcon sx={{ fontSize: 14 }} />}
             onClick={() => onAutoFixAmount(maxAllowed)}
-            sx={{ height: 30, px: 1, fontSize: "11px", fontWeight: 700, color: "rgba(255, 255, 255, 0.8)", borderColor: "rgba(255, 255, 255, 0.2)" }}
+            sx={{ height: 30, px: 1, fontSize: "11px", fontWeight: 700, color: "rgba(255, 255, 255, 0.8)", borderColor: "#E8E2E5" }}
           >
             Schedule Tomorrow
           </Button>

@@ -61,7 +61,7 @@ export const BeneficiaryPanel: React.FC<BeneficiaryPanelProps> = ({
               fontSize: "13px",
               fontWeight: 700,
               color: "#FFFFFF",
-              borderColor: "rgba(255, 255, 255, 0.2)",
+              borderColor: "#E8E2E5",
               bgcolor: "rgba(255, 255, 255, 0.05)",
               "&:hover": { bgcolor: "rgba(255, 255, 255, 0.12)", borderColor: "#60A5FA" },
               transition: "all 150ms ease",

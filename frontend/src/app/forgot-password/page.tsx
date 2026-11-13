@@ -48,7 +48,7 @@ export default function ForgotPasswordPage() {
         body: JSON.stringify({
           mobile_number: cleanMobile,
           tenant_id: "00000000-0000-0000-0000-000000000001",
-          company_id: "PAY2PAY-ENTERPRISE"
+          company_id: "NEAR4YOU-ENTERPRISE"
         })
       });
 
@@ -82,14 +82,14 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[#090d16] text-white">
-      <div className="w-full max-w-md p-8 rounded-2xl shadow-2xl border border-slate-800 bg-slate-900/90 backdrop-blur-xl">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[#FFFFFF] text-white">
+      <div className="w-full max-w-md p-8 rounded-2xl shadow-2xl border border-[#E8E2E5] bg-[#FAF8F9]/90 backdrop-blur-xl">
         <div className="text-center mb-8">
           <div className="inline-flex w-14 h-14 rounded-2xl bg-blue-600/20 text-blue-400 items-center justify-center mb-4 border border-blue-500/20">
             <ShieldCheck className="w-7 h-7" />
           </div>
           <h2 className="text-2xl font-bold text-white tracking-tight">Forgot Password</h2>
-          <p className="text-xs text-slate-400 mt-1 font-medium">
+          <p className="text-xs text-[#625B60] mt-1 font-medium">
             Reset your password securely using your registered account
           </p>
         </div>
@@ -109,7 +109,7 @@ export default function ForgotPasswordPage() {
 
             <div className="space-y-3">
               <h3 className="text-lg font-bold text-white">Password Reset Link Sent</h3>
-              <div className="text-xs text-slate-300 space-y-3 text-left bg-slate-950/60 p-4 rounded-xl border border-slate-800/80 leading-relaxed">
+              <div className="text-xs text-[#292329] space-y-3 text-left bg-[#FFFFFF]/60 p-4 rounded-xl border border-[#E8E2E5]/80 leading-relaxed">
                 <p>
                   A password reset link has been sent to{" "}
                   <strong className="text-blue-400 font-mono font-bold tracking-wide">{maskedEmail}</strong>
@@ -117,7 +117,7 @@ export default function ForgotPasswordPage() {
                 <p>
                   Please check your Inbox and Spam/Junk folder.
                 </p>
-                <p className="text-amber-400 font-medium text-[11px] flex items-center pt-2 border-t border-slate-800/60">
+                <p className="text-amber-400 font-medium text-[11px] flex items-center pt-2 border-t border-[#E8E2E5]/60">
                   ⏱ The link expires in 30 minutes.
                 </p>
               </div>
@@ -139,8 +139,8 @@ export default function ForgotPasswordPage() {
                 disabled={!canResend}
                 className={`w-full py-2.5 px-4 rounded-xl text-xs font-semibold border transition flex items-center justify-center ${
                   canResend
-                    ? "border-slate-700 bg-slate-800 hover:bg-slate-700 text-white cursor-pointer"
-                    : "border-slate-800/50 bg-slate-900/50 text-slate-500 cursor-not-allowed"
+                    ? "border-[#E8E2E5] bg-[#F5F2F4] hover:bg-slate-700 text-white cursor-pointer"
+                    : "border-[#E8E2E5]/50 bg-[#FAF8F9] text-[#8A8288] cursor-not-allowed"
                 }`}
               >
                 <RefreshCw className={`w-3.5 h-3.5 mr-2 ${!canResend ? "animate-spin" : ""}`} />
@@ -151,11 +151,11 @@ export default function ForgotPasswordPage() {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-2">
+              <label className="block text-xs font-semibold text-[#292329] mb-2">
                 Retailer Mobile Number
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 text-sm font-semibold">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#625B60] text-sm font-semibold">
                   +91
                 </div>
                 <input
@@ -164,7 +164,7 @@ export default function ForgotPasswordPage() {
                   placeholder="Enter 10-digit mobile number"
                   value={mobileNumber}
                   onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, ""))}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-950/80 border border-slate-800 rounded-xl text-sm font-medium text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
+                  className="w-full pl-12 pr-4 py-3 bg-[#FFFFFF]/80 border border-[#E8E2E5] rounded-xl text-sm font-medium text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
                   required
                 />
               </div>
@@ -173,7 +173,7 @@ export default function ForgotPasswordPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm transition shadow-lg shadow-blue-600/25 flex items-center justify-center"
+              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#A20A3A] to-[#85072F] hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm transition shadow-lg shadow-blue-600/25 flex items-center justify-center"
             >
               {loading ? (
                 <>
@@ -186,7 +186,7 @@ export default function ForgotPasswordPage() {
             </button>
 
             <div className="text-center pt-2">
-              <Link href="/retailer/login" className="inline-flex items-center text-xs text-slate-400 hover:text-white transition font-medium">
+              <Link href="/retailer/login" className="inline-flex items-center text-xs text-[#625B60] hover:text-white transition font-medium">
                 <ArrowLeft className="w-3.5 h-3.5 mr-1.5" /> Back to Sign In
               </Link>
             </div>

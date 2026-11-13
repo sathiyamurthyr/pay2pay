@@ -251,7 +251,7 @@ export default function NotificationDashboardPage() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-[#0F172A]">
+              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-[#FFFFFF]">
                 Notification Telemetry
               </h1>
               <span className="px-3 py-0.5 rounded-full text-[10px] font-extrabold bg-violet-100 text-violet-800 border border-violet-200/80 shadow-2xs">
@@ -311,7 +311,7 @@ export default function NotificationDashboardPage() {
       {/* ── GLASSMORPHIC CHANNEL VOLUME BREAKDOWN (PASTEL LIGHT GLASS) ─────────── */}
       <div className="relative z-10 rounded-3xl backdrop-blur-2xl bg-white/80 border border-white/80 p-6 md:p-8 shadow-[0_8px_32px_rgba(31,38,135,0.07)] space-y-6">
         <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
-          <h2 className="text-lg font-extrabold text-[#0F172A] flex items-center gap-2.5">
+          <h2 className="text-lg font-extrabold text-[#FFFFFF] flex items-center gap-2.5">
             <Activity className="h-5 w-5 text-violet-600" />
             Channel Volume Breakdown
           </h2>
@@ -347,7 +347,7 @@ export default function NotificationDashboardPage() {
                   </div>
                 </div>
 
-                <p className="text-xl font-extrabold text-[#0F172A] font-mono">{numCount.toLocaleString()}</p>
+                <p className="text-xl font-extrabold text-[#FFFFFF] font-mono">{numCount.toLocaleString()}</p>
                 <p className="text-xs font-extrabold text-slate-600 uppercase tracking-wider mt-0.5">{channel}</p>
 
                 {/* Light Glass Progress Bar */}
@@ -366,7 +366,7 @@ export default function NotificationDashboardPage() {
 
       {/* ── GLASSMORPHIC PROVIDER HEALTH SUMMARY (PASTEL LIGHT GLASS) ─────────── */}
       <div className="relative z-10 rounded-3xl backdrop-blur-2xl bg-white/80 border border-white/80 p-6 md:p-8 shadow-[0_8px_32px_rgba(31,38,135,0.07)] space-y-4">
-        <h2 className="text-lg font-extrabold text-[#0F172A] flex items-center gap-2.5 border-b border-slate-200/60 pb-3">
+        <h2 className="text-lg font-extrabold text-[#FFFFFF] flex items-center gap-2.5 border-b border-slate-200/60 pb-3">
           <ShieldCheck className="h-5 w-5 text-emerald-600" />
           Provider Health &amp; Security Telemetry
         </h2>

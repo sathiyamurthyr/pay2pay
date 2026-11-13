@@ -99,9 +99,9 @@ export const NexusEnterpriseBankingView: React.FC = () => {
       sx={{
         width: "100%",
         minHeight: "100vh",
-        bgcolor: "#050B14",
-        backgroundImage: "radial-gradient(ellipse at 50% 0%, #0F1D33 0%, #050B14 100%)",
-        color: "#F8FAFC",
+        bgcolor: "#FFFFFF",
+        backgroundImage: "radial-gradient(ellipse at 50% 0%, #FAF8F9 0%, #FFFFFF 100%)",
+        color: "#292329",
         fontFamily: "'Inter', sans-serif",
         display: "flex",
         flexDirection: "column",
@@ -117,7 +117,7 @@ export const NexusEnterpriseBankingView: React.FC = () => {
           justifyContent: "space-between",
           bgcolor: "rgba(10, 18, 32, 0.85)",
           backdropFilter: "blur(20px)",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+          borderBottom: "1px solid #E8E2E5",
         }}
       >
         {/* Brand Logo */}
@@ -140,7 +140,7 @@ export const NexusEnterpriseBankingView: React.FC = () => {
             P
           </Box>
           <Typography variant="subtitle1" sx={{ fontWeight: 900, fontSize: "16px", letterSpacing: "0.5px" }}>
-            Pay2Pay <span style={{ color: "#38BDF8", fontWeight: 400 }}>Retailer Portal</span>
+            Near 4 You <span style={{ color: "#38BDF8", fontWeight: 400 }}>Retailer Portal</span>
           </Typography>
         </Stack>
 
@@ -200,7 +200,7 @@ export const NexusEnterpriseBankingView: React.FC = () => {
                 height: 7,
                 borderRadius: "50%",
                 bgcolor: "#22C55E",
-                border: "1.5px solid #050B14",
+                border: "1.5px solid #FFFFFF",
               }}
             />
           </Box>
@@ -215,7 +215,7 @@ export const NexusEnterpriseBankingView: React.FC = () => {
           display: "flex",
           alignItems: "center",
           bgcolor: "rgba(10, 18, 32, 0.5)",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+          borderBottom: "1px solid #E8E2E5",
         }}
       >
         <Stack direction="row" spacing={4}>
@@ -263,7 +263,7 @@ export const NexusEnterpriseBankingView: React.FC = () => {
           display: "grid",
           gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(6, 1fr)" },
           gap: 1.5,
-          borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+          borderBottom: "1px solid #E8E2E5",
           bgcolor: "rgba(10, 18, 32, 0.4)",
         }}
       >
@@ -403,7 +403,7 @@ export const NexusEnterpriseBankingView: React.FC = () => {
                 color: "rgba(255, 255, 255, 0.8)",
                 bgcolor: "rgba(255, 255, 255, 0.05)",
                 borderRadius: "10px",
-                "& fieldset": { borderColor: "rgba(255, 255, 255, 0.12)" },
+                "& fieldset": { borderColor: "#E8E2E5" },
               }}
             >
               <MenuItem value="all">All Beneficiaries</MenuItem>
@@ -708,12 +708,12 @@ export const NexusEnterpriseBankingView: React.FC = () => {
         sx={{
           py: 1.5,
           textAlign: "center",
-          borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+          borderTop: "1px solid #E8E2E5",
           bgcolor: "rgba(5, 11, 20, 0.9)",
         }}
       >
         <Typography variant="caption" sx={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.4)" }}>
-          © 2021 SUPER REX PRODUCTS PRIVATE LIMITED | Pay2Pay Retailer Portal
+          © 2021 SUPER REX PRODUCTS PRIVATE LIMITED | Near 4 You Retailer Portal
         </Typography>
       </Box>
     </Box>

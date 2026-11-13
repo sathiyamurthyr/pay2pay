@@ -84,8 +84,8 @@ export const BlurImage: React.FC<BlurImageProps> = memo(
 
         {/* ── 2. ERROR FALLBACK STATE ── */}
         {hasError ? (
-          <div className="w-full h-full min-h-[60px] flex flex-col items-center justify-center p-3 bg-slate-900/60 border border-slate-800 text-slate-400 text-xs rounded-lg text-center">
-            <ImageIcon className="w-5 h-5 mb-1 text-slate-500 opacity-60" />
+          <div className="w-full h-full min-h-[60px] flex flex-col items-center justify-center p-3 bg-[#FAF8F9]/60 border border-[#E8E2E5] text-[#625B60] text-xs rounded-lg text-center">
+            <ImageIcon className="w-5 h-5 mb-1 text-[#8A8288] opacity-60" />
             <span className="text-[10px] truncate max-w-full px-1">{alt || "Image preview"}</span>
           </div>
         ) : (

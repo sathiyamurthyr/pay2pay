@@ -111,9 +111,9 @@ function SearchableEntitySelect({
       <button
         type="button"
         onClick={() => setOpen((p) => !p)}
-        className="w-full flex items-center justify-between rounded-xl border border-[#CBD5E1] bg-white px-3.5 py-2.5 text-xs font-bold text-[#0F172A] hover:border-[#2563EB] focus:outline-none transition-colors shadow-2xs cursor-pointer"
+        className="w-full flex items-center justify-between rounded-xl border border-[#CBD5E1] bg-white px-3.5 py-2.5 text-xs font-bold text-[#FFFFFF] hover:border-[#2563EB] focus:outline-none transition-colors shadow-2xs cursor-pointer"
       >
-        <span className={value ? "text-[#0F172A]" : "text-[#94A3B8]"}>
+        <span className={value ? "text-[#FFFFFF]" : "text-[#94A3B8]"}>
           {value ? `${value.name} (${value.code})` : placeholder}
         </span>
         <ChevronDown className={`w-4 h-4 text-[#64748B] flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
@@ -130,7 +130,7 @@ function SearchableEntitySelect({
                 placeholder="Type name or code to search..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="w-full bg-transparent text-xs font-semibold text-[#0F172A] focus:outline-none placeholder-[#94A3B8]"
+                className="w-full bg-transparent text-xs font-semibold text-[#FFFFFF] focus:outline-none placeholder-[#94A3B8]"
               />
               {query && (
                 <button type="button" onClick={() => setQuery("")}>
@@ -153,7 +153,7 @@ function SearchableEntitySelect({
                     setQuery("");
                   }}
                   className={`flex items-center justify-between px-4 py-2.5 text-xs cursor-pointer hover:bg-[#EFF6FF] hover:text-[#2563EB] font-bold transition-colors ${
-                    value?.id === opt.id ? "bg-[#EFF6FF] text-[#2563EB]" : "text-[#0F172A]"
+                    value?.id === opt.id ? "bg-[#EFF6FF] text-[#2563EB]" : "text-[#FFFFFF]"
                   }`}
                 >
                   <div>
@@ -436,7 +436,7 @@ function ManualTopupContent() {
 
   // ── Receipt Helper Formatting ──────────────────────────────────────────────
   const getReceiptFormattedText = (item: any) => {
-    return `*PAY2PAY ENTERPRISE WALLET ALLOCATION RECEIPT*
+    return `*NEAR4YOU ENTERPRISE WALLET ALLOCATION RECEIPT*
 ----------------------------------------
 Transaction ID: ${item.transaction_id}
 Date & Time: ${new Date(item.created_date).toLocaleString("en-IN")}
@@ -455,7 +455,7 @@ Closing Balance: ₹${(item.balance_after || 0).toLocaleString("en-IN", { minimu
 Audit Reason: ${item.comments}
 Authorized By: ${item.performed_by}
 ----------------------------------------
-Thank you for using Pay2Pay Enterprise Portal!`;
+Thank you for using Near4You Enterprise Portal!`;
   };
 
   const handleCopyReceipt = (item: any) => {
@@ -499,14 +499,14 @@ Thank you for using Pay2Pay Enterprise Portal!`;
               margin: 0;
               padding: 20px;
               background: #ffffff;
-              color: #0f172a;
+              color: #FFFFFF;
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
             }
             .receipt-card {
               max-width: 580px;
               margin: 0 auto;
-              border: 2px solid #0f172a;
+              border: 2px solid #FFFFFF;
               border-radius: 16px;
               padding: 28px;
               box-shadow: 0 4px 12px rgba(0,0,0,0.05);
@@ -552,7 +552,7 @@ Thank you for using Pay2Pay Enterprise Portal!`;
               font-size: 13px;
             }
             .label { color: #64748b; font-weight: 700; }
-            .value { font-weight: 700; color: #0f172a; text-align: right; }
+            .value { font-weight: 700; color: #FFFFFF; text-align: right; }
             .value-bold { font-family: monospace; font-size: 14px; color: #2563eb; font-weight: 800; }
             .amount-green { font-family: monospace; color: #15803d; font-size: 16px; font-weight: 900; }
             .amount-red { font-family: monospace; color: #dc2626; font-size: 16px; font-weight: 900; }
@@ -577,7 +577,7 @@ Thank you for using Pay2Pay Enterprise Portal!`;
         <body>
           <div class="receipt-card">
             <div class="header">
-              <div class="brand">PAY2PAY ENTERPRISE PORTAL</div>
+              <div class="brand">NEAR4YOU ENTERPRISE PORTAL</div>
               <div class="title">Official Wallet Allocation Receipt</div>
             </div>
 
@@ -622,7 +622,7 @@ Thank you for using Pay2Pay Enterprise Portal!`;
 
             <div class="balance-box">
               <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 13px; font-weight: 800; color: #0f172a;">Closing Available Balance:</span>
+                <span style="font-size: 13px; font-weight: 800; color: #FFFFFF;">Closing Available Balance:</span>
                 <span class="amount-green" style="font-size: 18px;">₹${(item.balance_after || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
               </div>
             </div>
@@ -691,7 +691,7 @@ Thank you for using Pay2Pay Enterprise Portal!`;
       header: "ENTITY USER & CODE",
       cell: (r) => (
         <div>
-          <p className="font-bold text-xs text-[#0F172A]">{r.entity_name}</p>
+          <p className="font-bold text-xs text-[#FFFFFF]">{r.entity_name}</p>
           <p className="font-mono text-[10px] text-[#2563EB] font-bold">{r.entity_code}</p>
         </div>
       ),
@@ -775,7 +775,7 @@ Thank you for using Pay2Pay Enterprise Portal!`;
       accessorKey: "balance_after",
       sortable: true,
       cell: (r) => (
-        <span className="font-mono text-xs font-extrabold text-[#0F172A]">
+        <span className="font-mono text-xs font-extrabold text-[#FFFFFF]">
           ₹{(r.balance_after || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
         </span>
       ),
@@ -806,7 +806,7 @@ Thank you for using Pay2Pay Enterprise Portal!`;
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#0F172A] flex items-center gap-3">
+          <h1 className="text-2xl font-extrabold text-[#FFFFFF] flex items-center gap-3">
             <ArrowLeftRight className="h-7 w-7 text-[#2563EB]" />
             Manual Wallet Top-up &amp; Adjustment
           </h1>
@@ -835,7 +835,7 @@ Thank you for using Pay2Pay Enterprise Portal!`;
         <div className="lg:col-span-2 rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm space-y-5">
           <div className="flex items-center gap-2 border-b border-[#F1F5F9] pb-3">
             <Wallet className="w-5 h-5 text-[#2563EB]" />
-            <h2 className="text-base font-extrabold text-[#0F172A]">Manual Top-up Form</h2>
+            <h2 className="text-base font-extrabold text-[#FFFFFF]">Manual Top-up Form</h2>
           </div>
 
           <form onSubmit={handleTopupSubmit} className="space-y-4 text-xs font-semibold">
@@ -892,7 +892,7 @@ Thank you for using Pay2Pay Enterprise Portal!`;
                 <select
                   value={serviceName}
                   onChange={(e) => setServiceName(e.target.value)}
-                  className="w-full rounded-xl border border-[#CBD5E1] bg-white px-3.5 py-2.5 text-xs font-bold text-[#0F172A] focus:border-[#2563EB] focus:outline-none cursor-pointer"
+                  className="w-full rounded-xl border border-[#CBD5E1] bg-white px-3.5 py-2.5 text-xs font-bold text-[#FFFFFF] focus:border-[#2563EB] focus:outline-none cursor-pointer"
                 >
                   {SERVICE_OPTIONS.map((s) => (
                     <option key={s.value} value={s.value}>{s.label}</option>
@@ -907,7 +907,7 @@ Thank you for using Pay2Pay Enterprise Portal!`;
                 <select
                   value={walletType}
                   onChange={(e) => setWalletType(e.target.value)}
-                  className="w-full rounded-xl border border-[#CBD5E1] bg-white px-3.5 py-2.5 text-xs font-bold text-[#0F172A] focus:border-[#2563EB] focus:outline-none cursor-pointer"
+                  className="w-full rounded-xl border border-[#CBD5E1] bg-white px-3.5 py-2.5 text-xs font-bold text-[#FFFFFF] focus:border-[#2563EB] focus:outline-none cursor-pointer"
                 >
                   {WALLET_TYPES.map((w) => (
                     <option key={w.value} value={w.value}>{w.label}</option>
@@ -1015,7 +1015,7 @@ Thank you for using Pay2Pay Enterprise Portal!`;
                   const v = e.target.value;
                   setAmount(v === "" ? "" : parseFloat(v) || 0);
                 }}
-                className="w-full rounded-xl border border-[#CBD5E1] bg-white px-3.5 py-2.5 font-mono text-base font-extrabold text-[#0F172A] focus:border-[#2563EB] focus:outline-none placeholder-[#94A3B8]"
+                className="w-full rounded-xl border border-[#CBD5E1] bg-white px-3.5 py-2.5 font-mono text-base font-extrabold text-[#FFFFFF] focus:border-[#2563EB] focus:outline-none placeholder-[#94A3B8]"
                 required
               />
             </div>
@@ -1030,7 +1030,7 @@ Thank you for using Pay2Pay Enterprise Portal!`;
                 placeholder="Enter bank NEFT reference, UTR number, or authorization note..."
                 value={comments}
                 onChange={(e) => setComments(e.target.value)}
-                className="w-full rounded-xl border border-[#CBD5E1] bg-white p-3 text-xs font-semibold text-[#0F172A] focus:border-[#2563EB] focus:outline-none placeholder-[#94A3B8]"
+                className="w-full rounded-xl border border-[#CBD5E1] bg-white p-3 text-xs font-semibold text-[#FFFFFF] focus:border-[#2563EB] focus:outline-none placeholder-[#94A3B8]"
                 required
               />
             </div>
@@ -1099,7 +1099,7 @@ Thank you for using Pay2Pay Enterprise Portal!`;
         <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm space-y-4 h-fit">
           <div className="flex items-center gap-2 border-b border-[#F1F5F9] pb-3">
             <Sparkles className="w-5 h-5 text-[#D97706]" />
-            <h2 className="text-base font-extrabold text-[#0F172A]">Live Wallet Impact Preview</h2>
+            <h2 className="text-base font-extrabold text-[#FFFFFF]">Live Wallet Impact Preview</h2>
           </div>
 
           {selectedEntity ? (
@@ -1107,7 +1107,7 @@ Thank you for using Pay2Pay Enterprise Portal!`;
               {/* Entity Info Box */}
               <div className="rounded-xl border border-[#BFDBFE] bg-[#EFF6FF] p-4 space-y-1">
                 <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#2563EB]">Target Entity</p>
-                <p className="font-extrabold text-sm text-[#0F172A]">{selectedEntity.name}</p>
+                <p className="font-extrabold text-sm text-[#FFFFFF]">{selectedEntity.name}</p>
                 <p className="font-mono text-xs text-[#2563EB] font-bold">{selectedEntity.code}</p>
               </div>
 
@@ -1115,7 +1115,7 @@ Thank you for using Pay2Pay Enterprise Portal!`;
               <div className="space-y-3 text-xs">
                 <div className="flex justify-between items-center py-2 border-b border-[#F1F5F9]">
                   <span className="font-semibold text-[#64748B]">Current Available Balance:</span>
-                  <span className="font-mono font-extrabold text-[#0F172A] text-sm">
+                  <span className="font-mono font-extrabold text-[#FFFFFF] text-sm">
                     ₹{selectedEntity.currentBal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </span>
                 </div>
@@ -1134,7 +1134,7 @@ Thank you for using Pay2Pay Enterprise Portal!`;
                 </div>
 
                 <div className="flex justify-between items-center p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
-                  <span className="font-extrabold text-[#0F172A]">New Balance After Topup:</span>
+                  <span className="font-extrabold text-[#FFFFFF]">New Balance After Topup:</span>
                   <span className="font-mono font-extrabold text-base text-[#15803D]">
                     ₹{estimatedBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </span>
@@ -1204,11 +1204,11 @@ Thank you for using Pay2Pay Enterprise Portal!`;
             width: 100% !important;
             max-width: 600px !important;
             margin: 20px auto !important;
-            border: 2px solid #0f172a !important;
+            border: 2px solid #FFFFFF !important;
             border-radius: 16px !important;
             padding: 24px !important;
             background: #ffffff !important;
-            color: #0f172a !important;
+            color: #FFFFFF !important;
             box-shadow: none !important;
             display: block !important;
             visibility: visible !important;
@@ -1223,7 +1223,7 @@ Thank you for using Pay2Pay Enterprise Portal!`;
 
       {/* ── RECEIPT MODAL WINDOW WITH SHARE OPTIONS ──────────────────────────── */}
       {receiptData && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-[#FAF8F9]/80 backdrop-blur-md p-4 overflow-y-auto">
           <div
             id="printable-receipt-card"
             className="w-full max-w-lg rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-2xl space-y-5 my-8 animate-in fade-in zoom-in duration-200"
@@ -1235,14 +1235,14 @@ Thank you for using Pay2Pay Enterprise Portal!`;
                   <Receipt className="h-5 w-5" />
                 </div>
                 <div>
-                  <h2 className="text-base font-extrabold text-[#0F172A]">Transaction Receipt</h2>
-                  <p className="text-[11px] font-semibold text-[#64748B]">Pay2Pay Enterprise Wallet Allocation</p>
+                  <h2 className="text-base font-extrabold text-[#FFFFFF]">Transaction Receipt</h2>
+                  <p className="text-[11px] font-semibold text-[#64748B]">Near4You Enterprise Wallet Allocation</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={closeReceiptModal}
-                className="p-1.5 rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] text-[#64748B] hover:text-[#0F172A] hover:bg-[#E2E8F0] transition cursor-pointer print-hide"
+                className="p-1.5 rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] text-[#64748B] hover:text-[#FFFFFF] hover:bg-[#E2E8F0] transition cursor-pointer print-hide"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -1278,7 +1278,7 @@ Thank you for using Pay2Pay Enterprise Portal!`;
 
               <div className="flex justify-between items-center border-b border-[#E2E8F0] pb-2">
                 <span className="font-bold text-[#64748B]">Date &amp; Time:</span>
-                <span className="font-mono font-semibold text-[#0F172A]">
+                <span className="font-mono font-semibold text-[#FFFFFF]">
                   {new Date(receiptData.created_date).toLocaleString("en-IN", {
                     dateStyle: "medium",
                     timeStyle: "short",
@@ -1289,7 +1289,7 @@ Thank you for using Pay2Pay Enterprise Portal!`;
               <div className="flex justify-between items-start border-b border-[#E2E8F0] pb-2">
                 <span className="font-bold text-[#64748B]">Entity User:</span>
                 <div className="text-right">
-                  <p className="font-extrabold text-[#0F172A]">{receiptData.entity_name}</p>
+                  <p className="font-extrabold text-[#FFFFFF]">{receiptData.entity_name}</p>
                   <p className="font-mono text-[10px] font-bold text-[#2563EB]">{receiptData.entity_code}</p>
                 </div>
               </div>
@@ -1297,7 +1297,7 @@ Thank you for using Pay2Pay Enterprise Portal!`;
               <div className="grid grid-cols-2 gap-2 border-b border-[#E2E8F0] pb-2">
                 <div>
                   <span className="font-bold text-[#64748B] block text-[10px]">SERVICE TYPE</span>
-                  <span className="font-bold text-[#0F172A]">{receiptData.service_name}</span>
+                  <span className="font-bold text-[#FFFFFF]">{receiptData.service_name}</span>
                 </div>
                 <div>
                   <span className="font-bold text-[#64748B] block text-[10px]">WALLET TYPE</span>
@@ -1308,7 +1308,7 @@ Thank you for using Pay2Pay Enterprise Portal!`;
               <div className="space-y-1.5 pt-1">
                 <div className="flex justify-between items-center text-[#64748B]">
                   <span>Opening Balance (Before):</span>
-                  <span className="font-mono font-bold text-[#0F172A]">
+                  <span className="font-mono font-bold text-[#FFFFFF]">
                     ₹{(receiptData.opening_balance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </span>
                 </div>
@@ -1324,7 +1324,7 @@ Thank you for using Pay2Pay Enterprise Portal!`;
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center pt-2 border-t border-[#CBD5E1] text-[#0F172A]">
+                <div className="flex justify-between items-center pt-2 border-t border-[#CBD5E1] text-[#FFFFFF]">
                   <span className="font-extrabold text-xs">Closing Available Balance:</span>
                   <span className="font-mono font-extrabold text-base text-[#15803D]">
                     ₹{(receiptData.balance_after || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}

@@ -36,8 +36,8 @@ export function TopBar({
       sx={{
         height: 64,
         px: 3,
-        bgcolor: "#101a3d",
-        background: "linear-gradient(135deg, #101a3d 0%, #0b1330 100%)",
+        bgcolor: "#FAF8F9",
+        background: "linear-gradient(135deg, #FAF8F9 0%, #FAF8F9 100%)",
         borderBottom: "1px solid rgba(231, 226, 212, 0.15)",
         display: "flex",
         alignItems: "center",

@@ -25,7 +25,7 @@ export default function BeneficiaryDashboardRedirectPage() {
           <h2 className="text-xl font-extrabold tracking-tight">
             Beneficiary Dashboard Moved to Customer 360° Workspace
           </h2>
-          <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+          <p className="text-xs text-slate-600 dark:text-[#625B60] font-medium">
             Beneficiary analytics and management are strictly scoped per customer inside the Customer 360° Workspace.
           </p>
         </div>

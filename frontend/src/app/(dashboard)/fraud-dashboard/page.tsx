@@ -72,18 +72,18 @@ export default function FraudDashboardPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100 flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-[#292329] flex items-center gap-3">
             <ShieldAlert className="h-8 w-8 text-rose-400" />
             Enterprise Fraud, Risk & Compliance Telemetry
           </h1>
-          <p className="mt-1 text-slate-400">
+          <p className="mt-1 text-[#625B60]">
             Real-time fraud screening, automated risk scoring, blacklist enforcement, & investigation workspace
           </p>
         </div>
         <button
           onClick={fetchMetrics}
           disabled={refreshing}
-          className="flex items-center gap-2 rounded-lg bg-slate-800/80 px-4 py-2.5 text-sm font-medium text-slate-200 border border-slate-700 hover:bg-slate-700/80 transition-all"
+          className="flex items-center gap-2 rounded-lg bg-[#F5F2F4]/80 px-4 py-2.5 text-sm font-medium text-[#292329] border border-[#E8E2E5] hover:bg-slate-700/80 transition-all"
         >
           <RefreshCw className={`h-4 w-4 text-emerald-400 ${refreshing ? "animate-spin" : ""}`} />
           Refresh
@@ -100,7 +100,7 @@ export default function FraudDashboardPage() {
               className={`relative overflow-hidden rounded-xl border bg-gradient-to-br p-5 backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] shadow-lg ${kpi.color}`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-300">{kpi.label}</span>
+                <span className="text-sm font-medium text-[#292329]">{kpi.label}</span>
                 <Icon className="h-5 w-5 opacity-80" />
               </div>
               <div className="mt-3 text-3xl font-extrabold text-white">{kpi.value}</div>
@@ -110,26 +110,26 @@ export default function FraudDashboardPage() {
       </div>
 
       {/* Risk Spectrum */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur-xl shadow-xl space-y-4">
-        <h3 className="font-semibold text-slate-200 text-lg flex items-center gap-2">
+      <div className="rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 p-6 backdrop-blur-xl shadow-xl space-y-4">
+        <h3 className="font-semibold text-[#292329] text-lg flex items-center gap-2">
           <Activity className="h-5 w-5 text-emerald-400" /> Multi-Layer Risk Evaluation Spectrum
         </h3>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-4 text-xs">
           <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10">
             <span className="font-bold text-emerald-400 block text-sm">LOW RISK (0 - 25)</span>
-            <span className="text-slate-300">Automated Instant Clearance</span>
+            <span className="text-[#292329]">Automated Instant Clearance</span>
           </div>
           <div className="p-4 rounded-xl border border-blue-500/30 bg-blue-500/10">
             <span className="font-bold text-blue-400 block text-sm">MEDIUM RISK (26 - 50)</span>
-            <span className="text-slate-300">Enhanced Audit Logging</span>
+            <span className="text-[#292329]">Enhanced Audit Logging</span>
           </div>
           <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/10">
             <span className="font-bold text-amber-400 block text-sm">HIGH RISK (51 - 75)</span>
-            <span className="text-slate-300">Hold for Manual Review</span>
+            <span className="text-[#292329]">Hold for Manual Review</span>
           </div>
           <div className="p-4 rounded-xl border border-rose-500/30 bg-rose-500/10">
             <span className="font-bold text-rose-400 block text-sm">CRITICAL RISK (&gt; 75)</span>
-            <span className="text-slate-300">Reject & Freeze Wallet</span>
+            <span className="text-[#292329]">Reject & Freeze Wallet</span>
           </div>
         </div>
       </div>

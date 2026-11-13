@@ -180,10 +180,10 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
       ? "Apex Financial Services Ltd"
       : compKey.includes("NEXUS")
       ? "Nexus Retail Payments Pvt Ltd"
-      : "Pay2Pay Enterprise HQ",
-    legal_name: "Pay2Pay Payment Technologies Pvt Ltd",
-    display_name: "Pay2Pay Enterprise",
-    short_name: "Pay2Pay",
+      : "Near4You Enterprise HQ",
+    legal_name: "Near4You Payment Technologies Pvt Ltd",
+    display_name: "Near4You Enterprise",
+    short_name: "Near4You",
     tenant_code: compKey.includes("FIN")
       ? "FINPAY_TNT"
       : compKey.includes("APEX")
@@ -194,7 +194,7 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
     company_type: "PUBLIC_LIMITED",
     industry: "FinTech & Banking Infrastructure",
     business_category: "Payment Aggregator",
-    website: "https://pay2pay.in",
+    website: "https://near4you.store",
     description: "Enterprise Multi-Tenant Payment Platform & Settlement Gateway",
     gst_number: "27AAACP1234A1Z5",
     pan_number: "AAACP1234A",
@@ -216,8 +216,8 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
       primary_contact: "Platform Operations Director",
       designation: "VP of Operations",
       mobile: "+91 98765 43210",
-      email: "ops@pay2pay.in",
-      support_email: "support@pay2pay.in",
+      email: "ops@near4you.store",
+      support_email: "support@near4you.store",
       support_phone: "1800-123-4567",
     },
     address: {
@@ -230,7 +230,7 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
     },
     bank: {
       settlement_bank_name: "HDFC Bank Ltd",
-      account_holder: "Pay2Pay Enterprise Settlement Escrow",
+      account_holder: "Near4You Enterprise Settlement Escrow",
       account_number: "50200012345678",
       ifsc: "HDFC0000240",
       branch: "BKC Mumbai Branch",
@@ -266,7 +266,7 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
         previous_status: "PENDING_APPROVAL",
         new_status: "ACTIVE",
         reason: "Approved by Platform Super Admin",
-        changed_by_email: "superadmin@pay2pay.in",
+        changed_by_email: "superadmin@near4you.store",
         created_date: new Date().toISOString(),
       },
     ],
@@ -362,7 +362,7 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
           </Link>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-[22px] font-extrabold text-[#111827] tracking-tight leading-tight">
+              <h1 className="text-[22px] font-extrabold text-[#FAF8F9] tracking-tight leading-tight">
                 {company.company_name}
               </h1>
               <StatusBadge status={company.status} />
@@ -424,7 +424,7 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
               className={`flex items-center gap-2 px-3.5 py-2 text-[12.5px] font-bold rounded-lg whitespace-nowrap transition-all ${
                 isActive
                   ? "bg-[#123B73] text-white shadow-sm"
-                  : "text-[#374151] hover:text-[#111827] hover:bg-white"
+                  : "text-[#374151] hover:text-[#FAF8F9] hover:bg-white"
               }`}
             >
               <Icon className={`h-4 w-4 ${isActive ? "text-white" : "text-[#6B7280]"}`} />
@@ -439,17 +439,17 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
         {/* Tab 1: Basic & Registration */}
         {activeTab === "basic" && (
           <div className="space-y-6">
-            <h2 className="text-[16px] font-extrabold text-[#111827] border-b border-[#E5E7EB] pb-2.5">
+            <h2 className="text-[16px] font-extrabold text-[#FAF8F9] border-b border-[#E5E7EB] pb-2.5">
               Corporate &amp; Legal Information
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">Legal Name</span>
-                <p className="text-[14px] font-bold text-[#111827] mt-1">{company.legal_name}</p>
+                <p className="text-[14px] font-bold text-[#FAF8F9] mt-1">{company.legal_name}</p>
               </div>
               <div>
                 <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">Display Name</span>
-                <p className="text-[14px] font-bold text-[#111827] mt-1">{company.display_name || "N/A"}</p>
+                <p className="text-[14px] font-bold text-[#FAF8F9] mt-1">{company.display_name || "N/A"}</p>
               </div>
               <div>
                 <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">Company Type</span>
@@ -457,11 +457,11 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
               </div>
               <div>
                 <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">Industry</span>
-                <p className="text-[14px] font-bold text-[#111827] mt-1">{company.industry || "N/A"}</p>
+                <p className="text-[14px] font-bold text-[#FAF8F9] mt-1">{company.industry || "N/A"}</p>
               </div>
               <div>
                 <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">Business Category</span>
-                <p className="text-[14px] font-bold text-[#111827] mt-1">{company.business_category || "N/A"}</p>
+                <p className="text-[14px] font-bold text-[#FAF8F9] mt-1">{company.business_category || "N/A"}</p>
               </div>
               <div>
                 <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">Website</span>
@@ -475,21 +475,21 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
               </div>
             </div>
 
-            <h2 className="text-[16px] font-extrabold text-[#111827] border-b border-[#E5E7EB] pb-2.5 pt-4">
+            <h2 className="text-[16px] font-extrabold text-[#FAF8F9] border-b border-[#E5E7EB] pb-2.5 pt-4">
               Statutory Registration Numbers
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="rounded-xl border border-[#BBF7D0] bg-[#F0FDF4] p-4">
                 <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#15803D]">GST Number</span>
-                <p className="text-[18px] font-mono font-extrabold text-[#111827] mt-1">{company.gst_number || "Not Provided"}</p>
+                <p className="text-[18px] font-mono font-extrabold text-[#FAF8F9] mt-1">{company.gst_number || "Not Provided"}</p>
               </div>
               <div className="rounded-xl border border-[#BFDBFE] bg-[#EFF6FF] p-4">
                 <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#1D4ED8]">PAN Number</span>
-                <p className="text-[18px] font-mono font-extrabold text-[#111827] mt-1">{company.pan_number || "Not Provided"}</p>
+                <p className="text-[18px] font-mono font-extrabold text-[#FAF8F9] mt-1">{company.pan_number || "Not Provided"}</p>
               </div>
               <div className="rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-4">
                 <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#374151]">CIN Number</span>
-                <p className="text-[18px] font-mono font-extrabold text-[#111827] mt-1">{company.cin_number || "Not Provided"}</p>
+                <p className="text-[18px] font-mono font-extrabold text-[#FAF8F9] mt-1">{company.cin_number || "Not Provided"}</p>
               </div>
             </div>
           </div>
@@ -498,22 +498,22 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
         {/* Tab 2: Contact & Address */}
         {activeTab === "contact" && (
           <div className="space-y-6">
-            <h2 className="text-[16px] font-extrabold text-[#111827] border-b border-[#E5E7EB] pb-2.5">
+            <h2 className="text-[16px] font-extrabold text-[#FAF8F9] border-b border-[#E5E7EB] pb-2.5">
               Primary Contact Representative
             </h2>
             {company.contact ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">Primary Contact</span>
-                  <p className="text-[14px] font-bold text-[#111827] mt-1">{company.contact.primary_contact}</p>
+                  <p className="text-[14px] font-bold text-[#FAF8F9] mt-1">{company.contact.primary_contact}</p>
                 </div>
                 <div>
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">Designation</span>
-                  <p className="text-[14px] font-bold text-[#111827] mt-1">{company.contact.designation}</p>
+                  <p className="text-[14px] font-bold text-[#FAF8F9] mt-1">{company.contact.designation}</p>
                 </div>
                 <div>
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">Mobile</span>
-                  <p className="text-[14px] font-mono font-bold text-[#111827] mt-1">{company.contact.mobile}</p>
+                  <p className="text-[14px] font-mono font-bold text-[#FAF8F9] mt-1">{company.contact.mobile}</p>
                 </div>
                 <div>
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">Email</span>
@@ -522,26 +522,26 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
               </div>
             ) : <p className="text-[13px] text-[#6B7280]">No contact details registered.</p>}
 
-            <h2 className="text-[16px] font-extrabold text-[#111827] border-b border-[#E5E7EB] pb-2.5 pt-4">
+            <h2 className="text-[16px] font-extrabold text-[#FAF8F9] border-b border-[#E5E7EB] pb-2.5 pt-4">
               Registered Office Address
             </h2>
             {company.address ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">State / Region</span>
-                  <p className="text-[14px] font-bold text-[#111827] mt-1">{company.address.state}</p>
+                  <p className="text-[14px] font-bold text-[#FAF8F9] mt-1">{company.address.state}</p>
                 </div>
                 <div>
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">City</span>
-                  <p className="text-[14px] font-bold text-[#111827] mt-1">{company.address.city}</p>
+                  <p className="text-[14px] font-bold text-[#FAF8F9] mt-1">{company.address.city}</p>
                 </div>
                 <div>
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">Pincode</span>
-                  <p className="text-[14px] font-mono font-bold text-[#111827] mt-1">{company.address.pincode}</p>
+                  <p className="text-[14px] font-mono font-bold text-[#FAF8F9] mt-1">{company.address.pincode}</p>
                 </div>
                 <div className="md:col-span-3">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">Full Address</span>
-                  <p className="text-[14px] font-semibold text-[#111827] mt-1">{company.address.address}</p>
+                  <p className="text-[14px] font-semibold text-[#FAF8F9] mt-1">{company.address.address}</p>
                 </div>
               </div>
             ) : <p className="text-[13px] text-[#6B7280]">No registered address provided.</p>}
@@ -551,18 +551,18 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
         {/* Tab 3: Banking & Settlement */}
         {activeTab === "banking" && (
           <div className="space-y-6">
-            <h2 className="text-[16px] font-extrabold text-[#111827] border-b border-[#E5E7EB] pb-2.5">
+            <h2 className="text-[16px] font-extrabold text-[#FAF8F9] border-b border-[#E5E7EB] pb-2.5">
               Settlement Bank Account
             </h2>
             {company.bank ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">Settlement Bank</span>
-                  <p className="text-[14px] font-bold text-[#111827] mt-1">{company.bank.settlement_bank_name}</p>
+                  <p className="text-[14px] font-bold text-[#FAF8F9] mt-1">{company.bank.settlement_bank_name}</p>
                 </div>
                 <div>
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">Account Holder</span>
-                  <p className="text-[14px] font-bold text-[#111827] mt-1">{company.bank.account_holder}</p>
+                  <p className="text-[14px] font-bold text-[#FAF8F9] mt-1">{company.bank.account_holder}</p>
                 </div>
                 <div>
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">Account Number</span>
@@ -588,7 +588,7 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
         {/* Tab 4: Subscription */}
         {activeTab === "subscription" && (
           <div className="space-y-6">
-            <h2 className="text-[16px] font-extrabold text-[#111827] border-b border-[#E5E7EB] pb-2.5">
+            <h2 className="text-[16px] font-extrabold text-[#FAF8F9] border-b border-[#E5E7EB] pb-2.5">
               Subscription Tier &amp; Operating Limits
             </h2>
             {company.subscription ? (
@@ -599,11 +599,11 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
                 </div>
                 <div className="rounded-xl border border-[#D9E2EC] bg-[#FAFBFC] p-4">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">Max Retailers Limit</span>
-                  <p className="text-[20px] font-extrabold text-[#111827] mt-1">{company.subscription.maximum_retailers?.toLocaleString()}</p>
+                  <p className="text-[20px] font-extrabold text-[#FAF8F9] mt-1">{company.subscription.maximum_retailers?.toLocaleString()}</p>
                 </div>
                 <div className="rounded-xl border border-[#D9E2EC] bg-[#FAFBFC] p-4">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">Max POS Machines</span>
-                  <p className="text-[20px] font-extrabold text-[#111827] mt-1">{company.subscription.maximum_machines?.toLocaleString()}</p>
+                  <p className="text-[20px] font-extrabold text-[#FAF8F9] mt-1">{company.subscription.maximum_machines?.toLocaleString()}</p>
                 </div>
               </div>
             ) : <p className="text-[13px] text-[#6B7280]">No active subscription plan allocated.</p>}
@@ -613,7 +613,7 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
         {/* Tab 5: Approval Workflow History */}
         {activeTab === "approval" && (
           <div className="space-y-6">
-            <h2 className="text-[16px] font-extrabold text-[#111827] border-b border-[#E5E7EB] pb-2.5">
+            <h2 className="text-[16px] font-extrabold text-[#FAF8F9] border-b border-[#E5E7EB] pb-2.5">
               Audit Trail &amp; Status History Timeline
             </h2>
             <div className="space-y-3">
@@ -622,7 +622,7 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
                   <Activity className="h-5 w-5 text-[#16A34A] mt-0.5 shrink-0" />
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-[#111827] text-[14px]">
+                      <span className="font-bold text-[#FAF8F9] text-[14px]">
                         {h.previous_status} → {h.new_status}
                       </span>
                       <span className="text-xs font-mono font-semibold text-[#6B7280]">
@@ -641,22 +641,22 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
         {/* Tab 6: Company Settings */}
         {activeTab === "settings" && (
           <div className="space-y-6">
-            <h2 className="text-[16px] font-extrabold text-[#111827] border-b border-[#E5E7EB] pb-2.5">
+            <h2 className="text-[16px] font-extrabold text-[#FAF8F9] border-b border-[#E5E7EB] pb-2.5">
               Operational Preferences &amp; Security Settings
             </h2>
             {company.settings ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">Base Currency</span>
-                  <p className="text-[14px] font-bold text-[#111827] mt-1">{company.settings.currency}</p>
+                  <p className="text-[14px] font-bold text-[#FAF8F9] mt-1">{company.settings.currency}</p>
                 </div>
                 <div>
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">Timezone</span>
-                  <p className="text-[14px] font-bold text-[#111827] mt-1">{company.settings.timezone}</p>
+                  <p className="text-[14px] font-bold text-[#FAF8F9] mt-1">{company.settings.timezone}</p>
                 </div>
                 <div>
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">Date Format</span>
-                  <p className="text-[14px] font-mono font-bold text-[#111827] mt-1">{company.settings.date_format}</p>
+                  <p className="text-[14px] font-mono font-bold text-[#FAF8F9] mt-1">{company.settings.date_format}</p>
                 </div>
               </div>
             ) : <p className="text-[13px] text-[#6B7280]">No company settings found.</p>}
@@ -666,7 +666,7 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
         {/* Tab 7: Branding */}
         {activeTab === "branding" && (
           <div className="space-y-6">
-            <h2 className="text-[16px] font-extrabold text-[#111827] border-b border-[#E5E7EB] pb-2.5">
+            <h2 className="text-[16px] font-extrabold text-[#FAF8F9] border-b border-[#E5E7EB] pb-2.5">
               Brand Palette &amp; Customization
             </h2>
             {company.branding ? (
@@ -675,14 +675,14 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
                   <div className="h-10 w-10 rounded-lg border border-[#D9E2EC] shadow-xs" style={{ backgroundColor: company.branding.primary_colour }} />
                   <div>
                     <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">Primary Colour</span>
-                    <p className="text-[14px] font-mono font-bold text-[#111827]">{company.branding.primary_colour}</p>
+                    <p className="text-[14px] font-mono font-bold text-[#FAF8F9]">{company.branding.primary_colour}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-lg border border-[#D9E2EC] shadow-xs" style={{ backgroundColor: company.branding.secondary_colour }} />
                   <div>
                     <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">Secondary Colour</span>
-                    <p className="text-[14px] font-mono font-bold text-[#111827]">{company.branding.secondary_colour}</p>
+                    <p className="text-[14px] font-mono font-bold text-[#FAF8F9]">{company.branding.secondary_colour}</p>
                   </div>
                 </div>
               </div>
@@ -693,7 +693,7 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
         {/* Tab 8: Documents */}
         {activeTab === "documents" && (
           <div className="space-y-6">
-            <h2 className="text-[16px] font-extrabold text-[#111827] border-b border-[#E5E7EB] pb-2.5">
+            <h2 className="text-[16px] font-extrabold text-[#FAF8F9] border-b border-[#E5E7EB] pb-2.5">
               Verification Documents Vault
             </h2>
             {company.documents.length > 0 ? (
@@ -703,7 +703,7 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
                     <div className="flex items-center gap-3">
                       <ShieldCheck className="h-5 w-5 text-[#16A34A]" />
                       <div>
-                        <p className="font-bold text-[#111827] text-[14px]">{d.document_name}</p>
+                        <p className="font-bold text-[#FAF8F9] text-[14px]">{d.document_name}</p>
                         <span className="text-xs font-mono font-semibold text-[#6B7280]">{d.document_type} (v{d.version})</span>
                       </div>
                     </div>

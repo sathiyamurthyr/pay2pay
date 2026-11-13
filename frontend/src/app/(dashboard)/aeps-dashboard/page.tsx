@@ -47,7 +47,7 @@ export default function AepsDashboardPage() {
           <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
             <Fingerprint className="w-7 h-7 text-emerald-400" /> AEPS Banking Telemetry
           </h1>
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-[#625B60] text-sm mt-1">
             Real-time Aadhaar Cash Withdrawals, Biometric Match SLA & RD Service Devices
           </p>
         </div>
@@ -62,11 +62,11 @@ export default function AepsDashboardPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-xl border border-[#E5E7EB] shadow-2xs relative overflow-hidden text-[#111827]">
+        <div className="bg-white p-5 rounded-xl border border-[#E5E7EB] shadow-2xs relative overflow-hidden text-[#FAF8F9]">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[#6B7280] text-xs font-bold uppercase tracking-wider">Cash Withdrawal Volume</p>
-              <h3 className="text-2xl font-extrabold text-[#111827] mt-1">
+              <h3 className="text-2xl font-extrabold text-[#FAF8F9] mt-1">
                 ₹{metrics?.today_volume_amount?.toLocaleString() ?? 0}
               </h3>
               <p className="text-xs text-[#166534] font-bold flex items-center gap-1 mt-2">
@@ -79,7 +79,7 @@ export default function AepsDashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-[#E5E7EB] shadow-2xs relative overflow-hidden text-[#111827]">
+        <div className="bg-white p-5 rounded-xl border border-[#E5E7EB] shadow-2xs relative overflow-hidden text-[#FAF8F9]">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[#6B7280] text-xs font-bold uppercase tracking-wider">Biometric Match Rate</p>
@@ -94,7 +94,7 @@ export default function AepsDashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-[#E5E7EB] shadow-2xs relative overflow-hidden text-[#111827]">
+        <div className="bg-white p-5 rounded-xl border border-[#E5E7EB] shadow-2xs relative overflow-hidden text-[#FAF8F9]">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[#6B7280] text-xs font-bold uppercase tracking-wider">Balance Enquiries</p>
@@ -109,11 +109,11 @@ export default function AepsDashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-[#E5E7EB] shadow-2xs relative overflow-hidden text-[#111827]">
+        <div className="bg-white p-5 rounded-xl border border-[#E5E7EB] shadow-2xs relative overflow-hidden text-[#FAF8F9]">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[#6B7280] text-xs font-bold uppercase tracking-wider">Active RD Devices</p>
-              <h3 className="text-2xl font-extrabold text-[#111827] mt-1">
+              <h3 className="text-2xl font-extrabold text-[#FAF8F9] mt-1">
                 {metrics?.active_devices_count ?? 0}
               </h3>
               <p className="text-xs text-[#6B7280] font-medium mt-2">Mantra, Morpho, Startek</p>
@@ -126,8 +126,8 @@ export default function AepsDashboardPage() {
       </div>
 
       {/* NPCI Bank Switch Matrix */}
-      <div className="bg-white p-6 rounded-xl border border-[#E5E7EB] shadow-2xs space-y-4 text-[#111827]">
-        <h3 className="text-base font-extrabold text-[#111827] flex items-center gap-2">
+      <div className="bg-white p-6 rounded-xl border border-[#E5E7EB] shadow-2xs space-y-4 text-[#FAF8F9]">
+        <h3 className="text-base font-extrabold text-[#FAF8F9] flex items-center gap-2">
           <Building2 className="w-4 h-4 text-[#166534]" /> NPCI Bank IIN Routing Matrix
         </h3>
 
@@ -137,9 +137,9 @@ export default function AepsDashboardPage() {
             { iin: "607152", bank: "ICICI Bank", status: "ONLINE", latency: "0.9s" },
             { iin: "607076", bank: "HDFC Bank", status: "ONLINE", latency: "1.1s" },
           ].map((b, idx) => (
-            <div key={idx} className="p-4 rounded-xl bg-[#FAFBFC] border border-[#E5E7EB] flex justify-between items-center text-[#111827]">
+            <div key={idx} className="p-4 rounded-xl bg-[#FAFBFC] border border-[#E5E7EB] flex justify-between items-center text-[#FAF8F9]">
               <div>
-                <p className="font-extrabold text-[#111827] text-sm">{b.bank}</p>
+                <p className="font-extrabold text-[#FAF8F9] text-sm">{b.bank}</p>
                 <p className="text-xs text-[#6B7280] font-mono font-medium">IIN: {b.iin} | Latency: {b.latency}</p>
               </div>
               <span className="px-2 py-0.5 rounded text-xs font-bold bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]">

@@ -82,10 +82,10 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
       onClick={() => onSelect?.(customer)}
       className={`w-full max-w-[420px] mx-auto h-full flex flex-col justify-between p-5 rounded-[18px] border transition-all cursor-pointer relative space-y-4 ${
         isSelected
-          ? "bg-slate-900 border-[#2563EB] ring-2 ring-blue-500/30 shadow-xl shadow-blue-500/10 text-white"
+          ? "bg-[#FAF8F9] border-[#2563EB] ring-2 ring-blue-500/30 shadow-xl shadow-blue-500/10 text-white"
           : customer.isBlocked
-          ? "bg-slate-900/60 border-slate-800 text-slate-300 opacity-75"
-          : "bg-slate-900/90 border-slate-800 hover:border-slate-700 text-slate-100 shadow-lg hover:-translate-y-1 hover:shadow-2xl"
+          ? "bg-[#FAF8F9]/60 border-[#E8E2E5] text-[#292329] opacity-75"
+          : "bg-[#FAF8F9]/90 border-[#E8E2E5] hover:border-[#E8E2E5] text-[#292329] shadow-lg hover:-translate-y-1 hover:shadow-2xl"
       }`}
     >
       {/* Top Content Section */}
@@ -101,7 +101,7 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
                   src={customer.photoUrl}
                   blurhash={KNOWN_BLURHASHES.AVATAR_USER}
                   alt={customer.name}
-                  className="w-12 h-12 rounded-full overflow-hidden border border-slate-200 dark:border-slate-700 shadow-xs"
+                  className="w-12 h-12 rounded-full overflow-hidden border border-slate-200 dark:border-[#E8E2E5] shadow-xs"
                   imageClassName="w-12 h-12 rounded-full object-cover"
                 />
               ) : (
@@ -145,13 +145,13 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
               </div>
 
               {/* Line 2: Mobile Number */}
-              <p className="text-[14px] sm:text-[15px] font-semibold text-slate-300 font-mono whitespace-nowrap overflow-hidden text-ellipsis">
+              <p className="text-[14px] sm:text-[15px] font-semibold text-[#292329] font-mono whitespace-nowrap overflow-hidden text-ellipsis">
                 {customer.mobile}
               </p>
 
               {/* Line 3: Customer ID + Status Tag Badge */}
               <div className="flex items-center justify-between gap-2 pt-0.5 flex-wrap">
-                <span className="text-[12px] sm:text-[13px] font-mono font-bold text-slate-300 bg-slate-800/80 border border-slate-700/60 px-2 py-0.5 rounded-md inline-block whitespace-nowrap">
+                <span className="text-[12px] sm:text-[13px] font-mono font-bold text-[#292329] bg-[#F5F2F4]/80 border border-[#E8E2E5]/60 px-2 py-0.5 rounded-md inline-block whitespace-nowrap">
                   ID: {customer.id}
                 </span>
 
@@ -191,32 +191,32 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
 
           {/* Verified Aadhaar & PII Details Box */}
           {(customer.aadhaarMasked || customer.fullAddress || customer.dob) && (
-            <div className="p-2.5 rounded-xl bg-blue-950/60 border border-blue-800/60 text-[11px] space-y-1 text-slate-300">
+            <div className="p-2.5 rounded-xl bg-blue-950/60 border border-blue-800/60 text-[11px] space-y-1 text-[#292329]">
               {customer.aadhaarMasked && (
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-400 font-semibold">Masked Aadhaar:</span>
+                  <span className="text-[#625B60] font-semibold">Masked Aadhaar:</span>
                   <span className="font-mono font-bold text-amber-300">{customer.aadhaarMasked}</span>
                 </div>
               )}
               {customer.dob && (
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-400 font-semibold">DOB / Gender:</span>
-                  <span className="font-semibold text-slate-200">{customer.dob} ({customer.gender || 'M'})</span>
+                  <span className="text-[#625B60] font-semibold">DOB / Gender:</span>
+                  <span className="font-semibold text-[#292329]">{customer.dob} ({customer.gender || 'M'})</span>
                 </div>
               )}
               {customer.fullAddress && (
                 <div className="pt-1 border-t border-blue-900/50 mt-1">
-                  <span className="text-slate-400 block font-semibold text-[10px] uppercase tracking-wider">Verified Address</span>
-                  <span className="text-slate-200 font-medium text-[11px] leading-tight block">{customer.fullAddress}</span>
+                  <span className="text-[#625B60] block font-semibold text-[10px] uppercase tracking-wider">Verified Address</span>
+                  <span className="text-[#292329] font-medium text-[11px] leading-tight block">{customer.fullAddress}</span>
                 </div>
               )}
             </div>
           )}
 
           {/* Redesigned Monthly Limit Section */}
-          <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-700/60 space-y-2">
+          <div className="p-3 rounded-xl bg-[#F5F2F4]/60 border border-[#E8E2E5]/60 space-y-2">
             {/* Line 1: Label & Amount */}
-            <div className="flex items-center justify-between text-[12px] font-bold text-slate-300">
+            <div className="flex items-center justify-between text-[12px] font-bold text-[#292329]">
               <span>Monthly Limit</span>
               <span className="font-mono text-white">
                 ₹{customer.monthlyLimitUsed.toLocaleString("en-IN")} / ₹{customer.monthlyLimitTotal.toLocaleString("en-IN")}
@@ -224,7 +224,7 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
             </div>
 
             {/* Line 2: Percentage Usage Indicator */}
-            <div className="flex items-center justify-between text-[12px] font-bold text-slate-500 dark:text-slate-400">
+            <div className="flex items-center justify-between text-[12px] font-bold text-[#8A8288] dark:text-[#625B60]">
               <span>Usage</span>
               <span className={`font-mono font-extrabold px-2 py-0.5 rounded-md text-[11px] ${
                 limitUsagePct > 90
@@ -238,7 +238,7 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
             </div>
 
             {/* Line 3: Progress Bar */}
-            <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+            <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-[#F5F2F4] overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${limitUsagePct}%` }}
@@ -255,16 +255,16 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
           </div>
 
           {/* Last Transaction Indicator */}
-          <div className="flex items-center justify-between text-[12px] font-bold text-slate-500 dark:text-slate-400 pt-0.5">
-            <span>Last Txn: <strong className="text-slate-700 dark:text-slate-300">{customer.lastTxnDate || "Today, 02:45 PM"}</strong></span>
-            <span>Txns: <strong className="text-slate-700 dark:text-slate-300 font-mono">{customer.totalTxns || 12}</strong></span>
+          <div className="flex items-center justify-between text-[12px] font-bold text-[#8A8288] dark:text-[#625B60] pt-0.5">
+            <span>Last Txn: <strong className="text-slate-700 dark:text-[#292329]">{customer.lastTxnDate || "Today, 02:45 PM"}</strong></span>
+            <span>Txns: <strong className="text-slate-700 dark:text-[#292329] font-mono">{customer.totalTxns || 12}</strong></span>
           </div>
 
         </div>
       </div>
 
       {/* Pinned Bottom Actions using flex-direction column & margin-top: auto */}
-      <div className="mt-auto pt-3.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+      <div className="mt-auto pt-3.5 border-t border-slate-100 dark:border-[#E8E2E5] flex items-center justify-between gap-3">
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -283,7 +283,7 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
             onViewProfile?.(customer);
           }}
           aria-label={`View profile of ${customer.name}`}
-          className="h-11 min-h-[44px] px-3.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold text-[12px] transition-colors focus:ring-2 focus:ring-blue-600 focus:outline-none shrink-0"
+          className="h-11 min-h-[44px] px-3.5 rounded-xl bg-slate-100 dark:bg-[#F5F2F4] text-slate-700 dark:text-[#292329] hover:bg-slate-200 dark:hover:bg-slate-700 font-bold text-[12px] transition-colors focus:ring-2 focus:ring-blue-600 focus:outline-none shrink-0"
         >
           View Profile
         </button>
@@ -296,7 +296,7 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
               onToggleMenu?.(customer.id, e);
             }}
             aria-label="More options"
-            className="h-11 min-h-[44px] w-11 min-w-[44px] rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center font-bold text-[12px] transition-colors focus:ring-2 focus:ring-blue-600 focus:outline-none"
+            className="h-11 min-h-[44px] w-11 min-w-[44px] rounded-xl bg-slate-100 dark:bg-[#F5F2F4] text-slate-700 dark:text-[#292329] hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center font-bold text-[12px] transition-colors focus:ring-2 focus:ring-blue-600 focus:outline-none"
           >
             <ChevronDown className={`w-4 h-4 transition-transform ${isMenuOpen ? "rotate-180" : ""}`} />
           </button>

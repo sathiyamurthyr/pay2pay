@@ -26,7 +26,7 @@ export const WizardHeader: React.FC<WizardHeaderProps> = ({
         zIndex: 1100,
         height: 68,
         px: 3,
-        bgcolor: "rgba(15, 23, 42, 0.95)",
+        bgcolor: "#FFFFFF",
         backdropFilter: "blur(24px)",
         borderBottom: "1px solid rgba(255, 255, 255, 0.12)",
         display: "flex",
@@ -67,10 +67,10 @@ export const WizardHeader: React.FC<WizardHeaderProps> = ({
         />
 
         <Chip
-          icon={<AccountBalanceWalletIcon sx={{ "&&": { color: "#FBBF24", fontSize: 14 } }} />}
+          icon={<AccountBalanceWalletIcon sx={{ "&&": { color: "#A20A3A", fontSize: 14 } }} />}
           label={`₹${walletBalance.toLocaleString()}`}
           size="small"
-          sx={{ bgcolor: "rgba(251, 191, 36, 0.15)", color: "#FBBF24", fontWeight: 900, fontSize: "12px", height: 26 }}
+          sx={{ bgcolor: "rgba(251, 191, 36, 0.15)", color: "#A20A3A", fontWeight: 900, fontSize: "12px", height: 26 }}
         />
 
         <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", display: { xs: "none", lg: "flex" } }}>

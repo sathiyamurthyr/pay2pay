@@ -257,14 +257,14 @@ export const SwipeMachineSettlementReport: React.FC = () => {
   };
 
   return (
-    <Box sx={{ backgroundColor: "#08111F", color: "#F8FAFC", minHeight: "100vh", p: { xs: 2.5, md: 4 }, fontFamily: "'Inter', 'Source Sans 3', 'IBM Plex Sans', sans-serif" }}>
+    <Box sx={{ backgroundColor: "#FFFFFF", color: "#292329", minHeight: "100vh", p: { xs: 2.5, md: 4 }, fontFamily: "'Inter', 'Source Sans 3', 'IBM Plex Sans', sans-serif" }}>
       {/* 1. HEADER */}
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4, flexWrap: "wrap", gap: 2 }}>
         <Box>
           <Typography variant="h2" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "28px" }}>
             Swipe Machine Settlement Report
           </Typography>
-          <Typography variant="body1" sx={{ color: "#CBD5E1", fontSize: "16px", mt: 0.5, fontWeight: 500 }}>
+          <Typography variant="body1" sx={{ color: "#625B60", fontSize: "16px", mt: 0.5, fontWeight: 500 }}>
             Track POS settlements, MDR deductions and bank credits.
           </Typography>
         </Box>
@@ -295,13 +295,13 @@ export const SwipeMachineSettlementReport: React.FC = () => {
           { label: "Today's Settlement", value: `₹${summary.todays_settlement.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`, color: "#4ADE80" },
           { label: "Today's Transactions", value: summary.todays_transactions, color: "#60A5FA" },
           { label: "Total Settlement Amount", value: `₹${summary.total_settlement_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`, color: "#38BDF8" },
-          { label: "Pending Settlement", value: `₹${summary.pending_settlement.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`, color: "#FBBF24" },
+          { label: "Pending Settlement", value: `₹${summary.pending_settlement.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`, color: "#A20A3A" },
           { label: "Failed Settlement", value: `₹${summary.failed_settlement.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`, color: "#F87171" },
           { label: "This Month Settlement", value: `₹${summary.this_month_settlement.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`, color: "#C084FC" }
         ].map((k) => (
           <Grid size={{ xs: 12, sm: 6, md: 2 }} key={k.label}>
-            <Paper elevation={0} sx={{ p: 3, borderRadius: 3.5, backgroundColor: "rgba(15, 23, 42, 0.85)", border: "1px solid rgba(255, 255, 255, 0.14)", borderLeft: `6px solid ${k.color}` }}>
-              <Typography variant="subtitle1" sx={{ color: "#E2E8F0", fontWeight: 700, fontSize: "18px" }}>{k.label}</Typography>
+            <Paper elevation={0} sx={{ p: 3, borderRadius: 3.5, backgroundColor: "#FFFFFF", border: "1px solid rgba(255, 255, 255, 0.14)", borderLeft: `6px solid ${k.color}` }}>
+              <Typography variant="subtitle1" sx={{ color: "#292329", fontWeight: 700, fontSize: "18px" }}>{k.label}</Typography>
               <Typography variant="h1" sx={{ fontWeight: 800, color: "#FFFFFF", mt: 1, fontSize: "36px" }}>{k.value}</Typography>
             </Paper>
           </Grid>
@@ -309,7 +309,7 @@ export const SwipeMachineSettlementReport: React.FC = () => {
       </Grid>
 
       {/* 3. FILTER CONSOLE */}
-      <Paper elevation={0} sx={{ p: 3.5, mb: 4, borderRadius: 3.5, backgroundColor: "rgba(15, 23, 42, 0.85)", border: "1px solid rgba(255, 255, 255, 0.14)" }}>
+      <Paper elevation={0} sx={{ p: 3.5, mb: 4, borderRadius: 3.5, backgroundColor: "#FFFFFF", border: "1px solid rgba(255, 255, 255, 0.14)" }}>
         <Typography variant="h3" sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "22px", mb: 3 }}>
           Search & Filter POS Settlements
         </Typography>
@@ -423,7 +423,7 @@ export const SwipeMachineSettlementReport: React.FC = () => {
       </Paper>
 
       {/* 4. GRID TABLE */}
-      <Paper elevation={0} sx={{ borderRadius: 3.5, backgroundColor: "rgba(15, 23, 42, 0.85)", border: "1px solid rgba(255, 255, 255, 0.14)", overflow: "hidden" }}>
+      <Paper elevation={0} sx={{ borderRadius: 3.5, backgroundColor: "#FFFFFF", border: "1px solid rgba(255, 255, 255, 0.14)", overflow: "hidden" }}>
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", p: 8 }}>
             <CircularProgress size={48} sx={{ color: "#60A5FA" }} />
@@ -433,7 +433,7 @@ export const SwipeMachineSettlementReport: React.FC = () => {
             <TableContainer sx={{ maxHeight: 600 }}>
               <Table stickyHeader size="medium">
                 <TableHead>
-                  <TableRow sx={{ "& th": { backgroundColor: "#0F172A", color: "#FFFFFF", fontWeight: 800, fontSize: "16px", py: 2 } }}>
+                  <TableRow sx={{ "& th": { backgroundColor: "#FFFFFF", color: "#FFFFFF", fontWeight: 800, fontSize: "16px", py: 2 } }}>
                     <TableCell align="center">S.No</TableCell>
                     <TableCell>Date</TableCell>
                     <TableCell>Settlement ID</TableCell>
@@ -450,21 +450,21 @@ export const SwipeMachineSettlementReport: React.FC = () => {
                 </TableHead>
                 <TableBody>
                   {items.map((row) => (
-                    <TableRow key={row.settlement_id} hover sx={{ "& td": { borderColor: "rgba(255,255,255,0.08)", color: "#E2E8F0", fontSize: "16px", fontWeight: 500, py: 2 } }}>
+                    <TableRow key={row.settlement_id} hover sx={{ "& td": { borderColor: "#E8E2E5", color: "#292329", fontSize: "16px", fontWeight: 500, py: 2 } }}>
                       <TableCell align="center">{row.s_no}</TableCell>
-                      <TableCell sx={{ color: "#CBD5E1" }}>{row.settlement_date}</TableCell>
+                      <TableCell sx={{ color: "#625B60" }}>{row.settlement_date}</TableCell>
                       <TableCell sx={{ fontWeight: 800, color: "#60A5FA", fontFamily: "monospace" }}>{row.settlement_number}</TableCell>
                       <TableCell>
                         <Typography variant="body1" sx={{ fontWeight: 700, fontSize: "16px", color: "#FFFFFF" }}>{row.terminal_id}</Typography>
-                        <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "14px" }}>{row.merchant_id}</Typography>
+                        <Typography variant="caption" sx={{ color: "#625B60", fontSize: "14px" }}>{row.merchant_id}</Typography>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body1" sx={{ fontWeight: 700, fontSize: "16px", color: "#FFFFFF" }}>{row.card_type} ({row.card_network})</Typography>
-                        <Typography variant="caption" sx={{ color: "#CBD5E1", fontFamily: "monospace", fontSize: "14px" }}>{row.masked_card_number}</Typography>
+                        <Typography variant="caption" sx={{ color: "#625B60", fontFamily: "monospace", fontSize: "14px" }}>{row.masked_card_number}</Typography>
                       </TableCell>
                       <TableCell align="right" sx={{ fontWeight: 800, color: "#FFFFFF" }}>₹{row.transaction_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</TableCell>
                       <TableCell align="right" sx={{ color: "#F87171" }}>-₹{row.mdr_charge.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</TableCell>
-                      <TableCell align="right" sx={{ color: "#FBBF24" }}>-₹{row.gst_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell align="right" sx={{ color: "#A20A3A" }}>-₹{row.gst_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</TableCell>
                       <TableCell align="right" sx={{ fontWeight: 800, color: "#4ADE80" }}>₹{row.net_settlement_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</TableCell>
                       <TableCell>
                         <Typography variant="body1" sx={{ fontSize: "16px", color: "#FFFFFF" }}>{row.bank_name}</Typography>
@@ -483,7 +483,7 @@ export const SwipeMachineSettlementReport: React.FC = () => {
             </TableContainer>
 
             {/* FOOTER TOTALS */}
-            <Box sx={{ p: 3, backgroundColor: "#0B1528", borderTop: "1px solid rgba(255,255,255,0.14)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2 }}>
+            <Box sx={{ p: 3, backgroundColor: "#FFFFFF", borderTop: "1px solid rgba(255,255,255,0.14)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2 }}>
               <Typography variant="body1" sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "16px" }}>
                 Total Records: {totalRecords} | Gross Vol: ₹{footerTotals.gross_transaction_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </Typography>
@@ -502,7 +502,7 @@ export const SwipeMachineSettlementReport: React.FC = () => {
       {/* 5. SIDE DRAWER DETAILS */}
       <Drawer anchor="right" open={Boolean(selectedSettlement)} onClose={() => setSelectedSettlement(null)}>
         {selectedSettlement && (
-          <Box sx={{ width: { xs: "100vw", sm: 480 }, p: 4, backgroundColor: "#0F172A", color: "#FFFFFF", height: "100%", overflowY: "auto" }}>
+          <Box sx={{ width: { xs: "100vw", sm: 480 }, p: 4, backgroundColor: "#FFFFFF", color: "#FFFFFF", height: "100%", overflowY: "auto" }}>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
               <Typography variant="h3" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "22px" }}>Settlement Breakdown</Typography>
               <IconButton onClick={() => setSelectedSettlement(null)} sx={{ color: "#FFFFFF" }}>
@@ -513,24 +513,24 @@ export const SwipeMachineSettlementReport: React.FC = () => {
 
             <Paper sx={{ p: 3, backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 3, mb: 3 }}>
               <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "18px", mb: 1 }}>Terminal Info</Typography>
-              <Typography variant="body1" sx={{ fontSize: "16px", color: "#CBD5E1" }}>Settlement ID: <strong>{selectedSettlement.settlement_number}</strong></Typography>
-              <Typography variant="body1" sx={{ fontSize: "16px", color: "#CBD5E1", mt: 0.5 }}>TID: <strong>{selectedSettlement.terminal_id}</strong></Typography>
-              <Typography variant="body1" sx={{ fontSize: "16px", color: "#CBD5E1", mt: 0.5 }}>MID: <strong>{selectedSettlement.merchant_id}</strong></Typography>
+              <Typography variant="body1" sx={{ fontSize: "16px", color: "#625B60" }}>Settlement ID: <strong>{selectedSettlement.settlement_number}</strong></Typography>
+              <Typography variant="body1" sx={{ fontSize: "16px", color: "#625B60", mt: 0.5 }}>TID: <strong>{selectedSettlement.terminal_id}</strong></Typography>
+              <Typography variant="body1" sx={{ fontSize: "16px", color: "#625B60", mt: 0.5 }}>MID: <strong>{selectedSettlement.merchant_id}</strong></Typography>
             </Paper>
 
             <Paper sx={{ p: 3, backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 3, mb: 3 }}>
               <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "18px", mb: 1 }}>Financial Deduction Ledger</Typography>
               <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1 }}>
-                <Typography variant="body1" sx={{ fontSize: "16px", color: "#CBD5E1" }}>Gross Amount:</Typography>
+                <Typography variant="body1" sx={{ fontSize: "16px", color: "#625B60" }}>Gross Amount:</Typography>
                 <Typography variant="body1" sx={{ fontSize: "18px", fontWeight: 800, color: "#FFFFFF" }}>₹{selectedSettlement.transaction_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Typography>
               </Box>
               <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1 }}>
-                <Typography variant="body1" sx={{ fontSize: "16px", color: "#CBD5E1" }}>MDR Charge:</Typography>
+                <Typography variant="body1" sx={{ fontSize: "16px", color: "#625B60" }}>MDR Charge:</Typography>
                 <Typography variant="body1" sx={{ fontSize: "16px", fontWeight: 700, color: "#F87171" }}>-₹{selectedSettlement.mdr_charge.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Typography>
               </Box>
               <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1 }}>
-                <Typography variant="body1" sx={{ fontSize: "16px", color: "#CBD5E1" }}>GST (18%):</Typography>
-                <Typography variant="body1" sx={{ fontSize: "16px", fontWeight: 700, color: "#FBBF24" }}>-₹{selectedSettlement.gst_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Typography>
+                <Typography variant="body1" sx={{ fontSize: "16px", color: "#625B60" }}>GST (18%):</Typography>
+                <Typography variant="body1" sx={{ fontSize: "16px", fontWeight: 700, color: "#A20A3A" }}>-₹{selectedSettlement.gst_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Typography>
               </Box>
               <Divider sx={{ borderColor: "rgba(255,255,255,0.14)", my: 1.5 }} />
               <Box sx={{ display: "flex", justifyContent: "space-between" }}>

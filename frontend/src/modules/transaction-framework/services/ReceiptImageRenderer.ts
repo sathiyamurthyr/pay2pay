@@ -54,14 +54,14 @@ function drawQrCodeOnCanvas(
   ctx.lineWidth = 2;
   ctx.strokeRect(x, y, size, size);
 
-  ctx.fillStyle = "#0F172A";
+  ctx.fillStyle = "#FFFFFF";
 
   // Helper for drawing 7x7 finder patterns
   const drawFinder = (fx: number, fy: number) => {
     ctx.fillRect(x + fx * cellSize, y + fy * cellSize, 7 * cellSize, 7 * cellSize);
     ctx.fillStyle = "#FFFFFF";
     ctx.fillRect(x + (fx + 1) * cellSize, y + (fy + 1) * cellSize, 5 * cellSize, 5 * cellSize);
-    ctx.fillStyle = "#0F172A";
+    ctx.fillStyle = "#FFFFFF";
     ctx.fillRect(x + (fx + 2) * cellSize, y + (fy + 2) * cellSize, 3 * cellSize, 3 * cellSize);
   };
 
@@ -114,14 +114,14 @@ function drawQrCodeOnCanvas(
 }
 
 /**
- * Draws the official Pay2Pay Emblem / Shield Logo
+ * Draws the official Near4You Emblem / Shield Logo
  */
 function drawPay2PayLogo(ctx: CanvasRenderingContext2D, x: number, y: number, size: number) {
   ctx.save();
   // Shield Background with gradient
   const grad = ctx.createLinearGradient(x, y, x + size, y + size);
-  grad.addColorStop(0, "#2563EB");
-  grad.addColorStop(1, "#1D4ED8");
+  grad.addColorStop(0, "#A20A3A");
+  grad.addColorStop(1, "#85072F");
 
   ctx.fillStyle = grad;
   ctx.beginPath();
@@ -133,15 +133,15 @@ function drawPay2PayLogo(ctx: CanvasRenderingContext2D, x: number, y: number, si
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  // Stylized P2P Text
+  // Stylized N4U Text
   ctx.fillStyle = "#FFFFFF";
   ctx.font = `900 ${Math.round(size * 0.42)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("P2P", x + size / 2, y + size / 2 + 1);
+  ctx.fillText("N4U", x + size / 2, y + size / 2 + 1);
 
   // Small Gold Sparkle in top-right
-  ctx.fillStyle = "#FBBF24";
+  ctx.fillStyle = "#EDC11E";
   ctx.beginPath();
   ctx.arc(x + size - 8, y + 8, 4, 0, Math.PI * 2);
   ctx.fill();
@@ -180,7 +180,7 @@ export function renderReceiptToCanvas(
 
   ctx.save();
   ctx.fillStyle = "#FFFFFF";
-  ctx.shadowColor = "rgba(15, 23, 42, 0.1)";
+  ctx.shadowColor = "#FFFFFF";
   ctx.shadowBlur = 24;
   ctx.shadowOffsetY = 8;
   ctx.beginPath();
@@ -204,9 +204,9 @@ export function renderReceiptToCanvas(
   // Brand Name & Company Name
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
-  ctx.fillStyle = "#0F172A";
+  ctx.fillStyle = "#FFFFFF";
   ctx.font = `900 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-  ctx.fillText("Pay2Pay Enterprise", logoX + logoSize + 14, logoY);
+  ctx.fillText("Near4You Enterprise", logoX + logoSize + 14, logoY);
 
   ctx.fillStyle = "#334155";
   ctx.font = `800 12.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
@@ -261,7 +261,7 @@ export function renderReceiptToCanvas(
 
   // Hero Amount
   curY += badgeH + 16;
-  ctx.fillStyle = "#0F172A";
+  ctx.fillStyle = "#FFFFFF";
   ctx.font = `900 32px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
   ctx.textAlign = "center";
   ctx.fillText(
@@ -296,7 +296,7 @@ export function renderReceiptToCanvas(
     ctx.font = `600 10.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
     ctx.fillText(label, x, y);
 
-    ctx.fillStyle = "#0F172A";
+    ctx.fillStyle = "#FFFFFF";
     ctx.font = isMono
       ? `700 11px "Courier New", Courier, monospace`
       : `800 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
@@ -337,7 +337,7 @@ export function renderReceiptToCanvas(
   ctx.textAlign = "left";
   ctx.fillText("RETAILER / SENDER DETAILS", col1X, partyBoxY + 12);
 
-  ctx.fillStyle = "#0F172A";
+  ctx.fillStyle = "#FFFFFF";
   ctx.font = `800 12.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
   ctx.fillText(data.retailerName || "Authorized Retailer", col1X, partyBoxY + 30);
 
@@ -350,7 +350,7 @@ export function renderReceiptToCanvas(
   ctx.font = `800 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
   ctx.fillText("BENEFICIARY ACCOUNT DETAILS", col1X, partyBoxY + 70);
 
-  ctx.fillStyle = "#0F172A";
+  ctx.fillStyle = "#FFFFFF";
   ctx.font = `800 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
   ctx.fillText(data.beneficiaryName || "Beneficiary Customer", col1X, partyBoxY + 88);
 
@@ -362,7 +362,7 @@ export function renderReceiptToCanvas(
     partyBoxY + 104
   );
 
-  ctx.fillStyle = "#0F172A";
+  ctx.fillStyle = "#FFFFFF";
   ctx.font = `800 12px "Courier New", Courier, monospace`;
   ctx.fillText(`A/C: ${data.beneficiaryAccount || "0630104000156974"}`, col1X, partyBoxY + 122);
 
@@ -433,14 +433,14 @@ export function renderReceiptToCanvas(
 
   // QR Label text
   ctx.textAlign = "left";
-  ctx.fillStyle = "#0F172A";
+  ctx.fillStyle = "#FFFFFF";
   ctx.font = `800 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
   ctx.fillText("Scan to Verify Online Receipt", qrX + qrSize + 16, qrY + 18);
 
   ctx.fillStyle = "#2563EB";
   ctx.font = `700 10.5px "Courier New", Courier, monospace`;
   ctx.fillText(
-    data.publicShareUrl || `https://receipt.pay2pay.in/r/${data.receiptToken}`,
+    data.publicShareUrl || `https://receipt.near4you.store/r/${data.receiptToken}`,
     qrX + qrSize + 16,
     qrY + 36
   );
@@ -568,7 +568,7 @@ export async function shareReceiptAsImage(
     await downloadReceiptImage(data);
 
     if (targetApp === "whatsapp") {
-      const shareUrl = data.publicShareUrl || `https://receipt.pay2pay.in/r/${data.receiptToken}`;
+      const shareUrl = data.publicShareUrl || `https://receipt.near4you.store/r/${data.receiptToken}`;
       const msg = encodeURIComponent(
         `*${data.companyName || "Transaction"} Receipt*\nAmount: ₹${data.amount}\nBeneficiary: ${data.beneficiaryName}\nUTR: ${data.utr}\nView Online: ${shareUrl}`
       );
@@ -581,7 +581,7 @@ export async function shareReceiptAsImage(
     }
 
     if (targetApp === "telegram") {
-      const shareUrl = data.publicShareUrl || `https://receipt.pay2pay.in/r/${data.receiptToken}`;
+      const shareUrl = data.publicShareUrl || `https://receipt.near4you.store/r/${data.receiptToken}`;
       const msg = encodeURIComponent(
         `${data.companyName || "Transaction"} Receipt: ₹${data.amount} to ${data.beneficiaryName} (UTR: ${data.utr})`
       );

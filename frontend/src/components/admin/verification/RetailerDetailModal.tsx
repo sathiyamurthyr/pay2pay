@@ -88,7 +88,7 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-[#FAF8F9]/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
       <div className="relative w-full max-w-4xl bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Modal Top Bar */}
@@ -110,13 +110,13 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
                   {verif.verification_status}
                 </span>
               </h2>
-              <p className="text-xs font-semibold text-slate-500">
+              <p className="text-xs font-semibold text-[#8A8288]">
                 Reg ID: <span className="text-blue-600 font-mono font-bold">{verif.registration_id}</span> · Mobile: <span className="text-slate-800 font-bold">+91 {verif.mobile_number}</span>
               </p>
             </div>
           </div>
 
-          <button onClick={onClose} className="p-2 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 transition-colors">
+          <button onClick={onClose} className="p-2 rounded-2xl bg-slate-100 hover:bg-slate-200 text-[#8A8288] hover:text-slate-900 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -147,7 +147,7 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
             </button>
           </div>
 
-          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-[#8A8288]">
             <span>Risk Score:</span>
             <span className="px-2.5 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono font-black">{verif.risk_score}/100 ({verif.risk_category})</span>
           </div>
@@ -159,7 +159,7 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
           {/* Grid 1: Verification Checks Checklist */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
-              <p className="text-[10px] font-bold text-slate-500 uppercase">PAN Check</p>
+              <p className="text-[10px] font-bold text-[#8A8288] uppercase">PAN Check</p>
               <p className="font-black text-slate-900">{verifSummary.pan?.number || "N/A"}</p>
               <p className="text-[10px] text-emerald-700 font-extrabold flex items-center gap-1">
                 <CheckCircle2 className="w-3 h-3 text-emerald-600" /> NSDL VERIFIED
@@ -167,7 +167,7 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
             </div>
 
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
-              <p className="text-[10px] font-bold text-slate-500 uppercase">GSTIN Check</p>
+              <p className="text-[10px] font-bold text-[#8A8288] uppercase">GSTIN Check</p>
               <p className="font-black text-slate-900">{verifSummary.gst?.number || "N/A"}</p>
               <p className="text-[10px] text-purple-700 font-extrabold flex items-center gap-1">
                 <CheckCircle2 className="w-3 h-3 text-purple-600" /> {verif.is_business ? "GST VERIFIED" : "SKIPPED"}
@@ -175,7 +175,7 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
             </div>
 
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
-              <p className="text-[10px] font-bold text-slate-500 uppercase">Aadhaar eKYC</p>
+              <p className="text-[10px] font-bold text-[#8A8288] uppercase">Aadhaar eKYC</p>
               <p className="font-black text-slate-900">UIDAI OTP</p>
               <p className="text-[10px] text-emerald-700 font-extrabold flex items-center gap-1">
                 <CheckCircle2 className="w-3 h-3 text-emerald-600" /> AUTH SUCCESS
@@ -183,7 +183,7 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
             </div>
 
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
-              <p className="text-[10px] font-bold text-slate-500 uppercase">Bank Sync</p>
+              <p className="text-[10px] font-bold text-[#8A8288] uppercase">Bank Sync</p>
               <p className="font-black text-slate-900">{verifSummary.bank?.ifsc || "HDFC0001234"}</p>
               <p className="text-[10px] text-emerald-700 font-extrabold flex items-center gap-1">
                 <CheckCircle2 className="w-3 h-3 text-emerald-600" /> PENNY DROP OK
@@ -207,7 +207,7 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
                 <MapPin className="w-4 h-4 text-blue-600" /> Location & Address
               </h3>
               <p className="font-extrabold text-slate-900">{addr.street}, {addr.city}, {addr.state} - {addr.pincode}</p>
-              <p className="text-slate-500 font-mono text-[11px]">
+              <p className="text-[#8A8288] font-mono text-[11px]">
                 GPS: {addr.latitude}°N, {addr.longitude}°E
               </p>
             </div>
@@ -249,9 +249,9 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
                         {isPdf ? "PDF" : isVid ? "MP4" : "IMG"}
                       </span>
                     </div>
-                    <div className="aspect-video rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 overflow-hidden relative border border-slate-200">
+                    <div className="aspect-video rounded-xl bg-slate-100 flex items-center justify-center text-[#8A8288] overflow-hidden relative border border-slate-200">
                       {isVid ? (
-                        <div className="relative w-full h-full flex items-center justify-center bg-slate-900">
+                        <div className="relative w-full h-full flex items-center justify-center bg-[#FAF8F9]">
                           <video src={doc.url} muted preload="metadata" className="w-full h-full object-cover opacity-70" />
                           <div className="absolute inset-0 flex items-center justify-center">
                             <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
@@ -260,7 +260,7 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
                           </div>
                         </div>
                       ) : isPdf ? (
-                        <div className="flex flex-col items-center justify-center gap-1 text-slate-500">
+                        <div className="flex flex-col items-center justify-center gap-1 text-[#8A8288]">
                           <FileText className="w-6 h-6 text-rose-500" />
                           <span className="text-[10px] font-bold text-slate-600">PDF Document</span>
                         </div>
@@ -273,7 +273,7 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
                           imageClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                       )}
-                      <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white font-black text-[10px] backdrop-blur-[1px] transition-opacity">
+                      <div className="absolute inset-0 bg-[#FAF8F9]/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white font-black text-[10px] backdrop-blur-[1px] transition-opacity">
                         Click to Inspect
                       </div>
                     </div>
@@ -290,15 +290,15 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
             </h3>
             <div className="space-y-2">
               {history.length === 0 ? (
-                <p className="text-slate-400 italic">No previous status changes recorded.</p>
+                <p className="text-[#625B60] italic">No previous status changes recorded.</p>
               ) : (
                 history.map((h: any, idx: number) => (
                   <div key={idx} className="p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between text-slate-700">
                     <div>
                       <span className="font-bold text-slate-900">{h.previous_status} → {h.new_status}</span>
-                      <p className="text-[11px] text-slate-500">Remarks: "{h.remarks}"</p>
+                      <p className="text-[11px] text-[#8A8288]">Remarks: "{h.remarks}"</p>
                     </div>
-                    <span className="text-[10px] text-slate-400 font-mono">{h.timestamp}</span>
+                    <span className="text-[10px] text-[#625B60] font-mono">{h.timestamp}</span>
                   </div>
                 ))
               )}
@@ -311,13 +311,13 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
 
       {/* Action Decision Mandatory Remarks Modal */}
       {actionType && (
-        <div className="fixed inset-0 z-60 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-60 bg-[#FAF8F9]/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
                 Confirm Decision: <span className="text-blue-600">{actionType}</span>
               </h3>
-              <button onClick={() => setActionType(null)} className="text-slate-400 hover:text-slate-700">
+              <button onClick={() => setActionType(null)} className="text-[#625B60] hover:text-slate-700">
                 <X className="w-5 h-5" />
               </button>
             </div>

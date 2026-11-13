@@ -113,7 +113,7 @@ const DEFAULT_AUDIT_LOGS: AuditLog[] = [
     action: "ROTATE_SECRET",
     key_name: "JWT_SECRET_KEY",
     masked_value: "p2p_jwt_live_••••••••••••9812",
-    actor: "Platform Super Admin (superadmin@pay2pay.in)",
+    actor: "Platform Super Admin (superadmin@near4you.store)",
     timestamp: "2026-07-28T14:30:00Z",
     status: "SUCCESS",
   },
@@ -131,7 +131,7 @@ const DEFAULT_AUDIT_LOGS: AuditLog[] = [
     action: "CACHE_FLUSH",
     key_name: "AES_ENCRYPTION_KEY",
     masked_value: "aes_256_gcm_••••••••••••4481",
-    actor: "Platform Super Admin (superadmin@pay2pay.in)",
+    actor: "Platform Super Admin (superadmin@near4you.store)",
     timestamp: "2026-07-15T09:15:00Z",
     status: "SUCCESS",
   },
@@ -262,7 +262,7 @@ export default function SecretsManagementPage() {
       action: "ROTATE_SECRET",
       key_name: rotateKey,
       masked_value: maskedNew,
-      actor: "Platform Super Admin (superadmin@pay2pay.in)",
+      actor: "Platform Super Admin (superadmin@near4you.store)",
       timestamp: new Date().toISOString(),
       status: "SUCCESS",
     };
@@ -301,7 +301,7 @@ export default function SecretsManagementPage() {
       cell: (s) => (
         <div className="flex items-center gap-2">
           <Key className="w-4 h-4 text-[#2563EB] shrink-0" />
-          <span className="font-mono font-extrabold text-[#0F172A] text-xs">{s.key_name}</span>
+          <span className="font-mono font-extrabold text-[#FFFFFF] text-xs">{s.key_name}</span>
         </div>
       ),
     },
@@ -388,7 +388,7 @@ export default function SecretsManagementPage() {
       header: "TARGET SECRET KEY",
       accessorKey: "key_name",
       sortable: true,
-      cell: (a) => <span className="font-mono text-xs font-bold text-[#0F172A]">{a.key_name}</span>,
+      cell: (a) => <span className="font-mono text-xs font-bold text-[#FFFFFF]">{a.key_name}</span>,
     },
     {
       id: "masked_value",
@@ -421,7 +421,7 @@ export default function SecretsManagementPage() {
       {/* Title Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#0F172A] flex items-center gap-3">
+          <h1 className="text-2xl font-extrabold text-[#FFFFFF] flex items-center gap-3">
             <ShieldCheck className="h-7 w-7 text-[#2563EB]" />
             Bitwarden Secrets Management Platform
           </h1>
@@ -438,7 +438,7 @@ export default function SecretsManagementPage() {
             <select
               value={currentUserRole}
               onChange={(e) => handleSwitchRole(e.target.value)}
-              className="rounded-xl bg-[#F8FAFC] border border-[#CBD5E1] px-3 py-1 font-mono font-extrabold text-xs text-[#0F172A] focus:outline-none cursor-pointer"
+              className="rounded-xl bg-[#F8FAFC] border border-[#CBD5E1] px-3 py-1 font-mono font-extrabold text-xs text-[#FFFFFF] focus:outline-none cursor-pointer"
             >
               <option value="SUPER_ADMIN">👑 SUPER_ADMIN (Allowed)</option>
               <option value="OPERATIONS_ADMIN">👤 OPERATIONS_ADMIN (Restricted)</option>
@@ -481,7 +481,7 @@ export default function SecretsManagementPage() {
             <span className="px-3 py-1 rounded-full bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] font-mono text-xs font-extrabold tracking-wider uppercase inline-block">
               403 Forbidden — Level 5 Clearance Required
             </span>
-            <h2 className="text-2xl font-extrabold text-[#0F172A] tracking-tight">
+            <h2 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight">
               Super Admin Authorization Required
             </h2>
             <p className="text-xs text-[#7F1D1D] font-medium leading-relaxed">
@@ -555,7 +555,7 @@ export default function SecretsManagementPage() {
                   <CheckCircle2 className="w-5 h-5 text-[#16A34A]" /> UNLOCKED
                 </div>
                 <p className="text-xs text-[#64748B] font-semibold">
-                  App Env: <strong className="text-[#0F172A]">PRODUCTION</strong>
+                  App Env: <strong className="text-[#FFFFFF]">PRODUCTION</strong>
                 </p>
               </div>
 
@@ -592,7 +592,7 @@ export default function SecretsManagementPage() {
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <Key className="w-5 h-5 text-[#2563EB]" />
-              <h2 className="text-base font-extrabold text-[#0F172A]">Centralized Vault Secrets Inventory</h2>
+              <h2 className="text-base font-extrabold text-[#FFFFFF]">Centralized Vault Secrets Inventory</h2>
             </div>
 
             <DataTable
@@ -612,7 +612,7 @@ export default function SecretsManagementPage() {
           <div className="space-y-3 pt-4">
             <div className="flex items-center gap-2">
               <EyeOff className="w-5 h-5 text-[#16A34A]" />
-              <h2 className="text-base font-extrabold text-[#0F172A]">Masked Secret Audit Trail Log</h2>
+              <h2 className="text-base font-extrabold text-[#FFFFFF]">Masked Secret Audit Trail Log</h2>
             </div>
 
             <DataTable
@@ -630,13 +630,13 @@ export default function SecretsManagementPage() {
 
       {/* Rotation Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FAF8F9]/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="w-full max-w-md rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xl space-y-4 my-8">
             <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-4">
-              <h2 className="text-lg font-bold text-[#0F172A] flex items-center gap-2">
+              <h2 className="text-lg font-bold text-[#FFFFFF] flex items-center gap-2">
                 <RotateCcw className="h-5 w-5 text-[#2563EB]" /> Rotate Secret Key
               </h2>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+              <button onClick={() => setShowModal(false)} className="text-[#625B60] hover:text-slate-600 cursor-pointer">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -651,7 +651,7 @@ export default function SecretsManagementPage() {
                 <select
                   value={rotateKey}
                   onChange={(e) => setRotateKey(e.target.value)}
-                  className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 font-mono text-[#0F172A] focus:border-[#2563EB] focus:outline-none cursor-pointer"
+                  className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 font-mono text-[#FFFFFF] focus:border-[#2563EB] focus:outline-none cursor-pointer"
                 >
                   {secrets.map((s) => (
                     <option key={s.key_name} value={s.key_name}>
@@ -669,7 +669,7 @@ export default function SecretsManagementPage() {
                   placeholder="Enter new secret key value..."
                   value={newValue}
                   onChange={(e) => setNewValue(e.target.value)}
-                  className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 font-mono text-[#0F172A] focus:border-[#2563EB] focus:outline-none text-[11px]"
+                  className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 font-mono text-[#FFFFFF] focus:border-[#2563EB] focus:outline-none text-[11px]"
                 />
               </div>
 
@@ -680,7 +680,7 @@ export default function SecretsManagementPage() {
                   placeholder="e.g. Scheduled quarterly compliance rotation"
                   value={rotationReason}
                   onChange={(e) => setRotationReason(e.target.value)}
-                  className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 text-[#0F172A] focus:border-[#2563EB] focus:outline-none text-xs"
+                  className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 text-[#FFFFFF] focus:border-[#2563EB] focus:outline-none text-xs"
                 />
               </div>
 

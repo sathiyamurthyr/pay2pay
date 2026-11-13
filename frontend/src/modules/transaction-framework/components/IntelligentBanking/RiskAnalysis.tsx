@@ -31,7 +31,7 @@ export const RiskAnalysis: React.FC = () => {
               <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 700 }}>
                 {r.label}
               </Typography>
-              <Chip label={r.level} size="small" sx={{ bgcolor: r.color, color: "#0F172A", fontWeight: 900, height: 18, fontSize: "10px" }} />
+              <Chip label={r.level} size="small" sx={{ bgcolor: r.color, color: "#FFFFFF", fontWeight: 900, height: 18, fontSize: "10px" }} />
             </Stack>
             <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "14px" }}>
               {r.value}

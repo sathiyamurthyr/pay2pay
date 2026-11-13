@@ -104,7 +104,7 @@ export default function RolesPage() {
                 <Icon className="w-4.5 h-4.5" style={{ color, width: "18px", height: "18px" }} />
               </div>
             </div>
-            <div className="font-mono text-[24px] font-extrabold text-[#0F172A] tabular-nums">{value}</div>
+            <div className="font-mono text-[24px] font-extrabold text-[#FFFFFF] tabular-nums">{value}</div>
             <p className="text-[11px] font-semibold text-[#64748B] uppercase tracking-wider mt-1">{label}</p>
           </div>
         ))}
@@ -137,7 +137,7 @@ export default function RolesPage() {
                     <th className="min-w-[110px]">Module</th>
                     {roles.map((r: any) => (
                       <th key={r.code} className="text-center min-w-[130px]">
-                        <div className="font-bold text-[#0F172A]">{r.name}</div>
+                        <div className="font-bold text-[#FFFFFF]">{r.name}</div>
                         <div className="text-[10px] font-mono text-[#64748B] font-normal mt-0.5">{r.code}</div>
                       </th>
                     ))}
@@ -199,7 +199,7 @@ export default function RolesPage() {
                   <ShieldCheck className="w-5 h-5 text-[#6C63FF]" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="font-bold text-[#0F172A] text-[14px] leading-tight">{r.name}</h3>
+                  <h3 className="font-bold text-[#FFFFFF] text-[14px] leading-tight">{r.name}</h3>
                   <p className="text-[11px] font-mono text-[#6C63FF] mt-0.5">{r.code}</p>
                 </div>
               </div>

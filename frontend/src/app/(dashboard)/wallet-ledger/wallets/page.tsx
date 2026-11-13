@@ -348,7 +348,7 @@ export default function EnterpriseWalletsPage() {
       sortable: true,
       cell: (w) => (
         <div>
-          <p className="font-bold text-xs text-[#0F172A]">{w.entity_name}</p>
+          <p className="font-bold text-xs text-[#FFFFFF]">{w.entity_name}</p>
           <div className="flex items-center gap-2 mt-0.5">
             <span className="font-mono text-[10px] font-bold text-[#2563EB]">{w.entity_code}</span>
             {w.mobile && (
@@ -467,7 +467,7 @@ export default function EnterpriseWalletsPage() {
       cell: (w) => {
         const net = (w.balance || 0) + (w.pending_settlement || 0);
         return (
-          <span className="font-mono text-xs font-extrabold text-[#0F172A]">
+          <span className="font-mono text-xs font-extrabold text-[#FFFFFF]">
             ₹{net.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
           </span>
         );
@@ -520,7 +520,7 @@ export default function EnterpriseWalletsPage() {
       {/* Page Title */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#0F172A] flex items-center gap-3">
+          <h1 className="text-2xl font-extrabold text-[#FFFFFF] flex items-center gap-3">
             <Wallet className="h-7 w-7 text-[#2563EB]" />
             Entity User Wallet Ledger
           </h1>
@@ -577,7 +577,7 @@ export default function EnterpriseWalletsPage() {
             <select
               value={walletTypeFilter}
               onChange={(e) => setWalletTypeFilter(e.target.value)}
-              className="rounded-xl border border-[#CBD5E1] bg-white px-3 py-1.5 text-xs font-bold text-[#0F172A] focus:border-[#2563EB] focus:outline-none cursor-pointer"
+              className="rounded-xl border border-[#CBD5E1] bg-white px-3 py-1.5 text-xs font-bold text-[#FFFFFF] focus:border-[#2563EB] focus:outline-none cursor-pointer"
             >
               <option value="ALL">All Wallet Types</option>
               <option value="MAIN">Main Wallet</option>
@@ -601,7 +601,7 @@ export default function EnterpriseWalletsPage() {
                 setDistFilter("");
                 setRetFilter("");
               }}
-              className="w-full rounded-xl border border-[#CBD5E1] bg-white px-3 py-2 text-xs font-bold text-[#0F172A] focus:border-[#2563EB] focus:outline-none cursor-pointer"
+              className="w-full rounded-xl border border-[#CBD5E1] bg-white px-3 py-2 text-xs font-bold text-[#FFFFFF] focus:border-[#2563EB] focus:outline-none cursor-pointer"
             >
               {sdOptions.map((opt) => (
                 <option key={opt.code} value={opt.code}>{opt.name}</option>
@@ -620,7 +620,7 @@ export default function EnterpriseWalletsPage() {
                 setDistFilter(e.target.value);
                 setRetFilter("");
               }}
-              className="w-full rounded-xl border border-[#CBD5E1] bg-white px-3 py-2 text-xs font-bold text-[#0F172A] focus:border-[#2563EB] focus:outline-none cursor-pointer"
+              className="w-full rounded-xl border border-[#CBD5E1] bg-white px-3 py-2 text-xs font-bold text-[#FFFFFF] focus:border-[#2563EB] focus:outline-none cursor-pointer"
             >
               {availableDistributors.map((opt) => (
                 <option key={opt.code} value={opt.code}>{opt.name}</option>
@@ -636,7 +636,7 @@ export default function EnterpriseWalletsPage() {
             <select
               value={retFilter}
               onChange={(e) => setRetFilter(e.target.value)}
-              className="w-full rounded-xl border border-[#CBD5E1] bg-white px-3 py-2 text-xs font-bold text-[#0F172A] focus:border-[#2563EB] focus:outline-none cursor-pointer"
+              className="w-full rounded-xl border border-[#CBD5E1] bg-white px-3 py-2 text-xs font-bold text-[#FFFFFF] focus:border-[#2563EB] focus:outline-none cursor-pointer"
             >
               {availableRetailers.map((opt) => (
                 <option key={opt.code} value={opt.code}>{opt.name}</option>
@@ -729,14 +729,14 @@ export default function EnterpriseWalletsPage() {
 
       {/* Modal: Create Entity Wallet */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FAF8F9]/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="w-full max-w-lg rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xl space-y-4 my-8">
             <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-4">
-              <h2 className="text-lg font-bold text-[#111827] flex items-center gap-2">
+              <h2 className="text-lg font-bold text-[#FAF8F9] flex items-center gap-2">
                 <Wallet className="h-5 w-5 text-[#2563EB]" />
                 Provision Entity User Wallet
               </h2>
-              <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setShowCreateModal(false)} className="text-[#625B60] hover:text-slate-600">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -747,7 +747,7 @@ export default function EnterpriseWalletsPage() {
                 <select
                   value={createData.entity_type}
                   onChange={(e) => setCreateData({ ...createData, entity_type: e.target.value })}
-                  className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 text-[#0F172A] font-bold focus:border-[#2563EB] focus:outline-none"
+                  className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 text-[#FFFFFF] font-bold focus:border-[#2563EB] focus:outline-none"
                 >
                   <option value="SUPER_DISTRIBUTOR">Super Distributor (SD)</option>
                   <option value="DISTRIBUTOR">Distributor</option>
@@ -761,7 +761,7 @@ export default function EnterpriseWalletsPage() {
                 <select
                   value={createData.wallet_type}
                   onChange={(e) => setCreateData({ ...createData, wallet_type: e.target.value })}
-                  className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 text-[#0F172A] font-bold focus:border-[#2563EB] focus:outline-none"
+                  className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 text-[#FFFFFF] font-bold focus:border-[#2563EB] focus:outline-none"
                 >
                   <option value="MAIN">Main Settlement Wallet</option>
                   <option value="COMMISSION">Commission &amp; Margin Wallet</option>
@@ -777,7 +777,7 @@ export default function EnterpriseWalletsPage() {
                     placeholder="e.g. Sathus Pay Store"
                     value={createData.entity_name}
                     onChange={(e) => setCreateData({ ...createData, entity_name: e.target.value })}
-                    className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 text-[#0F172A] font-bold focus:border-[#2563EB] focus:outline-none"
+                    className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 text-[#FFFFFF] font-bold focus:border-[#2563EB] focus:outline-none"
                     required
                   />
                 </div>
@@ -788,7 +788,7 @@ export default function EnterpriseWalletsPage() {
                     placeholder="e.g. RET-10928"
                     value={createData.entity_code}
                     onChange={(e) => setCreateData({ ...createData, entity_code: e.target.value })}
-                    className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 text-[#0F172A] font-bold focus:border-[#2563EB] focus:outline-none"
+                    className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 text-[#FFFFFF] font-bold focus:border-[#2563EB] focus:outline-none"
                     required
                   />
                 </div>
@@ -801,7 +801,7 @@ export default function EnterpriseWalletsPage() {
                   step="0.01"
                   value={createData.initial_balance}
                   onChange={(e) => setCreateData({ ...createData, initial_balance: parseFloat(e.target.value) || 0 })}
-                  className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 text-[#0F172A] font-bold focus:border-[#2563EB] focus:outline-none"
+                  className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 text-[#FFFFFF] font-bold focus:border-[#2563EB] focus:outline-none"
                 />
               </div>
 
@@ -827,14 +827,14 @@ export default function EnterpriseWalletsPage() {
 
       {/* Modal: Adjust Wallet Balance */}
       {showAdjustModal && selectedWallet && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FAF8F9]/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="w-full max-w-md rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xl space-y-4 my-8">
             <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-4">
-              <h2 className="text-lg font-bold text-[#111827] flex items-center gap-2">
+              <h2 className="text-lg font-bold text-[#FAF8F9] flex items-center gap-2">
                 <Sliders className="h-5 w-5 text-[#2563EB]" />
                 Adjust Wallet Balance
               </h2>
-              <button onClick={() => setShowAdjustModal(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setShowAdjustModal(false)} className="text-[#625B60] hover:text-slate-600">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -852,7 +852,7 @@ export default function EnterpriseWalletsPage() {
                 <select
                   value={adjustData.adjustment_type}
                   onChange={(e) => setAdjustData({ ...adjustData, adjustment_type: e.target.value })}
-                  className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 text-[#0F172A] font-bold focus:border-[#2563EB] focus:outline-none"
+                  className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 text-[#FFFFFF] font-bold focus:border-[#2563EB] focus:outline-none"
                 >
                   <option value="CREDIT">🟢 CREDIT (+) Add Balance</option>
                   <option value="DEBIT">🔴 DEBIT (-) Deduct Balance</option>
@@ -866,7 +866,7 @@ export default function EnterpriseWalletsPage() {
                   step="0.01"
                   value={adjustData.amount}
                   onChange={(e) => setAdjustData({ ...adjustData, amount: parseFloat(e.target.value) || 0 })}
-                  className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 text-[#0F172A] font-bold focus:border-[#2563EB] focus:outline-none"
+                  className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 text-[#FFFFFF] font-bold focus:border-[#2563EB] focus:outline-none"
                   required
                 />
               </div>
@@ -878,7 +878,7 @@ export default function EnterpriseWalletsPage() {
                   placeholder="e.g. Promotional credit adjustment"
                   value={adjustData.reason}
                   onChange={(e) => setAdjustData({ ...adjustData, reason: e.target.value })}
-                  className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 text-[#0F172A] font-bold focus:border-[#2563EB] focus:outline-none"
+                  className="w-full rounded-xl border border-[#CBD5E1] bg-white p-2.5 text-[#FFFFFF] font-bold focus:border-[#2563EB] focus:outline-none"
                   required
                 />
               </div>

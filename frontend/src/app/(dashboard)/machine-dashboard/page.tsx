@@ -95,7 +95,7 @@ export default function MachineDashboardPage() {
               </div>
               <div>
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <h1 className="text-2xl font-extrabold text-[#0F172A] tracking-tight">Swipe Machine & POS Telemetry</h1>
+                  <h1 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight">Swipe Machine & POS Telemetry</h1>
                   <span className="relative flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-[10px] font-extrabold text-blue-600 tracking-wider">
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping absolute left-2" />
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-500 relative ml-2" />
@@ -140,7 +140,7 @@ export default function MachineDashboardPage() {
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider">{kpi.label}</p>
-                    <p className="text-2xl font-extrabold text-[#0F172A] mt-1 tracking-tight">{kpi.value}</p>
+                    <p className="text-2xl font-extrabold text-[#FFFFFF] mt-1 tracking-tight">{kpi.value}</p>
                     <p className="text-[11px] text-[#94A3B8] mt-0.5 font-medium">{kpi.sub}</p>
                   </div>
                   <div className={`p-2.5 rounded-xl border ${kpi.iconBg} shrink-0`}><Icon className="w-5 h-5" /></div>
@@ -165,7 +165,7 @@ export default function MachineDashboardPage() {
           <div className="flex items-center gap-3 mb-5">
             <div className="p-2 rounded-xl bg-violet-500/20 border border-violet-400/30"><Cpu className="w-5 h-5 text-violet-400" /></div>
             <div>
-              <h3 className="font-extrabold text-[#0F172A] text-base">POS Model Breakdown</h3>
+              <h3 className="font-extrabold text-[#FFFFFF] text-base">POS Model Breakdown</h3>
               <p className="text-[11px] text-[#64748B] mt-0.5">{Object.keys(metrics.model_distribution).length} terminal models deployed</p>
             </div>
           </div>
@@ -197,7 +197,7 @@ export default function MachineDashboardPage() {
           <div className="flex items-center gap-3 mb-5">
             <div className="p-2 rounded-xl bg-cyan-500/20 border border-cyan-400/30"><Signal className="w-5 h-5 text-cyan-400" /></div>
             <div>
-              <h3 className="font-extrabold text-[#0F172A] text-base">Telecom & Network Modes</h3>
+              <h3 className="font-extrabold text-[#FFFFFF] text-base">Telecom & Network Modes</h3>
               <p className="text-[11px] text-[#64748B] mt-0.5">Connectivity breakdown across fleet</p>
             </div>
           </div>

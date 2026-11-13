@@ -50,7 +50,7 @@ export function normalizeUserRole(rawRole?: string | null): UserPortalRole {
   if (upper === "SUPER_ADMIN" || upper === "SUPERADMIN" || upper === "SUPER-ADMIN") {
     return "SUPER_ADMIN";
   }
-  if (upper === "ADMIN") {
+  if (upper === "ADMIN" || upper === "PLATFORM_ADMIN" || upper === "OPERATIONS_ADMIN") {
     return "ADMIN";
   }
   if (upper === "SD" || upper === "SUPER_DISTRIBUTOR" || upper === "SUPER DISTRIBUTOR") {
@@ -67,39 +67,55 @@ export function resolvePortalRoute(rawRole?: string | null): PortalConfig {
   return PORTAL_CONFIGS[role];
 }
 
-export function isJwtExpired(token?: string | null): boolean {
-  if (!token) return true;
+/**
+ * Safely decodes JWT claims without external dependencies in Edge runtime
+ */
+function getJwtClaims(token?: string | null): Record<string, any> | null {
+  if (!token || typeof token !== "string") return null;
   try {
-    const cleanToken = token.startsWith("Bearer ") ? token.slice(7).trim() : token.trim();
-    const parts = cleanToken.split(".");
-    if (parts.length !== 3) return false;
+    const parts = token.split(".");
+    if (parts.length < 2) return null;
     const base64Url = parts[1];
     const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const jsonPayload = atob(base64);
-    const parsed = JSON.parse(jsonPayload);
-    if (typeof parsed.exp === "number") {
-      // 5-second buffer
-      return parsed.exp * 1000 <= Date.now() + 5000;
-    }
-    return false;
+    const jsonStr = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(jsonStr);
   } catch {
-    return false;
+    return null;
   }
 }
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const cookieRole =
-    request.cookies.get("p2p_user_role")?.value ||
-    request.cookies.get("pay2pay_user_role")?.value;
+  // ── Logout Route Handler: Clears ALL session cookies & redirects to /login?logout=true ──
+  if (pathname === "/logout") {
+    const res = NextResponse.redirect(new URL("/login?logout=true", request.url));
+    const allCookieNames = [
+      "p2p_token", "pay2pay_token", "p2p_access_token", "pay2pay_access_token", "pay2pay_auth_token",
+      "p2p_sales_token", "pay2pay_sales_token", "p2p_retailer_token", "p2p_dist_token", "p2p_sd_token", "p2p_admin_token",
+      "p2p_user_role", "pay2pay_user_role", "p2p_user_type_ref_id", "pay2pay_user_type_ref_id",
+      "p2p_active_role", "p2p_active_destination", "p2p_destination", "p2p_account_access",
+      "p2p_active_retailer_id", "p2p_retailer_code", "p2p_retailer_approval_status",
+      "p2p_active_distributor_id", "p2p_distributor_code", "p2p_distributor_ref_id",
+      "p2p_active_super_distributor_id", "p2p_super_distributor_code", "p2p_super_distributor_ref_id",
+      "p2p_session_locked", "p2p_session_locked_at", "p2p_session_last_active", "p2p_session_start_time", "p2p_session_id",
+      "token", "access_token"
+    ];
+    allCookieNames.forEach((name) => {
+      res.cookies.set(name, "", { path: "/", maxAge: 0, expires: new Date(0), sameSite: "lax" });
+    });
+    res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+    return res;
+  }
 
-  const rawRole = cookieRole || "RETAILER";
-
-  const userRole = normalizeUserRole(rawRole);
-  const portalConfig = resolvePortalRoute(userRole);
-
-  const rawToken =
+  const token =
+    request.cookies.get("p2p_token")?.value ||
+    request.cookies.get("pay2pay_token")?.value ||
     request.cookies.get("p2p_access_token")?.value ||
     request.cookies.get("pay2pay_access_token")?.value ||
     request.cookies.get("pay2pay_auth_token")?.value ||
@@ -109,9 +125,38 @@ export function middleware(request: NextRequest) {
     request.cookies.get("token")?.value ||
     request.headers.get("authorization");
 
-  const hasToken = Boolean(rawToken && rawToken.trim().length > 10);
-  const isExpired = hasToken ? isJwtExpired(rawToken) : false;
-  const isAuthenticated = hasToken && !isExpired;
+  const isAuthenticated = Boolean(token && token.trim().length > 10);
+
+  // Authoritatively derive authenticated role from JWT claims and session cookies
+  // user_type_ref_id: 1=ADMIN, 2=RETAILER, 3=DISTRIBUTOR, 4=SUPER_DISTRIBUTOR
+  const jwtClaims = getJwtClaims(token);
+  const jwtUserType = jwtClaims?.user_type_ref_id;
+  const cookieUserType =
+    request.cookies.get("p2p_user_type_ref_id")?.value ||
+    request.cookies.get("pay2pay_user_type_ref_id")?.value;
+
+  const rawUserType = jwtUserType !== undefined ? jwtUserType : cookieUserType;
+
+  const jwtRole = Array.isArray(jwtClaims?.roles) ? jwtClaims.roles[0] : jwtClaims?.role;
+  const cookieRole =
+    request.cookies.get("p2p_user_role")?.value ||
+    request.cookies.get("pay2pay_user_role")?.value;
+
+  let resolvedRole: UserPortalRole = "RETAILER";
+  if (rawUserType !== undefined && rawUserType !== null && String(rawUserType).trim() !== "") {
+    const numId = Number(rawUserType);
+    if (numId === 1) resolvedRole = "ADMIN";
+    else if (numId === 2) resolvedRole = "RETAILER";
+    else if (numId === 3) resolvedRole = "DIST";
+    else if (numId === 4) resolvedRole = "SD";
+    else {
+      resolvedRole = normalizeUserRole(jwtRole || cookieRole);
+    }
+  } else {
+    resolvedRole = normalizeUserRole(jwtRole || cookieRole);
+  }
+
+  const portalConfig = resolvePortalRoute(resolvedRole);
 
   // Helper to add security & no-cache headers to responses
   const applySecurityHeaders = (res: NextResponse) => {
@@ -120,28 +165,16 @@ export function middleware(request: NextRequest) {
     res.headers.set("Expires", "0");
     res.headers.set("X-Content-Type-Options", "nosniff");
     res.headers.set("X-Frame-Options", "DENY");
-    return res;
-  };
 
-  // Helper to wipe auth cookies when session is dead or expired
-  const clearAuthCookies = (res: NextResponse) => {
-    const cookieNames = [
-      "p2p_access_token",
-      "pay2pay_access_token",
-      "pay2pay_auth_token",
-      "p2p_sales_token",
-      "pay2pay_sales_token",
-      "access_token",
-      "token",
-      "p2p_user_role",
-      "pay2pay_user_role",
-      "p2p_session_locked",
-      "p2p_session_id",
-      "p2p_destination",
-    ];
-    cookieNames.forEach((name) => {
-      res.cookies.set(name, "", { path: "/", maxAge: 0, expires: new Date(0) });
-    });
+    // Sync authoritative role cookies if authenticated
+    if (isAuthenticated) {
+      res.cookies.set("p2p_user_role", resolvedRole, { path: "/", maxAge: 2592000, sameSite: "lax" });
+      res.cookies.set("pay2pay_user_role", resolvedRole, { path: "/", maxAge: 2592000, sameSite: "lax" });
+      if (rawUserType !== undefined && rawUserType !== null) {
+        res.cookies.set("p2p_user_type_ref_id", String(rawUserType), { path: "/", maxAge: 2592000, sameSite: "lax" });
+        res.cookies.set("pay2pay_user_type_ref_id", String(rawUserType), { path: "/", maxAge: 2592000, sameSite: "lax" });
+      }
+    }
     return res;
   };
 
@@ -158,7 +191,7 @@ export function middleware(request: NextRequest) {
 
   // 1. Explicit Public Routes (Always accessible without authentication)
   const host = request.headers.get("host") || "";
-  const isReceiptDomain = host.includes("receipt.pay2pay.in");
+  const isReceiptDomain = host.includes("receipt.near4you.store");
   const isReceiptRoute =
     isReceiptDomain ||
     pathname.startsWith("/r/") ||
@@ -166,8 +199,8 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/receipt");
 
   const isLoginRoute =
-    pathname === "/retailer/login" ||
     pathname === "/login" ||
+    pathname === "/retailer/login" ||
     pathname === "/dist/login" ||
     pathname === "/sd/login" ||
     pathname === "/admin/login" ||
@@ -183,6 +216,28 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/api/public") ||
     pathname === "/403";
 
+  // Handle logout parameter on login page: /login?logout=true or /login?reason=...
+  const isLogoutQuery = request.nextUrl.searchParams.has("logout") || request.nextUrl.searchParams.get("reason") === "session_terminated";
+  if (pathname === "/login" && isLogoutQuery) {
+    const res = NextResponse.next();
+    const allCookieNames = [
+      "p2p_token", "pay2pay_token", "p2p_access_token", "pay2pay_access_token", "pay2pay_auth_token",
+      "p2p_sales_token", "pay2pay_sales_token", "p2p_retailer_token", "p2p_dist_token", "p2p_sd_token", "p2p_admin_token",
+      "p2p_user_role", "pay2pay_user_role", "p2p_user_type_ref_id", "pay2pay_user_type_ref_id",
+      "p2p_active_role", "p2p_active_destination", "p2p_destination", "p2p_account_access",
+      "p2p_active_retailer_id", "p2p_retailer_code", "p2p_retailer_approval_status",
+      "p2p_active_distributor_id", "p2p_distributor_code", "p2p_distributor_ref_id",
+      "p2p_active_super_distributor_id", "p2p_super_distributor_code", "p2p_super_distributor_ref_id",
+      "p2p_session_locked", "p2p_session_locked_at", "p2p_session_last_active", "p2p_session_start_time", "p2p_session_id",
+      "token", "access_token"
+    ];
+    allCookieNames.forEach((name) => {
+      res.cookies.set(name, "", { path: "/", maxAge: 0, expires: new Date(0), sameSite: "lax" });
+    });
+    res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+    return res;
+  }
+
   // If user is already authenticated and visits a login page, redirect to active dashboard
   if (isLoginRoute) {
     if (isAuthenticated) {
@@ -190,11 +245,7 @@ export function middleware(request: NextRequest) {
         NextResponse.redirect(new URL(portalConfig.dashboard, request.url))
       );
     }
-    const res = NextResponse.next();
-    if (hasToken && isExpired) {
-      clearAuthCookies(res);
-    }
-    return applySecurityHeaders(res);
+    return applySecurityHeaders(NextResponse.next());
   }
 
   // If visiting receipt portal domain on root, rewrite directly to /r
@@ -207,20 +258,13 @@ export function middleware(request: NextRequest) {
     return applySecurityHeaders(NextResponse.next());
   }
 
-  // 2. Unauthenticated or session-expired user accessing ANY protected route -> Fail-closed redirect to login
+  // 2. Unauthenticated user accessing ANY protected route -> Fail-closed redirect to unified login
   if (!isAuthenticated) {
-    const loginUrl = new URL(portalConfig.login, request.url);
-    if (isExpired) {
-      loginUrl.searchParams.set("reason", "session_expired");
-    }
+    const loginUrl = new URL("/login", request.url);
     if (pathname !== "/" && pathname !== "/dashboard" && pathname !== "/retailer-dashboard") {
       loginUrl.searchParams.set("redirect", pathname);
     }
-    const res = NextResponse.redirect(loginUrl);
-    if (isExpired) {
-      clearAuthCookies(res);
-    }
-    return applySecurityHeaders(res);
+    return applySecurityHeaders(NextResponse.redirect(loginUrl));
   }
 
   // 3. Authenticated Root/Dashboard aliases -> redirect to canonical portal dashboard
@@ -241,7 +285,8 @@ export function middleware(request: NextRequest) {
   const targetPrefix = allPrefixes.find((prefix) => pathname.startsWith(prefix));
 
   if (targetPrefix && targetPrefix !== portalConfig.prefix) {
-    // If accessing another portal's prefixed routes (e.g. Retailer trying /admin/*), redirect to own dashboard
+    // If accessing another portal's prefixed routes (e.g. Retailer trying /dist/*, /sd/*, or /admin/*),
+    // redirect safely back to their own authorized dashboard
     return applySecurityHeaders(
       NextResponse.redirect(new URL(portalConfig.dashboard, request.url))
     );
@@ -253,8 +298,8 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Universal Matcher: Protect ALL routes except static files, images, icons, and API routes.
+     * Universal Matcher: Protect ALL routes except Next.js internals, static files, images, icons, and API routes.
      */
-    "/((?!api|_next/static|_next/image|branding|images|favicon.*|apple-touch-icon.*|icon.*|site\\.webmanifest|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|mp4)$|uploads).*)",
+    "/((?!api|_next|branding|images|favicon.*|apple-touch-icon.*|icon.*|site\\.webmanifest|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|mp4)$|uploads).*)",
   ],
 };

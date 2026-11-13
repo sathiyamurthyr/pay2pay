@@ -463,7 +463,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 fontSize: "11px",
                 fontWeight: 800,
                 bgcolor: "rgba(245, 158, 11, 0.15)",
-                color: "#FBBF24",
+                color: "#A20A3A",
                 border: "1px solid rgba(245, 158, 11, 0.35)",
               }}
             />
@@ -537,7 +537,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
             <Button
               size="small"
               variant="contained"
-              startIcon={<PersonAddIcon sx={{ fontSize: 15, color: "#080B11" }} />}
+              startIcon={<PersonAddIcon sx={{ fontSize: 15, color: "#FFFFFF" }} />}
               onClick={handleNavigateToAddBeneficiary}
               sx={{
                 height: 34,
@@ -546,7 +546,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 fontWeight: 900,
                 fontSize: "12px",
                 background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%)",
-                color: "#080B11",
+                color: "#FFFFFF",
                 textTransform: "none",
                 whiteSpace: "nowrap",
                 boxShadow: "0 4px 14px rgba(245, 158, 11, 0.35)",
@@ -774,7 +774,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                               width: 34,
                               height: 34,
                               bgcolor: isSelected ? "#F59E0B" : "rgba(255, 255, 255, 0.12)",
-                              color: isSelected ? "#080B11" : "#FFFFFF",
+                              color: isSelected ? "#FFFFFF" : "#FFFFFF",
                               fontWeight: 900,
                               fontSize: "12px",
                               flexShrink: 0,
@@ -804,9 +804,9 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                                 title={b.isFavorite ? "Remove from Favorites" : "Mark as Favorite"}
                               >
                                 {b.isFavorite ? (
-                                  <StarIcon sx={{ color: "#FBBF24", fontSize: 16 }} />
+                                  <StarIcon sx={{ color: "#A20A3A", fontSize: 16 }} />
                                 ) : (
-                                  <StarBorderIcon sx={{ color: "rgba(255, 255, 255, 0.3)", fontSize: 16, "&:hover": { color: "#FBBF24" } }} />
+                                  <StarBorderIcon sx={{ color: "rgba(255, 255, 255, 0.3)", fontSize: 16, "&:hover": { color: "#A20A3A" } }} />
                                 )}
                               </IconButton>
                             </Box>
@@ -843,7 +843,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                         }}
                       >
                         <Box>
-                          <Typography sx={{ color: "#94A3B8", fontSize: "9.5px", fontWeight: 700 }}>
+                          <Typography sx={{ color: "#625B60", fontSize: "9.5px", fontWeight: 700 }}>
                             ACCOUNT NUMBER
                           </Typography>
                           <Typography
@@ -858,7 +858,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                           </Typography>
                         </Box>
                         <Box sx={{ textAlign: "right" }}>
-                          <Typography sx={{ color: "#94A3B8", fontSize: "9.5px", fontWeight: 700 }}>
+                          <Typography sx={{ color: "#625B60", fontSize: "9.5px", fontWeight: 700 }}>
                             MONTHLY REMAINING
                           </Typography>
                           <Typography
@@ -934,26 +934,26 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                           }}
                         >
                           <Box>
-                            <Typography sx={{ color: "#94A3B8", fontSize: "9.5px", fontWeight: 700 }}>IFSC</Typography>
+                            <Typography sx={{ color: "#625B60", fontSize: "9.5px", fontWeight: 700 }}>IFSC</Typography>
                             <Typography sx={{ color: "#93C5FD", fontFamily: "monospace", fontSize: "11.5px", fontWeight: 700 }}>
                               {b.ifsc}
                             </Typography>
                           </Box>
                           <Box>
-                            <Typography sx={{ color: "#94A3B8", fontSize: "9.5px", fontWeight: 700 }}>Branch</Typography>
+                            <Typography sx={{ color: "#625B60", fontSize: "9.5px", fontWeight: 700 }}>Branch</Typography>
                             <Typography sx={{ color: "#FFFFFF", fontSize: "11.5px", fontWeight: 600 }}>
                               {b.branchName || "Main Branch"}
                             </Typography>
                           </Box>
                           <Box>
-                            <Typography sx={{ color: "#94A3B8", fontSize: "9.5px", fontWeight: 700 }}>Daily Remaining</Typography>
+                            <Typography sx={{ color: "#625B60", fontSize: "9.5px", fontWeight: 700 }}>Daily Remaining</Typography>
                             <Typography sx={{ color: "#34D399", fontSize: "11.5px", fontWeight: 700 }}>
                               ₹{(b.todayRemaining ?? 24990).toLocaleString()}
                             </Typography>
                           </Box>
                           <Box>
-                            <Typography sx={{ color: "#94A3B8", fontSize: "9.5px", fontWeight: 700 }}>Relationship</Typography>
-                            <Typography sx={{ color: "#FBBF24", fontSize: "11.5px", fontWeight: 700 }}>
+                            <Typography sx={{ color: "#625B60", fontSize: "9.5px", fontWeight: 700 }}>Relationship</Typography>
+                            <Typography sx={{ color: "#A20A3A", fontSize: "11.5px", fontWeight: 700 }}>
                               {b.relationship || "Family"}
                             </Typography>
                           </Box>
@@ -993,7 +993,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                   sx={{
                     bgcolor: "transparent",
                     borderRadius: "10px",
-                    border: "1px solid rgba(255, 255, 255, 0.08)",
+                    border: "1px solid #E8E2E5",
                     overflow: "visible",
                   }}
                 >
@@ -1054,7 +1054,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                                       width: 28,
                                       height: 28,
                                       bgcolor: isSelected ? "#F59E0B" : "rgba(255, 255, 255, 0.10)",
-                                      color: isSelected ? "#080B11" : "#FFFFFF",
+                                      color: isSelected ? "#FFFFFF" : "#FFFFFF",
                                       fontWeight: 900,
                                       fontSize: "11px",
                                     }}
@@ -1073,9 +1073,9 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                                 title={b.isFavorite ? "Remove from Favorites" : "Mark as Favorite"}
                               >
                                 {b.isFavorite ? (
-                                  <StarIcon sx={{ color: "#FBBF24", fontSize: 16 }} />
+                                  <StarIcon sx={{ color: "#A20A3A", fontSize: 16 }} />
                                 ) : (
-                                  <StarBorderIcon sx={{ color: "rgba(255, 255, 255, 0.3)", fontSize: 16, "&:hover": { color: "#FBBF24" } }} />
+                                  <StarBorderIcon sx={{ color: "rgba(255, 255, 255, 0.3)", fontSize: 16, "&:hover": { color: "#A20A3A" } }} />
                                 )}
                               </IconButton>
                                     </Stack>
@@ -1122,7 +1122,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                                     sx={{
                                       height: 22,
                                       bgcolor: "rgba(251, 191, 36, 0.12)",
-                                      color: "#FBBF24",
+                                      color: "#A20A3A",
                                       fontWeight: 800,
                                       fontSize: "10.5px",
                                     }}
@@ -1170,7 +1170,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                                       borderRadius: "6px",
                                       bgcolor: isSelected ? "#F59E0B" : "transparent",
                                       borderColor: isSelected ? "#F59E0B" : "rgba(255, 255, 255, 0.2)",
-                                      color: isSelected ? "#080B11" : "rgba(255, 255, 255, 0.8)",
+                                      color: isSelected ? "#FFFFFF" : "rgba(255, 255, 255, 0.8)",
                                       textTransform: "none",
                                       "&:hover": {
                                         bgcolor: isSelected ? "#D97706" : "rgba(245, 158, 11, 0.15)",
@@ -1204,7 +1204,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                                         <Typography sx={{ color: "#FFFFFF", fontFamily: "monospace", fontWeight: 800, fontSize: "13px" }}>{rawAccount}</Typography>
                                       </Box>
                                     </Box>
-                                    <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 1.5 }} />
+                                    <Divider sx={{ borderColor: "#E8E2E5", my: 1.5 }} />
                                     <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
                                       <Button
                                         size="small"
@@ -1244,7 +1244,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           sx={{
             mt: 1.5,
             pt: 1.25,
-            borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+            borderTop: "1px solid #E8E2E5",
             display: "flex",
             flexDirection: { xs: "column", sm: "row" },
             justifyContent: "space-between",
@@ -1526,7 +1526,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                       fontWeight: 900,
                       fontSize: { xs: "10.5px", sm: "11.5px" },
                       p: 0.5,
-                      color: isSelected ? "#080B11" : "rgba(255, 255, 255, 0.75)",
+                      color: isSelected ? "#FFFFFF" : "rgba(255, 255, 255, 0.75)",
                       background: isSelected
                         ? "linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%)"
                         : "transparent",
@@ -1537,7 +1537,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                         background: isSelected
                           ? "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #B45309 100%)"
                           : "rgba(245, 158, 11, 0.08)",
-                        color: isSelected ? "#080B11" : "#FDE68A",
+                        color: isSelected ? "#FFFFFF" : "#FDE68A",
                       },
                     }}
                   >
@@ -1572,7 +1572,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           {/* One-Click Enterprise Auto Correction Bar */}
           <SmartAutoCorrectionBar validationResult={pricingResult} onAutoFixAmount={onAmountChange} />
 
-          <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 2 }} />
+          <Divider sx={{ borderColor: "#E8E2E5", my: 2 }} />
 
           {/* Financial Summary Table */}
           <Stack spacing={1.25}>
@@ -1628,7 +1628,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
               </Typography>
             </Stack>
 
-            <Stack direction="row" sx={{ justifyContent: "space-between", pt: 0.5, borderTop: "1px solid rgba(255, 255, 255, 0.08)" }}>
+            <Stack direction="row" sx={{ justifyContent: "space-between", pt: 0.5, borderTop: "1px solid #E8E2E5" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.85)", fontWeight: 700, fontSize: "13px" }}>Total Debit from Wallet</Typography>
               <Typography
                 sx={{
@@ -1663,7 +1663,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
               fontWeight: 900,
               fontSize: "14.5px",
               background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%)",
-              color: "#080B11",
+              color: "#FFFFFF",
               textTransform: "none",
               letterSpacing: "-0.2px",
               boxShadow: "0 6px 24px rgba(245, 158, 11, 0.45)",

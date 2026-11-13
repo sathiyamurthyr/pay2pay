@@ -27,7 +27,7 @@ export const WizardFooter: React.FC<WizardFooterProps> = ({
         zIndex: 1100,
         height: 64,
         px: 3,
-        bgcolor: "rgba(15, 23, 42, 0.95)",
+        bgcolor: "#FFFFFF",
         backdropFilter: "blur(24px)",
         borderTop: "1px solid rgba(255, 255, 255, 0.12)",
         display: "flex",
@@ -52,7 +52,7 @@ export const WizardFooter: React.FC<WizardFooterProps> = ({
               borderRadius: "10px",
               fontWeight: 700,
               color: "rgba(255, 255, 255, 0.8)",
-              borderColor: "rgba(255, 255, 255, 0.2)",
+              borderColor: "#E8E2E5",
             }}
           >
             Previous Step

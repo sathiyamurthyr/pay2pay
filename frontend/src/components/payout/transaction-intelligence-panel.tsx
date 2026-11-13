@@ -157,7 +157,7 @@ export function TransactionIntelligencePanel({
                 Real-Time Transaction Intelligence
               </Typography>
 
-              <Typography variant="caption" sx={{ color: "#64748B" }}>
+              <Typography variant="caption" sx={{ color: "#625B60" }}>
                 Live financial breakdown • No hidden charges
               </Typography>
             </Box>
@@ -180,15 +180,15 @@ export function TransactionIntelligencePanel({
               p: 2,
               mb: 3,
               borderRadius: 3,
-              bgcolor: "#F8FAFC",
+              bgcolor: "#292329",
               border: "1px dashed #CBD5E1",
               textAlign: "left",
             }}
           >
-            <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>
+            <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>
               Amount in Words (Indian System)
             </Typography>
-            <Typography variant="h6" sx={{ fontWeight: 900, color: "#0F172A", mt: 0.5 }}>
+            <Typography variant="h6" sx={{ fontWeight: 900, color: "#FFFFFF", mt: 0.5 }}>
               ₹ {amountInWords || "Zero Rupees Only"}
             </Typography>
           </Paper>
@@ -197,15 +197,15 @@ export function TransactionIntelligencePanel({
         {/* Grid 1: Live Charge Breakdown */}
         <Grid container spacing={2} sx={{ mb: 3 }}>
           <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <Box sx={{ p: 2, borderRadius: 3, bgcolor: "#F8FAFC", border: "1px solid #F1F5F9" }}>
-              <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>Transfer Amount</Typography>
-              <Typography variant="h6" sx={{ fontWeight: 900, color: "#0F172A" }}>₹ {numAmount.toLocaleString("en-IN")}</Typography>
+            <Box sx={{ p: 2, borderRadius: 3, bgcolor: "#292329", border: "1px solid #F1F5F9" }}>
+              <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700 }}>Transfer Amount</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 900, color: "#FFFFFF" }}>₹ {numAmount.toLocaleString("en-IN")}</Typography>
             </Box>
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <Box sx={{ p: 2, borderRadius: 3, bgcolor: "#F8FAFC", border: "1px solid #F1F5F9" }}>
-              <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>Service Charge + GST</Typography>
-              <Typography variant="h6" sx={{ fontWeight: 900, color: "#2563EB" }}>₹ {serviceCharge} <Typography component="span" variant="caption" sx={{ color: "#64748B" }}>(+₹{gst} GST)</Typography></Typography>
+            <Box sx={{ p: 2, borderRadius: 3, bgcolor: "#292329", border: "1px solid #F1F5F9" }}>
+              <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700 }}>Service Charge + GST</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 900, color: "#2563EB" }}>₹ {serviceCharge} <Typography component="span" variant="caption" sx={{ color: "#625B60" }}>(+₹{gst} GST)</Typography></Typography>
             </Box>
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md: 3 }}>
@@ -223,7 +223,7 @@ export function TransactionIntelligencePanel({
         </Grid>
 
         {/* ── CARD 2: WALLET IMPACT PREVIEW ── */}
-        <Box sx={{ p: 2.5, borderRadius: 3, bgcolor: "#F8FAFC", border: "1px solid #E2E8F0", mb: 3 }}>
+        <Box sx={{ p: 2.5, borderRadius: 3, bgcolor: "#292329", border: "1px solid #E2E8F0", mb: 3 }}>
           <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
             <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
               <AccountBalanceWalletIcon sx={{ color: "#4F46E5", fontSize: 20 }} />
@@ -235,11 +235,11 @@ export function TransactionIntelligencePanel({
           </Stack>
           <Grid container spacing={2}>
             <Grid size={{ xs: 6 }}>
-              <Typography variant="caption" sx={{ color: "#64748B" }}>Wallet Before Transaction</Typography>
-              <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#0F172A" }}>₹ {walletBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Typography>
+              <Typography variant="caption" sx={{ color: "#625B60" }}>Wallet Before Transaction</Typography>
+              <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#FFFFFF" }}>₹ {walletBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Typography>
             </Grid>
             <Grid size={{ xs: 6 }}>
-              <Typography variant="caption" sx={{ color: "#64748B" }}>Estimated Wallet After</Typography>
+              <Typography variant="caption" sx={{ color: "#625B60" }}>Estimated Wallet After</Typography>
               <Typography variant="subtitle1" sx={{ fontWeight: 900, color: walletAfter < 0 ? "#DC2626" : "#16A34A" }}>
                 ₹ {walletAfter.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </Typography>
@@ -253,7 +253,7 @@ export function TransactionIntelligencePanel({
             <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid #E2E8F0", bgcolor: isDailyExceeded ? "#FEF2F2" : "#FFFFFF" }}>
               <Stack direction="row" sx={{ justifyContent: "space-between", mb: 1 }}>
                 <Typography variant="caption" sx={{ fontWeight: 800, color: "#475569" }}>Daily Limit Remaining</Typography>
-                <Typography variant="caption" sx={{ fontWeight: 900, color: isDailyExceeded ? "#DC2626" : "#0F172A" }}>
+                <Typography variant="caption" sx={{ fontWeight: 900, color: isDailyExceeded ? "#DC2626" : "#FFFFFF" }}>
                   ₹ {Math.max(0, dailyRemaining - numAmount).toLocaleString("en-IN")} / ₹ {dailyLimitMax.toLocaleString("en-IN")}
                 </Typography>
               </Stack>
@@ -263,7 +263,7 @@ export function TransactionIntelligencePanel({
                 sx={{
                   height: 8,
                   borderRadius: 4,
-                  bgcolor: "#E2E8F0",
+                  bgcolor: "#292329",
                   "& .MuiLinearProgress-bar": { bgcolor: isDailyExceeded ? "#DC2626" : "#4F46E5" },
                 }}
               />
@@ -279,7 +279,7 @@ export function TransactionIntelligencePanel({
             <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid #E2E8F0", bgcolor: isMonthlyExceeded ? "#FEF2F2" : "#FFFFFF" }}>
               <Stack direction="row" sx={{ justifyContent: "space-between", mb: 1 }}>
                 <Typography variant="caption" sx={{ fontWeight: 800, color: "#475569" }}>Monthly Limit Remaining</Typography>
-                <Typography variant="caption" sx={{ fontWeight: 900, color: isMonthlyExceeded ? "#DC2626" : "#0F172A" }}>
+                <Typography variant="caption" sx={{ fontWeight: 900, color: isMonthlyExceeded ? "#DC2626" : "#FFFFFF" }}>
                   ₹ {Math.max(0, monthlyRemaining - numAmount).toLocaleString("en-IN")} / ₹ {monthlyLimitMax.toLocaleString("en-IN")}
                 </Typography>
               </Stack>
@@ -289,7 +289,7 @@ export function TransactionIntelligencePanel({
                 sx={{
                   height: 8,
                   borderRadius: 4,
-                  bgcolor: "#E2E8F0",
+                  bgcolor: "#292329",
                   "& .MuiLinearProgress-bar": { bgcolor: isMonthlyExceeded ? "#DC2626" : "#0EA5E9" },
                 }}
               />
@@ -312,15 +312,15 @@ export function TransactionIntelligencePanel({
                 color={bankHealthStatus === "ONLINE" ? "success" : bankHealthStatus === "SLOW" ? "warning" : "error"}
                 sx={{ fontWeight: 900 }}
               />
-              <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#0F172A" }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#FFFFFF" }}>
                 Bank Health: {selectedBeneficiary?.bank_name || "Destination Bank"} ({ifsc})
               </Typography>
             </Stack>
             <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-              <Typography variant="caption" sx={{ color: "#64748B" }}>
+              <Typography variant="caption" sx={{ color: "#625B60" }}>
                 Mode: <strong>{transferMode}</strong>
               </Typography>
-              <Typography variant="caption" sx={{ color: "#64748B" }}>
+              <Typography variant="caption" sx={{ color: "#625B60" }}>
                 Est. Settlement: <strong>{estimatedSettlementTime}</strong>
               </Typography>
               <Typography variant="caption" sx={{ color: "#16A34A", fontWeight: 800 }}>
@@ -374,23 +374,23 @@ export function TransactionIntelligencePanel({
           </IconButton>
         </Stack>
 
-        <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: "1px dashed #CBD5E1", bgcolor: "#F8FAFC", mb: 2 }}>
+        <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: "1px dashed #CBD5E1", bgcolor: "#292329", mb: 2 }}>
           <Stack spacing={1.5}>
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography variant="caption" sx={{ color: "#64748B" }}>Beneficiary</Typography>
-              <Typography variant="caption" sx={{ fontWeight: 800, color: "#0F172A" }}>{selectedBeneficiary?.account_holder_name || "Rahul Kumar"}</Typography>
+              <Typography variant="caption" sx={{ color: "#625B60" }}>Beneficiary</Typography>
+              <Typography variant="caption" sx={{ fontWeight: 800, color: "#FFFFFF" }}>{selectedBeneficiary?.account_holder_name || "Rahul Kumar"}</Typography>
             </Stack>
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography variant="caption" sx={{ color: "#64748B" }}>Bank Account</Typography>
-              <Typography variant="caption" sx={{ fontWeight: 800, color: "#0F172A" }}>{selectedBeneficiary?.account_number_masked || "XXXX-8822"}</Typography>
+              <Typography variant="caption" sx={{ color: "#625B60" }}>Bank Account</Typography>
+              <Typography variant="caption" sx={{ fontWeight: 800, color: "#FFFFFF" }}>{selectedBeneficiary?.account_number_masked || "XXXX-8822"}</Typography>
             </Stack>
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography variant="caption" sx={{ color: "#64748B" }}>Transfer Amount</Typography>
-              <Typography variant="caption" sx={{ fontWeight: 900, color: "#0F172A" }}>₹ {numAmount.toLocaleString("en-IN")}</Typography>
+              <Typography variant="caption" sx={{ color: "#625B60" }}>Transfer Amount</Typography>
+              <Typography variant="caption" sx={{ fontWeight: 900, color: "#FFFFFF" }}>₹ {numAmount.toLocaleString("en-IN")}</Typography>
             </Stack>
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography variant="caption" sx={{ color: "#64748B" }}>Service Fee & GST</Typography>
-              <Typography variant="caption" sx={{ fontWeight: 800, color: "#0F172A" }}>₹ {netWalletDebit - numAmount}</Typography>
+              <Typography variant="caption" sx={{ color: "#625B60" }}>Service Fee & GST</Typography>
+              <Typography variant="caption" sx={{ fontWeight: 800, color: "#FFFFFF" }}>₹ {netWalletDebit - numAmount}</Typography>
             </Stack>
             <Divider />
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>

@@ -36,7 +36,7 @@ export const Step12Video: React.FC<Step12Props> = ({
 
   const nameDisplay = merchantName || "YOUR NAME";
   const shopDisplay = shopName || "YOUR BUSINESS";
-  const scriptText = `"My name is ${nameDisplay}, and I am applying for Pay2Pay Retailer Merchant Onboarding for my business ${shopDisplay}."`;
+  const scriptText = `"My name is ${nameDisplay}, and I am applying for Near4You Retailer Merchant Onboarding for my business ${shopDisplay}."`;
 
   // ── Open camera ─────────────────────────────────────────────────────
   const openCamera = useCallback(async () => {
@@ -158,7 +158,7 @@ export const Step12Video: React.FC<Step12Props> = ({
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               registration_id: registrationId || "REG-DEMO-1001",
-              video_url: "https://cdn.pay2pay.in/videos/kyc_teleprompter.mp4",
+              video_url: "https://cdn.near4you.store/videos/kyc_teleprompter.mp4",
               duration_seconds: seconds || RECORD_SECS,
               script_text: scriptText,
               video_uploaded: true,
@@ -172,7 +172,7 @@ export const Step12Video: React.FC<Step12Props> = ({
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             registration_id: registrationId || "REG-DEMO-1001",
-            video_url: "https://cdn.pay2pay.in/videos/kyc_teleprompter.mp4",
+            video_url: "https://cdn.near4you.store/videos/kyc_teleprompter.mp4",
             duration_seconds: seconds || RECORD_SECS,
             script_text: scriptText,
             video_uploaded: true,
@@ -199,7 +199,7 @@ export const Step12Video: React.FC<Step12Props> = ({
         <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
           Live Video Verification
         </h2>
-        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
+        <p className="text-xs font-semibold text-[#8A8288] dark:text-[#625B60] mt-0.5">
           Record a {RECORD_SECS}-second liveness video reading the script below.
         </p>
       </div>
@@ -221,7 +221,7 @@ export const Step12Video: React.FC<Step12Props> = ({
       </div>
 
       {/* Camera / Video box */}
-      <div className="relative rounded-2xl bg-slate-950 border border-slate-800 overflow-hidden" style={{ aspectRatio: "16/9" }}>
+      <div className="relative rounded-2xl bg-[#FFFFFF] border border-[#E8E2E5] overflow-hidden" style={{ aspectRatio: "16/9" }}>
         {/* Video element — used for both live preview AND playback */}
         <video
           ref={videoRef}
@@ -233,7 +233,7 @@ export const Step12Video: React.FC<Step12Props> = ({
 
         {/* Overlays */}
         {phase === "idle" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-[#625B60]">
             <Camera className="w-10 h-10 opacity-50" />
             <p className="text-xs font-bold">Camera not started</p>
           </div>
@@ -307,7 +307,7 @@ export const Step12Video: React.FC<Step12Props> = ({
         {phase === "recording" && (
           <button
             onClick={stopRecording}
-            className="w-full py-3 rounded-2xl bg-slate-800 border border-slate-700 text-white text-sm font-extrabold hover:bg-slate-700 transition-all flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-2xl bg-[#F5F2F4] border border-[#E8E2E5] text-white text-sm font-extrabold hover:bg-slate-700 transition-all flex items-center justify-center gap-2"
           >
             <Square className="w-4 h-4 text-red-400" />
             Stop Recording Early
@@ -318,7 +318,7 @@ export const Step12Video: React.FC<Step12Props> = ({
           <div className="flex gap-2">
             <button
               onClick={retake}
-              className="flex items-center gap-1.5 px-4 py-3 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-extrabold hover:bg-slate-200 transition-all"
+              className="flex items-center gap-1.5 px-4 py-3 rounded-2xl bg-slate-100 dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5] text-slate-700 dark:text-[#292329] text-xs font-extrabold hover:bg-slate-200 transition-all"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               Retake
@@ -326,7 +326,7 @@ export const Step12Video: React.FC<Step12Props> = ({
             <button
               onClick={handleSave}
               disabled={loading}
-              className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-[#A20A3A] to-[#85072F] text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {loading ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /><span>Uploading…</span></>

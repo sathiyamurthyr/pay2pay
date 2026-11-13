@@ -66,7 +66,7 @@ export const WorkstationHeader: React.FC<WorkstationHeaderProps> = ({ walletBala
       {/* Right: Wallet Balance, Notifications & Profile */}
       <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
         <Chip
-          icon={<AccountBalanceWalletIcon sx={{ "&&": { color: "#FBBF24", fontSize: 16 } }} />}
+          icon={<AccountBalanceWalletIcon sx={{ "&&": { color: "#A20A3A", fontSize: 16 } }} />}
           label={`₹${walletBalance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           size="small"
           sx={{
@@ -88,7 +88,7 @@ export const WorkstationHeader: React.FC<WorkstationHeaderProps> = ({ walletBala
 
         <Avatar
           sx={{
-            background: "linear-gradient(135deg, #1E293B 0%, #0F172A 100%)",
+            background: "linear-gradient(135deg, #1E293B 0%, #FFFFFF 100%)",
             border: "2px solid #F59E0B",
             color: "#FDE68A",
             width: 34,

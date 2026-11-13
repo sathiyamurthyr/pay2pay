@@ -93,7 +93,7 @@ export const Step11Documents: React.FC<Step11Props> = ({
         await fetch("/api/v1/onboarding/upload-document", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ registration_id: registrationId, doc_type: key.toUpperCase(), file_name: file.name, file_url: `https://cdn.pay2pay.in/docs/${key}.jpg` })
+          body: JSON.stringify({ registration_id: registrationId, doc_type: key.toUpperCase(), file_name: file.name, file_url: `https://cdn.near4you.store/docs/${key}.jpg` })
         });
       } catch { /* ignore */ }
       setDocState(key, { state: "done" });
@@ -127,7 +127,7 @@ export const Step11Documents: React.FC<Step11Props> = ({
           KYC Document Uploads
         </h2>
         {/* Progress pill */}
-        <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-500">
+        <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 dark:bg-[#F5F2F4] text-xs font-bold text-[#8A8288]">
           <span className={doneCnt === baseDocList.length ? "text-emerald-500" : "text-blue-500"}>
             {doneCnt}/{baseDocList.length}
           </span>
@@ -163,7 +163,7 @@ export const Step11Documents: React.FC<Step11Props> = ({
               className={`px-3 py-2.5 rounded-2xl border flex items-center gap-2.5 transition-all ${
                 isDone ? "bg-emerald-500/5 border-emerald-500/25"
                 : isError ? "bg-red-500/5 border-red-500/25"
-                : "bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800"
+                : "bg-slate-50 dark:bg-[#FFFFFF] border-slate-200 dark:border-[#E8E2E5]"
               }`}
             >
               {/* Hidden file input */}
@@ -183,7 +183,7 @@ export const Step11Documents: React.FC<Step11Props> = ({
               <div
                 className={`w-9 h-9 rounded-xl shrink-0 overflow-hidden flex items-center justify-center border cursor-pointer ${
                   isDone ? "border-emerald-400/40 bg-emerald-500/10"
-                  : "border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900"
+                  : "border-slate-200 dark:border-[#E8E2E5] bg-slate-100 dark:bg-[#FAF8F9]"
                 }`}
                 onClick={() => isDone && status.preview ? setPreviewDoc(doc.key) : triggerUpload(doc.key)}
               >
@@ -199,7 +199,7 @@ export const Step11Documents: React.FC<Step11Props> = ({
                 ) : isUploading ? (
                   <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
                 ) : (
-                  <UploadCloud className="w-4 h-4 text-slate-400" />
+                  <UploadCloud className="w-4 h-4 text-[#625B60]" />
                 )}
               </div>
 
@@ -213,7 +213,7 @@ export const Step11Documents: React.FC<Step11Props> = ({
                     ? <span className="text-emerald-500">{status.fileName}</span>
                     : isUploading ? <span className="text-blue-500">Uploading…</span>
                     : isError ? <span className="text-red-500">Error — try again</span>
-                    : <span className="text-slate-400">JPG · PNG · PDF · max 5 MB</span>
+                    : <span className="text-[#625B60]">JPG · PNG · PDF · max 5 MB</span>
                   }
                 </p>
               </div>
@@ -262,7 +262,7 @@ export const Step11Documents: React.FC<Step11Props> = ({
           <button
             type="button"
             onClick={onBack}
-            className="flex items-center gap-1.5 px-4 py-3 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-extrabold hover:bg-slate-200 dark:hover:bg-slate-800 transition-all"
+            className="flex items-center gap-1.5 px-4 py-3 rounded-2xl bg-slate-100 dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5] text-slate-700 dark:text-[#292329] text-xs font-extrabold hover:bg-slate-200 dark:hover:bg-[#F5F2F4] transition-all"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             Back
@@ -272,7 +272,7 @@ export const Step11Documents: React.FC<Step11Props> = ({
           type="button"
           onClick={handleNext}
           disabled={submitting || !allDone}
-          className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-[#A20A3A] to-[#85072F] text-white text-xs font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {submitting
             ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /><span>Saving…</span></>
@@ -288,16 +288,16 @@ export const Step11Documents: React.FC<Step11Props> = ({
           onClick={() => setPreviewDoc(null)}
         >
           <div
-            className="relative max-w-sm w-full bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-2xl"
+            className="relative max-w-sm w-full bg-white dark:bg-[#FAF8F9] rounded-3xl overflow-hidden shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-[#E8E2E5]">
               <p className="text-sm font-extrabold text-slate-900 dark:text-white truncate pr-4">
                 {baseDocList.find(d => d.key === previewDoc)?.label}
               </p>
               <button
                 onClick={() => setPreviewDoc(null)}
-                className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-red-500 transition-colors shrink-0"
+                className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-[#F5F2F4] flex items-center justify-center text-[#8A8288] hover:text-red-500 transition-colors shrink-0"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -310,13 +310,13 @@ export const Step11Documents: React.FC<Step11Props> = ({
                 className="w-full object-contain max-h-72"
               />
             ) : (
-              <div className="flex flex-col items-center justify-center py-10 gap-3 text-slate-400">
+              <div className="flex flex-col items-center justify-center py-10 gap-3 text-[#625B60]">
                 <FileText className="w-10 h-10" />
                 <p className="text-sm font-bold">{previewEntry.fileName}</p>
                 <p className="text-xs">PDF preview not available</p>
               </div>
             )}
-            <div className="px-4 py-2.5 bg-slate-50 dark:bg-slate-950 text-xs font-semibold text-slate-500 flex items-center gap-1.5 truncate">
+            <div className="px-4 py-2.5 bg-slate-50 dark:bg-[#FFFFFF] text-xs font-semibold text-[#8A8288] flex items-center gap-1.5 truncate">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
               {previewEntry.fileName}
             </div>

@@ -172,11 +172,11 @@ export const MpinSetupCard: React.FC<MpinSetupCardProps> = ({
             flex: 1,
             p: 4,
             borderRadius: 4,
-            bgcolor: "rgba(15, 23, 42, 0.95)",
+            bgcolor: "#FFFFFF",
             backdropFilter: "blur(20px)",
             border: "1px solid rgba(255, 255, 255, 0.12)",
             color: "#FFFFFF",
-            boxShadow: "0 20px 50px rgba(0, 0, 0, 0.5)",
+            boxShadow: "0 20px 50px rgba(41, 35, 41, 0.06)",
           }}
         >
           {/* Header */}
@@ -195,7 +195,7 @@ export const MpinSetupCard: React.FC<MpinSetupCardProps> = ({
               <Typography variant="h5" sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "22px" }}>
                 Create Security MPIN
               </Typography>
-              <Typography variant="body2" sx={{ color: "#94A3B8", fontSize: "13px" }}>
+              <Typography variant="body2" sx={{ color: "#625B60", fontSize: "13px" }}>
                 Mandatory customer PIN activation for enterprise DMT & financial transactions.
               </Typography>
             </Box>
@@ -209,10 +209,10 @@ export const MpinSetupCard: React.FC<MpinSetupCardProps> = ({
               mb: 3,
               borderRadius: 3,
               bgcolor: "rgba(30, 41, 59, 0.8)",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
+              border: "1px solid #E8E2E5",
             }}
           >
-            <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "11px", display: "block", mb: 1 }}>
+            <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, fontSize: "11px", display: "block", mb: 1 }}>
               CUSTOMER DETAILS (READ ONLY)
             </Typography>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ justifyContent: "space-between" }}>
@@ -229,8 +229,8 @@ export const MpinSetupCard: React.FC<MpinSetupCardProps> = ({
                 </Typography>
               </Stack>
               <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                <BadgeIcon sx={{ color: "#FBBF24", fontSize: 18 }} />
-                <Typography variant="caption" sx={{ color: "#CBD5E1", fontFamily: "monospace" }}>
+                <BadgeIcon sx={{ color: "#A20A3A", fontSize: 18 }} />
+                <Typography variant="caption" sx={{ color: "#625B60", fontFamily: "monospace" }}>
                   ID: {customerId.slice(0, 8)}...
                 </Typography>
               </Stack>
@@ -247,7 +247,7 @@ export const MpinSetupCard: React.FC<MpinSetupCardProps> = ({
             <Stack spacing={3}>
               {/* Length Configuration Switcher */}
               <Box>
-                <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, display: "block", mb: 1 }}>
+                <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, display: "block", mb: 1 }}>
                   PIN LENGTH CONFIGURATION
                 </Typography>
                 <Stack direction="row" spacing={1.5}>
@@ -282,7 +282,7 @@ export const MpinSetupCard: React.FC<MpinSetupCardProps> = ({
                   input: {
                     endAdornment: (
                       <InputAdornment position="end">
-                        <IconButton onClick={() => setShowMpin(!showMpin)} sx={{ color: "#94A3B8" }}>
+                        <IconButton onClick={() => setShowMpin(!showMpin)} sx={{ color: "#625B60" }}>
                           {showMpin ? <VisibilityOff /> : <Visibility />}
                         </IconButton>
                       </InputAdornment>
@@ -296,7 +296,7 @@ export const MpinSetupCard: React.FC<MpinSetupCardProps> = ({
                       borderRadius: "12px",
                     },
                   },
-                  inputLabel: { sx: { color: "#94A3B8" } },
+                  inputLabel: { sx: { color: "#625B60" } },
                 }}
               />
 
@@ -323,42 +323,42 @@ export const MpinSetupCard: React.FC<MpinSetupCardProps> = ({
                       borderRadius: "12px",
                     },
                   },
-                  inputLabel: { sx: { color: "#94A3B8" } },
+                  inputLabel: { sx: { color: "#625B60" } },
                 }}
               />
 
               {/* Validation Checklist */}
               <Paper elevation={0} sx={{ p: 2, borderRadius: 3, bgcolor: "rgba(30, 41, 59, 0.5)", border: "1px solid rgba(255, 255, 255, 0.06)" }}>
-                <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, display: "block", mb: 1 }}>
+                <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, display: "block", mb: 1 }}>
                   SECURITY VALIDATION CHECKLIST
                 </Typography>
                 <Stack spacing={0.75}>
                   <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                    {isCorrectLength ? <CheckCircleIcon sx={{ color: "#34D399", fontSize: 16 }} /> : <CancelIcon sx={{ color: "#94A3B8", fontSize: 16 }} />}
+                    {isCorrectLength ? <CheckCircleIcon sx={{ color: "#34D399", fontSize: 16 }} /> : <CancelIcon sx={{ color: "#625B60", fontSize: 16 }} />}
                     <Typography variant="caption" sx={{ color: isCorrectLength ? "#34D399" : "#94A3B8", fontWeight: 600 }}>
                       Exactly {mpinLength} numeric digits
                     </Typography>
                   </Stack>
                   <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                    {isMatching ? <CheckCircleIcon sx={{ color: "#34D399", fontSize: 16 }} /> : <CancelIcon sx={{ color: "#94A3B8", fontSize: 16 }} />}
+                    {isMatching ? <CheckCircleIcon sx={{ color: "#34D399", fontSize: 16 }} /> : <CancelIcon sx={{ color: "#625B60", fontSize: 16 }} />}
                     <Typography variant="caption" sx={{ color: isMatching ? "#34D399" : "#94A3B8", fontWeight: 600 }}>
                       MPIN and Confirm MPIN match
                     </Typography>
                   </Stack>
                   <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                    {notSequential ? <CheckCircleIcon sx={{ color: "#34D399", fontSize: 16 }} /> : <CancelIcon sx={{ color: "#94A3B8", fontSize: 16 }} />}
+                    {notSequential ? <CheckCircleIcon sx={{ color: "#34D399", fontSize: 16 }} /> : <CancelIcon sx={{ color: "#625B60", fontSize: 16 }} />}
                     <Typography variant="caption" sx={{ color: notSequential ? "#34D399" : "#94A3B8", fontWeight: 600 }}>
                       Not a sequential series (e.g., 1234, 4321)
                     </Typography>
                   </Stack>
                   <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                    {notRepeated ? <CheckCircleIcon sx={{ color: "#34D399", fontSize: 16 }} /> : <CancelIcon sx={{ color: "#94A3B8", fontSize: 16 }} />}
+                    {notRepeated ? <CheckCircleIcon sx={{ color: "#34D399", fontSize: 16 }} /> : <CancelIcon sx={{ color: "#625B60", fontSize: 16 }} />}
                     <Typography variant="caption" sx={{ color: notRepeated ? "#34D399" : "#94A3B8", fontWeight: 600 }}>
                       Not repeated numbers (e.g., 1111, 0000)
                     </Typography>
                   </Stack>
                   <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                    {notMobileMatch ? <CheckCircleIcon sx={{ color: "#34D399", fontSize: 16 }} /> : <CancelIcon sx={{ color: "#94A3B8", fontSize: 16 }} />}
+                    {notMobileMatch ? <CheckCircleIcon sx={{ color: "#34D399", fontSize: 16 }} /> : <CancelIcon sx={{ color: "#625B60", fontSize: 16 }} />}
                     <Typography variant="caption" sx={{ color: notMobileMatch ? "#34D399" : "#94A3B8", fontWeight: 600 }}>
                       Does not match mobile number digits
                     </Typography>
@@ -399,12 +399,12 @@ export const MpinSetupCard: React.FC<MpinSetupCardProps> = ({
             borderRadius: 4,
             bgcolor: "rgba(30, 41, 59, 0.7)",
             backdropFilter: "blur(16px)",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
+            border: "1px solid #E8E2E5",
             color: "#FFFFFF",
           }}
         >
           <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 2 }}>
-            <ShieldIcon sx={{ color: "#FBBF24", fontSize: 22 }} />
+            <ShieldIcon sx={{ color: "#A20A3A", fontSize: 22 }} />
             <Typography variant="h6" sx={{ fontWeight: 800, fontSize: "16px", color: "#FFFFFF" }}>
               Security Best Practices
             </Typography>
@@ -415,8 +415,8 @@ export const MpinSetupCard: React.FC<MpinSetupCardProps> = ({
               <Typography variant="caption" sx={{ color: "#60A5FA", fontWeight: 800, display: "block" }}>
                 🔒 NEVER SHARE YOUR MPIN
               </Typography>
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "12px", lineHeight: 1.4, display: "block" }}>
-                Your MPIN is strictly confidential. Pay2Pay staff or bank executives will never ask for your MPIN.
+              <Typography variant="caption" sx={{ color: "#625B60", fontSize: "12px", lineHeight: 1.4, display: "block" }}>
+                Your MPIN is strictly confidential. Near4You staff or bank executives will never ask for your MPIN.
               </Typography>
             </Box>
 
@@ -424,7 +424,7 @@ export const MpinSetupCard: React.FC<MpinSetupCardProps> = ({
               <Typography variant="caption" sx={{ color: "#60A5FA", fontWeight: 800, display: "block" }}>
                 🛡️ ENCRYPTED STORAGE
               </Typography>
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "12px", lineHeight: 1.4, display: "block" }}>
+              <Typography variant="caption" sx={{ color: "#625B60", fontSize: "12px", lineHeight: 1.4, display: "block" }}>
                 MPINs are hashed using cryptographic HMAC-SHA256 algorithms and never saved in plain text.
               </Typography>
             </Box>
@@ -433,7 +433,7 @@ export const MpinSetupCard: React.FC<MpinSetupCardProps> = ({
               <Typography variant="caption" sx={{ color: "#60A5FA", fontWeight: 800, display: "block" }}>
                 ⚠️ AUTOMATIC LOCKING
               </Typography>
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "12px", lineHeight: 1.4, display: "block" }}>
+              <Typography variant="caption" sx={{ color: "#625B60", fontSize: "12px", lineHeight: 1.4, display: "block" }}>
                 5 consecutive failed MPIN attempts will automatically lock your account for security.
               </Typography>
             </Box>
@@ -452,7 +452,7 @@ export const MpinSetupCard: React.FC<MpinSetupCardProps> = ({
               borderRadius: 4,
               p: 3,
               textAlign: "center",
-              bgcolor: "#0F172A",
+              bgcolor: "#FFFFFF",
               color: "#FFFFFF",
               border: "1px solid #34D399",
             },
@@ -463,10 +463,10 @@ export const MpinSetupCard: React.FC<MpinSetupCardProps> = ({
           🎉 Customer & MPIN Activated!
         </DialogTitle>
         <DialogContent>
-          <Typography variant="body2" sx={{ color: "#CBD5E1", mb: 2 }}>
+          <Typography variant="body2" sx={{ color: "#625B60", mb: 2 }}>
             Customer <strong>{customerName}</strong> registered and MPIN created successfully.
           </Typography>
-          <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", mb: 2 }}>
+          <Typography variant="caption" sx={{ color: "#625B60", display: "block", mb: 2 }}>
             Redirecting to DMT workstation...
           </Typography>
           <LinearProgress color="success" />

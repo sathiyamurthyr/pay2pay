@@ -40,7 +40,7 @@ export const Step6AGst: React.FC<Step6AProps> = ({ registrationId, onSuccess }) 
       }
     } catch {
       setLoading(false);
-      onSuccess({ gst_number: clean, trade_name: "Pay2Pay Enterprise Retailer" });
+      onSuccess({ gst_number: clean, trade_name: "Near4You Enterprise Retailer" });
     }
   };
 
@@ -50,7 +50,7 @@ export const Step6AGst: React.FC<Step6AProps> = ({ registrationId, onSuccess }) 
         <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
           Verify GSTIN (Business Entity)
         </h2>
-        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
+        <p className="text-xs font-semibold text-[#8A8288] dark:text-[#625B60] mt-1">
           Required for Company, Partnership, & LLP Registrations.
         </p>
       </div>
@@ -64,11 +64,11 @@ export const Step6AGst: React.FC<Step6AProps> = ({ registrationId, onSuccess }) 
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+          <label className="block text-xs font-bold text-slate-700 dark:text-[#292329] mb-1">
             GSTIN (15 Digits) <span className="text-red-500">*</span>
           </label>
           <div className="relative">
-            <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#625B60]" />
             <input
               type="text"
               value={gstNumber}
@@ -78,7 +78,7 @@ export const Step6AGst: React.FC<Step6AProps> = ({ registrationId, onSuccess }) 
               }}
               placeholder="33ABCDE1234F1Z5"
               required
-              className="w-full pl-11 pr-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm font-black uppercase text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+              className="w-full pl-11 pr-4 py-3 rounded-2xl bg-slate-50 dark:bg-[#FFFFFF] border border-slate-200 dark:border-[#E8E2E5] text-sm font-black uppercase text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
             />
           </div>
         </div>
@@ -86,7 +86,7 @@ export const Step6AGst: React.FC<Step6AProps> = ({ registrationId, onSuccess }) 
         <button
           type="submit"
           disabled={loading || gstNumber.length !== 15}
-          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#A20A3A] to-[#85072F] text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
         >
           {loading ? (
             <>

@@ -278,7 +278,7 @@ export default function WalletPage() {
             <Box sx={{ p: 1.25, borderRadius: 2.5, backgroundColor: "#EFF6FF", color: "#2563EB" }}>
               <AddIcon sx={{ fontSize: 22 }} />
             </Box>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: "13px", color: "#111827", textAlign: "center" }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: "13px", color: "#FAF8F9", textAlign: "center" }}>
               Add Money
             </Typography>
           </Paper>
@@ -306,7 +306,7 @@ export default function WalletPage() {
             <Box sx={{ p: 1.25, borderRadius: 2.5, backgroundColor: "#F3E8FF", color: "#7C3AED" }}>
               <ReceiptLongIcon sx={{ fontSize: 22 }} />
             </Box>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: "13px", color: "#111827", textAlign: "center" }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: "13px", color: "#FAF8F9", textAlign: "center" }}>
               Wallet Statement
             </Typography>
           </Paper>
@@ -334,7 +334,7 @@ export default function WalletPage() {
             <Box sx={{ p: 1.25, borderRadius: 2.5, backgroundColor: "#DCFCE7", color: "#16A34A" }}>
               <AccountBalanceIcon sx={{ fontSize: 22 }} />
             </Box>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: "13px", color: "#111827", textAlign: "center" }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: "13px", color: "#FAF8F9", textAlign: "center" }}>
               Request Settlement
             </Typography>
           </Paper>
@@ -363,7 +363,7 @@ export default function WalletPage() {
             <Box sx={{ p: 1.25, borderRadius: 2.5, backgroundColor: "#FEF3C7", color: "#D97706" }}>
               <QrCode2Icon sx={{ fontSize: 22 }} />
             </Box>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: "13px", color: "#111827", textAlign: "center" }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: "13px", color: "#FAF8F9", textAlign: "center" }}>
               Virtual Account
             </Typography>
           </Paper>
@@ -391,7 +391,7 @@ export default function WalletPage() {
             <Box sx={{ p: 1.25, borderRadius: 2.5, backgroundColor: "#E0F2FE", color: "#0EA5E9" }}>
               <SendIcon sx={{ fontSize: 22 }} />
             </Box>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: "13px", color: "#111827", textAlign: "center" }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: "13px", color: "#FAF8F9", textAlign: "center" }}>
               Transfer To Bank
             </Typography>
           </Paper>
@@ -419,7 +419,7 @@ export default function WalletPage() {
             <Box sx={{ p: 1.25, borderRadius: 2.5, backgroundColor: "#FEE2E2", color: "#DC2626" }}>
               <DownloadIcon sx={{ fontSize: 22 }} />
             </Box>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: "13px", color: "#111827", textAlign: "center" }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: "13px", color: "#FAF8F9", textAlign: "center" }}>
               Download Statement
             </Typography>
           </Paper>
@@ -473,7 +473,7 @@ export default function WalletPage() {
 
         {/* 7-Day Balance Trend Visualization */}
         <Paper elevation={0} sx={{ p: "20px", borderRadius: "20px", border: "1px solid #E5E7EB", backgroundColor: "#FFFFFF" }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#111827", mb: 2, fontSize: "15px" }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#FAF8F9", mb: 2, fontSize: "15px" }}>
             7-Day Wallet Balance Trend
           </Typography>
           <Box sx={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", height: 140, pt: 2, pb: 1, px: 1 }}>
@@ -507,7 +507,7 @@ export default function WalletPage() {
 
         {/* Monthly Commission Breakdown */}
         <Paper elevation={0} sx={{ p: "20px", borderRadius: "20px", border: "1px solid #E5E7EB", backgroundColor: "#FFFFFF" }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#111827", mb: 2, fontSize: "15px" }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#FAF8F9", mb: 2, fontSize: "15px" }}>
             Commission Share By Financial Service
           </Typography>
           <Stack spacing={1.75}>
@@ -559,7 +559,7 @@ export default function WalletPage() {
           boxShadow: "0 4px 16px rgba(0,0,0,0.04)",
         }}
       >
-        <Typography variant="h6" sx={{ fontSize: "18px", fontWeight: 800, color: "#111827", mb: 2 }}>
+        <Typography variant="h6" sx={{ fontSize: "18px", fontWeight: 800, color: "#FAF8F9", mb: 2 }}>
           Dedicated Virtual Account & UPI QR for Instant Auto Top-Up
         </Typography>
 
@@ -574,7 +574,7 @@ export default function WalletPage() {
                 <Stack spacing={1.5}>
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <Typography variant="caption" sx={{ color: "#6B7280", fontWeight: 600 }}>Bank Name</Typography>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#111827" }}>HDFC Bank Ltd (Pay2Pay Node)</Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#FAF8F9" }}>HDFC Bank Ltd (Near4You Node)</Typography>
                   </Box>
 
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -592,7 +592,7 @@ export default function WalletPage() {
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <Typography variant="caption" sx={{ color: "#6B7280", fontWeight: 600 }}>IFSC Code</Typography>
                     <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 800, fontFamily: "monospace", color: "#111827" }}>HDFC0000128</Typography>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800, fontFamily: "monospace", color: "#FAF8F9" }}>HDFC0000128</Typography>
                       <IconButton size="small" onClick={() => handleCopy("HDFC0000128", "IFSC Code")}>
                         <ContentCopyIcon sx={{ fontSize: 16 }} />
                       </IconButton>
@@ -617,7 +617,7 @@ export default function WalletPage() {
 
           <Box sx={{ textAlign: "center", display: "flex", justifyContent: "center" }}>
             <ScannableQrCode
-              value={`upi://pay?pa=pay2pay.${(outlet.code || "merchant").toLowerCase().replace(/[^a-z0-9]/g, "")}@hdfcbank&pn=${encodeURIComponent(outlet.name || "Pay2Pay Retailer Store")}&mc=0000&tr=WAL9001&tn=Wallet%20Auto%20TopUp&cu=INR`}
+              value={`upi://pay?pa=pay2pay.${(outlet.code || "merchant").toLowerCase().replace(/[^a-z0-9]/g, "")}@hdfcbank&pn=${encodeURIComponent(outlet.name || "Near4You Retailer Store")}&mc=0000&tr=WAL9001&tn=Wallet%20Auto%20TopUp&cu=INR`}
               size={170}
               label="Scan with GPay / PhonePe / Paytm"
               subLabel="Zero Fee Instant Auto Wallet Credit"
@@ -630,7 +630,7 @@ export default function WalletPage() {
       <Paper elevation={0} sx={{ p: "24px", borderRadius: "20px", border: "1px solid #E5E7EB", backgroundColor: "#FFFFFF" }}>
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, flexWrap: "wrap", gap: 1.5 }}>
           <Box>
-            <Typography variant="h6" sx={{ fontSize: "18px", fontWeight: 800, color: "#111827" }}>
+            <Typography variant="h6" sx={{ fontSize: "18px", fontWeight: 800, color: "#FAF8F9" }}>
               Recent Wallet Transactions
             </Typography>
             <Typography variant="caption" sx={{ color: "#6B7280", fontSize: "13px" }}>
@@ -695,7 +695,7 @@ export default function WalletPage() {
           <TableBody>
             {filteredTxns.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 6, color: "#64748B" }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 6, color: "#625B60" }}>
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>
                     No wallet transactions found.
                   </Typography>
@@ -713,11 +713,11 @@ export default function WalletPage() {
                       {txn.utr}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 600, color: "#111827" }}>{txn.particulars}</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: "#FAF8F9" }}>{txn.particulars}</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 800, fontFamily: "monospace", color: txn.type === "CREDIT" ? "#16A34A" : "#DC2626" }}>
                     {txn.type === "CREDIT" ? "+" : "-"}₹{txn.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 800, fontFamily: "monospace", color: "#111827" }}>
+                  <TableCell align="right" sx={{ fontWeight: 800, fontFamily: "monospace", color: "#FAF8F9" }}>
                     ₹{txn.balanceAfter.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </TableCell>
                   <TableCell align="center">
@@ -734,7 +734,7 @@ export default function WalletPage() {
       <Paper elevation={0} sx={{ p: "24px", borderRadius: "20px", border: "1px solid #E5E7EB", backgroundColor: "#FFFFFF" }}>
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
           <Box>
-            <Typography variant="h6" sx={{ fontSize: "18px", fontWeight: 800, color: "#111827" }}>
+            <Typography variant="h6" sx={{ fontSize: "18px", fontWeight: 800, color: "#FAF8F9" }}>
               Settlement History & Bank Transfers
             </Typography>
             <Typography variant="caption" sx={{ color: "#6B7280", fontSize: "13px" }}>
@@ -767,7 +767,7 @@ export default function WalletPage() {
           <TableBody>
             {settlementLogs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 6, color: "#64748B" }}>
+                <TableCell colSpan={7} align="center" sx={{ py: 6, color: "#625B60" }}>
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>
                     No settlement records found.
                   </Typography>

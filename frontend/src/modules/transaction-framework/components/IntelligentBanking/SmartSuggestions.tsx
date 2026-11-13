@@ -40,7 +40,7 @@ export const SmartSuggestions: React.FC = () => {
             fontSize: "14px",
             fontWeight: 700,
             color: "#FFFFFF",
-            borderColor: "rgba(255, 255, 255, 0.2)",
+            borderColor: "#E8E2E5",
             bgcolor: "rgba(255, 255, 255, 0.05)",
             "&:hover": { bgcolor: "rgba(255, 255, 255, 0.12)" },
           }}
@@ -57,7 +57,7 @@ export const SmartSuggestions: React.FC = () => {
             fontSize: "14px",
             fontWeight: 700,
             color: "#FFFFFF",
-            borderColor: "rgba(255, 255, 255, 0.2)",
+            borderColor: "#E8E2E5",
             bgcolor: "rgba(255, 255, 255, 0.05)",
             "&:hover": { bgcolor: "rgba(255, 255, 255, 0.12)" },
           }}
@@ -74,7 +74,7 @@ export const SmartSuggestions: React.FC = () => {
             fontSize: "14px",
             fontWeight: 700,
             color: "#FFFFFF",
-            borderColor: "rgba(255, 255, 255, 0.2)",
+            borderColor: "#E8E2E5",
             bgcolor: "rgba(255, 255, 255, 0.05)",
             "&:hover": { bgcolor: "rgba(255, 255, 255, 0.12)" },
           }}
@@ -84,13 +84,13 @@ export const SmartSuggestions: React.FC = () => {
 
         <Button
           variant="outlined"
-          startIcon={<AccountBalanceWalletIcon sx={{ color: "#FBBF24" }} />}
+          startIcon={<AccountBalanceWalletIcon sx={{ color: "#A20A3A" }} />}
           sx={{
             height: 44,
             borderRadius: "12px",
             fontSize: "14px",
             fontWeight: 700,
-            color: "#FBBF24",
+            color: "#A20A3A",
             borderColor: "rgba(251, 191, 36, 0.4)",
             bgcolor: "rgba(251, 191, 36, 0.1)",
             "&:hover": { bgcolor: "rgba(251, 191, 36, 0.2)" },

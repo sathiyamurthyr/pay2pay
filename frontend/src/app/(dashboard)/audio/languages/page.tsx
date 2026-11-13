@@ -55,7 +55,7 @@ export default function AudioLanguagesPage() {
           <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
             <Globe className="w-7 h-7 text-cyan-400" /> Multi-Lingual Voice Engine
           </h1>
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-[#625B60] text-sm mt-1">
             Native SpeechSynthesis & TTS Voice Announcement Packs
           </p>
         </div>
@@ -64,10 +64,10 @@ export default function AudioLanguagesPage() {
       {/* Languages Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
-          <div className="col-span-3 p-8 text-center text-slate-500">Loading language packs...</div>
+          <div className="col-span-3 p-8 text-center text-[#8A8288]">Loading language packs...</div>
         ) : (
           languages.map((l) => (
-            <div key={l.language_code} className="glass-card p-6 rounded-2xl border border-slate-800 bg-slate-900/60 flex flex-col justify-between space-y-4">
+            <div key={l.language_code} className="glass-card p-6 rounded-2xl border border-[#E8E2E5] bg-[#FAF8F9]/60 flex flex-col justify-between space-y-4">
               <div>
                 <div className="flex justify-between items-center">
                   <span className="px-2.5 py-0.5 rounded text-xs font-mono font-semibold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
@@ -78,7 +78,7 @@ export default function AudioLanguagesPage() {
                   </span>
                 </div>
                 <h3 className="text-xl font-bold text-white mt-2">{l.native_name}</h3>
-                <p className="text-xs text-slate-400">{l.language_name} Pack</p>
+                <p className="text-xs text-[#625B60]">{l.language_name} Pack</p>
               </div>
 
               <button

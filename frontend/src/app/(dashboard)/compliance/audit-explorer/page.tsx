@@ -11,14 +11,14 @@ import {
 } from "lucide-react";
 
 const MOCK_LOGS = [
-  { public_id:"al-001", created_date:"2026-08-02T23:05:12Z", actor_email:"admin@pay2pay.in",   action:"USER.LOGIN",           resource_type:"AdminUser",    resource_id:"usr-0041-ab12cd", ip_address:"103.21.44.10",  status:"SUCCESS" },
-  { public_id:"al-002", created_date:"2026-08-02T22:48:31Z", actor_email:"ops@pay2pay.in",      action:"BATCH.PROCESS",        resource_type:"SettlementBatch",resource_id:"bat-0091-ef34gh",ip_address:"103.21.44.11",  status:"SUCCESS" },
-  { public_id:"al-003", created_date:"2026-08-02T22:30:09Z", actor_email:"dev@pay2pay.in",      action:"API_KEY.CREATE",       resource_type:"APIKey",       resource_id:"key-0014-ij56kl", ip_address:"182.74.12.90",  status:"SUCCESS" },
-  { public_id:"al-004", created_date:"2026-08-02T21:15:44Z", actor_email:"ops@pay2pay.in",      action:"MERCHANT.KYC_APPROVE", resource_type:"Merchant",     resource_id:"mer-2291-mn78op", ip_address:"103.21.44.11",  status:"SUCCESS" },
+  { public_id:"al-001", created_date:"2026-08-02T23:05:12Z", actor_email:"admin@near4you.store",   action:"USER.LOGIN",           resource_type:"AdminUser",    resource_id:"usr-0041-ab12cd", ip_address:"103.21.44.10",  status:"SUCCESS" },
+  { public_id:"al-002", created_date:"2026-08-02T22:48:31Z", actor_email:"ops@near4you.store",      action:"BATCH.PROCESS",        resource_type:"SettlementBatch",resource_id:"bat-0091-ef34gh",ip_address:"103.21.44.11",  status:"SUCCESS" },
+  { public_id:"al-003", created_date:"2026-08-02T22:30:09Z", actor_email:"dev@near4you.store",      action:"API_KEY.CREATE",       resource_type:"APIKey",       resource_id:"key-0014-ij56kl", ip_address:"182.74.12.90",  status:"SUCCESS" },
+  { public_id:"al-004", created_date:"2026-08-02T21:15:44Z", actor_email:"ops@near4you.store",      action:"MERCHANT.KYC_APPROVE", resource_type:"Merchant",     resource_id:"mer-2291-mn78op", ip_address:"103.21.44.11",  status:"SUCCESS" },
   { public_id:"al-005", created_date:"2026-08-02T20:00:22Z", actor_email:"unknown@external.io", action:"USER.LOGIN_FAILED",    resource_type:"AdminUser",    resource_id:"usr-0041-ab12cd", ip_address:"45.129.56.200", status:"FAILED"  },
-  { public_id:"al-006", created_date:"2026-08-02T19:42:11Z", actor_email:"admin@pay2pay.in",    action:"ROLE.PERMISSION_EDIT", resource_type:"Role",         resource_id:"rol-0003-qr90st", ip_address:"103.21.44.10",  status:"SUCCESS" },
-  { public_id:"al-007", created_date:"2026-08-02T18:30:55Z", actor_email:"dev@pay2pay.in",      action:"WEBHOOK.DELETE",       resource_type:"Webhook",      resource_id:"wh-0008-uv12wx",  ip_address:"182.74.12.90",  status:"WARNING" },
-  { public_id:"al-008", created_date:"2026-08-02T17:10:03Z", actor_email:"admin@pay2pay.in",    action:"USER.LOGOUT",          resource_type:"AdminUser",    resource_id:"usr-0041-ab12cd", ip_address:"103.21.44.10",  status:"SUCCESS" },
+  { public_id:"al-006", created_date:"2026-08-02T19:42:11Z", actor_email:"admin@near4you.store",    action:"ROLE.PERMISSION_EDIT", resource_type:"Role",         resource_id:"rol-0003-qr90st", ip_address:"103.21.44.10",  status:"SUCCESS" },
+  { public_id:"al-007", created_date:"2026-08-02T18:30:55Z", actor_email:"dev@near4you.store",      action:"WEBHOOK.DELETE",       resource_type:"Webhook",      resource_id:"wh-0008-uv12wx",  ip_address:"182.74.12.90",  status:"WARNING" },
+  { public_id:"al-008", created_date:"2026-08-02T17:10:03Z", actor_email:"admin@near4you.store",    action:"USER.LOGOUT",          resource_type:"AdminUser",    resource_id:"usr-0041-ab12cd", ip_address:"103.21.44.10",  status:"SUCCESS" },
 ];
 
 const ACTION_ICONS: Record<string, React.ElementType> = {
@@ -88,7 +88,7 @@ export default function AuditExplorerPage() {
               <ScrollText className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-extrabold text-[#0F172A] tracking-tight">Security Audit Trail Explorer</h1>
+              <h1 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight">Security Audit Trail Explorer</h1>
               <p className="text-xs font-medium text-[#64748B] mt-0.5">
                 Immutable user activity logs · IP tracking · action signatures · resource mutation diffs
               </p>
@@ -133,7 +133,7 @@ export default function AuditExplorerPage() {
               placeholder="Search actor, action, resource…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 pr-3 py-1.5 w-56 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[12px] font-medium text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#6366F1] focus:ring-2 focus:ring-[#6366F1]/15 transition-all"
+              className="pl-8 pr-3 py-1.5 w-56 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[12px] font-medium text-[#FFFFFF] placeholder-[#94A3B8] focus:outline-none focus:border-[#6366F1] focus:ring-2 focus:ring-[#6366F1]/15 transition-all"
             />
           </div>
           <div className="h-6 w-px bg-[#E2E8F0] mx-0.5" />
@@ -249,7 +249,7 @@ export default function AuditExplorerPage() {
                           <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] flex items-center justify-center text-white text-[9px] font-extrabold shrink-0">
                             {(l.actor_email || "S")[0].toUpperCase()}
                           </div>
-                          <span className="text-[12px] font-semibold text-[#0F172A] max-w-[160px] truncate">{l.actor_email || "System"}</span>
+                          <span className="text-[12px] font-semibold text-[#FFFFFF] max-w-[160px] truncate">{l.actor_email || "System"}</span>
                         </div>
                       </td>
 
@@ -264,7 +264,7 @@ export default function AuditExplorerPage() {
                       {/* Resource */}
                       <td className="px-4 py-3.5">
                         <div>
-                          <span className="text-[11px] font-semibold text-[#0F172A]">{l.resource_type}</span>
+                          <span className="text-[11px] font-semibold text-[#FFFFFF]">{l.resource_type}</span>
                           <p className="font-mono text-[10px] text-[#94A3B8] mt-0.5">{l.resource_id?.slice(0, 14)}…</p>
                         </div>
                       </td>
@@ -290,7 +290,7 @@ export default function AuditExplorerPage() {
 
         {filtered.length > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 border-t border-[#F1F5F9] bg-gradient-to-r from-[#F8FAFC] to-[#EEF2FF] text-[11px] font-semibold text-[#64748B]">
-            <span>Showing <strong className="text-[#0F172A]">{filtered.length}</strong> of <strong className="text-[#0F172A]">{logs.length}</strong> audit events</span>
+            <span>Showing <strong className="text-[#FFFFFF]">{filtered.length}</strong> of <strong className="text-[#FFFFFF]">{logs.length}</strong> audit events</span>
             <span className="font-mono text-[10px] text-[#94A3B8]">Updated: {lastUpdated.toLocaleTimeString("en-IN")}</span>
           </div>
         )}
