@@ -20,7 +20,8 @@ import {
   Lock,
   Eye,
   EyeOff,
-  Phone
+  Phone,
+  User
 } from "lucide-react";
 import { collectSilentTelemetry, TelemetryData } from "@/lib/telemetry";
 import { verifyAndRoutePostLogin } from "@/lib/retailer-destination-resolver";
@@ -358,7 +359,12 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
   };
 
   const handleMobileChange = (val: string) => {
-    const clean = val.replace(/\D/g, "").slice(0, 10);
+    let clean = val.trim();
+    if (/^\d+$/.test(clean)) {
+      clean = clean.slice(0, 10);
+    } else {
+      clean = clean.slice(0, 40);
+    }
     setMobileNumber(clean);
     setErrorMsg("");
   };
@@ -538,8 +544,10 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       triggerError("Security Consent acceptance is mandatory.");
       return;
     }
-    if (mobileNumber.length !== 10) {
-      triggerError("Please enter a valid 10-digit mobile number.");
+    const isMobile = /^\d{10}$/.test(mobileNumber.trim());
+    const isUsername = /^[a-zA-Z0-9_.@-]{3,40}$/.test(mobileNumber.trim());
+    if (!isMobile && !isUsername) {
+      triggerError("Please enter a valid 10-digit mobile number or username.");
       return;
     }
     if (!password) {
@@ -600,8 +608,10 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
   };
 
   const handleSendOtp = async () => {
-    if (mobileNumber.length !== 10) {
-      triggerError("Please enter a valid 10-digit mobile number.");
+    const isMobile = /^\d{10}$/.test(mobileNumber.trim());
+    const isUsername = /^[a-zA-Z0-9_.@-]{3,40}$/.test(mobileNumber.trim());
+    if (!isMobile && !isUsername) {
+      triggerError("Please enter a valid 10-digit mobile number or username.");
       return;
     }
     setErrorMsg("");
@@ -929,29 +939,36 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           {authTab === "PASSWORD" && (
             <form onSubmit={handlePasswordLogin} className="space-y-4">
 
-              {/* Mobile Number */}
+              {/* Mobile Number / Admin Username */}
               <div>
                 <label className={`block text-xs font-bold mb-1.5 ${darkMode ? "text-[#292329]" : "text-slate-700"}`}>
-                  {t.mobileNumber} <span className="text-red-500">*</span>
+                  {portalRole === "ADMIN" ? "Admin Username / Mobile" : `${t.mobileNumber} / Username`} <span className="text-red-500">*</span>
                 </label>
                 <div className={`relative rounded-xl transition-all duration-200 ${inputFocusRing(mobileFocused)}`}>
-                  <div className={`absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 ${darkMode ? "text-[#625B60]" : "text-[#8A8288]"}`}>
-                    <Phone className="w-3.5 h-3.5" />
-                    <span className="text-xs font-bold">+91</span>
-                    <span className={`text-xs ${darkMode ? "text-slate-700" : "text-[#292329]"}`}>|</span>
-                  </div>
+                  {/^\d*$/.test(mobileNumber) ? (
+                    <div className={`absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 ${darkMode ? "text-[#625B60]" : "text-[#8A8288]"}`}>
+                      <Phone className="w-3.5 h-3.5" />
+                      <span className="text-xs font-bold">+91</span>
+                      <span className={`text-xs ${darkMode ? "text-slate-700" : "text-[#292329]"}`}>|</span>
+                    </div>
+                  ) : (
+                    <div className={`absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 ${darkMode ? "text-[#625B60]" : "text-[#8A8288]"}`}>
+                      <User className="w-3.5 h-3.5" />
+                    </div>
+                  )}
                   <input
-                    type="tel"
-                    inputMode="numeric"
+                    type="text"
+                    autoCapitalize="none"
+                    autoCorrect="off"
                     value={mobileNumber}
                     onFocus={() => setMobileFocused(true)}
                     onBlur={() => setMobileFocused(false)}
                     onChange={(e) => handleMobileChange(e.target.value)}
-                    placeholder="9876543210"
+                    placeholder={portalRole === "ADMIN" ? "admin or mobile number" : "9876543210 or username"}
                     required
-                    className={`${inputBase} pl-20 pr-10 py-3`}
+                    className={`${inputBase} ${/^\d*$/.test(mobileNumber) ? "pl-20" : "pl-10"} pr-10 py-3`}
                   />
-                  {mobileNumber.length === 10 && (
+                  {(mobileNumber.length === 10 || (!/^\d+$/.test(mobileNumber) && mobileNumber.length >= 3)) && (
                     <Check className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" />
                   )}
                 </div>

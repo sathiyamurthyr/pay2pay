@@ -549,6 +549,7 @@ export const Sidebar: React.FC = () => {
                       const Icon = item.icon;
                       const isActive =
                         pathname === item.href ||
+                        (item.href === "/dashboard" && (pathname === "/super-admin/dashboard" || pathname === "/admin/dashboard" || pathname === "/super-admin")) ||
                         (item.href !== "/" && pathname?.startsWith(`${item.href}/`));
 
                       const isFavorited = favorites.some((f) => f.menu_href === item.href);

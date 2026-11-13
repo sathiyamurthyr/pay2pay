@@ -145,7 +145,10 @@ export function middleware(request: NextRequest) {
   let resolvedRole: UserPortalRole = "RETAILER";
   if (rawUserType !== undefined && rawUserType !== null && String(rawUserType).trim() !== "") {
     const numId = Number(rawUserType);
-    if (numId === 1) resolvedRole = "ADMIN";
+    if (numId === 1) {
+      const explicitRole = normalizeUserRole(jwtRole || cookieRole);
+      resolvedRole = explicitRole === "SUPER_ADMIN" ? "SUPER_ADMIN" : "ADMIN";
+    }
     else if (numId === 2) resolvedRole = "RETAILER";
     else if (numId === 3) resolvedRole = "DIST";
     else if (numId === 4) resolvedRole = "SD";
@@ -285,6 +288,10 @@ export function middleware(request: NextRequest) {
   const targetPrefix = allPrefixes.find((prefix) => pathname.startsWith(prefix));
 
   if (targetPrefix && targetPrefix !== portalConfig.prefix) {
+    // Super Admin has administrative access to both /super-admin/* and /admin/*
+    if (resolvedRole === "SUPER_ADMIN" && targetPrefix === "/admin") {
+      return applySecurityHeaders(NextResponse.next());
+    }
     // If accessing another portal's prefixed routes (e.g. Retailer trying /dist/*, /sd/*, or /admin/*),
     // redirect safely back to their own authorized dashboard
     return applySecurityHeaders(

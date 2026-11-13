@@ -2,14 +2,17 @@
 
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { RetailerLayout } from "@/components/layout/retailer-layout";
+import { Sidebar } from "@/components/layout/sidebar";
+import { Navbar } from "@/components/layout/navbar";
 
 const DEV_BYPASS = false;
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -43,7 +46,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           return;
         }
       }
-      router.replace("/retailer/login");
+      const loginTarget = pathname?.startsWith("/super-admin")
+        ? "/super-admin/login"
+        : pathname?.startsWith("/admin")
+        ? "/admin/login"
+        : "/login";
+      router.replace(loginTarget);
       return;
     }
 
@@ -88,7 +96,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         router.replace("/retailer/account-restricted");
       }
     }
-  }, [user, authLoading, router, mounted]);
+  }, [user, authLoading, router, mounted, pathname]);
+
+  const isAdminOrSuperAdminRoute = Boolean(
+    pathname?.startsWith("/super-admin") ||
+    pathname?.startsWith("/admin") ||
+    pathname === "/dashboard"
+  );
+
+  const isSuperAdminOrAdminUser = Boolean(
+    user?.roles?.includes("SUPER_ADMIN") ||
+    user?.roles?.includes("PLATFORM_ADMIN") ||
+    user?.roles?.includes("ADMIN")
+  );
+
+  if (isAdminOrSuperAdminRoute || (isSuperAdminOrAdminUser && !pathname?.startsWith("/retailer"))) {
+    return (
+      <div className="flex h-screen bg-white text-[#0F172A] overflow-hidden">
+        <Sidebar />
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <Navbar />
+          <main className="flex-1 overflow-y-auto p-2 sm:p-3 bg-white">
+            {children}
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return <RetailerLayout>{children}</RetailerLayout>;
 }
