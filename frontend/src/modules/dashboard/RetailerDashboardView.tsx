@@ -423,8 +423,8 @@ export const RetailerDashboardView: React.FC = () => {
             bgcolor: "#DCFCE7",
             color: "#166534",
             fontWeight: 700,
-            fontSize: "11px",
-            height: "22px",
+            fontSize: "12px",
+            height: "24px",
             border: "1px solid #BBF7D0",
           }}
         />
@@ -438,8 +438,8 @@ export const RetailerDashboardView: React.FC = () => {
             bgcolor: "#FFF8DC",
             color: "#B45309",
             fontWeight: 700,
-            fontSize: "11px",
-            height: "22px",
+            fontSize: "12px",
+            height: "24px",
             border: "1px solid #FDE68A",
           }}
         />
@@ -453,8 +453,8 @@ export const RetailerDashboardView: React.FC = () => {
             bgcolor: "#FEE2E2",
             color: "#991B1B",
             fontWeight: 700,
-            fontSize: "11px",
-            height: "22px",
+            fontSize: "12px",
+            height: "24px",
             border: "1px solid #FECACA",
           }}
         />
@@ -468,8 +468,8 @@ export const RetailerDashboardView: React.FC = () => {
             bgcolor: "#FFF0F4",
             color: "#A20A3A",
             fontWeight: 700,
-            fontSize: "11px",
-            height: "22px",
+            fontSize: "12px",
+            height: "24px",
             border: "1px solid #FCD3DE",
           }}
         />
@@ -480,11 +480,11 @@ export const RetailerDashboardView: React.FC = () => {
         label={u}
         size="small"
         sx={{
-          bgcolor: "#F3F4F6",
-          color: "#374151",
+          bgcolor: "#F1F5F9",
+          color: "#334155",
           fontWeight: 700,
-          fontSize: "11px",
-          height: "22px",
+          fontSize: "12px",
+          height: "24px",
         }}
       />
     );
@@ -522,23 +522,23 @@ export const RetailerDashboardView: React.FC = () => {
     <Box
       sx={{
         backgroundColor: "#FFFFFF",
-        color: "#292329",
+        color: "#0F172A",
         minHeight: "100vh",
-        p: { xs: 2, md: 3 },
+        p: { xs: 2, sm: 2.5, md: 3 },
         fontFamily: "'Inter', 'Source Sans 3', 'IBM Plex Sans', sans-serif"
       }}
     >
       <DashboardAnnouncementModal />
 
-      {/* SECTION A & B: COMPACT HEADER & RETAILER INFORMATION */}
+      {/* SECTION A: COMPACT HEADER & RETAILER INFORMATION */}
       <Paper
         elevation={0}
         sx={{
-          p: { xs: 1.75, md: 2.2 },
+          p: { xs: 2, md: 2.25 },
           mb: 3,
-          borderRadius: "16px",
+          borderRadius: "18px",
           backgroundColor: "#FFFFFF",
-          border: "1px solid #E8E2E5",
+          border: "1px solid #E2E8F0",
           display: "flex",
           flexDirection: { xs: "column", sm: "row" },
           justifyContent: "space-between",
@@ -548,11 +548,19 @@ export const RetailerDashboardView: React.FC = () => {
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-          <Typography variant="h1" sx={{ fontWeight: 800, color: "#292329", fontSize: "19px", letterSpacing: "-0.4px" }}>
+          <Typography
+            variant="h1"
+            sx={{
+              fontWeight: 800,
+              color: "#0F172A",
+              fontSize: { xs: "20px", sm: "22px", md: "24px" },
+              letterSpacing: "-0.5px"
+            }}
+          >
             Retailer Dashboard
           </Typography>
-          <Box sx={{ width: "1px", height: 16, bgcolor: "#E8E2E5", display: { xs: "none", sm: "block" } }} />
-          <Typography variant="body2" sx={{ fontWeight: 700, color: "#292329", fontSize: "14px" }}>
+          <Box sx={{ width: "1px", height: 20, bgcolor: "#E2E8F0", display: { xs: "none", sm: "block" } }} />
+          <Typography variant="body1" sx={{ fontWeight: 700, color: "#1E293B", fontSize: "14px" }}>
             {retailerName}
           </Typography>
           <Chip
@@ -562,8 +570,8 @@ export const RetailerDashboardView: React.FC = () => {
               backgroundColor: "#FFF0F4",
               color: "#A20A3A",
               fontWeight: 700,
-              fontSize: "11px",
-              height: 22,
+              fontSize: "12px",
+              height: 24,
               border: "1px solid #FCD3DE",
             }}
           />
@@ -573,27 +581,27 @@ export const RetailerDashboardView: React.FC = () => {
             sx={{
               backgroundColor: "#FFF8DC",
               color: "#B45309",
-              fontWeight: 600,
-              fontSize: "11px",
-              height: 22,
+              fontWeight: 700,
+              fontSize: "12px",
+              height: 24,
               border: "1px solid #FDE68A",
               display: { xs: "none", md: "inline-flex" }
             }}
           />
-          <Typography variant="caption" sx={{ color: "#625B60", fontSize: "12px", display: { xs: "none", md: "inline" } }}>
+          <Typography variant="body2" sx={{ color: "#475569", fontSize: "13px", fontWeight: 500, display: { xs: "none", md: "inline" } }}>
             {currentDate}
           </Typography>
         </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
           <Chip
-            icon={<Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "#22C55E", ml: 1 }} />}
+            icon={<Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: "#16A34A", ml: 1 }} />}
             label="Live"
             size="small"
             sx={{
               fontWeight: 700,
-              fontSize: "11px",
-              height: 24,
+              fontSize: "12px",
+              height: 26,
               color: "#166534",
               bgcolor: "#DCFCE7",
               border: "1px solid #BBF7D0",
@@ -605,11 +613,12 @@ export const RetailerDashboardView: React.FC = () => {
               disabled={loading}
               size="small"
               sx={{
-                color: "#625B60",
-                backgroundColor: "#FAF8F9",
-                border: "1px solid #E8E2E5",
-                width: 34,
-                height: 34,
+                color: "#475569",
+                backgroundColor: "#F8FAFC",
+                border: "1px solid #E2E8F0",
+                width: 36,
+                height: 36,
+                borderRadius: "10px",
                 "&:hover": { backgroundColor: "#FFF0F4", color: "#A20A3A", borderColor: "#FCD3DE" }
               }}
             >
@@ -620,34 +629,35 @@ export const RetailerDashboardView: React.FC = () => {
         </Box>
       </Paper>
 
-      {/* SECTION C & SECTION F: PROMINENT WALLET SUMMARY & QUICK ACTIONS */}
-      <Grid container spacing={2.5} sx={{ mb: 3 }}>
-        {/* SECTION C: PROMINENT WALLET SUMMARY CARD */}
-        <Grid size={{ xs: 12, lg: 5 }}>
+      {/* SECTION B & C: PROMINENT WALLET SUMMARY & QUICK ACTIONS */}
+      <Grid container spacing={2.5} sx={{ mb: 3, alignItems: "stretch" }}>
+        {/* SECTION B: PROMINENT WALLET SUMMARY CARD */}
+        <Grid size={{ xs: 12, lg: 5 }} sx={{ display: "flex" }}>
           <Paper
             elevation={0}
             sx={{
               p: { xs: 2.5, sm: 3 },
               borderRadius: "20px",
-              background: "linear-gradient(135deg, #A20A3A 0%, #6B0525 50%, #EDC11E 100%)",
+              background: "linear-gradient(135deg, #A20A3A 0%, #6B0525 60%, #B8860B 100%)",
               color: "#FFFFFF",
               position: "relative",
               overflow: "hidden",
+              width: "100%",
               height: "100%",
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
-              boxShadow: "0 8px 24px rgba(162, 10, 58, 0.22)",
+              boxShadow: "0 8px 28px rgba(162, 10, 58, 0.22)",
             }}
           >
-            {/* Subtle decorative gradient shapes */}
+            {/* Subtle decorative glow */}
             <Box
               sx={{
                 position: "absolute",
                 top: -30,
                 right: -30,
-                width: 140,
-                height: 140,
+                width: 150,
+                height: 150,
                 borderRadius: "50%",
                 background: "radial-gradient(circle, rgba(237, 193, 30, 0.35) 0%, rgba(237, 193, 30, 0) 70%)",
                 pointerEvents: "none",
@@ -658,8 +668,8 @@ export const RetailerDashboardView: React.FC = () => {
                 position: "absolute",
                 bottom: -40,
                 left: -20,
-                width: 120,
-                height: 120,
+                width: 130,
+                height: 130,
                 borderRadius: "50%",
                 background: "radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0) 70%)",
                 pointerEvents: "none",
@@ -669,16 +679,16 @@ export const RetailerDashboardView: React.FC = () => {
             <Box sx={{ position: "relative", zIndex: 1 }}>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
                 <Box>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.88)", fontSize: "12px", fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase" }}>
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.95)", fontSize: "13px", fontWeight: 800, letterSpacing: "0.6px", textTransform: "uppercase" }}>
                     Available Wallet Balance
                   </Typography>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.70)", fontSize: "11px", mt: 0.2 }}>
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.75)", fontSize: "12px", mt: 0.3 }}>
                     Near4You Settlement & Liquidity Ledger
                   </Typography>
                 </Box>
                 <Box
                   sx={{
-                    p: 1,
+                    p: 1.1,
                     borderRadius: "12px",
                     bgcolor: "rgba(255, 255, 255, 0.15)",
                     backdropFilter: "blur(8px)",
@@ -687,41 +697,42 @@ export const RetailerDashboardView: React.FC = () => {
                     justifyContent: "center",
                   }}
                 >
-                  <AccountBalanceWalletIcon sx={{ fontSize: 22, color: "#FFFFFF" }} />
+                  <AccountBalanceWalletIcon sx={{ fontSize: 24, color: "#FFFFFF" }} />
                 </Box>
               </Box>
 
               {loading && !hasLoaded ? (
-                <Skeleton variant="text" width={220} height={56} sx={{ bgcolor: "rgba(255, 255, 255, 0.2)" }} />
+                <Skeleton variant="text" width={220} height={60} sx={{ bgcolor: "rgba(255, 255, 255, 0.2)" }} />
               ) : (
                 <Typography
                   variant="h2"
                   sx={{
                     color: "#FFFFFF",
                     fontWeight: 900,
-                    fontSize: { xs: "28px", sm: "36px" },
-                    letterSpacing: "-0.5px",
-                    my: 1,
-                    textShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                    fontSize: { xs: "34px", sm: "40px", md: "44px" },
+                    lineHeight: 1.05,
+                    letterSpacing: "-0.8px",
+                    my: 1.5,
+                    textShadow: "0 2px 8px rgba(0,0,0,0.25)",
                   }}
                 >
                   ₹{formatAmount(headerWallet?.available_balance ?? wallet.availableBalance ?? wallet.mainBalance)}
                 </Typography>
               )}
 
-              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mt: 1, flexWrap: "wrap" }}>
-                <Typography sx={{ color: "rgba(255, 255, 255, 0.85)", fontSize: "12px" }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mt: 1.5, flexWrap: "wrap" }}>
+                <Typography sx={{ color: "rgba(255, 255, 255, 0.95)", fontSize: "13px" }}>
                   Reserved: <strong>₹{formatAmount(headerWallet?.blocked_balance)}</strong>
                 </Typography>
-                <Box sx={{ width: 4, height: 4, borderRadius: "50%", bgcolor: "rgba(255, 255, 255, 0.5)", display: { xs: "none", sm: "block" } }} />
-                <Typography sx={{ color: "rgba(255, 255, 255, 0.85)", fontSize: "12px" }}>
+                <Box sx={{ width: 4, height: 4, borderRadius: "50%", bgcolor: "rgba(255, 255, 255, 0.6)", display: { xs: "none", sm: "block" } }} />
+                <Typography sx={{ color: "rgba(255, 255, 255, 0.95)", fontSize: "13px" }}>
                   Today's Debit: <strong>-₹{formatAmount(headerWallet?.todays_debit)}</strong>
                 </Typography>
               </Box>
             </Box>
 
-            {/* Buttons & Status */}
-            <Box sx={{ position: "relative", zIndex: 1, mt: 3, pt: 2, borderTop: "1px solid rgba(255, 255, 255, 0.18)" }}>
+            {/* Buttons & Realtime status */}
+            <Box sx={{ position: "relative", zIndex: 1, mt: 3, pt: 2.2, borderTop: "1px solid rgba(255, 255, 255, 0.20)" }}>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1.5 }}>
                 <Stack direction="row" spacing={1.5}>
                   <Button
@@ -736,18 +747,18 @@ export const RetailerDashboardView: React.FC = () => {
                       router.push("/retailer/wallet");
                     }}
                     sx={{
-                      py: 0.9,
-                      px: 2.8,
+                      py: 1,
+                      px: 3,
                       fontSize: "13px",
                       fontWeight: 800,
                       borderRadius: "9999px",
                       backgroundColor: "#FFFFFF",
                       color: "#A20A3A",
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                      boxShadow: "0 4px 14px rgba(0,0,0,0.18)",
                       "&:hover": {
                         backgroundColor: "#FFF8DC",
                         color: "#6B0525",
-                        boxShadow: "0 6px 16px rgba(0,0,0,0.25)",
+                        boxShadow: "0 6px 18px rgba(0,0,0,0.28)",
                       },
                       textTransform: "none",
                     }}
@@ -760,17 +771,17 @@ export const RetailerDashboardView: React.FC = () => {
                     startIcon={<HistoryIcon sx={{ fontSize: 18 }} />}
                     onClick={() => router.push("/retailer/dmt/ledger")}
                     sx={{
-                      py: 0.9,
-                      px: 2.8,
+                      py: 1,
+                      px: 3,
                       fontSize: "13px",
                       fontWeight: 700,
                       borderRadius: "9999px",
-                      borderColor: "rgba(255, 255, 255, 0.8)",
+                      borderColor: "rgba(255, 255, 255, 0.85)",
                       color: "#FFFFFF",
-                      backgroundColor: "rgba(255, 255, 255, 0.10)",
+                      backgroundColor: "rgba(255, 255, 255, 0.12)",
                       "&:hover": {
                         borderColor: "#FFFFFF",
-                        backgroundColor: "rgba(255, 255, 255, 0.20)",
+                        backgroundColor: "rgba(255, 255, 255, 0.24)",
                       },
                       textTransform: "none",
                     }}
@@ -778,7 +789,7 @@ export const RetailerDashboardView: React.FC = () => {
                     Passbook
                   </Button>
                 </Stack>
-                <Typography sx={{ color: "rgba(255, 255, 255, 0.75)", fontSize: "11px", fontWeight: 500 }}>
+                <Typography sx={{ color: "rgba(255, 255, 255, 0.80)", fontSize: "12px", fontWeight: 600 }}>
                   ● Realtime sync
                 </Typography>
               </Box>
@@ -786,16 +797,17 @@ export const RetailerDashboardView: React.FC = () => {
           </Paper>
         </Grid>
 
-        {/* SECTION F: QUICK ACTIONS (6 SERVICE SHORTCUTS) */}
-        <Grid size={{ xs: 12, lg: 7 }}>
+        {/* SECTION C: QUICK ACTIONS (6 SERVICE SHORTCUTS) */}
+        <Grid size={{ xs: 12, lg: 7 }} sx={{ display: "flex" }}>
           <Paper
             elevation={0}
             sx={{
-              p: { xs: 2, sm: 2.5 },
+              p: { xs: 2.2, sm: 2.5 },
               borderRadius: "20px",
               backgroundColor: "#FFFFFF",
-              border: "1px solid #E8E2E5",
+              border: "1px solid #E2E8F0",
               boxShadow: "0 2px 10px rgba(0,0,0,0.02)",
+              width: "100%",
               height: "100%",
               display: "flex",
               flexDirection: "column",
@@ -804,10 +816,10 @@ export const RetailerDashboardView: React.FC = () => {
           >
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
               <Box>
-                <Typography sx={{ fontWeight: 800, color: "#292329", fontSize: "16px" }}>
+                <Typography sx={{ fontWeight: 800, color: "#0F172A", fontSize: { xs: "18px", sm: "20px" }, letterSpacing: "-0.3px" }}>
                   Quick Actions
                 </Typography>
-                <Typography sx={{ color: "#625B60", fontSize: "12px", mt: 0.2 }}>
+                <Typography sx={{ color: "#475569", fontSize: "13px", mt: 0.25 }}>
                   Instant access to high-velocity financial services
                 </Typography>
               </Box>
@@ -818,15 +830,16 @@ export const RetailerDashboardView: React.FC = () => {
                   bgcolor: "#FFF8DC",
                   color: "#B45309",
                   fontWeight: 700,
-                  fontSize: "11px",
+                  fontSize: "12px",
                   border: "1px solid #FDE68A",
+                  height: 24,
                 }}
               />
             </Box>
 
-            <Grid container spacing={1.5}>
+            <Grid container spacing={1.5} sx={{ flexGrow: 1 }}>
               {QUICK_SERVICES.map((s) => (
-                <Grid size={{ xs: 6, sm: 4 }} key={s.id}>
+                <Grid size={{ xs: 6, sm: 4 }} key={s.id} sx={{ display: "flex" }}>
                   <Box
                     onClick={() => {
                       if (!isApproved && s.requiresApproval) {
@@ -836,19 +849,21 @@ export const RetailerDashboardView: React.FC = () => {
                       router.push(s.route);
                     }}
                     sx={{
-                      p: 1.75,
-                      borderRadius: "14px",
+                      width: "100%",
+                      p: { xs: 1.75, sm: 2 },
+                      borderRadius: "16px",
                       backgroundColor: "#FFFFFF",
-                      border: "1px solid #E8E2E5",
+                      border: "1px solid #E2E8F0",
                       cursor: "pointer",
                       transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
                       display: "flex",
                       flexDirection: "column",
-                      gap: 1,
+                      justifyContent: "space-between",
+                      minHeight: { xs: 104, sm: 112 },
                       "&:hover": {
                         borderColor: "#EDC11E",
                         transform: "translateY(-3px)",
-                        boxShadow: "0 6px 16px rgba(162, 10, 58, 0.08)",
+                        boxShadow: "0 8px 20px rgba(162, 10, 58, 0.08)",
                         backgroundColor: "#FAF8F9",
                       },
                     }}
@@ -856,9 +871,9 @@ export const RetailerDashboardView: React.FC = () => {
                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <Box
                         sx={{
-                          width: 36,
-                          height: 36,
-                          borderRadius: "10px",
+                          width: 40,
+                          height: 40,
+                          borderRadius: "12px",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -868,13 +883,13 @@ export const RetailerDashboardView: React.FC = () => {
                       >
                         {s.icon}
                       </Box>
-                      <ArrowForwardIcon sx={{ fontSize: 16, color: "#8A8288" }} />
+                      <ArrowForwardIcon sx={{ fontSize: 18, color: "#64748B" }} />
                     </Box>
-                    <Box>
-                      <Typography sx={{ fontWeight: 700, color: "#292329", fontSize: "13px" }}>
+                    <Box sx={{ mt: 1 }}>
+                      <Typography sx={{ fontWeight: 800, color: "#0F172A", fontSize: "15px" }}>
                         {s.title}
                       </Typography>
-                      <Typography sx={{ color: "#625B60", fontSize: "11px", mt: 0.2 }}>
+                      <Typography sx={{ color: "#475569", fontSize: "13px", mt: 0.2, fontWeight: 500, lineHeight: 1.35 }}>
                         {s.subtitle}
                       </Typography>
                     </Box>
@@ -888,40 +903,45 @@ export const RetailerDashboardView: React.FC = () => {
 
       {/* SECTION D: TODAY'S BUSINESS (4 ESSENTIAL KPI CARDS) */}
       <Box sx={{ mb: 3 }}>
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
-          <Typography variant="h2" sx={{ fontWeight: 800, color: "#292329", fontSize: "16px" }}>
-            Today's Business
-          </Typography>
-          <Typography sx={{ color: "#625B60", fontSize: "12px" }}>
-            Real-time business summary for {new Date().toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
-          </Typography>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, mb: 2, flexWrap: "wrap", gap: 1 }}>
+          <Box>
+            <Typography variant="h2" sx={{ fontWeight: 800, color: "#0F172A", fontSize: { xs: "18px", sm: "20px" }, letterSpacing: "-0.3px" }}>
+              Today's Business
+            </Typography>
+            <Typography sx={{ color: "#475569", fontSize: "13px", mt: 0.25 }}>
+              Real-time business summary for {new Date().toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
+            </Typography>
+          </Box>
         </Box>
 
-        <Grid container spacing={2}>
+        <Grid container spacing={2.5}>
           {/* 1. TOTAL TRANSACTIONS */}
           <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <Paper
               elevation={0}
               sx={{
-                p: 2.2,
-                borderRadius: "16px",
+                p: { xs: 2.2, md: 2.5 },
+                borderRadius: "18px",
                 backgroundColor: "#FFFFFF",
-                border: "1px solid #E8E2E5",
+                border: "1px solid #E2E8F0",
                 boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
                 position: "relative",
                 overflow: "hidden",
                 height: "100%",
+                minHeight: 140,
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
+                transition: "all 0.2s ease",
+                "&:hover": { borderColor: "#A20A3A", boxShadow: "0 6px 18px rgba(162, 10, 58, 0.06)" }
               }}
             >
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
                 <Box
                   sx={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: "10px",
+                    width: 40,
+                    height: 40,
+                    borderRadius: "12px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -929,21 +949,21 @@ export const RetailerDashboardView: React.FC = () => {
                     color: "#A20A3A",
                   }}
                 >
-                  <ReceiptLongIcon sx={{ fontSize: 20 }} />
+                  <ReceiptLongIcon sx={{ fontSize: 22 }} />
                 </Box>
                 <Box>
-                  <Typography sx={{ color: "#625B60", fontSize: "13px", fontWeight: 600 }}>
+                  <Typography sx={{ color: "#475569", fontSize: "14px", fontWeight: 700 }}>
                     Total Transactions
                   </Typography>
-                  <Typography sx={{ color: "#8A8288", fontSize: "11px" }}>
+                  <Typography sx={{ color: "#64748B", fontSize: "12px" }}>
                     Completed & Queued
                   </Typography>
                 </Box>
               </Box>
               {loading && !hasLoaded ? (
-                <Skeleton variant="text" width={80} height={40} />
+                <Skeleton variant="text" width={90} height={48} />
               ) : (
-                <Typography variant="h4" sx={{ fontWeight: 800, color: "#292329", fontSize: "24px", mt: 0.5, zIndex: 1 }}>
+                <Typography variant="h3" sx={{ fontWeight: 900, color: "#0F172A", fontSize: { xs: "28px", sm: "30px", md: "32px" }, letterSpacing: "-0.5px", mt: 0.5, zIndex: 1 }}>
                   {totTxns}
                 </Typography>
               )}
@@ -956,47 +976,50 @@ export const RetailerDashboardView: React.FC = () => {
             <Paper
               elevation={0}
               sx={{
-                p: 2.2,
-                borderRadius: "16px",
+                p: { xs: 2.2, md: 2.5 },
+                borderRadius: "18px",
                 backgroundColor: "#FFFFFF",
-                border: "1px solid #E8E2E5",
+                border: "1px solid #E2E8F0",
                 boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
                 position: "relative",
                 overflow: "hidden",
                 height: "100%",
+                minHeight: 140,
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
+                transition: "all 0.2s ease",
+                "&:hover": { borderColor: "#EDC11E", boxShadow: "0 6px 18px rgba(237, 193, 30, 0.12)" }
               }}
             >
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
                 <Box
                   sx={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: "10px",
+                    width: 40,
+                    height: 40,
+                    borderRadius: "12px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     backgroundColor: "#FFF8DC",
-                    color: "#D4A915",
+                    color: "#B45309",
                   }}
                 >
-                  <TrendingUpIcon sx={{ fontSize: 20 }} />
+                  <TrendingUpIcon sx={{ fontSize: 22 }} />
                 </Box>
                 <Box>
-                  <Typography sx={{ color: "#625B60", fontSize: "13px", fontWeight: 600 }}>
+                  <Typography sx={{ color: "#475569", fontSize: "14px", fontWeight: 700 }}>
                     Transaction Amount
                   </Typography>
-                  <Typography sx={{ color: "#8A8288", fontSize: "11px" }}>
+                  <Typography sx={{ color: "#64748B", fontSize: "12px" }}>
                     Gross Throughput Volume
                   </Typography>
                 </Box>
               </Box>
               {loading && !hasLoaded ? (
-                <Skeleton variant="text" width={120} height={40} />
+                <Skeleton variant="text" width={130} height={48} />
               ) : (
-                <Typography variant="h4" sx={{ fontWeight: 800, color: "#292329", fontSize: "24px", mt: 0.5, zIndex: 1 }}>
+                <Typography variant="h3" sx={{ fontWeight: 900, color: "#0F172A", fontSize: { xs: "28px", sm: "30px", md: "32px" }, letterSpacing: "-0.5px", mt: 0.5, zIndex: 1 }}>
                   ₹{formatAmount(finKpis?.todays_transfer ?? headerWallet?.todays_debit)}
                 </Typography>
               )}
@@ -1009,25 +1032,28 @@ export const RetailerDashboardView: React.FC = () => {
             <Paper
               elevation={0}
               sx={{
-                p: 2.2,
-                borderRadius: "16px",
+                p: { xs: 2.2, md: 2.5 },
+                borderRadius: "18px",
                 backgroundColor: "#FFFFFF",
-                border: "1px solid #E8E2E5",
+                border: "1px solid #E2E8F0",
                 boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
                 position: "relative",
                 overflow: "hidden",
                 height: "100%",
+                minHeight: 140,
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
+                transition: "all 0.2s ease",
+                "&:hover": { borderColor: "#A20A3A", boxShadow: "0 6px 18px rgba(162, 10, 58, 0.06)" }
               }}
             >
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
                 <Box
                   sx={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: "10px",
+                    width: 40,
+                    height: 40,
+                    borderRadius: "12px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -1035,21 +1061,21 @@ export const RetailerDashboardView: React.FC = () => {
                     color: "#A20A3A",
                   }}
                 >
-                  <PercentIcon sx={{ fontSize: 20 }} />
+                  <PercentIcon sx={{ fontSize: 22 }} />
                 </Box>
                 <Box>
-                  <Typography sx={{ color: "#625B60", fontSize: "13px", fontWeight: 600 }}>
+                  <Typography sx={{ color: "#475569", fontSize: "14px", fontWeight: 700 }}>
                     Commission
                   </Typography>
-                  <Typography sx={{ color: "#8A8288", fontSize: "11px" }}>
+                  <Typography sx={{ color: "#64748B", fontSize: "12px" }}>
                     Instant Net Earnings
                   </Typography>
                 </Box>
               </Box>
               {loading && !hasLoaded ? (
-                <Skeleton variant="text" width={100} height={40} />
+                <Skeleton variant="text" width={110} height={48} />
               ) : (
-                <Typography variant="h4" sx={{ fontWeight: 800, color: "#292329", fontSize: "24px", mt: 0.5, zIndex: 1 }}>
+                <Typography variant="h3" sx={{ fontWeight: 900, color: "#16A34A", fontSize: { xs: "28px", sm: "30px", md: "32px" }, letterSpacing: "-0.5px", mt: 0.5, zIndex: 1 }}>
                   +₹{formatAmount(headerWallet?.todays_commission ?? finKpis?.todays_commission)}
                 </Typography>
               )}
@@ -1062,47 +1088,50 @@ export const RetailerDashboardView: React.FC = () => {
             <Paper
               elevation={0}
               sx={{
-                p: 2.2,
-                borderRadius: "16px",
+                p: { xs: 2.2, md: 2.5 },
+                borderRadius: "18px",
                 backgroundColor: "#FFFFFF",
-                border: "1px solid #E8E2E5",
+                border: "1px solid #E2E8F0",
                 boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
                 position: "relative",
                 overflow: "hidden",
                 height: "100%",
+                minHeight: 140,
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
+                transition: "all 0.2s ease",
+                "&:hover": { borderColor: "#EDC11E", boxShadow: "0 6px 18px rgba(237, 193, 30, 0.12)" }
               }}
             >
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
                 <Box
                   sx={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: "10px",
+                    width: 40,
+                    height: 40,
+                    borderRadius: "12px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     backgroundColor: "#FFF8DC",
-                    color: "#D4A915",
+                    color: "#B45309",
                   }}
                 >
-                  <AccountBalanceIcon sx={{ fontSize: 20 }} />
+                  <AccountBalanceIcon sx={{ fontSize: 22 }} />
                 </Box>
                 <Box>
-                  <Typography sx={{ color: "#625B60", fontSize: "13px", fontWeight: 600 }}>
+                  <Typography sx={{ color: "#475569", fontSize: "14px", fontWeight: 700 }}>
                     Pending Settlement
                   </Typography>
-                  <Typography sx={{ color: "#8A8288", fontSize: "11px" }}>
+                  <Typography sx={{ color: "#64748B", fontSize: "12px" }}>
                     Awaiting Bank Payout
                   </Typography>
                 </Box>
               </Box>
               {loading && !hasLoaded ? (
-                <Skeleton variant="text" width={110} height={40} />
+                <Skeleton variant="text" width={120} height={48} />
               ) : (
-                <Typography variant="h4" sx={{ fontWeight: 800, color: "#292329", fontSize: "24px", mt: 0.5, zIndex: 1 }}>
+                <Typography variant="h3" sx={{ fontWeight: 900, color: "#0F172A", fontSize: { xs: "28px", sm: "30px", md: "32px" }, letterSpacing: "-0.5px", mt: 0.5, zIndex: 1 }}>
                   ₹{formatAmount(headerWallet?.settlement_pending_amount ?? finKpis?.settlement_pending_amount)}
                 </Typography>
               )}
@@ -1116,20 +1145,20 @@ export const RetailerDashboardView: React.FC = () => {
       <Paper
         elevation={0}
         sx={{
-          p: { xs: 2, sm: 2.5 },
+          p: { xs: 2.2, sm: 2.5 },
           mb: 3,
           borderRadius: "20px",
           backgroundColor: "#FFFFFF",
-          border: "1px solid #E8E2E5",
+          border: "1px solid #E2E8F0",
           boxShadow: "0 2px 8px rgba(0,0,0,0.02)",
         }}
       >
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, flexWrap: "wrap", gap: 1 }}>
           <Box>
-            <Typography variant="h3" sx={{ fontWeight: 800, color: "#292329", fontSize: "16px" }}>
+            <Typography variant="h2" sx={{ fontWeight: 800, color: "#0F172A", fontSize: { xs: "18px", sm: "20px" }, letterSpacing: "-0.3px" }}>
               Recent Transactions
             </Typography>
-            <Typography sx={{ color: "#625B60", fontSize: "12px", mt: 0.2 }}>
+            <Typography sx={{ color: "#475569", fontSize: "13px", mt: 0.25 }}>
               Latest 5 records from your live business ledger
             </Typography>
           </Box>
@@ -1139,13 +1168,13 @@ export const RetailerDashboardView: React.FC = () => {
             endIcon={<ArrowForwardIcon sx={{ fontSize: 16 }} />}
             onClick={() => router.push("/retailer/reports/transactions")}
             sx={{
-              borderColor: "#E8E2E5",
+              borderColor: "#E2E8F0",
               color: "#A20A3A",
               fontWeight: 700,
-              fontSize: "12px",
+              fontSize: "13px",
               borderRadius: "9999px",
-              px: 2,
-              py: 0.6,
+              px: 2.2,
+              py: 0.7,
               textTransform: "none",
               "&:hover": {
                 borderColor: "#A20A3A",
@@ -1163,13 +1192,14 @@ export const RetailerDashboardView: React.FC = () => {
               <TableRow
                 sx={{
                   "& th": {
-                    backgroundColor: "#FAF8F9",
-                    color: "#625B60",
+                    backgroundColor: "#F8FAFC",
+                    color: "#475569",
                     fontWeight: 700,
-                    fontSize: "11px",
-                    py: 1.4,
+                    fontSize: "12px",
+                    py: 1.6,
+                    letterSpacing: "0.3px",
                     textTransform: "uppercase",
-                    borderBottom: "1px solid #E8E2E5",
+                    borderBottom: "1px solid #E2E8F0",
                   },
                 }}
               >
@@ -1185,15 +1215,15 @@ export const RetailerDashboardView: React.FC = () => {
                 [1, 2, 3, 4, 5].map((i) => (
                   <TableRow key={i}>
                     <TableCell><Skeleton width={20} /></TableCell>
-                    <TableCell><Skeleton width={80} /></TableCell>
+                    <TableCell><Skeleton width={90} /></TableCell>
                     <TableCell><Skeleton width={120} /></TableCell>
-                    <TableCell align="right"><Skeleton width={70} /></TableCell>
-                    <TableCell align="center"><Skeleton width={60} /></TableCell>
+                    <TableCell align="right"><Skeleton width={80} /></TableCell>
+                    <TableCell align="center"><Skeleton width={70} /></TableCell>
                   </TableRow>
                 ))
               ) : liveFeed.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 4, color: "#8A8288", fontSize: "13px" }}>
+                  <TableCell colSpan={5} align="center" sx={{ py: 4, color: "#64748B", fontSize: "14px" }}>
                     No transactions recorded today. Use Quick Actions above to begin transacting.
                   </TableCell>
                 </TableRow>
@@ -1202,25 +1232,25 @@ export const RetailerDashboardView: React.FC = () => {
                   <TableRow
                     key={tx.transaction_id || idx}
                     sx={{
-                      "&:hover": { backgroundColor: "#FAF8F9" },
-                      "& td": { borderBottom: "1px solid #F5F2F4", py: 1.4 },
+                      "&:hover": { backgroundColor: "#F8FAFC" },
+                      "& td": { borderBottom: "1px solid #F1F5F9", py: 1.6 },
                     }}
                   >
-                    <TableCell sx={{ fontWeight: 600, color: "#8A8288", fontSize: "12px" }}>
+                    <TableCell sx={{ fontWeight: 600, color: "#64748B", fontSize: "13px" }}>
                       {idx + 1}
                     </TableCell>
                     <TableCell>
-                      <Typography sx={{ fontWeight: 700, color: "#292329", fontSize: "13px" }}>
+                      <Typography sx={{ fontWeight: 700, color: "#0F172A", fontSize: "14px" }}>
                         {tx.mode || "DMT / IMPS"}
                       </Typography>
-                      <Typography sx={{ color: "#8A8288", fontSize: "11px" }}>
+                      <Typography sx={{ color: "#64748B", fontSize: "12px" }}>
                         {tx.transaction_number || tx.vendor_ref || "--"}
                       </Typography>
                     </TableCell>
-                    <TableCell sx={{ color: "#625B60", fontSize: "12px" }}>
+                    <TableCell sx={{ color: "#334155", fontSize: "13px", fontWeight: 500 }}>
                       {formatDateTime(tx.initiated_at)}
                     </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 800, color: "#292329", fontSize: "14px" }}>
+                    <TableCell align="right" sx={{ fontWeight: 800, color: "#0F172A", fontSize: "15px" }}>
                       ₹{formatAmount(tx.amount)}
                     </TableCell>
                     <TableCell align="center">
@@ -1237,9 +1267,9 @@ export const RetailerDashboardView: React.FC = () => {
       {/* ADDITIONAL SECTIONS: INTERACTIVE ANALYTICS & BUSINESS INSIGHTS */}
       <Grid container spacing={2.5} sx={{ mb: 3 }}>
         <Grid size={{ xs: 12, md: 8 }}>
-          <Paper elevation={0} sx={{ p: 2.5, borderRadius: "20px", backgroundColor: "#FFFFFF", border: "1px solid #E8E2E5" }}>
+          <Paper elevation={0} sx={{ p: 2.5, borderRadius: "20px", backgroundColor: "#FFFFFF", border: "1px solid #E2E8F0" }}>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, flexWrap: "wrap", gap: 1.5 }}>
-              <Typography variant="h3" sx={{ fontWeight: 800, color: "#292329", fontSize: "16px" }}>
+              <Typography variant="h3" sx={{ fontWeight: 800, color: "#0F172A", fontSize: { xs: "18px", sm: "20px" }, letterSpacing: "-0.3px" }}>
                 Interactive Analytics
               </Typography>
               <Box sx={{ display: "flex", gap: 1 }}>
@@ -1250,13 +1280,13 @@ export const RetailerDashboardView: React.FC = () => {
                     size="small"
                     onClick={() => setTimeframe(tf)}
                     sx={{
-                      backgroundColor: timeframe === tf ? "#A20A3A" : "#FAF8F9",
-                      color: timeframe === tf ? "#FFFFFF" : "#625B60",
+                      backgroundColor: timeframe === tf ? "#A20A3A" : "#F8FAFC",
+                      color: timeframe === tf ? "#FFFFFF" : "#475569",
                       fontWeight: 700,
                       fontSize: "12px",
                       px: 0.5,
                       cursor: "pointer",
-                      border: timeframe === tf ? "1px solid #A20A3A" : "1px solid #E8E2E5"
+                      border: timeframe === tf ? "1px solid #A20A3A" : "1px solid #E2E8F0"
                     }}
                   />
                 ))}
@@ -1273,10 +1303,10 @@ export const RetailerDashboardView: React.FC = () => {
                   minHeight: 36,
                   py: 0.5,
                   px: 2,
-                  fontSize: "12px",
+                  fontSize: "13px",
                   fontWeight: 700,
                   textTransform: "none",
-                  color: "#625B60",
+                  color: "#475569",
                   "&.Mui-selected": { color: "#A20A3A" }
                 },
                 "& .MuiTabs-indicator": { backgroundColor: "#A20A3A" }
@@ -1297,21 +1327,21 @@ export const RetailerDashboardView: React.FC = () => {
                         <stop offset="95%" stopColor="#A20A3A" stopOpacity={0.0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#F5F2F4" vertical={false} />
-                    <XAxis dataKey="date" stroke="#8A8288" fontSize={11} tickLine={false} />
-                    <YAxis stroke="#8A8288" fontSize={11} tickLine={false} tickFormatter={(v) => `₹${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                    <XAxis dataKey="date" stroke="#64748B" fontSize={11} tickLine={false} />
+                    <YAxis stroke="#64748B" fontSize={11} tickLine={false} tickFormatter={(v) => `₹${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`} />
                     <RechartsTooltip
-                      contentStyle={{ backgroundColor: "#FFFFFF", border: "1px solid #E8E2E5", borderRadius: "10px", color: "#292329", fontSize: "12px" }}
+                      contentStyle={{ backgroundColor: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", color: "#0F172A", fontSize: "12px" }}
                     />
                     <Area type="monotone" dataKey="amount" stroke="#A20A3A" strokeWidth={2.5} fillOpacity={1} fill="url(#txGradient)" />
                   </AreaChart>
                 ) : chartTab === 1 ? (
                   <BarChart data={charts.commission_trend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#F5F2F4" vertical={false} />
-                    <XAxis dataKey="date" stroke="#8A8288" fontSize={11} tickLine={false} />
-                    <YAxis stroke="#8A8288" fontSize={11} tickLine={false} tickFormatter={(v) => `₹${v}`} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                    <XAxis dataKey="date" stroke="#64748B" fontSize={11} tickLine={false} />
+                    <YAxis stroke="#64748B" fontSize={11} tickLine={false} tickFormatter={(v) => `₹${v}`} />
                     <RechartsTooltip
-                      contentStyle={{ backgroundColor: "#FFFFFF", border: "1px solid #E8E2E5", borderRadius: "10px", color: "#292329", fontSize: "12px" }}
+                      contentStyle={{ backgroundColor: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", color: "#0F172A", fontSize: "12px" }}
                     />
                     <Bar dataKey="commission" fill="#EDC11E" radius={[6, 6, 0, 0]} />
                   </BarChart>
@@ -1323,11 +1353,11 @@ export const RetailerDashboardView: React.FC = () => {
                         <stop offset="95%" stopColor="#EDC11E" stopOpacity={0.0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#F5F2F4" vertical={false} />
-                    <XAxis dataKey="date" stroke="#8A8288" fontSize={11} tickLine={false} />
-                    <YAxis stroke="#8A8288" fontSize={11} tickLine={false} tickFormatter={(v) => `₹${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                    <XAxis dataKey="date" stroke="#64748B" fontSize={11} tickLine={false} />
+                    <YAxis stroke="#64748B" fontSize={11} tickLine={false} tickFormatter={(v) => `₹${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`} />
                     <RechartsTooltip
-                      contentStyle={{ backgroundColor: "#FFFFFF", border: "1px solid #E8E2E5", borderRadius: "10px", color: "#292329", fontSize: "12px" }}
+                      contentStyle={{ backgroundColor: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", color: "#0F172A", fontSize: "12px" }}
                     />
                     <Area type="monotone" dataKey="settled" stroke="#EDC11E" strokeWidth={2.5} fillOpacity={1} fill="url(#settleGradient)" />
                   </AreaChart>
@@ -1338,19 +1368,19 @@ export const RetailerDashboardView: React.FC = () => {
         </Grid>
 
         <Grid size={{ xs: 12, md: 4 }}>
-          <Paper elevation={0} sx={{ p: 2.5, borderRadius: "20px", backgroundColor: "#FFFFFF", border: "1px solid #E8E2E5", height: "100%" }}>
+          <Paper elevation={0} sx={{ p: 2.5, borderRadius: "20px", backgroundColor: "#FFFFFF", border: "1px solid #E2E8F0", height: "100%" }}>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-              <Typography variant="h3" sx={{ fontWeight: 800, color: "#292329", fontSize: "16px", display: "flex", alignItems: "center", gap: 1 }}>
-                <WarningIcon sx={{ fontSize: 18, color: "#EDC11E" }} />
+              <Typography variant="h3" sx={{ fontWeight: 800, color: "#0F172A", fontSize: { xs: "18px", sm: "20px" }, letterSpacing: "-0.3px", display: "flex", alignItems: "center", gap: 1 }}>
+                <WarningIcon sx={{ fontSize: 20, color: "#EDC11E" }} />
                 Business Alerts
               </Typography>
-              <Chip label={`${alerts.length} Active`} size="small" sx={{ bgcolor: "#FFF0F4", color: "#A20A3A", fontWeight: 700, fontSize: "11px", border: "1px solid #FCD3DE" }} />
+              <Chip label={`${alerts.length} Active`} size="small" sx={{ bgcolor: "#FFF0F4", color: "#A20A3A", fontWeight: 700, fontSize: "12px", border: "1px solid #FCD3DE", height: 24 }} />
             </Box>
 
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, maxHeight: 290, overflowY: "auto", pr: 0.5 }}>
               {alerts.length === 0 ? (
-                <Box sx={{ p: 3, textAlign: "center", bgcolor: "#FAF8F9", borderRadius: "12px", border: "1px solid #E8E2E5" }}>
-                  <Typography variant="body2" sx={{ color: "#625B60", fontSize: "13px" }}>
+                <Box sx={{ p: 3, textAlign: "center", bgcolor: "#F8FAFC", borderRadius: "12px", border: "1px solid #E2E8F0" }}>
+                  <Typography variant="body2" sx={{ color: "#475569", fontSize: "13px" }}>
                     All financial pipes and switches are operating nominally. Zero alerts.
                   </Typography>
                 </Box>
@@ -1361,19 +1391,19 @@ export const RetailerDashboardView: React.FC = () => {
                     sx={{
                       p: 1.75,
                       borderRadius: "12px",
-                      bgcolor: alt.priority === "HIGH" ? "#FFF0F4" : "#FAF8F9",
-                      border: alt.priority === "HIGH" ? "1px solid #FCD3DE" : "1px solid #E8E2E5",
+                      bgcolor: alt.priority === "HIGH" ? "#FFF0F4" : "#F8FAFC",
+                      border: alt.priority === "HIGH" ? "1px solid #FCD3DE" : "1px solid #E2E8F0",
                     }}
                   >
                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
-                      <Typography sx={{ fontWeight: 700, fontSize: "13px", color: alt.priority === "HIGH" ? "#A20A3A" : "#292329" }}>
+                      <Typography sx={{ fontWeight: 700, fontSize: "13px", color: alt.priority === "HIGH" ? "#A20A3A" : "#0F172A" }}>
                         {alt.title}
                       </Typography>
-                      <Typography sx={{ fontSize: "10px", color: "#8A8288" }}>
+                      <Typography sx={{ fontSize: "11px", color: "#64748B" }}>
                         {alt.timestamp ? new Date(alt.timestamp).toLocaleTimeString("en-IN", { timeStyle: "short" }) : ""}
                       </Typography>
                     </Box>
-                    <Typography sx={{ fontSize: "12px", color: "#625B60", lineHeight: 1.4 }}>
+                    <Typography sx={{ fontSize: "12px", color: "#475569", lineHeight: 1.45 }}>
                       {alt.message}
                     </Typography>
                   </Box>
@@ -1393,11 +1423,11 @@ export const RetailerDashboardView: React.FC = () => {
             sx: {
               borderRadius: "24px",
               bgcolor: "#FFFFFF",
-              color: "#292329",
+              color: "#0F172A",
               p: 3.5,
               maxWidth: 440,
               width: "100%",
-              border: "1px solid #E8E2E5",
+              border: "1px solid #E2E8F0",
               boxShadow: "0 24px 48px rgba(0,0,0,0.15)",
             },
           },
@@ -1407,10 +1437,10 @@ export const RetailerDashboardView: React.FC = () => {
           <Box sx={{ width: 56, height: 56, p: 1.5, borderRadius: "50%", bgcolor: "#FFF0F4", border: "2px solid #FCD3DE", color: "#A20A3A", mb: 2, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <LockIcon sx={{ fontSize: 28 }} />
           </Box>
-          <Typography variant="h6" sx={{ fontWeight: 900, color: "#292329", textAlign: "center" }}>
+          <Typography variant="h6" sx={{ fontWeight: 900, color: "#0F172A", textAlign: "center" }}>
             {dashboardLockedModal?.label || "Action"} Restricted
           </Typography>
-          <Typography variant="body2" sx={{ color: "#625B60", mt: 1.5, textAlign: "center", fontSize: "13px", lineHeight: 1.5 }}>
+          <Typography variant="body2" sx={{ color: "#475569", mt: 1.5, textAlign: "center", fontSize: "13px", lineHeight: 1.5 }}>
             Your retailer account is currently <strong>PENDING ADMIN APPROVAL</strong>. Financial services, wallet top-ups, and transaction actions are restricted until Admin approves your application.
           </Typography>
 
@@ -1438,7 +1468,7 @@ export const RetailerDashboardView: React.FC = () => {
               onClick={() => setDashboardLockedModal(null)}
               variant="text"
               fullWidth
-              sx={{ color: "#625B60", fontWeight: 700, textTransform: "none", fontSize: "13px" }}
+              sx={{ color: "#475569", fontWeight: 700, textTransform: "none", fontSize: "13px" }}
             >
               Dismiss
             </Button>
