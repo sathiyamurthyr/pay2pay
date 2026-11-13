@@ -462,6 +462,15 @@ async def login_with_password(
                 AdminUserModel.email.ilike(raw_input)
             ),
             AdminUserModel.is_deleted == False
+        ).order_by(
+            case(
+                (AdminUserModel.username == raw_input, 1),
+                (AdminUserModel.email == raw_input, 2),
+                (AdminUserModel.phone == clean_mobile, 3),
+                (AdminUserModel.user_type == "PLATFORM_ADMIN", 4),
+                else_=5
+            ),
+            AdminUserModel.id.asc()
         )
         a_res = await db.execute(a_stmt)
         admin_user = a_res.scalars().first()
