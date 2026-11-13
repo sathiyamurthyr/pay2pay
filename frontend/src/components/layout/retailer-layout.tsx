@@ -53,6 +53,7 @@ import { retailerApi } from "@/services/retailer-api";
 
 import { useRetailerApprovalGuard } from "@/hooks/useRetailerApprovalGuard";
 import { useSessionSecurity } from "@/context/SessionSecurityProvider";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 import { MobileBottomNav } from "./mobile-bottom-nav";
 import { MobileQuickActionsFAB } from "./mobile-quick-actions-fab";
@@ -141,6 +142,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   const { isApproved, approvalStatus, isPathLocked, setApprovalStatus } = useRetailerApprovalGuard();
   const { openContactSupportModal } = useContactSupportModal();
   const { lockSession } = useSessionSecurity();
+  const branding = useCompanyBranding();
 
   // ── P0 Session Security Check ──────────────────────────────
   const checkSessionToken = useCallback(() => {
@@ -501,8 +503,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           >
             <Box
               component="img"
-              src="/branding/logo.svg"
-              alt="Near 4 You"
+              src={branding.logo_url || "/branding/logo.svg"}
+              alt={branding.display_name}
               sx={{
                 width: "100%",
                 height: "100%",
@@ -512,11 +514,11 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           </Box>
           {!isCollapsed && (
             <Box sx={{ minWidth: 0 }}>
-              <Typography variant="h6" sx={{ fontWeight: 900, color: "#A20A3A", fontSize: "22px", lineHeight: 1.1, whiteSpace: "nowrap" }}>
-                NEAR4YOU
+              <Typography variant="h6" sx={{ fontWeight: 900, color: branding.primary_colour || "#A20A3A", fontSize: "22px", lineHeight: 1.1, whiteSpace: "nowrap" }}>
+                {branding.company_name.toUpperCase()}
               </Typography>
               <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 600, fontSize: "13px", display: "block", whiteSpace: "nowrap" }}>
-                Enterprise Operations
+                {branding.display_name} Operations
               </Typography>
             </Box>
           )}
@@ -1671,7 +1673,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           >
             <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
               <Typography variant="caption" sx={{ fontWeight: 600, fontSize: "12px" }}>
-                © 2021 Sathus Technology Pvt. Ltd. · Near4You Retailer Portal
+                © 2021 Sathus Technology Pvt. Ltd. · {branding.display_name} Retailer Portal
               </Typography>
               <Chip label="v2.4.0-ENT" size="small" sx={{ height: 20, fontSize: "0.65rem", fontWeight: 800 }} />
             </Stack>

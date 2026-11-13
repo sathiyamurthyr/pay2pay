@@ -33,6 +33,7 @@ import { tokens } from "@/design-system/tokens/design-tokens";
 import { useOnboardingGuard } from "@/hooks/useOnboardingGuard";
 import { normalizeUserRole } from "@/lib/portal-resolver";
 import { retailerApi } from "@/services/retailer-api";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 const FINANCIAL_PATHS = new Set([
   "/retailer/dmt",
@@ -57,6 +58,11 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
   onToggle,
   activePath = "/retailer/dashboard",
 }) => {
+  const branding = useCompanyBranding();
+  const brandPrimary = branding.primary_colour || "#A20A3A";
+  const brandSecondary = branding.secondary_colour || "#EDC11E";
+  const brandLight = branding.company_code === "PAY2PAY" ? "#EFF6FF" : "#FFF0F4";
+
   const [searchQuery, setSearchQuery] = useState("");
   const [favorites, setFavorites] = useState<string[]>([]);
 
@@ -243,11 +249,11 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
       {/* Sidebar Top Header & Collapse Toggle */}
       <Box sx={{ p: 2, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         {!isCollapsed && (
-          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#A20A3A", fontSize: "16px" }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: brandPrimary, fontSize: "16px" }}>
             Workspace Menu
           </Typography>
         )}
-        <IconButton onClick={onToggle} size="medium" sx={{ color: "#292329", bgcolor: "#FAF8F9", "&:hover": { bgcolor: "#FFF0F4", color: "#A20A3A" } }}>
+        <IconButton onClick={onToggle} size="medium" sx={{ color: "#292329", bgcolor: "#FAF8F9", "&:hover": { bgcolor: brandLight, color: brandPrimary } }}>
           {isCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
         </IconButton>
       </Box>
@@ -370,19 +376,19 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                         bgcolor: locked
                           ? "#FAF8F9"
                           : isActive
-                          ? "#FFF0F4"
+                          ? brandLight
                           : "transparent",
-                        color: locked ? "#B8B0B6" : isActive ? "#A20A3A" : "#292329",
+                        color: locked ? "#B8B0B6" : isActive ? brandPrimary : "#292329",
                         cursor: locked ? "not-allowed" : "pointer",
-                        borderLeft: isActive ? "3px solid #A20A3A" : "3px solid transparent",
+                        borderLeft: isActive ? `3px solid ${brandPrimary}` : "3px solid transparent",
                         transition: "all 150ms ease",
                         "&:hover": {
                           bgcolor: locked
                             ? "#FAF8F9"
-                            : "#FFF0F4",
-                          color: locked ? "#B8B0B6" : "#A20A3A",
+                            : brandLight,
+                          color: locked ? "#B8B0B6" : brandPrimary,
                         },
-                        ...(locked && { borderLeft: "3px solid #EDC11E" }),
+                        ...(locked && { borderLeft: `3px solid ${brandSecondary}` }),
                       }}
                     >
                       <Stack direction="row" spacing={1.8} sx={{ alignItems: "center" }}>
@@ -392,8 +398,8 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                             color: locked
                               ? "#B8B0B6"
                               : isActive
-                              ? "#A20A3A"
-                              : "#EDC11E",
+                              ? brandPrimary
+                              : brandSecondary,
                           }}
                         />
                         {!isCollapsed && (
@@ -430,7 +436,7 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
             {!isCollapsed && (
               <Typography
                 variant="body1"
-                sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "13px", px: "14px", mb: 1, display: "block", textTransform: "uppercase", letterSpacing: "0.5px" }}
+                sx={{ color: brandPrimary, fontWeight: 800, fontSize: "13px", px: "14px", mb: 1, display: "block", textTransform: "uppercase", letterSpacing: "0.5px" }}
               >
                 {cat.title}
               </Typography>
@@ -463,19 +469,19 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                         bgcolor: locked
                           ? "#FAF8F9"
                           : isActive
-                          ? "#FFF0F4"
+                          ? brandLight
                           : "transparent",
-                        color: locked ? "#B8B0B6" : isActive ? "#A20A3A" : "#292329",
+                        color: locked ? "#B8B0B6" : isActive ? brandPrimary : "#292329",
                         cursor: locked ? "not-allowed" : "pointer",
-                        borderLeft: isActive ? "3px solid #A20A3A" : "3px solid transparent",
+                        borderLeft: isActive ? `3px solid ${brandPrimary}` : "3px solid transparent",
                         transition: "all 150ms ease",
                         "&:hover": {
                           bgcolor: locked
                             ? "#FAF8F9"
-                            : "#FFF0F4",
-                          color: locked ? "#B8B0B6" : "#A20A3A",
+                            : brandLight,
+                          color: locked ? "#B8B0B6" : brandPrimary,
                         },
-                        ...(locked && { borderLeft: "3px solid #EDC11E" }),
+                        ...(locked && { borderLeft: `3px solid ${brandSecondary}` }),
                       }}
                     >
                       <Stack direction="row" spacing={1.8} sx={{ alignItems: "center", minWidth: 0 }}>
@@ -485,7 +491,7 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                             color: locked
                               ? "#B8B0B6"
                               : isActive
-                              ? "#A20A3A"
+                              ? brandPrimary
                               : "#625B60",
                             flexShrink: 0,
                           }}
