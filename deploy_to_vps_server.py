@@ -62,6 +62,13 @@ def prepare_and_package_frontend():
             shutil.rmtree(public_dst_mono)
         shutil.copytree(PUBLIC_SRC, public_dst_mono)
 
+    server_src = STANDALONE_DIR / ".next" / "server"
+    if server_src.exists():
+        print(f"  -> Copying server assets to {server_next_dst_mono}")
+        if server_next_dst_mono.exists():
+            shutil.rmtree(server_next_dst_mono)
+        shutil.copytree(server_src, server_next_dst_mono)
+
     # Copy all manifest and config files from .next to apps/retailer/.next
     root_next = STANDALONE_DIR / ".next"
     for item in root_next.iterdir():
@@ -128,13 +135,17 @@ tar --no-same-owner --no-same-permissions -xzf /tmp/near4you_frontend_update.tar
 echo '=== 2. Extracting Updated Backend ==='
 tar --no-same-owner --no-same-permissions -xzf /tmp/near4you_backend_update.tar.gz -C /opt/near4you-retailer/backend/
 
-echo '=== 3. Rebuilding Docker Containers ==='
-cd /opt/near4you-retailer
-docker compose build --no-cache frontend backend
-docker compose up -d --force-recreate frontend backend
+echo '=== 3. Updating Backend in Container ==='
+docker cp /opt/near4you-retailer/backend/app near4you-retailer-backend:/app/
+docker restart near4you-retailer-backend
 
-echo '=== 4. Waiting for containers to become healthy ==='
-sleep 25
+echo '=== 4. Rebuilding Frontend Container ==='
+cd /opt/near4you-retailer
+docker compose build frontend
+docker compose up -d --force-recreate frontend
+
+echo '=== 5. Waiting for containers to become healthy ==='
+sleep 15
 docker compose ps frontend backend
 
 echo '=== 5. Title & Branding Verification ==='

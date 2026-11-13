@@ -787,7 +787,7 @@ async def login_with_password(
         or "retailer." in host_header
     )
     if is_common_portal:
-        is_retailer_portal = not (is_sd_auth_user or is_dist_auth_user)
+        is_retailer_portal = not (is_sd_auth_user or is_dist_auth_user or bool(admin_user))
     else:
         if is_admin_portal or is_distributor_portal:
             is_retailer_portal = False
@@ -992,7 +992,7 @@ async def login_with_password(
                 }
             }
 
-    if is_retailer_portal and not existing_retailer:
+    if is_retailer_portal and not existing_retailer and not bool(admin_user):
         if admin_user and admin_user.phone:
             a_mob = re.sub(r"\D", "", str(admin_user.phone))[-10:]
             r_stmt_a = (
@@ -1028,12 +1028,13 @@ async def login_with_password(
     is_valid_pass = False
 
     # A. Check Admin Password Match strictly against database hash (for admin portal logins)
-    if admin_user is not None and not is_retailer_portal:
+    if admin_user is not None:
         if admin_user.hashed_password:
             try:
                 if dynamic_verify_password(payload.password, admin_user.hashed_password):
                     is_valid_pass = True
                     is_admin = True
+                    is_retailer_portal = False
             except Exception:
                 pass
 
@@ -1249,13 +1250,17 @@ async def login_with_password(
             access_token = f"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.{session_id}.auth_token"
 
         if is_admin:
-            admin_full_name = admin_user.full_name if admin_user and admin_user.full_name else "System Admin User"
+            admin_full_name = admin_user.full_name if admin_user and admin_user.full_name else "Platform Super Admin"
             email = admin_user.email if admin_user and admin_user.email else "admin@pay2pay.com"
+            is_super = bool(getattr(admin_user, "user_type", "") == "PLATFORM_ADMIN" or admin_user.username == "admin" or getattr(admin_user, "role", "") == "SUPER_ADMIN")
+            auth_role_name = "SUPER_ADMIN" if is_super else "ADMIN"
+            dash_url = "/super-admin/dashboard" if is_super else "/admin/dashboard"
+
             set_auth_session_cookies(
                 response=response,
                 request=request,
                 access_token=access_token,
-                user_role="SUPER_ADMIN",
+                user_role=auth_role_name,
                 destination="DASHBOARD",
                 approve_status=True,
                 active_status=True,
@@ -1286,9 +1291,9 @@ async def login_with_password(
                         "mobile_number": clean_mobile,
                         "email": email,
                         "full_name": admin_full_name,
-                        "role": "SUPER_ADMIN",
-                        "roles": ["SUPER_ADMIN", "PLATFORM_ADMIN"],
-                        "user_type": "PLATFORM_ADMIN",
+                        "role": auth_role_name,
+                        "roles": [auth_role_name, "PLATFORM_ADMIN"] if is_super else ["ADMIN"],
+                        "user_type": getattr(admin_user, "user_type", "PLATFORM_ADMIN"),
                         "tenant_id": tenant_str,
                         "company_id": company_str,
                         "approve_status": True,
@@ -1299,9 +1304,9 @@ async def login_with_password(
                         "current_step": 13,
                         "progress_percentage": 100,
                         "status": "COMPLETED",
-                        "redirect_url": "/admin/dashboard"
+                        "redirect_url": dash_url
                     },
-                    "redirect_url": "/admin/dashboard",
+                    "redirect_url": dash_url,
                     "risk_assessment": risk_info,
                     "require_otp": False
                 }

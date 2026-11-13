@@ -46,7 +46,10 @@ export function normalizeUserType(
 ): UserPortalRole {
   if (userTypeRefId !== undefined && userTypeRefId !== null && String(userTypeRefId).trim() !== "") {
     const numId = Number(userTypeRefId);
-    if (numId === 1) return "ADMIN";
+    if (numId === 1) {
+      const explicitRole = normalizeUserRole(rawRole);
+      return explicitRole === "SUPER_ADMIN" ? "SUPER_ADMIN" : "ADMIN";
+    }
     if (numId === 2) return "RETAILER";
     if (numId === 3) return "DIST";
     if (numId === 4) return "SD";
@@ -108,6 +111,11 @@ export function isPathAllowedForRole(pathname: string, rawRole?: string | null):
 
   if (!targetPrefix) {
     // Non-portal public routes (e.g. static assets, public pages)
+    return true;
+  }
+
+  // Super Admin has administrative access to both /super-admin and /admin
+  if (role === "SUPER_ADMIN" && (targetPrefix === "/super-admin" || targetPrefix === "/admin")) {
     return true;
   }
 
