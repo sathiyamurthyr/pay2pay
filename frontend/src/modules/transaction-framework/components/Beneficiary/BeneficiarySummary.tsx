@@ -74,19 +74,19 @@ export const BeneficiarySummary: React.FC<{ customer: CustomerData | null }> = (
 
         {/* Center: Wallet & Limit Telemetry */}
         <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-          <Box sx={{ px: 1.5, py: 0.5, borderRadius: "8px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+          <Box sx={{ px: 1.5, py: 0.5, borderRadius: "8px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid #E8E2E5" }}>
             <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", display: "block", fontSize: "11px", fontWeight: 700 }}>
               WALLET BAL
             </Typography>
             <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-              <AccountBalanceWalletIcon sx={{ color: "#FBBF24", fontSize: 14 }} />
-              <Typography sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "14px" }}>
+              <AccountBalanceWalletIcon sx={{ color: "#A20A3A", fontSize: 14 }} />
+              <Typography sx={{ fontWeight: 800, color: "#A20A3A", fontSize: "14px" }}>
                 ₹{useRetailerStore.getState().wallet.mainBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </Typography>
             </Stack>
           </Box>
 
-          <Box sx={{ px: 1.5, py: 0.5, borderRadius: "8px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+          <Box sx={{ px: 1.5, py: 0.5, borderRadius: "8px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid #E8E2E5" }}>
             <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", display: "block", fontSize: "11px", fontWeight: 700 }}>
               DAILY REMAINING
             </Typography>
@@ -95,7 +95,7 @@ export const BeneficiarySummary: React.FC<{ customer: CustomerData | null }> = (
             </Typography>
           </Box>
 
-          <Box sx={{ px: 1.5, py: 0.5, borderRadius: "8px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+          <Box sx={{ px: 1.5, py: 0.5, borderRadius: "8px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid #E8E2E5" }}>
             <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", display: "block", fontSize: "11px", fontWeight: 700 }}>
               MONTHLY REMAINING
             </Typography>
@@ -104,7 +104,7 @@ export const BeneficiarySummary: React.FC<{ customer: CustomerData | null }> = (
             </Typography>
           </Box>
 
-          <Box sx={{ px: 1.5, py: 0.5, borderRadius: "8px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+          <Box sx={{ px: 1.5, py: 0.5, borderRadius: "8px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid #E8E2E5" }}>
             <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", display: "block", fontSize: "11px", fontWeight: 700 }}>
               PREFERRED BANK
             </Typography>
@@ -129,7 +129,7 @@ export const BeneficiarySummary: React.FC<{ customer: CustomerData | null }> = (
               fontWeight: 700,
               borderRadius: "8px",
               color: "#FFFFFF",
-              borderColor: "rgba(255, 255, 255, 0.2)",
+              borderColor: "#E8E2E5",
               bgcolor: "rgba(255, 255, 255, 0.05)",
               "&:hover": { bgcolor: "rgba(255, 255, 255, 0.12)" },
             }}
@@ -147,7 +147,7 @@ export const BeneficiarySummary: React.FC<{ customer: CustomerData | null }> = (
               fontWeight: 700,
               borderRadius: "8px",
               color: "#FFFFFF",
-              borderColor: "rgba(255, 255, 255, 0.2)",
+              borderColor: "#E8E2E5",
               bgcolor: "rgba(255, 255, 255, 0.05)",
               "&:hover": { bgcolor: "rgba(255, 255, 255, 0.12)" },
             }}

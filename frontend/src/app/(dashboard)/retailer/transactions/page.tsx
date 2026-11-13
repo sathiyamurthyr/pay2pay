@@ -46,7 +46,7 @@ export default function TransactionsPage() {
 
   return (
     <Box sx={{ spaceY: 3 }}>
-      <Typography variant="h5" sx={{ fontWeight: 800, color: "#111827", mb: 0.5 }}>
+      <Typography variant="h5" sx={{ fontWeight: 800, color: "#FAF8F9", mb: 0.5 }}>
         All Transactions & Audit Ledger
       </Typography>
       <Typography variant="body2" sx={{ color: "#6B7280", mb: 3 }}>

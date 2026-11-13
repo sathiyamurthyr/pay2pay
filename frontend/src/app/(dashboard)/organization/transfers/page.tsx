@@ -181,7 +181,7 @@ export default function OrganizationTransfersPage() {
       header: "New Parent",
       cell: (t) => (
         <div className="font-mono text-xs">
-          <span className="font-bold text-[#0F172A]">{t.new_parent_type}</span>
+          <span className="font-bold text-[#FFFFFF]">{t.new_parent_type}</span>
           <span className="text-[#64748B] block text-[11px] truncate max-w-[140px]">{t.new_parent_id}</span>
         </div>
       ),
@@ -249,12 +249,12 @@ export default function OrganizationTransfersPage() {
         <div className="flex items-center gap-4">
           <Link
             href="/organization"
-            className="flex items-center justify-center rounded-lg border border-[#E2E8F0] bg-white p-2.5 text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8FAFC] transition-all"
+            className="flex items-center justify-center rounded-lg border border-[#E2E8F0] bg-white p-2.5 text-[#64748B] hover:text-[#FFFFFF] hover:bg-[#F8FAFC] transition-all"
           >
             <ChevronLeft className="w-5 h-5" />
           </Link>
           <div>
-            <h1 className="text-2xl font-extrabold text-[#0F172A] tracking-tight flex items-center gap-3">
+            <h1 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight flex items-center gap-3">
               <ArrowLeftRight className="w-7 h-7 text-[#2563EB]" />
               Organization Transfers & Workflow
             </h1>
@@ -299,13 +299,13 @@ export default function OrganizationTransfersPage() {
 
       {/* Transfer Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FFFFFF]/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-lg rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3">
-              <h2 className="text-base font-bold text-[#0F172A] flex items-center gap-2">
+              <h2 className="text-base font-bold text-[#FFFFFF] flex items-center gap-2">
                 <ArrowLeftRight className="w-5 h-5 text-[#2563EB]" /> Request Node Transfer
               </h2>
-              <button onClick={() => setShowModal(false)} className="text-[#64748B] hover:text-[#0F172A]">
+              <button onClick={() => setShowModal(false)} className="text-[#64748B] hover:text-[#FFFFFF]">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -325,7 +325,7 @@ export default function OrganizationTransfersPage() {
                 <select
                   value={formData.entity_type}
                   onChange={(e) => setFormData({ ...formData, entity_type: e.target.value })}
-                  className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] focus:border-[#2563EB] focus:outline-none cursor-pointer"
+                  className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#FAF8F9] focus:border-[#2563EB] focus:outline-none cursor-pointer"
                 >
                   <option value="SUPER_DISTRIBUTOR">Super Distributor</option>
                   <option value="DISTRIBUTOR">Distributor</option>
@@ -339,7 +339,7 @@ export default function OrganizationTransfersPage() {
                   required
                   value={formData.entity_id}
                   onChange={(e) => setFormData({ ...formData, entity_id: e.target.value })}
-                  className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] focus:border-[#2563EB] focus:outline-none cursor-pointer"
+                  className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#FAF8F9] focus:border-[#2563EB] focus:outline-none cursor-pointer"
                 >
                   {entityOptions.length === 0 && (
                     <option value="">No entities available</option>
@@ -357,7 +357,7 @@ export default function OrganizationTransfersPage() {
                   <select
                     value={formData.new_parent_type}
                     onChange={(e) => setFormData({ ...formData, new_parent_type: e.target.value, new_parent_id: "" })}
-                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] focus:border-[#2563EB] focus:outline-none cursor-pointer"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#FAF8F9] focus:border-[#2563EB] focus:outline-none cursor-pointer"
                   >
                     <option value="REGIONAL_MANAGER">Regional Manager</option>
                     <option value="SUPER_DISTRIBUTOR">Super Distributor</option>
@@ -372,7 +372,7 @@ export default function OrganizationTransfersPage() {
                     required
                     value={formData.new_parent_id}
                     onChange={(e) => setFormData({ ...formData, new_parent_id: e.target.value })}
-                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] focus:border-[#2563EB] focus:outline-none cursor-pointer"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#FAF8F9] focus:border-[#2563EB] focus:outline-none cursor-pointer"
                   >
                     {parentOptions.length === 0 && (
                       <option value="">No options available</option>
@@ -397,7 +397,7 @@ export default function OrganizationTransfersPage() {
                   placeholder="Describe territory realignment or business transfer reason (minimum 5 characters)..."
                   value={formData.reason}
                   onChange={(e) => { setFormData({ ...formData, reason: e.target.value }); setModalError(null); }}
-                  className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] focus:border-[#2563EB] focus:outline-none font-normal resize-none"
+                  className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#FAF8F9] focus:border-[#2563EB] focus:outline-none font-normal resize-none"
                 />
                 <span className="text-[10px] text-[#64748B] mt-0.5 block text-right">
                   {formData.reason.length} characters

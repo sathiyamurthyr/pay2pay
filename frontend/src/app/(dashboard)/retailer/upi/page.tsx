@@ -16,7 +16,7 @@ export default function UpiPage() {
   const [collectSent, setCollectSent] = useState(false);
 
   const numAmount = parseFloat(amount || "0");
-  const upiUri = `upi://pay?pa=pay2pay.retailer9840@icici&pn=Pay2Pay%20Retailer%20Store&mc=0000&tr=TXN${Date.now()}&tn=Store%20Payment&am=${numAmount}&cu=INR`;
+  const upiUri = `upi://pay?pa=pay2pay.retailer9840@icici&pn=Near4You%20Retailer%20Store&mc=0000&tr=TXN${Date.now()}&tn=Store%20Payment&am=${numAmount}&cu=INR`;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: "20px", pb: 4 }}>

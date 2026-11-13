@@ -89,7 +89,7 @@ export const TransferAmountInput: React.FC<TransferAmountInputProps> = ({
         </Typography>
 
         <Chip
-          icon={<KeyboardIcon sx={{ "&&": { fontSize: 13, color: "#FBBF24" } }} />}
+          icon={<KeyboardIcon sx={{ "&&": { fontSize: 13, color: "#A20A3A" } }} />}
           label="Ctrl+Shift+A"
           size="small"
           sx={{

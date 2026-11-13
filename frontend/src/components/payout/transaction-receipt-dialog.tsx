@@ -53,7 +53,7 @@ export const TransactionReceiptDialog: React.FC<TransactionReceiptProps> = ({ op
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" slotProps={{ paper: { sx: { borderRadius: "24px", overflow: "hidden", border: "1px solid rgba(212, 175, 55, 0.3)", boxShadow: "0 20px 50px rgba(15, 44, 89, 0.25)" } } }}>
-      <Box sx={{ background: "linear-gradient(135deg, #0F2C59 0%, #1A407B 50%, #7B1E3A 100%)", color: "#FFF", p: 3.5, textAlign: "center", position: "relative" }}>
+      <Box sx={{ background: "linear-gradient(135deg, #A20A3A 0%, #1A407B 50%, #7B1E3A 100%)", color: "#FFF", p: 3.5, textAlign: "center", position: "relative" }}>
         <IconButton onClick={onClose} sx={{ position: "absolute", right: 14, top: 14, color: "#FFF", "&:hover": { bgcolor: "rgba(255, 255, 255, 0.15)" } }}>
           <CloseIcon />
         </IconButton>
@@ -72,12 +72,12 @@ export const TransactionReceiptDialog: React.FC<TransactionReceiptProps> = ({ op
         <Typography variant="h3" sx={{ fontWeight: 900, color: "#D4AF37", my: 2, fontSize: "38px" }}>
           ₹{data.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
         </Typography>
-        <Typography variant="caption" sx={{ color: "#E2E8F0", fontStyle: "italic", fontWeight: 700 }}>
+        <Typography variant="caption" sx={{ color: "#292329", fontStyle: "italic", fontWeight: 700 }}>
           "{data.amount_in_words}"
         </Typography>
       </Box>
 
-      <DialogContent sx={{ p: 3, bgcolor: "#F8FAFC" }}>
+      <DialogContent sx={{ p: 3, bgcolor: "#292329" }}>
         <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: "1px solid #E2E8F0", bgcolor: "#FFF", mb: 2 }}>
           <Typography variant="caption" sx={{ fontWeight: 900, color: "#475569", textTransform: "uppercase", display: "block", mb: 1 }}>
             Transaction Details
@@ -85,15 +85,15 @@ export const TransactionReceiptDialog: React.FC<TransactionReceiptProps> = ({ op
 
           <Grid container spacing={1.5}>
             <Grid size={{ xs: 6 }}>
-              <Typography variant="caption" sx={{ color: "#64748B", display: "block" }}>Customer</Typography>
+              <Typography variant="caption" sx={{ color: "#625B60", display: "block" }}>Customer</Typography>
               <Typography variant="body2" sx={{ fontWeight: 800 }}>{data.customer_name}</Typography>
-              <Typography variant="caption" sx={{ color: "#64748B" }}>+91 {data.customer_mobile}</Typography>
+              <Typography variant="caption" sx={{ color: "#625B60" }}>+91 {data.customer_mobile}</Typography>
             </Grid>
 
             <Grid size={{ xs: 6 }}>
-              <Typography variant="caption" sx={{ color: "#64748B", display: "block" }}>Beneficiary</Typography>
+              <Typography variant="caption" sx={{ color: "#625B60", display: "block" }}>Beneficiary</Typography>
               <Typography variant="body2" sx={{ fontWeight: 800 }}>{data.beneficiary_name}</Typography>
-              <Typography variant="caption" sx={{ color: "#64748B" }}>{data.bank_name} ({data.account_number.slice(-4)})</Typography>
+              <Typography variant="caption" sx={{ color: "#625B60" }}>{data.bank_name} ({data.account_number.slice(-4)})</Typography>
             </Grid>
           </Grid>
         </Paper>
@@ -101,17 +101,17 @@ export const TransactionReceiptDialog: React.FC<TransactionReceiptProps> = ({ op
         <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: "1px solid #E2E8F0", bgcolor: "#FFF", mb: 3 }}>
           <Stack spacing={1}>
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography variant="caption" sx={{ color: "#64748B" }}>Transfer Amount</Typography>
+              <Typography variant="caption" sx={{ color: "#625B60" }}>Transfer Amount</Typography>
               <Typography variant="caption" sx={{ fontWeight: 800 }}>₹{data.amount.toLocaleString("en-IN")}</Typography>
             </Stack>
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography variant="caption" sx={{ color: "#64748B" }}>Retailer Commission</Typography>
+              <Typography variant="caption" sx={{ color: "#625B60" }}>Retailer Commission</Typography>
               <Typography variant="caption" sx={{ fontWeight: 800, color: "#16A34A" }}>+₹{data.commission}</Typography>
             </Stack>
             <Divider sx={{ my: 0.5 }} />
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography variant="caption" sx={{ color: "#64748B" }}>Wallet Balance After</Typography>
-              <Typography variant="caption" sx={{ fontWeight: 900, color: "#0F172A" }}>₹{data.wallet_after.toLocaleString("en-IN")}</Typography>
+              <Typography variant="caption" sx={{ color: "#625B60" }}>Wallet Balance After</Typography>
+              <Typography variant="caption" sx={{ fontWeight: 900, color: "#FFFFFF" }}>₹{data.wallet_after.toLocaleString("en-IN")}</Typography>
             </Stack>
           </Stack>
         </Paper>
@@ -136,7 +136,7 @@ export const TransactionReceiptDialog: React.FC<TransactionReceiptProps> = ({ op
             </Grid>
           </Grid>
 
-          <Button fullWidth variant="contained" onClick={onClose} sx={{ py: 1.5, borderRadius: 3, fontWeight: 900, bgcolor: "#0F172A" }}>
+          <Button fullWidth variant="contained" onClick={onClose} sx={{ py: 1.5, borderRadius: 3, fontWeight: 900, bgcolor: "#FFFFFF" }}>
             Done / Next Transaction →
           </Button>
         </Stack>

@@ -152,7 +152,7 @@ export default function PolicyDirectoryPage() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#0F172A] flex items-center gap-3">
+          <h1 className="text-2xl font-extrabold text-[#FFFFFF] flex items-center gap-3">
             <Sliders className="h-7 w-7 text-[#2563EB]" />
             Central Policy Master Directory
           </h1>
@@ -211,7 +211,7 @@ export default function PolicyDirectoryPage() {
         <div className="rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-2xs flex items-center justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-[#64748B]">Total Policies</p>
-            <h3 className="mt-1 text-2xl font-extrabold text-[#0F172A]">{metrics.total}</h3>
+            <h3 className="mt-1 text-2xl font-extrabold text-[#FFFFFF]">{metrics.total}</h3>
             <p className="mt-1 text-[11px] font-bold text-[#2563EB] flex items-center gap-1">
               <Layers className="h-3.5 w-3.5" /> Policy Engine Masters
             </p>
@@ -224,7 +224,7 @@ export default function PolicyDirectoryPage() {
         <div className="rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-2xs flex items-center justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-[#64748B]">Published Active</p>
-            <h3 className="mt-1 text-2xl font-extrabold text-[#0F172A]">{metrics.published}</h3>
+            <h3 className="mt-1 text-2xl font-extrabold text-[#FFFFFF]">{metrics.published}</h3>
             <p className="mt-1 text-[11px] font-bold text-[#166534] flex items-center gap-1">
               <FileCheck2 className="h-3.5 w-3.5 text-[#16A34A]" /> Live in Production
             </p>
@@ -237,7 +237,7 @@ export default function PolicyDirectoryPage() {
         <div className="rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-2xs flex items-center justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-[#64748B]">Draft Versions</p>
-            <h3 className="mt-1 text-2xl font-extrabold text-[#0F172A]">{metrics.draft}</h3>
+            <h3 className="mt-1 text-2xl font-extrabold text-[#FFFFFF]">{metrics.draft}</h3>
             <p className="mt-1 text-[11px] font-bold text-[#D97706] flex items-center gap-1">
               <Activity className="h-3.5 w-3.5" /> Pending Approval
             </p>
@@ -250,7 +250,7 @@ export default function PolicyDirectoryPage() {
         <div className="rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-2xs flex items-center justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-[#64748B]">Evaluation Latency</p>
-            <h3 className="mt-1 text-2xl font-extrabold text-[#0F172A]">&lt; 1.2ms</h3>
+            <h3 className="mt-1 text-2xl font-extrabold text-[#FFFFFF]">&lt; 1.2ms</h3>
             <p className="mt-1 text-[11px] font-bold text-[#166534] flex items-center gap-1">
               <Zap className="h-3.5 w-3.5 text-[#16A34A]" /> Sub-50ms SLA Met
             </p>
@@ -272,7 +272,7 @@ export default function PolicyDirectoryPage() {
               className={`px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
                 selectedCategory === cat
                   ? "bg-[#2563EB] text-white shadow-2xs"
-                  : "bg-white text-[#64748B] border border-[#E5E7EB] hover:bg-[#F8FAFC] hover:text-[#0F172A]"
+                  : "bg-white text-[#64748B] border border-[#E5E7EB] hover:bg-[#F8FAFC] hover:text-[#FFFFFF]"
               }`}
             >
               {cat}
@@ -288,7 +288,7 @@ export default function PolicyDirectoryPage() {
             placeholder="Search policy code or name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-lg border border-[#D1D5DB] bg-white py-2 pl-9 pr-3 text-xs text-[#111827] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold"
+            className="w-full rounded-lg border border-[#D1D5DB] bg-white py-2 pl-9 pr-3 text-xs text-[#FAF8F9] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold"
           />
         </div>
       </div>
@@ -296,14 +296,14 @@ export default function PolicyDirectoryPage() {
       {/* Policy Master Table */}
       <div className="rounded-xl border border-[#E5E7EB] bg-white overflow-hidden shadow-2xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-[#0F172A]">
-            <thead className="bg-[#F8FAFC] uppercase font-mono text-xs font-extrabold text-[#111827] border-b border-[#E5E7EB]">
+          <table className="w-full text-left text-sm text-[#FFFFFF]">
+            <thead className="bg-[#F8FAFC] uppercase font-mono text-xs font-extrabold text-[#FAF8F9] border-b border-[#E5E7EB]">
               <tr>
-                <th className="px-5 py-4 font-mono text-xs font-extrabold text-[#111827]">Policy Code & Name</th>
-                <th className="px-5 py-4 font-mono text-xs font-extrabold text-[#111827]">Category</th>
-                <th className="px-5 py-4 font-mono text-xs font-extrabold text-[#111827]">Version</th>
-                <th className="px-5 py-4 font-mono text-xs font-extrabold text-[#111827]">Status</th>
-                <th className="px-5 py-4 font-mono text-xs font-extrabold text-[#111827] text-right">Actions</th>
+                <th className="px-5 py-4 font-mono text-xs font-extrabold text-[#FAF8F9]">Policy Code & Name</th>
+                <th className="px-5 py-4 font-mono text-xs font-extrabold text-[#FAF8F9]">Category</th>
+                <th className="px-5 py-4 font-mono text-xs font-extrabold text-[#FAF8F9]">Version</th>
+                <th className="px-5 py-4 font-mono text-xs font-extrabold text-[#FAF8F9]">Status</th>
+                <th className="px-5 py-4 font-mono text-xs font-extrabold text-[#FAF8F9] text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E5E7EB] font-mono text-xs">
@@ -324,7 +324,7 @@ export default function PolicyDirectoryPage() {
                   <tr key={p.public_id} className="hover:bg-[#EFF6FF] transition-colors">
                     <td className="px-5 py-4">
                       <div>
-                        <p className="font-sans text-xs font-bold text-[#111827]">{p.policy_name}</p>
+                        <p className="font-sans text-xs font-bold text-[#FAF8F9]">{p.policy_name}</p>
                         <p className="text-xs text-[#2563EB] font-mono font-bold mt-0.5">{p.policy_code}</p>
                       </div>
                     </td>
@@ -365,16 +365,16 @@ export default function PolicyDirectoryPage() {
 
       {/* Creation Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FFFFFF]/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="w-full max-w-xl rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-2xl space-y-4 my-8 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex justify-between items-center border-b border-[#E5E7EB] pb-3">
-              <h3 className="text-lg font-bold text-[#0F172A] flex items-center gap-2">
+              <h3 className="text-lg font-bold text-[#FFFFFF] flex items-center gap-2">
                 <Sliders className="w-5 h-5 text-[#2563EB]" /> Configure Policy Master & Limits
               </h3>
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                className="text-[#64748B] hover:text-[#0F172A] p-1 rounded-lg hover:bg-[#F1F5F9] transition-colors"
+                className="text-[#64748B] hover:text-[#FFFFFF] p-1 rounded-lg hover:bg-[#F1F5F9] transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -397,7 +397,7 @@ export default function PolicyDirectoryPage() {
                     placeholder="e.g. POL_CUST_LIMIT_01"
                     value={form.policy_code}
                     onChange={(e) => setForm({ ...form, policy_code: e.target.value })}
-                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#111827] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#FAF8F9] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all"
                   />
                 </div>
 
@@ -409,7 +409,7 @@ export default function PolicyDirectoryPage() {
                     placeholder="e.g. Customer Monthly Limit Policy"
                     value={form.policy_name}
                     onChange={(e) => setForm({ ...form, policy_name: e.target.value })}
-                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#FAF8F9] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all"
                   />
                 </div>
               </div>
@@ -420,7 +420,7 @@ export default function PolicyDirectoryPage() {
                   <select
                     value={form.policy_category}
                     onChange={(e) => setForm({ ...form, policy_category: e.target.value })}
-                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all cursor-pointer"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#FAF8F9] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all cursor-pointer"
                   >
                     <option value="LIMIT">LIMIT (Transfer Caps)</option>
                     <option value="CUSTOMER">CUSTOMER (Intake & Monthly Limits)</option>
@@ -435,7 +435,7 @@ export default function PolicyDirectoryPage() {
                   <select
                     value={form.scope_level}
                     onChange={(e) => setForm({ ...form, scope_level: e.target.value })}
-                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all cursor-pointer"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#FAF8F9] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all cursor-pointer"
                   >
                     <option value="PLATFORM">PLATFORM (Global Default)</option>
                     <option value="COMPANY">COMPANY (Company Specific)</option>
@@ -447,7 +447,7 @@ export default function PolicyDirectoryPage() {
 
               {/* Monthly Limit & Enable/Disable Controls */}
               <div className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-3">
-                <span className="font-extrabold text-[#0F172A] block uppercase text-[11px] tracking-wider">
+                <span className="font-extrabold text-[#FFFFFF] block uppercase text-[11px] tracking-wider">
                   Transfer Limits & Service Status Configuration
                 </span>
 
@@ -458,7 +458,7 @@ export default function PolicyDirectoryPage() {
                       type="number"
                       value={form.customer_monthly_max}
                       onChange={(e) => setForm({ ...form, customer_monthly_max: parseFloat(e.target.value) || 0 })}
-                      className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2 font-mono text-[#111827] focus:border-[#2563EB] focus:outline-none font-bold"
+                      className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2 font-mono text-[#FAF8F9] focus:border-[#2563EB] focus:outline-none font-bold"
                     />
                   </div>
                   <div>
@@ -467,7 +467,7 @@ export default function PolicyDirectoryPage() {
                       type="number"
                       value={form.bene_monthly_max}
                       onChange={(e) => setForm({ ...form, bene_monthly_max: parseFloat(e.target.value) || 0 })}
-                      className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2 font-mono text-[#111827] focus:border-[#2563EB] focus:outline-none font-bold"
+                      className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2 font-mono text-[#FAF8F9] focus:border-[#2563EB] focus:outline-none font-bold"
                     />
                   </div>
                 </div>
@@ -479,7 +479,7 @@ export default function PolicyDirectoryPage() {
                       type="number"
                       value={form.single_txn_max}
                       onChange={(e) => setForm({ ...form, single_txn_max: parseFloat(e.target.value) || 0 })}
-                      className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2 font-mono text-[#111827] focus:border-[#2563EB] focus:outline-none font-bold"
+                      className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2 font-mono text-[#FAF8F9] focus:border-[#2563EB] focus:outline-none font-bold"
                     />
                   </div>
 

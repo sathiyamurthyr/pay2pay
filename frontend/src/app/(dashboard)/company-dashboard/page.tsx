@@ -70,7 +70,7 @@ export default function CompanyDashboardPage() {
   const kpis = [
     { label: "Total Companies", value: metrics.total_companies, icon: Building2, color: "from-blue-500/20 to-indigo-500/10 text-blue-400 border-blue-500/30" },
     { label: "Active Companies", value: metrics.active_companies, icon: CheckCircle2, color: "from-emerald-500/20 to-teal-500/10 text-emerald-400 border-emerald-500/30" },
-    { label: "Inactive Companies", value: metrics.inactive_companies, icon: Clock, color: "from-slate-500/20 to-gray-500/10 text-slate-400 border-slate-500/30" },
+    { label: "Inactive Companies", value: metrics.inactive_companies, icon: Clock, color: "from-slate-500/20 to-gray-500/10 text-[#625B60] border-slate-500/30" },
     { label: "Suspended Companies", value: metrics.suspended_companies, icon: ShieldAlert, color: "from-rose-500/20 to-red-500/10 text-rose-400 border-rose-500/30" },
     { label: "Created Today", value: metrics.created_today, icon: Calendar, color: "from-cyan-500/20 to-blue-500/10 text-cyan-400 border-cyan-500/30" },
     { label: "Expiring Soon", value: metrics.expiring_soon, icon: AlertTriangle, color: "from-amber-500/20 to-yellow-500/10 text-amber-400 border-amber-500/30" },
@@ -83,18 +83,18 @@ export default function CompanyDashboardPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100 flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-[#292329] flex items-center gap-3">
             <Building2 className="h-8 w-8 text-emerald-400" />
             Company (Tenant) Management Dashboard
           </h1>
-          <p className="mt-1 text-slate-400">
+          <p className="mt-1 text-[#625B60]">
             Real-time telemetry, tenant onboarding metrics & multi-tenant distribution
           </p>
         </div>
         <button
           onClick={fetchMetrics}
           disabled={refreshing}
-          className="flex items-center gap-2 rounded-lg bg-slate-800/80 px-4 py-2.5 text-sm font-medium text-slate-200 border border-slate-700 hover:bg-slate-700/80 transition-all"
+          className="flex items-center gap-2 rounded-lg bg-[#F5F2F4]/80 px-4 py-2.5 text-sm font-medium text-[#292329] border border-[#E8E2E5] hover:bg-slate-700/80 transition-all"
         >
           <RefreshCw className={`h-4 w-4 text-emerald-400 ${refreshing ? "animate-spin" : ""}`} />
           Refresh
@@ -111,7 +111,7 @@ export default function CompanyDashboardPage() {
               className={`relative overflow-hidden rounded-xl border bg-gradient-to-br p-5 backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] shadow-lg ${kpi.color}`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-300">{kpi.label}</span>
+                <span className="text-sm font-medium text-[#292329]">{kpi.label}</span>
                 <Icon className="h-5 w-5 opacity-80" />
               </div>
               <div className="mt-3 text-3xl font-extrabold text-white">{kpi.value}</div>
@@ -123,11 +123,11 @@ export default function CompanyDashboardPage() {
       {/* 4 Analytics Visualizers Grid */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Growth Chart Visualizer */}
-        <div className="rounded-xl border border-[#E5E7EB] bg-white p-6 shadow-2xs text-[#111827]">
+        <div className="rounded-xl border border-[#E5E7EB] bg-white p-6 shadow-2xs text-[#FAF8F9]">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-[#166534]" />
-              <h3 className="font-extrabold text-[#111827] text-lg">Company Growth Trend</h3>
+              <h3 className="font-extrabold text-[#FAF8F9] text-lg">Company Growth Trend</h3>
             </div>
             <span className="text-xs font-mono text-[#6B7280] font-bold bg-[#FAFBFC] px-2.5 py-1 rounded border border-[#E5E7EB]">2026 Telemetry</span>
           </div>
@@ -145,10 +145,10 @@ export default function CompanyDashboardPage() {
         </div>
 
         {/* Status Distribution */}
-        <div className="rounded-xl border border-[#E5E7EB] bg-white p-6 shadow-2xs text-[#111827]">
+        <div className="rounded-xl border border-[#E5E7EB] bg-white p-6 shadow-2xs text-[#FAF8F9]">
           <div className="flex items-center gap-2 mb-6">
             <PieIcon className="h-5 w-5 text-[#2563EB]" />
-            <h3 className="font-extrabold text-[#111827] text-lg">Status Distribution</h3>
+            <h3 className="font-extrabold text-[#FAF8F9] text-lg">Status Distribution</h3>
           </div>
           <div className="space-y-4">
             {Object.entries(metrics.status_distribution).map(([status, count]) => {
@@ -156,7 +156,7 @@ export default function CompanyDashboardPage() {
               return (
                 <div key={status} className="space-y-1.5">
                   <div className="flex justify-between text-sm">
-                    <span className="text-[#111827] font-bold">{status.replace("_", " ")}</span>
+                    <span className="text-[#FAF8F9] font-bold">{status.replace("_", " ")}</span>
                     <span className="font-mono font-bold text-[#6B7280]">{count} ({pct}%)</span>
                   </div>
                   <div className="h-2 w-full rounded-full bg-[#F3F4F6] overflow-hidden">
@@ -176,31 +176,31 @@ export default function CompanyDashboardPage() {
         </div>
 
         {/* State-wise Distribution */}
-        <div className="rounded-xl border border-[#E5E7EB] bg-white p-6 shadow-2xs text-[#111827]">
+        <div className="rounded-xl border border-[#E5E7EB] bg-white p-6 shadow-2xs text-[#FAF8F9]">
           <div className="flex items-center gap-2 mb-6">
             <MapPin className="h-5 w-5 text-[#2563EB]" />
-            <h3 className="font-extrabold text-[#111827] text-lg">State-wise Regional Presence</h3>
+            <h3 className="font-extrabold text-[#FAF8F9] text-lg">State-wise Regional Presence</h3>
           </div>
           <div className="grid grid-cols-2 gap-4">
             {Object.entries(metrics.state_distribution).map(([state, count]) => (
               <div key={state} className="rounded-lg border border-[#E5E7EB] bg-[#FAFBFC] p-4">
                 <div className="text-xs text-[#6B7280] uppercase font-mono font-bold">{state}</div>
-                <div className="text-2xl font-extrabold text-[#111827] mt-1">{count}</div>
+                <div className="text-2xl font-extrabold text-[#FAF8F9] mt-1">{count}</div>
               </div>
             ))}
           </div>
         </div>
 
         {/* Subscription Distribution */}
-        <div className="rounded-xl border border-[#E5E7EB] bg-white p-6 shadow-2xs text-[#111827]">
+        <div className="rounded-xl border border-[#E5E7EB] bg-white p-6 shadow-2xs text-[#FAF8F9]">
           <div className="flex items-center gap-2 mb-6">
             <CreditCard className="h-5 w-5 text-[#2563EB]" />
-            <h3 className="font-extrabold text-[#111827] text-lg">Subscription Tier Distribution</h3>
+            <h3 className="font-extrabold text-[#FAF8F9] text-lg">Subscription Tier Distribution</h3>
           </div>
           <div className="space-y-4">
             {Object.entries(metrics.subscription_distribution).map(([plan, count]) => (
               <div key={plan} className="flex items-center justify-between rounded-lg border border-[#E5E7EB] bg-[#FAFBFC] px-4 py-3">
-                <span className="font-bold text-[#111827]">{plan.replace("_", " ")}</span>
+                <span className="font-bold text-[#FAF8F9]">{plan.replace("_", " ")}</span>
                 <span className="font-mono text-[#166534] bg-[#DCFCE7] border border-[#BBF7D0] px-3 py-1 rounded-full text-xs font-bold">
                   {count} Companies
                 </span>

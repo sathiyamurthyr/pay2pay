@@ -46,7 +46,7 @@ export default function PolicyEvaluatorPage() {
           <ArrowLeft className="w-4 h-4" />
         </Link>
         <div>
-          <h1 className="text-2xl font-extrabold text-[#0F172A] tracking-tight flex items-center gap-3">
+          <h1 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight flex items-center gap-3">
             <Zap className="w-7 h-7 text-[#2563EB]" /> Policy Evaluation & Transaction Simulator
           </h1>
           <p className="text-sm font-medium text-[#64748B] mt-0.5">
@@ -59,7 +59,7 @@ export default function PolicyEvaluatorPage() {
         {/* Simulator Input Form */}
         <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-2xs space-y-5">
           <div className="border-b border-[#E5E7EB] pb-3">
-            <h2 className="text-base font-extrabold text-[#0F172A] flex items-center gap-2">
+            <h2 className="text-base font-extrabold text-[#FFFFFF] flex items-center gap-2">
               <Sliders className="w-5 h-5 text-[#2563EB]" /> Transaction Context Input
             </h2>
             <p className="text-xs text-[#64748B] mt-0.5 font-medium">Specify transfer parameters to test against real-time active policies</p>
@@ -71,7 +71,7 @@ export default function PolicyEvaluatorPage() {
               <select
                 value={context.service_code}
                 onChange={(e) => setContext({ ...context, service_code: e.target.value })}
-                className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all cursor-pointer"
+                className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#FAF8F9] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all cursor-pointer"
               >
                 <option value="DMT">DMT (Domestic Money Transfer)</option>
                 <option value="CARD_TO_BANK">Card to Bank Transfer</option>
@@ -88,7 +88,7 @@ export default function PolicyEvaluatorPage() {
                 required
                 value={context.amount}
                 onChange={(e) => setContext({ ...context, amount: parseFloat(e.target.value) || 0 })}
-                className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#111827] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all"
+                className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#FAF8F9] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all"
               />
             </div>
 
@@ -98,7 +98,7 @@ export default function PolicyEvaluatorPage() {
                 <select
                   value={context.customer_category}
                   onChange={(e) => setContext({ ...context, customer_category: e.target.value })}
-                  className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all cursor-pointer"
+                  className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#FAF8F9] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all cursor-pointer"
                 >
                   <option value="REGULAR">Regular Customer</option>
                   <option value="PREMIUM">Premium Tier</option>
@@ -111,7 +111,7 @@ export default function PolicyEvaluatorPage() {
                 <select
                   value={context.kyc_level}
                   onChange={(e) => setContext({ ...context, kyc_level: e.target.value })}
-                  className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all cursor-pointer"
+                  className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#FAF8F9] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all cursor-pointer"
                 >
                   <option value="NONE">No KYC (Unverified)</option>
                   <option value="MINIMUM_KYC">Minimum KYC</option>
@@ -129,7 +129,7 @@ export default function PolicyEvaluatorPage() {
                 max="100"
                 value={context.risk_score}
                 onChange={(e) => setContext({ ...context, risk_score: parseInt(e.target.value) || 0 })}
-                className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#111827] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all"
+                className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#FAF8F9] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold transition-all"
               />
             </div>
 
@@ -147,7 +147,7 @@ export default function PolicyEvaluatorPage() {
         {/* Evaluation Output Card */}
         <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-2xs space-y-5">
           <div className="border-b border-[#E5E7EB] pb-3 flex items-center justify-between">
-            <h2 className="text-base font-extrabold text-[#0F172A] flex items-center gap-2">
+            <h2 className="text-base font-extrabold text-[#FFFFFF] flex items-center gap-2">
               <Activity className="w-5 h-5 text-[#16A34A]" /> Policy Engine Evaluation Output
             </h2>
             <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]">
@@ -216,13 +216,13 @@ export default function PolicyEvaluatorPage() {
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <div className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
                   <span className="text-[10px] font-extrabold text-[#64748B] block uppercase tracking-wider">Single Txn Cap</span>
-                  <span className="text-sm font-extrabold text-[#0F172A] font-mono">
+                  <span className="text-sm font-extrabold text-[#FFFFFF] font-mono">
                     ₹{result.effective_single_txn_max?.toLocaleString() || "25,000"}
                   </span>
                 </div>
                 <div className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
                   <span className="text-[10px] font-extrabold text-[#64748B] block uppercase tracking-wider">Daily Amount Cap</span>
-                  <span className="text-sm font-extrabold text-[#0F172A] font-mono">
+                  <span className="text-sm font-extrabold text-[#FFFFFF] font-mono">
                     ₹{result.effective_daily_amount_max?.toLocaleString() || "100,000"}
                   </span>
                 </div>

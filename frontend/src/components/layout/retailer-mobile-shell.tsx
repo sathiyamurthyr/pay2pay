@@ -34,13 +34,13 @@ export const RetailerMobileShell: React.FC<{ children: React.ReactNode }> = ({ c
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans max-w-md md:max-w-lg mx-auto shadow-2xl border-x border-slate-800 relative pb-24">
+    <div className="min-h-screen bg-[#FFFFFF] text-[#292329] flex flex-col font-sans max-w-md md:max-w-lg mx-auto shadow-2xl border-x border-[#E8E2E5] relative pb-24">
 
       {/* ── Glassmorphism Mobile Header ── */}
-      <header className="sticky top-0 z-40 px-4 py-3 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 flex items-center justify-between shadow-lg">
+      <header className="sticky top-0 z-40 px-4 py-3 bg-[#FAF8F9]/80 backdrop-blur-xl border-b border-white/10 flex items-center justify-between shadow-lg">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 p-0.5 shadow-lg shadow-blue-500/20">
-            <div className="w-full h-full rounded-[14px] bg-slate-900 flex items-center justify-center">
+            <div className="w-full h-full rounded-[14px] bg-[#FAF8F9] flex items-center justify-center">
               <Store className="w-5 h-5 text-blue-400" />
             </div>
           </div>
@@ -110,21 +110,21 @@ export const RetailerMobileShell: React.FC<{ children: React.ReactNode }> = ({ c
           <Link
             href="/dmt/transfer"
             prefetch={false}
-            className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 border border-blue-400/30 text-white text-xs font-extrabold hover:brightness-110 transition-all shadow-lg shadow-blue-600/30"
+            className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-2xl bg-gradient-to-r from-[#A20A3A] to-[#85072F] border border-blue-400/30 text-white text-xs font-extrabold hover:brightness-110 transition-all shadow-lg shadow-blue-600/30"
           >
             <Send className="w-4 h-4" /> DMT Transfer
           </Link>
           <Link
             href="/aeps/services"
             prefetch={false}
-            className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-2xl bg-slate-800/80 border border-slate-700 text-white text-xs font-extrabold hover:bg-slate-700 transition-all"
+            className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-2xl bg-[#F5F2F4]/80 border border-[#E8E2E5] text-white text-xs font-extrabold hover:bg-slate-700 transition-all"
           >
             <Fingerprint className="w-4 h-4 text-emerald-400" /> AEPS Cash Out
           </Link>
           <Link
             href="/payouts/requests"
             prefetch={false}
-            className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-2xl bg-slate-800/80 border border-slate-700 text-white text-xs font-extrabold hover:bg-slate-700 transition-all"
+            className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-2xl bg-[#F5F2F4]/80 border border-[#E8E2E5] text-white text-xs font-extrabold hover:bg-slate-700 transition-all"
           >
             <QrCode className="w-4 h-4 text-amber-400" /> QR Collect
           </Link>
@@ -137,7 +137,7 @@ export const RetailerMobileShell: React.FC<{ children: React.ReactNode }> = ({ c
       </main>
 
       {/* ── Mobile Merchant Bottom Navigation Dock ── */}
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md md:max-w-lg bg-slate-900/90 backdrop-blur-2xl border-t border-white/10 px-4 py-2 flex items-center justify-around z-50 shadow-2xl">
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md md:max-w-lg bg-[#FAF8F9]/90 backdrop-blur-2xl border-t border-white/10 px-4 py-2 flex items-center justify-around z-50 shadow-2xl">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href || (item.href !== "/retailer-dashboard" && pathname?.startsWith(item.href));
@@ -147,11 +147,11 @@ export const RetailerMobileShell: React.FC<{ children: React.ReactNode }> = ({ c
               href={item.href}
               prefetch={false}
               className={`flex flex-col items-center gap-1 py-1 px-3 rounded-2xl transition-all relative ${
-                isActive ? "text-blue-400 font-extrabold scale-105" : "text-slate-400 hover:text-slate-200"
+                isActive ? "text-blue-400 font-extrabold scale-105" : "text-[#625B60] hover:text-[#292329]"
               }`}
             >
               <div className={`p-2 rounded-2xl transition-all ${isActive ? "bg-blue-600/20 border border-blue-500/30 text-blue-400 shadow-md" : "bg-transparent"}`}>
-                <Icon className={`w-5 h-5 ${isActive ? "text-blue-400" : "text-slate-400"}`} />
+                <Icon className={`w-5 h-5 ${isActive ? "text-blue-400" : "text-[#625B60]"}`} />
               </div>
               <span className="text-[10px] tracking-tight">{item.label}</span>
               {(item as any).badge && !isActive && (

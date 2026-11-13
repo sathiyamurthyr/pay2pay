@@ -47,7 +47,7 @@ export const WorkstationStep3: React.FC<WorkstationStep3Props> = ({
           p: 4,
           borderRadius: "22px",
           bgcolor: "rgba(11, 15, 25, 0.85)",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
+          border: "1px solid #E8E2E5",
           backdropFilter: "blur(20px)",
           boxShadow: "0 20px 50px rgba(0, 0, 0, 0.6)",
         }}
@@ -124,7 +124,7 @@ export const WorkstationStep3: React.FC<WorkstationStep3Props> = ({
               </Typography>
             </Stack>
 
-            <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 0.5 }} />
+            <Divider sx={{ borderColor: "#E8E2E5", my: 0.5 }} />
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.85)", fontWeight: 700, fontSize: "14px" }}>TOTAL WALLET DEBIT</Typography>
@@ -176,7 +176,7 @@ export const WorkstationStep3: React.FC<WorkstationStep3Props> = ({
               fontWeight: 900,
               fontSize: "14.5px",
               background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%)",
-              color: "#080B11",
+              color: "#FFFFFF",
               boxShadow: "0 6px 24px rgba(245, 158, 11, 0.45)",
               textTransform: "none",
               "&:hover": {

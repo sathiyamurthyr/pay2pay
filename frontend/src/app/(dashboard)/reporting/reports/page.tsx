@@ -60,11 +60,11 @@ export default function ReportsPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100 flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-[#292329] flex items-center gap-3">
             <FileText className="h-8 w-8 text-emerald-400" />
             Enterprise Report Directory & Generator
           </h1>
-          <p className="mt-1 text-slate-400">
+          <p className="mt-1 text-[#625B60]">
             Catalog of financial, operational, compliance, and audit reports with on-demand Excel/CSV/PDF exports
           </p>
         </div>
@@ -73,17 +73,17 @@ export default function ReportsPage() {
       {/* Report Cards Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2">
         {loading ? (
-          <div className="col-span-2 p-12 text-center text-slate-400">Loading Report Catalog...</div>
+          <div className="col-span-2 p-12 text-center text-[#625B60]">Loading Report Catalog...</div>
         ) : (
           reports.map((r) => (
-            <div key={r.public_id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 backdrop-blur-xl shadow-xl space-y-3">
+            <div key={r.public_id} className="rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 p-5 backdrop-blur-xl shadow-xl space-y-3">
               <div className="flex items-center justify-between">
                 <span className="font-mono text-xs text-emerald-400 font-bold">{r.report_code}</span>
-                <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-xs font-semibold text-slate-300">{r.category}</span>
+                <span className="rounded-full bg-[#F5F2F4] px-2.5 py-0.5 text-xs font-semibold text-[#292329]">{r.category}</span>
               </div>
-              <h3 className="font-semibold text-slate-100 text-base">{r.report_name}</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">{r.description}</p>
-              <div className="pt-2 border-t border-slate-800 flex justify-end">
+              <h3 className="font-semibold text-[#292329] text-base">{r.report_name}</h3>
+              <p className="text-xs text-[#625B60] leading-relaxed">{r.description}</p>
+              <div className="pt-2 border-t border-[#E8E2E5] flex justify-end">
                 <button
                   onClick={() => { setSelectedReport(r); setShowExecModal(true); }}
                   className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-500 transition-all"
@@ -98,13 +98,13 @@ export default function ReportsPage() {
       </div>
 
       {/* Past Executions Table */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 backdrop-blur-xl overflow-hidden shadow-2xl space-y-4 p-6">
-        <h3 className="font-semibold text-slate-200 text-lg flex items-center gap-2">
+      <div className="rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 backdrop-blur-xl overflow-hidden shadow-2xl space-y-4 p-6">
+        <h3 className="font-semibold text-[#292329] text-lg flex items-center gap-2">
           <FileSpreadsheet className="h-5 w-5 text-emerald-400" /> Recent Executed Report Downloads
         </h3>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-300">
-            <thead className="bg-slate-950/80 uppercase font-mono text-xs text-slate-400 border-b border-slate-800">
+          <table className="w-full text-left text-sm text-[#292329]">
+            <thead className="bg-[#FFFFFF]/80 uppercase font-mono text-xs text-[#625B60] border-b border-[#E8E2E5]">
               <tr>
                 <th className="px-5 py-4">Execution #</th>
                 <th className="px-5 py-4">Status</th>
@@ -114,18 +114,18 @@ export default function ReportsPage() {
                 <th className="px-5 py-4 text-right">Download</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 font-mono text-xs">
+            <tbody className="divide-y divide-[#E8E2E5]/60 font-mono text-xs">
               {executions.map((ex) => (
-                <tr key={ex.public_id} className="hover:bg-slate-800/40 transition-colors">
+                <tr key={ex.public_id} className="hover:bg-[#F5F2F4]/40 transition-colors">
                   <td className="px-5 py-4 text-emerald-400 font-bold">{ex.execution_number}</td>
                   <td className="px-5 py-4">
                     <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                       {ex.execution_status}
                     </span>
                   </td>
-                  <td className="px-5 py-4 text-slate-200">{ex.record_count} rows</td>
+                  <td className="px-5 py-4 text-[#292329]">{ex.record_count} rows</td>
                   <td className="px-5 py-4 text-amber-400">{ex.execution_time_ms} ms</td>
-                  <td className="px-5 py-4 text-slate-400">{ex.executed_by}</td>
+                  <td className="px-5 py-4 text-[#625B60]">{ex.executed_by}</td>
                   <td className="px-5 py-4 text-right">
                     <a
                       href={ex.file_path || "#"}
@@ -145,23 +145,23 @@ export default function ReportsPage() {
       {/* Modal */}
       {showExecModal && selectedReport && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 overflow-y-auto">
-          <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl space-y-4 my-8">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-              <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+          <div className="w-full max-w-md rounded-2xl border border-[#E8E2E5] bg-[#FAF8F9] p-6 shadow-2xl space-y-4 my-8">
+            <div className="flex items-center justify-between border-b border-[#E8E2E5] pb-4">
+              <h2 className="text-xl font-bold text-[#292329] flex items-center gap-2">
                 <Play className="h-5 w-5 text-emerald-400" /> Execute Report ({selectedReport.report_code})
               </h2>
-              <button onClick={() => setShowExecModal(false)} className="text-slate-400 hover:text-slate-200">
+              <button onClick={() => setShowExecModal(false)} className="text-[#625B60] hover:text-[#292329]">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <form onSubmit={handleExecuteSubmit} className="space-y-4 text-xs">
               <div>
-                <label className="font-medium text-slate-300">Export Format *</label>
+                <label className="font-medium text-[#292329]">Export Format *</label>
                 <select
                   value={format}
                   onChange={(e) => setFormat(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 text-slate-100 focus:border-emerald-500 focus:outline-none"
+                  className="mt-1 w-full rounded-lg border border-[#E8E2E5] bg-[#FFFFFF] p-2.5 text-[#292329] focus:border-emerald-500 focus:outline-none"
                 >
                   <option value="EXCEL">Microsoft Excel (.xlsx)</option>
                   <option value="CSV">Comma-Separated Values (.csv)</option>
@@ -170,7 +170,7 @@ export default function ReportsPage() {
                 </select>
               </div>
 
-              <div className="flex justify-end pt-4 border-t border-slate-800">
+              <div className="flex justify-end pt-4 border-t border-[#E8E2E5]">
                 <button type="submit" className="rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 shadow-lg">
                   Run Query & Generate File
                 </button>

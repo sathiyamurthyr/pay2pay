@@ -75,15 +75,15 @@ export const GridToolbarPagination: React.FC<GridToolbarPaginationProps> = ({
   // 💬 Share to WhatsApp
   const handleShareWhatsApp = () => {
     setShowShareMenu(false);
-    const text = `📊 Pay2Pay Report: ${title}\n📍 Page Link: ${window.location.href}\n🔢 Total Records: ${totalItems}`;
+    const text = `📊 Near4You Report: ${title}\n📍 Page Link: ${window.location.href}\n🔢 Total Records: ${totalItems}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
 
   // 📧 Share via Email
   const handleShareEmail = () => {
     setShowShareMenu(false);
-    const subject = encodeURIComponent(`Pay2Pay Data Report - ${title}`);
-    const body = encodeURIComponent(`Hello,\n\nPlease find the Pay2Pay data report summary below:\n\nTitle: ${title}\nTotal Records: ${totalItems}\nDirect Link: ${window.location.href}\n\nRegards,\nPay2Pay Enterprise Portal`);
+    const subject = encodeURIComponent(`Near4You Data Report - ${title}`);
+    const body = encodeURIComponent(`Hello,\n\nPlease find the Near4You data report summary below:\n\nTitle: ${title}\nTotal Records: ${totalItems}\nDirect Link: ${window.location.href}\n\nRegards,\nPay2Pay Enterprise Portal`);
     window.open(`mailto:?subject=${subject}&body=${body}`, "_blank");
   };
 
@@ -107,12 +107,12 @@ export const GridToolbarPagination: React.FC<GridToolbarPaginationProps> = ({
             placeholder="Search records, codes, titles..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-9 pr-8 py-2 bg-white border border-[#D1D5DB] rounded-lg text-xs font-bold text-[#111827] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition-all"
+            className="w-full pl-9 pr-8 py-2 bg-white border border-[#D1D5DB] rounded-lg text-xs font-bold text-[#FAF8F9] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition-all"
           />
           {searchQuery && (
             <button
               onClick={() => onSearchChange("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#0F172A]"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#FFFFFF]"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -188,9 +188,9 @@ export const GridToolbarPagination: React.FC<GridToolbarPaginationProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-2 text-xs font-bold text-[#64748B]">
         {/* Item Counter */}
         <div>
-          Showing <span className="text-[#0F172A] font-extrabold">{startItem}</span> -{" "}
-          <span className="text-[#0F172A] font-extrabold">{endItem}</span> of{" "}
-          <span className="text-[#0F172A] font-extrabold">{totalItems}</span> records
+          Showing <span className="text-[#FFFFFF] font-extrabold">{startItem}</span> -{" "}
+          <span className="text-[#FFFFFF] font-extrabold">{endItem}</span> of{" "}
+          <span className="text-[#FFFFFF] font-extrabold">{totalItems}</span> records
         </div>
 
         {/* Page Size & Navigation Buttons */}
@@ -201,7 +201,7 @@ export const GridToolbarPagination: React.FC<GridToolbarPaginationProps> = ({
             <select
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              className="bg-white border border-[#D1D5DB] rounded-md px-2 py-1 text-xs font-bold text-[#0F172A] focus:outline-none focus:border-[#2563EB] cursor-pointer"
+              className="bg-white border border-[#D1D5DB] rounded-md px-2 py-1 text-xs font-bold text-[#FFFFFF] focus:outline-none focus:border-[#2563EB] cursor-pointer"
             >
               {[10, 20, 50, 100].map((size) => (
                 <option key={size} value={size}>
@@ -222,7 +222,7 @@ export const GridToolbarPagination: React.FC<GridToolbarPaginationProps> = ({
               <ChevronLeft className="w-4 h-4" />
             </button>
 
-            <span className="px-2 text-xs font-extrabold text-[#0F172A]">
+            <span className="px-2 text-xs font-extrabold text-[#FFFFFF]">
               Page {currentPage} of {totalPages}
             </span>
 

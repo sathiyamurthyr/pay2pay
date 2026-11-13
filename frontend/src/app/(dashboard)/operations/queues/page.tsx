@@ -48,24 +48,24 @@ export default function QueuesPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100 flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-[#292329] flex items-center gap-3">
             <Activity className="h-8 w-8 text-emerald-400" />
             Background Queues & Dead Letter Queue (DLQ) Manager
           </h1>
-          <p className="mt-1 text-slate-400">
+          <p className="mt-1 text-[#625B60]">
             Real-time monitoring of asynchronous processing queues, worker threads, and dead letter exceptions
           </p>
         </div>
       </div>
 
       {/* Active Queues Table */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 backdrop-blur-xl overflow-hidden shadow-2xl space-y-4 p-6">
-        <h3 className="font-semibold text-slate-200 text-lg flex items-center gap-2">
+      <div className="rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 backdrop-blur-xl overflow-hidden shadow-2xl space-y-4 p-6">
+        <h3 className="font-semibold text-[#292329] text-lg flex items-center gap-2">
           <Activity className="h-5 w-5 text-emerald-400" /> Background Asynchronous Job Queues
         </h3>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-300">
-            <thead className="bg-slate-950/80 uppercase font-mono text-xs text-slate-400 border-b border-slate-800">
+          <table className="w-full text-left text-sm text-[#292329]">
+            <thead className="bg-[#FFFFFF]/80 uppercase font-mono text-xs text-[#625B60] border-b border-[#E8E2E5]">
               <tr>
                 <th className="px-5 py-4">Queue Name</th>
                 <th className="px-5 py-4">Pending Jobs</th>
@@ -74,11 +74,11 @@ export default function QueuesPage() {
                 <th className="px-5 py-4 font-mono text-right">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 font-mono text-xs">
+            <tbody className="divide-y divide-[#E8E2E5]/60 font-mono text-xs">
               {queues.map((q) => (
-                <tr key={q.public_id} className="hover:bg-slate-800/40 transition-colors">
+                <tr key={q.public_id} className="hover:bg-[#F5F2F4]/40 transition-colors">
                   <td className="px-5 py-4 text-emerald-400 font-bold">{q.queue_name}</td>
-                  <td className="px-5 py-4 text-slate-200">{q.pending_jobs}</td>
+                  <td className="px-5 py-4 text-[#292329]">{q.pending_jobs}</td>
                   <td className="px-5 py-4 text-blue-400 font-bold">{q.active_workers} threads</td>
                   <td className="px-5 py-4 text-rose-400">{q.failed_jobs}</td>
                   <td className="px-5 py-4 text-right">
@@ -94,13 +94,13 @@ export default function QueuesPage() {
       </div>
 
       {/* Dead Letter Queue Table */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 backdrop-blur-xl overflow-hidden shadow-2xl space-y-4 p-6">
-        <h3 className="font-semibold text-slate-200 text-lg flex items-center gap-2">
+      <div className="rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 backdrop-blur-xl overflow-hidden shadow-2xl space-y-4 p-6">
+        <h3 className="font-semibold text-[#292329] text-lg flex items-center gap-2">
           <ShieldAlert className="h-5 w-5 text-amber-400" /> Dead Letter Queue (DLQ) Exceptions
         </h3>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-300">
-            <thead className="bg-slate-950/80 uppercase font-mono text-xs text-slate-400 border-b border-slate-800">
+          <table className="w-full text-left text-sm text-[#292329]">
+            <thead className="bg-[#FFFFFF]/80 uppercase font-mono text-xs text-[#625B60] border-b border-[#E8E2E5]">
               <tr>
                 <th className="px-5 py-4">DLQ #</th>
                 <th className="px-5 py-4">Error Message</th>
@@ -109,15 +109,15 @@ export default function QueuesPage() {
                 <th className="px-5 py-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 font-mono text-xs">
+            <tbody className="divide-y divide-[#E8E2E5]/60 font-mono text-xs">
               {dlqs.length === 0 ? (
-                <tr><td colSpan={5} className="px-5 py-12 text-center text-slate-400">No dead letter queue exceptions detected. Zero poison messages.</td></tr>
+                <tr><td colSpan={5} className="px-5 py-12 text-center text-[#625B60]">No dead letter queue exceptions detected. Zero poison messages.</td></tr>
               ) : (
                 dlqs.map((d) => (
-                  <tr key={d.public_id} className="hover:bg-slate-800/40 transition-colors">
+                  <tr key={d.public_id} className="hover:bg-[#F5F2F4]/40 transition-colors">
                     <td className="px-5 py-4 text-amber-400 font-bold">{d.dlq_number}</td>
-                    <td className="px-5 py-4 text-slate-300">{d.error_message}</td>
-                    <td className="px-5 py-4 text-slate-200">{d.retry_count}</td>
+                    <td className="px-5 py-4 text-[#292329]">{d.error_message}</td>
+                    <td className="px-5 py-4 text-[#292329]">{d.retry_count}</td>
                     <td className="px-5 py-4">
                       <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
                         {d.status}

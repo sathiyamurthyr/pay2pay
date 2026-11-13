@@ -85,7 +85,7 @@ export function SearchableSelect({
             : "border-[#D1D5DB] hover:border-[#9CA3AF]"
         } ${disabled ? "opacity-50 cursor-not-allowed bg-[#F9FAFB]" : ""}`}
       >
-        <span className={selectedOption ? "text-[#111827]" : "text-[#9CA3AF] font-normal"}>
+        <span className={selectedOption ? "text-[#FAF8F9]" : "text-[#9CA3AF] font-normal"}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <ChevronDown
@@ -121,7 +121,7 @@ export function SearchableSelect({
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder={searchPlaceholder}
-                  className="w-full pl-8 pr-7 py-1.5 bg-white border border-[#D1D5DB] rounded-lg text-xs font-medium text-[#111827] placeholder-[#9CA3AF] focus:outline-none focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB]"
+                  className="w-full pl-8 pr-7 py-1.5 bg-white border border-[#D1D5DB] rounded-lg text-xs font-medium text-[#FAF8F9] placeholder-[#9CA3AF] focus:outline-none focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB]"
                 />
                 {search && (
                   <button
@@ -165,7 +165,7 @@ export function SearchableSelect({
                     }`}
                   >
                     <div className="truncate pr-2">
-                      <div className="font-bold text-[#111827] truncate">{opt.label}</div>
+                      <div className="font-bold text-[#FAF8F9] truncate">{opt.label}</div>
                       {opt.subtext && (
                         <div className="text-[10px] text-[#6B7280] font-normal truncate">
                           {opt.subtext}

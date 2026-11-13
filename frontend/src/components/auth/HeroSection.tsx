@@ -20,9 +20,11 @@ import {
 import { AnimatedAuroraBackground } from "./motion/AnimatedAuroraBackground";
 import { MouseSpotlight } from "./motion/MouseSpotlight";
 import { CountUpNumber } from "./motion/CountUpNumber";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
-export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = true }) => {
+export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = false }) => {
   const shouldReduceMotion = useReducedMotion();
+  const { display_name, logo_url, primary_colour, secondary_colour } = useCompanyBranding();
 
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -60,7 +62,7 @@ export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = true 
   return (
     <div
       className={`relative w-full h-full overflow-hidden flex flex-col justify-between select-none transition-colors duration-300 ${
-        darkMode ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-900"
+        darkMode ? "bg-[#FAF8F9] text-[#292329]" : "bg-[#FAF8F9] text-[#292329]"
       }`}
     >
       {/* Background Effects */}
@@ -72,31 +74,29 @@ export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = true 
         {/* ── Top Header ── */}
         <div className="flex items-center justify-between mb-3 2xl:mb-5">
           <div className="flex items-center gap-3 2xl:gap-4">
-            <div className="w-10 h-10 2xl:w-12 2xl:h-12 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-cyan-400 p-0.5 shadow-lg shadow-blue-500/30 shrink-0">
+            <div
+              className="w-10 h-10 2xl:w-12 2xl:h-12 rounded-2xl p-0.5 shadow-md shrink-0"
+              style={{
+                background: `linear-gradient(135deg, ${primary_colour || "#A20A3A"}, ${secondary_colour || "#EDC11E"})`,
+                boxShadow: `0 4px 12px ${primary_colour ? primary_colour + "33" : "rgba(162, 10, 58, 0.2)"}`,
+              }}
+            >
               <div
-                className={`w-full h-full rounded-[14px] flex items-center justify-center ${
-                  darkMode ? "bg-slate-950" : "bg-white"
-                }`}
+                className="w-full h-full rounded-[14px] flex items-center justify-center p-1 bg-white"
               >
-                <span className="text-sm 2xl:text-lg font-black tracking-tighter bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400 bg-clip-text text-transparent">
-                  P2P
-                </span>
+                <img src={logo_url || "/branding/logo.svg"} alt={display_name || "Near 4 You"} className="w-full h-full object-contain" />
               </div>
             </div>
             <div>
               <h1
-                className={`text-sm 2xl:text-lg font-extrabold tracking-tight leading-tight ${
-                  darkMode ? "text-white" : "text-slate-900"
-                }`}
+                className="text-sm 2xl:text-lg font-extrabold tracking-tight leading-tight text-[#292329]"
               >
-                Pay2Pay Enterprise
+                {display_name || "Near 4 You"}
               </h1>
               <p
-                className={`text-[10px] 2xl:text-xs font-semibold mt-0.5 ${
-                  darkMode ? "text-slate-400" : "text-slate-500"
-                }`}
+                className="text-[10px] 2xl:text-xs font-semibold mt-0.5 text-[#625B60]"
               >
-                Retailer Authentication Portal
+                Enterprise FinTech Workstation
               </p>
             </div>
           </div>
@@ -117,8 +117,8 @@ export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = true 
             <div
               className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-[11px] 2xl:text-xs font-black uppercase tracking-wider backdrop-blur-md relative overflow-hidden ${
                 darkMode
-                  ? "bg-gradient-to-r from-blue-500/15 via-indigo-500/10 to-blue-500/15 border-blue-500/30 text-blue-400"
-                  : "bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-blue-500/10 border-blue-400/40 text-blue-700 shadow-sm"
+                  ? "bg-gradient-to-r from-[#A20A3A]/20 via-[#85072F]/15 to-[#EDC11E]/20 border-[#A20A3A]/30 text-[#EDC11E]"
+                  : "bg-gradient-to-r from-[#FFF0F4] via-[#FAF8F9] to-[#FFF8DC] border-[#A20A3A]/20 text-[#A20A3A] shadow-sm"
               }`}
             >
               <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-400" />
@@ -134,7 +134,7 @@ export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = true 
               }`}
             >
               Power Every{" "}
-              <span className="bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-[#A20A3A] via-[#C42555] to-[#EDC11E] bg-clip-text text-transparent">
                 Retail Business
               </span>
             </h2>
@@ -143,13 +143,13 @@ export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = true 
           {/* Subtitle */}
           <p
             className={`text-sm xl:text-base 2xl:text-xl font-medium leading-relaxed mb-5 2xl:mb-7 max-w-lg 2xl:max-w-2xl ${
-              darkMode ? "text-slate-300" : "text-slate-700"
+              darkMode ? "text-[#292329]" : "text-slate-700"
             }`}
           >
             Transfer Money · Accept UPI · AEPS Banking · BBPS · Wallet
             <span
               className={`block text-xs xl:text-sm 2xl:text-base font-normal mt-1 ${
-                darkMode ? "text-slate-400" : "text-slate-500"
+                darkMode ? "text-[#625B60]" : "text-[#8A8288]"
               }`}
             >
               All from one secure enterprise workstation platform.
@@ -190,18 +190,10 @@ export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = true 
             ].map((card, idx) => {
               const IconComp = card.icon;
               const colorMap: Record<string, string> = {
-                blue: darkMode
-                  ? "bg-blue-500/20 text-blue-400 border-blue-500/30"
-                  : "bg-blue-50 text-blue-600 border-blue-200",
-                purple: darkMode
-                  ? "bg-purple-500/20 text-purple-400 border-purple-500/30"
-                  : "bg-purple-50 text-purple-600 border-purple-200",
-                emerald: darkMode
-                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                  : "bg-emerald-50 text-emerald-600 border-emerald-200",
-                cyan: darkMode
-                  ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/30"
-                  : "bg-cyan-50 text-cyan-600 border-cyan-200",
+                blue: "bg-[#FFF0F4] text-[#A20A3A] border-[#FFD6E2]",
+                purple: "bg-[#FFF8DC] text-[#EDC11E] border-[#FFF3C4]",
+                emerald: "bg-emerald-50 text-emerald-600 border-emerald-200",
+                cyan: "bg-[#FFF0F4] text-[#85072F] border-[#FFD6E2]",
               };
 
               return (
@@ -209,18 +201,14 @@ export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = true 
                   key={idx}
                   onMouseMove={(e) => handleCardMouseMove(e, idx)}
                   onMouseLeave={() => setHoveredCard(null)}
-                  className={`relative p-3.5 2xl:p-4 rounded-2xl border backdrop-blur-xl flex items-center gap-3 group overflow-hidden transition-all duration-200 cursor-default hover:scale-[1.02] ${
-                    darkMode
-                      ? "bg-slate-900/75 border-slate-800/90 shadow-lg hover:border-blue-500/40 hover:shadow-blue-500/10"
-                      : "bg-white/85 border-slate-200/90 shadow-xl shadow-slate-200/60 hover:border-blue-400/50 hover:shadow-blue-500/15"
-                  }`}
+                  className="relative p-3.5 2xl:p-4 rounded-2xl border border-[#E8E2E5] bg-[#FFFFFF] shadow-sm flex items-center gap-3 group overflow-hidden transition-all duration-200 cursor-default hover:border-[#A20A3A]/40 hover:shadow-md"
                 >
                   {/* Mouse spotlight glow */}
                   {hoveredCard === idx && (
                     <div
-                      className="absolute inset-0 pointer-events-none opacity-40 transition-opacity duration-300"
+                      className="absolute inset-0 pointer-events-none opacity-30 transition-opacity duration-300"
                       style={{
-                        background: `radial-gradient(180px circle at ${mousePos.x}px ${mousePos.y}px, rgba(59,130,246,0.2), transparent 80%)`,
+                        background: `radial-gradient(180px circle at ${mousePos.x}px ${mousePos.y}px, rgba(162,10,58,0.12), transparent 80%)`,
                       }}
                     />
                   )}
@@ -231,19 +219,15 @@ export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = true 
                   </div>
                   <div className="min-w-0 flex-1">
                     <p
-                      className={`text-[10px] 2xl:text-xs font-semibold truncate ${
-                        darkMode ? "text-slate-400" : "text-slate-500"
-                      }`}
+                      className="text-[10px] 2xl:text-xs font-semibold truncate text-[#625B60]"
                     >
                       {card.title}
                     </p>
                     <p
-                      className={`text-xs 2xl:text-sm font-extrabold truncate ${
-                        darkMode ? "text-white" : "text-slate-900"
-                      }`}
+                      className="text-xs 2xl:text-sm font-extrabold truncate text-[#292329]"
                     >
                       {card.subtitle}{" "}
-                      <span className="text-emerald-500 text-[9px] 2xl:text-xs font-extrabold">
+                      <span className="text-emerald-600 text-[9px] 2xl:text-xs font-extrabold">
                         {card.badge}
                       </span>
                     </p>
@@ -260,13 +244,9 @@ export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = true 
               return (
                 <div
                   key={b.title}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[11px] 2xl:text-xs font-semibold transition-all cursor-default hover:scale-105 ${
-                    darkMode
-                      ? "bg-slate-900/80 border-slate-800 text-slate-300 hover:border-blue-500/30 hover:text-white"
-                      : "bg-white/80 border-slate-200 text-slate-700 hover:border-blue-500/40 hover:text-blue-900 shadow-sm"
-                  }`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E8E2E5] bg-[#FFFFFF] text-[#292329] text-[11px] 2xl:text-xs font-semibold transition-all cursor-default hover:border-[#A20A3A]/40 hover:text-[#A20A3A] shadow-xs"
                 >
-                  <IconComponent className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                  <IconComponent className="w-3.5 h-3.5 text-[#A20A3A] shrink-0" />
                   <span>{b.title}</span>
                 </div>
               );
@@ -276,9 +256,7 @@ export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = true 
 
         {/* ── Bottom Stats & Ticker ── */}
         <div
-          className={`pt-4 2xl:pt-6 border-t ${
-            darkMode ? "border-slate-800/60" : "border-slate-200/80"
-          }`}
+          className="pt-4 2xl:pt-6 border-t border-[#E8E2E5]"
         >
           {/* Stats Grid */}
           <div className="grid grid-cols-4 gap-3 2xl:gap-6 mb-3 2xl:mb-4">
@@ -286,22 +264,22 @@ export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = true 
               {
                 value: <CountUpNumber target={50000} suffix="+" duration={2.2} />,
                 label: "Active Retailers",
-                color: darkMode ? "text-white" : "text-slate-900",
+                color: "text-[#292329]",
               },
               {
                 value: <CountUpNumber target={5000} prefix="₹" suffix=" Cr+" duration={2.4} />,
                 label: "Transactions",
-                color: darkMode ? "text-white" : "text-slate-900",
+                color: "text-[#292329]",
               },
               {
                 value: <CountUpNumber target={99.99} decimals={2} suffix="%" duration={2} />,
                 label: "Success Rate",
-                color: "text-emerald-500",
+                color: "text-emerald-600",
               },
               {
                 value: "24x7",
                 label: "Support",
-                color: darkMode ? "text-cyan-400" : "text-cyan-600",
+                color: "text-[#A20A3A]",
               },
             ].map((stat, i) => (
               <div key={i}>
@@ -310,7 +288,7 @@ export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = true 
                 >
                   {stat.value}
                 </p>
-                <p className="text-[9px] 2xl:text-xs font-semibold text-slate-500 mt-0.5">
+                <p className="text-[9px] 2xl:text-xs font-semibold text-[#8A8288] mt-0.5">
                   {stat.label}
                 </p>
               </div>
@@ -319,11 +297,7 @@ export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = true 
 
           {/* Live Ticker — seamless infinite scroll via CSS animation */}
           <div
-            className={`overflow-hidden rounded-xl border py-2 2xl:py-2.5 backdrop-blur-md ${
-              darkMode
-                ? "bg-blue-950/40 border-blue-900/40 text-blue-300"
-                : "bg-blue-50/80 border-blue-200/70 text-blue-700 shadow-sm"
-            }`}
+            className="overflow-hidden rounded-xl border border-[#FFD6E2] bg-[#FFF0F4] text-[#A20A3A] py-2 2xl:py-2.5 shadow-xs"
           >
             <div className="flex items-center">
               <motion.div

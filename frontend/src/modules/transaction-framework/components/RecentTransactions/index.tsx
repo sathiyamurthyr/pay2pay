@@ -59,8 +59,8 @@ export const RecentTransactions: React.FC<RecentTransactionsProps> = ({ transact
               <TableRow
                 sx={{
                   "& th": {
-                    bgcolor: "rgba(15, 23, 42, 0.95)",
-                    borderColor: "rgba(255, 255, 255, 0.12)",
+                    bgcolor: "#FFFFFF",
+                    borderColor: "#E8E2E5",
                     color: "rgba(255, 255, 255, 0.70)",
                     fontWeight: 800,
                     fontSize: "12px",
@@ -86,7 +86,7 @@ export const RecentTransactions: React.FC<RecentTransactionsProps> = ({ transact
                   key={row.id}
                   sx={{
                     "&:hover": { bgcolor: "rgba(255, 255, 255, 0.05)" },
-                    "& td": { borderColor: "rgba(255, 255, 255, 0.08)", color: "#FFFFFF", py: 1.25 },
+                    "& td": { borderColor: "#E8E2E5", color: "#FFFFFF", py: 1.25 },
                   }}
                 >
                   <TableCell sx={{ fontFamily: "monospace", fontWeight: 700, color: "#60A5FA" }}>{row.id}</TableCell>

@@ -683,7 +683,7 @@ export default function RetailerProfilePage() {
     return (
       <Box sx={{ minHeight: "75vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2 }}>
         <CircularProgress size={48} sx={{ color: "#3B82F6" }} />
-        <Typography variant="body1" sx={{ color: "#94A3B8", fontWeight: 600 }}>
+        <Typography variant="body1" sx={{ color: "#625B60", fontWeight: 600 }}>
           Loading profile...
         </Typography>
       </Box>
@@ -710,7 +710,7 @@ export default function RetailerProfilePage() {
         <Typography variant="h4" sx={{ fontWeight: 800, color: "#FFFFFF", letterSpacing: "-0.02em" }}>
           Retailer Profile
         </Typography>
-        <Typography variant="body2" sx={{ color: "#94A3B8", mt: 0.5 }}>
+        <Typography variant="body2" sx={{ color: "#625B60", mt: 0.5 }}>
           Manage your registered profile, KYC, bank, security, relationship manager and registered location information.
         </Typography>
       </Box>
@@ -720,7 +720,7 @@ export default function RetailerProfilePage() {
         elevation={0}
         sx={{
           borderRadius: 3,
-          bgcolor: "rgba(15, 23, 42, 0.85)",
+          bgcolor: "#FFFFFF",
           border: "1px solid rgba(255, 255, 255, 0.1)",
           mb: 3.5,
           p: 0.5,
@@ -743,7 +743,7 @@ export default function RetailerProfilePage() {
               textTransform: "none",
               fontWeight: 600,
               fontSize: "0.9rem",
-              color: "#94A3B8",
+              color: "#625B60",
               px: 2.2,
               "&.Mui-selected": {
                 color: "#60A5FA",
@@ -840,7 +840,7 @@ export default function RetailerProfilePage() {
                       {profile.contact.mobile_masked || "—"}
                     </Typography>
                     {profile.contact.mobile_raw && (
-                      <IconButton size="small" onClick={() => handleCopy(profile.contact.mobile_raw, "Mobile Number")} sx={{ color: "#94A3B8", "&:hover": { color: "#60A5FA" } }}>
+                      <IconButton size="small" onClick={() => handleCopy(profile.contact.mobile_raw, "Mobile Number")} sx={{ color: "#625B60", "&:hover": { color: "#60A5FA" } }}>
                         <Copy size={15} />
                       </IconButton>
                     )}
@@ -865,7 +865,7 @@ export default function RetailerProfilePage() {
                     </Typography>
                     <Stack direction="row" spacing={1} alignItems="center">
                       {profile.contact.email_raw && (
-                        <IconButton size="small" onClick={() => handleCopy(profile.contact.email_raw, "Email Address")} sx={{ color: "#94A3B8", "&:hover": { color: "#60A5FA" } }}>
+                        <IconButton size="small" onClick={() => handleCopy(profile.contact.email_raw, "Email Address")} sx={{ color: "#625B60", "&:hover": { color: "#60A5FA" } }}>
                           <Copy size={15} />
                         </IconButton>
                       )}
@@ -941,7 +941,7 @@ export default function RetailerProfilePage() {
               elevation={0}
               sx={{
                 ...cardStyle,
-                background: "linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%)",
+                background: "linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, #FFFFFF 100%)",
                 border: "1px solid rgba(59, 130, 246, 0.25)",
                 boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)",
               }}
@@ -956,7 +956,7 @@ export default function RetailerProfilePage() {
                       <Typography variant="h6" sx={{ fontWeight: 800, color: "#FFFFFF", letterSpacing: "-0.01em" }}>
                         {profile.company?.company_name || "SUPER REX PRODUCTS PRIVATE LIMITED"}
                       </Typography>
-                      <Typography variant="caption" sx={{ color: "#94A3B8" }}>
+                      <Typography variant="caption" sx={{ color: "#625B60" }}>
                         Corporate Headquarters & Official Merchant Support Helpdesk
                       </Typography>
                     </Box>
@@ -974,17 +974,17 @@ export default function RetailerProfilePage() {
               <Grid container spacing={2.5}>
                 {/* Toll Free Helpline */}
                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Box sx={{ p: 2.2, bgcolor: "rgba(255, 255, 255, 0.03)", borderRadius: 2.5, border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                  <Box sx={{ p: 2.2, bgcolor: "rgba(255, 255, 255, 0.03)", borderRadius: 2.5, border: "1px solid #E8E2E5" }}>
                     <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
                       <Headphones size={18} color="#38BDF8" />
-                      <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+                      <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>
                         Support Helpline
                       </Typography>
                     </Stack>
                     <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: 800 }}>
                       {profile.company?.support_phone || "1800 292 982"}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: "#64748B", display: "block", mb: 1.5 }}>
+                    <Typography variant="caption" sx={{ color: "#625B60", display: "block", mb: 1.5 }}>
                       Toll-Free & Direct Line
                     </Typography>
                     <Stack direction="row" spacing={1}>
@@ -997,7 +997,7 @@ export default function RetailerProfilePage() {
                       >
                         Call
                       </Button>
-                      <IconButton size="small" onClick={() => handleCopy(profile.company?.support_phone || "1800 292 982", "Support Phone")} sx={{ color: "#94A3B8" }}>
+                      <IconButton size="small" onClick={() => handleCopy(profile.company?.support_phone || "1800 292 982", "Support Phone")} sx={{ color: "#625B60" }}>
                         <Copy size={15} />
                       </IconButton>
                     </Stack>
@@ -1006,22 +1006,22 @@ export default function RetailerProfilePage() {
 
                 {/* Official Support Email */}
                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Box sx={{ p: 2.2, bgcolor: "rgba(255, 255, 255, 0.03)", borderRadius: 2.5, border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                  <Box sx={{ p: 2.2, bgcolor: "rgba(255, 255, 255, 0.03)", borderRadius: 2.5, border: "1px solid #E8E2E5" }}>
                     <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
                       <Mail size={18} color="#60A5FA" />
-                      <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+                      <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>
                         Support Desk Email
                       </Typography>
                     </Stack>
                     <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: 800 }}>
-                      {profile.company?.support_email || "support@pay2pay.in"}
+                      {profile.company?.support_email || "support@near4you.store"}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: "#64748B", display: "block", mb: 1.5 }}>
+                    <Typography variant="caption" sx={{ color: "#625B60", display: "block", mb: 1.5 }}>
                       24/7 Ticketing Response
                     </Typography>
                     <Stack direction="row" spacing={1}>
                       <Button
-                        href={`mailto:${profile.company?.support_email || "support@pay2pay.in"}?subject=Retailer%20Support%20Enquiry`}
+                        href={`mailto:${profile.company?.support_email || "support@near4you.store"}?subject=Retailer%20Support%20Enquiry`}
                         variant="contained"
                         size="small"
                         startIcon={<Mail size={13} />}
@@ -1029,7 +1029,7 @@ export default function RetailerProfilePage() {
                       >
                         Email
                       </Button>
-                      <IconButton size="small" onClick={() => handleCopy(profile.company?.support_email || "support@pay2pay.in", "Support Email")} sx={{ color: "#94A3B8" }}>
+                      <IconButton size="small" onClick={() => handleCopy(profile.company?.support_email || "support@near4you.store", "Support Email")} sx={{ color: "#625B60" }}>
                         <Copy size={15} />
                       </IconButton>
                     </Stack>
@@ -1038,22 +1038,22 @@ export default function RetailerProfilePage() {
 
                 {/* WhatsApp Support Desk */}
                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Box sx={{ p: 2.2, bgcolor: "rgba(255, 255, 255, 0.03)", borderRadius: 2.5, border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                  <Box sx={{ p: 2.2, bgcolor: "rgba(255, 255, 255, 0.03)", borderRadius: 2.5, border: "1px solid #E8E2E5" }}>
                     <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
                       <MessageSquare size={18} color="#4ADE80" />
-                      <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+                      <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>
                         WhatsApp Helpdesk
                       </Typography>
                     </Stack>
                     <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: 800 }}>
                       {profile.company?.whatsapp_number || "+91 70139 14767"}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: "#64748B", display: "block", mb: 1.5 }}>
+                    <Typography variant="caption" sx={{ color: "#625B60", display: "block", mb: 1.5 }}>
                       Instant Merchant Chat
                     </Typography>
                     <Stack direction="row" spacing={1}>
                       <Button
-                        href={`https://wa.me/917013914767?text=${encodeURIComponent("Hello Pay2Pay Support, I need assistance with my Retailer Account.")}`}
+                        href={`https://wa.me/917013914767?text=${encodeURIComponent("Hello Near4You Support, I need assistance with my Retailer Account.")}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         variant="contained"
@@ -1063,7 +1063,7 @@ export default function RetailerProfilePage() {
                       >
                         WhatsApp
                       </Button>
-                      <IconButton size="small" onClick={() => handleCopy(profile.company?.whatsapp_number || "+91 70139 14767", "WhatsApp Number")} sx={{ color: "#94A3B8" }}>
+                      <IconButton size="small" onClick={() => handleCopy(profile.company?.whatsapp_number || "+91 70139 14767", "WhatsApp Number")} sx={{ color: "#625B60" }}>
                         <Copy size={15} />
                       </IconButton>
                     </Stack>
@@ -1072,51 +1072,51 @@ export default function RetailerProfilePage() {
 
                 {/* Operating Hours */}
                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Box sx={{ p: 2.2, bgcolor: "rgba(255, 255, 255, 0.03)", borderRadius: 2.5, border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                  <Box sx={{ p: 2.2, bgcolor: "rgba(255, 255, 255, 0.03)", borderRadius: 2.5, border: "1px solid #E8E2E5" }}>
                     <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
                       <Clock size={18} color="#FBBF24" />
-                      <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+                      <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>
                         Operating Hours
                       </Typography>
                     </Stack>
                     <Typography variant="body2" sx={{ color: "#FFFFFF", fontWeight: 700, mt: 0.5 }}>
                       {profile.company?.support_hours || "Mon - Sat | 09:00 AM - 07:00 PM"}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", mt: 0.5 }}>
+                    <Typography variant="caption" sx={{ color: "#625B60", display: "block", mt: 0.5 }}>
                       Sunday: Automated Ticketing
                     </Typography>
                   </Box>
                 </Grid>
               </Grid>
 
-              <Divider sx={{ my: 2.5, borderColor: "rgba(255, 255, 255, 0.08)" }} />
+              <Divider sx={{ my: 2.5, borderColor: "#E8E2E5" }} />
 
               {/* Corporate Metadata & Office Address */}
               <Grid container spacing={2}>
                 <Grid size={{ xs: 12, md: 7 }}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase", display: "block", mb: 0.5 }}>
+                  <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase", display: "block", mb: 0.5 }}>
                     Registered Corporate Headquarters
                   </Typography>
-                  <Typography variant="body2" sx={{ color: "#E2E8F0" }}>
+                  <Typography variant="body2" sx={{ color: "#292329" }}>
                     {profile.company?.headquarters || "Shop No: 7, 1st Floor, Chittaramma Temple Complex, Moosapet, Hyderabad, Telangana - 500018, India"}
                   </Typography>
                 </Grid>
                 <Grid size={{ xs: 12, md: 5 }}>
                   <Stack direction="row" spacing={3} justifyContent={{ xs: "flex-start", md: "flex-end" }} alignItems="center">
                     <Box>
-                      <Typography variant="caption" sx={{ color: "#64748B", display: "block" }}>
+                      <Typography variant="caption" sx={{ color: "#625B60", display: "block" }}>
                         Corporate ID (CIN)
                       </Typography>
-                      <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, fontFamily: "monospace" }}>
+                      <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, fontFamily: "monospace" }}>
                         {profile.company?.cin || "U72900TN2024PTC168920"}
                       </Typography>
                     </Box>
                     <Box>
-                      <Typography variant="caption" sx={{ color: "#64748B", display: "block" }}>
+                      <Typography variant="caption" sx={{ color: "#625B60", display: "block" }}>
                         Grievance Email
                       </Typography>
-                      <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700 }}>
-                        {profile.company?.grievance_email || "grievance@pay2pay.in"}
+                      <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700 }}>
+                        {profile.company?.grievance_email || "grievance@near4you.store"}
                       </Typography>
                     </Box>
                   </Stack>
@@ -1157,10 +1157,10 @@ export default function RetailerProfilePage() {
               {profile.address.same_as_permanent ? (
                 <Box sx={{ p: 3, textAlign: "center", bgcolor: "rgba(255, 255, 255, 0.02)", borderRadius: 2.5, border: "1px dashed rgba(255, 255, 255, 0.15)" }}>
                   <ShieldCheck size={36} color="#3B82F6" style={{ margin: "0 auto 8px" }} />
-                  <Typography variant="body1" sx={{ color: "#E2E8F0", fontWeight: 700 }}>
+                  <Typography variant="body1" sx={{ color: "#292329", fontWeight: 700 }}>
                     Same as Permanent Address
                   </Typography>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", mt: 0.5, display: "block" }}>
+                  <Typography variant="caption" sx={{ color: "#625B60", mt: 0.5, display: "block" }}>
                     Official notices, hardware dispatches, and tax statements route to the permanent address.
                   </Typography>
                 </Box>
@@ -1177,7 +1177,7 @@ export default function RetailerProfilePage() {
                   <DataRow label="PIN Code" value={profile.address.communication_address.pincode} />
                 </Stack>
               ) : (
-                <Typography variant="body2" sx={{ color: "#94A3B8" }}>
+                <Typography variant="body2" sx={{ color: "#625B60" }}>
                   No separate communication address registered.
                 </Typography>
               )}
@@ -1228,13 +1228,13 @@ export default function RetailerProfilePage() {
                         <FileCheck size={20} color="#60A5FA" />
                       </Box>
                       <Box>
-                        <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase", display: "block" }}>
+                        <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase", display: "block" }}>
                           Verification Document
                         </Typography>
                         <Typography variant="body2" sx={{ color: "#FFFFFF", fontWeight: 700, wordBreak: "break-all" }}>
                           {profile.kyc.pan?.file_name || "PAN_Card_Document.pdf"}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: "#64748B" }}>
+                        <Typography variant="caption" sx={{ color: "#625B60" }}>
                           {formatFileSize(profile.kyc.pan?.file_size_bytes)} • Verified Document
                         </Typography>
                       </Box>
@@ -1261,7 +1261,7 @@ export default function RetailerProfilePage() {
                         download={profile.kyc.pan?.file_name || "pan_card"}
                         target="_blank"
                         rel="noopener noreferrer"
-                        sx={{ color: "#94A3B8", bgcolor: "rgba(255, 255, 255, 0.05)", "&:hover": { color: "#FFFFFF" } }}
+                        sx={{ color: "#625B60", bgcolor: "rgba(255, 255, 255, 0.05)", "&:hover": { color: "#FFFFFF" } }}
                       >
                         <Download size={15} />
                       </IconButton>
@@ -1311,13 +1311,13 @@ export default function RetailerProfilePage() {
                         <FileCheck size={20} color="#4ADE80" />
                       </Box>
                       <Box>
-                        <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase", display: "block" }}>
+                        <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase", display: "block" }}>
                           Verification Document
                         </Typography>
                         <Typography variant="body2" sx={{ color: "#FFFFFF", fontWeight: 700, wordBreak: "break-all" }}>
                           {profile.kyc.aadhaar?.front_file_name || "Aadhaar_Document.pdf"}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: "#64748B" }}>
+                        <Typography variant="caption" sx={{ color: "#625B60" }}>
                           {formatFileSize(profile.kyc.aadhaar?.front_file_size)} • eKYC Proof
                         </Typography>
                       </Box>
@@ -1358,7 +1358,7 @@ export default function RetailerProfilePage() {
                         download={profile.kyc.aadhaar?.front_file_name || "aadhaar_document"}
                         target="_blank"
                         rel="noopener noreferrer"
-                        sx={{ color: "#94A3B8", bgcolor: "rgba(255, 255, 255, 0.05)", "&:hover": { color: "#FFFFFF" } }}
+                        sx={{ color: "#625B60", bgcolor: "rgba(255, 255, 255, 0.05)", "&:hover": { color: "#FFFFFF" } }}
                       >
                         <Download size={15} />
                       </IconButton>
@@ -1401,7 +1401,7 @@ export default function RetailerProfilePage() {
               elevation={0}
               sx={{
                 ...cardStyle,
-                background: "linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.85) 100%)",
+                background: "linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, #FFFFFF 100%)",
                 border: "1px solid rgba(59, 130, 246, 0.25)",
               }}
             >
@@ -1415,7 +1415,7 @@ export default function RetailerProfilePage() {
                       <Typography variant="h6" sx={{ fontWeight: 800, color: "#FFFFFF", letterSpacing: "-0.01em" }}>
                         KYC & Verification Document Repository
                       </Typography>
-                      <Typography variant="caption" sx={{ color: "#94A3B8" }}>
+                      <Typography variant="caption" sx={{ color: "#625B60" }}>
                         Authoritative government identity and premise verification proof uploaded for regulatory compliance
                       </Typography>
                     </Box>
@@ -1438,7 +1438,7 @@ export default function RetailerProfilePage() {
                           p: 2.2,
                           bgcolor: "rgba(255, 255, 255, 0.03)",
                           borderRadius: 2.5,
-                          border: "1px solid rgba(255, 255, 255, 0.08)",
+                          border: "1px solid #E8E2E5",
                           transition: "all 0.2s ease-in-out",
                           display: "flex",
                           flexDirection: "column",
@@ -1467,10 +1467,10 @@ export default function RetailerProfilePage() {
                           <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: 700, mb: 0.5 }}>
                             {doc.title || doc.doc_type}
                           </Typography>
-                          <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", wordBreak: "break-all", mb: 0.5 }}>
+                          <Typography variant="caption" sx={{ color: "#625B60", display: "block", wordBreak: "break-all", mb: 0.5 }}>
                             {doc.file_name}
                           </Typography>
-                          <Typography variant="caption" sx={{ color: "#64748B", display: "block" }}>
+                          <Typography variant="caption" sx={{ color: "#625B60", display: "block" }}>
                             Size: {formatFileSize(doc.file_size_bytes)} {doc.uploaded_at ? `• ${new Date(doc.uploaded_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}` : ""}
                           </Typography>
                         </Box>
@@ -1499,7 +1499,7 @@ export default function RetailerProfilePage() {
                               download={doc.file_name || "document"}
                               target="_blank"
                               rel="noopener noreferrer"
-                              sx={{ color: "#94A3B8", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.1)", "&:hover": { color: "#FFFFFF", bgcolor: "rgba(255, 255, 255, 0.1)" } }}
+                              sx={{ color: "#625B60", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.1)", "&:hover": { color: "#FFFFFF", bgcolor: "rgba(255, 255, 255, 0.1)" } }}
                             >
                               <Download size={16} />
                             </IconButton>
@@ -1511,7 +1511,7 @@ export default function RetailerProfilePage() {
                               href={doc.file_url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              sx={{ color: "#94A3B8", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.1)", "&:hover": { color: "#FFFFFF", bgcolor: "rgba(255, 255, 255, 0.1)" } }}
+                              sx={{ color: "#625B60", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.1)", "&:hover": { color: "#FFFFFF", bgcolor: "rgba(255, 255, 255, 0.1)" } }}
                             >
                               <ExternalLink size={16} />
                             </IconButton>
@@ -1523,7 +1523,7 @@ export default function RetailerProfilePage() {
                 </Grid>
               ) : (
                 <Box sx={{ p: 3, textAlign: "center", bgcolor: "rgba(255, 255, 255, 0.02)", borderRadius: 2.5, border: "1px dashed rgba(255, 255, 255, 0.1)" }}>
-                  <Typography variant="body2" sx={{ color: "#94A3B8" }}>
+                  <Typography variant="body2" sx={{ color: "#625B60" }}>
                     No additional KYC documents stored in repository.
                   </Typography>
                 </Box>
@@ -1570,7 +1570,7 @@ export default function RetailerProfilePage() {
                   />
                 </Stack>
               ) : (
-                <Typography variant="body2" sx={{ color: "#94A3B8" }}>
+                <Typography variant="body2" sx={{ color: "#625B60" }}>
                   No settlement bank account currently registered.
                 </Typography>
               )}
@@ -1592,7 +1592,7 @@ export default function RetailerProfilePage() {
                 />
               </Stack>
 
-              <Typography variant="body2" sx={{ color: "#94A3B8", mb: 2 }}>
+              <Typography variant="body2" sx={{ color: "#625B60", mb: 2 }}>
                 Passbook copy or Cancelled Cheque submitted for NPCI settlement authentication and beneficiary registry verification.
               </Typography>
 
@@ -1603,19 +1603,19 @@ export default function RetailerProfilePage() {
                       <Landmark size={26} color="#60A5FA" />
                     </Box>
                     <Box sx={{ flex: 1 }}>
-                      <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase", display: "block" }}>
+                      <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase", display: "block" }}>
                         Submitted Proof Document
                       </Typography>
                       <Typography variant="body2" sx={{ color: "#FFFFFF", fontWeight: 700, wordBreak: "break-all" }}>
                         {profile.bank?.document_file_name || "Settlement_Bank_Proof.pdf"}
                       </Typography>
-                      <Typography variant="caption" sx={{ color: "#64748B", display: "block", mt: 0.3 }}>
+                      <Typography variant="caption" sx={{ color: "#625B60", display: "block", mt: 0.3 }}>
                         Size: {formatFileSize(profile.bank?.document_file_size)} • NPCI Penny Drop Verified
                       </Typography>
                     </Box>
                   </Stack>
 
-                  <Divider sx={{ my: 1.8, borderColor: "rgba(255, 255, 255, 0.08)" }} />
+                  <Divider sx={{ my: 1.8, borderColor: "#E8E2E5" }} />
 
                   <Stack direction="row" spacing={1.5} justifyContent="flex-end">
                     <Button
@@ -1641,7 +1641,7 @@ export default function RetailerProfilePage() {
                       download={profile.bank?.document_file_name || "bank_proof"}
                       target="_blank"
                       rel="noopener noreferrer"
-                      sx={{ color: "#94A3B8", borderColor: "rgba(255, 255, 255, 0.2)", fontSize: "0.78rem", textTransform: "none", "&:hover": { color: "#FFFFFF", borderColor: "#FFFFFF" } }}
+                      sx={{ color: "#625B60", borderColor: "#E8E2E5", fontSize: "0.78rem", textTransform: "none", "&:hover": { color: "#FFFFFF", borderColor: "#FFFFFF" } }}
                     >
                       Download
                     </Button>
@@ -1652,7 +1652,7 @@ export default function RetailerProfilePage() {
                         href={profile.bank?.document_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        sx={{ color: "#94A3B8", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.1)", "&:hover": { color: "#FFFFFF" } }}
+                        sx={{ color: "#625B60", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.1)", "&:hover": { color: "#FFFFFF" } }}
                       >
                         <ExternalLink size={16} />
                       </IconButton>
@@ -1661,7 +1661,7 @@ export default function RetailerProfilePage() {
                 </Box>
               ) : (
                 <Box sx={{ p: 2.5, textAlign: "center", bgcolor: "rgba(255, 255, 255, 0.02)", borderRadius: 2.5, border: "1px dashed rgba(255, 255, 255, 0.1)" }}>
-                  <Typography variant="body2" sx={{ color: "#94A3B8" }}>
+                  <Typography variant="body2" sx={{ color: "#625B60" }}>
                     Bank details authenticated via Instant Reverse Penny Drop.
                   </Typography>
                 </Box>
@@ -1681,7 +1681,7 @@ export default function RetailerProfilePage() {
               elevation={0}
               sx={{
                 ...cardStyle,
-                background: "linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.85) 100%)",
+                background: "linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, #FFFFFF 100%)",
                 border: "1px solid rgba(59, 130, 246, 0.25)",
               }}
             >
@@ -1695,7 +1695,7 @@ export default function RetailerProfilePage() {
                       <Typography variant="h6" sx={{ fontWeight: 800, color: "#FFFFFF", letterSpacing: "-0.01em" }}>
                         Registered Bank Accounts & Settlement Table
                       </Typography>
-                      <Typography variant="caption" sx={{ color: "#94A3B8" }}>
+                      <Typography variant="caption" sx={{ color: "#625B60" }}>
                         Authorized commercial bank accounts configured for merchant payouts, instant settlements, and refunds
                       </Typography>
                     </Box>
@@ -1712,35 +1712,35 @@ export default function RetailerProfilePage() {
               <TableContainer
                 sx={{
                   borderRadius: 2.5,
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
-                  bgcolor: "rgba(15, 23, 42, 0.7)",
+                  border: "1px solid #E8E2E5",
+                  bgcolor: "#FFFFFF",
                 }}
               >
                 <Table size="small">
                   <TableHead sx={{ bgcolor: "rgba(30, 41, 59, 0.8)" }}>
                     <TableRow>
-                      <TableCell sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "0.75rem", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", py: 1.5 }}>
+                      <TableCell sx={{ color: "#625B60", fontWeight: 700, fontSize: "0.75rem", borderBottom: "1px solid #E8E2E5", py: 1.5 }}>
                         BANK & BRANCH
                       </TableCell>
-                      <TableCell sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "0.75rem", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", py: 1.5 }}>
+                      <TableCell sx={{ color: "#625B60", fontWeight: 700, fontSize: "0.75rem", borderBottom: "1px solid #E8E2E5", py: 1.5 }}>
                         ACCOUNT NUMBER
                       </TableCell>
-                      <TableCell sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "0.75rem", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", py: 1.5 }}>
+                      <TableCell sx={{ color: "#625B60", fontWeight: 700, fontSize: "0.75rem", borderBottom: "1px solid #E8E2E5", py: 1.5 }}>
                         ACCOUNT HOLDER
                       </TableCell>
-                      <TableCell sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "0.75rem", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", py: 1.5 }}>
+                      <TableCell sx={{ color: "#625B60", fontWeight: 700, fontSize: "0.75rem", borderBottom: "1px solid #E8E2E5", py: 1.5 }}>
                         IFSC CODE
                       </TableCell>
-                      <TableCell sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "0.75rem", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", py: 1.5 }}>
+                      <TableCell sx={{ color: "#625B60", fontWeight: 700, fontSize: "0.75rem", borderBottom: "1px solid #E8E2E5", py: 1.5 }}>
                         TYPE
                       </TableCell>
-                      <TableCell sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "0.75rem", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", py: 1.5 }}>
+                      <TableCell sx={{ color: "#625B60", fontWeight: 700, fontSize: "0.75rem", borderBottom: "1px solid #E8E2E5", py: 1.5 }}>
                         ROLE
                       </TableCell>
-                      <TableCell sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "0.75rem", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", py: 1.5 }}>
+                      <TableCell sx={{ color: "#625B60", fontWeight: 700, fontSize: "0.75rem", borderBottom: "1px solid #E8E2E5", py: 1.5 }}>
                         STATUS
                       </TableCell>
-                      <TableCell align="right" sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "0.75rem", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", py: 1.5 }}>
+                      <TableCell align="right" sx={{ color: "#625B60", fontWeight: 700, fontSize: "0.75rem", borderBottom: "1px solid #E8E2E5", py: 1.5 }}>
                         DOCUMENT PROOF
                       </TableCell>
                     </TableRow>
@@ -1781,7 +1781,7 @@ export default function RetailerProfilePage() {
                               <Typography variant="body2" sx={{ fontWeight: 700, color: "#FFFFFF" }}>
                                 {acc.bank_name}
                               </Typography>
-                              <Typography variant="caption" sx={{ color: "#94A3B8" }}>
+                              <Typography variant="caption" sx={{ color: "#625B60" }}>
                                 {acc.branch || "Main Branch"}
                               </Typography>
                             </Box>
@@ -1791,7 +1791,7 @@ export default function RetailerProfilePage() {
                         {/* Account Number */}
                         <TableCell sx={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)", py: 1.8 }}>
                           <Stack direction="row" spacing={0.5} alignItems="center">
-                            <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#E2E8F0", fontWeight: 700 }}>
+                            <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#292329", fontWeight: 700 }}>
                               {acc.account_number_masked || "—"}
                             </Typography>
                             {acc.account_number_masked && (
@@ -1814,7 +1814,7 @@ export default function RetailerProfilePage() {
                         {/* IFSC */}
                         <TableCell sx={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)", py: 1.8 }}>
                           <Stack direction="row" spacing={0.5} alignItems="center">
-                            <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#94A3B8", fontWeight: 600 }}>
+                            <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#625B60", fontWeight: 600 }}>
                               {acc.ifsc || "—"}
                             </Typography>
                             {acc.ifsc && (
@@ -1832,7 +1832,7 @@ export default function RetailerProfilePage() {
                           <Chip
                             label={acc.account_type || "SAVINGS"}
                             size="small"
-                            sx={{ bgcolor: "rgba(255, 255, 255, 0.06)", color: "#CBD5E1", fontSize: "0.72rem", fontWeight: 700 }}
+                            sx={{ bgcolor: "rgba(255, 255, 255, 0.06)", color: "#625B60", fontSize: "0.72rem", fontWeight: 700 }}
                           />
                         </TableCell>
 
@@ -1886,7 +1886,7 @@ export default function RetailerProfilePage() {
                               View Proof
                             </Button>
                           ) : (
-                            <Typography variant="caption" sx={{ color: "#64748B" }}>
+                            <Typography variant="caption" sx={{ color: "#625B60" }}>
                               Penny Drop Verified
                             </Typography>
                           )}
@@ -1935,7 +1935,7 @@ export default function RetailerProfilePage() {
                             <IconButton
                               onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                               edge="end"
-                              sx={{ color: "#94A3B8" }}
+                              sx={{ color: "#625B60" }}
                             >
                               {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                             </IconButton>
@@ -1959,7 +1959,7 @@ export default function RetailerProfilePage() {
                             <IconButton
                               onClick={() => setShowNewPassword(!showNewPassword)}
                               edge="end"
-                              sx={{ color: "#94A3B8" }}
+                              sx={{ color: "#625B60" }}
                             >
                               {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                             </IconButton>
@@ -1983,7 +1983,7 @@ export default function RetailerProfilePage() {
                             <IconButton
                               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                               edge="end"
-                              sx={{ color: "#94A3B8" }}
+                              sx={{ color: "#625B60" }}
                             >
                               {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                             </IconButton>
@@ -1994,8 +1994,8 @@ export default function RetailerProfilePage() {
                   />
 
                   {/* Visual Password Rules Checklist */}
-                  <Box sx={{ p: 2, borderRadius: 2.5, bgcolor: "rgba(15, 23, 42, 0.7)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
-                    <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, mb: 1.2, display: "block", letterSpacing: "0.04em" }}>
+                  <Box sx={{ p: 2, borderRadius: 2.5, bgcolor: "#FFFFFF", border: "1px solid #E8E2E5" }}>
+                    <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, mb: 1.2, display: "block", letterSpacing: "0.04em" }}>
                       PASSWORD REQUIREMENTS
                     </Typography>
                     <Stack spacing={0.8}>
@@ -2063,7 +2063,7 @@ export default function RetailerProfilePage() {
                             <IconButton
                               onClick={() => setShowCurrentPin(!showCurrentPin)}
                               edge="end"
-                              sx={{ color: "#94A3B8" }}
+                              sx={{ color: "#625B60" }}
                             >
                               {showCurrentPin ? <EyeOff size={18} /> : <Eye size={18} />}
                             </IconButton>
@@ -2089,7 +2089,7 @@ export default function RetailerProfilePage() {
                             <IconButton
                               onClick={() => setShowNewPin(!showNewPin)}
                               edge="end"
-                              sx={{ color: "#94A3B8" }}
+                              sx={{ color: "#625B60" }}
                             >
                               {showNewPin ? <EyeOff size={18} /> : <Eye size={18} />}
                             </IconButton>
@@ -2115,7 +2115,7 @@ export default function RetailerProfilePage() {
                             <IconButton
                               onClick={() => setShowConfirmPin(!showConfirmPin)}
                               edge="end"
-                              sx={{ color: "#94A3B8" }}
+                              sx={{ color: "#625B60" }}
                             >
                               {showConfirmPin ? <EyeOff size={18} /> : <Eye size={18} />}
                             </IconButton>
@@ -2126,8 +2126,8 @@ export default function RetailerProfilePage() {
                   />
 
                   {/* Visual MPIN Rules Checklist */}
-                  <Box sx={{ p: 2, borderRadius: 2.5, bgcolor: "rgba(15, 23, 42, 0.7)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
-                    <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, mb: 1.2, display: "block", letterSpacing: "0.04em" }}>
+                  <Box sx={{ p: 2, borderRadius: 2.5, bgcolor: "#FFFFFF", border: "1px solid #E8E2E5" }}>
+                    <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, mb: 1.2, display: "block", letterSpacing: "0.04em" }}>
                       TRANSACTION PIN (MPIN) REQUIREMENTS
                     </Typography>
                     <Stack spacing={0.8}>
@@ -2197,7 +2197,7 @@ export default function RetailerProfilePage() {
                   <input type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={handlePhotoUpload} />
                 </Button>
 
-                <Typography variant="caption" sx={{ color: "#94A3B8", textAlign: "center" }}>
+                <Typography variant="caption" sx={{ color: "#625B60", textAlign: "center" }}>
                   PNG, JPG, or WEBP (Max 5 MB). Stored securely on Backblaze B2 Object Storage.
                 </Typography>
               </Stack>
@@ -2263,11 +2263,11 @@ export default function RetailerProfilePage() {
               ) : (
                 <Box sx={{ p: 4, textAlign: "center", bgcolor: "rgba(255, 255, 255, 0.02)", borderRadius: 3, border: "1px dashed rgba(255, 255, 255, 0.15)" }}>
                   <HelpCircle size={40} color="#60A5FA" style={{ margin: "0 auto 12px" }} />
-                  <Typography variant="h6" sx={{ color: "#E2E8F0", fontWeight: 700 }}>
+                  <Typography variant="h6" sx={{ color: "#292329", fontWeight: 700 }}>
                     No Dedicated Field RM Assigned
                   </Typography>
-                  <Typography variant="body2" sx={{ color: "#94A3B8", mt: 0.5, maxWidth: 500, mx: "auto" }}>
-                    Your account is directly serviced by the Pay2Pay Central Merchant Operations & Priority Support Desk.
+                  <Typography variant="body2" sx={{ color: "#625B60", mt: 0.5, maxWidth: 500, mx: "auto" }}>
+                    Your account is directly serviced by the Near4You Central Merchant Operations & Priority Support Desk.
                   </Typography>
                   <Stack direction="row" spacing={2} justifyContent="center" sx={{ mt: 3 }}>
                     <Button
@@ -2279,7 +2279,7 @@ export default function RetailerProfilePage() {
                       Call Support ({profile.company?.support_phone || "1800 292 982"})
                     </Button>
                     <Button
-                      href={`mailto:${profile.company?.support_email || "support@pay2pay.in"}?subject=Retailer%20Account%20Assistance`}
+                      href={`mailto:${profile.company?.support_email || "support@near4you.store"}?subject=Retailer%20Account%20Assistance`}
                       variant="outlined"
                       startIcon={<Mail size={16} />}
                       sx={{ color: "#60A5FA", borderColor: "#3B82F6", fontWeight: 700, borderRadius: 2 }}
@@ -2358,10 +2358,10 @@ export default function RetailerProfilePage() {
               ) : (
                 <Box sx={{ p: 4, textAlign: "center", bgcolor: "rgba(255, 255, 255, 0.02)", borderRadius: 3, border: "1px dashed rgba(255, 255, 255, 0.15)" }}>
                   <Navigation size={40} color="#94A3B8" style={{ margin: "0 auto 12px" }} />
-                  <Typography variant="h6" sx={{ color: "#E2E8F0", fontWeight: 700 }}>
+                  <Typography variant="h6" sx={{ color: "#292329", fontWeight: 700 }}>
                     Registered location is not available.
                   </Typography>
-                  <Typography variant="body2" sx={{ color: "#94A3B8", mt: 0.5 }}>
+                  <Typography variant="body2" sx={{ color: "#625B60", mt: 0.5 }}>
                     GPS coordinates have not been tagged for this merchant terminal.
                   </Typography>
                 </Box>
@@ -2390,7 +2390,7 @@ export default function RetailerProfilePage() {
               </Stack>
               <Stack spacing={1.5}>
                 <DataRow label="Company Legal Name" value={profile.company?.company_name || "SUPER REX PRODUCTS PRIVATE LIMITED"} />
-                <DataRow label="Brand / Network" value={profile.company?.brand_name || "Pay2Pay Enterprise Network"} />
+                <DataRow label="Brand / Network" value={profile.company?.brand_name || "Near4You Enterprise Network"} />
                 <DataRow
                   label="Corporate Identity Number (CIN)"
                   value={profile.company?.cin || "U72900TN2024PTC168920"}
@@ -2433,11 +2433,11 @@ export default function RetailerProfilePage() {
                 />
                 <DataRow
                   label="Official Support Email"
-                  value={profile.company?.support_email || "support@pay2pay.in"}
-                  onCopy={() => handleCopy(profile.company?.support_email || "support@pay2pay.in", "Support Email")}
+                  value={profile.company?.support_email || "support@near4you.store"}
+                  onCopy={() => handleCopy(profile.company?.support_email || "support@near4you.store", "Support Email")}
                   action={
                     <Button
-                      href={`mailto:${profile.company?.support_email || "support@pay2pay.in"}?subject=Retailer%20Support%20Enquiry`}
+                      href={`mailto:${profile.company?.support_email || "support@near4you.store"}?subject=Retailer%20Support%20Enquiry`}
                       variant="outlined"
                       size="small"
                       startIcon={<Mail size={13} />}
@@ -2453,7 +2453,7 @@ export default function RetailerProfilePage() {
                   onCopy={() => handleCopy(profile.company?.whatsapp_number || "+91 70139 14767", "WhatsApp Number")}
                   action={
                     <Button
-                      href={`https://wa.me/917013914767?text=${encodeURIComponent("Hello Pay2Pay Support, I need assistance with my Retailer Account.")}`}
+                      href={`https://wa.me/917013914767?text=${encodeURIComponent("Hello Near4You Support, I need assistance with my Retailer Account.")}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       variant="contained"
@@ -2485,16 +2485,16 @@ export default function RetailerProfilePage() {
                       value={profile.company?.headquarters || "Shop No: 7, 1st Floor, Chittaramma Temple Complex, Moosapet, Hyderabad, Telangana - 500018, India"}
                       onCopy={() => handleCopy(profile.company?.headquarters || "Shop No: 7, 1st Floor, Chittaramma Temple Complex, Moosapet, Hyderabad, Telangana - 500018, India", "Office Address")}
                     />
-                    <DataRow label="Official Website Portal" value={profile.company?.website_url || "https://pay2pay.in"} />
+                    <DataRow label="Official Website Portal" value={profile.company?.website_url || "https://near4you.store"} />
                   </Stack>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Stack spacing={1.5}>
-                    <DataRow label="Grievance Redressal Officer" value={profile.company?.nodal_officer || "Grievance Redressal Officer, Pay2Pay"} />
+                    <DataRow label="Grievance Redressal Officer" value={profile.company?.nodal_officer || "Grievance Redressal Officer, Near4You"} />
                     <DataRow
                       label="Grievance Escalation Email"
-                      value={profile.company?.grievance_email || "grievance@pay2pay.in"}
-                      onCopy={() => handleCopy(profile.company?.grievance_email || "grievance@pay2pay.in", "Grievance Email")}
+                      value={profile.company?.grievance_email || "grievance@near4you.store"}
+                      onCopy={() => handleCopy(profile.company?.grievance_email || "grievance@near4you.store", "Grievance Email")}
                     />
                     <DataRow label="Resolution Turnaround Time" value="Level 1: 24h | Grievance Escalation: 48-72h" />
                   </Stack>
@@ -2513,8 +2513,8 @@ export default function RetailerProfilePage() {
         fullWidth
         PaperProps={{
           sx: {
-            bgcolor: "#0F172A",
-            backgroundImage: "linear-gradient(180deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%)",
+            bgcolor: "#FFFFFF",
+            backgroundImage: "linear-gradient(180deg, rgba(30, 41, 59, 0.95) 0%, #FFFFFF 100%)",
             border: "1px solid rgba(59, 130, 246, 0.3)",
             borderRadius: 3.5,
             boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.6)",
@@ -2531,7 +2531,7 @@ export default function RetailerProfilePage() {
               <Typography variant="h6" sx={{ color: "#FFFFFF", fontWeight: 800, fontSize: "1.1rem" }}>
                 Update Email Address
               </Typography>
-              <Typography variant="caption" sx={{ color: "#94A3B8" }}>
+              <Typography variant="caption" sx={{ color: "#625B60" }}>
                 Two-step OTP verification required
               </Typography>
             </Box>
@@ -2540,7 +2540,7 @@ export default function RetailerProfilePage() {
             size="small"
             onClick={handleCloseEmailModal}
             disabled={sendingEmailOtp || verifyingEmailOtp}
-            sx={{ color: "#94A3B8", "&:hover": { color: "#FFFFFF" } }}
+            sx={{ color: "#625B60", "&:hover": { color: "#FFFFFF" } }}
           >
             <X size={18} />
           </IconButton>
@@ -2566,7 +2566,7 @@ export default function RetailerProfilePage() {
 
           {/* Current Verified Email Info */}
           <Box sx={{ p: 1.5, bgcolor: "rgba(255, 255, 255, 0.03)", borderRadius: 2, border: "1px solid rgba(255, 255, 255, 0.06)", mb: 2.5 }}>
-            <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", fontWeight: 600 }}>
+            <Typography variant="caption" sx={{ color: "#625B60", display: "block", fontWeight: 600 }}>
               CURRENT VERIFIED EMAIL
             </Typography>
             <Typography variant="body2" sx={{ color: "#FFFFFF", fontWeight: 700, mt: 0.2 }}>
@@ -2612,7 +2612,7 @@ export default function RetailerProfilePage() {
           ) : (
             <Stack spacing={2.5}>
               <Box sx={{ p: 1.5, bgcolor: "rgba(59, 130, 246, 0.08)", borderRadius: 2, border: "1px solid rgba(59, 130, 246, 0.2)" }}>
-                <Typography variant="caption" sx={{ color: "#94A3B8", display: "block" }}>
+                <Typography variant="caption" sx={{ color: "#625B60", display: "block" }}>
                   VERIFICATION CODE SENT TO
                 </Typography>
                 <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 0.3 }}>
@@ -2626,7 +2626,7 @@ export default function RetailerProfilePage() {
                       setEmailOtp("");
                       setEmailModalError(null);
                     }}
-                    sx={{ color: "#94A3B8", fontSize: "0.72rem", textTransform: "none", p: 0, minWidth: 0 }}
+                    sx={{ color: "#625B60", fontSize: "0.72rem", textTransform: "none", p: 0, minWidth: 0 }}
                   >
                     Change
                   </Button>
@@ -2653,7 +2653,7 @@ export default function RetailerProfilePage() {
               />
 
               <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="caption" sx={{ color: "#94A3B8" }}>
+                <Typography variant="caption" sx={{ color: "#625B60" }}>
                   Didn't receive the code?
                 </Typography>
                 <Button
@@ -2670,8 +2670,8 @@ export default function RetailerProfilePage() {
                 severity="info"
                 icon={<ShieldCheck size={16} color="#60A5FA" />}
                 sx={{
-                  bgcolor: "rgba(15, 23, 42, 0.6)",
-                  color: "#94A3B8",
+                  bgcolor: "#FAF8F9",
+                  color: "#625B60",
                   border: "1px solid rgba(59, 130, 246, 0.15)",
                   borderRadius: 2,
                   fontSize: "0.75rem",
@@ -2715,11 +2715,11 @@ export default function RetailerProfilePage() {
         fullWidth
         PaperProps={{
           sx: {
-            bgcolor: "#0F172A",
-            backgroundImage: "linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%)",
+            bgcolor: "#FFFFFF",
+            backgroundImage: "linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, #FFFFFF 100%)",
             border: "1px solid rgba(37, 99, 235, 0.3)",
             borderRadius: 3.5,
-            boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7)",
+            boxShadow: "0 25px 50px -12px rgba(41, 35, 41, 0.08)",
             color: "#FFFFFF",
             p: 1,
           },
@@ -2734,7 +2734,7 @@ export default function RetailerProfilePage() {
               <Typography variant="h6" sx={{ fontWeight: 800, fontSize: "1.1rem", color: "#FFFFFF" }}>
                 WhatsApp Authorization
               </Typography>
-              <Typography variant="caption" sx={{ color: "#94A3B8" }}>
+              <Typography variant="caption" sx={{ color: "#625B60" }}>
                 {secOtpAction === "PASSWORD" ? "Update Account Password" : "Update Transaction MPIN"}
               </Typography>
             </Box>
@@ -2742,7 +2742,7 @@ export default function RetailerProfilePage() {
           <IconButton
             onClick={() => setSecOtpModalOpen(false)}
             disabled={secOtpSending || secOtpVerifying}
-            sx={{ color: "#94A3B8", "&:hover": { color: "#FFFFFF" } }}
+            sx={{ color: "#625B60", "&:hover": { color: "#FFFFFF" } }}
           >
             <X size={18} />
           </IconButton>
@@ -2780,7 +2780,7 @@ export default function RetailerProfilePage() {
             )}
 
             <Box sx={{ textAlign: "center", py: 1 }}>
-              <Typography variant="caption" sx={{ color: "#94A3B8", mb: 1, display: "block" }}>
+              <Typography variant="caption" sx={{ color: "#625B60", mb: 1, display: "block" }}>
                 ENTER 6-DIGIT WHATSAPP OTP
               </Typography>
               <TextField
@@ -2805,7 +2805,7 @@ export default function RetailerProfilePage() {
                 }}
                 sx={{
                   "& .MuiOutlinedInput-root": {
-                    bgcolor: "rgba(15, 23, 42, 0.8)",
+                    bgcolor: "#FFFFFF",
                     borderRadius: 2.5,
                     "& fieldset": { borderColor: "rgba(37, 99, 235, 0.4)" },
                     "&:hover fieldset": { borderColor: "#3B82F6" },
@@ -2816,7 +2816,7 @@ export default function RetailerProfilePage() {
             </Box>
 
             <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="caption" sx={{ color: "#64748B" }}>
+              <Typography variant="caption" sx={{ color: "#625B60" }}>
                 Valid for 10 minutes
               </Typography>
               <Button
@@ -2842,7 +2842,7 @@ export default function RetailerProfilePage() {
           <Button
             onClick={() => setSecOtpModalOpen(false)}
             disabled={secOtpSending || secOtpVerifying}
-            sx={{ color: "#94A3B8", textTransform: "none" }}
+            sx={{ color: "#625B60", textTransform: "none" }}
           >
             Cancel
           </Button>
@@ -2875,15 +2875,15 @@ export default function RetailerProfilePage() {
         fullWidth
         PaperProps={{
           sx: {
-            bgcolor: "#0F172A",
+            bgcolor: "#FFFFFF",
             border: "1px solid rgba(255, 255, 255, 0.15)",
             borderRadius: 3.5,
             overflow: "hidden",
-            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.7)",
+            boxShadow: "0 25px 60px rgba(41, 35, 41, 0.08)",
           },
         }}
       >
-        <DialogTitle sx={{ p: 2.5, bgcolor: "rgba(30, 41, 59, 0.7)", borderBottom: "1px solid rgba(255, 255, 255, 0.08)" }}>
+        <DialogTitle sx={{ p: 2.5, bgcolor: "rgba(30, 41, 59, 0.7)", borderBottom: "1px solid #E8E2E5" }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <Box sx={{ p: 1, bgcolor: "rgba(59, 130, 246, 0.15)", borderRadius: 2 }}>
@@ -2893,12 +2893,12 @@ export default function RetailerProfilePage() {
                 <Typography variant="subtitle1" sx={{ color: "#FFFFFF", fontWeight: 800 }}>
                   {selectedDoc?.title || "Verification Document"}
                 </Typography>
-                <Typography variant="caption" sx={{ color: "#94A3B8" }}>
+                <Typography variant="caption" sx={{ color: "#625B60" }}>
                   {selectedDoc?.fileName}
                 </Typography>
               </Box>
             </Stack>
-            <IconButton onClick={() => setSelectedDoc(null)} sx={{ color: "#94A3B8", "&:hover": { color: "#FFFFFF" } }}>
+            <IconButton onClick={() => setSelectedDoc(null)} sx={{ color: "#625B60", "&:hover": { color: "#FFFFFF" } }}>
               <X size={20} />
             </IconButton>
           </Stack>
@@ -2930,14 +2930,14 @@ export default function RetailerProfilePage() {
                   maxHeight: "70vh",
                   objectFit: "contain",
                   borderRadius: 2,
-                  boxShadow: "0 10px 30px rgba(0, 0, 0, 0.5)",
+                  boxShadow: "0 10px 30px rgba(41, 35, 41, 0.06)",
                 }}
               />
             )
           )}
         </DialogContent>
 
-        <DialogActions sx={{ p: 2, bgcolor: "rgba(30, 41, 59, 0.5)", borderTop: "1px solid rgba(255, 255, 255, 0.08)", justifyContent: "space-between" }}>
+        <DialogActions sx={{ p: 2, bgcolor: "rgba(30, 41, 59, 0.5)", borderTop: "1px solid #E8E2E5", justifyContent: "space-between" }}>
           <Button
             variant="outlined"
             size="small"
@@ -2945,7 +2945,7 @@ export default function RetailerProfilePage() {
             href={selectedDoc?.url}
             target="_blank"
             rel="noopener noreferrer"
-            sx={{ color: "#94A3B8", borderColor: "rgba(255, 255, 255, 0.15)", textTransform: "none" }}
+            sx={{ color: "#625B60", borderColor: "rgba(255, 255, 255, 0.15)", textTransform: "none" }}
           >
             Open in New Tab
           </Button>
@@ -2963,7 +2963,7 @@ export default function RetailerProfilePage() {
             >
               Download
             </Button>
-            <Button variant="outlined" size="small" onClick={() => setSelectedDoc(null)} sx={{ color: "#E2E8F0", textTransform: "none" }}>
+            <Button variant="outlined" size="small" onClick={() => setSelectedDoc(null)} sx={{ color: "#292329", textTransform: "none" }}>
               Close
             </Button>
           </Stack>
@@ -3040,7 +3040,7 @@ function DataRow({
 const cardStyle = {
   p: { xs: 2.5, md: 3.5 },
   borderRadius: 3.5,
-  bgcolor: "rgba(15, 23, 42, 0.85)",
+  bgcolor: "#FFFFFF",
   border: "1px solid rgba(255, 255, 255, 0.1)",
   boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.3)",
 };
@@ -3067,7 +3067,7 @@ const fieldBoxStyle = {
 };
 
 const labelStyle = {
-  color: "#94A3B8",
+  color: "#625B60",
   fontWeight: 700,
   textTransform: "uppercase",
   letterSpacing: "0.04em",
@@ -3097,13 +3097,13 @@ const inputStyle = {
     },
   },
   "& .MuiInputLabel-root": {
-    color: "#94A3B8",
+    color: "#625B60",
     "&.Mui-focused": {
       color: "#60A5FA",
     },
   },
   "& .MuiFormHelperText-root": {
-    color: "#94A3B8",
+    color: "#625B60",
   },
 };
 

@@ -72,15 +72,13 @@ export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = true 
         {/* ── Top Header ── */}
         <div className="flex items-center justify-between mb-3 2xl:mb-5">
           <div className="flex items-center gap-3 2xl:gap-4">
-            <div className="w-10 h-10 2xl:w-12 2xl:h-12 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-cyan-400 p-0.5 shadow-lg shadow-blue-500/30 shrink-0">
+            <div className="w-10 h-10 2xl:w-12 2xl:h-12 rounded-2xl bg-gradient-to-tr from-[#A20A3A] via-[#85072F] to-[#FF9933] p-0.5 shadow-lg shadow-[#A20A3A]/30 shrink-0">
               <div
-                className={`w-full h-full rounded-[14px] flex items-center justify-center ${
+                className={`w-full h-full rounded-[14px] flex items-center justify-center p-1 ${
                   darkMode ? "bg-slate-950" : "bg-white"
                 }`}
               >
-                <span className="text-sm 2xl:text-lg font-black tracking-tighter bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400 bg-clip-text text-transparent">
-                  P2P
-                </span>
+                <img src="/logo.svg" alt="Near 4 You" className="w-full h-full object-contain" />
               </div>
             </div>
             <div>
@@ -89,14 +87,14 @@ export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = true 
                   darkMode ? "text-white" : "text-slate-900"
                 }`}
               >
-                Pay2Pay Enterprise
+                Near 4 You
               </h1>
               <p
                 className={`text-[10px] 2xl:text-xs font-semibold mt-0.5 ${
                   darkMode ? "text-slate-400" : "text-slate-500"
                 }`}
               >
-                Retailer Authentication Portal
+                Enterprise FinTech Workstation
               </p>
             </div>
           </div>

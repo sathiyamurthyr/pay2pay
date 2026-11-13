@@ -13,7 +13,7 @@ export default function RetailerOnboardRedirectPage() {
   return (
     <div className="py-12 text-center text-white">
       <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-      <p className="text-xs font-bold text-slate-400">Redirecting to Enterprise Registration Portal...</p>
+      <p className="text-xs font-bold text-[#625B60]">Redirecting to Enterprise Registration Portal...</p>
     </div>
   );
 }

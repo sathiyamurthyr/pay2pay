@@ -52,16 +52,16 @@ export const BeneficiaryDrawer: React.FC<BeneficiaryDrawerProps> = ({
       open={open}
       onClose={onClose}
       slotProps={{
-        backdrop: { sx: { backdropFilter: "blur(4px)", bgcolor: "rgba(0, 0, 0, 0.5)" } },
+        backdrop: { sx: { backdropFilter: "blur(4px)", bgcolor: "rgba(41, 35, 41, 0.06)" } },
         paper: {
           sx: {
             width: { xs: "100%", sm: 420 },
-            bgcolor: "rgba(15, 23, 42, 0.95)",
+            bgcolor: "#FFFFFF",
             backdropFilter: "blur(20px)",
             borderLeft: "1px solid rgba(255, 255, 255, 0.12)",
             color: "#FFFFFF",
             p: 3,
-            boxShadow: "-8px 0 32px rgba(0, 0, 0, 0.5)",
+            boxShadow: "-8px 0 32px rgba(41, 35, 41, 0.06)",
           },
         },
       }}
@@ -81,7 +81,7 @@ export const BeneficiaryDrawer: React.FC<BeneficiaryDrawerProps> = ({
             </IconButton>
           </Stack>
 
-          <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.12)", mb: 3 }} />
+          <Divider sx={{ borderColor: "#E8E2E5", mb: 3 }} />
 
           {/* Account Profile Card */}
           <Paper
@@ -171,7 +171,7 @@ export const BeneficiaryDrawer: React.FC<BeneficiaryDrawerProps> = ({
               </Stack>
             </Box>
 
-            <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.12)", my: 1 }} />
+            <Divider sx={{ borderColor: "#E8E2E5", my: 1 }} />
 
             {/* Daily & Monthly Usage Metrics */}
             <Box>
@@ -233,7 +233,7 @@ export const BeneficiaryDrawer: React.FC<BeneficiaryDrawerProps> = ({
                 fontSize: "13px",
                 fontWeight: 700,
                 color: "#FFFFFF",
-                borderColor: "rgba(255, 255, 255, 0.2)",
+                borderColor: "#E8E2E5",
               }}
             >
               Edit Details

@@ -197,7 +197,7 @@ export default function OpsDashboardPage() {
     <div
       className="min-h-screen space-y-6 pb-16"
       style={{
-        background: "linear-gradient(135deg, #0f1629 0%, #0d1b2a 40%, #11182c 70%, #0f1629 100%)",
+        background: "linear-gradient(135deg, #FAF8F9 0%, #FAF8F9 40%, #FAF8F9 70%, #FAF8F9 100%)",
         margin: "-20px -24px",
         padding: "24px",
       }}
@@ -233,10 +233,10 @@ export default function OpsDashboardPage() {
                     LIVE
                   </span>
                 </div>
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-[#625B60]">
                   Real-time infrastructure health · background workers · database pools · gateway status
                 </p>
-                <p className="text-[11px] text-slate-500 mt-0.5 font-mono">
+                <p className="text-[11px] text-[#8A8288] mt-0.5 font-mono">
                   Last updated: {lastUpdated.toLocaleTimeString("en-IN")} · Auto-refresh every 15s
                 </p>
               </div>
@@ -256,7 +256,7 @@ export default function OpsDashboardPage() {
               <button
                 onClick={fetchData}
                 disabled={refreshing}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/8 border border-white/15 text-sm font-semibold text-slate-200 hover:bg-white/12 hover:border-white/25 transition-all cursor-pointer backdrop-blur-sm"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/8 border border-white/15 text-sm font-semibold text-[#292329] hover:bg-white/12 hover:border-white/25 transition-all cursor-pointer backdrop-blur-sm"
               >
                 <RefreshCw className={`w-4 h-4 text-emerald-400 ${refreshing ? "animate-spin" : ""}`} />
                 Refresh
@@ -317,9 +317,9 @@ export default function OpsDashboardPage() {
                 <div className="relative z-10">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">{kpi.label}</p>
+                      <p className="text-[11px] font-extrabold text-[#625B60] uppercase tracking-wider">{kpi.label}</p>
                       <p className="text-3xl font-extrabold text-white mt-1 tracking-tight">{kpi.value}</p>
-                      <p className="text-[11px] text-slate-500 mt-0.5 font-medium">{kpi.sub}</p>
+                      <p className="text-[11px] text-[#8A8288] mt-0.5 font-medium">{kpi.sub}</p>
                     </div>
                     <div className={`p-2.5 rounded-xl border ${kpi.iconBg} backdrop-blur-sm`}>
                       <Icon className="w-5 h-5" />
@@ -329,8 +329,8 @@ export default function OpsDashboardPage() {
                   <UtilBar pct={kpi.bar} color={kpi.barColor} />
 
                   <div className="flex items-center justify-between mt-2">
-                    <span className="text-[10px] font-bold text-slate-500">{Math.round(kpi.bar)}% utilized</span>
-                    <span className="text-[10px] font-extrabold text-slate-400 flex items-center gap-0.5">
+                    <span className="text-[10px] font-bold text-[#8A8288]">{Math.round(kpi.bar)}% utilized</span>
+                    <span className="text-[10px] font-extrabold text-[#625B60] flex items-center gap-0.5">
                       <TrendingUp className="w-3 h-3" /> {kpi.trend}
                     </span>
                   </div>
@@ -351,10 +351,10 @@ export default function OpsDashboardPage() {
               </div>
               <div>
                 <h3 className="font-extrabold text-white text-base">Infrastructure Components Health</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">Live gateway · service · database component status</p>
+                <p className="text-[11px] text-[#8A8288] mt-0.5">Live gateway · service · database component status</p>
               </div>
             </div>
-            <span className="text-[11px] font-mono text-slate-500">Auto-polling every 15s</span>
+            <span className="text-[11px] font-mono text-[#8A8288]">Auto-polling every 15s</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -369,8 +369,8 @@ export default function OpsDashboardPage() {
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="font-extrabold text-slate-200 text-[12px] leading-tight truncate">{comp.name}</p>
-                    <p className="text-[10px] text-slate-500 mt-0.5 font-medium truncate">{comp.detail}</p>
+                    <p className="font-extrabold text-[#292329] text-[12px] leading-tight truncate">{comp.name}</p>
+                    <p className="text-[10px] text-[#8A8288] mt-0.5 font-medium truncate">{comp.detail}</p>
                   </div>
                   <span className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
                     comp.status === "UP"
@@ -383,9 +383,9 @@ export default function OpsDashboardPage() {
                     }
                   </span>
                 </div>
-                <div className="mt-2.5 flex items-center gap-1 text-[10px] text-slate-500 font-mono">
+                <div className="mt-2.5 flex items-center gap-1 text-[10px] text-[#8A8288] font-mono">
                   <Clock className="w-3 h-3" />
-                  <span>Latency: <strong className="text-slate-300">{comp.latency}</strong></span>
+                  <span>Latency: <strong className="text-[#292329]">{comp.latency}</strong></span>
                 </div>
               </div>
             ))}
@@ -427,9 +427,9 @@ export default function OpsDashboardPage() {
           <GlassCard key={label} className={`p-5 border ${bg}`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">{label}</p>
+                <p className="text-[11px] font-extrabold text-[#625B60] uppercase tracking-wider">{label}</p>
                 <p className={`text-3xl font-extrabold mt-1 ${color}`}>{value}</p>
-                <p className="text-[11px] text-slate-500 mt-0.5 font-medium">{sub}</p>
+                <p className="text-[11px] text-[#8A8288] mt-0.5 font-medium">{sub}</p>
               </div>
               <div className={`p-3 rounded-xl border ${iconBg}`}>
                 <Icon className="w-5 h-5" />

@@ -33,14 +33,15 @@ import {
 } from "./motion/animationVariants";
 import { BlurImage } from "@/components/ui/blur-image";
 import { KNOWN_BLURHASHES } from "@/lib/blurhash";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 type LanguageKey = "English" | "Hindi" | "Tamil" | "Telugu";
 
 const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
   English: {
-    securityAuth: "Pay2Pay Security Auth v2.6.4",
+    securityAuth: "Near 4 You Security Auth v2.6.4",
     welcomeBack: "Welcome Back",
-    subtitle: "Access your Pay2Pay Retailer Business Workstation",
+    subtitle: "Access your Near 4 You Business Workstation",
     passwordLogin: "Password",
     otpLogin: "WhatsApp OTP",
     biometricLogin: "Biometric",
@@ -61,20 +62,20 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
     webauthnTitle: "WebAuthn Biometric Auth",
     webauthnDesc: "Touch ID, Face ID, or Windows Hello Security Key.",
     authPasskey: "Authenticate with Passkey",
-    newRetailer: "New Retailer?",
+    newRetailer: "New Partner?",
     registerAccount: "Create Account →",
     privacyPolicy: "Privacy Policy",
     terms: "Terms of Service",
     refundPolicy: "Refund Policy",
-    rbiFooter: "© 2021 SUPER REX PRODUCTS PRIVATE LIMITED\nPay2Pay Retailer Portal",
+    rbiFooter: "© 2021 Sathus Technology Pvt. Ltd.\nNear 4 You Portal",
     days30: "30 Days",
     days90: "90 Days",
     forever: "Forever"
   },
   Hindi: {
-    securityAuth: "Pay2Pay सुरक्षा प्रमाणीकरण v2.6.4",
+    securityAuth: "Near 4 You सुरक्षा प्रमाणीकरण v2.6.4",
     welcomeBack: "वापसी पर आपका स्वागत है",
-    subtitle: "अपने Pay2Pay रिटेलर व्यवसाय वर्कस्टेशन पर लॉगिन करें",
+    subtitle: "अपने Near 4 You व्यवसाय वर्कस्टेशन पर लॉगिन करें",
     passwordLogin: "पासवर्ड",
     otpLogin: "व्हाट्सएप ओटीपी",
     biometricLogin: "बायोमेट्रिक",
@@ -95,20 +96,20 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
     webauthnTitle: "वेबऑथ बायोमेट्रिक प्रमाणीकरण",
     webauthnDesc: "टच आईडी, फेस आईडी या विंडोज हैलो।",
     authPasskey: "पास-की से लॉगिन करें",
-    newRetailer: "नए रिटेलर?",
+    newRetailer: "नए पार्टनर?",
     registerAccount: "खाता बनाएं →",
     privacyPolicy: "गोपनीयता नीति",
     terms: "सेवा की शर्तें",
     refundPolicy: "रिफंड नीति",
-    rbiFooter: "© 2021 SUPER REX PRODUCTS PRIVATE LIMITED\nPay2Pay Retailer Portal",
+    rbiFooter: "© 2021 Sathus Technology Pvt. Ltd.\nNear 4 You Portal",
     days30: "30 दिन",
     days90: "90 दिन",
     forever: "हमेशा"
   },
   Tamil: {
-    securityAuth: "Pay2Pay பாதுகாப்பு அங்கீகாரம் v2.6.4",
+    securityAuth: "Near 4 You பாதுகாப்பு அங்கீகாரம் v2.6.4",
     welcomeBack: "மீண்டும் வருக",
-    subtitle: "உங்கள் Pay2Pay சில்லறை வணிக பணிநிலையத்தை அணுகவும்",
+    subtitle: "உங்கள் Near 4 You வணிக பணிநிலையத்தை அணுகவும்",
     passwordLogin: "கடவுச்சொல்",
     otpLogin: "வாட்ஸ்அப் ஒடிபி",
     biometricLogin: "கைரேகை",
@@ -129,20 +130,20 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
     webauthnTitle: "பயோமெட்ரிக் அங்கீகாரம்",
     webauthnDesc: "டச் ஐடி, பேஸ் ஐடி அல்லது விண்டோஸ் ஹலோ.",
     authPasskey: "பாஸ்கி மூலம் உள்நுழைக",
-    newRetailer: "புதிய சில்லறை விற்பனையாளரா?",
+    newRetailer: "புதிய கூட்டாளரா?",
     registerAccount: "கணக்கை பதிவு செய் →",
     privacyPolicy: "தனியுரிமைக் கொள்கை",
     terms: "சேவை விதிகள்",
     refundPolicy: "பணத்தைத் திரும்பப்பெறும் கொள்கை",
-    rbiFooter: "© 2021 SUPER REX PRODUCTS PRIVATE LIMITED\nPay2Pay Retailer Portal",
+    rbiFooter: "© 2021 Sathus Technology Pvt. Ltd.\nNear 4 You Portal",
     days30: "30 நாட்கள்",
     days90: "90 நாட்கள்",
     forever: "எப்போதும்"
   },
   Telugu: {
-    securityAuth: "Pay2Pay భద్రతా ప్రమాణీకరణ v2.6.4",
+    securityAuth: "Near 4 You భద్రతా ప్రమాణీకరణ v2.6.4",
     welcomeBack: "తిరిగి స్వాగతం",
-    subtitle: "మీ Pay2Pay రిటైలర్ బిజినెస్ వర్క్‌స్టేషన్‌ను యాక్సెస్ చేయండి",
+    subtitle: "మీ Near 4 You బిజినెస్ వర్క్‌స్టేషన్‌ను యాక్సెస్ చేయండి",
     passwordLogin: "పాస్‌వర్డ్",
     otpLogin: "వాట్సాప్ ఓటీపీ",
     biometricLogin: "బయోమెట్రిక్",
@@ -163,12 +164,12 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
     webauthnTitle: "వెబ్‌ఆత్ బయోమెట్రిక్ ప్రమాణీకరణ",
     webauthnDesc: "టచ్ ఐడీ, ఫేస్ ఐడీ లేదా విండోస్ హలో.",
     authPasskey: "పాస్‌కీతో లాగిన్ అవ్వండి",
-    newRetailer: "కొత్త రిటైలరా?",
+    newRetailer: "కొత్త భాగస్వామి?",
     registerAccount: "ఖాతాను నమోదు చేయండి →",
     privacyPolicy: "గోప్యతా విధానం",
     terms: "సేవా నిబంధనలు",
     refundPolicy: "రీఫండ్ పాలసీ",
-    rbiFooter: "© 2021 SUPER REX PRODUCTS PRIVATE LIMITED\nPay2Pay Retailer Portal",
+    rbiFooter: "© 2021 Sathus Technology Pvt. Ltd.\nNear 4 You Portal",
     days30: "30 రోజులు",
     days90: "90 రోజులు",
     forever: "ఎల్లప్పుడూ"
@@ -200,23 +201,25 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       ? "SD"
       : "DIST";
 
+  const { display_name, legal_name, logo_url, primary_colour, secondary_colour } = useCompanyBranding();
+
   const portalTitle =
     normalizedRole === "COMMON"
-      ? "Pay2Pay Unified Portal"
+      ? `${display_name || "Near 4 You"} Unified Portal`
       : normalizedRole === "RETAILER"
-      ? "Pay2Pay Retailer Portal"
+      ? `${display_name || "Near 4 You"} Retailer Portal`
       : normalizedRole === "SD"
-      ? "Pay2Pay SD Portal"
-      : "Pay2Pay Distributor Portal";
+      ? `${display_name || "Near 4 You"} SD Portal`
+      : `${display_name || "Near 4 You"} Distributor Portal`;
 
   const portalSubtitle =
     normalizedRole === "COMMON"
       ? "Sign in to access your Retailer, Distributor, or Super Distributor Workspace"
       : normalizedRole === "RETAILER"
-      ? "Access your Pay2Pay Retailer Business Workstation"
+      ? `Access your ${display_name || "Near 4 You"} Retailer Business Workstation`
       : normalizedRole === "SD"
-      ? "Access your Pay2Pay Super Distributor Workspace"
-      : "Access your Pay2Pay Distributor Workspace";
+      ? `Access your ${display_name || "Near 4 You"} Super Distributor Workspace`
+      : `Access your ${display_name || "Near 4 You"} Distributor Workspace`;
 
   const portalRegisterUrl =
     normalizedRole === "COMMON" || normalizedRole === "RETAILER"
@@ -698,159 +701,115 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
   // ─────────────────────────────────────────────────────────────────
   // Shared input class helper
   // ─────────────────────────────────────────────────────────────────
-  const inputBase = `w-full rounded-xl border text-sm font-medium focus:outline-none transition-all duration-200 ${
-    darkMode
-      ? "bg-slate-900/90 border-slate-800 text-white placeholder-slate-500"
-      : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"
-  }`;
+  const inputBase = "w-full rounded-xl border border-[#E8E2E5] bg-[#FFFFFF] text-[#292329] placeholder-[#8A8288] text-sm font-medium focus:outline-none transition-all duration-200";
 
   const inputFocusRing = (focused: boolean) =>
     focused
-      ? "ring-2 ring-blue-500/40 border-blue-500 shadow-sm shadow-blue-500/10"
+      ? "ring-2 ring-[#A20A3A]/20 border-[#A20A3A] shadow-xs"
       : "";
 
   return (
-    <div className={`relative w-full min-h-screen flex flex-col justify-between select-none transition-colors duration-300 ${
-      darkMode ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-900"
-    }`}>
+    <div className="relative w-full min-h-screen flex flex-col justify-between select-none bg-[#FFFFFF] text-[#292329]">
       {showConfetti && <ConfettiBurst />}
 
       {/* ── Outer Padding Wrapper ── */}
       <div className="flex flex-col flex-1 justify-between px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-6 max-w-lg mx-auto w-full relative z-10">
 
         {/* ─── Mobile Top Header ─── */}
-        <div className={`lg:hidden flex items-center justify-between mb-4 pb-3 border-b ${
-          darkMode ? "border-slate-800" : "border-slate-200"
-        }`}>
+        <div className="lg:hidden flex items-center justify-between mb-4 pb-3 border-b border-[#E8E2E5]">
           <div className="flex items-center gap-3">
-            <BlurImage
-              src="/branding/pay2pay-logo.png"
-              alt="Pay2Pay"
-              blurhash={KNOWN_BLURHASHES.PAY2PAY_LOGO}
-              className="w-10 h-10 rounded-xl object-contain border border-amber-500/30 shadow-md"
+            <img
+              src={logo_url || "/branding/logo.svg"}
+              alt={display_name || "Near 4 You"}
+              className="w-10 h-10 rounded-xl object-contain border border-[#E8E2E5] shadow-sm p-0.5 bg-white"
             />
             <div>
-              <h1 className={`text-sm font-black tracking-tight ${darkMode ? "text-white" : "text-slate-900"}`}>
-                Pay2Pay
+              <h1 className="text-sm font-black tracking-tight text-[#292329]">
+                {display_name || "Near 4 You"}
               </h1>
-              <p className={`text-[10px] font-semibold ${darkMode ? "text-slate-400" : "text-slate-500"}`}>{portalTitle}</p>
+              <p className="text-[10px] font-semibold text-[#625B60]">{portalTitle}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className={`flex items-center text-xs font-bold rounded-xl px-2.5 py-1.5 border gap-1 ${
-              darkMode ? "bg-slate-900 border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-700 shadow-sm"
-            }`}>
-              <Globe className="w-3.5 h-3.5 text-blue-500" />
+            <div className="flex items-center text-xs font-bold rounded-xl px-2.5 py-1.5 border border-[#E8E2E5] bg-[#FFFFFF] text-[#292329] shadow-xs gap-1">
+              <Globe className="w-3.5 h-3.5 text-[#A20A3A]" />
               <select
                 value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value as LanguageKey)}
                 className="bg-transparent outline-none cursor-pointer text-xs font-bold"
               >
-                <option value="English" className={darkMode ? "bg-slate-900 text-white" : "bg-white text-slate-900"}>EN</option>
-                <option value="Hindi" className={darkMode ? "bg-slate-900 text-white" : "bg-white text-slate-900"}>हिं</option>
-                <option value="Tamil" className={darkMode ? "bg-slate-900 text-white" : "bg-white text-slate-900"}>தமி</option>
-                <option value="Telugu" className={darkMode ? "bg-slate-900 text-white" : "bg-white text-slate-900"}>తెలు</option>
+                <option value="English" className="bg-white text-[#292329]">EN</option>
+                <option value="Hindi" className="bg-white text-[#292329]">हिं</option>
+                <option value="Tamil" className="bg-white text-[#292329]">தமி</option>
+                <option value="Telugu" className="bg-white text-[#292329]">తెలు</option>
               </select>
             </div>
-
-            <button
-              type="button"
-              onClick={() => setDarkMode(!darkMode)}
-              className={`p-2 rounded-xl border transition-colors ${
-                darkMode ? "bg-slate-900 border-slate-800 text-blue-400 hover:bg-slate-800" : "bg-white border-slate-200 text-blue-600 hover:bg-slate-100 shadow-sm"
-              }`}
-            >
-              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
           </div>
         </div>
 
         {/* ─── Desktop Top Bar ─── */}
         <div className="hidden lg:flex items-center justify-between mb-4 2xl:mb-6">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-blue-500/20 border border-blue-500/30">
-              <Shield className="w-4 h-4 text-blue-500" />
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#FFF0F4] border border-[#FFD6E2]">
+              <Shield className="w-4 h-4 text-[#A20A3A]" />
             </div>
-            <span className={`text-[11px] font-black uppercase tracking-widest ${
-              darkMode ? "text-slate-400" : "text-slate-500"
-            }`}>
+            <span className="text-[11px] font-black uppercase tracking-widest text-[#625B60]">
               {portalTitle}
             </span>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className={`flex items-center text-xs font-bold rounded-xl px-3 py-1.5 border gap-1.5 transition-colors ${
-              darkMode ? "bg-slate-900 border-slate-800 text-slate-200 hover:border-blue-500/40" : "bg-white border-slate-200 text-slate-700 hover:border-blue-500/40 shadow-sm"
-            }`}>
-              <Globe className="w-3.5 h-3.5 text-blue-500" />
+            <div className="flex items-center text-xs font-bold rounded-xl px-3 py-1.5 border border-[#E8E2E5] bg-[#FFFFFF] text-[#292329] hover:border-[#A20A3A]/40 shadow-xs gap-1.5 transition-colors">
+              <Globe className="w-3.5 h-3.5 text-[#A20A3A]" />
               <select
                 value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value as LanguageKey)}
                 className="bg-transparent outline-none cursor-pointer font-bold"
               >
-                <option value="English" className={darkMode ? "bg-slate-900 text-white" : "bg-white text-slate-900"}>English (EN)</option>
-                <option value="Hindi" className={darkMode ? "bg-slate-900 text-white" : "bg-white text-slate-900"}>हिंदी (Hindi)</option>
-                <option value="Tamil" className={darkMode ? "bg-slate-900 text-white" : "bg-white text-slate-900"}>தமிழ் (Tamil)</option>
-                <option value="Telugu" className={darkMode ? "bg-slate-900 text-white" : "bg-white text-slate-900"}>తెలుగు (Telugu)</option>
+                <option value="English" className="bg-white text-[#292329]">English (EN)</option>
+                <option value="Hindi" className="bg-white text-[#292329]">हिंदी (Hindi)</option>
+                <option value="Tamil" className="bg-white text-[#292329]">தமிழ் (Tamil)</option>
+                <option value="Telugu" className="bg-white text-[#292329]">తెలుగు (Telugu)</option>
               </select>
             </div>
-
-            <button
-              type="button"
-              onClick={() => setDarkMode(!darkMode)}
-              className={`p-2 rounded-xl border transition-colors ${
-                darkMode ? "bg-slate-900 border-slate-800 text-blue-400 hover:bg-slate-800" : "bg-white border-slate-200 text-blue-600 hover:bg-slate-100 shadow-sm"
-              }`}
-            >
-              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
           </div>
         </div>
 
         {/* ─── Main Auth Card ─── */}
         <div
-          className={`my-auto w-full rounded-[28px] transition-all duration-300 relative backdrop-blur-2xl ${
-            darkMode
-              ? "bg-slate-900/90 border border-slate-800/80 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] text-white"
-              : "bg-white/95 border border-slate-200/90 shadow-[0_20px_50px_rgba(0,0,0,0.08)] text-slate-900"
-          }`}
+          className="my-auto w-full rounded-[28px] transition-all duration-300 relative bg-[#FFFFFF] border border-[#E8E2E5] shadow-xl text-[#292329]"
           style={{ padding: "clamp(1.25rem, 3vw, 2rem)" }}
         >
           {/* Top Specular Reflection Sheen */}
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-400/30 to-transparent pointer-events-none" />
-          <div className="absolute top-0 left-1/4 w-1/2 h-20 bg-gradient-to-b from-blue-400/10 to-transparent rounded-full filter blur-lg pointer-events-none" />
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#EDC11E]/30 to-transparent pointer-events-none" />
 
           {/* ── Card Header ── */}
           <div className="text-center mb-5">
-            {/* Blue P2P Logo Mark matching left section */}
+            {/* Dynamic Company Brand Logo Mark */}
             <div className="flex items-center justify-center gap-2.5 mb-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 p-0.5 shadow-lg shadow-blue-500/25">
-                <div className={`w-full h-full rounded-[14px] flex items-center justify-center ${
-                  darkMode ? "bg-slate-900" : "bg-white"
-                }`}>
-                  <span className="text-sm font-black tracking-tighter bg-gradient-to-r from-blue-400 via-indigo-400 to-cyan-400 bg-clip-text text-transparent">
-                    P2P
-                  </span>
+              <div
+                className="w-12 h-12 rounded-2xl p-0.5 shadow-md"
+                style={{
+                  background: `linear-gradient(135deg, ${primary_colour || "#A20A3A"}, ${secondary_colour || "#EDC11E"})`,
+                  boxShadow: `0 4px 12px ${primary_colour ? primary_colour + "33" : "rgba(162, 10, 58, 0.2)"}`,
+                }}
+              >
+                <div className="w-full h-full rounded-[14px] flex items-center justify-center p-1 bg-white">
+                  <img src={logo_url || "/branding/logo.svg"} alt={display_name || "Near 4 You"} className="w-full h-full object-contain" />
                 </div>
               </div>
             </div>
-            <h2 className={`text-2xl font-black tracking-tight leading-tight ${
-              darkMode ? "text-white" : "text-slate-900"
-            }`}>
+            <h2 className="text-2xl font-black tracking-tight leading-tight text-[#292329]">
               {t.welcomeBack}
             </h2>
-            <p className={`text-xs font-semibold mt-1 ${
-              darkMode ? "text-slate-400" : "text-slate-500"
-            }`}>
+            <p className="text-xs font-semibold mt-1 text-[#625B60]">
               {portalSubtitle}
             </p>
           </div>
 
           {/* ── Tab Switcher: Multi-tab for Password, WhatsApp OTP, and Biometric ── */}
-          <div className={`flex p-1 rounded-2xl mb-5 border ${
-            darkMode ? "bg-slate-950/80 border-slate-800" : "bg-slate-100 border-slate-200"
-          }`}>
+          <div className="flex p-1 rounded-2xl mb-5 border border-[#E8E2E5] bg-[#FAF8F9]">
             {(["PASSWORD", "OTP", "BIOMETRIC"] as const).map((tab) => (
               <button
                 key={tab}
@@ -858,10 +817,8 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                 onClick={() => { setAuthTab(tab); setErrorMsg(""); }}
                 className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
                   authTab === tab
-                    ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow-md shadow-blue-500/25"
-                    : darkMode
-                    ? "text-slate-400 hover:text-slate-200"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-gradient-to-r from-[#A20A3A] to-[#85072F] text-white font-bold shadow-md shadow-[#A20A3A]/25"
+                    : "text-[#625B60] hover:text-[#292329]"
                 }`}
               >
                 {tab === "PASSWORD" ? t.passwordLogin : tab === "OTP" ? t.otpLogin : t.biometricLogin}
@@ -903,7 +860,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                 5 failed attempts detected. Login suspended for 30 minutes.
               </p>
               <div className={`flex items-center justify-between text-xs pt-2 border-t ${darkMode ? "border-red-500/20" : "border-red-200"}`}>
-                <span className={darkMode ? "text-slate-400" : "text-slate-600"}>Time remaining:</span>
+                <span className={darkMode ? "text-[#625B60]" : "text-slate-600"}>Time remaining:</span>
                 <span className="font-mono font-black text-sm px-3 py-1 bg-red-600 text-white rounded-lg">
                   {Math.floor(lockTimer / 60).toString().padStart(2, "0")}:{(lockTimer % 60).toString().padStart(2, "0")}
                 </span>
@@ -958,14 +915,14 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 
               {/* Mobile Number */}
               <div>
-                <label className={`block text-xs font-bold mb-1.5 ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                <label className={`block text-xs font-bold mb-1.5 ${darkMode ? "text-[#292329]" : "text-slate-700"}`}>
                   {t.mobileNumber} <span className="text-red-500">*</span>
                 </label>
                 <div className={`relative rounded-xl transition-all duration-200 ${inputFocusRing(mobileFocused)}`}>
-                  <div className={`absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                  <div className={`absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 ${darkMode ? "text-[#625B60]" : "text-[#8A8288]"}`}>
                     <Phone className="w-3.5 h-3.5" />
                     <span className="text-xs font-bold">+91</span>
-                    <span className={`text-xs ${darkMode ? "text-slate-700" : "text-slate-300"}`}>|</span>
+                    <span className={`text-xs ${darkMode ? "text-slate-700" : "text-[#292329]"}`}>|</span>
                   </div>
                   <input
                     type="tel"
@@ -987,12 +944,12 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
               {/* Password */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className={`text-xs font-bold ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                  <label className="text-xs font-bold text-[#292329]">
                     {t.password} <span className="text-red-500">*</span>
                   </label>
                   <Link
                     href="/forgot-password"
-                    className="text-xs font-bold text-blue-500 hover:text-blue-400 hover:underline transition-colors"
+                    className="text-xs font-bold text-[#A20A3A] hover:text-[#85072F] hover:underline transition-colors"
                   >
                     {t.forgot}
                   </Link>
@@ -1011,9 +968,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className={`absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors ${
-                      darkMode ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600"
-                    }`}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors text-[#8A8288] hover:text-[#292329]"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -1027,9 +982,9 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 rounded text-blue-600 accent-blue-600 cursor-pointer"
+                    className="w-4 h-4 rounded text-[#A20A3A] accent-[#A20A3A] cursor-pointer"
                   />
-                  <span className={`text-xs font-semibold ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                  <span className="text-xs font-semibold text-[#292329]">
                     {t.rememberSession}
                   </span>
                 </label>
@@ -1040,9 +995,9 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                       type="checkbox"
                       checked={trustDevice}
                       onChange={(e) => setTrustDevice(e.target.checked)}
-                      className="w-4 h-4 rounded text-blue-600 accent-blue-600 cursor-pointer"
+                      className="w-4 h-4 rounded text-[#A20A3A] accent-[#A20A3A] cursor-pointer"
                     />
-                    <span className={`text-xs font-semibold ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                    <span className="text-xs font-semibold text-[#292329]">
                       {t.trustDevice}
                     </span>
                   </label>
@@ -1050,9 +1005,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                     <select
                       value={trustDays}
                       onChange={(e) => setTrustDays(Number(e.target.value))}
-                      className={`text-xs font-bold rounded-lg px-2 py-1 outline-none border ${
-                        darkMode ? "bg-slate-900 border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-800 shadow-sm"
-                      }`}
+                      className="text-xs font-bold rounded-lg px-2 py-1 outline-none border bg-white border-[#E8E2E5] text-[#292329] shadow-xs"
                     >
                       <option value={30}>{t.days30}</option>
                       <option value={90}>{t.days90}</option>
@@ -1063,17 +1016,15 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
               </div>
 
               {/* Security Consent */}
-              <div className={`rounded-xl border p-3 ${
-                darkMode ? "bg-blue-500/5 border-blue-500/20" : "bg-blue-50/80 border-blue-200/70"
-              }`}>
+              <div className="rounded-xl border border-[#FFD6E2] bg-[#FFF0F4] p-3">
                 <label className="flex items-start gap-2.5 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={acceptedConsent}
                     onChange={(e) => setAcceptedConsent(e.target.checked)}
-                    className="w-4 h-4 mt-0.5 rounded text-blue-600 accent-blue-600 cursor-pointer shrink-0"
+                    className="w-4 h-4 mt-0.5 rounded text-[#A20A3A] accent-[#A20A3A] cursor-pointer shrink-0"
                   />
-                  <span className={`text-xs font-medium leading-relaxed ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
+                  <span className="text-xs font-medium leading-relaxed text-[#625B60]">
                     {t.securityConsent}
                   </span>
                 </label>
@@ -1088,12 +1039,12 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                 disabled={loading || isLocked}
                 className={`w-full py-3.5 rounded-xl text-white text-sm font-bold transition-all flex items-center justify-center gap-2 shadow-md ${
                   isLocked
-                    ? "bg-slate-800 text-slate-500 cursor-not-allowed opacity-70 shadow-none"
-                    : "bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:shadow-lg hover:shadow-blue-600/30 cursor-pointer active:scale-[0.98]"
+                    ? "bg-[#FAF8F9] text-[#B8B0B6] border border-[#E8E2E5] cursor-not-allowed shadow-none"
+                    : "bg-gradient-to-r from-[#A20A3A] via-[#85072F] to-[#A20A3A] hover:shadow-lg hover:shadow-[#A20A3A]/30 cursor-pointer active:scale-[0.98]"
                 }`}
               >
                 {isLocked ? (
-                  <div className="flex items-center gap-2 text-red-300">
+                  <div className="flex items-center gap-2 text-red-600">
                     <Lock className="w-4 h-4" />
                     <span>Locked — {Math.floor(lockTimer / 60)}m {lockTimer % 60}s</span>
                   </div>
@@ -1118,15 +1069,15 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           {authTab === "OTP" && (
             <div className="space-y-4">
               <div>
-                <label className={`block text-xs font-bold mb-1.5 ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                <label className="block text-xs font-bold mb-1.5 text-[#292329]">
                   {t.mobileNumber} <span className="text-red-500">*</span>
                 </label>
                 <div className="flex gap-2.5">
                   <div className={`relative flex-1 rounded-xl transition-all ${inputFocusRing(mobileFocused)}`}>
-                    <div className={`absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-[#625B60]">
                       <Phone className="w-3.5 h-3.5" />
                       <span className="text-xs font-bold">+91</span>
-                      <span className={`text-xs ${darkMode ? "text-slate-700" : "text-slate-300"}`}>|</span>
+                      <span className="text-xs text-[#E8E2E5]">|</span>
                     </div>
                     <input
                       type="tel"
@@ -1146,8 +1097,8 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                     disabled={loading || mobileNumber.length !== 10}
                     className={`px-4 py-3 rounded-xl text-white text-xs font-bold flex items-center gap-1.5 transition-all whitespace-nowrap shadow-md ${
                       mobileNumber.length !== 10 || loading
-                        ? "bg-slate-800 text-slate-500 cursor-not-allowed shadow-none"
-                        : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-blue-500/25 cursor-pointer"
+                        ? "bg-[#FAF8F9] text-[#B8B0B6] border border-[#E8E2E5] cursor-not-allowed shadow-none"
+                        : "bg-gradient-to-r from-[#A20A3A] via-[#85072F] to-[#EDC11E] hover:shadow-lg hover:shadow-[#A20A3A]/25 cursor-pointer"
                     }`}
                   >
                     {loading ? (
@@ -1163,7 +1114,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
               {otpSent && (
                 <form onSubmit={handleOtpVerify} className="space-y-4 pt-1">
                   <div>
-                    <label className={`block text-xs font-bold mb-3 text-center ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                    <label className="block text-xs font-bold mb-3 text-center text-[#292329]">
                       {t.enterOtp} <span className="text-red-500">*</span>
                     </label>
                     <div className="flex items-center justify-center gap-2.5">
@@ -1179,12 +1130,8 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                           onKeyDown={(e) => handleOtpKeyDown(idx, e)}
                           className={`w-11 h-12 text-center font-black text-xl rounded-xl border-2 transition-all focus:outline-none focus:ring-0 ${
                             digit
-                              ? darkMode
-                                ? "border-blue-500 bg-blue-500/10 text-cyan-300"
-                                : "border-blue-600 bg-blue-50 text-blue-700"
-                              : darkMode
-                              ? "border-slate-800 bg-slate-900 text-white focus:border-blue-500"
-                              : "border-slate-200 bg-white text-slate-900 focus:border-blue-600"
+                              ? "border-[#A20A3A] bg-[#FFF0F4] text-[#A20A3A]"
+                              : "border-[#E8E2E5] bg-[#FFFFFF] text-[#292329] focus:border-[#A20A3A]"
                           }`}
                         />
                       ))}
@@ -1192,17 +1139,15 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                   </div>
 
                   {/* Security consent for OTP tab */}
-                  <div className={`rounded-xl border p-3 ${
-                    darkMode ? "bg-blue-500/5 border-blue-500/20" : "bg-blue-50/80 border-blue-200/70"
-                  }`}>
+                  <div className="rounded-xl border border-[#FFD6E2] bg-[#FFF0F4] p-3">
                     <label className="flex items-start gap-2.5 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={acceptedConsent}
                         onChange={(e) => setAcceptedConsent(e.target.checked)}
-                        className="w-4 h-4 mt-0.5 rounded text-blue-600 accent-blue-600 cursor-pointer shrink-0"
+                        className="w-4 h-4 mt-0.5 rounded text-[#A20A3A] accent-[#A20A3A] cursor-pointer shrink-0"
                       />
-                      <span className={`text-xs font-medium leading-relaxed ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
+                      <span className="text-xs font-medium leading-relaxed text-[#625B60]">
                         {t.securityConsent}
                       </span>
                     </label>
@@ -1214,7 +1159,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                     whileTap="tap"
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold shadow-md cursor-pointer hover:shadow-lg hover:shadow-blue-600/30 flex items-center justify-center gap-2"
+                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#A20A3A] via-[#85072F] to-[#A20A3A] text-white text-sm font-bold shadow-md cursor-pointer hover:shadow-lg hover:shadow-[#A20A3A]/30 flex items-center justify-center gap-2"
                   >
                     {loading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -1239,16 +1184,16 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                 animate={{ scale: [1, 1.06, 1] }}
                 transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                 className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto border-2 shadow-xl ${
-                  darkMode ? "bg-blue-500/10 border-blue-500/30 shadow-blue-500/10" : "bg-blue-50 border-blue-200 shadow-blue-100"
+                  darkMode ? "bg-[#A20A3A]/10 border-[#A20A3A]/30 shadow-[#A20A3A]/10" : "bg-[#FFF0F4] border-[#A20A3A]/30 shadow-[#A20A3A]/10"
                 }`}
               >
-                <Fingerprint className="w-8 h-8 text-blue-500" />
+                <Fingerprint className="w-8 h-8 text-[#A20A3A]" />
               </motion.div>
               <div className="space-y-1.5">
                 <h3 className={`text-base font-black ${darkMode ? "text-white" : "text-slate-900"}`}>
                   {t.webauthnTitle}
                 </h3>
-                <p className={`text-sm font-medium max-w-xs mx-auto leading-relaxed ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
+                <p className={`text-sm font-medium max-w-xs mx-auto leading-relaxed ${darkMode ? "text-[#625B60]" : "text-slate-600"}`}>
                   {t.webauthnDesc}
                 </p>
               </div>
@@ -1262,7 +1207,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                   setSuccessMsg("✓ Biometric Authenticated. Redirecting...");
                   setTimeout(() => handleAuthSuccessRedirect(), 800);
                 }}
-                className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold inline-flex items-center gap-2 shadow-md hover:shadow-lg hover:shadow-blue-600/25 cursor-pointer"
+                className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#A20A3A] via-[#85072F] to-[#EDC11E] text-white text-sm font-bold inline-flex items-center gap-2 shadow-md hover:shadow-lg hover:shadow-[#A20A3A]/25 cursor-pointer"
               >
                 <Fingerprint className="w-4 h-4" />
                 <span>{t.authPasskey}</span>
@@ -1272,16 +1217,14 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 
           {/* ── Register Link ── */}
           <div className={`mt-5 pt-4 border-t flex items-center justify-between text-sm ${
-            darkMode ? "border-slate-800" : "border-slate-200"
+            darkMode ? "border-[#E8E2E5]" : "border-slate-200"
           }`}>
-            <span className={`font-medium ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+            <span className={`font-medium ${darkMode ? "text-[#625B60]" : "text-[#8A8288]"}`}>
               New Partner?
             </span>
             <Link
               href={portalRegisterUrl}
-              className={`font-bold transition-colors ${
-                darkMode ? "text-blue-400 hover:text-blue-300" : "text-blue-600 hover:text-blue-700"
-              }`}
+              className="font-bold transition-colors text-[#A20A3A] hover:text-[#85072F]"
             >
               {t.registerAccount}
             </Link>
@@ -1289,15 +1232,17 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         </div>
 
         {/* ── Footer Links ── */}
-        <div className={`mt-5 text-center space-y-1 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+        <div className="mt-5 text-center space-y-1 text-[#8A8288]">
           <div className="flex items-center justify-center gap-3 text-xs font-medium">
-            <a href="#" className={`hover:underline transition-colors ${darkMode ? "hover:text-blue-400" : "hover:text-blue-600"}`}>{t.privacyPolicy}</a>
+            <a href="#" className="hover:underline transition-colors hover:text-[#A20A3A]">{t.privacyPolicy}</a>
             <span>·</span>
-            <a href="#" className={`hover:underline transition-colors ${darkMode ? "hover:text-blue-400" : "hover:text-blue-600"}`}>{t.terms}</a>
+            <a href="#" className="hover:underline transition-colors hover:text-[#A20A3A]">{t.terms}</a>
             <span>·</span>
-            <a href="#" className={`hover:underline transition-colors ${darkMode ? "hover:text-blue-400" : "hover:text-blue-600"}`}>{t.refundPolicy}</a>
+            <a href="#" className="hover:underline transition-colors hover:text-[#A20A3A]">{t.refundPolicy}</a>
           </div>
-          <p className={`text-[11px] whitespace-pre-line leading-relaxed ${darkMode ? "text-slate-500" : "text-slate-400"}`}>{t.rbiFooter}</p>
+          <p className="text-[11px] whitespace-pre-line leading-relaxed text-[#8A8288]">
+            {`© ${new Date().getFullYear()} ${legal_name || "Sathus Technology Pvt. Ltd."}\n${display_name || "Near 4 You"} Portal`}
+          </p>
         </div>
 
       </div>

@@ -91,7 +91,7 @@ export const Step2BeneficiaryAmount: React.FC<Step2BeneficiaryAmountProps> = ({
           p: 1.75,
           px: 3,
           borderRadius: "14px",
-          bgcolor: "rgba(18, 27, 48, 0.85)",
+          bgcolor: "#FFFFFF",
           backdropFilter: "blur(20px)",
           border: "1px solid rgba(255, 255, 255, 0.12)",
           mb: 2.5,
@@ -124,7 +124,7 @@ export const Step2BeneficiaryAmount: React.FC<Step2BeneficiaryAmountProps> = ({
           </Box>
           <Box sx={{ textAlign: "right" }}>
             <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10px", fontWeight: 700 }}>WALLET BALANCE</Typography>
-            <Typography sx={{ fontWeight: 900, color: "#FBBF24", fontSize: "15px" }}>₹{walletBalance.toLocaleString()}</Typography>
+            <Typography sx={{ fontWeight: 900, color: "#A20A3A", fontSize: "15px" }}>₹{walletBalance.toLocaleString()}</Typography>
           </Box>
         </Stack>
       </Paper>
@@ -263,7 +263,7 @@ export const Step2BeneficiaryAmount: React.FC<Step2BeneficiaryAmountProps> = ({
                     IFSC: {b.ifsc}
                   </Typography>
 
-                  <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 0.75 }} />
+                  <Divider sx={{ borderColor: "#E8E2E5", my: 0.75 }} />
 
                   <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
                     <Chip icon={<CheckCircleIcon sx={{ "&&": { color: "#4ADE80", fontSize: 11 } }} />} label="VERIFIED" size="small" sx={{ bgcolor: "rgba(34, 197, 94, 0.15)", color: "#4ADE80", fontWeight: 800, height: 18, fontSize: "9px" }} />
@@ -284,7 +284,7 @@ export const Step2BeneficiaryAmount: React.FC<Step2BeneficiaryAmountProps> = ({
             height: "fit-content",
             p: 2.5,
             borderRadius: "16px",
-            bgcolor: "rgba(18, 27, 48, 0.85)",
+            bgcolor: "#FFFFFF",
             backdropFilter: "blur(20px)",
             border: "1px solid rgba(255, 255, 255, 0.12)",
             boxShadow: "0 8px 32px rgba(0, 0, 0, 0.25)",
@@ -365,7 +365,7 @@ export const Step2BeneficiaryAmount: React.FC<Step2BeneficiaryAmountProps> = ({
               <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "13px" }}>+ ₹{gst.toLocaleString()}</Typography>
             </Stack>
 
-            <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 0.5 }} />
+            <Divider sx={{ borderColor: "#E8E2E5", my: 0.5 }} />
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.80)", fontWeight: 700, fontSize: "13px" }}>NET WALLET DEBIT</Typography>
@@ -374,7 +374,7 @@ export const Step2BeneficiaryAmount: React.FC<Step2BeneficiaryAmountProps> = ({
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Wallet After Transfer</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "14px" }}>₹{balanceAfter.toLocaleString()}</Typography>
+              <Typography sx={{ fontWeight: 800, color: "#A20A3A", fontSize: "14px" }}>₹{balanceAfter.toLocaleString()}</Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
@@ -415,7 +415,7 @@ export const Step2BeneficiaryAmount: React.FC<Step2BeneficiaryAmountProps> = ({
               variant="outlined"
               onClick={onBack}
               startIcon={<ArrowBackIcon />}
-              sx={{ height: 38, borderRadius: "8px", fontWeight: 700, fontSize: "12px", color: "rgba(255, 255, 255, 0.8)", borderColor: "rgba(255, 255, 255, 0.2)" }}
+              sx={{ height: 38, borderRadius: "8px", fontWeight: 700, fontSize: "12px", color: "rgba(255, 255, 255, 0.8)", borderColor: "#E8E2E5" }}
             >
               Back to Customer
             </Button>

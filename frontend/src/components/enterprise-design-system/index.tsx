@@ -29,7 +29,7 @@ import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PAY2PAY ENTERPRISE DESIGN SYSTEM SEMANTIC TOKENS (8PX GRID ALIGNED)
+// NEAR4YOU ENTERPRISE DESIGN SYSTEM SEMANTIC TOKENS (8PX GRID ALIGNED)
 // ─────────────────────────────────────────────────────────────────────────────
 export const PAY2PAY_TOKENS = {
   colors: {
@@ -46,12 +46,12 @@ export const PAY2PAY_TOKENS = {
     background: "#F5F7FB",
     surface: "#FFFFFF",
     border: "#E5E7EB",
-    textPrimary: "#111827",
+    textPrimary: "#FAF8F9",
     textSecondary: "#6B7280",
     brandBurgundy: "#7B1E3A",
     brandGold: "#D4AF37",
     brandGoldLight: "#FFF8E8",
-    brandNavy: "#0F2C59",
+    brandNavy: "#A20A3A",
   },
   spacing: {
     xs: "4px",
@@ -68,8 +68,8 @@ export const PAY2PAY_TOKENS = {
     pill: "9999px",
   },
   shadows: {
-    card: "0 4px 20px rgba(15, 23, 42, 0.05)",
-    hover: "0 8px 28px rgba(15, 23, 42, 0.12)",
+    card: "0 4px 20px #FFFFFF",
+    hover: "0 8px 28px #FFFFFF",
     button: "0 4px 14px rgba(29, 78, 216, 0.25)",
   },
   typography: {
@@ -403,15 +403,15 @@ export function StickyFooterBar({
         px: 3,
         display: "flex",
         alignItems: "center",
-        boxShadow: "0 -4px 20px rgba(15, 23, 42, 0.08)",
+        boxShadow: "0 -4px 20px #FFFFFF",
       }}
     >
       <Box sx={{ maxWidth: 1780, width: "100%", mx: "auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", display: { xs: "none", lg: "flex" } }}>
-          <Chip label="F1 Help" size="small" sx={{ height: 22, fontSize: "11px", fontWeight: 700, bgcolor: "#F1F5F9", color: "#475569" }} />
-          <Chip label="Ctrl+K Search" size="small" sx={{ height: 22, fontSize: "11px", fontWeight: 700, bgcolor: "#F1F5F9", color: "#475569" }} />
-          <Chip label="ESC Cancel" size="small" sx={{ height: 22, fontSize: "11px", fontWeight: 700, bgcolor: "#F1F5F9", color: "#475569" }} />
-          <Chip label="F9 Refresh" size="small" sx={{ height: 22, fontSize: "11px", fontWeight: 700, bgcolor: "#F1F5F9", color: "#475569" }} />
+          <Chip label="F1 Help" size="small" sx={{ height: 22, fontSize: "11px", fontWeight: 700, bgcolor: "#292329", color: "#475569" }} />
+          <Chip label="Ctrl+K Search" size="small" sx={{ height: 22, fontSize: "11px", fontWeight: 700, bgcolor: "#292329", color: "#475569" }} />
+          <Chip label="ESC Cancel" size="small" sx={{ height: 22, fontSize: "11px", fontWeight: 700, bgcolor: "#292329", color: "#475569" }} />
+          <Chip label="F9 Refresh" size="small" sx={{ height: 22, fontSize: "11px", fontWeight: 700, bgcolor: "#292329", color: "#475569" }} />
         </Stack>
 
         <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>

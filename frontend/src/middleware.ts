@@ -191,7 +191,7 @@ export function middleware(request: NextRequest) {
 
   // 1. Explicit Public Routes (Always accessible without authentication)
   const host = request.headers.get("host") || "";
-  const isReceiptDomain = host.includes("receipt.pay2pay.in");
+  const isReceiptDomain = host.includes("receipt.near4you.store");
   const isReceiptRoute =
     isReceiptDomain ||
     pathname.startsWith("/r/") ||
@@ -244,10 +244,6 @@ export function middleware(request: NextRequest) {
       return applySecurityHeaders(
         NextResponse.redirect(new URL(portalConfig.dashboard, request.url))
       );
-    }
-    // Single common login application: redirect old specific login routes to /login
-    if (pathname !== "/login") {
-      return applySecurityHeaders(NextResponse.redirect(new URL("/login", request.url)));
     }
     return applySecurityHeaders(NextResponse.next());
   }

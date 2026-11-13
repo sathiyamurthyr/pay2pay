@@ -232,13 +232,13 @@ export default function RetailerDetailsPage() {
         <div className="flex items-center gap-4">
           <Link
             href="/retailers"
-            className="flex items-center justify-center w-10 h-10 rounded-xl border border-[#E2E8F0] bg-white text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-all"
+            className="flex items-center justify-center w-10 h-10 rounded-xl border border-[#E2E8F0] bg-white text-[#475569] hover:bg-[#F8FAFC] hover:text-[#FFFFFF] transition-all"
           >
             <ChevronLeft className="w-5 h-5" />
           </Link>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-extrabold text-[#0F172A] tracking-tight flex items-center gap-2">
+              <h1 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight flex items-center gap-2">
                 <Store className="w-7 h-7 text-[#2563EB]" /> {retailer.store_name}
               </h1>
 
@@ -311,7 +311,7 @@ export default function RetailerDetailsPage() {
           <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-3">
             <div className="flex items-center gap-2">
               <Store className="w-5 h-5 text-[#2563EB]" />
-              <h2 className="text-sm font-extrabold text-[#0F172A] uppercase tracking-wider">
+              <h2 className="text-sm font-extrabold text-[#FFFFFF] uppercase tracking-wider">
                 1. Store Identity & Hierarchy Mapping
               </h2>
             </div>
@@ -333,17 +333,17 @@ export default function RetailerDetailsPage() {
 
             <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1.5">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Business Category</span>
-              <div className="text-sm font-bold text-[#0F172A]">{retailer.business_category}</div>
+              <div className="text-sm font-bold text-[#FFFFFF]">{retailer.business_category}</div>
             </div>
 
             <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1.5">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Store Type</span>
-              <div className="text-sm font-bold text-[#0F172A]">{retailer.store_type}</div>
+              <div className="text-sm font-bold text-[#FFFFFF]">{retailer.store_type}</div>
             </div>
 
             <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1.5">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Registration Date</span>
-              <div className="text-sm font-bold text-[#0F172A]">{new Date(retailer.created_date).toLocaleDateString()}</div>
+              <div className="text-sm font-bold text-[#FFFFFF]">{new Date(retailer.created_date).toLocaleDateString()}</div>
             </div>
           </div>
         </div>
@@ -353,7 +353,7 @@ export default function RetailerDetailsPage() {
           <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-3">
             <div className="flex items-center gap-2">
               <UserCheck className="w-5 h-5 text-[#16A34A]" />
-              <h2 className="text-sm font-extrabold text-[#0F172A] uppercase tracking-wider">
+              <h2 className="text-sm font-extrabold text-[#FFFFFF] uppercase tracking-wider">
                 2. Owner Contact & Physical Outlet Address
               </h2>
             </div>
@@ -362,13 +362,13 @@ export default function RetailerDetailsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
             <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1.5">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Owner Full Name</span>
-              <div className="text-sm font-bold text-[#0F172A]">{retailer.owner_name}</div>
+              <div className="text-sm font-bold text-[#FFFFFF]">{retailer.owner_name}</div>
             </div>
 
             <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1.5">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Mobile Number</span>
               <div className="flex items-center justify-between">
-                <span className="font-mono text-sm font-bold text-[#0F172A]">{mobileVal}</span>
+                <span className="font-mono text-sm font-bold text-[#FFFFFF]">{mobileVal}</span>
                 <button
                   onClick={() => copyToClipboard(mobileVal, "mobile")}
                   className="p-1 text-[#64748B] hover:text-[#2563EB]"
@@ -381,7 +381,7 @@ export default function RetailerDetailsPage() {
             <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1.5">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Corporate Email</span>
               <div className="flex items-center justify-between truncate">
-                <span className="font-bold text-[#0F172A] truncate">{emailVal}</span>
+                <span className="font-bold text-[#FFFFFF] truncate">{emailVal}</span>
                 <button
                   onClick={() => copyToClipboard(emailVal, "email")}
                   className="p-1 text-[#64748B] hover:text-[#2563EB] shrink-0"
@@ -396,7 +396,7 @@ export default function RetailerDetailsPage() {
             <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5 text-[#2563EB]" /> Physical Outlet Address
             </span>
-            <div className="font-bold text-[#0F172A]">
+            <div className="font-bold text-[#FFFFFF]">
               {primaryAddress
                 ? [primaryAddress.address, primaryAddress.city, primaryAddress.state ? `${primaryAddress.state} - ${primaryAddress.pincode || ""}` : primaryAddress.pincode].filter(Boolean).join(", ")
                 : retailer.address
@@ -411,7 +411,7 @@ export default function RetailerDetailsPage() {
           <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-3">
             <div className="flex items-center gap-2">
               <CreditCard className="w-5 h-5 text-[#F59E0B]" />
-              <h2 className="text-sm font-extrabold text-[#0F172A] uppercase tracking-wider">
+              <h2 className="text-sm font-extrabold text-[#FFFFFF] uppercase tracking-wider">
                 3. Settlement Banking & Payout Details
               </h2>
             </div>
@@ -420,12 +420,12 @@ export default function RetailerDetailsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs">
             <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1.5">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Bank Name</span>
-              <div className="font-bold text-[#0F172A]">{bankNameVal}</div>
+              <div className="font-bold text-[#FFFFFF]">{bankNameVal}</div>
             </div>
 
             <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1.5">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Account Holder</span>
-              <div className="font-bold text-[#0F172A]">{primaryBank?.account_holder || retailer.owner_name}</div>
+              <div className="font-bold text-[#FFFFFF]">{primaryBank?.account_holder || retailer.owner_name}</div>
             </div>
 
             <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1.5">
@@ -444,7 +444,7 @@ export default function RetailerDetailsPage() {
             <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1.5">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">IFSC Code</span>
               <div className="flex items-center justify-between">
-                <span className="font-mono text-sm font-bold text-[#0F172A]">{ifscVal}</span>
+                <span className="font-mono text-sm font-bold text-[#FFFFFF]">{ifscVal}</span>
                 <button
                   onClick={() => copyToClipboard(ifscVal, "ifsc")}
                   className="p-1 text-[#64748B] hover:text-[#2563EB]"
@@ -471,7 +471,7 @@ export default function RetailerDetailsPage() {
             <div className="p-4 rounded-xl bg-white border border-[#93C5FD] space-y-1.5">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">PAN Number</span>
               <div className="flex items-center justify-between">
-                <span className="font-mono text-base font-extrabold text-[#0F172A]">{panVal}</span>
+                <span className="font-mono text-base font-extrabold text-[#FFFFFF]">{panVal}</span>
                 <button
                   onClick={() => copyToClipboard(panVal, "pan_number")}
                   className="p-1 text-[#64748B] hover:text-[#2563EB]"
@@ -484,7 +484,7 @@ export default function RetailerDetailsPage() {
             <div className="p-4 rounded-xl bg-white border border-[#93C5FD] space-y-1.5">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">GST Number</span>
               <div className="flex items-center justify-between">
-                <span className="font-mono text-base font-extrabold text-[#0F172A]">{gstVal || "Not Provided"}</span>
+                <span className="font-mono text-base font-extrabold text-[#FFFFFF]">{gstVal || "Not Provided"}</span>
                 {gstVal && (
                   <button
                     onClick={() => copyToClipboard(gstVal, "gst_number")}
@@ -523,7 +523,7 @@ export default function RetailerDetailsPage() {
                     {/* Header */}
                     <div className="p-3 bg-gradient-to-r from-[#F8FAFC] to-[#EFF6FF] border-b border-[#E2E8F0] flex items-center justify-between">
                       <div className="truncate">
-                        <h4 className="text-xs font-black text-[#0F172A] truncate leading-tight">{doc.label}</h4>
+                        <h4 className="text-xs font-black text-[#FFFFFF] truncate leading-tight">{doc.label}</h4>
                         <p className="text-[10px] font-bold text-[#64748B] truncate">{doc.category}</p>
                       </div>
                       <span
@@ -554,7 +554,7 @@ export default function RetailerDetailsPage() {
                         setLightboxZoom(1);
                         setLightboxRotation(0);
                       }}
-                      className={`relative h-36 w-full overflow-hidden flex items-center justify-center select-none ${isUploaded ? "bg-[#0F172A] cursor-pointer" : "bg-[#F8FAFC]"
+                      className={`relative h-36 w-full overflow-hidden flex items-center justify-center select-none ${isUploaded ? "bg-[#FFFFFF] cursor-pointer" : "bg-[#F8FAFC]"
                         }`}
                     >
                       {!isUploaded ? (
@@ -564,24 +564,24 @@ export default function RetailerDetailsPage() {
                           <span className="text-[9px] text-[#94A3B8]">Skipped or Pending</span>
                         </div>
                       ) : isPdf ? (
-                        <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-3 bg-gradient-to-b from-[#1E293B] to-[#0F172A] text-white">
+                        <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-3 bg-gradient-to-b from-[#1E293B] to-[#FFFFFF] text-white">
                           <div className="p-2.5 rounded-2xl bg-red-500/20 border border-red-500/30 text-red-400 group-hover:scale-110 transition-transform">
                             <FileText className="w-7 h-7" />
                           </div>
-                          <span className="text-[11px] font-black text-slate-200">PDF Document</span>
+                          <span className="text-[11px] font-black text-[#292329]">PDF Document</span>
                           <span className="px-2 py-0.5 rounded bg-blue-500/20 text-[9px] font-bold text-blue-300">
                             Click to Inspect
                           </span>
                         </div>
                       ) : isVid ? (
-                        <div className="relative w-full h-full flex items-center justify-center bg-slate-950">
+                        <div className="relative w-full h-full flex items-center justify-center bg-[#FFFFFF]">
                           <video src={doc.url} muted preload="metadata" className="w-full h-full object-cover opacity-70" />
                           <div className="absolute inset-0 flex items-center justify-center">
                             <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                               <ZoomIn className="w-4 h-4" />
                             </div>
                           </div>
-                          <span className="absolute bottom-2 text-[9px] font-bold text-slate-300 bg-black/60 px-2 py-0.5 rounded">
+                          <span className="absolute bottom-2 text-[9px] font-bold text-[#292329] bg-black/60 px-2 py-0.5 rounded">
                             Video Recording
                           </span>
                         </div>
@@ -593,7 +593,7 @@ export default function RetailerDetailsPage() {
                             onError={() => setFailedImages((prev) => ({ ...prev, [doc.id]: true }))}
                             className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
                           />
-                          <div className="absolute inset-0 bg-[#0F172A]/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-white backdrop-blur-[2px]">
+                          <div className="absolute inset-0 bg-[#FFFFFF]/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-white backdrop-blur-[2px]">
                             <div className="p-2 rounded-full bg-[#2563EB] text-white shadow-lg">
                               <ZoomIn className="w-4 h-4" />
                             </div>
@@ -601,13 +601,13 @@ export default function RetailerDetailsPage() {
                           </div>
                         </>
                       ) : (
-                        <div className="w-full h-full p-3 flex flex-col justify-between bg-gradient-to-br from-[#1E293B] to-[#0F172A] text-white">
+                        <div className="w-full h-full p-3 flex flex-col justify-between bg-gradient-to-br from-[#1E293B] to-[#FFFFFF] text-white">
                           <div className="flex items-center justify-between">
                             <ShieldCheck className="w-4 h-4 text-[#60A5FA]" />
                             <span className="text-[9px] font-bold text-emerald-400">UPLOADED</span>
                           </div>
                           <div className="my-auto">
-                            <p className="text-[9px] text-slate-400 uppercase">Document Number</p>
+                            <p className="text-[9px] text-[#625B60] uppercase">Document Number</p>
                             <p className="font-mono text-xs font-bold text-blue-300 truncate">{doc.doc_number || doc.docNumber}</p>
                           </div>
                           <span className="text-[9px] text-blue-400 font-bold flex items-center gap-1">
@@ -623,7 +623,7 @@ export default function RetailerDetailsPage() {
                         <>
                           <button
                             onClick={() => copyToClipboard(doc.url, doc.id)}
-                            className="px-2 py-1.5 rounded-lg border border-[#CBD5E1] bg-white text-[#475569] hover:text-[#0F172A] text-[10px] font-bold flex items-center gap-1 hover:bg-[#F1F5F9] transition-all cursor-pointer"
+                            className="px-2 py-1.5 rounded-lg border border-[#CBD5E1] bg-white text-[#475569] hover:text-[#FFFFFF] text-[10px] font-bold flex items-center gap-1 hover:bg-[#F1F5F9] transition-all cursor-pointer"
                             title="Copy URL"
                           >
                             {copiedField === doc.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
@@ -658,7 +658,7 @@ export default function RetailerDetailsPage() {
           <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-3">
             <div className="flex items-center gap-2">
               <Wallet className="w-5 h-5 text-[#16A34A]" />
-              <h2 className="text-sm font-extrabold text-[#0F172A] uppercase tracking-wider">
+              <h2 className="text-sm font-extrabold text-[#FFFFFF] uppercase tracking-wider">
                 5. Wallet Balances & Operating Limits
               </h2>
             </div>
@@ -674,14 +674,14 @@ export default function RetailerDetailsPage() {
 
             <div className="p-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] space-y-1">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Daily Transaction Limit</span>
-              <div className="font-mono text-lg font-bold text-[#0F172A]">
+              <div className="font-mono text-lg font-bold text-[#FFFFFF]">
                 ₹{wallet?.daily_limit ? wallet.daily_limit.toLocaleString("en-IN") : "5,00,000"}
               </div>
             </div>
 
             <div className="p-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] space-y-1">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Single Transaction Limit</span>
-              <div className="font-mono text-lg font-bold text-[#0F172A]">
+              <div className="font-mono text-lg font-bold text-[#FFFFFF]">
                 ₹{wallet?.single_limit ? wallet.single_limit.toLocaleString("en-IN") : "5,00,000"}
               </div>
             </div>
@@ -693,7 +693,7 @@ export default function RetailerDetailsPage() {
           <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-3">
             <div className="flex items-center gap-2">
               <History className="w-5 h-5 text-[#64748B]" />
-              <h2 className="text-sm font-extrabold text-[#0F172A] uppercase tracking-wider">
+              <h2 className="text-sm font-extrabold text-[#FFFFFF] uppercase tracking-wider">
                 6. Status Audit History
               </h2>
             </div>
@@ -714,7 +714,7 @@ export default function RetailerDetailsPage() {
                 </div>
               ))
             ) : (
-              <div className="p-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-xs font-bold text-[#0F172A]">
+              <div className="p-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-xs font-bold text-[#FFFFFF]">
                 No previous status changes recorded. Profile active.
               </div>
             )}
@@ -737,7 +737,7 @@ export default function RetailerDetailsPage() {
       {/* Document Inspection Lightbox Modal */}
       {previewModalDoc && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#0F172A] border border-[#334155] rounded-3xl w-full max-w-5xl h-[88vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-[#FFFFFF] border border-[#334155] rounded-3xl w-full max-w-5xl h-[88vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             {/* Header */}
             <div className="p-4 border-b border-[#334155] flex items-center justify-between bg-[#1E293B]">
               <div className="flex items-center gap-3">
@@ -756,24 +756,24 @@ export default function RetailerDetailsPage() {
                   <>
                     <button
                       onClick={() => setLightboxZoom((z) => Math.max(0.5, z - 0.25))}
-                      className="p-2 rounded-xl bg-[#0F172A] text-slate-300 hover:text-white transition-all cursor-pointer"
+                      className="p-2 rounded-xl bg-[#FFFFFF] text-[#292329] hover:text-white transition-all cursor-pointer"
                       title="Zoom Out"
                     >
                       <ZoomOut className="w-4 h-4" />
                     </button>
-                    <span className="text-xs font-mono font-bold text-slate-400 min-w-[40px] text-center">
+                    <span className="text-xs font-mono font-bold text-[#625B60] min-w-[40px] text-center">
                       {Math.round(lightboxZoom * 100)}%
                     </span>
                     <button
                       onClick={() => setLightboxZoom((z) => Math.min(3, z + 0.25))}
-                      className="p-2 rounded-xl bg-[#0F172A] text-slate-300 hover:text-white transition-all cursor-pointer"
+                      className="p-2 rounded-xl bg-[#FFFFFF] text-[#292329] hover:text-white transition-all cursor-pointer"
                       title="Zoom In"
                     >
                       <ZoomIn className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setLightboxRotation((r) => (r + 90) % 360)}
-                      className="p-2 rounded-xl bg-[#0F172A] text-slate-300 hover:text-white transition-all cursor-pointer"
+                      className="p-2 rounded-xl bg-[#FFFFFF] text-[#292329] hover:text-white transition-all cursor-pointer"
                       title="Rotate"
                     >
                       <RotateCw className="w-4 h-4" />
@@ -794,7 +794,7 @@ export default function RetailerDetailsPage() {
                   href={previewModalDoc.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="px-3 py-1.5 rounded-xl bg-[#0F172A] text-blue-400 hover:text-blue-300 text-xs font-bold flex items-center gap-1.5 transition-all"
+                  className="px-3 py-1.5 rounded-xl bg-[#FFFFFF] text-blue-400 hover:text-blue-300 text-xs font-bold flex items-center gap-1.5 transition-all"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
                   <span>Direct Link</span>
@@ -802,7 +802,7 @@ export default function RetailerDetailsPage() {
 
                 <button
                   onClick={() => setPreviewModalDoc(null)}
-                  className="p-2 rounded-xl bg-[#0F172A] hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition-all cursor-pointer ml-2"
+                  className="p-2 rounded-xl bg-[#FFFFFF] hover:bg-red-500/20 text-[#625B60] hover:text-red-400 transition-all cursor-pointer ml-2"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -839,10 +839,10 @@ export default function RetailerDetailsPage() {
                   />
                 </div>
               ) : (
-                <div className="p-8 rounded-3xl bg-slate-900 border border-slate-800 text-center text-white space-y-4 max-w-md">
+                <div className="p-8 rounded-3xl bg-[#FAF8F9] border border-[#E8E2E5] text-center text-white space-y-4 max-w-md">
                   <ShieldCheck className="w-12 h-12 text-blue-400 mx-auto" />
                   <h4 className="text-base font-black">{previewModalDoc.label}</h4>
-                  <p className="text-xs text-slate-400 font-mono">Identifier: {previewModalDoc.docNumber}</p>
+                  <p className="text-xs text-[#625B60] font-mono">Identifier: {previewModalDoc.docNumber}</p>
                   <a
                     href={previewModalDoc.url}
                     target="_blank"

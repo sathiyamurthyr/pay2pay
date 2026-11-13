@@ -459,7 +459,7 @@ export function CustomerMasterSlideOver({
         zIndex: 9999,
       }}
       slotProps={{
-        backdrop: { sx: { backgroundColor: "rgba(15, 23, 42, 0.6)", backdropFilter: "blur(6px)", zIndex: 9998 } },
+        backdrop: { sx: { backgroundColor: "#FAF8F9", backdropFilter: "blur(6px)", zIndex: 9998 } },
         paper: {
           sx: {
             width: { xs: "100%", sm: 560 },
@@ -467,7 +467,7 @@ export function CustomerMasterSlideOver({
             display: "flex",
             flexDirection: "column",
             zIndex: 9999,
-            boxShadow: "-8px 0 32px rgba(15, 23, 42, 0.25)",
+            boxShadow: "-8px 0 32px #FFFFFF",
           },
         },
       }}
@@ -477,7 +477,7 @@ export function CustomerMasterSlideOver({
         sx={{
           p: 2.5,
           pt: 3,
-          background: "linear-gradient(135deg, #0F172A 0%, #1E293B 100%)",
+          background: "linear-gradient(135deg, #FFFFFF 0%, #1E293B 100%)",
           color: "#FFFFFF",
           display: "flex",
           alignItems: "center",
@@ -494,7 +494,7 @@ export function CustomerMasterSlideOver({
             <Typography variant="h6" sx={{ fontWeight: 900, fontSize: "1.05rem", letterSpacing: "-0.2px", color: "#FFFFFF", lineHeight: 1.2 }}>
               Customer Onboarding &amp; eKYC
             </Typography>
-            <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, display: "block", mt: 0.3 }}>
+            <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, display: "block", mt: 0.3 }}>
               Enterprise Guided 5-Step Verification
             </Typography>
           </Box>
@@ -545,7 +545,7 @@ export function CustomerMasterSlideOver({
           {STEPS.map((label, idx) => (
             <Step key={label} completed={activeStep > idx}>
               <StepLabel>
-                <Typography variant="caption" sx={{ fontWeight: activeStep === idx ? 900 : 700, fontSize: "0.7rem", color: activeStep === idx ? "#0F172A" : undefined }}>
+                <Typography variant="caption" sx={{ fontWeight: activeStep === idx ? 900 : 700, fontSize: "0.7rem", color: activeStep === idx ? "#FFFFFF" : undefined }}>
                   {label}
                 </Typography>
               </StepLabel>
@@ -566,10 +566,10 @@ export function CustomerMasterSlideOver({
               exit={{ opacity: 0, x: -20 }}
             >
               <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: "1px solid #E2E8F0", backgroundColor: "#FFF" }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 0.5, color: "#0F172A" }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 0.5, color: "#FFFFFF" }}>
                   Customer Registration
                 </Typography>
-                <Typography variant="body2" sx={{ color: "#64748B", mb: 3 }}>
+                <Typography variant="body2" sx={{ color: "#625B60", mb: 3 }}>
                   Enter 10-digit mobile number for real-time customer identification.
                 </Typography>
 
@@ -593,7 +593,7 @@ export function CustomerMasterSlideOver({
                       <Chip
                         label="Checking Service Health..."
                         size="small"
-                        sx={{ bgcolor: "#F1F5F9", color: "#64748B", fontWeight: 800, fontSize: "0.72rem" }}
+                        sx={{ bgcolor: "#292329", color: "#625B60", fontWeight: 800, fontSize: "0.72rem" }}
                       />
                     )}
                   </Box>
@@ -709,31 +709,31 @@ export function CustomerMasterSlideOver({
                         {/* Customer Details: Name, Mobile, Customer ID, KYC Status, Risk Score, Monthly Limit */}
                         <Grid container spacing={1.5} sx={{ mb: 2.5, p: 2, bgcolor: "#FFFFFF", borderRadius: 2.5, border: "1px solid #DCFCE7" }}>
                           <Grid size={{ xs: 6 }}>
-                            <Typography variant="caption" sx={{ color: "#64748B", display: "block", fontWeight: 700 }}>
+                            <Typography variant="caption" sx={{ color: "#625B60", display: "block", fontWeight: 700 }}>
                               Customer Name
                             </Typography>
-                            <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>
+                            <Typography variant="body2" sx={{ fontWeight: 800, color: "#FFFFFF" }}>
                               {duplicateCustomer.full_name || `${duplicateCustomer.first_name || ""} ${duplicateCustomer.last_name || ""}`.trim() || "Existing Customer"}
                             </Typography>
                           </Grid>
                           <Grid size={{ xs: 6 }}>
-                            <Typography variant="caption" sx={{ color: "#64748B", display: "block", fontWeight: 700 }}>
+                            <Typography variant="caption" sx={{ color: "#625B60", display: "block", fontWeight: 700 }}>
                               Mobile Number
                             </Typography>
-                            <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>
+                            <Typography variant="body2" sx={{ fontWeight: 800, color: "#FFFFFF" }}>
                               +91 {duplicateCustomer.mobile_number || mobileNumber}
                             </Typography>
                           </Grid>
                           <Grid size={{ xs: 6 }}>
-                            <Typography variant="caption" sx={{ color: "#64748B", display: "block", fontWeight: 700, mt: 1 }}>
+                            <Typography variant="caption" sx={{ color: "#625B60", display: "block", fontWeight: 700, mt: 1 }}>
                               Customer ID
                             </Typography>
-                            <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>
+                            <Typography variant="body2" sx={{ fontWeight: 800, color: "#FFFFFF" }}>
                               {duplicateCustomer.customer_number || duplicateCustomer.public_id || "N/A"}
                             </Typography>
                           </Grid>
                           <Grid size={{ xs: 6 }}>
-                            <Typography variant="caption" sx={{ color: "#64748B", display: "block", fontWeight: 700, mt: 1 }}>
+                            <Typography variant="caption" sx={{ color: "#625B60", display: "block", fontWeight: 700, mt: 1 }}>
                               KYC Status
                             </Typography>
                             <Chip
@@ -744,7 +744,7 @@ export function CustomerMasterSlideOver({
                             />
                           </Grid>
                           <Grid size={{ xs: 6 }}>
-                            <Typography variant="caption" sx={{ color: "#64748B", display: "block", fontWeight: 700, mt: 1 }}>
+                            <Typography variant="caption" sx={{ color: "#625B60", display: "block", fontWeight: 700, mt: 1 }}>
                               Risk Score
                             </Typography>
                             <Typography variant="body2" sx={{ fontWeight: 800, color: "#15803D" }}>
@@ -752,10 +752,10 @@ export function CustomerMasterSlideOver({
                             </Typography>
                           </Grid>
                           <Grid size={{ xs: 6 }}>
-                            <Typography variant="caption" sx={{ color: "#64748B", display: "block", fontWeight: 700, mt: 1 }}>
+                            <Typography variant="caption" sx={{ color: "#625B60", display: "block", fontWeight: 700, mt: 1 }}>
                               Monthly Limit
                             </Typography>
-                            <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>
+                            <Typography variant="body2" sx={{ fontWeight: 800, color: "#FFFFFF" }}>
                               ₹{(duplicateCustomer.monthly_limit || 200000).toLocaleString('en-IN')}
                             </Typography>
                           </Grid>
@@ -794,8 +794,8 @@ export function CustomerMasterSlideOver({
                     <Box sx={{ pt: 1 }}>
                       {mobileNumber.length === 10 && (
                         <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 2 }}>
-                          <Chip label="No customer found" size="small" sx={{ bgcolor: "#F1F5F9", color: "#475569", fontWeight: 800 }} />
-                          <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#0F172A" }}>
+                          <Chip label="No customer found" size="small" sx={{ bgcolor: "#292329", color: "#475569", fontWeight: 800 }} />
+                          <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#FFFFFF" }}>
                             Add New Customer
                           </Typography>
                         </Stack>
@@ -841,7 +841,7 @@ export function CustomerMasterSlideOver({
                             variant="contained"
                             loading={step1Loading}
                             disabled={!isStep1Valid}
-                            sx={{ py: 1.5, fontSize: "0.95rem", bgcolor: isStep1Valid ? "#0F172A" : "#94A3B8" }}
+                            sx={{ py: 1.5, fontSize: "0.95rem", bgcolor: isStep1Valid ? "#FFFFFF" : "#94A3B8" }}
                           >
                             Send Mobile OTP & Proceed →
                           </M3Button>
@@ -864,10 +864,10 @@ export function CustomerMasterSlideOver({
               exit={{ opacity: 0, x: -20 }}
             >
               <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: "1px solid #E2E8F0", backgroundColor: "#FFF" }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 0.5, color: "#0F172A" }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 0.5, color: "#FFFFFF" }}>
                   Step 2 — Mobile OTP Verification
                 </Typography>
-                <Typography variant="body2" sx={{ color: "#64748B", mb: 2 }}>
+                <Typography variant="body2" sx={{ color: "#625B60", mb: 2 }}>
                   Sent 6-digit OTP code to <strong>+91 {mobileNumber}</strong> via <strong>{otpChannel}</strong>.
                 </Typography>
 
@@ -887,7 +887,7 @@ export function CustomerMasterSlideOver({
                 </Stack>
 
                 {/* WebOTP / Mobile Auto-read Status Badge */}
-                <Box sx={{ mb: 2.5, p: 1.5, borderRadius: 2.5, bgcolor: "#F8FAFC", border: "1px solid #E2E8F0" }}>
+                <Box sx={{ mb: 2.5, p: 1.5, borderRadius: 2.5, bgcolor: "#292329", border: "1px solid #E2E8F0" }}>
                   <Typography variant="caption" sx={{ color: "#0284C7", fontWeight: 800 }}>
                     {autoReadStatus}
                   </Typography>
@@ -912,7 +912,7 @@ export function CustomerMasterSlideOver({
                     />
 
                     <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                      <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>
+                      <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700 }}>
                         Attempts left: {otpAttemptsLeft}/3
                       </Typography>
 
@@ -943,13 +943,13 @@ export function CustomerMasterSlideOver({
                           borderColor: "#CBD5E1",
                           borderRadius: 3,
                           textTransform: "none",
-                          "&:hover": { borderColor: "#0F172A", bgcolor: "#F8FAFC" }
+                          "&:hover": { borderColor: "#FFFFFF", bgcolor: "#292329" }
                         }}
                       >
                         ← Back
                       </Button>
 
-                      <M3Button type="submit" variant="contained" loading={step2Loading} disabled={mobileOtp.length < 4} sx={{ flex: 1, bgcolor: "#0F172A", py: 1.5, fontSize: "0.95rem" }}>
+                      <M3Button type="submit" variant="contained" loading={step2Loading} disabled={mobileOtp.length < 4} sx={{ flex: 1, bgcolor: "#FFFFFF", py: 1.5, fontSize: "0.95rem" }}>
                         Verify OTP & Continue →
                       </M3Button>
                     </Stack>
@@ -970,11 +970,11 @@ export function CustomerMasterSlideOver({
               <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: "1px solid #E2E8F0", backgroundColor: "#FFF" }}>
                 <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
                   <ShieldIcon sx={{ color: "#2563EB" }} />
-                  <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#0F172A" }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#FFFFFF" }}>
                     Step 3 — Aadhaar eKYC Verification
                   </Typography>
                 </Stack>
-                <Typography variant="body2" sx={{ color: "#64748B", mb: 3 }}>
+                <Typography variant="body2" sx={{ color: "#625B60", mb: 3 }}>
                   Official UIDAI Aadhaar OTP verification via Government eKYC Gateway.
                 </Typography>
 
@@ -1007,7 +1007,7 @@ export function CustomerMasterSlideOver({
                           borderColor: "#CBD5E1",
                           borderRadius: 3,
                           textTransform: "none",
-                          "&:hover": { borderColor: "#0F172A", bgcolor: "#F8FAFC" }
+                          "&:hover": { borderColor: "#FFFFFF", bgcolor: "#292329" }
                         }}
                       >
                         ← Back
@@ -1018,7 +1018,7 @@ export function CustomerMasterSlideOver({
                         loading={step3Loading}
                         disabled={aadhaarNumber.length !== 12}
                         onClick={handleGenerateAadhaarOtp}
-                        sx={{ flex: 1, bgcolor: "#0F172A", py: 1.5, fontSize: "0.95rem" }}
+                        sx={{ flex: 1, bgcolor: "#FFFFFF", py: 1.5, fontSize: "0.95rem" }}
                       >
                         Generate Aadhaar OTP →
                       </M3Button>
@@ -1053,13 +1053,13 @@ export function CustomerMasterSlideOver({
                             borderColor: "#CBD5E1",
                             borderRadius: 3,
                             textTransform: "none",
-                            "&:hover": { borderColor: "#0F172A", bgcolor: "#F8FAFC" }
+                            "&:hover": { borderColor: "#FFFFFF", bgcolor: "#292329" }
                           }}
                         >
                           ← Back
                         </Button>
 
-                        <M3Button type="submit" variant="contained" loading={step3Loading} disabled={aadhaarOtp.length < 4} sx={{ flex: 1, bgcolor: "#0F172A", py: 1.5, fontSize: "0.95rem" }}>
+                        <M3Button type="submit" variant="contained" loading={step3Loading} disabled={aadhaarOtp.length < 4} sx={{ flex: 1, bgcolor: "#FFFFFF", py: 1.5, fontSize: "0.95rem" }}>
                           Verify Aadhaar eKYC →
                         </M3Button>
                       </Stack>
@@ -1080,8 +1080,8 @@ export function CustomerMasterSlideOver({
             >
               <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: "1px solid #E2E8F0", backgroundColor: "#FFF" }}>
                 <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
-                  <LockIcon sx={{ color: "#0F172A" }} />
-                  <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#0F172A" }}>
+                  <LockIcon sx={{ color: "#FFFFFF" }} />
+                  <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#FFFFFF" }}>
                     Step 4 — Set Transaction Security PIN
                   </Typography>
                 </Stack>
@@ -1165,13 +1165,13 @@ export function CustomerMasterSlideOver({
                           borderColor: "#CBD5E1",
                           borderRadius: 3,
                           textTransform: "none",
-                          "&:hover": { borderColor: "#0F172A", bgcolor: "#F8FAFC" }
+                          "&:hover": { borderColor: "#FFFFFF", bgcolor: "#292329" }
                         }}
                       >
                         ← Back
                       </Button>
 
-                      <M3Button type="submit" variant="contained" loading={step4Loading} disabled={pin.length < 4} sx={{ flex: 1, bgcolor: "#0F172A", py: 1.5, fontSize: "0.95rem" }}>
+                      <M3Button type="submit" variant="contained" loading={step4Loading} disabled={pin.length < 4} sx={{ flex: 1, bgcolor: "#FFFFFF", py: 1.5, fontSize: "0.95rem" }}>
                         Save PIN & Finalize Customer →
                       </M3Button>
                     </Stack>

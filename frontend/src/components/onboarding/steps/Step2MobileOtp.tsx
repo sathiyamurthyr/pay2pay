@@ -160,7 +160,7 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
           <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
             This mobile number is already registered.
           </h2>
-          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto">
+          <p className="text-xs font-semibold text-[#8A8288] dark:text-[#625B60] mt-2 max-w-sm mx-auto">
             Your registration is already completed. Please login to continue accessing your retailer portal.
           </p>
         </div>
@@ -169,7 +169,7 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
           <p className="text-xs font-extrabold text-blue-600 dark:text-blue-400">
             Registered Mobile: +91 {mobileNumber}
           </p>
-          <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+          <p className="text-[11px] font-semibold text-slate-600 dark:text-[#292329]">
             Account Status: Active & Fully Onboarded
           </p>
         </div>
@@ -177,7 +177,7 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
         <button
           type="button"
           onClick={() => router.push("/login")}
-          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 cursor-pointer"
+          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#A20A3A] to-[#85072F] text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 cursor-pointer"
         >
           <LogIn className="w-4 h-4" />
           <span>Go to Login</span>
@@ -198,18 +198,18 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
           <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
             Welcome Back!
           </h2>
-          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto">
+          <p className="text-xs font-semibold text-[#8A8288] dark:text-[#625B60] mt-2 max-w-sm mx-auto">
             {resumeState.message || "Let's continue your registration."}
           </p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-left space-y-1.5">
+        <div className="p-4 rounded-2xl bg-slate-100 dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5] text-left space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Mobile Number:</span>
+            <span className="text-xs font-bold text-[#8A8288] dark:text-[#625B60]">Mobile Number:</span>
             <span className="text-xs font-black text-slate-900 dark:text-white">+91 {mobileNumber}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Current Step:</span>
+            <span className="text-xs font-bold text-[#8A8288] dark:text-[#625B60]">Current Step:</span>
             <span className="text-xs font-black text-blue-600 dark:text-blue-400">Step {resumeState.currentStep}</span>
           </div>
         </div>
@@ -223,7 +223,7 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
               onSuccess(undefined, resumeState.currentStep);
             }
           }}
-          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 cursor-pointer"
+          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#A20A3A] to-[#85072F] text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 cursor-pointer"
         >
           <span>Continue Registration</span>
           <ArrowRight className="w-4 h-4" />
@@ -238,7 +238,7 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
         <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
           Verify Mobile Number
         </h2>
-        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
+        <p className="text-xs font-semibold text-[#8A8288] dark:text-[#625B60] mt-1">
           OTP dispatched to{" "}
           <span className="font-extrabold text-blue-600 dark:text-blue-400">
             +91 {mobileNumber || "xxxxxxxxxx"}
@@ -288,7 +288,7 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
       <form onSubmit={handleVerify} className="space-y-4">
         {/* 6-Digit OTP Box Matrix */}
         <div>
-          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 text-center">
+          <label className="block text-xs font-bold text-slate-700 dark:text-[#292329] mb-2 text-center">
             Enter 6-Digit OTP <span className="text-red-500">*</span>
           </label>
           <div className="flex items-center justify-center gap-2" onPaste={handlePaste}>
@@ -305,7 +305,7 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
                 className={`text-center text-xl font-black rounded-xl border-2 transition-all focus:outline-none
                   ${digit
                     ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300"
-                    : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white"
+                    : "border-slate-200 dark:border-[#E8E2E5] bg-slate-50 dark:bg-[#FFFFFF] text-slate-900 dark:text-white"
                   }
                   focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20`}
                 style={{ width: 44, height: 52 }}
@@ -315,7 +315,7 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
         </div>
 
         {/* Attempts & Resend */}
-        <div className="flex items-center justify-between text-xs font-bold text-slate-500">
+        <div className="flex items-center justify-between text-xs font-bold text-[#8A8288]">
           <span>
             Attempts:{" "}
             <strong className="text-amber-500">{attemptsLeft}/5</strong>
@@ -340,7 +340,7 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
         <button
           type="submit"
           disabled={loading || otpValue.length !== 6}
-          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#A20A3A] to-[#85072F] text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
         >
           {loading ? (
             <>

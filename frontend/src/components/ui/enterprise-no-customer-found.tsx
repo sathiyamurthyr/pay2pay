@@ -207,13 +207,13 @@ export function EnterpriseNoCustomerFound({
                 <h2 className="text-xl font-black text-slate-900 tracking-tight">
                   No customer found
                 </h2>
-                <p className="text-sm text-slate-500 leading-relaxed">
+                <p className="text-sm text-[#8A8288] leading-relaxed">
                   We couldn&apos;t find a customer matching this mobile number in your tenant and company.
                 </p>
 
                 {searchQuery.trim() && (
                   <div className="mt-3 inline-flex flex-col items-center gap-1 bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 mx-auto">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[#625B60]">
                       Search Mobile Number
                     </span>
                     <span className="text-lg font-black font-mono text-slate-900 tracking-wider">
@@ -275,7 +275,7 @@ export function EnterpriseNoCustomerFound({
                 className={`relative overflow-hidden w-full max-w-sm flex items-center justify-center gap-3 px-8 py-4 rounded-2xl text-sm font-black transition-all ${
                   isCtaEnabled
                     ? "bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/30 cursor-pointer"
-                    : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+                    : "bg-slate-200 text-[#625B60] cursor-not-allowed shadow-none"
                 }`}
               >
                 {rippling && (
@@ -294,13 +294,13 @@ export function EnterpriseNoCustomerFound({
                     isCtaEnabled ? "bg-white/20" : "bg-slate-300"
                   }`}
                 >
-                  <Plus className={`w-4 h-4 ${isCtaEnabled ? "text-white" : "text-slate-400"}`} />
+                  <Plus className={`w-4 h-4 ${isCtaEnabled ? "text-white" : "text-[#625B60]"}`} />
                 </motion.div>
 
                 <span>Add New Customer</span>
               </motion.button>
 
-              <p className="text-xs text-slate-500 text-center font-medium">
+              <p className="text-xs text-[#8A8288] text-center font-medium">
                 {isCtaEnabled
                   ? "Create a new customer and continue the transaction."
                   : "Enter a valid 10-digit mobile number to enable registration."}
@@ -382,21 +382,21 @@ export function EnterpriseNoCustomerFound({
 
                 <div className="space-y-2 text-[11px]">
                   <div className="flex items-center justify-between bg-white/70 rounded-xl px-3 py-2 border border-blue-100">
-                    <span className="text-slate-500 font-semibold flex items-center gap-1.5">
+                    <span className="text-[#8A8288] font-semibold flex items-center gap-1.5">
                       <Building2 className="w-3 h-3 text-blue-500" /> Tenant
                     </span>
-                    <span className="font-black text-slate-900 font-mono">PAY2PAY-PROD</span>
+                    <span className="font-black text-slate-900 font-mono">NEAR4YOU-PROD</span>
                   </div>
 
                   <div className="flex items-center justify-between bg-white/70 rounded-xl px-3 py-2 border border-blue-100">
-                    <span className="text-slate-500 font-semibold flex items-center gap-1.5">
+                    <span className="text-[#8A8288] font-semibold flex items-center gap-1.5">
                       <Users className="w-3 h-3 text-indigo-500" /> Company
                     </span>
                     <span className="font-black text-slate-900 font-mono">RetailCo Ltd</span>
                   </div>
 
                   <div className="flex items-center justify-between bg-white/70 rounded-xl px-3 py-2 border border-blue-100">
-                    <span className="text-slate-500 font-semibold flex items-center gap-1.5">
+                    <span className="text-[#8A8288] font-semibold flex items-center gap-1.5">
                       <ShieldCheck className="w-3 h-3 text-emerald-500" /> Workspace
                     </span>
                     <span className="font-black text-slate-900 font-mono">DEL-RT-9082</span>

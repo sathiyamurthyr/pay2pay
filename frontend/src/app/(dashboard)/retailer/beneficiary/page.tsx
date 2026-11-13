@@ -745,12 +745,12 @@ function BeneficiaryWorkspaceContent() {
   // ─── RENDER ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#080B11] text-slate-100 font-sans pb-36 transition-colors">
+    <div className="min-h-screen bg-[#FFFFFF] text-[#292329] font-sans pb-36 transition-colors">
 
       {/* ─────────────────────────────────────────────────────────────────────
-          1. STICKY TOP APP BAR (Pay2Pay Enterprise Luxury Glassmorphism)
+          1. STICKY TOP APP BAR (Near4You Enterprise Luxury Glassmorphism)
       ───────────────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 bg-[#080B11]/90 backdrop-blur-2xl border-b border-amber-500/20 shadow-2xl">
+      <header className="sticky top-0 z-40 bg-[#FFFFFF]/90 backdrop-blur-2xl border-b border-amber-500/20 shadow-2xl">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
           
           {/* Left: Hamburger & Gold Dashboard Title */}
@@ -785,7 +785,7 @@ function BeneficiaryWorkspaceContent() {
               onClick={handleRefresh}
               aria-label="Refresh Data"
               disabled={isRefreshing}
-              className="p-2 rounded-xl text-slate-300 hover:text-amber-400 hover:bg-amber-500/10 transition-all min-h-[40px] min-w-[40px] flex items-center justify-center border border-slate-800"
+              className="p-2 rounded-xl text-[#292329] hover:text-amber-400 hover:bg-amber-500/10 transition-all min-h-[40px] min-w-[40px] flex items-center justify-center border border-[#E8E2E5]"
             >
               <RotateCw className={`w-4 h-4 ${isRefreshing ? "animate-spin text-amber-400" : ""}`} />
             </button>
@@ -794,7 +794,7 @@ function BeneficiaryWorkspaceContent() {
             <button
               onClick={() => router.push("/retailer/notifications")}
               aria-label="View Notifications"
-              className="p-2 rounded-xl text-slate-300 hover:text-amber-400 hover:bg-amber-500/10 transition-all min-h-[40px] min-w-[40px] flex items-center justify-center border border-slate-800 relative"
+              className="p-2 rounded-xl text-[#292329] hover:text-amber-400 hover:bg-amber-500/10 transition-all min-h-[40px] min-w-[40px] flex items-center justify-center border border-[#E8E2E5] relative"
             >
               <Bell className="w-4 h-4" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.8)]" />
@@ -805,7 +805,7 @@ function BeneficiaryWorkspaceContent() {
               onClick={() => router.push("/retailer/profile")}
               className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 p-[2px] cursor-pointer shadow-md shadow-amber-500/20 shrink-0"
             >
-              <div className="w-full h-full rounded-full bg-[#0F172A] flex items-center justify-center font-black text-xs text-amber-300">
+              <div className="w-full h-full rounded-full bg-[#FFFFFF] flex items-center justify-center font-black text-xs text-amber-300">
                 {(activeCustomerName || "S").charAt(0).toUpperCase()}
               </div>
             </div>
@@ -816,7 +816,7 @@ function BeneficiaryWorkspaceContent() {
       {/* ─────────────────────────────────────────────────────────────────────
           2. COMPACT ADD BENEFICIARY NAVIGATION BAR
       ───────────────────────────────────────────────────────────────────── */}
-      <div className="bg-[#0B0F19]/80 backdrop-blur-xl border-b border-amber-500/15 sticky top-16 z-30 shadow-md">
+      <div className="bg-[#FFFFFF]/80 backdrop-blur-xl border-b border-amber-500/15 sticky top-16 z-30 shadow-md">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-13 flex items-center justify-between gap-3 py-2">
           
           {/* Back Arrow & Add Beneficiary Title */}
@@ -824,7 +824,7 @@ function BeneficiaryWorkspaceContent() {
             <button
               onClick={handleCancel}
               aria-label="Back"
-              className="p-1.5 rounded-xl text-slate-300 hover:text-amber-400 hover:bg-amber-500/10 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center border border-slate-800"
+              className="p-1.5 rounded-xl text-[#292329] hover:text-amber-400 hover:bg-amber-500/10 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center border border-[#E8E2E5]"
             >
               <ArrowLeft className="w-5 h-5 stroke-[2.5]" />
             </button>
@@ -850,7 +850,7 @@ function BeneficiaryWorkspaceContent() {
             <button
               onClick={handleCancel}
               aria-label="Close"
-              className="p-1.5 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors min-h-[38px] min-w-[38px] flex items-center justify-center border border-slate-800"
+              className="p-1.5 rounded-xl text-[#625B60] hover:text-rose-400 hover:bg-rose-500/10 transition-colors min-h-[38px] min-w-[38px] flex items-center justify-center border border-[#E8E2E5]"
             >
               <CloseIcon fontSize="small" />
             </button>
@@ -868,7 +868,7 @@ function BeneficiaryWorkspaceContent() {
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25 }}
-          className="w-full rounded-[24px] bg-gradient-to-br from-[#0B0F19]/90 to-[#0F172A]/90 border border-amber-500/25 p-5 sm:p-6 shadow-2xl backdrop-blur-2xl relative overflow-hidden shrink-0"
+          className="w-full rounded-[24px] bg-gradient-to-br from-[#FFFFFF]/90 to-[#FFFFFF]/90 border border-amber-500/25 p-5 sm:p-6 shadow-2xl backdrop-blur-2xl relative overflow-hidden shrink-0"
         >
           {/* Top Gold Glow Sheen Line */}
           <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-amber-400/80 to-transparent" />
@@ -886,14 +886,14 @@ function BeneficiaryWorkspaceContent() {
                   Beneficiary Registration
                 </h2>
               </div>
-              <p className="text-xs sm:text-sm font-medium text-slate-300">
+              <p className="text-xs sm:text-sm font-medium text-[#292329]">
                 Step {activeStep + 1} of {STEPS.length}: {STEPS[activeStep]?.label} • Verify bank account instantly via Penny Drop.
               </p>
             </div>
 
             {/* Right Customer Badge Pill (Desktop/Tablet) */}
             {(activeCustomerName || activeCustomerMobile) && (
-              <div className="shrink-0 hidden sm:flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-[#0B0F19]/80 backdrop-blur-md border border-amber-500/25 shadow-md">
+              <div className="shrink-0 hidden sm:flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-[#FFFFFF]/80 backdrop-blur-md border border-amber-500/25 shadow-md">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 font-black text-xs flex items-center justify-center shadow-xs">
                   {(activeCustomerName || "C").charAt(0).toUpperCase()}
                 </div>
@@ -901,7 +901,7 @@ function BeneficiaryWorkspaceContent() {
                   <div className="text-xs font-black text-amber-300 leading-tight">
                     {activeCustomerName}
                   </div>
-                  <div className="text-[11px] font-mono text-slate-400">
+                  <div className="text-[11px] font-mono text-[#625B60]">
                     {activeCustomerMobile} {activeCustomerId ? `• ${activeCustomerId}` : ""}
                   </div>
                 </div>
@@ -915,14 +915,14 @@ function BeneficiaryWorkspaceContent() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, delay: 0.05 }}
-          className="rounded-[20px] bg-[#0B0F19]/80 backdrop-blur-2xl border border-amber-500/20 p-4 sm:p-5 shadow-xl"
+          className="rounded-[20px] bg-[#FFFFFF]/80 backdrop-blur-2xl border border-amber-500/20 p-4 sm:p-5 shadow-xl"
         >
           <div className="flex items-center justify-between mb-2">
             <span className="text-[11px] font-black uppercase tracking-wider text-amber-400">
               PROGRESS
             </span>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-400">Completion</span>
+              <span className="text-xs font-bold text-[#625B60]">Completion</span>
               <span className="text-xs font-black bg-gradient-to-r from-amber-300 to-amber-500 bg-clip-text text-transparent">
                 {completionPct}%
               </span>
@@ -930,7 +930,7 @@ function BeneficiaryWorkspaceContent() {
           </div>
 
           {/* Smooth Animated Gold-Yellow Progress Bar */}
-          <div className="w-full h-2 rounded-full bg-slate-900 overflow-hidden border border-slate-800 mb-4">
+          <div className="w-full h-2 rounded-full bg-[#FAF8F9] overflow-hidden border border-[#E8E2E5] mb-4">
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${completionPct}%` }}
@@ -952,7 +952,7 @@ function BeneficiaryWorkspaceContent() {
                       ? "bg-amber-500/10 border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.15)]"
                       : isDone
                       ? "bg-emerald-500/10 border-emerald-500/30"
-                      : "bg-slate-900/40 border-slate-800/60 opacity-60"
+                      : "bg-[#FAF8F9]/40 border-[#E8E2E5]/60 opacity-60"
                   }`}
                 >
                   <div
@@ -961,13 +961,13 @@ function BeneficiaryWorkspaceContent() {
                         ? "bg-emerald-500 text-slate-950 shadow-xs"
                         : isCurrent
                         ? "bg-gradient-to-br from-amber-300 to-amber-500 text-slate-950 shadow-md shadow-amber-500/30"
-                        : "bg-slate-800 text-slate-400 border border-slate-700"
+                        : "bg-[#F5F2F4] text-[#625B60] border border-[#E8E2E5]"
                     }`}
                   >
                     {isDone ? <Check className="w-4 h-4 stroke-[3]" /> : idx + 1}
                   </div>
                   <div className="min-w-0">
-                    <div className={`text-xs font-black truncate ${isCurrent ? "text-amber-300" : isDone ? "text-emerald-300" : "text-slate-400"}`}>
+                    <div className={`text-xs font-black truncate ${isCurrent ? "text-amber-300" : isDone ? "text-emerald-300" : "text-[#625B60]"}`}>
                       {s.label}
                     </div>
                     {isCurrent && (
@@ -992,14 +992,14 @@ function BeneficiaryWorkspaceContent() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.25, delay: 0.1 }}
-                className="rounded-[20px] bg-[#0B0F19]/80 backdrop-blur-2xl border border-amber-500/20 p-4 sm:p-5 shadow-xl"
+                className="rounded-[20px] bg-[#FFFFFF]/80 backdrop-blur-2xl border border-amber-500/20 p-4 sm:p-5 shadow-xl"
               >
                 <div className="text-[11px] font-black uppercase tracking-wider text-amber-400 mb-3">
                   CUSTOMER
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 via-yellow-400 to-amber-600 p-[2px] shrink-0 shadow-lg shadow-amber-500/20">
-                    <div className="w-full h-full rounded-full bg-[#0F172A] flex items-center justify-center font-black text-base text-amber-300">
+                    <div className="w-full h-full rounded-full bg-[#FFFFFF] flex items-center justify-center font-black text-base text-amber-300">
                       {(activeCustomerName || "S").charAt(0).toUpperCase()}
                     </div>
                   </div>
@@ -1007,7 +1007,7 @@ function BeneficiaryWorkspaceContent() {
                     <h3 className="text-sm sm:text-base font-black truncate bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 bg-clip-text text-transparent">
                       {activeCustomerName}
                     </h3>
-                    <div className="text-xs font-mono font-bold text-slate-300">
+                    <div className="text-xs font-mono font-bold text-[#292329]">
                       {activeCustomerMobile}
                     </div>
                     <div className="text-[11px] font-mono text-amber-400/80">
@@ -1022,7 +1022,7 @@ function BeneficiaryWorkspaceContent() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.25, delay: 0.15 }}
-                className="rounded-[20px] bg-[#0B0F19]/80 backdrop-blur-2xl border border-amber-500/20 p-4 sm:p-5 shadow-xl"
+                className="rounded-[20px] bg-[#FFFFFF]/80 backdrop-blur-2xl border border-amber-500/20 p-4 sm:p-5 shadow-xl"
               >
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <div>
@@ -1051,7 +1051,7 @@ function BeneficiaryWorkspaceContent() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.25, delay: 0.2 }}
-                className="rounded-[20px] bg-[#0B0F19]/80 backdrop-blur-2xl border border-amber-500/20 p-4 sm:p-5 shadow-xl"
+                className="rounded-[20px] bg-[#FFFFFF]/80 backdrop-blur-2xl border border-amber-500/20 p-4 sm:p-5 shadow-xl"
               >
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-1.5">
@@ -1068,13 +1068,13 @@ function BeneficiaryWorkspaceContent() {
                 <div className="text-2xl sm:text-3xl font-black bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 bg-clip-text text-transparent my-1">
                   ₹{walletBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </div>
-                <div className="text-xs font-bold text-slate-400">
+                <div className="text-xs font-bold text-[#625B60]">
                   Available Balance
                 </div>
               </motion.div>
 
               {/* ── HOW IT WORKS CARD ── */}
-              <div className="rounded-[20px] bg-[#0B0F19]/60 backdrop-blur-xl border border-slate-800 p-4 shadow-lg hidden md:block">
+              <div className="rounded-[20px] bg-[#FFFFFF]/60 backdrop-blur-xl border border-[#E8E2E5] p-4 shadow-lg hidden md:block">
                 <div className="text-[11px] font-black uppercase tracking-wider text-amber-400 mb-2 flex items-center gap-1.5">
                   <HelpCircle className="w-3.5 h-3.5" />
                   <span>How It Works</span>
@@ -1087,7 +1087,7 @@ function BeneficiaryWorkspaceContent() {
                     "Official bank name auto-updated",
                     "Beneficiary saved for all future transfers",
                   ].map((txt, i) => (
-                    <div key={i} className="text-xs text-slate-300 flex items-start gap-1.5">
+                    <div key={i} className="text-xs text-[#292329] flex items-start gap-1.5">
                       <span className="font-black text-amber-400 shrink-0">{i + 1}.</span>
                       <span>{txt}</span>
                     </div>
@@ -1115,8 +1115,8 @@ function BeneficiaryWorkspaceContent() {
                   <form onSubmit={handleStep1Submit} className="space-y-4">
 
                     {/* ── BENEFICIARY DETAILS CARD ── */}
-                    <div className="rounded-[20px] bg-[#0B0F19]/80 backdrop-blur-2xl border border-amber-500/20 p-5 sm:p-6 shadow-xl space-y-4">
-                      <div className="flex items-center gap-2.5 pb-2 border-b border-slate-800">
+                    <div className="rounded-[20px] bg-[#FFFFFF]/80 backdrop-blur-2xl border border-amber-500/20 p-5 sm:p-6 shadow-xl space-y-4">
+                      <div className="flex items-center gap-2.5 pb-2 border-b border-[#E8E2E5]">
                         <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300">
                           <PersonIcon sx={{ fontSize: 18 }} />
                         </div>
@@ -1124,7 +1124,7 @@ function BeneficiaryWorkspaceContent() {
                           <h3 className="text-sm sm:text-base font-black text-white">
                             Beneficiary Details
                           </h3>
-                          <p className="text-xs text-slate-400 font-medium">
+                          <p className="text-xs text-[#625B60] font-medium">
                             Name will be replaced with official bank registered name after verification
                           </p>
                         </div>
@@ -1139,9 +1139,9 @@ function BeneficiaryWorkspaceContent() {
                             required
                             helperText="As per sender's knowledge"
                             sx={{
-                              "& .MuiInputBase-root": { bgcolor: "#0F172A", color: "#FFFFFF", borderRadius: 2.5, border: "1px solid #1E293B" },
-                              "& .MuiInputLabel-root": { color: "#94A3B8" },
-                              "& .MuiFormHelperText-root": { color: "#64748B" },
+                              "& .MuiInputBase-root": { bgcolor: "#FFFFFF", color: "#FFFFFF", borderRadius: 2.5, border: "1px solid #1E293B" },
+                              "& .MuiInputLabel-root": { color: "#625B60" },
+                              "& .MuiFormHelperText-root": { color: "#625B60" },
                             }}
                           />
                         </div>
@@ -1153,18 +1153,18 @@ function BeneficiaryWorkspaceContent() {
                             onChange={e => setNickName(e.target.value)}
                             helperText="e.g. Mom's SBI Account"
                             sx={{
-                              "& .MuiInputBase-root": { bgcolor: "#0F172A", color: "#FFFFFF", borderRadius: 2.5, border: "1px solid #1E293B" },
-                              "& .MuiInputLabel-root": { color: "#94A3B8" },
-                              "& .MuiFormHelperText-root": { color: "#64748B" },
+                              "& .MuiInputBase-root": { bgcolor: "#FFFFFF", color: "#FFFFFF", borderRadius: 2.5, border: "1px solid #1E293B" },
+                              "& .MuiInputLabel-root": { color: "#625B60" },
+                              "& .MuiFormHelperText-root": { color: "#625B60" },
                             }}
                           />
                         </div>
 
                         <div className="sm:col-span-2">
                           <FormControl fullWidth size="small" sx={{
-                            "& .MuiInputBase-root": { bgcolor: "#0F172A", color: "#FFFFFF", borderRadius: 2.5, border: "1px solid #1E293B" },
-                            "& .MuiInputLabel-root": { color: "#94A3B8" },
-                            "& .MuiSvgIcon-root": { color: "#FBBF24" },
+                            "& .MuiInputBase-root": { bgcolor: "#FFFFFF", color: "#FFFFFF", borderRadius: 2.5, border: "1px solid #1E293B" },
+                            "& .MuiInputLabel-root": { color: "#625B60" },
+                            "& .MuiSvgIcon-root": { color: "#A20A3A" },
                           }}>
                             <InputLabel id="rel-label">Relationship *</InputLabel>
                             <Select
@@ -1176,7 +1176,7 @@ function BeneficiaryWorkspaceContent() {
                               MenuProps={{
                                 slotProps: {
                                   paper: {
-                                    style: { backgroundColor: "#0F172A", color: "#FFFFFF", border: "1px solid #334155" }
+                                    style: { backgroundColor: "#FFFFFF", color: "#FFFFFF", border: "1px solid #334155" }
                                   }
                                 }
                               }}
@@ -1193,8 +1193,8 @@ function BeneficiaryWorkspaceContent() {
                     </div>
 
                     {/* ── ACCOUNT DETAILS CARD ── */}
-                    <div className="rounded-[20px] bg-[#0B0F19]/80 backdrop-blur-2xl border border-amber-500/20 p-5 sm:p-6 shadow-xl space-y-4">
-                      <div className="flex items-center gap-2.5 pb-2 border-b border-slate-800">
+                    <div className="rounded-[20px] bg-[#FFFFFF]/80 backdrop-blur-2xl border border-amber-500/20 p-5 sm:p-6 shadow-xl space-y-4">
+                      <div className="flex items-center gap-2.5 pb-2 border-b border-[#E8E2E5]">
                         <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300">
                           <AccountBalanceIcon sx={{ fontSize: 18 }} />
                         </div>
@@ -1202,7 +1202,7 @@ function BeneficiaryWorkspaceContent() {
                           <h3 className="text-sm sm:text-base font-black text-white">
                             Account Details
                           </h3>
-                          <p className="text-xs text-slate-400 font-medium">
+                          <p className="text-xs text-[#625B60] font-medium">
                             Enter and confirm bank account number precisely
                           </p>
                         </div>
@@ -1229,8 +1229,8 @@ function BeneficiaryWorkspaceContent() {
                                 : `${accNum.length} / 18 digits ✓ Valid length`
                             }
                             sx={{
-                              "& .MuiInputBase-root": { bgcolor: "#0F172A", color: "#FFFFFF", borderRadius: 2.5, border: "1px solid #1E293B" },
-                              "& .MuiInputLabel-root": { color: "#94A3B8" },
+                              "& .MuiInputBase-root": { bgcolor: "#FFFFFF", color: "#FFFFFF", borderRadius: 2.5, border: "1px solid #1E293B" },
+                              "& .MuiInputLabel-root": { color: "#625B60" },
                               "& .MuiFormHelperText-root": {
                                 color: accNum.length >= 9 ? "#FACC15" : "#64748B",
                                 fontWeight: accNum.length >= 9 ? 700 : 400
@@ -1239,7 +1239,7 @@ function BeneficiaryWorkspaceContent() {
                           />
                           <div className={`absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md text-[11px] font-black border pointer-events-none ${
                             accNum.length === 0
-                              ? "bg-slate-900 text-slate-500 border-slate-800"
+                              ? "bg-[#FAF8F9] text-[#8A8288] border-[#E8E2E5]"
                               : accNum.length < 9
                               ? "bg-amber-500/20 text-amber-400 border-amber-500/40"
                               : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
@@ -1279,8 +1279,8 @@ function BeneficiaryWorkspaceContent() {
                                 : `${confirmAccNum.length} / 18 — does not match`
                             }
                             sx={{
-                              "& .MuiInputBase-root": { bgcolor: "#0F172A", color: "#FFFFFF", borderRadius: 2.5, border: "1px solid #1E293B" },
-                              "& .MuiInputLabel-root": { color: "#94A3B8" },
+                              "& .MuiInputBase-root": { bgcolor: "#FFFFFF", color: "#FFFFFF", borderRadius: 2.5, border: "1px solid #1E293B" },
+                              "& .MuiInputLabel-root": { color: "#625B60" },
                               "& .MuiFormHelperText-root": {
                                 color: duplicateError
                                   ? "#F87171"
@@ -1293,7 +1293,7 @@ function BeneficiaryWorkspaceContent() {
                           />
                           <div className={`absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md text-[11px] font-black border pointer-events-none ${
                             confirmAccNum.length === 0
-                              ? "bg-slate-900 text-slate-500 border-slate-800"
+                              ? "bg-[#FAF8F9] text-[#8A8288] border-[#E8E2E5]"
                               : confirmAccNum === accNum && !duplicateError
                               ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
                               : "bg-rose-500/20 text-rose-400 border-rose-500/40"
@@ -1329,8 +1329,8 @@ function BeneficiaryWorkspaceContent() {
                     </div>
 
                     {/* ── BANK SELECTION CARD ── */}
-                    <div className="rounded-[20px] bg-[#0B0F19]/80 backdrop-blur-2xl border border-amber-500/20 p-5 sm:p-6 shadow-xl space-y-4">
-                      <div className="flex items-center gap-2.5 pb-2 border-b border-slate-800">
+                    <div className="rounded-[20px] bg-[#FFFFFF]/80 backdrop-blur-2xl border border-amber-500/20 p-5 sm:p-6 shadow-xl space-y-4">
+                      <div className="flex items-center gap-2.5 pb-2 border-b border-[#E8E2E5]">
                         <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300">
                           <BusinessIcon sx={{ fontSize: 18 }} />
                         </div>
@@ -1338,7 +1338,7 @@ function BeneficiaryWorkspaceContent() {
                           <h3 className="text-sm sm:text-base font-black text-white">
                             Bank Selection
                           </h3>
-                          <p className="text-xs text-slate-400 font-medium">
+                          <p className="text-xs text-[#625B60] font-medium">
                             Search and select beneficiary bank
                           </p>
                         </div>
@@ -1347,9 +1347,9 @@ function BeneficiaryWorkspaceContent() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                         <div className={selectedBankObj ? "sm:col-span-1" : "sm:col-span-2"}>
                           <FormControl fullWidth size="small" sx={{
-                            "& .MuiInputBase-root": { bgcolor: "#0F172A", color: "#FFFFFF", borderRadius: 2.5, border: "1px solid #1E293B" },
-                            "& .MuiInputLabel-root": { color: "#94A3B8" },
-                            "& .MuiSvgIcon-root": { color: "#FBBF24" },
+                            "& .MuiInputBase-root": { bgcolor: "#FFFFFF", color: "#FFFFFF", borderRadius: 2.5, border: "1px solid #1E293B" },
+                            "& .MuiInputLabel-root": { color: "#625B60" },
+                            "& .MuiSvgIcon-root": { color: "#A20A3A" },
                           }}>
                             <InputLabel id="bank-select-label">Select Bank *</InputLabel>
                             <Select
@@ -1369,7 +1369,7 @@ function BeneficiaryWorkspaceContent() {
                                   paper: {
                                     style: {
                                       maxHeight: 350,
-                                      backgroundColor: "#0F172A",
+                                      backgroundColor: "#FFFFFF",
                                       color: "#FFFFFF",
                                       border: "1px solid #334155",
                                     },
@@ -1377,7 +1377,7 @@ function BeneficiaryWorkspaceContent() {
                                 },
                               }}
                             >
-                              <ListSubheader sx={{ pt: 1, pb: 1, px: 1.5, bgcolor: "#0F172A", zIndex: 1 }}>
+                              <ListSubheader sx={{ pt: 1, pb: 1, px: 1.5, bgcolor: "#FFFFFF", zIndex: 1 }}>
                                 <TextField
                                   size="small"
                                   autoFocus
@@ -1394,7 +1394,7 @@ function BeneficiaryWorkspaceContent() {
                                     input: {
                                       startAdornment: (
                                         <InputAdornment position="start">
-                                          <SearchIcon fontSize="small" sx={{ color: "#FBBF24" }} />
+                                          <SearchIcon fontSize="small" sx={{ color: "#A20A3A" }} />
                                         </InputAdornment>
                                       ),
                                     },
@@ -1402,7 +1402,7 @@ function BeneficiaryWorkspaceContent() {
                                 />
                               </ListSubheader>
 
-                              <MenuItem value="" sx={{ color: "#94A3B8" }}>
+                              <MenuItem value="" sx={{ color: "#625B60" }}>
                                 <em>-- Select Bank --</em>
                               </MenuItem>
                               {filteredBankOptions.map((p: any, idx: number) => (
@@ -1434,7 +1434,7 @@ function BeneficiaryWorkspaceContent() {
                                   readOnly: true,
                                   startAdornment: (
                                     <InputAdornment position="start">
-                                      <LockIcon fontSize="small" sx={{ color: "#FBBF24" }} />
+                                      <LockIcon fontSize="small" sx={{ color: "#A20A3A" }} />
                                     </InputAdornment>
                                   ),
                                   endAdornment: (
@@ -1450,10 +1450,10 @@ function BeneficiaryWorkspaceContent() {
                               }}
                               helperText="Auto-assigned from Bank Master"
                               sx={{
-                                "& .MuiInputBase-root": { bgcolor: "#0F172A", borderRadius: 2.5, border: "1px solid #1E293B" },
+                                "& .MuiInputBase-root": { bgcolor: "#FFFFFF", borderRadius: 2.5, border: "1px solid #1E293B" },
                                 "& .MuiInputBase-input": { fontWeight: 800, color: "#FDE68A", cursor: "not-allowed" },
-                                "& .MuiInputLabel-root": { color: "#94A3B8" },
-                                "& .MuiFormHelperText-root": { color: "#64748B" },
+                                "& .MuiInputLabel-root": { color: "#625B60" },
+                                "& .MuiFormHelperText-root": { color: "#625B60" },
                               }}
                             />
                           </div>
@@ -1510,14 +1510,14 @@ function BeneficiaryWorkspaceContent() {
                     <h3 className="text-lg sm:text-xl font-black bg-gradient-to-r from-emerald-300 via-teal-300 to-emerald-400 bg-clip-text text-transparent">
                       Beneficiary Verified & Saved
                     </h3>
-                    <p className="text-xs text-slate-300 font-medium mt-1">
+                    <p className="text-xs text-[#292329] font-medium mt-1">
                       Official bank registered name has been verified. Beneficiary is ready for immediate transfers.
                     </p>
                   </div>
 
                   {/* Summary Grid */}
-                  <div className="rounded-[20px] bg-[#0B0F19]/80 backdrop-blur-2xl border border-amber-500/20 p-5 sm:p-6 shadow-xl space-y-4">
-                    <div className="text-sm font-black text-white pb-2 border-b border-slate-800">
+                  <div className="rounded-[20px] bg-[#FFFFFF]/80 backdrop-blur-2xl border border-amber-500/20 p-5 sm:p-6 shadow-xl space-y-4">
+                    <div className="text-sm font-black text-white pb-2 border-b border-[#E8E2E5]">
                       Verification Summary
                     </div>
 
@@ -1534,8 +1534,8 @@ function BeneficiaryWorkspaceContent() {
                         { label: "Wallet Debit", value: `₹${createdBeneficiary.total_debited?.toFixed(2) || "3.54"}` },
                         { label: "Wallet Balance After", value: `₹${createdBeneficiary.wallet_balance_after?.toLocaleString("en-IN", { minimumFractionDigits: 2 }) || "—"}` },
                       ].map(({ label, value, highlight, mono }) => (
-                        <div key={label} className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800">
-                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{label}</div>
+                        <div key={label} className="p-2.5 rounded-xl bg-[#FAF8F9]/60 border border-[#E8E2E5]">
+                          <div className="text-[10px] font-bold text-[#625B60] uppercase tracking-wider mb-0.5">{label}</div>
                           <div className={`text-xs font-black truncate ${highlight ? "text-amber-300 font-black text-sm" : "text-white"} ${mono ? "font-mono" : ""}`}>
                             {value || "—"}
                           </div>
@@ -1548,7 +1548,7 @@ function BeneficiaryWorkspaceContent() {
                       <button
                         type="button"
                         onClick={handleAddAnotherBeneficiary}
-                        className="py-3.5 px-4 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-amber-500/30 text-amber-300 font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all"
+                        className="py-3.5 px-4 rounded-xl bg-[#FAF8F9]/80 hover:bg-[#F5F2F4] border border-amber-500/30 text-amber-300 font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all"
                       >
                         <PersonAddIcon sx={{ fontSize: 18 }} />
                         <span>+ Add Another Beneficiary</span>
@@ -1571,8 +1571,8 @@ function BeneficiaryWorkspaceContent() {
         </Grid>
 
         {/* ── 8. REGISTERED BENEFICIARIES DIRECTORY TABLE ── */}
-        <div className="rounded-[24px] bg-[#0B0F19]/80 backdrop-blur-2xl border border-amber-500/20 p-5 sm:p-6 shadow-2xl space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+        <div className="rounded-[24px] bg-[#FFFFFF]/80 backdrop-blur-2xl border border-amber-500/20 p-5 sm:p-6 shadow-2xl space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#E8E2E5]">
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300">
                 <TableChartIcon sx={{ fontSize: 20 }} />
@@ -1581,7 +1581,7 @@ function BeneficiaryWorkspaceContent() {
                 <h3 className="text-base font-black text-white">
                   Registered Beneficiaries Directory
                 </h3>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-[#625B60]">
                   Linked accounts for <span className="text-amber-300 font-bold">{activeCustomerName}</span>
                 </p>
               </div>
@@ -1598,22 +1598,22 @@ function BeneficiaryWorkspaceContent() {
 
           {beneficiaries.length === 0 ? (
             <div className="py-8 text-center space-y-2">
-              <AccountBalanceIcon sx={{ fontSize: 40, color: "#64748B" }} />
-              <div className="text-xs font-bold text-slate-400">
+              <AccountBalanceIcon sx={{ fontSize: 40, color: "#625B60" }} />
+              <div className="text-xs font-bold text-[#625B60]">
                 No Beneficiaries Registered Yet
               </div>
             </div>
           ) : (
             <TableContainer sx={{ borderRadius: 3, border: "1px solid #1E293B", overflowX: "auto" }}>
               <Table size="small">
-                <TableHead sx={{ bgcolor: "#0F172A" }}>
+                <TableHead sx={{ bgcolor: "#FFFFFF" }}>
                   <TableRow>
-                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", borderBottom: "1px solid #334155" }}>BENEFICIARY</TableCell>
-                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", borderBottom: "1px solid #334155" }}>BANK</TableCell>
-                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", borderBottom: "1px solid #334155" }}>ACCOUNT</TableCell>
-                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", borderBottom: "1px solid #334155" }}>IFSC</TableCell>
-                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", borderBottom: "1px solid #334155" }}>STATUS</TableCell>
-                    <TableCell align="right" sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", borderBottom: "1px solid #334155" }}>ACTION</TableCell>
+                    <TableCell sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", borderBottom: "1px solid #334155" }}>BENEFICIARY</TableCell>
+                    <TableCell sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", borderBottom: "1px solid #334155" }}>BANK</TableCell>
+                    <TableCell sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", borderBottom: "1px solid #334155" }}>ACCOUNT</TableCell>
+                    <TableCell sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", borderBottom: "1px solid #334155" }}>IFSC</TableCell>
+                    <TableCell sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", borderBottom: "1px solid #334155" }}>STATUS</TableCell>
+                    <TableCell align="right" sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", borderBottom: "1px solid #334155" }}>ACTION</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -1626,15 +1626,15 @@ function BeneficiaryWorkspaceContent() {
                           </div>
                           <div>
                             <div className="text-xs font-bold text-white">{b.name}</div>
-                            <div className="text-[10px] text-slate-400">{b.relationship || "Beneficiary"}</div>
+                            <div className="text-[10px] text-[#625B60]">{b.relationship || "Beneficiary"}</div>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell sx={{ color: "#CBD5E1", fontSize: "12px", fontWeight: 600 }}>{b.bankName || "Bank"}</TableCell>
+                      <TableCell sx={{ color: "#625B60", fontSize: "12px", fontWeight: 600 }}>{b.bankName || "Bank"}</TableCell>
                       <TableCell sx={{ color: "#FDE68A", fontSize: "12px", fontFamily: "monospace", fontWeight: 700 }}>
                         {b.accountNumber || b.maskedAccountNumber}
                       </TableCell>
-                      <TableCell sx={{ color: "#CBD5E1", fontSize: "12px", fontFamily: "monospace" }}>{b.ifsc || "—"}</TableCell>
+                      <TableCell sx={{ color: "#625B60", fontSize: "12px", fontFamily: "monospace" }}>{b.ifsc || "—"}</TableCell>
                       <TableCell>
                         <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold text-[10px]">
                           VERIFIED
@@ -1656,7 +1656,7 @@ function BeneficiaryWorkspaceContent() {
                               setTargetDeleteBen(b);
                               setDeleteDialogOpen(true);
                             }}
-                            className="p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                            className="p-1 rounded-lg text-[#8A8288] hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
                           >
                             <DeleteIcon sx={{ fontSize: 16 }} />
                           </button>
@@ -1687,11 +1687,11 @@ function BeneficiaryWorkspaceContent() {
             sx: {
               borderRadius: 5,
               p: 0,
-              bgcolor: "rgba(15, 23, 42, 0.95)",
+              bgcolor: "#FFFFFF",
               backdropFilter: "blur(24px)",
               color: "#FFFFFF",
               border: "1px solid rgba(245, 158, 11, 0.35)",
-              boxShadow: "0 25px 70px rgba(0, 0, 0, 0.75)",
+              boxShadow: "0 25px 70px rgba(41, 35, 41, 0.08)",
             },
           },
         }}
@@ -1701,16 +1701,16 @@ function BeneficiaryWorkspaceContent() {
           Confirm Penny Drop Verification
         </DialogTitle>
         <DialogContent sx={{ px: 3, pb: 2 }}>
-          <p className="text-xs text-slate-300 mb-3">
+          <p className="text-xs text-[#292329] mb-3">
             A ₹1 penny drop will be sent to verify this account. Verification fee of <strong className="text-amber-300">₹{verificationCharge?.total?.toFixed(2) || "3.54"}</strong> will be debited.
           </p>
-          <div className="p-3 rounded-xl bg-slate-900/80 border border-amber-500/30 space-y-1 text-xs">
+          <div className="p-3 rounded-xl bg-[#FAF8F9]/80 border border-amber-500/30 space-y-1 text-xs">
             <div className="font-black text-amber-300">{benName}</div>
-            <div className="text-slate-400">{bankName} • ••••{accNum.slice(-4)} • {ifscCode}</div>
+            <div className="text-[#625B60]">{bankName} • ••••{accNum.slice(-4)} • {ifscCode}</div>
           </div>
         </DialogContent>
         <DialogActions sx={{ p: 2.5, px: 3, justifyContent: "space-between" }}>
-          <Button onClick={() => setConfirmModalOpen(false)} sx={{ color: "#94A3B8", fontWeight: 700 }}>
+          <Button onClick={() => setConfirmModalOpen(false)} sx={{ color: "#625B60", fontWeight: 700 }}>
             Cancel
           </Button>
           <button
@@ -1732,7 +1732,7 @@ function BeneficiaryWorkspaceContent() {
             sx: {
               borderRadius: 4,
               p: 0,
-              bgcolor: "#0F172A",
+              bgcolor: "#FFFFFF",
               color: "#FFFFFF",
               border: "1px solid rgba(245, 158, 11, 0.3)",
             },
@@ -1743,7 +1743,7 @@ function BeneficiaryWorkspaceContent() {
           <div className="w-16 h-16 rounded-full border-4 border-amber-500/20 border-t-amber-400 animate-spin mx-auto" />
           <div>
             <div className="text-base font-black text-white">Verifying Bank Account…</div>
-            <div className="text-xs text-slate-400 mt-1">Executing ₹1.00 Penny Drop & validating official name…</div>
+            <div className="text-xs text-[#625B60] mt-1">Executing ₹1.00 Penny Drop & validating official name…</div>
           </div>
         </div>
       </Dialog>
@@ -1759,7 +1759,7 @@ function BeneficiaryWorkspaceContent() {
             sx: {
               borderRadius: 4,
               p: 0,
-              bgcolor: "#0F172A",
+              bgcolor: "#FFFFFF",
               color: "#FFFFFF",
               border: `1px solid ${resultModalSuccess ? "rgba(16, 185, 129, 0.4)" : "rgba(239, 68, 68, 0.4)"}`,
             },
@@ -1776,7 +1776,7 @@ function BeneficiaryWorkspaceContent() {
           <div className="text-base font-black text-white">
             {resultModalSuccess ? "Verification Successful" : "Verification Failed"}
           </div>
-          <p className="text-xs text-slate-300">
+          <p className="text-xs text-[#292329]">
             {resultModalSuccess
               ? `Account verified for ${benName}. Registered with bank.`
               : resultModalData?.error || "Failed to verify account. Please check details."}
@@ -1784,7 +1784,7 @@ function BeneficiaryWorkspaceContent() {
           <button
             onClick={() => setResultModalOpen(false)}
             className={`w-full py-2.5 rounded-xl font-black text-xs mt-2 ${
-              resultModalSuccess ? "bg-emerald-500 text-slate-950" : "bg-slate-800 text-slate-200"
+              resultModalSuccess ? "bg-emerald-500 text-slate-950" : "bg-[#F5F2F4] text-[#292329]"
             }`}
           >
             {resultModalSuccess ? "Continue" : "Close"}
@@ -1803,7 +1803,7 @@ function BeneficiaryWorkspaceContent() {
             sx: {
               borderRadius: 5,
               p: 0,
-              bgcolor: "#0F172A",
+              bgcolor: "#FFFFFF",
               color: "#FFFFFF",
               border: "1px solid #1E293B",
             },
@@ -1814,13 +1814,13 @@ function BeneficiaryWorkspaceContent() {
           <span className="bg-gradient-to-r from-amber-200 to-amber-500 bg-clip-text text-transparent">
             Active Beneficiaries ({activeCustomerName})
           </span>
-          <IconButton onClick={() => setSavedBenModalOpen(false)} sx={{ color: "#94A3B8" }}>
+          <IconButton onClick={() => setSavedBenModalOpen(false)} sx={{ color: "#625B60" }}>
             <CloseIcon />
           </IconButton>
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
           {beneficiaries.length === 0 ? (
-            <div className="p-6 text-center text-xs text-slate-400">
+            <div className="p-6 text-center text-xs text-[#625B60]">
               No Active Beneficiaries Registered
             </div>
           ) : (
@@ -1878,7 +1878,7 @@ function BeneficiaryWorkspaceContent() {
 
 export default function BeneficiaryWorkspacePage() {
   return (
-    <Suspense fallback={<div className="p-6 text-sm text-slate-500 font-medium">Loading beneficiary onboarding workspace…</div>}>
+    <Suspense fallback={<div className="p-6 text-sm text-[#8A8288] font-medium">Loading beneficiary onboarding workspace…</div>}>
       <BeneficiaryWorkspaceContent />
     </Suspense>
   );

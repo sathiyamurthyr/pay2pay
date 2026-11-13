@@ -71,7 +71,7 @@ export default function RetailerSettlementReportPage() {
   }, []);
 
   return (
-    <Box sx={{ p: 3, color: "#F8FAFC" }}>
+    <Box sx={{ p: 3, color: "#292329" }}>
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
         <Typography variant="h5" sx={{ fontWeight: 800 }}>
           Settlement Report
@@ -81,7 +81,7 @@ export default function RetailerSettlementReportPage() {
           startIcon={<RefreshIcon />}
           onClick={fetchSettlements}
           disabled={loading}
-          sx={{ borderColor: "rgba(255, 255, 255, 0.2)", color: "#94A3B8" }}
+          sx={{ borderColor: "#E8E2E5", color: "#625B60" }}
         >
           Refresh
         </Button>
@@ -95,19 +95,19 @@ export default function RetailerSettlementReportPage() {
           </Button>
         </Paper>
       ) : (
-        <Paper sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(18, 27, 48, 0.85)", border: "1px solid rgba(255, 255, 255, 0.1)" }}>
+        <Paper sx={{ p: 2, borderRadius: "12px", bgcolor: "#FFFFFF", border: "1px solid rgba(255, 255, 255, 0.1)" }}>
           <TableContainer>
             <Table>
               <TableHead sx={{ bgcolor: "rgba(255, 255, 255, 0.05)" }}>
                 <TableRow>
-                  <TableCell sx={{ color: "#94A3B8", fontWeight: 700 }}>Settlement ID</TableCell>
-                  <TableCell sx={{ color: "#94A3B8", fontWeight: 700 }}>Machine ID</TableCell>
-                  <TableCell sx={{ color: "#94A3B8", fontWeight: 700 }}>Gross Amount</TableCell>
-                  <TableCell sx={{ color: "#94A3B8", fontWeight: 700 }}>MDR Fee</TableCell>
-                  <TableCell sx={{ color: "#94A3B8", fontWeight: 700 }}>Net Amount</TableCell>
-                  <TableCell sx={{ color: "#94A3B8", fontWeight: 700 }}>Bank Reference / UTR</TableCell>
-                  <TableCell sx={{ color: "#94A3B8", fontWeight: 700 }}>Status</TableCell>
-                  <TableCell sx={{ color: "#94A3B8", fontWeight: 700 }}>Settlement Date</TableCell>
+                  <TableCell sx={{ color: "#625B60", fontWeight: 700 }}>Settlement ID</TableCell>
+                  <TableCell sx={{ color: "#625B60", fontWeight: 700 }}>Machine ID</TableCell>
+                  <TableCell sx={{ color: "#625B60", fontWeight: 700 }}>Gross Amount</TableCell>
+                  <TableCell sx={{ color: "#625B60", fontWeight: 700 }}>MDR Fee</TableCell>
+                  <TableCell sx={{ color: "#625B60", fontWeight: 700 }}>Net Amount</TableCell>
+                  <TableCell sx={{ color: "#625B60", fontWeight: 700 }}>Bank Reference / UTR</TableCell>
+                  <TableCell sx={{ color: "#625B60", fontWeight: 700 }}>Status</TableCell>
+                  <TableCell sx={{ color: "#625B60", fontWeight: 700 }}>Settlement Date</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -119,7 +119,7 @@ export default function RetailerSettlementReportPage() {
                   </TableRow>
                 ) : rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} align="center" sx={{ py: 4, color: "#64748B" }}>
+                    <TableCell colSpan={8} align="center" sx={{ py: 4, color: "#625B60" }}>
                       No settlement records found.
                     </TableCell>
                   </TableRow>
@@ -127,11 +127,11 @@ export default function RetailerSettlementReportPage() {
                   rows.map((row: any) => (
                     <TableRow key={row.settlement_id || row.id}>
                       <TableCell sx={{ color: "#60A5FA" }}>{row.settlement_number || row.settlement_id}</TableCell>
-                      <TableCell sx={{ color: "#F8FAFC" }}>{row.machine_serial_number || "--"}</TableCell>
-                      <TableCell sx={{ color: "#F8FAFC" }}>₹{Number(row.gross_amount || 0).toLocaleString("en-IN")}</TableCell>
-                      <TableCell sx={{ color: "#94A3B8" }}>₹{Number(row.mdr_charge || 0).toFixed(2)}</TableCell>
+                      <TableCell sx={{ color: "#292329" }}>{row.machine_serial_number || "--"}</TableCell>
+                      <TableCell sx={{ color: "#292329" }}>₹{Number(row.gross_amount || 0).toLocaleString("en-IN")}</TableCell>
+                      <TableCell sx={{ color: "#625B60" }}>₹{Number(row.mdr_charge || 0).toFixed(2)}</TableCell>
                       <TableCell sx={{ color: "#4ADE80", fontWeight: 700 }}>₹{Number(row.net_settlement_amount || 0).toLocaleString("en-IN")}</TableCell>
-                      <TableCell sx={{ color: "#94A3B8" }}>{row.bank_reference || "--"}</TableCell>
+                      <TableCell sx={{ color: "#625B60" }}>{row.bank_reference || "--"}</TableCell>
                       <TableCell>
                         <Chip
                           label={row.status || "SETTLED"}
@@ -140,7 +140,7 @@ export default function RetailerSettlementReportPage() {
                           sx={{ fontWeight: 800, fontSize: "11px" }}
                         />
                       </TableCell>
-                      <TableCell sx={{ color: "#94A3B8" }}>{row.settlement_date || "--"}</TableCell>
+                      <TableCell sx={{ color: "#625B60" }}>{row.settlement_date || "--"}</TableCell>
                     </TableRow>
                   ))
                 )}

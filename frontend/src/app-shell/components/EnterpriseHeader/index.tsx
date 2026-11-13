@@ -34,9 +34,8 @@ export const EnterpriseHeader: React.FC<EnterpriseHeaderProps> = ({
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        bgcolor: "rgba(15, 23, 42, 0.90)",
-        backdropFilter: "blur(20px)",
-        borderBottom: `1px solid ${tokens.colors.neutral.dark.border}`,
+        bgcolor: "#FFFFFF",
+        borderBottom: "1px solid #E8E2E5",
         position: "sticky",
         top: 0,
         zIndex: 1100,
@@ -50,20 +49,20 @@ export const EnterpriseHeader: React.FC<EnterpriseHeaderProps> = ({
               width: 48,
               height: 48,
               borderRadius: "12px",
-              background: tokens.colors.gradients.brand,
+              background: "linear-gradient(135deg, #A20A3A 0%, #85072F 100%)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               color: "#FFFFFF",
               fontWeight: 900,
               fontSize: "18px",
-              boxShadow: tokens.shadows.glow,
+              boxShadow: "0 2px 8px rgba(162, 10, 58, 0.25)",
             }}
           >
-            P2P
+            N4U
           </Box>
           <Box>
-            <Typography variant="h3" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "22px", lineHeight: 1.2 }}>
+            <Typography variant="h3" sx={{ fontWeight: 800, color: "#292329", fontSize: "22px", lineHeight: 1.2 }}>
               {pageTitle}
             </Typography>
             <Breadcrumb />
@@ -85,19 +84,17 @@ export const EnterpriseHeader: React.FC<EnterpriseHeaderProps> = ({
             px: { xs: 1.6, sm: 2.2 },
             py: 0.8,
             borderRadius: "14px",
-            bgcolor: "rgba(15, 23, 42, 0.85)",
-            border: "1px solid rgba(59, 130, 246, 0.4)",
+            bgcolor: "#FFFFFF",
+            border: "1px solid #E8E2E5",
             display: "flex",
             alignItems: "center",
             gap: 1.6,
             cursor: "pointer",
-            boxShadow: "0 4px 14px rgba(37, 99, 235, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.12)",
+            boxShadow: "0 1px 3px rgba(41, 35, 41, 0.05)",
             transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
             "&:hover": {
-              bgcolor: "rgba(30, 58, 138, 0.35)",
-              borderColor: "rgba(96, 165, 250, 0.7)",
-              boxShadow: "0 6px 20px rgba(37, 99, 235, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
-              transform: "translateY(-1px)",
+              bgcolor: "#FAF8F9",
+              borderColor: "#EDC11E",
             },
           }}
         >
@@ -106,21 +103,21 @@ export const EnterpriseHeader: React.FC<EnterpriseHeaderProps> = ({
               width: 36,
               height: 36,
               borderRadius: "10px",
-              bgcolor: "rgba(37, 99, 235, 0.25)",
-              border: "1px solid rgba(59, 130, 246, 0.3)",
+              bgcolor: "#FFF8DC",
+              border: "1px solid #FFF3C4",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               flexShrink: 0,
             }}
           >
-            <AccountBalanceWalletIcon sx={{ color: "#60A5FA", fontSize: 22 }} />
+            <AccountBalanceWalletIcon sx={{ color: "#EDC11E", fontSize: 22 }} />
           </Box>
           <Box>
             <Typography
               variant="caption"
               sx={{
-                color: "#FFFFFF",
+                color: "#625B60",
                 fontWeight: 900,
                 fontSize: "11px",
                 letterSpacing: "0.8px",
@@ -137,12 +134,11 @@ export const EnterpriseHeader: React.FC<EnterpriseHeaderProps> = ({
               variant="subtitle1"
               sx={{
                 fontWeight: 900,
-                color: "#FFD700",
+                color: "#A20A3A",
                 fontSize: "18px",
                 lineHeight: 1.15,
                 letterSpacing: "0.2px",
                 fontFamily: "var(--font-geist-mono), 'Inter', monospace, sans-serif",
-                textShadow: "0 0 16px rgba(255, 215, 0, 0.45)",
               }}
             >
               {isLoading && !walletData ? "Loading..." : formattedBalance}

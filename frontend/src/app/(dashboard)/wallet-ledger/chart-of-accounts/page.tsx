@@ -97,7 +97,7 @@ export default function ChartOfAccountsPage() {
       {/* Header & Controls */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#0F172A] flex items-center gap-3">
+          <h1 className="text-2xl font-extrabold text-[#FFFFFF] flex items-center gap-3">
             <BookOpen className="h-7 w-7 text-[#2563EB]" />
             General Ledger Chart of Accounts (COA)
           </h1>
@@ -114,7 +114,7 @@ export default function ChartOfAccountsPage() {
               className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-extrabold transition-all cursor-pointer ${
                 viewMode === "grid"
                   ? "bg-white text-[#2563EB] shadow-2xs"
-                  : "text-[#64748B] hover:text-[#0F172A]"
+                  : "text-[#64748B] hover:text-[#FFFFFF]"
               }`}
             >
               <LayoutGrid className="h-4 w-4" />
@@ -125,7 +125,7 @@ export default function ChartOfAccountsPage() {
               className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-extrabold transition-all cursor-pointer ${
                 viewMode === "table"
                   ? "bg-white text-[#2563EB] shadow-2xs"
-                  : "text-[#64748B] hover:text-[#0F172A]"
+                  : "text-[#64748B] hover:text-[#FFFFFF]"
               }`}
             >
               <List className="h-4 w-4" />
@@ -149,7 +149,7 @@ export default function ChartOfAccountsPage() {
         <div className="rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-2xs flex items-center justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-[#64748B]">Total Accounts</p>
-            <h3 className="mt-1 text-2xl font-extrabold text-[#0F172A]">{metrics.total}</h3>
+            <h3 className="mt-1 text-2xl font-extrabold text-[#FFFFFF]">{metrics.total}</h3>
             <p className="mt-1 text-[11px] font-bold text-[#166534] flex items-center gap-1">
               <ShieldCheck className="h-3.5 w-3.5 text-[#16A34A]" /> Active General Ledger
             </p>
@@ -162,7 +162,7 @@ export default function ChartOfAccountsPage() {
         <div className="rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-2xs flex items-center justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-[#64748B]">Asset Accounts</p>
-            <h3 className="mt-1 text-2xl font-extrabold text-[#0F172A]">{metrics.assets}</h3>
+            <h3 className="mt-1 text-2xl font-extrabold text-[#FFFFFF]">{metrics.assets}</h3>
             <p className="mt-1 text-[11px] font-bold text-[#D97706] flex items-center gap-1">
               <ArrowUpRight className="h-3.5 w-3.5" /> Debit Balance Nature
             </p>
@@ -175,7 +175,7 @@ export default function ChartOfAccountsPage() {
         <div className="rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-2xs flex items-center justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-[#64748B]">Liability Accounts</p>
-            <h3 className="mt-1 text-2xl font-extrabold text-[#0F172A]">{metrics.liabilities}</h3>
+            <h3 className="mt-1 text-2xl font-extrabold text-[#FFFFFF]">{metrics.liabilities}</h3>
             <p className="mt-1 text-[11px] font-bold text-[#2563EB] flex items-center gap-1">
               <ArrowDownLeft className="h-3.5 w-3.5" /> Credit Balance Nature
             </p>
@@ -188,7 +188,7 @@ export default function ChartOfAccountsPage() {
         <div className="rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-2xs flex items-center justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-[#64748B]">Revenue Accounts</p>
-            <h3 className="mt-1 text-2xl font-extrabold text-[#0F172A]">{metrics.revenue}</h3>
+            <h3 className="mt-1 text-2xl font-extrabold text-[#FFFFFF]">{metrics.revenue}</h3>
             <p className="mt-1 text-[11px] font-bold text-[#166534] flex items-center gap-1">
               <TrendingUp className="h-3.5 w-3.5" /> Income & MDR Fees
             </p>
@@ -210,7 +210,7 @@ export default function ChartOfAccountsPage() {
               className={`px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
                 selectedType === type
                   ? "bg-[#2563EB] text-white shadow-2xs"
-                  : "bg-white text-[#64748B] border border-[#E5E7EB] hover:bg-[#F8FAFC] hover:text-[#0F172A]"
+                  : "bg-white text-[#64748B] border border-[#E5E7EB] hover:bg-[#F8FAFC] hover:text-[#FFFFFF]"
               }`}
             >
               {type}
@@ -226,7 +226,7 @@ export default function ChartOfAccountsPage() {
             placeholder="Search account code or name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-lg border border-[#D1D5DB] bg-white py-2 pl-9 pr-3 text-xs text-[#111827] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold"
+            className="w-full rounded-lg border border-[#D1D5DB] bg-white py-2 pl-9 pr-3 text-xs text-[#FAF8F9] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none font-bold"
           />
         </div>
       </div>
@@ -296,14 +296,14 @@ export default function ChartOfAccountsPage() {
 
                 {/* Body Content */}
                 <div className="space-y-2">
-                  <h4 className="text-sm font-extrabold text-[#0F172A] group-hover:text-[#2563EB] transition-colors">
+                  <h4 className="text-sm font-extrabold text-[#FFFFFF] group-hover:text-[#2563EB] transition-colors">
                     {a.account_name}
                   </h4>
                   
                   <div className="grid grid-cols-2 gap-2 text-xs pt-2">
                     <div className="rounded-lg bg-[#F8FAFC] p-2 border border-[#E2E8F0]">
                       <span className="text-[10px] font-bold text-[#64748B] block uppercase">Posting</span>
-                      <span className="font-extrabold text-[#0F172A]">
+                      <span className="font-extrabold text-[#FFFFFF]">
                         {a.posting_allowed ? "Allowed" : "Restricted"}
                       </span>
                     </div>
@@ -335,22 +335,22 @@ export default function ChartOfAccountsPage() {
         /* TABLE VIEW DESIGN */
         <div className="rounded-xl border border-[#E5E7EB] bg-white overflow-hidden shadow-2xs">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-[#0F172A]">
-              <thead className="bg-[#F8FAFC] uppercase font-mono text-xs font-extrabold text-[#111827] border-b border-[#E5E7EB]">
+            <table className="w-full text-left text-sm text-[#FFFFFF]">
+              <thead className="bg-[#F8FAFC] uppercase font-mono text-xs font-extrabold text-[#FAF8F9] border-b border-[#E5E7EB]">
                 <tr>
-                  <th className="px-5 py-4 font-mono text-xs font-extrabold text-[#111827]">Account Code</th>
-                  <th className="px-5 py-4 font-mono text-xs font-extrabold text-[#111827]">Account Name</th>
-                  <th className="px-5 py-4 font-mono text-xs font-extrabold text-[#111827]">Account Type</th>
-                  <th className="px-5 py-4 font-mono text-xs font-extrabold text-[#111827]">Nature</th>
-                  <th className="px-5 py-4 font-mono text-xs font-extrabold text-[#111827]">Posting Allowed</th>
-                  <th className="px-5 py-4 font-mono text-xs font-extrabold text-[#111827]">Status / Action</th>
+                  <th className="px-5 py-4 font-mono text-xs font-extrabold text-[#FAF8F9]">Account Code</th>
+                  <th className="px-5 py-4 font-mono text-xs font-extrabold text-[#FAF8F9]">Account Name</th>
+                  <th className="px-5 py-4 font-mono text-xs font-extrabold text-[#FAF8F9]">Account Type</th>
+                  <th className="px-5 py-4 font-mono text-xs font-extrabold text-[#FAF8F9]">Nature</th>
+                  <th className="px-5 py-4 font-mono text-xs font-extrabold text-[#FAF8F9]">Posting Allowed</th>
+                  <th className="px-5 py-4 font-mono text-xs font-extrabold text-[#FAF8F9]">Status / Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E5E7EB] font-mono text-xs">
                 {filteredAccounts.map((a) => (
                   <tr key={a.account_code} className="hover:bg-[#EFF6FF] transition-colors">
                     <td className="px-5 py-4 font-mono text-xs text-[#2563EB] font-extrabold">{a.account_code}</td>
-                    <td className="px-5 py-4 font-sans text-xs font-bold text-[#111827]">{a.account_name}</td>
+                    <td className="px-5 py-4 font-sans text-xs font-bold text-[#FAF8F9]">{a.account_name}</td>
                     <td className="px-5 py-4 font-mono text-xs text-[#6B7280]">{a.account_type}</td>
                     <td className="px-5 py-4 font-mono text-xs font-extrabold text-[#D97706]">{a.nature}</td>
                     <td className="px-5 py-4 font-mono text-xs text-[#6B7280]">{a.posting_allowed ? "YES" : "NO"}</td>

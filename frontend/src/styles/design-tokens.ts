@@ -1,28 +1,46 @@
 /**
- * Pay2Pay Enterprise FinTech — Design Tokens
- * Material Design 3 · Enterprise Banking · Premium Blue + Gold
+ * Near 4 You (n4u) Enterprise FinTech — Design Tokens
+ * Material Design 3 · Enterprise Banking · Burgundy + Orange
  */
 
 export const colors = {
-  // Brand
-  primary: "#2563EB",
-  primaryHover: "#1D4ED8",
-  primaryLight: "#DBEAFE",
-  primaryLighter: "#EFF6FF",
-  primaryDark: "#1E40AF",
+  // Brand Near4You Burgundy (Primary)
+  primary: "#A20A3A",
+  primaryHover: "#85072F",
+  primaryLight: "#FFF0F4",
+  primaryLighter: "#FAF8F9",
+  primaryDark: "#6B0525",
+  primaryWarm: "#C42555",
+  primaryDeep: "#6B0525",
 
-  // Dark Navy (Wallet card)
-  navy: "#1E3A8A",
-  navyLight: "#1E40AF",
+  // Brand Gold Yellow (Accent)
+  gold: "#EDC11E",
+  goldDark: "#D4A915",
+  goldLight: "#FFF3C4",
+  goldSubtle: "#FFF8DC",
+  goldBorder: "rgba(237, 193, 30, 0.4)",
+  goldSurface: "rgba(237, 193, 30, 0.1)",
+
+  // Legacy aliases
+  orange: "#EDC11E",
+  orangeDark: "#D4A915",
+  orangeLight: "#FFF8DC",
+  orangeSoft: "#FFF3C4",
+
+  // Dual-Colour Gradients
+  gradientRich: "linear-gradient(135deg, #A20A3A 0%, #EDC11E 100%)",
+  gradientRichH: "linear-gradient(to right, #A20A3A 0%, #EDC11E 100%)",
+  gradientSoft: "linear-gradient(135deg, #A20A3A 0%, #FFF3C4 100%)",
+  gradientDeep: "linear-gradient(135deg, #6B0525 0%, #EDC11E 100%)",
+  gradientWarm: "linear-gradient(135deg, #C42555 0%, #EDC11E 100%)",
+  gradientSubtle: "linear-gradient(135deg, #FFF0F4 0%, #FFF8DC 100%)",
+
+  // Deep Brand Background (Wallet card)
+  navy: "#6B0525",
+  navyLight: "#85072F",
   navyText: "#FFFFFF",
 
-  // Premium Gold
-  gold: "#D4AF37",
-  goldLight: "#F8E7A0",
-  goldBorder: "rgba(212,175,55,0.35)",
-  goldSurface: "rgba(212,175,55,0.08)",
-
-  // Semantic
+  // Semantic Status
   success: "#16A34A",
   successLight: "#DCFCE7",
   successBorder: "#86EFAC",
@@ -32,30 +50,30 @@ export const colors = {
   danger: "#DC2626",
   dangerLight: "#FEE2E2",
   dangerBorder: "#FCA5A5",
-  purple: "#7C3AED",
-  purpleLight: "#F3E8FF",
-  purpleBorder: "#C4B5FD",
-  info: "#0EA5E9",
-  infoLight: "#E0F2FE",
+  purple: "#A20A3A",
+  purpleLight: "#FFF0F4",
+  purpleBorder: "#E8E2E5",
+  info: "#A20A3A",
+  infoLight: "#FFF0F4",
 
-  // Neutral
-  bg: "#F8FAFC",
+  // Neutral - Strict White
+  bg: "#FFFFFF",
   surface: "#FFFFFF",
-  border: "#E5E7EB",
-  divider: "#F1F5F9",
-  borderStrong: "#D1D5DB",
+  border: "#E8E2E5",
+  divider: "#E8E2E5",
+  borderStrong: "#D8D0D4",
 
   // Text
-  textPrimary: "#111827",
-  textSecondary: "#6B7280",
-  textMuted: "#9CA3AF",
-  textDisabled: "#D1D5DB",
+  textPrimary: "#292329",
+  textSecondary: "#625B60",
+  textMuted: "#8A8288",
+  textDisabled: "#B8B0B6",
 
   // Status chips
   statusSuccess: { bg: "#DCFCE7", text: "#15803D", border: "#86EFAC" },
   statusPending: { bg: "#FEF3C7", text: "#B45309", border: "#FCD34D" },
   statusFailed:  { bg: "#FEE2E2", text: "#B91C1C", border: "#FCA5A5" },
-  statusInfo:    { bg: "#DBEAFE", text: "#1D4ED8", border: "#93C5FD" },
+  statusInfo:    { bg: "#FFF0F4", text: "#A20A3A", border: "#E8E2E5" },
 } as const;
 
 export const typography = {

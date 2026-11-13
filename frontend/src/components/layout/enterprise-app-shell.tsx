@@ -35,8 +35,8 @@ export const EnterpriseAppShell: React.FC<EnterpriseAppShellProps> = ({
       sx={{
         width: "100vw",
         height: "100vh",
-        bgcolor: "#08111F",
-        color: "#F8FAFC",
+        bgcolor: "#FFFFFF",
+        color: "#292329",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -55,7 +55,7 @@ export const EnterpriseAppShell: React.FC<EnterpriseAppShellProps> = ({
           minHeight: 72,
           bgcolor: "rgba(18, 27, 48, 0.72)",
           backdropFilter: "blur(20px)",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+          borderBottom: "1px solid #E8E2E5",
           px: 3,
           display: "flex",
           alignItems: "center",
@@ -78,16 +78,16 @@ export const EnterpriseAppShell: React.FC<EnterpriseAppShellProps> = ({
               fontWeight: 900,
               color: "#FFF",
               fontSize: "18px",
-              boxShadow: "0 4px 14px rgba(37, 99, 235, 0.35)",
+              boxShadow: "0 4px 14px rgba(162, 10, 58, 0.25)",
             }}
           >
-            P2P
+            N4U
           </Box>
           <Box>
-            <Typography variant="h6" sx={{ fontWeight: 900, fontSize: "18px", color: "#F8FAFC", lineHeight: 1.2 }}>
-              PAY2PAY <Typography component="span" sx={{ color: "#3B82F6", fontWeight: 700, fontSize: "16px", ml: 0.5 }}>{headerTitle}</Typography>
+            <Typography variant="h6" sx={{ fontWeight: 900, fontSize: "18px", color: "#292329", lineHeight: 1.2 }}>
+              NEAR4YOU <Typography component="span" sx={{ color: "#A20A3A", fontWeight: 700, fontSize: "16px", ml: 0.5 }}>{headerTitle}</Typography>
             </Typography>
-            <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px", fontWeight: 600 }}>
+            <Typography variant="caption" sx={{ color: "#625B60", fontSize: "11px", fontWeight: 600 }}>
               {headerSubtitle}
             </Typography>
           </Box>
@@ -102,19 +102,19 @@ export const EnterpriseAppShell: React.FC<EnterpriseAppShellProps> = ({
               px: 2,
               py: 0.8,
               borderRadius: "10px",
-              bgcolor: "rgba(15, 23, 42, 0.6)",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
+              bgcolor: "#FAF8F9",
+              border: "1px solid #E8E2E5",
               display: "flex",
               alignItems: "center",
               gap: 1.5,
               cursor: "pointer",
             }}
           >
-            <SearchIcon sx={{ color: "#94A3B8", fontSize: 18 }} />
-            <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 600, fontSize: "12px" }}>
+            <SearchIcon sx={{ color: "#625B60", fontSize: 18 }} />
+            <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 600, fontSize: "12px" }}>
               Search commands...
             </Typography>
-            <Chip label="Ctrl+K" size="small" sx={{ height: 18, fontSize: "10px", fontWeight: 800, bgcolor: "rgba(255, 255, 255, 0.08)", color: "#94A3B8" }} />
+            <Chip label="Ctrl+K" size="small" sx={{ height: 18, fontSize: "10px", fontWeight: 800, bgcolor: "rgba(255, 255, 255, 0.08)", color: "#625B60" }} />
           </Paper>
 
           {/* Live Wallet Balance Chip */}
@@ -131,12 +131,12 @@ export const EnterpriseAppShell: React.FC<EnterpriseAppShellProps> = ({
               gap: 1.2,
             }}
           >
-            <AccountBalanceWalletIcon sx={{ color: "#3B82F6", fontSize: 20 }} />
+            <AccountBalanceWalletIcon sx={{ color: "#A20A3A", fontSize: 20 }} />
             <Box>
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "10px", fontWeight: 700, display: "block", lineHeight: 1 }}>
+              <Typography variant="caption" sx={{ color: "#625B60", fontSize: "10px", fontWeight: 700, display: "block", lineHeight: 1 }}>
                 MAIN WALLET
               </Typography>
-              <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#F8FAFC", fontSize: "14px", lineHeight: 1.1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#292329", fontSize: "14px", lineHeight: 1.1 }}>
                 ₹{walletBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </Typography>
             </Box>
@@ -144,8 +144,8 @@ export const EnterpriseAppShell: React.FC<EnterpriseAppShellProps> = ({
 
           {/* Notifications */}
           <Badge badgeContent={2} color="error">
-            <Paper elevation={0} sx={{ p: 1, borderRadius: "10px", bgcolor: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", cursor: "pointer" }}>
-              <NotificationsIcon sx={{ color: "#F8FAFC", fontSize: 20 }} />
+            <Paper elevation={0} sx={{ p: 1, borderRadius: "10px", bgcolor: "rgba(255,255,255,0.05)", border: "1px solid #E8E2E5", display: "flex", cursor: "pointer" }}>
+              <NotificationsIcon sx={{ color: "#292329", fontSize: 20 }} />
             </Paper>
           </Badge>
 
@@ -183,7 +183,7 @@ export const EnterpriseAppShell: React.FC<EnterpriseAppShellProps> = ({
             overflowY: "auto",
             borderRight: "1px solid rgba(255, 255, 255, 0.08)",
             p: 2.5,
-            bgcolor: "rgba(15, 23, 42, 0.4)",
+            bgcolor: "#FFFFFF",
             "&::-webkit-scrollbar": { width: "6px" },
             "&::-webkit-scrollbar-thumb": { bgcolor: "rgba(255, 255, 255, 0.12)", borderRadius: "3px" },
           }}
@@ -217,7 +217,7 @@ export const EnterpriseAppShell: React.FC<EnterpriseAppShellProps> = ({
             overflowY: "auto",
             borderLeft: "1px solid rgba(255, 255, 255, 0.08)",
             p: 2.5,
-            bgcolor: "rgba(15, 23, 42, 0.4)",
+            bgcolor: "#FFFFFF",
             "&::-webkit-scrollbar": { width: "6px" },
             "&::-webkit-scrollbar-thumb": { bgcolor: "rgba(255, 255, 255, 0.12)", borderRadius: "3px" },
           }}
@@ -232,9 +232,9 @@ export const EnterpriseAppShell: React.FC<EnterpriseAppShellProps> = ({
         sx={{
           height: 64,
           minHeight: 64,
-          bgcolor: "rgba(18, 27, 48, 0.85)",
+          bgcolor: "#FFFFFF",
           backdropFilter: "blur(20px)",
-          borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+          borderTop: "1px solid #E8E2E5",
           px: 3,
           display: "flex",
           alignItems: "center",

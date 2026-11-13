@@ -384,7 +384,7 @@ export default function WalletLedgerTransactionsAuditPage() {
   return (
     <div className="space-y-6 pb-16">
       {/* ── Top Bar Header ─────────────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white dark:bg-[#FAF8F9] p-5 rounded-2xl border border-slate-200 dark:border-[#E8E2E5] shadow-sm">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider mb-1">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
@@ -393,20 +393,20 @@ export default function WalletLedgerTransactionsAuditPage() {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             Wallet Ledger & Financial Reconciliation
           </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-sm text-[#8A8288] dark:text-[#625B60] mt-0.5">
             Authoritative CR/DR tracking, hierarchy mapping, balance progression audit, and gateway reconciliation.
           </p>
         </div>
 
         <div className="flex items-center flex-wrap gap-2">
           {/* View Mode Toggle */}
-          <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex items-center border border-slate-200 dark:border-slate-700">
+          <div className="bg-slate-100 dark:bg-[#F5F2F4] p-1 rounded-xl flex items-center border border-slate-200 dark:border-[#E8E2E5]">
             <button
               onClick={() => setActiveTab("grid")}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 activeTab === "grid"
-                  ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                  ? "bg-white dark:bg-[#FAF8F9] text-slate-900 dark:text-white shadow-sm"
+                  : "text-slate-600 dark:text-[#625B60] hover:text-slate-900"
               }`}
             >
               Audit Grid
@@ -415,8 +415,8 @@ export default function WalletLedgerTransactionsAuditPage() {
               onClick={() => setActiveTab("services")}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 activeTab === "services"
-                  ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                  ? "bg-white dark:bg-[#FAF8F9] text-slate-900 dark:text-white shadow-sm"
+                  : "text-slate-600 dark:text-[#625B60] hover:text-slate-900"
               }`}
             >
               Service Breakdown
@@ -427,7 +427,7 @@ export default function WalletLedgerTransactionsAuditPage() {
           <button
             onClick={handleExportCSV}
             disabled={exporting || loading}
-            className="flex items-center gap-2 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 transition"
+            className="flex items-center gap-2 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-[#F5F2F4] dark:hover:bg-slate-700 text-slate-700 dark:text-[#292329] text-xs font-semibold rounded-xl border border-slate-200 dark:border-[#E8E2E5] transition"
           >
             {exporting ? (
               <RefreshCw className="w-3.5 h-3.5 animate-spin text-primary" />
@@ -452,19 +452,19 @@ export default function WalletLedgerTransactionsAuditPage() {
       {/* ── Summary KPI Cards ──────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3.5">
         {/* Total Transactions */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
+        <div className="bg-white dark:bg-[#FAF8F9] p-4 rounded-xl border border-slate-200 dark:border-[#E8E2E5] shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between text-xs font-medium text-[#8A8288] dark:text-[#625B60]">
             <span>Total Transactions</span>
             <Activity className="w-4 h-4 text-blue-500" />
           </div>
           <div className="mt-2 text-xl font-bold text-slate-900 dark:text-white">
             {summary.total_transactions.toLocaleString("en-IN")}
           </div>
-          <div className="text-[11px] text-slate-400 mt-1">Full filtered volume</div>
+          <div className="text-[11px] text-[#625B60] mt-1">Full filtered volume</div>
         </div>
 
         {/* Total Credits */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-emerald-100 dark:border-emerald-950/30 shadow-sm flex flex-col justify-between">
+        <div className="bg-white dark:bg-[#FAF8F9] p-4 rounded-xl border border-emerald-100 dark:border-emerald-950/30 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between text-xs font-medium text-emerald-700 dark:text-emerald-400">
             <span>Total Credits (+CR)</span>
             <TrendingUp className="w-4 h-4 text-emerald-600" />
@@ -476,7 +476,7 @@ export default function WalletLedgerTransactionsAuditPage() {
         </div>
 
         {/* Total Debits */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-rose-100 dark:border-rose-950/30 shadow-sm flex flex-col justify-between">
+        <div className="bg-white dark:bg-[#FAF8F9] p-4 rounded-xl border border-rose-100 dark:border-rose-950/30 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between text-xs font-medium text-rose-700 dark:text-rose-400">
             <span>Total Debits (-DR)</span>
             <TrendingDown className="w-4 h-4 text-rose-600" />
@@ -488,27 +488,27 @@ export default function WalletLedgerTransactionsAuditPage() {
         </div>
 
         {/* Net Movement */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
+        <div className="bg-white dark:bg-[#FAF8F9] p-4 rounded-xl border border-slate-200 dark:border-[#E8E2E5] shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between text-xs font-medium text-[#8A8288] dark:text-[#625B60]">
             <span>Net Movement (CR - DR)</span>
-            <DollarSign className="w-4 h-4 text-slate-400" />
+            <DollarSign className="w-4 h-4 text-[#625B60]" />
           </div>
           <div
             className={`mt-2 text-xl font-bold ${
               summary.net_movement >= 0
                 ? "text-emerald-600 dark:text-emerald-400"
-                : "text-slate-900 dark:text-slate-100"
+                : "text-slate-900 dark:text-[#292329]"
             }`}
           >
             {formatCurrency(summary.net_movement)}
           </div>
-          <div className="text-[11px] text-slate-400 mt-1">Net wallet balance flow</div>
+          <div className="text-[11px] text-[#625B60] mt-1">Net wallet balance flow</div>
         </div>
 
         {/* Matched Count */}
         <div
           onClick={() => setReconFilter("MATCHED")}
-          className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-300 shadow-sm cursor-pointer transition flex flex-col justify-between"
+          className="bg-white dark:bg-[#FAF8F9] p-4 rounded-xl border border-slate-200 dark:border-[#E8E2E5] hover:border-emerald-300 shadow-sm cursor-pointer transition flex flex-col justify-between"
         >
           <div className="flex items-center justify-between text-xs font-medium text-emerald-700 dark:text-emerald-400">
             <span>Recon: Matched</span>
@@ -530,7 +530,7 @@ export default function WalletLedgerTransactionsAuditPage() {
           className={`p-4 rounded-xl border shadow-sm cursor-pointer transition flex flex-col justify-between ${
             summary.mismatch_count > 0
               ? "bg-rose-50/50 dark:bg-rose-950/20 border-rose-300 dark:border-rose-900 text-rose-700"
-              : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800"
+              : "bg-white dark:bg-[#FAF8F9] border-slate-200 dark:border-[#E8E2E5]"
           }`}
         >
           <div className="flex items-center justify-between text-xs font-medium text-rose-600 dark:text-rose-400">
@@ -550,13 +550,13 @@ export default function WalletLedgerTransactionsAuditPage() {
       </div>
 
       {/* ── Filters Section ────────────────────────────────────────────────── */}
-      <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+      <div className="bg-white dark:bg-[#FAF8F9] p-4 rounded-2xl border border-slate-200 dark:border-[#E8E2E5] shadow-sm space-y-3">
         {/* Row 1: Date Range Presets & Inputs */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-300">
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-[#E8E2E5]">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-[#292329]">
             <Calendar className="w-3.5 h-3.5 text-primary" />
             <span>Date Range:</span>
-            <div className="flex items-center gap-1 ml-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg">
+            <div className="flex items-center gap-1 ml-1 bg-slate-100 dark:bg-[#F5F2F4] p-0.5 rounded-lg">
               {["TODAY", "7D", "30D", "ALL"].map((p) => (
                 <button
                   key={p}
@@ -564,7 +564,7 @@ export default function WalletLedgerTransactionsAuditPage() {
                   className={`px-2 py-1 rounded text-[11px] font-medium transition ${
                     datePreset === p
                       ? "bg-white dark:bg-slate-700 text-primary font-semibold shadow-xs"
-                      : "text-slate-500 hover:text-slate-900"
+                      : "text-[#8A8288] hover:text-slate-900"
                   }`}
                 >
                   {p === "TODAY" ? "Today" : p === "7D" ? "7 Days" : p === "30D" ? "30 Days" : "All Time"}
@@ -582,10 +582,10 @@ export default function WalletLedgerTransactionsAuditPage() {
                 setDatePreset("CUSTOM");
                 setPage(1);
               }}
-              className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+              className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-[#E8E2E5] bg-slate-50 dark:bg-[#F5F2F4] text-slate-800 dark:text-[#292329]"
               placeholder="From"
             />
-            <span className="text-xs text-slate-400">to</span>
+            <span className="text-xs text-[#625B60]">to</span>
             <input
               type="date"
               value={toDate}
@@ -594,7 +594,7 @@ export default function WalletLedgerTransactionsAuditPage() {
                 setDatePreset("CUSTOM");
                 setPage(1);
               }}
-              className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+              className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-[#E8E2E5] bg-slate-50 dark:bg-[#F5F2F4] text-slate-800 dark:text-[#292329]"
               placeholder="To"
             />
           </div>
@@ -604,7 +604,7 @@ export default function WalletLedgerTransactionsAuditPage() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-1">
           {/* User Type */}
           <div>
-            <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+            <label className="block text-[11px] font-semibold text-[#8A8288] dark:text-[#625B60] uppercase tracking-wider mb-1">
               User Type
             </label>
             <select
@@ -613,7 +613,7 @@ export default function WalletLedgerTransactionsAuditPage() {
                 setUserType(e.target.value);
                 setPage(1);
               }}
-              className="w-full text-xs py-2 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-medium"
+              className="w-full text-xs py-2 px-2.5 rounded-lg border border-slate-200 dark:border-[#E8E2E5] bg-slate-50 dark:bg-[#F5F2F4] text-slate-800 dark:text-[#292329] font-medium"
             >
               <option value="ALL">All User Types</option>
               <option value="SUPER_DISTRIBUTOR">Super Distributor (SD)</option>
@@ -624,7 +624,7 @@ export default function WalletLedgerTransactionsAuditPage() {
 
           {/* User Cascading Dropdown */}
           <div>
-            <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+            <label className="block text-[11px] font-semibold text-[#8A8288] dark:text-[#625B60] uppercase tracking-wider mb-1">
               {userType === "SUPER_DISTRIBUTOR"
                 ? "Select SD"
                 : userType === "DISTRIBUTOR"
@@ -640,7 +640,7 @@ export default function WalletLedgerTransactionsAuditPage() {
                 setPage(1);
               }}
               disabled={loadingEntities}
-              className="w-full text-xs py-2 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-medium truncate"
+              className="w-full text-xs py-2 px-2.5 rounded-lg border border-slate-200 dark:border-[#E8E2E5] bg-slate-50 dark:bg-[#F5F2F4] text-slate-800 dark:text-[#292329] font-medium truncate"
             >
               <option value="">
                 {loadingEntities ? "Loading..." : "All Users in Type"}
@@ -655,7 +655,7 @@ export default function WalletLedgerTransactionsAuditPage() {
 
           {/* Service */}
           <div>
-            <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+            <label className="block text-[11px] font-semibold text-[#8A8288] dark:text-[#625B60] uppercase tracking-wider mb-1">
               Service
             </label>
             <select
@@ -664,7 +664,7 @@ export default function WalletLedgerTransactionsAuditPage() {
                 setService(e.target.value);
                 setPage(1);
               }}
-              className="w-full text-xs py-2 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-medium"
+              className="w-full text-xs py-2 px-2.5 rounded-lg border border-slate-200 dark:border-[#E8E2E5] bg-slate-50 dark:bg-[#F5F2F4] text-slate-800 dark:text-[#292329] font-medium"
             >
               <option value="ALL">All Services</option>
               <option value="PAYOUT">Payout</option>
@@ -682,7 +682,7 @@ export default function WalletLedgerTransactionsAuditPage() {
 
           {/* CR / DR */}
           <div>
-            <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+            <label className="block text-[11px] font-semibold text-[#8A8288] dark:text-[#625B60] uppercase tracking-wider mb-1">
               CR / DR
             </label>
             <select
@@ -691,7 +691,7 @@ export default function WalletLedgerTransactionsAuditPage() {
                 setEntryType(e.target.value);
                 setPage(1);
               }}
-              className="w-full text-xs py-2 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-medium"
+              className="w-full text-xs py-2 px-2.5 rounded-lg border border-slate-200 dark:border-[#E8E2E5] bg-slate-50 dark:bg-[#F5F2F4] text-slate-800 dark:text-[#292329] font-medium"
             >
               <option value="ALL">All Entries (CR & DR)</option>
               <option value="CREDIT">Credit (+CR)</option>
@@ -701,7 +701,7 @@ export default function WalletLedgerTransactionsAuditPage() {
 
           {/* Status */}
           <div>
-            <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+            <label className="block text-[11px] font-semibold text-[#8A8288] dark:text-[#625B60] uppercase tracking-wider mb-1">
               Txn Status
             </label>
             <select
@@ -710,7 +710,7 @@ export default function WalletLedgerTransactionsAuditPage() {
                 setStatusFilter(e.target.value);
                 setPage(1);
               }}
-              className="w-full text-xs py-2 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-medium"
+              className="w-full text-xs py-2 px-2.5 rounded-lg border border-slate-200 dark:border-[#E8E2E5] bg-slate-50 dark:bg-[#F5F2F4] text-slate-800 dark:text-[#292329] font-medium"
             >
               <option value="ALL">All Statuses</option>
               <option value="SUCCESS">Success</option>
@@ -722,7 +722,7 @@ export default function WalletLedgerTransactionsAuditPage() {
 
           {/* Reconciliation Status */}
           <div>
-            <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+            <label className="block text-[11px] font-semibold text-[#8A8288] dark:text-[#625B60] uppercase tracking-wider mb-1">
               Reconciliation
             </label>
             <select
@@ -731,7 +731,7 @@ export default function WalletLedgerTransactionsAuditPage() {
                 setReconFilter(e.target.value);
                 setPage(1);
               }}
-              className="w-full text-xs py-2 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-medium"
+              className="w-full text-xs py-2 px-2.5 rounded-lg border border-slate-200 dark:border-[#E8E2E5] bg-slate-50 dark:bg-[#F5F2F4] text-slate-800 dark:text-[#292329] font-medium"
             >
               <option value="ALL">All Reconciliation</option>
               <option value="MATCHED">Matched Only</option>
@@ -744,7 +744,7 @@ export default function WalletLedgerTransactionsAuditPage() {
         {/* Row 3: Search & Reset */}
         <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
           <div className="relative flex-1 w-full">
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-2.5 w-4 h-4 text-[#625B60]" />
             <input
               type="text"
               placeholder="Search by Transaction ID, Reference ID, Retailer Name, Store Code, or Ledger ID..."
@@ -753,12 +753,12 @@ export default function WalletLedgerTransactionsAuditPage() {
                 setSearchTerm(e.target.value);
                 setPage(1);
               }}
-              className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 placeholder-slate-400"
+              className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-[#E8E2E5] bg-slate-50 dark:bg-[#F5F2F4] text-slate-800 dark:text-[#292329] placeholder-slate-400"
             />
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm("")}
-                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                className="absolute right-3 top-2.5 text-[#625B60] hover:text-slate-600"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -767,7 +767,7 @@ export default function WalletLedgerTransactionsAuditPage() {
 
           <button
             onClick={handleResetFilters}
-            className="px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition whitespace-nowrap"
+            className="px-3 py-2 text-xs font-medium text-slate-600 dark:text-[#625B60] hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-[#F5F2F4] rounded-xl transition whitespace-nowrap"
           >
             Clear Filters
           </button>
@@ -776,9 +776,9 @@ export default function WalletLedgerTransactionsAuditPage() {
 
       {/* ── Main Content Area ──────────────────────────────────────────────── */}
       {activeTab === "grid" ? (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-[#FAF8F9] rounded-2xl border border-slate-200 dark:border-[#E8E2E5] shadow-sm overflow-hidden">
           {/* Table Header Info */}
-          <div className="px-5 py-3.5 bg-slate-50/70 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+          <div className="px-5 py-3.5 bg-slate-50/70 dark:bg-[#F5F2F4]/40 border-b border-slate-200 dark:border-[#E8E2E5] flex items-center justify-between text-xs text-[#8A8288]">
             <div>
               Showing <span className="font-semibold text-slate-900 dark:text-white">{data.length}</span> of{" "}
               <span className="font-semibold text-slate-900 dark:text-white">
@@ -794,7 +794,7 @@ export default function WalletLedgerTransactionsAuditPage() {
                   setLimit(parseInt(e.target.value));
                   setPage(1);
                 }}
-                className="text-xs py-1 px-2 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium"
+                className="text-xs py-1 px-2 rounded border border-slate-200 dark:border-[#E8E2E5] bg-white dark:bg-[#F5F2F4] text-slate-700 dark:text-[#292329] font-medium"
               >
                 <option value={25}>25</option>
                 <option value={50}>50</option>
@@ -807,7 +807,7 @@ export default function WalletLedgerTransactionsAuditPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse min-w-[1700px]">
               <thead>
-                <tr className="bg-slate-100/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold tracking-wider uppercase text-[10.5px]">
+                <tr className="bg-slate-100/80 dark:bg-[#F5F2F4]/60 border-b border-slate-200 dark:border-[#E8E2E5] text-slate-600 dark:text-[#292329] font-semibold tracking-wider uppercase text-[10.5px]">
                   <th className="py-3 px-3.5 whitespace-nowrap">Date / Time (IST)</th>
                   <th className="py-3 px-3.5 whitespace-nowrap">Transaction ID</th>
                   <th className="py-3 px-3.5 whitespace-nowrap">Ledger ID</th>
@@ -827,10 +827,10 @@ export default function WalletLedgerTransactionsAuditPage() {
                   <th className="py-3 px-3.5 whitespace-nowrap text-center">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              <tbody className="divide-y divide-slate-100 dark:divide-[#E8E2E5]">
                 {loading ? (
                   <tr>
-                    <td colSpan={17} className="py-12 text-center text-slate-400">
+                    <td colSpan={17} className="py-12 text-center text-[#625B60]">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <RefreshCw className="w-6 h-6 animate-spin text-primary" />
                         <span>Querying financial transaction ledger...</span>
@@ -839,13 +839,13 @@ export default function WalletLedgerTransactionsAuditPage() {
                   </tr>
                 ) : data.length === 0 ? (
                   <tr>
-                    <td colSpan={17} className="py-12 text-center text-slate-400">
+                    <td colSpan={17} className="py-12 text-center text-[#625B60]">
                       <div className="flex flex-col items-center justify-center gap-2">
-                        <HelpCircle className="w-8 h-8 text-slate-300" />
-                        <span className="font-semibold text-slate-600 dark:text-slate-300">
+                        <HelpCircle className="w-8 h-8 text-[#292329]" />
+                        <span className="font-semibold text-slate-600 dark:text-[#292329]">
                           No audit records found matching your filters.
                         </span>
-                        <span className="text-xs text-slate-400">
+                        <span className="text-xs text-[#625B60]">
                           Try adjusting your date range or clearing specific filter options.
                         </span>
                       </div>
@@ -860,19 +860,19 @@ export default function WalletLedgerTransactionsAuditPage() {
                       <tr
                         key={`${item.txn_id}-${item.id}-${item.ledger_id}`}
                         onClick={() => openTransactionDetail(item.txn_id, item.id)}
-                        className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition ${
+                        className={`hover:bg-slate-50 dark:hover:bg-[#F5F2F4]/50 cursor-pointer transition ${
                           isMismatch
                             ? "bg-rose-50/50 dark:bg-rose-950/20 border-l-4 border-l-rose-500"
                             : ""
                         }`}
                       >
                         {/* Date Time */}
-                        <td className="py-3 px-3.5 whitespace-nowrap font-mono text-slate-600 dark:text-slate-400">
+                        <td className="py-3 px-3.5 whitespace-nowrap font-mono text-slate-600 dark:text-[#625B60]">
                           {item.date_time}
                         </td>
 
                         {/* Txn ID */}
-                        <td className="py-3 px-3.5 whitespace-nowrap font-mono font-medium text-slate-900 dark:text-slate-100">
+                        <td className="py-3 px-3.5 whitespace-nowrap font-mono font-medium text-slate-900 dark:text-[#292329]">
                           <div className="flex items-center gap-1.5">
                             <span>{item.txn_id}</span>
                             <button
@@ -880,7 +880,7 @@ export default function WalletLedgerTransactionsAuditPage() {
                                 e.stopPropagation();
                                 copyToClipboard(item.txn_id, item.txn_id);
                               }}
-                              className="text-slate-400 hover:text-slate-600 p-0.5"
+                              className="text-[#625B60] hover:text-slate-600 p-0.5"
                             >
                               {copiedKey === item.txn_id ? (
                                 <Check className="w-3 h-3 text-emerald-600" />
@@ -898,37 +898,37 @@ export default function WalletLedgerTransactionsAuditPage() {
                               #{item.ledger_id}
                             </span>
                           ) : (
-                            <span className="text-slate-400 italic">None</span>
+                            <span className="text-[#625B60] italic">None</span>
                           )}
                         </td>
 
                         {/* Ref ID */}
-                        <td className="py-3 px-3.5 whitespace-nowrap font-mono text-slate-500 truncate max-w-[140px]" title={item.ref_id}>
+                        <td className="py-3 px-3.5 whitespace-nowrap font-mono text-[#8A8288] truncate max-w-[140px]" title={item.ref_id}>
                           {item.ref_id || "—"}
                         </td>
 
                         {/* User Type */}
                         <td className="py-3 px-3.5 whitespace-nowrap">
-                          <span className="px-2 py-0.5 rounded text-[10.5px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                          <span className="px-2 py-0.5 rounded text-[10.5px] font-semibold bg-slate-100 dark:bg-[#F5F2F4] text-slate-700 dark:text-[#292329]">
                             {item.user_type}
                           </span>
                         </td>
 
                         {/* User Name */}
-                        <td className="py-3 px-3.5 whitespace-nowrap font-medium text-slate-900 dark:text-slate-100">
+                        <td className="py-3 px-3.5 whitespace-nowrap font-medium text-slate-900 dark:text-[#292329]">
                           <div className="truncate max-w-[160px]" title={item.user_name}>
                             {item.user_name}
                           </div>
                         </td>
 
                         {/* Hierarchy Path */}
-                        <td className="py-3 px-3.5 whitespace-nowrap text-slate-600 dark:text-slate-400">
+                        <td className="py-3 px-3.5 whitespace-nowrap text-slate-600 dark:text-[#625B60]">
                           <div className="flex items-center gap-1 text-[11px]">
-                            <span className="font-semibold text-slate-700 dark:text-slate-300">{item.company}</span>
+                            <span className="font-semibold text-slate-700 dark:text-[#292329]">{item.company}</span>
                             <span>&rarr;</span>
-                            <span className="text-slate-500">{item.super_distributor !== "N/A" ? item.super_distributor : "N/A"}</span>
+                            <span className="text-[#8A8288]">{item.super_distributor !== "N/A" ? item.super_distributor : "N/A"}</span>
                             <span>&rarr;</span>
-                            <span className="text-slate-500">{item.distributor !== "N/A" ? item.distributor : "N/A"}</span>
+                            <span className="text-[#8A8288]">{item.distributor !== "N/A" ? item.distributor : "N/A"}</span>
                             <span>&rarr;</span>
                             <span className="font-medium text-primary">{item.retailer !== "N/A" ? item.retailer : "N/A"}</span>
                           </div>
@@ -964,12 +964,12 @@ export default function WalletLedgerTransactionsAuditPage() {
                         </td>
 
                         {/* Ledger Amount */}
-                        <td className="py-3 px-3.5 whitespace-nowrap text-right font-mono text-slate-700 dark:text-slate-300">
+                        <td className="py-3 px-3.5 whitespace-nowrap text-right font-mono text-slate-700 dark:text-[#292329]">
                           {formatCurrency(item.ledger_amount)}
                         </td>
 
                         {/* MDR / Comm */}
-                        <td className="py-3 px-3.5 whitespace-nowrap text-right font-mono text-slate-600 dark:text-slate-400 text-[11px]">
+                        <td className="py-3 px-3.5 whitespace-nowrap text-right font-mono text-slate-600 dark:text-[#625B60] text-[11px]">
                           {item.mdr_amount > 0 ? (
                             <span className="text-amber-600 font-semibold" title={`MDR: ${item.mdr_percent}%`}>
                               MDR: {formatCurrency(item.mdr_amount)}
@@ -979,17 +979,17 @@ export default function WalletLedgerTransactionsAuditPage() {
                               Comm: {formatCurrency(item.commission_amount)}
                             </span>
                           ) : (
-                            <span className="text-slate-400">—</span>
+                            <span className="text-[#625B60]">—</span>
                           )}
                         </td>
 
                         {/* Opening Balance */}
-                        <td className="py-3 px-3.5 whitespace-nowrap text-right font-mono text-slate-500">
+                        <td className="py-3 px-3.5 whitespace-nowrap text-right font-mono text-[#8A8288]">
                           {formatCurrency(item.opening_balance)}
                         </td>
 
                         {/* Closing Balance */}
-                        <td className="py-3 px-3.5 whitespace-nowrap text-right font-mono font-semibold text-slate-800 dark:text-slate-200">
+                        <td className="py-3 px-3.5 whitespace-nowrap text-right font-mono font-semibold text-slate-800 dark:text-[#292329]">
                           {formatCurrency(item.closing_balance)}
                         </td>
 
@@ -1047,7 +1047,7 @@ export default function WalletLedgerTransactionsAuditPage() {
                               e.stopPropagation();
                               openTransactionDetail(item.txn_id);
                             }}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                            className="p-1.5 rounded-lg text-[#625B60] hover:text-primary hover:bg-slate-100 dark:hover:bg-[#F5F2F4] transition"
                             title="Inspect Audit Trace"
                           >
                             <Eye className="w-4 h-4" />
@@ -1062,7 +1062,7 @@ export default function WalletLedgerTransactionsAuditPage() {
           </div>
 
           {/* Table Footer & Pagination */}
-          <div className="px-5 py-3.5 bg-slate-50/70 dark:bg-slate-800/40 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+          <div className="px-5 py-3.5 bg-slate-50/70 dark:bg-[#F5F2F4]/40 border-t border-slate-200 dark:border-[#E8E2E5] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#8A8288]">
             <div>
               Page <span className="font-semibold text-slate-900 dark:text-white">{page}</span> of{" "}
               <span className="font-semibold text-slate-900 dark:text-white">{totalPages}</span>
@@ -1072,7 +1072,7 @@ export default function WalletLedgerTransactionsAuditPage() {
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1 || loading}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-[#E8E2E5] bg-white dark:bg-[#F5F2F4] text-slate-700 dark:text-[#292329] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition"
               >
                 <ChevronLeft className="w-4 h-4" />
                 Previous
@@ -1081,7 +1081,7 @@ export default function WalletLedgerTransactionsAuditPage() {
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages || loading}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-[#E8E2E5] bg-white dark:bg-[#F5F2F4] text-slate-700 dark:text-[#292329] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition"
               >
                 Next
                 <ChevronRight className="w-4 h-4" />
@@ -1091,13 +1091,13 @@ export default function WalletLedgerTransactionsAuditPage() {
         </div>
       ) : (
         /* ── Service Breakdown View ─────────────────────────────────────────── */
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 space-y-4">
+        <div className="bg-white dark:bg-[#FAF8F9] rounded-2xl border border-slate-200 dark:border-[#E8E2E5] shadow-sm p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white">
                 Service-Wise Financial Summary
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-[#8A8288] mt-0.5">
                 Aggregated business volume, ledger credits, debits, MDR, and net balance movement grouped by service.
               </p>
             </div>
@@ -1106,7 +1106,7 @@ export default function WalletLedgerTransactionsAuditPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-slate-100/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold tracking-wider uppercase text-[10.5px]">
+                <tr className="bg-slate-100/80 dark:bg-[#F5F2F4]/60 border-b border-slate-200 dark:border-[#E8E2E5] text-slate-600 dark:text-[#292329] font-semibold tracking-wider uppercase text-[10.5px]">
                   <th className="py-3 px-4">Service</th>
                   <th className="py-3 px-4 text-right">Transactions</th>
                   <th className="py-3 px-4 text-right">Total CR</th>
@@ -1116,14 +1116,14 @@ export default function WalletLedgerTransactionsAuditPage() {
                   <th className="py-3 px-4 text-right">Commissions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              <tbody className="divide-y divide-slate-100 dark:divide-[#E8E2E5]">
                 {(summary.services_summary || []).map((s) => (
-                  <tr key={s.service} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
+                  <tr key={s.service} className="hover:bg-slate-50 dark:hover:bg-[#F5F2F4]/40 transition">
                     <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-primary" />
                       {s.service}
                     </td>
-                    <td className="py-3 px-4 text-right font-mono text-slate-700 dark:text-slate-300">
+                    <td className="py-3 px-4 text-right font-mono text-slate-700 dark:text-[#292329]">
                       {s.transactions.toLocaleString("en-IN")}
                     </td>
                     <td className="py-3 px-4 text-right font-mono text-emerald-600 font-medium">
@@ -1134,7 +1134,7 @@ export default function WalletLedgerTransactionsAuditPage() {
                     </td>
                     <td
                       className={`py-3 px-4 text-right font-mono font-bold ${
-                        s.net_movement >= 0 ? "text-emerald-600" : "text-slate-800 dark:text-slate-200"
+                        s.net_movement >= 0 ? "text-emerald-600" : "text-slate-800 dark:text-[#292329]"
                       }`}
                     >
                       {formatCurrency(s.net_movement)}
@@ -1159,13 +1159,13 @@ export default function WalletLedgerTransactionsAuditPage() {
           {/* Backdrop */}
           <div
             onClick={closeDrawer}
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"
+            className="fixed inset-0 bg-[#FAF8F9] backdrop-blur-xs transition-opacity"
           />
 
           {/* Drawer Panel */}
-          <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 shadow-2xl border-l border-slate-200 dark:border-slate-800 h-full flex flex-col z-10 overflow-hidden">
+          <div className="relative w-full max-w-2xl bg-white dark:bg-[#FAF8F9] shadow-2xl border-l border-slate-200 dark:border-[#E8E2E5] h-full flex flex-col z-10 overflow-hidden">
             {/* Drawer Header */}
-            <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/60">
+            <div className="p-5 border-b border-slate-200 dark:border-[#E8E2E5] flex items-center justify-between bg-slate-50 dark:bg-[#F5F2F4]/60">
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-primary tracking-wider uppercase">
@@ -1183,7 +1183,7 @@ export default function WalletLedgerTransactionsAuditPage() {
               </div>
               <button
                 onClick={closeDrawer}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+                className="p-2 rounded-xl text-[#625B60] hover:text-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1192,39 +1192,39 @@ export default function WalletLedgerTransactionsAuditPage() {
             {/* Drawer Body */}
             <div className="flex-1 overflow-y-auto p-5 space-y-6">
               {loadingTrace ? (
-                <div className="py-20 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
+                <div className="py-20 text-center text-[#625B60] flex flex-col items-center justify-center gap-2">
                   <RefreshCw className="w-6 h-6 animate-spin text-primary" />
                   <span>Loading deep audit trace & ledger verification...</span>
                 </div>
               ) : traceDetail ? (
                 <>
                   {/* Hierarchy Path Card */}
-                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
-                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#F5F2F4]/40 border border-slate-200 dark:border-[#E8E2E5]">
+                    <h3 className="text-xs font-bold text-[#8A8288] uppercase tracking-wider mb-2 flex items-center gap-1.5">
                       <Building2 className="w-3.5 h-3.5 text-primary" />
                       Entity Hierarchy Chain
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                       <div>
-                        <span className="text-[11px] text-slate-400 block">Company</span>
+                        <span className="text-[11px] text-[#625B60] block">Company</span>
                         <span className="font-semibold text-slate-900 dark:text-white">
                           {traceDetail.hierarchy.company}
                         </span>
                       </div>
                       <div>
-                        <span className="text-[11px] text-slate-400 block">Super Distributor</span>
+                        <span className="text-[11px] text-[#625B60] block">Super Distributor</span>
                         <span className="font-semibold text-slate-900 dark:text-white">
                           {traceDetail.hierarchy.super_distributor}
                         </span>
                       </div>
                       <div>
-                        <span className="text-[11px] text-slate-400 block">Distributor</span>
+                        <span className="text-[11px] text-[#625B60] block">Distributor</span>
                         <span className="font-semibold text-slate-900 dark:text-white">
                           {traceDetail.hierarchy.distributor}
                         </span>
                       </div>
                       <div>
-                        <span className="text-[11px] text-slate-400 block">Retailer</span>
+                        <span className="text-[11px] text-[#625B60] block">Retailer</span>
                         <span className="font-semibold text-primary">
                           {traceDetail.hierarchy.retailer}
                         </span>
@@ -1233,26 +1233,26 @@ export default function WalletLedgerTransactionsAuditPage() {
                   </div>
 
                   {/* Visual Financial Flow */}
-                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
-                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#F5F2F4]/40 border border-slate-200 dark:border-[#E8E2E5]">
+                    <h3 className="text-xs font-bold text-[#8A8288] uppercase tracking-wider mb-3 flex items-center gap-1.5">
                       <Layers className="w-3.5 h-3.5 text-primary" />
                       Financial Movement Trace
                     </h3>
                     <div className="flex items-center justify-between text-xs font-mono">
-                      <div className="p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-center">
-                        <span className="text-[10px] text-slate-400 block">Service</span>
+                      <div className="p-2.5 rounded-lg bg-white dark:bg-[#F5F2F4] border border-slate-200 dark:border-[#E8E2E5] text-center">
+                        <span className="text-[10px] text-[#625B60] block">Service</span>
                         <span className="font-bold text-primary">{traceDetail.service}</span>
                       </div>
-                      <ArrowRight className="w-4 h-4 text-slate-300" />
-                      <div className="p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-center">
-                        <span className="text-[10px] text-slate-400 block">Business Total</span>
+                      <ArrowRight className="w-4 h-4 text-[#292329]" />
+                      <div className="p-2.5 rounded-lg bg-white dark:bg-[#F5F2F4] border border-slate-200 dark:border-[#E8E2E5] text-center">
+                        <span className="text-[10px] text-[#625B60] block">Business Total</span>
                         <span className="font-bold text-slate-900 dark:text-white">
                           {formatCurrency(traceDetail.total_business_amount)}
                         </span>
                       </div>
-                      <ArrowRight className="w-4 h-4 text-slate-300" />
-                      <div className="p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-center">
-                        <span className="text-[10px] text-slate-400 block">Ledger Rows</span>
+                      <ArrowRight className="w-4 h-4 text-[#292329]" />
+                      <div className="p-2.5 rounded-lg bg-white dark:bg-[#F5F2F4] border border-slate-200 dark:border-[#E8E2E5] text-center">
+                        <span className="text-[10px] text-[#625B60] block">Ledger Rows</span>
                         <span className="font-bold text-indigo-600">
                           {traceDetail.ledger_postings?.length || 0} Posted
                         </span>
@@ -1262,13 +1262,13 @@ export default function WalletLedgerTransactionsAuditPage() {
 
                   {/* Component Ledger Rows */}
                   <div>
-                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <h3 className="text-xs font-bold text-[#8A8288] uppercase tracking-wider mb-2 flex items-center gap-1.5">
                       <Wallet className="w-3.5 h-3.5 text-primary" />
                       Atomic Transaction Ledger Lines
                     </h3>
-                    <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+                    <div className="border border-slate-200 dark:border-[#E8E2E5] rounded-xl overflow-hidden">
                       <table className="w-full text-xs text-left">
-                        <thead className="bg-slate-100 dark:bg-slate-800/80 text-[10px] uppercase font-semibold text-slate-500">
+                        <thead className="bg-slate-100 dark:bg-[#F5F2F4]/80 text-[10px] uppercase font-semibold text-[#8A8288]">
                           <tr>
                             <th className="py-2 px-3">Line Component</th>
                             <th className="py-2 px-3">Type</th>
@@ -1276,7 +1276,7 @@ export default function WalletLedgerTransactionsAuditPage() {
                             <th className="py-2 px-3 text-right">Balance Progression</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
+                        <tbody className="divide-y divide-slate-100 dark:divide-[#E8E2E5] font-mono">
                           {traceDetail.components?.map((c: any) => (
                             <tr key={c.id}>
                               <td className="py-2.5 px-3 font-sans font-medium text-slate-900 dark:text-white">
@@ -1294,7 +1294,7 @@ export default function WalletLedgerTransactionsAuditPage() {
                               }`}>
                                 {c.entry_type === "CREDIT" ? "+" : "-"}{formatCurrency(c.amount)}
                               </td>
-                              <td className="py-2.5 px-3 text-right text-[11px] text-slate-500">
+                              <td className="py-2.5 px-3 text-right text-[11px] text-[#8A8288]">
                                 {formatCurrency(c.balance_before)} &rarr; {formatCurrency(c.balance_after)}
                               </td>
                             </tr>
@@ -1306,14 +1306,14 @@ export default function WalletLedgerTransactionsAuditPage() {
 
                   {/* Wallet Ledger Postings */}
                   <div>
-                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <h3 className="text-xs font-bold text-[#8A8288] uppercase tracking-wider mb-2 flex items-center gap-1.5">
                       <FileSpreadsheet className="w-3.5 h-3.5 text-primary" />
                       Posted Double-Entry Wallet Ledger
                     </h3>
                     {traceDetail.ledger_postings?.length > 0 ? (
-                      <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+                      <div className="border border-slate-200 dark:border-[#E8E2E5] rounded-xl overflow-hidden">
                         <table className="w-full text-xs text-left">
-                          <thead className="bg-slate-100 dark:bg-slate-800/80 text-[10px] uppercase font-semibold text-slate-500">
+                          <thead className="bg-slate-100 dark:bg-[#F5F2F4]/80 text-[10px] uppercase font-semibold text-[#8A8288]">
                             <tr>
                               <th className="py-2 px-3">Ledger ID</th>
                               <th className="py-2 px-3">Reference</th>
@@ -1322,13 +1322,13 @@ export default function WalletLedgerTransactionsAuditPage() {
                               <th className="py-2 px-3 text-right">Closing Balance</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
+                          <tbody className="divide-y divide-slate-100 dark:divide-[#E8E2E5] font-mono">
                             {traceDetail.ledger_postings.map((wl: any) => (
                               <tr key={wl.ledger_id}>
                                 <td className="py-2.5 px-3 font-semibold text-indigo-600">
                                   #{wl.ledger_id}
                                 </td>
-                                <td className="py-2.5 px-3 text-slate-500">
+                                <td className="py-2.5 px-3 text-[#8A8288]">
                                   {wl.reference_id}
                                 </td>
                                 <td className="py-2.5 px-3 text-right text-rose-600 font-bold">
@@ -1337,7 +1337,7 @@ export default function WalletLedgerTransactionsAuditPage() {
                                 <td className="py-2.5 px-3 text-right text-emerald-600 font-bold">
                                   {wl.credit > 0 ? `+${formatCurrency(wl.credit)}` : "—"}
                                 </td>
-                                <td className="py-2.5 px-3 text-right font-semibold text-slate-800 dark:text-slate-200">
+                                <td className="py-2.5 px-3 text-right font-semibold text-slate-800 dark:text-[#292329]">
                                   {formatCurrency(wl.balance_after)}
                                 </td>
                               </tr>
@@ -1354,20 +1354,20 @@ export default function WalletLedgerTransactionsAuditPage() {
 
                   {/* Reconciliation Box */}
                   {traceDetail.reconciliation && (
-                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
-                      <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#F5F2F4]/40 border border-slate-200 dark:border-[#E8E2E5]">
+                      <h3 className="text-xs font-bold text-[#8A8288] uppercase tracking-wider mb-2 flex items-center gap-1.5">
                         <ShieldAlert className="w-3.5 h-3.5 text-primary" />
                         Gateway & External Reconciliation
                       </h3>
                       <div className="grid grid-cols-2 gap-2 text-xs font-mono">
                         <div>
-                          <span className="text-[11px] text-slate-400 block font-sans">Status</span>
+                          <span className="text-[11px] text-[#625B60] block font-sans">Status</span>
                           <span className="font-bold text-primary">
                             {traceDetail.reconciliation.recon_status}
                           </span>
                         </div>
                         <div>
-                          <span className="text-[11px] text-slate-400 block font-sans">Amount Difference</span>
+                          <span className="text-[11px] text-[#625B60] block font-sans">Amount Difference</span>
                           <span className="font-bold text-slate-900 dark:text-white">
                             {formatCurrency(traceDetail.reconciliation.amount_difference || 0)}
                           </span>
@@ -1380,10 +1380,10 @@ export default function WalletLedgerTransactionsAuditPage() {
             </div>
 
             {/* Drawer Footer */}
-            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex justify-end">
+            <div className="p-4 border-t border-slate-200 dark:border-[#E8E2E5] bg-slate-50 dark:bg-[#F5F2F4]/50 flex justify-end">
               <button
                 onClick={closeDrawer}
-                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold rounded-xl transition"
+                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 text-slate-800 dark:text-[#292329] text-xs font-semibold rounded-xl transition"
               >
                 Close Audit View
               </button>

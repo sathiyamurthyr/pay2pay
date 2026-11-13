@@ -25,7 +25,7 @@ export const TransferLimits: React.FC<TransferLimitsProps> = ({
     <Stack spacing={2} sx={{ p: 1 }}>
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 2 }}>
         {/* Daily Limit Card */}
-        <Paper elevation={0} sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+        <Paper elevation={0} sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(255, 255, 255, 0.04)", border: "1px solid #E8E2E5" }}>
           <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "11px", fontWeight: 700, mb: 0.5 }}>
             CUSTOMER DAILY LIMIT TELEMETRY
           </Typography>
@@ -41,7 +41,7 @@ export const TransferLimits: React.FC<TransferLimitsProps> = ({
         </Paper>
 
         {/* Monthly Limit Card */}
-        <Paper elevation={0} sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+        <Paper elevation={0} sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(255, 255, 255, 0.04)", border: "1px solid #E8E2E5" }}>
           <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "11px", fontWeight: 700, mb: 0.5 }}>
             CUSTOMER MONTHLY LIMIT TELEMETRY
           </Typography>
@@ -57,11 +57,11 @@ export const TransferLimits: React.FC<TransferLimitsProps> = ({
         </Paper>
 
         {/* Wallet Balance Card */}
-        <Paper elevation={0} sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+        <Paper elevation={0} sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(255, 255, 255, 0.04)", border: "1px solid #E8E2E5" }}>
           <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "11px", fontWeight: 700, mb: 0.5 }}>
             RETAILER OPERATOR WALLET
           </Typography>
-          <Typography sx={{ fontWeight: 900, color: "#FBBF24", fontSize: "20px" }}>
+          <Typography sx={{ fontWeight: 900, color: "#A20A3A", fontSize: "20px" }}>
             ₹{walletBalance.toLocaleString()}
           </Typography>
           <Typography sx={{ color: "#4ADE80", fontSize: "12px", fontWeight: 700, mt: 0.5 }}>

@@ -62,7 +62,7 @@ export const Step9Shop: React.FC<Step9Props> = ({ registrationId, onSuccess }) =
         <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
           Shop & Retailer Profile
         </h2>
-        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
+        <p className="text-xs font-semibold text-[#8A8288] dark:text-[#625B60] mt-1">
           Provide shop information for commercial audit & terminal assignment.
         </p>
       </div>
@@ -76,11 +76,11 @@ export const Step9Shop: React.FC<Step9Props> = ({ registrationId, onSuccess }) =
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+          <label className="block text-xs font-bold text-slate-700 dark:text-[#292329] mb-1">
             Shop / Business Name <span className="text-red-500">*</span>
           </label>
           <div className="relative">
-            <Store className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Store className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#625B60]" />
             <input
               type="text"
               value={shopName}
@@ -90,20 +90,20 @@ export const Step9Shop: React.FC<Step9Props> = ({ registrationId, onSuccess }) =
               }}
               placeholder="Enter shop / business name"
               required
-              className="w-full pl-11 pr-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+              className="w-full pl-11 pr-4 py-3 rounded-2xl bg-slate-50 dark:bg-[#FFFFFF] border border-slate-200 dark:border-[#E8E2E5] text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
             />
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-xs font-bold text-slate-700 dark:text-[#292329] mb-1">
               Category <span className="text-red-500">*</span>
             </label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-3 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+              className="w-full px-3 py-3 rounded-2xl bg-slate-50 dark:bg-[#FFFFFF] border border-slate-200 dark:border-[#E8E2E5] text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
             >
               <option value="Recharge & FinTech">Recharge & FinTech</option>
               <option value="General Store / Kirana">General Store / Kirana</option>
@@ -114,7 +114,7 @@ export const Step9Shop: React.FC<Step9Props> = ({ registrationId, onSuccess }) =
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-xs font-bold text-slate-700 dark:text-[#292329] mb-1">
               Years in Business
             </label>
             <input
@@ -122,19 +122,19 @@ export const Step9Shop: React.FC<Step9Props> = ({ registrationId, onSuccess }) =
               value={yearsInBusiness}
               onChange={(e) => setYearsInBusiness(e.target.value)}
               placeholder="5"
-              className="w-full px-3 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+              className="w-full px-3 py-3 rounded-2xl bg-slate-50 dark:bg-[#FFFFFF] border border-slate-200 dark:border-[#E8E2E5] text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+          <label className="block text-xs font-bold text-slate-700 dark:text-[#292329] mb-1">
             Estimated Annual Turnover
           </label>
           <select
             value={annualTurnover}
             onChange={(e) => setAnnualTurnover(e.target.value)}
-            className="w-full px-3 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+            className="w-full px-3 py-3 rounded-2xl bg-slate-50 dark:bg-[#FFFFFF] border border-slate-200 dark:border-[#E8E2E5] text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
           >
             <option value="Below ₹10 Lakhs">Below ₹10 Lakhs</option>
             <option value="₹10 Lakhs - ₹50 Lakhs">₹10 Lakhs - ₹50 Lakhs</option>
@@ -146,7 +146,7 @@ export const Step9Shop: React.FC<Step9Props> = ({ registrationId, onSuccess }) =
         <button
           type="submit"
           disabled={loading || !shopName}
-          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#A20A3A] to-[#85072F] text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
         >
           {loading ? (
             <>

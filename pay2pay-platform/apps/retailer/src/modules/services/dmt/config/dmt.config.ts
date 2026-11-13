@@ -15,7 +15,7 @@ export interface DMTConfig {
 export const dmtConfig: DMTConfig = {
   serviceCode: "DMT",
   serviceName: "Domestic Money Transfer",
-  maxSingleTxnLimit: 25000,
+  maxSingleTxnLimit: 100,
   monthlyCustomerLimit: 200000,
   defaultMode: "IMPS",
   impsChargePercent: 0.5,

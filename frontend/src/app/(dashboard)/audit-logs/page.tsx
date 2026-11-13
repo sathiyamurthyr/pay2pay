@@ -12,14 +12,14 @@ import { formatDate } from "@/lib/utils";
 
 // ─── Mock Audit Log Data ─────────────────────────────────────────
 const MOCK_LOGS = [
-  { public_id: "log_001", action: "LOGIN",    actor_email: "rajesh@pay2pay.in", resource_type: "USER_SESSION",    resource_id: "ses_001", ip_address: "203.99.44.12",  created_at: "2026-07-30T08:15:00Z", details: { session_id: "ses_001", user_agent: "Chrome/115" } },
-  { public_id: "log_002", action: "CREATE",   actor_email: "rajesh@pay2pay.in", resource_type: "COMPANY",         resource_id: "comp_016", ip_address: "203.99.44.12", created_at: "2026-07-30T09:30:00Z", details: { company_name: "FinEdge Ltd", tenant_code: "FINEDGE" } },
-  { public_id: "log_003", action: "APPROVE",  actor_email: "priya@pay2pay.in",  resource_type: "SETTLEMENT_BATCH",resource_id: "batch_055", ip_address: "10.0.0.45",   created_at: "2026-07-30T10:05:00Z", details: { amount: "₹14,50,000", bank: "HDFC Nodal" } },
-  { public_id: "log_004", action: "UPDATE",   actor_email: "anand@pay2pay.in",  resource_type: "COMMISSION_RULE", resource_id: "rule_007", ip_address: "10.0.0.52",    created_at: "2026-07-30T11:20:00Z", details: { changed_field: "rate", old_value: "1.2%", new_value: "1.5%" } },
-  { public_id: "log_005", action: "REJECT",   actor_email: "priya@pay2pay.in",  resource_type: "COMPANY",         resource_id: "comp_009", ip_address: "10.0.0.45",    created_at: "2026-07-30T12:00:00Z", details: { reason: "KYC documents incomplete" } },
-  { public_id: "log_006", action: "EXPORT",   actor_email: "rajesh@pay2pay.in", resource_type: "AUDIT_LOG",       resource_id: "export_001", ip_address: "203.99.44.12", created_at: "2026-07-30T12:45:00Z", details: { format: "CSV", records: 500 } },
-  { public_id: "log_007", action: "DELETE",   actor_email: "rajesh@pay2pay.in", resource_type: "USER",            resource_id: "usr_099", ip_address: "203.99.44.12",  created_at: "2026-07-30T13:15:00Z", details: { reason: "Terminated employee" } },
-  { public_id: "log_008", action: "LOGIN",    actor_email: "kavitha@pay2pay.in", resource_type: "USER_SESSION",   resource_id: "ses_002", ip_address: "117.99.22.5",  created_at: "2026-07-30T14:00:00Z", details: { device: "Mobile — Safari" } },
+  { public_id: "log_001", action: "LOGIN",    actor_email: "rajesh@near4you.store", resource_type: "USER_SESSION",    resource_id: "ses_001", ip_address: "203.99.44.12",  created_at: "2026-07-30T08:15:00Z", details: { session_id: "ses_001", user_agent: "Chrome/115" } },
+  { public_id: "log_002", action: "CREATE",   actor_email: "rajesh@near4you.store", resource_type: "COMPANY",         resource_id: "comp_016", ip_address: "203.99.44.12", created_at: "2026-07-30T09:30:00Z", details: { company_name: "FinEdge Ltd", tenant_code: "FINEDGE" } },
+  { public_id: "log_003", action: "APPROVE",  actor_email: "priya@near4you.store",  resource_type: "SETTLEMENT_BATCH",resource_id: "batch_055", ip_address: "10.0.0.45",   created_at: "2026-07-30T10:05:00Z", details: { amount: "₹14,50,000", bank: "HDFC Nodal" } },
+  { public_id: "log_004", action: "UPDATE",   actor_email: "anand@near4you.store",  resource_type: "COMMISSION_RULE", resource_id: "rule_007", ip_address: "10.0.0.52",    created_at: "2026-07-30T11:20:00Z", details: { changed_field: "rate", old_value: "1.2%", new_value: "1.5%" } },
+  { public_id: "log_005", action: "REJECT",   actor_email: "priya@near4you.store",  resource_type: "COMPANY",         resource_id: "comp_009", ip_address: "10.0.0.45",    created_at: "2026-07-30T12:00:00Z", details: { reason: "KYC documents incomplete" } },
+  { public_id: "log_006", action: "EXPORT",   actor_email: "rajesh@near4you.store", resource_type: "AUDIT_LOG",       resource_id: "export_001", ip_address: "203.99.44.12", created_at: "2026-07-30T12:45:00Z", details: { format: "CSV", records: 500 } },
+  { public_id: "log_007", action: "DELETE",   actor_email: "rajesh@near4you.store", resource_type: "USER",            resource_id: "usr_099", ip_address: "203.99.44.12",  created_at: "2026-07-30T13:15:00Z", details: { reason: "Terminated employee" } },
+  { public_id: "log_008", action: "LOGIN",    actor_email: "kavitha@near4you.store", resource_type: "USER_SESSION",   resource_id: "ses_002", ip_address: "117.99.22.5",  created_at: "2026-07-30T14:00:00Z", details: { device: "Mobile — Safari" } },
 ];
 
 const ACTION_CONFIG: Record<string, { icon: React.ElementType; badge: string; label: string }> = {
@@ -97,7 +97,7 @@ export default function AuditLogsPage() {
                 <Icon className="w-4.5 h-4.5" style={{ color, width: "18px", height: "18px" }} />
               </div>
             </div>
-            <div className="font-mono text-[24px] font-extrabold text-[#0F172A] tabular-nums">{value}</div>
+            <div className="font-mono text-[24px] font-extrabold text-[#FFFFFF] tabular-nums">{value}</div>
             <p className="text-[11px] font-semibold text-[#64748B] uppercase tracking-wider mt-1">{label}</p>
           </div>
         ))}
@@ -169,7 +169,7 @@ export default function AuditLogsPage() {
                           >
                             {log.actor_email?.charAt(0)?.toUpperCase() || "S"}
                           </div>
-                          <span className="text-[12px] font-semibold text-[#0F172A]">
+                          <span className="text-[12px] font-semibold text-[#FFFFFF]">
                             {log.actor_email || "System"}
                           </span>
                         </div>
@@ -225,7 +225,7 @@ export default function AuditLogsPage() {
               ].map(({ label, value }) => (
                 <div key={label}>
                   <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">{label}</span>
-                  <p className="text-[12px] font-semibold text-[#0F172A] font-mono mt-0.5 truncate">{value}</p>
+                  <p className="text-[12px] font-semibold text-[#FFFFFF] font-mono mt-0.5 truncate">{value}</p>
                 </div>
               ))}
             </div>

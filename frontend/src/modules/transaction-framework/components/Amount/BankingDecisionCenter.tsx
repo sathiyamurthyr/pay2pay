@@ -210,10 +210,10 @@ export const BankingDecisionCenter: React.FC<BankingDecisionCenterProps> = ({
                   </Button>
                 )}
 
-                <Button size="medium" variant="outlined" startIcon={<CallSplitIcon />} sx={{ height: 48, borderRadius: "10px", fontWeight: 600, fontSize: "17px", color: "rgba(255,255,255,0.9)", borderColor: "rgba(255,255,255,0.2)" }}>
+                <Button size="medium" variant="outlined" startIcon={<CallSplitIcon />} sx={{ height: 48, borderRadius: "10px", fontWeight: 600, fontSize: "17px", color: "rgba(255,255,255,0.9)", borderColor: "#E8E2E5" }}>
                   Split Transaction
                 </Button>
-                <Button size="medium" variant="outlined" startIcon={<EventIcon />} sx={{ height: 48, borderRadius: "10px", fontWeight: 600, fontSize: "17px", color: "rgba(255,255,255,0.9)", borderColor: "rgba(255,255,255,0.2)" }}>
+                <Button size="medium" variant="outlined" startIcon={<EventIcon />} sx={{ height: 48, borderRadius: "10px", fontWeight: 600, fontSize: "17px", color: "rgba(255,255,255,0.9)", borderColor: "#E8E2E5" }}>
                   Schedule Tomorrow
                 </Button>
               </Stack>
@@ -254,7 +254,7 @@ export const BankingDecisionCenter: React.FC<BankingDecisionCenterProps> = ({
                   <ErrorIcon sx={{ color: "#EF4444", fontSize: 22 }} />
                 )}
                 <Typography variant="body1" sx={{ fontSize: "16px", color: "#FFFFFF", fontWeight: 600, flex: 1 }}>{item.label}</Typography>
-                <Typography variant="body1" sx={{ fontSize: "16px", color: "#94A3B8", fontWeight: 700 }}>{item.meta}</Typography>
+                <Typography variant="body1" sx={{ fontSize: "16px", color: "#625B60", fontWeight: 700 }}>{item.meta}</Typography>
               </Stack>
             ))}
           </Box>

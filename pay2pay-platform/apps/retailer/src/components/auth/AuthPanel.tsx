@@ -38,9 +38,9 @@ type LanguageKey = "English" | "Hindi" | "Tamil" | "Telugu";
 
 const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
   English: {
-    securityAuth: "Pay2Pay Security Auth v2.6.4",
+    securityAuth: "Near4You Security Auth v2.6.4",
     welcomeBack: "Welcome Back",
-    subtitle: "Access your Pay2Pay Retailer Business Workstation",
+    subtitle: "Access your Near 4 You Retailer Business Workstation",
     passwordLogin: "Password",
     otpLogin: "WhatsApp OTP",
     biometricLogin: "Biometric",
@@ -66,15 +66,15 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
     privacyPolicy: "Privacy Policy",
     terms: "Terms of Service",
     refundPolicy: "Refund Policy",
-    rbiFooter: "© 2021 SUPER REX PRODUCTS PRIVATE LIMITED\nPay2Pay Retailer Portal",
+    rbiFooter: "© 2021 SUPER REX PRODUCTS PRIVATE LIMITED\nNear4You Retailer Portal",
     days30: "30 Days",
     days90: "90 Days",
     forever: "Forever"
   },
   Hindi: {
-    securityAuth: "Pay2Pay सुरक्षा प्रमाणीकरण v2.6.4",
+    securityAuth: "Near4You सुरक्षा प्रमाणीकरण v2.6.4",
     welcomeBack: "वापसी पर आपका स्वागत है",
-    subtitle: "अपने Pay2Pay रिटेलर व्यवसाय वर्कस्टेशन पर लॉगिन करें",
+    subtitle: "अपने Near4You रिटेलर व्यवसाय वर्कस्टेशन पर लॉगिन करें",
     passwordLogin: "पासवर्ड",
     otpLogin: "व्हाट्सएप ओटीपी",
     biometricLogin: "बायोमेट्रिक",
@@ -100,15 +100,15 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
     privacyPolicy: "गोपनीयता नीति",
     terms: "सेवा की शर्तें",
     refundPolicy: "रिफंड नीति",
-    rbiFooter: "© 2021 SUPER REX PRODUCTS PRIVATE LIMITED\nPay2Pay Retailer Portal",
+    rbiFooter: "© 2021 SUPER REX PRODUCTS PRIVATE LIMITED\nNear4You Retailer Portal",
     days30: "30 दिन",
     days90: "90 दिन",
     forever: "हमेशा"
   },
   Tamil: {
-    securityAuth: "Pay2Pay பாதுகாப்பு அங்கீகாரம் v2.6.4",
+    securityAuth: "Near4You பாதுகாப்பு அங்கீகாரம் v2.6.4",
     welcomeBack: "மீண்டும் வருக",
-    subtitle: "உங்கள் Pay2Pay சில்லறை வணிக பணிநிலையத்தை அணுகவும்",
+    subtitle: "உங்கள் Near4You சில்லறை வணிக பணிநிலையத்தை அணுகவும்",
     passwordLogin: "கடவுச்சொல்",
     otpLogin: "வாட்ஸ்அப் ஒடிபி",
     biometricLogin: "கைரேகை",
@@ -134,15 +134,15 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
     privacyPolicy: "தனியுரிமைக் கொள்கை",
     terms: "சேவை விதிகள்",
     refundPolicy: "பணத்தைத் திரும்பப்பெறும் கொள்கை",
-    rbiFooter: "© 2021 SUPER REX PRODUCTS PRIVATE LIMITED\nPay2Pay Retailer Portal",
+    rbiFooter: "© 2021 SUPER REX PRODUCTS PRIVATE LIMITED\nNear4You Retailer Portal",
     days30: "30 நாட்கள்",
     days90: "90 நாட்கள்",
     forever: "எப்போதும்"
   },
   Telugu: {
-    securityAuth: "Pay2Pay భద్రతా ప్రమాణీకరణ v2.6.4",
+    securityAuth: "Near4You భద్రతా ప్రమాణీకరణ v2.6.4",
     welcomeBack: "తిరిగి స్వాగతం",
-    subtitle: "మీ Pay2Pay రిటైలర్ బిజినెస్ వర్క్‌స్టేషన్‌ను యాక్సెస్ చేయండి",
+    subtitle: "మీ Near4You రిటైలర్ బిజినెస్ వర్క్‌స్టేషన్‌ను యాక్సెస్ చేయండి",
     passwordLogin: "పాస్‌వర్డ్",
     otpLogin: "వాట్సాప్ ఓటీపీ",
     biometricLogin: "బయోమెట్రిక్",
@@ -168,7 +168,7 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
     privacyPolicy: "గోప్యతా విధానం",
     terms: "సేవా నిబంధనలు",
     refundPolicy: "రీఫండ్ పాలసీ",
-    rbiFooter: "© 2021 SUPER REX PRODUCTS PRIVATE LIMITED\nPay2Pay Retailer Portal",
+    rbiFooter: "© 2021 SUPER REX PRODUCTS PRIVATE LIMITED\nNear4You Retailer Portal",
     days30: "30 రోజులు",
     days90: "90 రోజులు",
     forever: "ఎల్లప్పుడూ"
@@ -200,17 +200,17 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 
   const portalTitle =
     normalizedRole === "RETAILER"
-      ? "Pay2Pay Retailer Portal"
+      ? "Near4You Retailer Portal"
       : normalizedRole === "SD"
-      ? "Pay2Pay SD Portal"
-      : "Pay2Pay Distributor Portal";
+      ? "Near4You SD Portal"
+      : "Near4You Distributor Portal";
 
   const portalSubtitle =
     normalizedRole === "RETAILER"
-      ? "Access your Pay2Pay Retailer Business Workstation"
+      ? "Access your Near 4 You Retailer Business Workstation"
       : normalizedRole === "SD"
-      ? "Access your Pay2Pay Super Distributor Workspace"
-      : "Access your Pay2Pay Distributor Workspace";
+      ? "Access your Near 4 You Super Distributor Workspace"
+      : "Access your Near 4 You Distributor Workspace";
 
   const portalRegisterUrl =
     normalizedRole === "RETAILER"
@@ -669,7 +669,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             }`}>
               <img
                 src="/branding/pay2pay-logo.png"
-                alt="Pay2Pay Logo"
+                alt="Near 4 You Logo"
                 className="w-full h-full object-contain"
                 onError={(e) => {
                   const target = e.currentTarget;
@@ -681,7 +681,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             </div>
             <div>
               <h1 className={`text-sm font-black tracking-tight ${darkMode ? "text-white" : "text-slate-900"}`}>
-                Pay2Pay
+                Near 4 You
               </h1>
               <p className={`text-[10px] font-semibold ${darkMode ? "text-slate-400" : "text-slate-500"}`}>{portalTitle}</p>
             </div>
@@ -723,7 +723,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             }`}>
               <img
                 src="/branding/pay2pay-logo.png"
-                alt="Pay2Pay Logo"
+                alt="Near 4 You Logo"
                 className="w-full h-full object-contain"
                 onError={(e) => {
                   const target = e.currentTarget;
@@ -737,7 +737,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
               <span className={`text-xs font-black tracking-wide block leading-none ${
                 darkMode ? "text-white" : "text-slate-900"
               }`}>
-                Pay2Pay
+                Near 4 You
               </span>
               <span className={`text-[10px] font-semibold tracking-wider uppercase block mt-0.5 ${
                 darkMode ? "text-slate-400" : "text-slate-500"
@@ -790,7 +790,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 
           {/* ── Card Header ── */}
           <div className="text-center mb-5">
-            {/* Pay2Pay Brand Logo Mark */}
+            {/* Near 4 You Brand Logo Mark */}
             <div className="flex items-center justify-center gap-2.5 mb-3">
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 p-0.5 shadow-lg shadow-blue-500/25">
                 <div className={`w-full h-full rounded-[14px] flex items-center justify-center overflow-hidden p-1.5 ${
@@ -798,7 +798,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                 }`}>
                   <img
                     src="/branding/pay2pay-logo.png"
-                    alt="Pay2Pay Logo"
+                    alt="Near 4 You Logo"
                     className="w-full h-full object-contain"
                     onError={(e) => {
                       const target = e.currentTarget;

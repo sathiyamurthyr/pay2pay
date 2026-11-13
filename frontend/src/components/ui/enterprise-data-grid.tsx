@@ -219,7 +219,7 @@ export function EnterpriseDataGrid<T = any>({
         }}
       >
         {title && (
-          <Typography variant="h6" sx={{ fontWeight: 700, color: "#111827" }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, color: "#FAF8F9" }}>
             {title}
           </Typography>
         )}

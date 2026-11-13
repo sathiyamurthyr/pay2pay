@@ -571,7 +571,7 @@ export const retailerApi = {
       const res = await apiClient.post("/retailer/upi/generate-qr", payload);
       return res.data;
     } catch {
-      const ref = `PAY2PAY${Date.now()}`;
+      const ref = `NEAR4YOU${Date.now()}`;
       const vpa = "pay2pay.retailer@icici";
       const qrString = `upi://pay?pa=${vpa}&pn=Pay2PayStore&am=${payload.amount}&tr=${ref}&mc=5411&cu=INR`;
       return {

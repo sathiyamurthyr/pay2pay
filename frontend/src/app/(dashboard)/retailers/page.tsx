@@ -230,7 +230,7 @@ function OnboardingHubContent() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#0F172A] tracking-tight flex items-center gap-3">
+          <h1 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight flex items-center gap-3">
             <ShieldCheck className="w-7 h-7 text-[#6C63FF]" /> Onboarding Hub
           </h1>
           <p className="mt-1 text-sm font-medium text-[#64748B]">
@@ -315,7 +315,7 @@ function OnboardingHubContent() {
                 </>
               ) : (
                 <>
-                  <div className="font-mono text-[28px] font-extrabold text-[#0F172A] tabular-nums">{tab.count}</div>
+                  <div className="font-mono text-[28px] font-extrabold text-[#FFFFFF] tabular-nums">{tab.count}</div>
                   <p className="text-[11px] font-semibold text-[#64748B] uppercase tracking-wider mt-1">{tab.label}</p>
                 </>
               )}
@@ -336,7 +336,7 @@ function OnboardingHubContent() {
               placeholder={`Search ${tabs.find((t) => t.id === activeTab)?.label}…`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 pr-3 py-1.5 w-52 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[12px] font-medium text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#6C63FF] focus:ring-2 focus:ring-[#6C63FF]/15 transition-all"
+              className="pl-8 pr-3 py-1.5 w-52 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[12px] font-medium text-[#FFFFFF] placeholder-[#94A3B8] focus:outline-none focus:border-[#6C63FF] focus:ring-2 focus:ring-[#6C63FF]/15 transition-all"
             />
           </div>
 
@@ -466,7 +466,7 @@ function OnboardingHubContent() {
             <div className="relative mb-2.5 flex items-center justify-center">
               <div className="w-9 h-9 rounded-full border-[2.5px] border-[#6C63FF]/20 border-t-[#6C63FF] animate-spin" />
             </div>
-            <h3 className="text-sm font-extrabold text-[#0F172A] tracking-tight">
+            <h3 className="text-sm font-extrabold text-[#FFFFFF] tracking-tight">
               Loading {activeTab === "retailers" ? "Retailers" : activeTab === "distributors" ? "Distributors" : "Super Distributors"}...
             </h3>
             <p className="text-[12px] font-medium text-[#64748B] mt-1">
@@ -681,7 +681,7 @@ function OnboardingHubContent() {
                         <span className="font-mono text-[12px] font-bold text-[#6C63FF]">{item.retailer_code}</span>
                       </td>
                       <td className="px-5 py-3.5">
-                        <div className="font-semibold text-[#0F172A]">{item.store_name}</div>
+                        <div className="font-semibold text-[#FFFFFF]">{item.store_name}</div>
                         <div className="text-[11px] text-[#64748B]">{item.legal_name}</div>
                       </td>
                       <td className="px-5 py-3.5 text-[#334155] font-medium">{item.owner_name}</td>
@@ -712,7 +712,7 @@ function OnboardingHubContent() {
                     </>
                   ) : (
                     <>
-                      <td className="px-5 py-3.5 font-semibold text-[#0F172A]">{item.business_name}</td>
+                      <td className="px-5 py-3.5 font-semibold text-[#FFFFFF]">{item.business_name}</td>
                       <td className="px-5 py-3.5 text-[#334155]">{item.owner_name}</td>
                       <td className="px-5 py-3.5">
                         <div className="font-mono text-[11px] text-[#475569]">{item.mobile}</div>
@@ -748,7 +748,7 @@ function OnboardingHubContent() {
           isOpen={!!resetTarget}
           onClose={() => setResetTarget(null)}
           targetName={resetTarget.item.business_name || resetTarget.item.store_name || resetTarget.item.legal_name || "Partner"}
-          targetCodeOrEmail={resetTarget.item.retailer_code || resetTarget.item.email || "partner@pay2pay.com"}
+          targetCodeOrEmail={resetTarget.item.retailer_code || resetTarget.item.email || "partner@near4you.store"}
           onSubmit={async (newPassword) => {
             const endpoint =
               resetTarget.type === "retailer"

@@ -1,7 +1,7 @@
-# Pay2Pay Enterprise Server Launcher
+# Near4You Enterprise Server Launcher
 Set-Location $PSScriptRoot
 Write-Host "===================================================" -ForegroundColor Cyan
-Write-Host "  Starting Pay2Pay Next.js Server on port 3000...  " -ForegroundColor Green
+Write-Host "  Starting Near4You Next.js Server on port 3000...  " -ForegroundColor Green
 Write-Host "===================================================" -ForegroundColor Cyan
 
 try {

@@ -227,10 +227,10 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
         sx={{
           width: "100%",
           maxWidth: "880px",
-          bgcolor: "#0A0F1D",
+          bgcolor: "#FFFFFF",
           borderRadius: 3,
-          border: "1px solid rgba(234, 179, 8, 0.28)",
-          boxShadow: "0 24px 60px -12px rgba(0, 0, 0, 0.75), 0 0 35px rgba(234, 179, 8, 0.12)",
+          border: "1px solid #E8E2E5",
+          boxShadow: "0 20px 60px rgba(41, 35, 41, 0.08)",
           overflow: "hidden",
           position: "relative",
         }}
@@ -240,8 +240,8 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
           sx={{
             px: { xs: 2.5, sm: 3.5 },
             py: 2,
-            bgcolor: "rgba(15, 23, 42, 0.85)",
-            borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+            bgcolor: "#FAF8F9",
+            borderBottom: "1px solid #E8E2E5",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -256,19 +256,19 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
                 width: 44,
                 height: 44,
                 borderRadius: "10px",
-                bgcolor: "rgba(255, 255, 255, 0.05)",
+                bgcolor: "#FFFFFF",
                 p: 0.5,
-                border: "1px solid rgba(234, 179, 8, 0.3)",
+                border: "1px solid #E8E2E5",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                boxShadow: "0 0 15px rgba(234, 179, 8, 0.2)",
+                boxShadow: "0 2px 8px rgba(162, 10, 58, 0.1)",
               }}
             >
               <Box
                 component="img"
-                src="/branding/pay2pay-logo.png"
-                alt="PAY2PAY"
+                src="/branding/logo.svg"
+                alt="NEAR4YOU"
                 sx={{
                   width: "100%",
                   height: "100%",
@@ -285,17 +285,17 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
                 sx={{
                   fontWeight: 900,
                   fontSize: { xs: "18px", sm: "20px" },
-                  color: "#F8FAFC",
+                  color: "#292329",
                   letterSpacing: "0.5px",
                   lineHeight: 1.1,
                 }}
               >
-                PAY2PAY
+                NEAR4YOU
               </Typography>
               <Typography
                 variant="caption"
                 sx={{
-                  color: "#94A3B8",
+                  color: "#625B60",
                   fontWeight: 600,
                   fontSize: "12px",
                   letterSpacing: "0.2px",
@@ -313,14 +313,14 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
                 display: "flex",
                 alignItems: "center",
                 gap: 0.75,
-                bgcolor: "rgba(255, 255, 255, 0.05)",
-                border: "1px solid rgba(234, 179, 8, 0.25)",
+                bgcolor: "#FFFFFF",
+                border: "1px solid #E8E2E5",
                 borderRadius: "8px",
                 px: 1.5,
                 py: 0.5,
               }}
             >
-              <TranslateIcon sx={{ fontSize: 18, color: "#EAB308" }} />
+              <TranslateIcon sx={{ fontSize: 18, color: "#A20A3A" }} />
               <Select
                 value={currentLang}
                 onChange={(e) => setCurrentLang(e.target.value as SupportedLanguage)}
@@ -328,7 +328,7 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
                 variant="standard"
                 disableUnderline
                 sx={{
-                  color: "#F8FAFC",
+                  color: "#292329",
                   fontSize: "13px",
                   fontWeight: 600,
                   "& .MuiSelect-select": {
@@ -336,7 +336,7 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
                     pr: "22px !important",
                   },
                   "& .MuiSvgIcon-root": {
-                    color: "#94A3B8",
+                    color: "#625B60",
                   },
                 }}
               >
@@ -353,7 +353,7 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
                     }}
                   >
                     <span>{l.label}</span>
-                    <Typography component="span" sx={{ color: "#EAB308", fontSize: "12px", fontWeight: 700 }}>
+                    <Typography component="span" sx={{ color: "#A20A3A", fontSize: "12px", fontWeight: 700 }}>
                       {l.native}
                     </Typography>
                   </MenuItem>
@@ -384,7 +384,7 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
                 position: "absolute",
                 inset: 0,
                 borderRadius: "50%",
-                border: "2px solid rgba(234, 179, 8, 0.35)",
+                border: "2px solid rgba(237, 193, 30, 0.35)",
                 animation: "pulseRing 2.4s cubic-bezier(0.215, 0.61, 0.355, 1) infinite",
                 "@keyframes pulseRing": {
                   "0%": { transform: "scale(0.85)", opacity: 0.9 },
@@ -400,7 +400,7 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
                 position: "absolute",
                 inset: 10,
                 borderRadius: "50%",
-                border: "1.5px dashed rgba(245, 158, 11, 0.4)",
+                border: "1.5px dashed rgba(212, 169, 21, 0.4)",
                 animation: "spinSlow 14s linear infinite",
                 "@keyframes spinSlow": {
                   "0%": { transform: "rotate(0deg)" },
@@ -415,18 +415,18 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
                 width: 88,
                 height: 88,
                 borderRadius: "50%",
-                bgcolor: "radial-gradient(circle, rgba(234, 179, 8, 0.25) 0%, rgba(15, 23, 42, 0.95) 75%)",
-                border: "2px solid #EAB308",
+                bgcolor: "#FFF8DC",
+                border: "2px solid #EDC11E",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                boxShadow: "0 0 35px rgba(234, 179, 8, 0.5), inset 0 0 20px rgba(234, 179, 8, 0.25)",
+                boxShadow: "0 0 25px rgba(237, 193, 30, 0.3)",
               }}
             >
               <BuildCircleIcon
                 sx={{
                   fontSize: 46,
-                  color: "#FACC15",
+                  color: "#EDC11E",
                   animation: "gearWobble 4s ease-in-out infinite",
                   "@keyframes gearWobble": {
                     "0%, 100%": { transform: "rotate(0deg) scale(1)" },
@@ -439,12 +439,12 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
 
           {/* Service Downtime Status Chip */}
           <Chip
-            icon={<WarningAmberIcon sx={{ fontSize: 16, color: "#EAB308 !important" }} />}
+            icon={<WarningAmberIcon sx={{ fontSize: 16, color: "#D4A915 !important" }} />}
             label={t.badge}
             sx={{
-              bgcolor: "rgba(234, 179, 8, 0.12)",
-              color: "#FACC15",
-              border: "1px solid rgba(234, 179, 8, 0.35)",
+              bgcolor: "#FFF8DC",
+              color: "#D4A915",
+              border: "1px solid #FFF3C4",
               fontWeight: 700,
               fontSize: { xs: "12px", sm: "13px" },
               px: 1,
@@ -460,10 +460,9 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
             sx={{
               fontWeight: 900,
               fontSize: { xs: "22px", sm: "28px", md: "32px" },
-              color: "#FFFFFF",
+              color: "#292329",
               letterSpacing: "-0.5px",
               mb: 1.5,
-              textShadow: "0 2px 10px rgba(0,0,0,0.5)",
             }}
           >
             {t.serviceDown}
@@ -472,7 +471,7 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
           {/* Subtitle / Description (Multi-Language) */}
           <Typography
             sx={{
-              color: "#94A3B8",
+              color: "#625B60",
               fontSize: { xs: "13px", sm: "15px" },
               maxWidth: "680px",
               mx: "auto",
@@ -494,23 +493,23 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
               sx={{
                 flex: 1,
                 p: 2.25,
-                bgcolor: "rgba(15, 23, 42, 0.6)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
+                bgcolor: "#FAF8F9",
+                border: "1px solid #E8E2E5",
                 borderRadius: 2,
                 transition: "border-color 0.2s ease",
-                "&:hover": { borderColor: "rgba(234, 179, 8, 0.3)" },
+                "&:hover": { borderColor: "#A20A3A" },
               }}
             >
               <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 1 }}>
-                <AccessTimeIcon sx={{ fontSize: 20, color: "#EAB308" }} />
-                <Typography sx={{ color: "#E2E8F0", fontWeight: 700, fontSize: "14px" }}>
+                <AccessTimeIcon sx={{ fontSize: 20, color: "#EDC11E" }} />
+                <Typography sx={{ color: "#292329", fontWeight: 700, fontSize: "14px" }}>
                   {t.estResumeLabel}
                 </Typography>
               </Stack>
-              <Typography sx={{ color: "#FACC15", fontWeight: 600, fontSize: "13px", mb: 0.5 }}>
+              <Typography sx={{ color: "#D4A915", fontWeight: 600, fontSize: "13px", mb: 0.5 }}>
                 {t.estResumeValue}
               </Typography>
-              <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", fontSize: "12px" }}>
+              <Typography variant="caption" sx={{ color: "#625B60", display: "block", fontSize: "12px" }}>
                 {t.statusHeadline}
               </Typography>
             </Box>
@@ -520,20 +519,20 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
               sx={{
                 flex: 1,
                 p: 2.25,
-                bgcolor: "rgba(15, 23, 42, 0.6)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
+                bgcolor: "#FAF8F9",
+                border: "1px solid #E8E2E5",
                 borderRadius: 2,
                 transition: "border-color 0.2s ease",
-                "&:hover": { borderColor: "rgba(34, 197, 94, 0.3)" },
+                "&:hover": { borderColor: "#A20A3A" },
               }}
             >
               <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 1 }}>
-                <ShieldIcon sx={{ fontSize: 20, color: "#22C55E" }} />
-                <Typography sx={{ color: "#E2E8F0", fontWeight: 700, fontSize: "14px" }}>
+                <ShieldIcon sx={{ fontSize: 20, color: "#A20A3A" }} />
+                <Typography sx={{ color: "#292329", fontWeight: 700, fontSize: "14px" }}>
                   {t.safeTitle}
                 </Typography>
               </Stack>
-              <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", fontSize: "12px", lineHeight: 1.5 }}>
+              <Typography variant="caption" sx={{ color: "#625B60", display: "block", fontSize: "12px", lineHeight: 1.5 }}>
                 {t.safeDesc}
               </Typography>
             </Box>
@@ -543,26 +542,26 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
               sx={{
                 flex: 1,
                 p: 2.25,
-                bgcolor: "rgba(15, 23, 42, 0.6)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
+                bgcolor: "#FAF8F9",
+                border: "1px solid #E8E2E5",
                 borderRadius: 2,
                 transition: "border-color 0.2s ease",
-                "&:hover": { borderColor: "rgba(59, 130, 246, 0.3)" },
+                "&:hover": { borderColor: "#EDC11E" },
               }}
             >
               <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 1 }}>
-                <CheckCircleIcon sx={{ fontSize: 20, color: "#3B82F6" }} />
-                <Typography sx={{ color: "#E2E8F0", fontWeight: 700, fontSize: "14px" }}>
+                <CheckCircleIcon sx={{ fontSize: 20, color: "#EDC11E" }} />
+                <Typography sx={{ color: "#292329", fontWeight: 700, fontSize: "14px" }}>
                   {t.supportTitle}
                 </Typography>
               </Stack>
-              <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", fontSize: "12px", lineHeight: 1.5 }}>
+              <Typography variant="caption" sx={{ color: "#625B60", display: "block", fontSize: "12px", lineHeight: 1.5 }}>
                 {t.supportDesc}
               </Typography>
             </Box>
           </Stack>
 
-          <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", mb: 3.5 }} />
+          <Divider sx={{ borderColor: "#E8E2E5", mb: 3.5 }} />
 
           {/* ACTION BUTTONS */}
           <Stack
@@ -592,18 +591,18 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
                 )
               }
               sx={{
-                bgcolor: "#EAB308",
-                color: "#0F172A",
+                bgcolor: "#A20A3A",
+                color: "#FFFFFF",
                 fontWeight: 800,
                 fontSize: "14px",
                 px: 3.5,
                 py: 1.25,
                 borderRadius: "10px",
                 textTransform: "none",
-                boxShadow: "0 4px 15px rgba(234, 179, 8, 0.4)",
+                boxShadow: "0 4px 15px rgba(162, 10, 58, 0.25)",
                 "&:hover": {
-                  bgcolor: "#CA8A04",
-                  boxShadow: "0 6px 20px rgba(234, 179, 8, 0.6)",
+                  bgcolor: "#85072F",
+                  boxShadow: "0 6px 20px rgba(162, 10, 58, 0.4)",
                 },
                 minWidth: { xs: "100%", sm: "240px" },
               }}
@@ -618,8 +617,8 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
               variant="outlined"
               startIcon={<ArrowBackIcon />}
               sx={{
-                borderColor: "rgba(255, 255, 255, 0.2)",
-                color: "#E2E8F0",
+                borderColor: "#E8E2E5",
+                color: "#292329",
                 fontWeight: 600,
                 fontSize: "14px",
                 px: 3,
@@ -627,8 +626,8 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
                 borderRadius: "10px",
                 textTransform: "none",
                 "&:hover": {
-                  borderColor: "rgba(255, 255, 255, 0.4)",
-                  bgcolor: "rgba(255, 255, 255, 0.05)",
+                  borderColor: "#A20A3A",
+                  bgcolor: "#FFF0F4",
                 },
                 minWidth: { xs: "100%", sm: "190px" },
               }}

@@ -282,7 +282,7 @@ function CustomersContent() {
   // Return skeleton before hydration (AFTER ALL HOOKS HAVE BEEN CALLED AT TOP LEVEL)
   if (!mounted) {
     return (
-      <div className="p-6 min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
+      <div className="p-6 min-h-screen bg-slate-50 dark:bg-[#FFFFFF] flex items-center justify-center">
         <div className="w-8 h-8 rounded-full border-4 border-blue-600 border-t-transparent animate-spin" />
       </div>
     );
@@ -302,12 +302,12 @@ function CustomersContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#080B11] text-slate-100 font-sans pb-32 transition-colors">
+    <div className="min-h-screen bg-[#FFFFFF] text-[#292329] font-sans pb-32 transition-colors">
       
       {/* ─────────────────────────────────────────────────────────────────────
           1. TOP LUXURY GLASS APP BAR
       ───────────────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-30 bg-[#0A0F1D]/90 backdrop-blur-xl border-b border-amber-400/20 shadow-[0_8px_32px_rgba(0,0,0,0.6)]">
+      <header className="sticky top-0 z-30 bg-[#FFFFFF]/90 backdrop-blur-xl border-b border-amber-400/20 shadow-[0_8px_32px_rgba(0,0,0,0.6)]">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
           
           {/* Left: Hamburger & Title */}
@@ -418,7 +418,7 @@ function CustomersContent() {
           {/* Search Box (Height: 52px) */}
           <div className="flex items-center gap-2.5">
             <div className="relative flex-1 h-[52px]">
-              <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
+              <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-[#625B60] dark:text-[#8A8288] pointer-events-none" />
               <input
                 ref={searchInputRef}
                 type="text"
@@ -426,13 +426,13 @@ function CustomersContent() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search by Customer Name, Mobile Number, Customer ID, Aadhaar Number..."
                 aria-label="Search customer directory"
-                className="w-full h-full pl-12 pr-10 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-semibold text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 shadow-xs focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 focus:outline-none transition-all"
+                className="w-full h-full pl-12 pr-10 rounded-2xl bg-white dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5] text-sm font-semibold text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 shadow-xs focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 focus:outline-none transition-all"
               />
               {searchTerm && (
                 <button
                   onClick={() => setSearchTerm("")}
                   aria-label="Clear search"
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 rounded-full text-[#625B60] hover:text-slate-700 dark:hover:text-[#292329] transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -444,7 +444,7 @@ function CustomersContent() {
               onClick={() => setShowQrModal(true)}
               aria-label="Scan Customer QR or Aadhaar"
               title="Scan QR Code"
-              className="h-[52px] px-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 shadow-xs flex items-center justify-center gap-2 font-bold text-xs shrink-0 transition-colors focus:ring-2 focus:ring-blue-600 focus:outline-none min-h-[44px]"
+              className="h-[52px] px-4 rounded-2xl bg-white dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5] text-slate-700 dark:text-[#292329] hover:bg-slate-100 dark:hover:bg-[#F5F2F4] shadow-xs flex items-center justify-center gap-2 font-bold text-xs shrink-0 transition-colors focus:ring-2 focus:ring-blue-600 focus:outline-none min-h-[44px]"
             >
               <QrCode className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               <span className="hidden sm:inline">QR Scan</span>
@@ -468,8 +468,8 @@ function CustomersContent() {
                   aria-pressed={activeChip === chip.id}
                   className={`min-h-[44px] px-4 py-2 rounded-xl border whitespace-nowrap transition-all font-bold text-xs ${
                     activeChip === chip.id
-                      ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs"
-                      : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800"
+                      ? "bg-[#FAF8F9] dark:bg-white text-white dark:text-slate-900 border-[#E8E2E5] dark:border-white shadow-xs"
+                      : "bg-white dark:bg-[#FAF8F9] text-slate-700 dark:text-[#292329] border-slate-200 dark:border-[#E8E2E5] hover:bg-slate-100 dark:hover:bg-[#F5F2F4]"
                   }`}
                 >
                   {chip.label}
@@ -483,7 +483,7 @@ function CustomersContent() {
               className={`min-h-[44px] px-3.5 py-2 rounded-xl border font-bold text-xs flex items-center gap-1.5 shrink-0 transition-all ${
                 riskFilter !== "ALL" || kycFilter !== "ALL"
                   ? "bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800"
-                  : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  : "bg-white dark:bg-[#FAF8F9] text-slate-700 dark:text-[#292329] border-slate-200 dark:border-[#E8E2E5] hover:bg-slate-100 dark:hover:bg-[#F5F2F4]"
               }`}
             >
               <Filter className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -501,10 +501,10 @@ function CustomersContent() {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
-                className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 overflow-hidden text-xs font-semibold"
+                className="p-4 rounded-2xl bg-white dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5] space-y-3 overflow-hidden text-xs font-semibold"
               >
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                  <span className="font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-[11px]">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#E8E2E5] pb-2">
+                  <span className="font-extrabold text-slate-800 dark:text-[#292329] uppercase tracking-wider text-[11px]">
                     Filter Options
                   </span>
                   <button
@@ -520,13 +520,13 @@ function CustomersContent() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-slate-600 dark:text-slate-400 font-bold mb-1.5">
+                    <label className="block text-slate-600 dark:text-[#625B60] font-bold mb-1.5">
                       Risk Profile
                     </label>
                     <select
                       value={riskFilter}
                       onChange={(e) => setRiskFilter(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold outline-none focus:border-blue-600 min-h-[44px]"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#F5F2F4] border border-slate-200 dark:border-[#E8E2E5] text-xs font-bold outline-none focus:border-blue-600 min-h-[44px]"
                     >
                       <option value="ALL">All Risk Levels</option>
                       <option value="LOW">LOW Risk Only</option>
@@ -536,13 +536,13 @@ function CustomersContent() {
                   </div>
 
                   <div>
-                    <label className="block text-slate-600 dark:text-slate-400 font-bold mb-1.5">
+                    <label className="block text-slate-600 dark:text-[#625B60] font-bold mb-1.5">
                       Verification / KYC Status
                     </label>
                     <select
                       value={kycFilter}
                       onChange={(e) => setKycFilter(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold outline-none focus:border-blue-600 min-h-[44px]"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#F5F2F4] border border-slate-200 dark:border-[#E8E2E5] text-xs font-bold outline-none focus:border-blue-600 min-h-[44px]"
                     >
                       <option value="ALL">All KYC Statuses</option>
                       <option value="VERIFIED">Verified eKYC</option>
@@ -559,20 +559,20 @@ function CustomersContent() {
             4. SORT DROPDOWN & RESULTS METRICS
             4. SORT DROPDOWN & RESULTS METRICS TOOLBAR
         ───────────────────────────────────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-          <div className="text-xs font-bold text-slate-600 dark:text-slate-400">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-white dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5] shadow-xs">
+          <div className="text-xs font-bold text-slate-600 dark:text-[#625B60]">
             Showing <strong className="text-slate-900 dark:text-white font-mono text-sm">{sortedCustomers.length}</strong> of{" "}
             <strong className="text-slate-900 dark:text-white font-mono text-sm">{customers.length}</strong> customer(s)
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 shrink-0">Sort By:</span>
+            <span className="text-xs font-bold text-[#8A8288] dark:text-[#625B60] shrink-0">Sort By:</span>
             <div className="relative flex-1 sm:w-56">
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortOption)}
                 aria-label="Sort customer directory"
-                className="w-full h-10 pl-3.5 pr-8 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 appearance-none outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 cursor-pointer"
+                className="w-full h-10 pl-3.5 pr-8 rounded-xl bg-slate-50 dark:bg-[#F5F2F4] border border-slate-200 dark:border-[#E8E2E5] text-xs font-bold text-slate-800 dark:text-[#292329] appearance-none outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 cursor-pointer"
               >
                 <option value="RECENTLY_USED">Recently Used</option>
                 <option value="NAME_ASC">Customer Name A-Z</option>
@@ -584,14 +584,14 @@ function CustomersContent() {
                 <option value="HIGH_RISK_FIRST">High Risk First</option>
                 <option value="FREQUENT_FIRST">Frequent First</option>
               </select>
-              <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-[#625B60] pointer-events-none" />
             </div>
 
             <button
               onClick={handleRefresh}
               aria-label="Refresh customer list"
               title="Refresh Directory"
-              className="h-10 w-10 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center transition-colors shrink-0"
+              className="h-10 w-10 rounded-xl bg-slate-50 dark:bg-[#F5F2F4] border border-slate-200 dark:border-[#E8E2E5] text-slate-700 dark:text-[#292329] hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center transition-colors shrink-0"
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin text-blue-600" : ""}`} />
             </button>
@@ -607,26 +607,26 @@ function CustomersContent() {
             {[1, 2, 3, 4, 5, 6].map((idx) => (
               <div
                 key={idx}
-                className="w-full min-w-[380px] max-w-[420px] mx-auto h-[340px] p-5.5 rounded-[18px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 animate-pulse shadow-md"
+                className="w-full min-w-[380px] max-w-[420px] mx-auto h-[340px] p-5.5 rounded-[18px] bg-white dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5] space-y-4 animate-pulse shadow-md"
               >
                 <div className="flex items-center gap-3.5">
-                  <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-slate-800 shrink-0" />
+                  <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-[#F5F2F4] shrink-0" />
                   <div className="space-y-2 flex-1">
-                    <div className="h-4 w-36 bg-slate-200 dark:bg-slate-800 rounded-md" />
-                    <div className="h-3 w-24 bg-slate-200 dark:bg-slate-800 rounded-md" />
+                    <div className="h-4 w-36 bg-slate-200 dark:bg-[#F5F2F4] rounded-md" />
+                    <div className="h-3 w-24 bg-slate-200 dark:bg-[#F5F2F4] rounded-md" />
                   </div>
                 </div>
 
-                <div className="h-10 bg-slate-100 dark:bg-slate-800/60 rounded-xl" />
+                <div className="h-10 bg-slate-100 dark:bg-[#F5F2F4]/60 rounded-xl" />
 
                 <div className="space-y-1.5">
-                  <div className="h-3 w-full bg-slate-200 dark:bg-slate-800 rounded" />
-                  <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full" />
+                  <div className="h-3 w-full bg-slate-200 dark:bg-[#F5F2F4] rounded" />
+                  <div className="h-2 w-full bg-slate-200 dark:bg-[#F5F2F4] rounded-full" />
                 </div>
 
-                <div className="flex gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                  <div className="h-11 flex-1 bg-slate-200 dark:bg-slate-800 rounded-xl" />
-                  <div className="h-11 flex-1 bg-slate-200 dark:bg-slate-800 rounded-xl" />
+                <div className="flex gap-2 pt-2 border-t border-slate-100 dark:border-[#E8E2E5]">
+                  <div className="h-11 flex-1 bg-slate-200 dark:bg-[#F5F2F4] rounded-xl" />
+                  <div className="h-11 flex-1 bg-slate-200 dark:bg-[#F5F2F4] rounded-xl" />
                 </div>
               </div>
             ))}
@@ -636,7 +636,7 @@ function CustomersContent() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="p-10 rounded-[24px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center space-y-4 shadow-sm max-w-xl mx-auto"
+            className="p-10 rounded-[24px] bg-white dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5] text-center space-y-4 shadow-sm max-w-xl mx-auto"
           >
             <div className="w-16 h-16 rounded-full bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 mx-auto flex items-center justify-center border border-blue-200 dark:border-blue-800">
               <Users className="w-8 h-8 stroke-[1.75]" />
@@ -646,8 +646,8 @@ function CustomersContent() {
               <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
                 No customers found
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                We couldn&apos;t find any customer matching &quot;<strong className="text-slate-800 dark:text-slate-200">{searchTerm}</strong>&quot;.
+              <p className="text-xs text-[#8A8288] dark:text-[#625B60] font-medium">
+                We couldn&apos;t find any customer matching &quot;<strong className="text-slate-800 dark:text-[#292329]">{searchTerm}</strong>&quot;.
                 Try adjusting your search criteria or add a new customer workspace.
               </p>
             </div>
@@ -704,7 +704,7 @@ function CustomersContent() {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: -5 }}
                             transition={{ duration: 0.15 }}
-                            className="absolute right-4 bottom-14 w-52 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-50 overflow-hidden text-xs font-bold py-1 card-action-menu"
+                            className="absolute right-4 bottom-14 w-52 bg-white dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5] rounded-2xl shadow-xl z-50 overflow-hidden text-xs font-bold py-1 card-action-menu"
                           >
                             <button
                               onClick={(e) => {
@@ -724,9 +724,9 @@ function CustomersContent() {
                                 setActiveMenuId(null);
                                 setSelectedProfileCustomer(cust);
                               }}
-                              className="w-full px-4 py-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center gap-2 text-left"
+                              className="w-full px-4 py-2.5 hover:bg-slate-100 dark:hover:bg-[#F5F2F4] text-slate-700 dark:text-[#292329] flex items-center gap-2 text-left"
                             >
-                              <Eye className="w-4 h-4 text-slate-500" />
+                              <Eye className="w-4 h-4 text-[#8A8288]" />
                               <span>View Profile</span>
                             </button>
 
@@ -779,7 +779,7 @@ function CustomersContent() {
               <div className="pt-4 text-center">
                 <button
                   onClick={() => setVisibleCount((prev) => prev + 6)}
-                  className="min-h-[44px] px-6 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 font-extrabold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 shadow-xs inline-flex items-center gap-2 transition-colors"
+                  className="min-h-[44px] px-6 py-2.5 rounded-2xl bg-white dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5] text-slate-800 dark:text-[#292329] font-extrabold text-xs hover:bg-slate-100 dark:hover:bg-[#F5F2F4] shadow-xs inline-flex items-center gap-2 transition-colors"
                 >
                   <span>Load More Customers</span>
                   <ChevronDown className="w-4 h-4" />
@@ -814,8 +814,8 @@ function CustomersContent() {
           7. QR SCAN MODAL & UNIVERSAL SEARCH DIALOG
       ───────────────────────────────────────────────────────────────────── */}
       {showQrModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-[#FFFFFF]/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5] rounded-3xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl">
             <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 mx-auto flex items-center justify-center">
               <QrCode className="w-6 h-6" />
             </div>
@@ -824,12 +824,12 @@ function CustomersContent() {
               <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
                 Scan Customer QR Code
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-[#8A8288] dark:text-[#625B60]">
                 Align the customer&apos;s Aadhaar or Retailer QR code within the camera scanner frame.
               </p>
             </div>
 
-            <div className="h-44 rounded-2xl bg-slate-950 flex items-center justify-center border border-slate-800 relative overflow-hidden">
+            <div className="h-44 rounded-2xl bg-[#FFFFFF] flex items-center justify-center border border-[#E8E2E5] relative overflow-hidden">
               <div className="w-32 h-32 border-2 border-emerald-400 rounded-xl animate-pulse flex items-center justify-center text-emerald-400 font-mono text-[10px]">
                 Scanning...
               </div>
@@ -837,7 +837,7 @@ function CustomersContent() {
 
             <button
               onClick={() => setShowQrModal(false)}
-              className="w-full min-h-[44px] py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 font-bold text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="w-full min-h-[44px] py-2.5 rounded-xl border border-slate-300 dark:border-[#E8E2E5] font-bold text-xs text-slate-700 dark:text-[#292329] hover:bg-slate-100 dark:hover:bg-[#F5F2F4]"
             >
               Close Scanner
             </button>
@@ -892,7 +892,7 @@ import { ApprovalGuardOverlay } from "@/components/common/ApprovalGuardOverlay";
 
 export default function CustomersPage() {
   return (
-    <Suspense fallback={<div className="p-6 text-sm text-slate-500 font-medium">Loading customer catalog…</div>}>
+    <Suspense fallback={<div className="p-6 text-sm text-[#8A8288] font-medium">Loading customer catalog…</div>}>
       <ApprovalGuardOverlay featureName="Customer Directory & Transact">
         <CustomersContent />
       </ApprovalGuardOverlay>

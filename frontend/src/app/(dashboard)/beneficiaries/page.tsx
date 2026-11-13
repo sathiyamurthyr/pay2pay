@@ -25,7 +25,7 @@ export default function AdminStandaloneBeneficiaryRedirectPage() {
           <h2 className="text-xl font-extrabold tracking-tight">
             Standalone Beneficiary Directory Disabled
           </h2>
-          <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+          <p className="text-xs text-slate-600 dark:text-[#625B60] font-medium">
             Beneficiaries are customer-owned financial entities. Accessing beneficiaries without an active customer context is prohibited under banking security rules.
           </p>
         </div>
@@ -37,7 +37,7 @@ export default function AdminStandaloneBeneficiaryRedirectPage() {
           </div>
         </div>
 
-        <p className="text-xs text-slate-500 font-mono">
+        <p className="text-xs text-[#8A8288] font-mono">
           Redirecting to Customer Directory...
         </p>
 

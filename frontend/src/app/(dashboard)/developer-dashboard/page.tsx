@@ -57,7 +57,7 @@ const MOCK_METRICS: DeveloperMetrics = {
 const SECURITY_RULES = [
   {
     title: "HMAC-SHA256 Payload Signatures",
-    desc: "All webhook payloads signed via X-Pay2Pay-Signature header with 300s anti-replay window.",
+    desc: "All webhook payloads signed via X-Near4You-Signature header with 300s anti-replay window.",
     color: "text-emerald-400",
     bg: "bg-emerald-500/10 border-emerald-400/20",
     icon: Fingerprint,
@@ -228,7 +228,7 @@ export default function DeveloperDashboardPage() {
     <div
       className="min-h-screen space-y-6 pb-16"
       style={{
-        background: "linear-gradient(135deg, #0a0f1e 0%, #0d1225 40%, #0f1030 70%, #0a0f1e 100%)",
+        background: "linear-gradient(135deg, #FFFFFF 0%, #FFFFFF 40%, #FAF8F9 70%, #FFFFFF 100%)",
         margin: "-20px -24px",
         padding: "24px",
       }}
@@ -263,10 +263,10 @@ export default function DeveloperDashboardPage() {
                     LIVE
                   </span>
                 </div>
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-[#625B60]">
                   Real-time webhook delivery · HMAC signature verification · velocity fraud rules · chargebacks
                 </p>
-                <p className="text-[11px] text-slate-500 mt-0.5 font-mono">
+                <p className="text-[11px] text-[#8A8288] mt-0.5 font-mono">
                   Last updated: {lastUpdated.toLocaleTimeString("en-IN")} · Auto-refresh every 15s
                 </p>
               </div>
@@ -282,7 +282,7 @@ export default function DeveloperDashboardPage() {
               <button
                 onClick={fetchMetrics}
                 disabled={refreshing}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/8 border border-white/15 text-sm font-semibold text-slate-200 hover:bg-white/12 hover:border-white/25 transition-all cursor-pointer backdrop-blur-sm"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/8 border border-white/15 text-sm font-semibold text-[#292329] hover:bg-white/12 hover:border-white/25 transition-all cursor-pointer backdrop-blur-sm"
               >
                 <RefreshCw className={`w-4 h-4 text-cyan-400 ${refreshing ? "animate-spin" : ""}`} />
                 Refresh
@@ -325,9 +325,9 @@ export default function DeveloperDashboardPage() {
               <div className="relative z-10">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">{kpi.label}</p>
+                    <p className="text-[11px] font-extrabold text-[#625B60] uppercase tracking-wider">{kpi.label}</p>
                     <p className="text-3xl font-extrabold text-white mt-1 tracking-tight">{kpi.value}</p>
-                    <p className="text-[11px] text-slate-500 mt-0.5 font-medium">{kpi.sub}</p>
+                    <p className="text-[11px] text-[#8A8288] mt-0.5 font-medium">{kpi.sub}</p>
                   </div>
                   <div className={`p-2.5 rounded-xl border ${kpi.iconBg} backdrop-blur-sm shrink-0`}>
                     <Icon className="w-5 h-5" />
@@ -337,7 +337,7 @@ export default function DeveloperDashboardPage() {
                 <ProgressBar pct={kpi.bar} color={kpi.barColor} />
 
                 <div className="flex items-center justify-between mt-2">
-                  <span className="text-[10px] font-bold text-slate-500">{Math.round(kpi.bar)}% capacity</span>
+                  <span className="text-[10px] font-bold text-[#8A8288]">{Math.round(kpi.bar)}% capacity</span>
                   <span className={`text-[10px] font-extrabold flex items-center gap-0.5 ${kpi.trendUp ? "text-emerald-400" : "text-rose-400"}`}>
                     {kpi.trendUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                     {kpi.trend}
@@ -360,12 +360,12 @@ export default function DeveloperDashboardPage() {
               </div>
               <div>
                 <h3 className="font-extrabold text-white text-base">Webhook Event Distribution</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">
+                <p className="text-[11px] text-[#8A8288] mt-0.5">
                   {metrics.total_webhook_events_delivered.toLocaleString("en-IN")} total events dispatched
                 </p>
               </div>
             </div>
-            <span className="text-[10px] font-mono text-slate-500 px-2 py-1 rounded-lg bg-white/5 border border-white/10">
+            <span className="text-[10px] font-mono text-[#8A8288] px-2 py-1 rounded-lg bg-white/5 border border-white/10">
               Last 30 days
             </span>
           </div>
@@ -379,11 +379,11 @@ export default function DeveloperDashboardPage() {
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-2">
                       <span className={`w-2 h-2 rounded-full ${barColor} shrink-0`} />
-                      <span className="text-[12px] font-mono font-semibold text-slate-300">{event}</span>
+                      <span className="text-[12px] font-mono font-semibold text-[#292329]">{event}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-mono text-slate-500">{count.toLocaleString("en-IN")}</span>
-                      <span className="text-[11px] font-extrabold text-slate-400 w-10 text-right">{pct}%</span>
+                      <span className="text-[11px] font-mono text-[#8A8288]">{count.toLocaleString("en-IN")}</span>
+                      <span className="text-[11px] font-extrabold text-[#625B60] w-10 text-right">{pct}%</span>
                     </div>
                   </div>
                   <div className="h-2 w-full rounded-full bg-white/8 overflow-hidden">
@@ -398,9 +398,9 @@ export default function DeveloperDashboardPage() {
           </div>
 
           {/* Mini legend */}
-          <div className="mt-5 pt-4 border-t border-white/8 flex items-center justify-between text-[10px] text-slate-500 font-semibold">
+          <div className="mt-5 pt-4 border-t border-white/8 flex items-center justify-between text-[10px] text-[#8A8288] font-semibold">
             <span>0 events</span>
-            <span className="font-mono text-slate-400">↑ Sorted by volume</span>
+            <span className="font-mono text-[#625B60]">↑ Sorted by volume</span>
             <span>{totalEvents.toLocaleString("en-IN")} events</span>
           </div>
         </GlassCard>
@@ -414,7 +414,7 @@ export default function DeveloperDashboardPage() {
               </div>
               <div>
                 <h3 className="font-extrabold text-white text-base">Automated Velocity &amp; Fraud Policies</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">Active security enforcement rules</p>
+                <p className="text-[11px] text-[#8A8288] mt-0.5">Active security enforcement rules</p>
               </div>
             </div>
             <span className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-400/20 text-[10px] font-extrabold text-emerald-400">
@@ -439,7 +439,7 @@ export default function DeveloperDashboardPage() {
                           {rule.status}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">{rule.desc}</p>
+                      <p className="text-[11px] text-[#625B60] mt-0.5 leading-relaxed">{rule.desc}</p>
                     </div>
                   </div>
                 </div>
@@ -451,11 +451,11 @@ export default function DeveloperDashboardPage() {
           <div className="mt-5 pt-4 border-t border-white/8 grid grid-cols-2 gap-3">
             <div className="p-3 rounded-xl bg-white/5 border border-white/8 text-center">
               <p className="text-2xl font-extrabold text-cyan-400">{metrics.webhook_success_rate_pct}%</p>
-              <p className="text-[10px] text-slate-500 mt-0.5 font-semibold">Webhook Uptime</p>
+              <p className="text-[10px] text-[#8A8288] mt-0.5 font-semibold">Webhook Uptime</p>
             </div>
             <div className="p-3 rounded-xl bg-white/5 border border-white/8 text-center">
               <p className="text-2xl font-extrabold text-violet-400">≤ 300ms</p>
-              <p className="text-[10px] text-slate-500 mt-0.5 font-semibold">Signature Window</p>
+              <p className="text-[10px] text-[#8A8288] mt-0.5 font-semibold">Signature Window</p>
             </div>
           </div>
         </GlassCard>
@@ -467,7 +467,7 @@ export default function DeveloperDashboardPage() {
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="flex items-center gap-2 shrink-0">
               <Code2 className="w-4 h-4 text-cyan-400" />
-              <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Quick Links</span>
+              <span className="text-[11px] font-extrabold text-[#625B60] uppercase tracking-wider">Quick Links</span>
             </div>
             <div className="flex flex-wrap gap-2">
               {[
@@ -481,7 +481,7 @@ export default function DeveloperDashboardPage() {
                 <a
                   key={link.label}
                   href={link.href}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[11px] font-semibold text-slate-400 transition-all cursor-pointer ${link.color}`}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[11px] font-semibold text-[#625B60] transition-all cursor-pointer ${link.color}`}
                 >
                   <ArrowUpRight className="w-3 h-3" />
                   {link.label}

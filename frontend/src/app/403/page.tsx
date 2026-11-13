@@ -18,11 +18,11 @@ export default function AccessForbiddenPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-white flex flex-col items-center justify-center p-4 relative overflow-hidden select-none">
+    <div className="min-h-screen bg-[#FFFFFF] text-white flex flex-col items-center justify-center p-4 relative overflow-hidden select-none">
       {/* Ambient background glow */}
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-red-600/20 rounded-full filter blur-[120px] pointer-events-none" />
 
-      <div className="max-w-md w-full rounded-3xl bg-slate-900/60 border border-red-500/30 p-8 text-center backdrop-blur-2xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] relative space-y-6">
+      <div className="max-w-md w-full rounded-3xl bg-[#FAF8F9]/60 border border-red-500/30 p-8 text-center backdrop-blur-2xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] relative space-y-6">
         <div className="w-20 h-20 rounded-full bg-red-500/10 border-2 border-red-500/30 flex items-center justify-center mx-auto shadow-xl shadow-red-500/20 animate-pulse">
           <ShieldAlert className="w-10 h-10 text-red-500" />
         </div>
@@ -35,7 +35,7 @@ export default function AccessForbiddenPage() {
           <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
             Role Access Mismatch
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 leading-relaxed max-w-xs mx-auto">
+          <p className="text-xs sm:text-sm text-[#625B60] leading-relaxed max-w-xs mx-auto">
             Your authenticated account role does not have security permission to access this portal route.
           </p>
         </div>

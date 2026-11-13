@@ -357,14 +357,14 @@ export function CustomerOnboardingStepper({
       {/* Requirement 5: Simplify page title */}
       <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 3 }}>
         <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-          <Avatar sx={{ bgcolor: "#0F172A", width: 44, height: 44 }}>
+          <Avatar sx={{ bgcolor: "#FFFFFF", width: 44, height: 44 }}>
             <PersonAddIcon />
           </Avatar>
           <Box>
-            <Typography variant="h6" sx={{ fontWeight: 900, color: "#0F172A" }}>
+            <Typography variant="h6" sx={{ fontWeight: 900, color: "#FFFFFF" }}>
               Customer Registration
             </Typography>
-            <Typography variant="caption" sx={{ color: "#64748B" }}>
+            <Typography variant="caption" sx={{ color: "#625B60" }}>
               Step {activeStep + 1} of {STEPS.length} • Enterprise Onboarding
             </Typography>
           </Box>
@@ -383,7 +383,7 @@ export function CustomerOnboardingStepper({
                 variant="caption"
                 sx={{
                   fontWeight: activeStep === idx ? 900 : 600,
-                  color: activeStep === idx ? "#0F172A" : activeStep > idx ? "#16A34A" : "#64748B",
+                  color: activeStep === idx ? "#FFFFFF" : activeStep > idx ? "#16A34A" : "#64748B",
                 }}
               >
                 {label}
@@ -400,10 +400,10 @@ export function CustomerOnboardingStepper({
           {activeStep === 0 && (
             <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
               <form onSubmit={handleStep1Submit}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 0.5, color: "#0F172A" }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 0.5, color: "#FFFFFF" }}>
                   Customer Registration
                 </Typography>
-                <Typography variant="body2" sx={{ color: "#64748B", mb: 3 }}>
+                <Typography variant="body2" sx={{ color: "#625B60", mb: 3 }}>
                   Enter 10-digit mobile number for instant customer verification.
                 </Typography>
 
@@ -426,7 +426,7 @@ export function CustomerOnboardingStepper({
                     <Chip
                       label="Checking Service Health..."
                       size="small"
-                      sx={{ bgcolor: "#F1F5F9", color: "#64748B", fontWeight: 800, fontSize: "0.72rem" }}
+                      sx={{ bgcolor: "#292329", color: "#625B60", fontWeight: 800, fontSize: "0.72rem" }}
                     />
                   )}
                 </Box>
@@ -529,31 +529,31 @@ export function CustomerOnboardingStepper({
                     {/* Customer Info Grid: Name, Mobile, Customer ID, KYC Status, Risk Score, Monthly Limit */}
                     <Grid container spacing={2} sx={{ mb: 2.5, p: 2, bgcolor: "#FFFFFF", borderRadius: 2.5, border: "1px solid #DCFCE7" }}>
                       <Grid size={{ xs: 6 }}>
-                        <Typography variant="caption" sx={{ color: "#64748B", display: "block", fontWeight: 700 }}>
+                        <Typography variant="caption" sx={{ color: "#625B60", display: "block", fontWeight: 700 }}>
                           Customer Name
                         </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>
+                        <Typography variant="body2" sx={{ fontWeight: 800, color: "#FFFFFF" }}>
                           {duplicateCustomer.full_name || `${duplicateCustomer.first_name || ""} ${duplicateCustomer.last_name || ""}`.trim() || "Existing Customer"}
                         </Typography>
                       </Grid>
                       <Grid size={{ xs: 6 }}>
-                        <Typography variant="caption" sx={{ color: "#64748B", display: "block", fontWeight: 700 }}>
+                        <Typography variant="caption" sx={{ color: "#625B60", display: "block", fontWeight: 700 }}>
                           Mobile Number
                         </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>
+                        <Typography variant="body2" sx={{ fontWeight: 800, color: "#FFFFFF" }}>
                           +91 {duplicateCustomer.mobile_number || mobileNumber}
                         </Typography>
                       </Grid>
                       <Grid size={{ xs: 6 }}>
-                        <Typography variant="caption" sx={{ color: "#64748B", display: "block", fontWeight: 700, mt: 1 }}>
+                        <Typography variant="caption" sx={{ color: "#625B60", display: "block", fontWeight: 700, mt: 1 }}>
                           Customer ID
                         </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>
+                        <Typography variant="body2" sx={{ fontWeight: 800, color: "#FFFFFF" }}>
                           {duplicateCustomer.customer_number || duplicateCustomer.public_id || "N/A"}
                         </Typography>
                       </Grid>
                       <Grid size={{ xs: 6 }}>
-                        <Typography variant="caption" sx={{ color: "#64748B", display: "block", fontWeight: 700, mt: 1 }}>
+                        <Typography variant="caption" sx={{ color: "#625B60", display: "block", fontWeight: 700, mt: 1 }}>
                           KYC Status
                         </Typography>
                         <Chip
@@ -564,7 +564,7 @@ export function CustomerOnboardingStepper({
                         />
                       </Grid>
                       <Grid size={{ xs: 6 }}>
-                        <Typography variant="caption" sx={{ color: "#64748B", display: "block", fontWeight: 700, mt: 1 }}>
+                        <Typography variant="caption" sx={{ color: "#625B60", display: "block", fontWeight: 700, mt: 1 }}>
                           Risk Score
                         </Typography>
                         <Typography variant="body2" sx={{ fontWeight: 800, color: "#15803D" }}>
@@ -572,10 +572,10 @@ export function CustomerOnboardingStepper({
                         </Typography>
                       </Grid>
                       <Grid size={{ xs: 6 }}>
-                        <Typography variant="caption" sx={{ color: "#64748B", display: "block", fontWeight: 700, mt: 1 }}>
+                        <Typography variant="caption" sx={{ color: "#625B60", display: "block", fontWeight: 700, mt: 1 }}>
                           Monthly Limit
                         </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>
+                        <Typography variant="body2" sx={{ fontWeight: 800, color: "#FFFFFF" }}>
                           ₹{(duplicateCustomer.monthly_limit || 200000).toLocaleString('en-IN')}
                         </Typography>
                       </Grid>
@@ -613,8 +613,8 @@ export function CustomerOnboardingStepper({
                   <Box sx={{ mt: 2.5 }}>
                     {mobileNumber.length === 10 && (
                       <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 2 }}>
-                        <Chip label="No customer found" size="small" sx={{ bgcolor: "#F1F5F9", color: "#475569", fontWeight: 800 }} />
-                        <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#0F172A" }}>
+                        <Chip label="No customer found" size="small" sx={{ bgcolor: "#292329", color: "#475569", fontWeight: 800 }} />
+                        <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#FFFFFF" }}>
                           Add New Customer
                         </Typography>
                       </Stack>
@@ -654,7 +654,7 @@ export function CustomerOnboardingStepper({
                       fullWidth
                       loading={step1Loading}
                       disabled={!isStep1Valid}
-                      sx={{ py: 1.5, borderRadius: 3, bgcolor: isStep1Valid ? "#0F172A" : "#94A3B8" }}
+                      sx={{ py: 1.5, borderRadius: 3, bgcolor: isStep1Valid ? "#FFFFFF" : "#94A3B8" }}
                     >
                       Verify Mobile & Send OTP →
                     </M3Button>
@@ -668,10 +668,10 @@ export function CustomerOnboardingStepper({
           {activeStep === 1 && (
             <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
               <form onSubmit={handleStep2Submit}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 1, color: "#0F172A" }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 1, color: "#FFFFFF" }}>
                   Step 2: Mobile OTP Verification
                 </Typography>
-                <Typography variant="caption" sx={{ color: "#64748B", display: "block", mb: 2 }}>
+                <Typography variant="caption" sx={{ color: "#625B60", display: "block", mb: 2 }}>
                   6-digit verification code dispatched to +91 {mobileNumber} via {otpChannel}.
                 </Typography>
 
@@ -709,7 +709,7 @@ export function CustomerOnboardingStepper({
                 />
 
                 <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mt: 2 }}>
-                  <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>
+                  <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700 }}>
                     Retries Left: {otpAttemptsLeft} / 3
                   </Typography>
                   <Button
@@ -728,7 +728,7 @@ export function CustomerOnboardingStepper({
                   fullWidth
                   loading={step1Loading}
                   disabled={mobileOtp.length < 4 || otpAttemptsLeft <= 0}
-                  sx={{ mt: 3, py: 1.5, borderRadius: 3, bgcolor: "#0F172A" }}
+                  sx={{ mt: 3, py: 1.5, borderRadius: 3, bgcolor: "#FFFFFF" }}
                 >
                   Verify Mobile OTP & Proceed to eKYC →
                 </M3Button>
@@ -740,12 +740,12 @@ export function CustomerOnboardingStepper({
           {activeStep === 2 && (
             <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#0F172A" }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#FFFFFF" }}>
                   Step 3: Aadhaar eKYC Verification
                 </Typography>
                 <Chip label="Fee: ₹3.00 + GST (Auto-Refund on Fail)" size="small" sx={{ bgcolor: "#E0F2FE", color: "#0284C7", fontWeight: 800, fontSize: "0.7rem" }} />
               </Box>
-              <Typography variant="caption" sx={{ color: "#64748B", display: "block", mb: 2.5 }}>
+              <Typography variant="caption" sx={{ color: "#625B60", display: "block", mb: 2.5 }}>
                 Enter 12-digit Aadhaar number to trigger UIDAI verification. PII encrypted AES-256.
               </Typography>
 
@@ -785,7 +785,7 @@ export function CustomerOnboardingStepper({
                       loading={step3Loading}
                       disabled={aadhaarNumber.replace(/\D/g, "").length !== 12 || step3Loading}
                       onClick={handleGenerateAadhaarOtp}
-                      sx={{ py: 1.5, borderRadius: 3, bgcolor: "#0F172A" }}
+                      sx={{ py: 1.5, borderRadius: 3, bgcolor: "#FFFFFF" }}
                     >
                       {step3Loading ? "Connecting Gateway..." : "Generate Aadhaar eKYC OTP →"}
                     </M3Button>
@@ -832,7 +832,7 @@ export function CustomerOnboardingStepper({
                         fullWidth
                         loading={step3Loading}
                         disabled={aadhaarOtp.length < 4 || step3Loading}
-                        sx={{ py: 1.5, borderRadius: 3, bgcolor: "#0F172A" }}
+                        sx={{ py: 1.5, borderRadius: 3, bgcolor: "#FFFFFF" }}
                       >
                         {step3Loading ? "Verifying eKYC..." : "Verify Aadhaar eKYC →"}
                       </M3Button>
@@ -864,7 +864,7 @@ export function CustomerOnboardingStepper({
                     variant="contained"
                     fullWidth
                     onClick={() => setActiveStep(3)}
-                    sx={{ py: 1.5, borderRadius: 3, bgcolor: "#0F172A" }}
+                    sx={{ py: 1.5, borderRadius: 3, bgcolor: "#FFFFFF" }}
                   >
                     Proceed to Transaction Security PIN →
                   </M3Button>
@@ -877,10 +877,10 @@ export function CustomerOnboardingStepper({
           {activeStep === 3 && (
             <motion.div key="step4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
               <form onSubmit={handleStep4Submit}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 1, color: "#0F172A" }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 1, color: "#FFFFFF" }}>
                   Step 4: Create Transaction Security PIN
                 </Typography>
-                <Typography variant="caption" sx={{ color: "#64748B", display: "block", mb: 2.5 }}>
+                <Typography variant="caption" sx={{ color: "#625B60", display: "block", mb: 2.5 }}>
                   Set a 4-digit security PIN required for approving payout transfers.
                 </Typography>
 
@@ -925,7 +925,7 @@ export function CustomerOnboardingStepper({
                   fullWidth
                   loading={step4Loading}
                   disabled={pin.length < 4 || pin !== confirmPin}
-                  sx={{ mt: 3, py: 1.5, borderRadius: 3, bgcolor: "#0F172A" }}
+                  sx={{ mt: 3, py: 1.5, borderRadius: 3, bgcolor: "#FFFFFF" }}
                 >
                   Save PIN & Complete Onboarding →
                 </M3Button>
@@ -941,7 +941,7 @@ export function CustomerOnboardingStepper({
                 <Typography variant="h5" sx={{ fontWeight: 900, color: "#14532D" }}>
                   Customer Onboarding Completed!
                 </Typography>
-                <Typography variant="caption" sx={{ color: "#64748B", display: "block", mb: 3 }}>
+                <Typography variant="caption" sx={{ color: "#625B60", display: "block", mb: 3 }}>
                   Customer {firstName} {lastName} is ready for Move To Bank payout operations.
                 </Typography>
 

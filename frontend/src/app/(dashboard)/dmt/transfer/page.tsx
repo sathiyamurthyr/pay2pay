@@ -160,7 +160,7 @@ export default function DmtTransferPage() {
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between text-[#64748B]">
                   <span>Transfer Amount</span>
-                  <span className="font-mono font-bold text-[#0F172A]">₹{calc.transfer_amount?.toLocaleString()}</span>
+                  <span className="font-mono font-bold text-[#FFFFFF]">₹{calc.transfer_amount?.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-[#64748B]">
                   <span>Service Charge</span>
@@ -170,7 +170,7 @@ export default function DmtTransferPage() {
                   <span>GST (18%)</span>
                   <span className="font-mono text-[#D97706]">₹{calc.gst_amount}</span>
                 </div>
-                <div className="flex justify-between font-bold text-[#0F172A] text-sm pt-2 border-t border-[#E2E8F0]">
+                <div className="flex justify-between font-bold text-[#FFFFFF] text-sm pt-2 border-t border-[#E2E8F0]">
                   <span>Total Wallet Debit</span>
                   <span className="font-mono text-[#6C63FF]">₹{calc.total_debit_amount?.toLocaleString()}</span>
                 </div>
@@ -189,9 +189,9 @@ export default function DmtTransferPage() {
               </div>
               <div className="space-y-1.5 text-xs text-[#334155] font-mono">
                 <p>Txn ID: <strong className="text-[#6C63FF]">{txnResult.transaction_number}</strong></p>
-                <p>UTR: <strong className="text-[#0F172A]">{txnResult.utr}</strong> | RRN: {txnResult.rrn}</p>
-                <p>Beneficiary: <strong className="text-[#0F172A]">{txnResult.beneficiary_name}</strong> ({txnResult.bank_name})</p>
-                <p>Total Debited: <strong className="text-[#0F172A]">₹{txnResult.total_debit_amount}</strong></p>
+                <p>UTR: <strong className="text-[#FFFFFF]">{txnResult.utr}</strong> | RRN: {txnResult.rrn}</p>
+                <p>Beneficiary: <strong className="text-[#FFFFFF]">{txnResult.beneficiary_name}</strong> ({txnResult.bank_name})</p>
+                <p>Total Debited: <strong className="text-[#FFFFFF]">₹{txnResult.total_debit_amount}</strong></p>
               </div>
             </div>
           )}

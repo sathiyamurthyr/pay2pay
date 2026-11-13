@@ -254,11 +254,11 @@ function EntitySearchDropdown({
       <button
         type="button"
         onClick={() => setOpen((p) => !p)}
-        className="w-full flex items-center justify-between rounded-xl border border-[#D1D5DB] bg-white px-3 py-2.5 text-xs font-bold text-[#0F172A] hover:border-[#2563EB] focus:outline-none transition-colors"
+        className="w-full flex items-center justify-between rounded-xl border border-[#D1D5DB] bg-white px-3 py-2.5 text-xs font-bold text-[#FFFFFF] hover:border-[#2563EB] focus:outline-none transition-colors"
       >
         <div className="flex items-center gap-2">
           <Icon className="h-4 w-4" style={{ color: scopeMeta?.color }} />
-          <span className={value ? "text-[#0F172A]" : "text-[#9CA3AF]"}>
+          <span className={value ? "text-[#FFFFFF]" : "text-[#9CA3AF]"}>
             {value ? `${value.label}${value.code ? ` (${value.code})` : ""}` : `Search & select ${scopeMeta?.label}...`}
           </span>
         </div>
@@ -274,7 +274,7 @@ function EntitySearchDropdown({
               placeholder="Search by name or code..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="flex-1 bg-transparent text-xs font-semibold text-[#0F172A] placeholder-[#9CA3AF] focus:outline-none"
+              className="flex-1 bg-transparent text-xs font-semibold text-[#FFFFFF] placeholder-[#9CA3AF] focus:outline-none"
             />
             {loading && <Loader2 className="h-4 w-4 animate-spin text-[#2563EB]" />}
           </div>
@@ -290,7 +290,7 @@ function EntitySearchDropdown({
                   key={opt.id}
                   onClick={() => { onChange(opt); setOpen(false); setQuery(""); }}
                   className={`flex items-center justify-between px-4 py-2.5 cursor-pointer text-xs hover:bg-[#EFF6FF] transition-colors ${
-                    value?.id === opt.id ? "bg-[#EFF6FF] text-[#2563EB]" : "text-[#0F172A]"
+                    value?.id === opt.id ? "bg-[#EFF6FF] text-[#2563EB]" : "text-[#FFFFFF]"
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -447,7 +447,7 @@ export default function ComplianceReportsPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#0F172A] flex items-center gap-3">
+          <h1 className="text-2xl font-extrabold text-[#FFFFFF] flex items-center gap-3">
             <FileText className="h-7 w-7 text-[#2563EB]" />
             Regulatory &amp; Tax Compliance Reports
           </h1>
@@ -494,7 +494,7 @@ export default function ComplianceReportsPage() {
             accessorKey: "report_type",
             sortable: true,
             cell: (r) => (
-              <span className="font-bold text-[#0F172A]">{r.report_type?.replace(/_/g, " ")}</span>
+              <span className="font-bold text-[#FFFFFF]">{r.report_type?.replace(/_/g, " ")}</span>
             ),
           },
           {
@@ -549,7 +549,7 @@ export default function ComplianceReportsPage() {
                   >
                     {scopeLabel[scope] || scope}
                   </span>
-                  <span className="text-xs font-extrabold text-[#0F172A]">{displayName}</span>
+                  <span className="text-xs font-extrabold text-[#FFFFFF]">{displayName}</span>
                   {generatedBy && (
                     <span className="text-[10px] text-[#64748B] font-medium">
                       by {generatedBy}
@@ -574,7 +574,7 @@ export default function ComplianceReportsPage() {
             accessorKey: "total_taxable_value",
             sortable: true,
             cell: (r) => (
-              <span className="font-mono text-xs font-extrabold text-[#0F172A]">
+              <span className="font-mono text-xs font-extrabold text-[#FFFFFF]">
                 ₹{(r.total_taxable_value || 0).toLocaleString("en-IN")}
               </span>
             ),
@@ -679,7 +679,7 @@ export default function ComplianceReportsPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-[#E2E8F0]">
             <div className="flex flex-col items-center justify-center px-6 py-4 gap-0.5">
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#94A3B8]">Total Records</span>
-              <span className="text-3xl font-extrabold text-[#0F172A] tabular-nums">
+              <span className="text-3xl font-extrabold text-[#FFFFFF] tabular-nums">
                 {totals.count}
               </span>
               <span className="text-[10px] font-semibold text-[#64748B]">compliance reports</span>
@@ -687,7 +687,7 @@ export default function ComplianceReportsPage() {
 
             <div className="flex flex-col items-center justify-center px-6 py-4 gap-0.5 bg-[#FAFBFF]">
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#94A3B8]">Total Taxable Value</span>
-              <span className="text-2xl font-extrabold text-[#0F172A] font-mono tabular-nums">
+              <span className="text-2xl font-extrabold text-[#FFFFFF] font-mono tabular-nums">
                 ₹{totals.taxableValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
               </span>
               <span className="text-[10px] font-semibold text-[#64748B]">aggregate transaction base</span>
@@ -715,13 +715,13 @@ export default function ComplianceReportsPage() {
       {/* Generate Compliance Report Modal */}
       {showModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#FAF8F9] backdrop-blur-sm p-4 overflow-y-auto"
           onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}
         >
-          <div className="w-full max-w-lg rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xl space-y-5 my-8 text-[#111827]">
+          <div className="w-full max-w-lg rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xl space-y-5 my-8 text-[#FAF8F9]">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-4">
-              <h2 className="text-lg font-extrabold text-[#111827] flex items-center gap-2">
+              <h2 className="text-lg font-extrabold text-[#FAF8F9] flex items-center gap-2">
                 <FileText className="h-5 w-5 text-[#2563EB]" />
                 Generate Regulatory Tax Report
               </h2>
@@ -743,7 +743,7 @@ export default function ComplianceReportsPage() {
                 <select
                   value={formData.report_type}
                   onChange={(e) => setFormData({ ...formData, report_type: e.target.value })}
-                  className="w-full rounded-xl border border-[#D1D5DB] bg-white px-3 py-2.5 text-xs font-bold text-[#0F172A] focus:border-[#2563EB] focus:outline-none"
+                  className="w-full rounded-xl border border-[#D1D5DB] bg-white px-3 py-2.5 text-xs font-bold text-[#FFFFFF] focus:border-[#2563EB] focus:outline-none"
                 >
                   {REPORT_TYPES.map((r) => (
                     <option key={r.value} value={r.value}>{r.label}</option>
@@ -760,7 +760,7 @@ export default function ComplianceReportsPage() {
                 <select
                   value={formData.service_name}
                   onChange={(e) => setFormData({ ...formData, service_name: e.target.value })}
-                  className="w-full rounded-xl border border-[#D1D5DB] bg-white px-3 py-2.5 text-xs font-bold text-[#0F172A] focus:border-[#2563EB] focus:outline-none"
+                  className="w-full rounded-xl border border-[#D1D5DB] bg-white px-3 py-2.5 text-xs font-bold text-[#FFFFFF] focus:border-[#2563EB] focus:outline-none"
                 >
                   {SERVICE_TAX_OPTIONS.map((s) => (
                     <option key={s.value} value={s.value}>
@@ -782,7 +782,7 @@ export default function ComplianceReportsPage() {
                   type="month"
                   value={formData.tax_period}
                   onChange={(e) => setFormData({ ...formData, tax_period: e.target.value })}
-                  className="w-full rounded-xl border border-[#D1D5DB] bg-white px-3 py-2.5 text-xs font-bold text-[#0F172A] focus:border-[#2563EB] focus:outline-none"
+                  className="w-full rounded-xl border border-[#D1D5DB] bg-white px-3 py-2.5 text-xs font-bold text-[#FFFFFF] focus:border-[#2563EB] focus:outline-none"
                   required
                 />
               </div>
@@ -820,7 +820,7 @@ export default function ComplianceReportsPage() {
                           <Icon className="h-4 w-4" />
                         </div>
                         <div>
-                          <p className={`text-xs font-bold ${isSelected ? "text-[#1E40AF]" : "text-[#0F172A]"}`}>
+                          <p className={`text-xs font-bold ${isSelected ? "text-[#1E40AF]" : "text-[#FFFFFF]"}`}>
                             {scope.label}
                           </p>
                         </div>
@@ -846,7 +846,7 @@ export default function ComplianceReportsPage() {
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="rounded-lg bg-white border border-[#E2E8F0] px-3 py-2">
                     <p className="text-[9px] font-extrabold uppercase tracking-wider text-[#94A3B8] mb-0.5">Report Type</p>
-                    <p className="text-[11px] font-extrabold text-[#0F172A] truncate">
+                    <p className="text-[11px] font-extrabold text-[#FFFFFF] truncate">
                       {REPORT_TYPES.find(r => r.value === formData.report_type)?.label}
                     </p>
                   </div>
@@ -864,7 +864,7 @@ export default function ComplianceReportsPage() {
                   </div>
                   <div className="rounded-lg bg-white border border-[#E2E8F0] px-3 py-2">
                     <p className="text-[9px] font-extrabold uppercase tracking-wider text-[#94A3B8] mb-0.5">Entity Scope</p>
-                    <p className="text-[11px] font-extrabold text-[#0F172A]" style={{ color: scopeMeta?.color }}>
+                    <p className="text-[11px] font-extrabold text-[#FFFFFF]" style={{ color: scopeMeta?.color }}>
                       {scopeMeta?.label || "—"}
                     </p>
                   </div>
@@ -875,7 +875,7 @@ export default function ComplianceReportsPage() {
                        formData.entity_scope === "RETAILER" ? "Retailer Name" : "Scope / Generated By"}
                     </p>
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-[11px] font-extrabold text-[#0F172A] leading-tight truncate">
+                      <p className="text-[11px] font-extrabold text-[#FFFFFF] leading-tight truncate">
                         {formData.entity_scope === "PLATFORM"
                           ? "All Entities (Platform-wide)"
                           : selectedEntity

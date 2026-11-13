@@ -34,7 +34,7 @@ export const TimelineDock: React.FC<TimelineDockProps> = ({
         p: 1.75,
         px: 3,
         borderRadius: "16px",
-        bgcolor: "rgba(15, 23, 42, 0.95)",
+        bgcolor: "#FFFFFF",
         backdropFilter: "blur(24px)",
         border: "1px solid rgba(255, 255, 255, 0.15)",
         boxShadow: "0 -8px 32px rgba(0, 0, 0, 0.4)",
@@ -107,7 +107,7 @@ export const TimelineDock: React.FC<TimelineDockProps> = ({
               fontSize: "12px",
               fontWeight: 700,
               color: "rgba(255, 255, 255, 0.85)",
-              borderColor: "rgba(255, 255, 255, 0.2)",
+              borderColor: "#E8E2E5",
               bgcolor: "rgba(255, 255, 255, 0.04)",
               "&:hover": { bgcolor: "rgba(255, 255, 255, 0.1)" },
             }}

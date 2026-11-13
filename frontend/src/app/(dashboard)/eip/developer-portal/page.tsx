@@ -32,21 +32,21 @@ export default function DeveloperPortalPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100 flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-[#292329] flex items-center gap-3">
             <Code className="h-8 w-8 text-rose-400" />
             Developer Portal & API Key Management
           </h1>
-          <p className="mt-1 text-slate-400">
+          <p className="mt-1 text-[#625B60]">
             Manage developer application credentials, OpenAPI specifications, SDK downloads, & sandbox access
           </p>
         </div>
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 backdrop-blur-xl overflow-hidden shadow-2xl">
+      <div className="rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 backdrop-blur-xl overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-300">
-            <thead className="bg-slate-950/80 uppercase font-mono text-xs text-slate-400 border-b border-slate-800">
+          <table className="w-full text-left text-sm text-[#292329]">
+            <thead className="bg-[#FFFFFF]/80 uppercase font-mono text-xs text-[#625B60] border-b border-[#E8E2E5]">
               <tr>
                 <th className="px-5 py-4">App Code</th>
                 <th className="px-5 py-4">Application Name</th>
@@ -54,15 +54,15 @@ export default function DeveloperPortalPage() {
                 <th className="px-5 py-4 font-mono text-right">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 font-mono text-xs">
+            <tbody className="divide-y divide-[#E8E2E5]/60 font-mono text-xs">
               {loading ? (
-                <tr><td colSpan={4} className="px-5 py-12 text-center text-slate-400">Loading Developer Applications...</td></tr>
+                <tr><td colSpan={4} className="px-5 py-12 text-center text-[#625B60]">Loading Developer Applications...</td></tr>
               ) : (
                 apps.map((a) => (
-                  <tr key={a.public_id} className="hover:bg-slate-800/40 transition-colors">
+                  <tr key={a.public_id} className="hover:bg-[#F5F2F4]/40 transition-colors">
                     <td className="px-5 py-4 text-rose-400 font-bold">{a.app_code}</td>
-                    <td className="px-5 py-4 font-sans text-xs font-semibold text-slate-200">{a.name}</td>
-                    <td className="px-5 py-4 text-slate-400 font-mono text-xs flex items-center gap-2">
+                    <td className="px-5 py-4 font-sans text-xs font-semibold text-[#292329]">{a.name}</td>
+                    <td className="px-5 py-4 text-[#625B60] font-mono text-xs flex items-center gap-2">
                       <Key className="h-3.5 w-3.5 text-amber-400" /> {a.api_key}
                     </td>
                     <td className="px-5 py-4 text-right">

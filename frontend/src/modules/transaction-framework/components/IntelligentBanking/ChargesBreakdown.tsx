@@ -18,17 +18,17 @@ export const ChargesBreakdown: React.FC<ChargesBreakdownProps> = ({ amount, char
       <Paper elevation={0} sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(18, 27, 48, 0.75)", border: "1px solid rgba(255, 255, 255, 0.12)" }}>
         <Table size="small">
           <TableBody>
-            <TableRow sx={{ "& td": { color: "#FFFFFF", fontSize: "13px", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", py: 1 } }}>
+            <TableRow sx={{ "& td": { color: "#FFFFFF", fontSize: "13px", borderBottom: "1px solid #E8E2E5", py: 1 } }}>
               <TableCell sx={{ color: "rgba(255, 255, 255, 0.70)", fontWeight: 600 }}>Transfer Principal Amount</TableCell>
               <TableCell align="right" sx={{ fontWeight: 800 }}>₹{amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</TableCell>
             </TableRow>
 
-            <TableRow sx={{ "& td": { color: "#FFFFFF", fontSize: "13px", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", py: 1 } }}>
+            <TableRow sx={{ "& td": { color: "#FFFFFF", fontSize: "13px", borderBottom: "1px solid #E8E2E5", py: 1 } }}>
               <TableCell sx={{ color: "rgba(255, 255, 255, 0.70)", fontWeight: 600 }}>Payout Service Charge</TableCell>
               <TableCell align="right" sx={{ color: "#60A5FA", fontWeight: 800 }}>+ ₹{effectiveCharges.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</TableCell>
             </TableRow>
 
-            <TableRow sx={{ "& td": { color: "#FFFFFF", fontSize: "13px", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", py: 1 } }}>
+            <TableRow sx={{ "& td": { color: "#FFFFFF", fontSize: "13px", borderBottom: "1px solid #E8E2E5", py: 1 } }}>
               <TableCell sx={{ color: "rgba(255, 255, 255, 0.70)", fontWeight: 600 }}>GST</TableCell>
               <TableCell align="right" sx={{ color: "#93C5FD", fontWeight: 700 }}>+ ₹{effectiveGst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</TableCell>
             </TableRow>

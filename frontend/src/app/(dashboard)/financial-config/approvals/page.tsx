@@ -103,7 +103,7 @@ export default function ApprovalQueuePage() {
       sortable: true,
       cell: (c) => (
         <div>
-          <div className="font-bold text-[#0F172A]">{c.config_name}</div>
+          <div className="font-bold text-[#FFFFFF]">{c.config_name}</div>
           <div className="text-[10px] text-[#64748B]">Scope: {c.hierarchy_level} (Priority #{c.priority})</div>
         </div>
       ),
@@ -116,7 +116,7 @@ export default function ApprovalQueuePage() {
       cell: (c) => (
         <div className="font-mono text-xs text-[#475569] font-medium flex items-center gap-1.5">
           <UserCheck className="w-3.5 h-3.5 text-[#2563EB]" />
-          {c.created_by || "maker@pay2pay.com"}
+          {c.created_by || "maker@near4you.store"}
         </div>
       ),
     },
@@ -193,7 +193,7 @@ export default function ApprovalQueuePage() {
       {/* Header Bar */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#0F172A] flex items-center gap-3">
+          <h1 className="text-2xl font-extrabold text-[#FFFFFF] flex items-center gap-3">
             <ShieldCheck className="h-7 w-7 text-[#2563EB]" />
             Maker-Checker Digital Approval Queue
           </h1>
@@ -210,7 +210,7 @@ export default function ApprovalQueuePage() {
               className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-extrabold transition-all cursor-pointer ${
                 viewMode === "table"
                   ? "bg-white text-[#2563EB] shadow-2xs"
-                  : "text-[#64748B] hover:text-[#0F172A]"
+                  : "text-[#64748B] hover:text-[#FFFFFF]"
               }`}
             >
               <List className="h-4 w-4" />
@@ -221,7 +221,7 @@ export default function ApprovalQueuePage() {
               className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-extrabold transition-all cursor-pointer ${
                 viewMode === "grid"
                   ? "bg-white text-[#2563EB] shadow-2xs"
-                  : "text-[#64748B] hover:text-[#0F172A]"
+                  : "text-[#64748B] hover:text-[#FFFFFF]"
               }`}
             >
               <LayoutGrid className="h-4 w-4" />
@@ -275,7 +275,7 @@ export default function ApprovalQueuePage() {
               <ShieldCheck className="h-4 w-4" />
             </div>
           </div>
-          <div className="mt-2 font-mono text-xl font-extrabold text-[#0F172A]">{metrics.total} Rules</div>
+          <div className="mt-2 font-mono text-xl font-extrabold text-[#FFFFFF]">{metrics.total} Rules</div>
           <p className="mt-1 text-[10px] font-semibold text-[#2563EB]">Financial Governance Audit</p>
         </div>
 
@@ -297,7 +297,7 @@ export default function ApprovalQueuePage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-3">
-              <h3 className="text-sm font-extrabold text-[#0F172A]">Approval Queue Cards</h3>
+              <h3 className="text-sm font-extrabold text-[#FFFFFF]">Approval Queue Cards</h3>
               <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-extrabold bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]">
                 {configs.length} Cards
               </span>
@@ -325,7 +325,7 @@ export default function ApprovalQueuePage() {
                         <span className="font-mono text-xs font-extrabold text-[#2563EB] tracking-wide block">
                           {c.config_code}
                         </span>
-                        <span className="font-bold text-xs text-[#0F172A] truncate max-w-[140px] block">
+                        <span className="font-bold text-xs text-[#FFFFFF] truncate max-w-[140px] block">
                           {c.config_name}
                         </span>
                       </div>
@@ -349,7 +349,7 @@ export default function ApprovalQueuePage() {
                   <div className="space-y-3 text-xs">
                     <div className="flex items-center justify-between bg-[#F8FAFC] p-2.5 rounded-xl border border-[#E2E8F0]">
                       <span className="text-[#64748B] font-bold">Maker Email:</span>
-                      <span className="font-mono font-bold text-[#0F172A]">{c.created_by || "maker@pay2pay.com"}</span>
+                      <span className="font-mono font-bold text-[#FFFFFF]">{c.created_by || "maker@near4you.store"}</span>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 font-mono">
@@ -359,7 +359,7 @@ export default function ApprovalQueuePage() {
                       </div>
                       <div className="p-2 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
                         <span className="text-[10px] text-[#64748B] font-sans font-extrabold block uppercase">Version</span>
-                        <span className="font-bold text-[#0F172A]">v{c.version || "1.0"}</span>
+                        <span className="font-bold text-[#FFFFFF]">v{c.version || "1.0"}</span>
                       </div>
                     </div>
 
@@ -432,14 +432,14 @@ export default function ApprovalQueuePage() {
 
       {/* Audit & Compare Diffs Modal */}
       {showAuditModal && selectedAuditConfig && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FAF8F9]/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="w-full max-w-lg rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xl space-y-4 my-8">
             <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-4">
-              <h2 className="text-lg font-bold text-[#111827] flex items-center gap-2">
+              <h2 className="text-lg font-bold text-[#FAF8F9] flex items-center gap-2">
                 <FileCode className="h-5 w-5 text-[#2563EB]" />
                 Rule Sign-off Audit &amp; Version Comparison
               </h2>
-              <button onClick={() => setShowAuditModal(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setShowAuditModal(false)} className="text-[#625B60] hover:text-slate-600">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -452,11 +452,11 @@ export default function ApprovalQueuePage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#64748B] font-bold">Rule Name:</span>
-                  <span className="font-bold text-[#0F172A]">{selectedAuditConfig.config_name}</span>
+                  <span className="font-bold text-[#FFFFFF]">{selectedAuditConfig.config_name}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#64748B] font-bold">Maker Email:</span>
-                  <span className="font-mono text-[#475569]">{selectedAuditConfig.created_by || "maker@pay2pay.com"}</span>
+                  <span className="font-mono text-[#475569]">{selectedAuditConfig.created_by || "maker@near4you.store"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#64748B] font-bold">Hierarchy Priority:</span>

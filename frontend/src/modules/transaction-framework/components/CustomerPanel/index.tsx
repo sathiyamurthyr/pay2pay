@@ -76,19 +76,19 @@ export const CustomerPanel: React.FC<{ customer: CustomerData | null }> = ({ cus
 
         {/* Center: Wallet, Limits & Telemetry Summary Pills */}
         <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-          <Box sx={{ px: 1.75, py: 0.75, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+          <Box sx={{ px: 1.75, py: 0.75, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid #E8E2E5" }}>
             <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", display: "block", fontSize: "11px", fontWeight: 700 }}>
               WALLET BAL
             </Typography>
             <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-              <AccountBalanceWalletIcon sx={{ color: "#FBBF24", fontSize: 15 }} />
-              <Typography sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "15px" }}>
+              <AccountBalanceWalletIcon sx={{ color: "#A20A3A", fontSize: 15 }} />
+              <Typography sx={{ fontWeight: 800, color: "#A20A3A", fontSize: "15px" }}>
                 ₹{(customer.walletBalance ?? 0).toLocaleString()}
               </Typography>
             </Stack>
           </Box>
 
-          <Box sx={{ px: 1.75, py: 0.75, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+          <Box sx={{ px: 1.75, py: 0.75, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid #E8E2E5" }}>
             <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", display: "block", fontSize: "11px", fontWeight: 700 }}>
               DAILY REMAINING
             </Typography>
@@ -97,7 +97,7 @@ export const CustomerPanel: React.FC<{ customer: CustomerData | null }> = ({ cus
             </Typography>
           </Box>
 
-          <Box sx={{ px: 1.75, py: 0.75, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+          <Box sx={{ px: 1.75, py: 0.75, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid #E8E2E5" }}>
             <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", display: "block", fontSize: "11px", fontWeight: 700 }}>
               MONTHLY REMAINING
             </Typography>
@@ -106,7 +106,7 @@ export const CustomerPanel: React.FC<{ customer: CustomerData | null }> = ({ cus
             </Typography>
           </Box>
 
-          <Box sx={{ px: 1.75, py: 0.75, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+          <Box sx={{ px: 1.75, py: 0.75, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid #E8E2E5" }}>
             <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", display: "block", fontSize: "11px", fontWeight: 700 }}>
               PREFERRED BANK
             </Typography>
@@ -131,7 +131,7 @@ export const CustomerPanel: React.FC<{ customer: CustomerData | null }> = ({ cus
               fontWeight: 700,
               borderRadius: "10px",
               color: "#FFFFFF",
-              borderColor: "rgba(255, 255, 255, 0.2)",
+              borderColor: "#E8E2E5",
               bgcolor: "rgba(255, 255, 255, 0.05)",
               "&:hover": { bgcolor: "rgba(255, 255, 255, 0.12)", transform: "translateY(-2px)" },
               "&:active": { transform: "scale(0.98)" },
@@ -151,7 +151,7 @@ export const CustomerPanel: React.FC<{ customer: CustomerData | null }> = ({ cus
               fontWeight: 700,
               borderRadius: "10px",
               color: "#FFFFFF",
-              borderColor: "rgba(255, 255, 255, 0.2)",
+              borderColor: "#E8E2E5",
               bgcolor: "rgba(255, 255, 255, 0.05)",
               "&:hover": { bgcolor: "rgba(255, 255, 255, 0.12)", transform: "translateY(-2px)" },
               "&:active": { transform: "scale(0.98)" },

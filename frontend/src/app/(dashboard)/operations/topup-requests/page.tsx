@@ -903,7 +903,7 @@ function AdminTopupRequestsContent() {
               disabled={loading || metricsLoading || walletsLoading}
               className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-xl transition-all shadow-xs active:scale-95 disabled:opacity-50 cursor-pointer"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${loading || metricsLoading || walletsLoading ? "animate-spin text-amber-600" : "text-slate-500"}`} />
+              <RefreshCw className={`h-3.5 w-3.5 ${loading || metricsLoading || walletsLoading ? "animate-spin text-amber-600" : "text-[#8A8288]"}`} />
               Refresh Data
             </button>
 
@@ -921,11 +921,11 @@ function AdminTopupRequestsContent() {
       </div>
 
       {/* ── ADMIN SERVICE + VENDOR OPERATION WALLET CARDS (LIVE DATABASE MAPPING) ── */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-5 sm:p-6 text-white border border-slate-700/60 shadow-lg relative overflow-hidden">
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-5 sm:p-6 text-white border border-[#E8E2E5]/60 shadow-lg relative overflow-hidden">
         <div className="absolute -right-10 -bottom-10 w-72 h-72 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute left-1/3 -top-10 w-60 h-60 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-700/80 pb-4 mb-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#E8E2E5]/80 pb-4 mb-4">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-amber-500/20 border border-amber-400/30 flex items-center justify-center text-amber-400">
               <Wallet className="h-5 w-5" />
@@ -939,7 +939,7 @@ function AdminTopupRequestsContent() {
                   LIVE DB MAPPING
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-[#625B60]">
                 Top-up request approval balance validation is mapped dynamically by <strong>Service + Vendor</strong>.
               </p>
             </div>
@@ -977,15 +977,15 @@ function AdminTopupRequestsContent() {
                 key={w.id}
                 className={`rounded-xl p-4 border transition-all ${
                   isUrbanRupee
-                    ? "bg-slate-800/95 border-emerald-500/70 shadow-lg ring-1 ring-emerald-500/40"
+                    ? "bg-[#F5F2F4]/95 border-emerald-500/70 shadow-lg ring-1 ring-emerald-500/40"
                     : isPrimaryPayout
-                    ? "bg-slate-800/90 border-amber-400/50 shadow-md ring-1 ring-amber-400/30"
-                    : "bg-slate-800/50 border-slate-700 hover:border-slate-600"
+                    ? "bg-[#F5F2F4]/90 border-amber-400/50 shadow-md ring-1 ring-amber-400/30"
+                    : "bg-[#F5F2F4]/50 border-[#E8E2E5] hover:border-slate-600"
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide">
+                    <span className="text-[11px] font-bold text-[#292329] uppercase tracking-wide">
                       Service: <strong className="text-amber-400">{w.service_name}</strong>
                     </span>
                   </div>
@@ -1001,14 +1001,14 @@ function AdminTopupRequestsContent() {
                   ) : null}
                 </div>
 
-                <div className="mt-1 flex items-center justify-between text-xs text-slate-400">
+                <div className="mt-1 flex items-center justify-between text-xs text-[#625B60]">
                   <span>Vendor: <strong className="text-white">{w.vendor_name}</strong></span>
-                  <span className="text-[10px] text-slate-400 font-mono">{w.wallet_number}</span>
+                  <span className="text-[10px] text-[#625B60] font-mono">{w.wallet_number}</span>
                 </div>
 
                 <div className="mt-2.5 flex items-baseline justify-between">
                   <div>
-                    <span className="text-[10px] text-slate-400 block font-medium">Available Balance</span>
+                    <span className="text-[10px] text-[#625B60] block font-medium">Available Balance</span>
                     <div className="text-xl font-black text-emerald-400 tracking-tight font-mono">
                       ₹{w.available_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                     </div>
@@ -1153,7 +1153,7 @@ function AdminTopupRequestsContent() {
         <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
           {/* Search Box */}
           <div className="relative flex-1 w-full">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#625B60]" />
             <input
               type="text"
               placeholder="Search by Request ID, Retailer Code, Name, UTR / Ref, Vendor..."
@@ -1167,7 +1167,7 @@ function AdminTopupRequestsContent() {
             {search && (
               <button
                 onClick={() => setSearch("")}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#625B60] hover:text-slate-600 cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -1249,7 +1249,7 @@ function AdminTopupRequestsContent() {
               ) : isSomeSelected ? (
                 <MinusSquare className="w-3.5 h-3.5 text-blue-600" />
               ) : (
-                <Square className="w-3.5 h-3.5 text-slate-400" />
+                <Square className="w-3.5 h-3.5 text-[#625B60]" />
               )}
               <span>{isAllSelected ? "Deselect Page" : "Select Page"}</span>
             </button>
@@ -1265,14 +1265,14 @@ function AdminTopupRequestsContent() {
             {selectedIds.size > 0 && (
               <button
                 onClick={clearSelection}
-                className="text-slate-500 hover:text-slate-800 font-medium underline px-1 cursor-pointer"
+                className="text-[#8A8288] hover:text-slate-800 font-medium underline px-1 cursor-pointer"
               >
                 Clear ({selectedIds.size})
               </button>
             )}
           </div>
 
-          <div className="text-xs text-slate-500">
+          <div className="text-xs text-[#8A8288]">
             {selectedIds.size > 0 ? (
               <span className="font-bold text-blue-700">
                 {selectedIds.size} request{selectedIds.size > 1 ? "s" : ""} selected • ₹{selectedTotalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
@@ -1321,18 +1321,18 @@ function AdminTopupRequestsContent() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={13} className="py-20 text-center text-slate-500">
+                  <td colSpan={13} className="py-20 text-center text-[#8A8288]">
                     <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-3 text-amber-500" />
                     <p className="font-bold text-sm text-slate-800">Loading live topup requests...</p>
-                    <p className="text-xs text-slate-400 mt-1">Directly querying PostgreSQL database with dual-rule governance</p>
+                    <p className="text-xs text-[#625B60] mt-1">Directly querying PostgreSQL database with dual-rule governance</p>
                   </td>
                 </tr>
               ) : requests.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="py-20 text-center text-slate-500">
-                    <AlertCircle className="h-10 w-10 text-slate-400 mx-auto mb-2" />
+                  <td colSpan={13} className="py-20 text-center text-[#8A8288]">
+                    <AlertCircle className="h-10 w-10 text-[#625B60] mx-auto mb-2" />
                     <p className="font-bold text-base text-slate-800">No topup requests found</p>
-                    <p className="text-xs text-slate-400 mt-1">Try adjusting your search query or status filters.</p>
+                    <p className="text-xs text-[#625B60] mt-1">Try adjusting your search query or status filters.</p>
                   </td>
                 </tr>
               ) : (
@@ -1393,7 +1393,7 @@ function AdminTopupRequestsContent() {
                               e.stopPropagation();
                               copyToClipboard(item.topup_request_id, item.id);
                             }}
-                            className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                            className="text-[#625B60] hover:text-slate-600 transition-colors cursor-pointer"
                             title="Copy Request ID"
                           >
                             {copiedId === item.id ? (
@@ -1415,13 +1415,13 @@ function AdminTopupRequestsContent() {
                             <div className="font-bold text-slate-900 text-sm group-hover:text-amber-600 transition-colors">
                               {item.retailer?.retailer_name || item.retailer_name || "Unknown Retailer"}
                             </div>
-                            <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 mt-0.5">
+                            <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#8A8288] mt-0.5">
                               <span className="font-mono font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200" title="Retailer Code">
                                 {item.retailer?.retailer_code || item.retailer_code || "RET-N/A"}
                               </span>
                               {(item.retailer?.mobile_number || item.retailer_mobile) && (
                                 <span className="text-slate-600 font-medium flex items-center gap-1">
-                                  <Phone className="h-3 w-3 text-slate-400" />
+                                  <Phone className="h-3 w-3 text-[#625B60]" />
                                   {item.retailer?.mobile_number || item.retailer_mobile}
                                 </span>
                               )}
@@ -1435,7 +1435,7 @@ function AdminTopupRequestsContent() {
                         <div className="flex flex-col gap-1">
                           <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                             <span className="text-amber-600 font-black">{item.service || "Payout"}</span>
-                            <span className="text-slate-400">·</span>
+                            <span className="text-[#625B60]">·</span>
                             <span className="text-slate-900 font-extrabold">{item.vendor || "Utkal"}</span>
                           </span>
                         </div>
@@ -1488,12 +1488,12 @@ function AdminTopupRequestsContent() {
                             <span className="text-amber-800 font-mono font-bold text-xs bg-amber-50 px-2 py-0.5 rounded border border-amber-200 inline-block">
                               -₹{totalDeductions.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                             </span>
-                            <span className="text-[10px] text-slate-500 font-sans">
+                            <span className="text-[10px] text-[#8A8288] font-sans">
                               {itemMdrPct > 0 ? `${itemMdrPct.toFixed(2)}% MDR` : ""}
                             </span>
                           </div>
                         ) : (
-                          <span className="text-slate-400 text-xs font-mono">₹0.00</span>
+                          <span className="text-[#625B60] text-xs font-mono">₹0.00</span>
                         )}
                       </td>
 
@@ -1516,7 +1516,7 @@ function AdminTopupRequestsContent() {
                           <span className="font-mono font-bold text-xs text-slate-900">
                             ₹{(item.admin_available_balance ?? primaryPayoutWallet?.available_balance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                           </span>
-                          <span className="text-[10px] text-slate-500">
+                          <span className="text-[10px] text-[#8A8288]">
                             {item.vendor || "UrbanRupee"}
                           </span>
                         </div>
@@ -1525,7 +1525,7 @@ function AdminTopupRequestsContent() {
                       {/* Approval Eligibility Badge */}
                       <td className="py-3.5 px-4 text-center">
                         {item.status !== "PENDING" ? (
-                          <span className="text-slate-400 text-[11px] font-medium">—</span>
+                          <span className="text-[#625B60] text-[11px] font-medium">—</span>
                         ) : item.can_approve ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
                             <CheckCircle2 className="h-3 w-3 text-emerald-600" />
@@ -1559,7 +1559,7 @@ function AdminTopupRequestsContent() {
                             Slip
                           </button>
                         ) : (
-                          <span className="text-slate-400 text-[11px] font-semibold">—</span>
+                          <span className="text-[#625B60] text-[11px] font-semibold">—</span>
                         )}
                       </td>
 
@@ -1607,7 +1607,7 @@ function AdminTopupRequestsContent() {
 
         {/* ── Pagination Footer ── */}
         <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/50">
-          <div className="text-xs text-slate-500 flex items-center gap-2">
+          <div className="text-xs text-[#8A8288] flex items-center gap-2">
             <span>Rows per page:</span>
             <select
               value={pageSize}
@@ -1654,7 +1654,7 @@ function AdminTopupRequestsContent() {
       ───────────────────────────────────────────────────────────── */}
       {selectedIds.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-6 duration-200 max-w-4xl w-[92%]">
-          <div className="bg-slate-900/95 backdrop-blur-md text-white border border-slate-700/80 rounded-2xl p-3.5 sm:px-5 sm:py-4 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-3.5">
+          <div className="bg-[#FAF8F9]/95 backdrop-blur-md text-white border border-[#E8E2E5]/80 rounded-2xl p-3.5 sm:px-5 sm:py-4 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-3.5">
             <div className="flex items-center gap-3 w-full md:w-auto">
               <div className="h-9 w-9 rounded-xl bg-blue-500/20 border border-blue-400/40 flex items-center justify-center text-blue-400 shrink-0 font-black text-sm">
                 {selectedIds.size}
@@ -1668,7 +1668,7 @@ function AdminTopupRequestsContent() {
                     (₹{selectedTotalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })})
                   </span>
                 </div>
-                <div className="flex items-center gap-2 text-[11px] text-slate-300 mt-0.5">
+                <div className="flex items-center gap-2 text-[11px] text-[#292329] mt-0.5">
                   <span className="text-emerald-300 font-bold">
                     ✓ {selectedEligibleItems.length} Eligible
                   </span>
@@ -1678,7 +1678,7 @@ function AdminTopupRequestsContent() {
                     </span>
                   )}
                   {selectedItems.length - selectedPendingItems.length > 0 && (
-                    <span className="text-slate-400">
+                    <span className="text-[#625B60]">
                       • {selectedItems.length - selectedPendingItems.length} Processed
                     </span>
                   )}
@@ -1718,7 +1718,7 @@ function AdminTopupRequestsContent() {
               {/* Export Selected CSV */}
               <button
                 onClick={() => exportToCSV(true)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#F5F2F4] hover:bg-slate-700 text-[#292329] border border-[#E8E2E5] font-bold text-xs transition-colors cursor-pointer"
               >
                 <Download className="h-3.5 w-3.5" />
                 <span>Export</span>
@@ -1727,7 +1727,7 @@ function AdminTopupRequestsContent() {
               {/* Clear Selection */}
               <button
                 onClick={clearSelection}
-                className="p-2 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className="p-2 rounded-xl hover:bg-[#F5F2F4] text-[#625B60] hover:text-white transition-colors cursor-pointer"
                 title="Deselect All"
               >
                 <X className="h-4 w-4" />
@@ -1742,7 +1742,7 @@ function AdminTopupRequestsContent() {
       ───────────────────────────────────────────────────────────── */}
       {showBulkApproveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => !bulkProcessing && setShowBulkApproveModal(false)} />
+          <div className="fixed inset-0 bg-[#FAF8F9]/60 backdrop-blur-sm" onClick={() => !bulkProcessing && setShowBulkApproveModal(false)} />
           <div className="relative z-10 w-full max-w-lg bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-3">
@@ -1751,13 +1751,13 @@ function AdminTopupRequestsContent() {
                 </div>
                 <div>
                   <h3 className="text-base font-black text-slate-900">Bulk Approve Top-up Requests</h3>
-                  <p className="text-xs text-slate-500 font-medium">{selectedEligibleItems.length} requests ready for immediate credit</p>
+                  <p className="text-xs text-[#8A8288] font-medium">{selectedEligibleItems.length} requests ready for immediate credit</p>
                 </div>
               </div>
               {!bulkProcessing && (
                 <button
                   onClick={() => setShowBulkApproveModal(false)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
+                  className="p-1 rounded-lg text-[#625B60] hover:text-slate-700 cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1876,7 +1876,7 @@ function AdminTopupRequestsContent() {
       ───────────────────────────────────────────────────────────── */}
       {showBulkRejectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => !bulkProcessing && setShowBulkRejectModal(false)} />
+          <div className="fixed inset-0 bg-[#FAF8F9]/60 backdrop-blur-sm" onClick={() => !bulkProcessing && setShowBulkRejectModal(false)} />
           <div className="relative z-10 w-full max-w-lg bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-3">
@@ -1885,13 +1885,13 @@ function AdminTopupRequestsContent() {
                 </div>
                 <div>
                   <h3 className="text-base font-black text-slate-900">Bulk Reject Top-up Requests</h3>
-                  <p className="text-xs text-slate-500 font-medium">{selectedPendingItems.length} pending requests to reject</p>
+                  <p className="text-xs text-[#8A8288] font-medium">{selectedPendingItems.length} pending requests to reject</p>
                 </div>
               </div>
               {!bulkProcessing && (
                 <button
                   onClick={() => setShowBulkRejectModal(false)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
+                  className="p-1 rounded-lg text-[#625B60] hover:text-slate-700 cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1988,7 +1988,7 @@ function AdminTopupRequestsContent() {
 
       {/* ── Single Request Detailed Slide-Over Drawer ── */}
       {drawerOpen && selectedRequest && (
-        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+        <div className="fixed inset-0 z-50 overflow-hidden bg-[#FAF8F9]/60 backdrop-blur-sm animate-fadeIn">
           <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
             <div className="w-screen max-w-2xl bg-white shadow-2xl border-l border-slate-200 flex flex-col">
               {/* Drawer Header */}
@@ -2012,7 +2012,7 @@ function AdminTopupRequestsContent() {
                         {selectedRequest.status}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <p className="text-xs text-[#8A8288] mt-0.5">
                       Submitted on {new Date(selectedRequest.submitted_at).toLocaleString("en-IN")}
                     </p>
                   </div>
@@ -2020,7 +2020,7 @@ function AdminTopupRequestsContent() {
 
                 <button
                   onClick={() => setDrawerOpen(false)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors cursor-pointer"
+                  className="p-2 rounded-xl text-[#625B60] hover:text-slate-600 hover:bg-slate-200/60 transition-colors cursor-pointer"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -2133,7 +2133,7 @@ function AdminTopupRequestsContent() {
                         </span>
                       </div>
                       <div className="text-right">
-                        <span className="text-[10px] uppercase font-bold text-slate-500 block tracking-wider">
+                        <span className="text-[10px] uppercase font-bold text-[#8A8288] block tracking-wider">
                           Card Last 4
                         </span>
                         <span className="font-mono font-black text-slate-900 text-sm">
@@ -2146,7 +2146,7 @@ function AdminTopupRequestsContent() {
                   {/* Primary Reference ID with 1-click Copy */}
                   <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
                     <div>
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                      <span className="text-[10px] uppercase font-bold text-[#625B60] block tracking-wider">
                         Retailer Submitted Reference ID
                       </span>
                       <span className="font-mono font-black text-slate-950 text-base tracking-wide selection:bg-amber-200">
@@ -2171,7 +2171,7 @@ function AdminTopupRequestsContent() {
                             </>
                           ) : (
                             <>
-                              <Copy className="h-3.5 w-3.5 text-slate-500" />
+                              <Copy className="h-3.5 w-3.5 text-[#8A8288]" />
                               <span>Copy UTR</span>
                             </>
                           )}
@@ -2185,7 +2185,7 @@ function AdminTopupRequestsContent() {
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
                         <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
-                        Slip OCR Analysis <span className="text-[10px] font-normal text-slate-400">(Advisory / Info Only)</span>
+                        Slip OCR Analysis <span className="text-[10px] font-normal text-[#625B60]">(Advisory / Info Only)</span>
                       </span>
                       {selectedRequest.slip_url && (
                         <button
@@ -2239,7 +2239,7 @@ function AdminTopupRequestsContent() {
                       ) : (
                         <div className="p-2.5 rounded-xl bg-slate-100 border border-slate-200 text-[11px] text-slate-600 space-y-0.5">
                           <span className="font-bold block">ℹ️ Slip text could not be verified automatically.</span>
-                          <span className="text-[10.5px] text-slate-500">Please inspect the payment proof slip image manually below.</span>
+                          <span className="text-[10.5px] text-[#8A8288]">Please inspect the payment proof slip image manually below.</span>
                         </div>
                       )
                     ) : null}
@@ -2250,7 +2250,7 @@ function AdminTopupRequestsContent() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs font-bold text-slate-700">
                     <span className="flex items-center gap-1.5">
-                      <FileImage className="h-4 w-4 text-slate-500" />
+                      <FileImage className="h-4 w-4 text-[#8A8288]" />
                       Payment Proof Slip
                     </span>
                     {selectedRequest.slip_url && (
@@ -2288,7 +2288,7 @@ function AdminTopupRequestsContent() {
                   </div>
 
                   {selectedRequest.slip_url ? (
-                    <div className="bg-slate-900 rounded-2xl p-2 flex items-center justify-center overflow-hidden min-h-[220px] max-h-[340px] relative border border-slate-800">
+                    <div className="bg-[#FAF8F9] rounded-2xl p-2 flex items-center justify-center overflow-hidden min-h-[220px] max-h-[340px] relative border border-[#E8E2E5]">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={selectedRequest.slip_url}
@@ -2301,7 +2301,7 @@ function AdminTopupRequestsContent() {
                       />
                     </div>
                   ) : (
-                    <div className="p-8 text-center bg-slate-50 border border-dashed border-slate-300 rounded-2xl text-slate-400">
+                    <div className="p-8 text-center bg-slate-50 border border-dashed border-slate-300 rounded-2xl text-[#625B60]">
                       <FileImage className="h-8 w-8 mx-auto mb-2 opacity-50" />
                       <p className="font-semibold">No payment proof image attached</p>
                     </div>
@@ -2316,19 +2316,19 @@ function AdminTopupRequestsContent() {
                   </div>
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     <div>
-                      <span className="text-slate-500 text-[11px]">Retailer Name:</span>
+                      <span className="text-[#8A8288] text-[11px]">Retailer Name:</span>
                       <p className="font-bold text-slate-900">{selectedRequest.retailer?.retailer_name || selectedRequest.retailer_name || "Unknown"}</p>
                     </div>
                     <div>
-                      <span className="text-slate-500 text-[11px]">Retailer Code:</span>
+                      <span className="text-[#8A8288] text-[11px]">Retailer Code:</span>
                       <p className="font-mono font-bold text-amber-800">{selectedRequest.retailer?.retailer_code || selectedRequest.retailer_code || "N/A"}</p>
                     </div>
                     <div>
-                      <span className="text-slate-500 text-[11px]">Mobile Number:</span>
+                      <span className="text-[#8A8288] text-[11px]">Mobile Number:</span>
                       <p className="font-medium text-slate-800">{selectedRequest.retailer?.mobile_number || selectedRequest.retailer_mobile || "N/A"}</p>
                     </div>
                     <div>
-                      <span className="text-slate-500 text-[11px]">Current Wallet Balance:</span>
+                      <span className="text-[#8A8288] text-[11px]">Current Wallet Balance:</span>
                       <p className="font-mono font-black text-emerald-700">
                         ₹{(selectedRequest.retailer?.current_wallet_balance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </p>
@@ -2343,7 +2343,7 @@ function AdminTopupRequestsContent() {
                   </div>
                   <div className="space-y-2 text-xs">
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Transaction Amount (Gross):</span>
+                      <span className="text-[#8A8288]">Transaction Amount (Gross):</span>
                       <span className="font-bold text-slate-900 font-mono">
                         ₹{selectedRequest.requested_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </span>
@@ -2374,19 +2374,19 @@ function AdminTopupRequestsContent() {
                     <div className="space-y-1.5 text-xs">
                       {selectedRequest.approved_by && (
                         <div className="flex items-center justify-between">
-                          <span className="text-slate-500">Approved By:</span>
+                          <span className="text-[#8A8288]">Approved By:</span>
                           <span className="font-medium text-slate-700">{selectedRequest.approved_by}</span>
                         </div>
                       )}
                       {selectedRequest.approved_at && (
                         <div className="flex items-center justify-between">
-                          <span className="text-slate-500">Approved At:</span>
+                          <span className="text-[#8A8288]">Approved At:</span>
                           <span className="font-medium text-slate-700">{new Date(selectedRequest.approved_at).toLocaleString("en-IN")}</span>
                         </div>
                       )}
                       {selectedRequest.transaction_reference && (
                         <div className="flex items-center justify-between">
-                          <span className="text-slate-500">Transaction Ref:</span>
+                          <span className="text-[#8A8288]">Transaction Ref:</span>
                           <span className="font-mono font-bold text-emerald-700">{selectedRequest.transaction_reference}</span>
                         </div>
                       )}
@@ -2436,10 +2436,10 @@ function AdminTopupRequestsContent() {
                         <button
                           type="button"
                           disabled
-                          className="px-5 py-2.5 rounded-xl bg-slate-200 text-slate-400 border border-slate-300 text-xs font-bold transition-all flex items-center gap-1.5 cursor-not-allowed shadow-none"
+                          className="px-5 py-2.5 rounded-xl bg-slate-200 text-[#625B60] border border-slate-300 text-xs font-bold transition-all flex items-center gap-1.5 cursor-not-allowed shadow-none"
                           title={selectedRequest.approval_block_reason || "Approval blocked by policy"}
                         >
-                          <Lock className="h-4 w-4 text-slate-400" />
+                          <Lock className="h-4 w-4 text-[#625B60]" />
                           Approve Blocked
                         </button>
                       </div>
@@ -2463,7 +2463,7 @@ function AdminTopupRequestsContent() {
       {/* ── Single Approval Confirmation Modal ── */}
       {showApproveModal && selectedRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowApproveModal(false)} />
+          <div className="fixed inset-0 bg-[#FAF8F9]/60 backdrop-blur-sm" onClick={() => setShowApproveModal(false)} />
           <div className="relative z-10 w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
@@ -2471,30 +2471,30 @@ function AdminTopupRequestsContent() {
               </div>
               <div>
                 <h3 className="text-base font-black text-slate-900">Approve Topup Request</h3>
-                <p className="text-xs text-slate-500 font-mono">{selectedRequest.topup_request_id}</p>
+                <p className="text-xs text-[#8A8288] font-mono">{selectedRequest.topup_request_id}</p>
               </div>
             </div>
 
             {/* Read-Only Transaction Breakdown */}
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5 text-xs">
               <div className="flex items-center justify-between">
-                <span className="text-slate-500 font-medium">Mapped Admin Wallet:</span>
+                <span className="text-[#8A8288] font-medium">Mapped Admin Wallet:</span>
                 <span className="font-bold text-slate-800">
                   {selectedRequest.service || "Payout"} · {selectedRequest.vendor || "UrbanRupee"}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500 font-medium">Admin Available Balance:</span>
+                <span className="text-[#8A8288] font-medium">Admin Available Balance:</span>
                 <span className="font-mono font-black text-emerald-700">
                   ₹{(selectedRequest.admin_available_balance ?? primaryPayoutWallet?.available_balance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </span>
               </div>
-              <div className="flex items-center justify-between text-slate-500">
+              <div className="flex items-center justify-between text-[#8A8288]">
                 <span>Payment Mode:</span>
                 <span className="font-bold text-slate-700">{selectedRequest.payment_mode || selectedRequest.payment_method || "POS - Instant"}</span>
               </div>
               {selectedRequest.card_type && (
-                <div className="flex items-center justify-between text-slate-500">
+                <div className="flex items-center justify-between text-[#8A8288]">
                   <span>Card Details:</span>
                   <span className="font-bold text-blue-900 font-mono">
                     {selectedRequest.card_type} {selectedRequest.card_last_4 ? `(****${selectedRequest.card_last_4})` : (selectedRequest.card_last_4_masked ? `(${selectedRequest.card_last_4_masked})` : "")}
@@ -2515,7 +2515,7 @@ function AdminTopupRequestsContent() {
                         setCopiedId(`modal-${selectedRequest.id}`);
                         setTimeout(() => setCopiedId(null), 2000);
                       }}
-                      className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                      className="text-[#625B60] hover:text-slate-700 cursor-pointer"
                       title="Copy Bank UTR"
                     >
                       {copiedId === `modal-${selectedRequest.id}` ? (
@@ -2539,7 +2539,7 @@ function AdminTopupRequestsContent() {
                       <AlertTriangle className="h-3.5 w-3.5 text-amber-600" /> Advisory Mismatch ⚠️
                     </span>
                   ) : (
-                    <span className="text-slate-500 italic">Manual Slip Check</span>
+                    <span className="text-[#8A8288] italic">Manual Slip Check</span>
                   )}
                 </div>
               )}
@@ -2600,7 +2600,7 @@ function AdminTopupRequestsContent() {
       {/* ── Single Rejection Modal ── */}
       {showRejectModal && selectedRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowRejectModal(false)} />
+          <div className="fixed inset-0 bg-[#FAF8F9]/60 backdrop-blur-sm" onClick={() => setShowRejectModal(false)} />
           <div className="relative z-10 w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600">
@@ -2608,7 +2608,7 @@ function AdminTopupRequestsContent() {
               </div>
               <div>
                 <h3 className="text-base font-black text-slate-900">Reject Topup Request</h3>
-                <p className="text-xs text-slate-500 font-mono">{selectedRequest.topup_request_id}</p>
+                <p className="text-xs text-[#8A8288] font-mono">{selectedRequest.topup_request_id}</p>
               </div>
             </div>
 
@@ -2670,7 +2670,7 @@ function AdminTopupRequestsContent() {
       {/* ── Add Fund Modal for Admin Service + Vendor Wallet ── */}
       {showAddFundModal && selectedWalletForFund && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowAddFundModal(false)} />
+          <div className="fixed inset-0 bg-[#FAF8F9]/60 backdrop-blur-sm" onClick={() => setShowAddFundModal(false)} />
           <div className="relative z-10 w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
@@ -2678,7 +2678,7 @@ function AdminTopupRequestsContent() {
               </div>
               <div>
                 <h3 className="text-base font-black text-slate-900">Add Operational Funds</h3>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-[#8A8288]">
                   {selectedWalletForFund.service_name} · {selectedWalletForFund.vendor_name} ({selectedWalletForFund.wallet_number})
                 </p>
               </div>
@@ -2692,7 +2692,7 @@ function AdminTopupRequestsContent() {
             )}
 
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1 text-xs">
-              <div className="flex items-center justify-between text-slate-500">
+              <div className="flex items-center justify-between text-[#8A8288]">
                 <span>Current Available Balance:</span>
                 <span className="font-mono font-black text-slate-900 text-sm">
                   ₹{selectedWalletForFund.available_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
@@ -2764,7 +2764,7 @@ function AdminTopupRequestsContent() {
       {/* ── Fullscreen Slip Lightbox ── */}
       {fullscreenImage && (
         <div
-          className="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn"
+          className="fixed inset-0 z-50 bg-[#FAF8F9]/90 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn"
           onClick={() => setFullscreenImage(null)}
         >
           <button
@@ -2790,9 +2790,9 @@ export default function AdminTopupRequestsPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
+        <div className="min-h-screen bg-[#FFFFFF] flex flex-col items-center justify-center p-6 text-center">
           <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-4" />
-          <p className="text-slate-400 font-bold text-sm">Loading Top-Up Requests Console...</p>
+          <p className="text-[#625B60] font-bold text-sm">Loading Top-Up Requests Console...</p>
         </div>
       }
     >

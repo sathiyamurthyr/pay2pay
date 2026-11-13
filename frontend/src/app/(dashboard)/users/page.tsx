@@ -106,7 +106,7 @@ export default function UsersPage({ initialOpenModal = false }: { initialOpenMod
             {u.full_name?.charAt(0) || "U"}
           </div>
           <div>
-            <p className="font-bold text-[#0F172A] text-[13px]">{u.full_name}</p>
+            <p className="font-bold text-[#FFFFFF] text-[13px]">{u.full_name}</p>
             <p className="text-[11px] text-[#64748B] font-medium">{u.email}</p>
           </div>
         </div>
@@ -227,7 +227,7 @@ export default function UsersPage({ initialOpenModal = false }: { initialOpenMod
       {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#0F172A] tracking-tight flex items-center gap-3">
+          <h1 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight flex items-center gap-3">
             <Users className="w-7 h-7 text-[#2563EB]" /> Platform Admin Users
           </h1>
           <p className="mt-1 text-sm font-medium text-[#64748B]">
@@ -252,7 +252,7 @@ export default function UsersPage({ initialOpenModal = false }: { initialOpenMod
         ].map(({ label, value, color, bg }) => (
           <div key={label} className="rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-2xs">
             <p className="text-xs font-bold uppercase tracking-wider text-[#64748B]">{label}</p>
-            <h3 className="mt-1 text-2xl font-extrabold text-[#0F172A]" style={{ color }}>{value}</h3>
+            <h3 className="mt-1 text-2xl font-extrabold text-[#FFFFFF]" style={{ color }}>{value}</h3>
           </div>
         ))}
       </div>
@@ -297,7 +297,7 @@ export default function UsersPage({ initialOpenModal = false }: { initialOpenMod
             <div>
               <label className="text-[#475569] uppercase tracking-wider text-[11px] block mb-1.5 font-extrabold">Full Name *</label>
               <input
-                className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] p-2.5 text-[#0F172A] font-semibold focus:bg-white focus:border-[#2563EB] focus:outline-none transition-all"
+                className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] p-2.5 text-[#FFFFFF] font-semibold focus:bg-white focus:border-[#2563EB] focus:outline-none transition-all"
                 placeholder="e.g. John Doe"
                 value={formData.full_name}
                 onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
@@ -307,7 +307,7 @@ export default function UsersPage({ initialOpenModal = false }: { initialOpenMod
             <div>
               <label className="text-[#475569] uppercase tracking-wider text-[11px] block mb-1.5 font-extrabold">Username *</label>
               <input
-                className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] p-2.5 text-[#0F172A] font-semibold focus:bg-white focus:border-[#2563EB] focus:outline-none transition-all"
+                className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] p-2.5 text-[#FFFFFF] font-semibold focus:bg-white focus:border-[#2563EB] focus:outline-none transition-all"
                 placeholder="e.g. jdoe"
                 value={formData.username}
                 onChange={(e) => setFormData({ ...formData, username: e.target.value })}
@@ -321,8 +321,8 @@ export default function UsersPage({ initialOpenModal = false }: { initialOpenMod
               <label className="text-[#475569] uppercase tracking-wider text-[11px] block mb-1.5 font-extrabold">Corporate Email *</label>
               <input
                 type="email"
-                className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] p-2.5 text-[#0F172A] font-semibold focus:bg-white focus:border-[#2563EB] focus:outline-none transition-all"
-                placeholder="john@pay2pay.in"
+                className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] p-2.5 text-[#FFFFFF] font-semibold focus:bg-white focus:border-[#2563EB] focus:outline-none transition-all"
+                placeholder="john@near4you.store"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required
@@ -332,7 +332,7 @@ export default function UsersPage({ initialOpenModal = false }: { initialOpenMod
               <label className="text-[#475569] uppercase tracking-wider text-[11px] block mb-1.5 font-extrabold">Password *</label>
               <input
                 type="password"
-                className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] p-2.5 text-[#0F172A] font-semibold focus:bg-white focus:border-[#2563EB] focus:outline-none transition-all"
+                className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] p-2.5 text-[#FFFFFF] font-semibold focus:bg-white focus:border-[#2563EB] focus:outline-none transition-all"
                 placeholder="••••••••••••"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -347,7 +347,7 @@ export default function UsersPage({ initialOpenModal = false }: { initialOpenMod
               <UserCheck className="w-4 h-4 text-[#2563EB]" /> Select User Type *
             </label>
             <select
-              className="w-full rounded-xl border border-[#93C5FD] bg-white p-2.5 text-[#0F172A] font-bold focus:border-[#2563EB] focus:outline-none cursor-pointer shadow-2xs"
+              className="w-full rounded-xl border border-[#93C5FD] bg-white p-2.5 text-[#FFFFFF] font-bold focus:border-[#2563EB] focus:outline-none cursor-pointer shadow-2xs"
               value={formData.user_type}
               onChange={(e) => setFormData({ ...formData, user_type: e.target.value })}
               required

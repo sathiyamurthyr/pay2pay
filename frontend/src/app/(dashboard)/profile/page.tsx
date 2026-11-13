@@ -92,15 +92,15 @@ export default function ProfilePage() {
     <div className="space-y-6 max-w-5xl mx-auto">
       <div>
         <h1 className="text-2xl font-bold text-white tracking-tight">Account & Security Center</h1>
-        <p className="text-xs text-slate-400 mt-1">Manage Profile, Sessions, Security Credentials & API Keys</p>
+        <p className="text-xs text-[#625B60] mt-1">Manage Profile, Sessions, Security Credentials & API Keys</p>
       </div>
 
       {/* Profile Navigation Tabs */}
-      <div className="flex bg-slate-900/90 p-1.5 rounded-xl border border-slate-800 text-xs overflow-x-auto">
+      <div className="flex bg-[#FAF8F9]/90 p-1.5 rounded-xl border border-[#E8E2E5] text-xs overflow-x-auto">
         <button
           onClick={() => setActiveTab("profile")}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition whitespace-nowrap ${
-            activeTab === "profile" ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "text-slate-400 hover:text-white"
+            activeTab === "profile" ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "text-[#625B60] hover:text-white"
           }`}
         >
           <UserCircle className="w-4 h-4" /> My Profile
@@ -108,7 +108,7 @@ export default function ProfilePage() {
         <button
           onClick={() => setActiveTab("password")}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition whitespace-nowrap ${
-            activeTab === "password" ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "text-slate-400 hover:text-white"
+            activeTab === "password" ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "text-[#625B60] hover:text-white"
           }`}
         >
           <Key className="w-4 h-4" /> Change Password
@@ -116,7 +116,7 @@ export default function ProfilePage() {
         <button
           onClick={() => setActiveTab("sessions")}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition whitespace-nowrap ${
-            activeTab === "sessions" ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "text-slate-400 hover:text-white"
+            activeTab === "sessions" ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "text-[#625B60] hover:text-white"
           }`}
         >
           <Laptop className="w-4 h-4" /> Active Sessions
@@ -124,7 +124,7 @@ export default function ProfilePage() {
         <button
           onClick={() => setActiveTab("apikeys")}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition whitespace-nowrap ${
-            activeTab === "apikeys" ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "text-slate-400 hover:text-white"
+            activeTab === "apikeys" ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "text-[#625B60] hover:text-white"
           }`}
         >
           <Shield className="w-4 h-4" /> API Keys
@@ -132,7 +132,7 @@ export default function ProfilePage() {
         <button
           onClick={() => setActiveTab("security")}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition whitespace-nowrap ${
-            activeTab === "security" ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "text-slate-400 hover:text-white"
+            activeTab === "security" ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "text-[#625B60] hover:text-white"
           }`}
         >
           <Smartphone className="w-4 h-4" /> MFA Security
@@ -153,8 +153,8 @@ export default function ProfilePage() {
               </div>
             )}
             <Input label="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
-            <Input label="Email Address" value={user?.email || ""} disabled className="opacity-60 bg-slate-950" />
-            <Input label="Tenant ID" value={user?.tenant_id || ""} disabled className="opacity-60 bg-slate-950 font-mono text-xs" />
+            <Input label="Email Address" value={user?.email || ""} disabled className="opacity-60 bg-[#FFFFFF]" />
+            <Input label="Tenant ID" value={user?.tenant_id || ""} disabled className="opacity-60 bg-[#FFFFFF] font-mono text-xs" />
             <Button variant="primary" onClick={() => updateProfileMutation.mutate()} disabled={updateProfileMutation.isPending}>
               {updateProfileMutation.isPending ? "Saving..." : "Save Profile Changes"}
             </Button>
@@ -213,15 +213,15 @@ export default function ProfilePage() {
           <CardContent>
             <div className="space-y-3">
               {sessions.map((s: any) => (
-                <div key={s.public_id} className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
+                <div key={s.public_id} className="p-4 rounded-xl bg-[#FAF8F9]/60 border border-[#E8E2E5] flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center">
                       <Laptop className="w-5 h-5" />
                     </div>
                     <div>
                       <p className="text-xs font-semibold text-white">Current Web Session ({s.ip_address || "127.0.0.1"})</p>
-                      <p className="text-[11px] text-slate-400 font-mono">Token JTI: {s.token_jti.substring(0, 16)}...</p>
-                      <p className="text-[10px] text-slate-500 mt-0.5">Created: {formatDate(s.created_at)}</p>
+                      <p className="text-[11px] text-[#625B60] font-mono">Token JTI: {s.token_jti.substring(0, 16)}...</p>
+                      <p className="text-[10px] text-[#8A8288] mt-0.5">Created: {formatDate(s.created_at)}</p>
                     </div>
                   </div>
                   <Badge variant="success">Active Session</Badge>
@@ -258,7 +258,7 @@ export default function ProfilePage() {
             {generatedKey && (
               <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 space-y-2">
                 <p className="text-xs font-semibold text-emerald-400">API Key Generated! Copy this secret key now (it will not be shown again):</p>
-                <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 font-mono text-xs text-white">
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#FFFFFF] font-mono text-xs text-white">
                   <span>{generatedKey}</span>
                   <button
                     onClick={() => {
@@ -266,7 +266,7 @@ export default function ProfilePage() {
                       setCopied(true);
                       setTimeout(() => setCopied(false), 2000);
                     }}
-                    className="p-1 text-slate-400 hover:text-white"
+                    className="p-1 text-[#625B60] hover:text-white"
                   >
                     {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                   </button>
@@ -285,10 +285,10 @@ export default function ProfilePage() {
             <CardDescription>Enhance login security with Time-based One-Time Passwords (TOTP)</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 max-w-lg">
-            <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
+            <div className="p-4 rounded-xl bg-[#FAF8F9] border border-[#E8E2E5] flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold text-white">MFA Authentication Status</p>
-                <p className="text-[11px] text-slate-400">TOTP Authenticator app enforcement</p>
+                <p className="text-[11px] text-[#625B60]">TOTP Authenticator app enforcement</p>
               </div>
               <Badge variant={user?.mfa_enabled ? "success" : "neutral"}>
                 {user?.mfa_enabled ? "Enabled" : "MFA Ready"}

@@ -99,7 +99,7 @@ export const ActionsMenu: React.FC<ActionsMenuProps> = ({
         aria-expanded={open}
         className="
           w-7 h-7 flex items-center justify-center rounded
-          text-[#6B7280] hover:text-[#111827] hover:bg-[#F3F4F6]
+          text-[#6B7280] hover:text-[#FAF8F9] hover:bg-[#F3F4F6]
           transition-colors duration-100
           focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/50
         "
@@ -143,7 +143,7 @@ export const ActionsMenu: React.FC<ActionsMenuProps> = ({
                     ? "opacity-40 cursor-not-allowed"
                     : action.variant === "danger"
                       ? "text-[#B91C1C] hover:bg-[#FEF2F2]"
-                      : "text-[#111827] hover:bg-[#F5F7FA]"
+                      : "text-[#FAF8F9] hover:bg-[#F5F7FA]"
                   }
                 `}
               >

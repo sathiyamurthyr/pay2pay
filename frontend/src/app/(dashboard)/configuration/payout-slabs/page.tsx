@@ -443,7 +443,7 @@ function PayoutSlabsContent() {
             <ChevronRight className="w-3 h-3 text-[#94A3B8]" />
             <span className="text-[#2563EB]">Payout Slabs</span>
           </div>
-          <h1 className="text-2xl font-extrabold text-[#0F172A] tracking-tight flex items-center gap-3">
+          <h1 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight flex items-center gap-3">
             <div className="p-2 rounded-xl bg-[#EFF6FF] border border-[#BFDBFE]">
               <Layers className="w-6 h-6 text-[#2563EB]" />
             </div>
@@ -471,7 +471,7 @@ function PayoutSlabsContent() {
               <Layers className="w-4 h-4 text-[#2563EB]" />
             </div>
           </div>
-          <div className="font-mono text-2xl font-extrabold text-[#0F172A]">{slabs.length}</div>
+          <div className="font-mono text-2xl font-extrabold text-[#FFFFFF]">{slabs.length}</div>
           <span className="text-[11px] font-semibold text-[#64748B] mt-1 block">Tier configurations configured</span>
         </div>
 
@@ -520,7 +520,7 @@ function PayoutSlabsContent() {
               placeholder="Search slabs, range, service…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 pr-3 py-1.5 w-60 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-xs font-medium text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/15"
+              className="pl-8 pr-3 py-1.5 w-60 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-xs font-medium text-[#FFFFFF] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/15"
             />
           </div>
 
@@ -531,7 +531,7 @@ function PayoutSlabsContent() {
                 key={st}
                 onClick={() => setStatusFilter(st)}
                 className={`px-3 py-1 text-[11px] font-extrabold rounded-lg transition-all cursor-pointer ${
-                  statusFilter === st ? "bg-white text-[#2563EB] shadow-2xs" : "text-[#64748B] hover:text-[#0F172A]"
+                  statusFilter === st ? "bg-white text-[#2563EB] shadow-2xs" : "text-[#64748B] hover:text-[#FFFFFF]"
                 }`}
               >
                 {st}
@@ -611,7 +611,7 @@ function PayoutSlabsContent() {
                       <div className="w-12 h-12 rounded-2xl bg-[#EFF6FF] flex items-center justify-center">
                         <Layers className="w-6 h-6 text-[#2563EB]" />
                       </div>
-                      <h3 className="text-sm font-extrabold text-[#0F172A]">No Payout Slabs Configured</h3>
+                      <h3 className="text-sm font-extrabold text-[#FFFFFF]">No Payout Slabs Configured</h3>
                       <p className="text-xs text-[#64748B] max-w-sm">
                         Create transaction amount slabs with commissions, taxes, and fees to power the payout engine.
                       </p>
@@ -638,7 +638,7 @@ function PayoutSlabsContent() {
 
                       {/* Amount Range */}
                       <td className={`px-4 ${py}`}>
-                        <div className="font-mono text-xs font-extrabold text-[#0F172A]">
+                        <div className="font-mono text-xs font-extrabold text-[#FFFFFF]">
                           <FormatCurrency amount={slab.min_amount} /> — <FormatCurrency amount={slab.max_amount} />
                         </div>
                         {slab.slab_name && <div className="text-[11px] font-medium text-[#64748B] truncate max-w-[200px]">{slab.slab_name}</div>}
@@ -654,7 +654,7 @@ function PayoutSlabsContent() {
 
                       {/* GST */}
                       <td className={`px-4 ${py}`}>
-                        <div className="font-mono font-bold text-[#0F172A]">
+                        <div className="font-mono font-bold text-[#FFFFFF]">
                           {slab.gst_type === "PERCENTAGE" ? `${slab.gst}%` : `₹${slab.gst.toFixed(2)}`}
                         </div>
                         <span className="text-[10px] text-[#64748B]">{slab.gst_type}</span>
@@ -672,7 +672,7 @@ function PayoutSlabsContent() {
                       </td>
 
                       {/* Company Charges */}
-                      <td className={`px-4 ${py} font-mono text-[#0F172A]`}>
+                      <td className={`px-4 ${py} font-mono text-[#FFFFFF]`}>
                         {slab.company_charges > 0 ? (
                           <>
                             {slab.company_charges_type === "PERCENTAGE" ? `${slab.company_charges}%` : `₹${slab.company_charges.toFixed(2)}`}
@@ -777,7 +777,7 @@ function PayoutSlabsContent() {
             {/* Header */}
             <div className="px-6 py-5 border-b border-[#E2E8F0] flex items-center justify-between bg-[#F8FAFC]">
               <div>
-                <h2 className="text-lg font-extrabold text-[#0F172A] flex items-center gap-2.5">
+                <h2 className="text-lg font-extrabold text-[#FFFFFF] flex items-center gap-2.5">
                   <div className="p-1.5 rounded-lg bg-[#EFF6FF] border border-[#BFDBFE]">
                     <Layers className="w-5 h-5 text-[#2563EB]" />
                   </div>
@@ -816,7 +816,7 @@ function PayoutSlabsContent() {
                       value={formData.service_code}
                       onChange={(e) => setFormData({ ...formData, service_code: e.target.value.toUpperCase() })}
                       placeholder="PAYOUT"
-                      className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] text-xs font-mono font-bold text-[#0F172A] focus:outline-none focus:border-[#2563EB]"
+                      className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] text-xs font-mono font-bold text-[#FFFFFF] focus:outline-none focus:border-[#2563EB]"
                     />
                   </div>
                   <div>
@@ -826,7 +826,7 @@ function PayoutSlabsContent() {
                       value={formData.slab_name}
                       onChange={(e) => setFormData({ ...formData, slab_name: e.target.value })}
                       placeholder="e.g. Standard Payout Tier 1"
-                      className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-medium text-[#0F172A] focus:outline-none focus:border-[#2563EB]"
+                      className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-medium text-[#FFFFFF] focus:outline-none focus:border-[#2563EB]"
                     />
                   </div>
                 </div>
@@ -845,7 +845,7 @@ function PayoutSlabsContent() {
                       required
                       value={formData.min_amount}
                       onChange={(e) => setFormData({ ...formData, min_amount: e.target.value })}
-                      className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-mono font-bold text-[#0F172A] focus:outline-none focus:border-[#2563EB]"
+                      className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-mono font-bold text-[#FFFFFF] focus:outline-none focus:border-[#2563EB]"
                     />
                   </div>
                   <div>
@@ -857,7 +857,7 @@ function PayoutSlabsContent() {
                       required
                       value={formData.max_amount}
                       onChange={(e) => setFormData({ ...formData, max_amount: e.target.value })}
-                      className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-mono font-bold text-[#0F172A] focus:outline-none focus:border-[#2563EB]"
+                      className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-mono font-bold text-[#FFFFFF] focus:outline-none focus:border-[#2563EB]"
                     />
                   </div>
                 </div>
@@ -877,7 +877,7 @@ function PayoutSlabsContent() {
                         required
                         value={formData.commission}
                         onChange={(e) => setFormData({ ...formData, commission: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-mono font-bold text-[#0F172A] focus:outline-none focus:border-[#2563EB]"
+                        className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-mono font-bold text-[#FFFFFF] focus:outline-none focus:border-[#2563EB]"
                       />
                     </div>
                     <div className="w-32">
@@ -885,7 +885,7 @@ function PayoutSlabsContent() {
                       <select
                         value={formData.commission_type}
                         onChange={(e) => setFormData({ ...formData, commission_type: e.target.value as any })}
-                        className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-bold text-[#0F172A]"
+                        className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-bold text-[#FFFFFF]"
                       >
                         <option value="FIXED">FIXED (₹)</option>
                         <option value="PERCENTAGE">PERCENT (%)</option>
@@ -903,7 +903,7 @@ function PayoutSlabsContent() {
                         required
                         value={formData.gst}
                         onChange={(e) => setFormData({ ...formData, gst: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-mono font-bold text-[#0F172A] focus:outline-none focus:border-[#2563EB]"
+                        className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-mono font-bold text-[#FFFFFF] focus:outline-none focus:border-[#2563EB]"
                       />
                     </div>
                     <div className="w-32">
@@ -911,7 +911,7 @@ function PayoutSlabsContent() {
                       <select
                         value={formData.gst_type}
                         onChange={(e) => setFormData({ ...formData, gst_type: e.target.value as any })}
-                        className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-bold text-[#0F172A]"
+                        className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-bold text-[#FFFFFF]"
                       >
                         <option value="PERCENTAGE">PERCENT (%)</option>
                         <option value="FIXED">FIXED (₹)</option>
@@ -934,7 +934,7 @@ function PayoutSlabsContent() {
                         min="0"
                         value={formData.vendor_charge}
                         onChange={(e) => setFormData({ ...formData, vendor_charge: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-mono font-bold text-[#0F172A]"
+                        className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-mono font-bold text-[#FFFFFF]"
                       />
                     </div>
                     <div className="w-32">
@@ -942,7 +942,7 @@ function PayoutSlabsContent() {
                       <select
                         value={formData.vendor_charge_type}
                         onChange={(e) => setFormData({ ...formData, vendor_charge_type: e.target.value as any })}
-                        className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-bold text-[#0F172A]"
+                        className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-bold text-[#FFFFFF]"
                       >
                         <option value="FIXED">FIXED (₹)</option>
                         <option value="PERCENTAGE">PERCENT (%)</option>
@@ -959,7 +959,7 @@ function PayoutSlabsContent() {
                         min="0"
                         value={formData.company_charges}
                         onChange={(e) => setFormData({ ...formData, company_charges: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-mono font-bold text-[#0F172A]"
+                        className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-mono font-bold text-[#FFFFFF]"
                       />
                     </div>
                     <div className="w-32">
@@ -967,7 +967,7 @@ function PayoutSlabsContent() {
                       <select
                         value={formData.company_charges_type}
                         onChange={(e) => setFormData({ ...formData, company_charges_type: e.target.value as any })}
-                        className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-bold text-[#0F172A]"
+                        className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-bold text-[#FFFFFF]"
                       >
                         <option value="FIXED">FIXED (₹)</option>
                         <option value="PERCENTAGE">PERCENT (%)</option>
@@ -986,7 +986,7 @@ function PayoutSlabsContent() {
                         min="0"
                         value={formData.company_gst}
                         onChange={(e) => setFormData({ ...formData, company_gst: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-mono font-bold text-[#0F172A]"
+                        className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-mono font-bold text-[#FFFFFF]"
                       />
                     </div>
                     <div className="w-32">
@@ -994,7 +994,7 @@ function PayoutSlabsContent() {
                       <select
                         value={formData.company_gst_type}
                         onChange={(e) => setFormData({ ...formData, company_gst_type: e.target.value as any })}
-                        className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-bold text-[#0F172A]"
+                        className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-bold text-[#FFFFFF]"
                       >
                         <option value="PERCENTAGE">PERCENT (%)</option>
                         <option value="FIXED">FIXED (₹)</option>
@@ -1011,7 +1011,7 @@ function PayoutSlabsContent() {
                         min="0"
                         value={formData.tds}
                         onChange={(e) => setFormData({ ...formData, tds: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-mono font-bold text-[#0F172A]"
+                        className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-mono font-bold text-[#FFFFFF]"
                       />
                     </div>
                     <div className="w-32">
@@ -1019,7 +1019,7 @@ function PayoutSlabsContent() {
                       <select
                         value={formData.tds_type}
                         onChange={(e) => setFormData({ ...formData, tds_type: e.target.value as any })}
-                        className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-bold text-[#0F172A]"
+                        className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-bold text-[#FFFFFF]"
                       >
                         <option value="PERCENTAGE">PERCENT (%)</option>
                         <option value="FIXED">FIXED (₹)</option>
@@ -1039,7 +1039,7 @@ function PayoutSlabsContent() {
                       type="datetime-local"
                       value={formData.effective_from}
                       onChange={(e) => setFormData({ ...formData, effective_from: e.target.value })}
-                      className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-medium text-[#0F172A]"
+                      className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-medium text-[#FFFFFF]"
                     />
                   </div>
                   <div>
@@ -1048,7 +1048,7 @@ function PayoutSlabsContent() {
                       type="datetime-local"
                       value={formData.effective_to}
                       onChange={(e) => setFormData({ ...formData, effective_to: e.target.value })}
-                      className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-medium text-[#0F172A]"
+                      className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-white text-xs font-medium text-[#FFFFFF]"
                     />
                   </div>
                 </div>
@@ -1061,7 +1061,7 @@ function PayoutSlabsContent() {
                     onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                     className="w-4 h-4 rounded text-[#2563EB] focus:ring-[#2563EB]"
                   />
-                  <label htmlFor="slab_active_chk" className="text-xs font-bold text-[#0F172A] cursor-pointer">
+                  <label htmlFor="slab_active_chk" className="text-xs font-bold text-[#FFFFFF] cursor-pointer">
                     Activate Slab immediately upon saving
                   </label>
                 </div>
@@ -1075,7 +1075,7 @@ function PayoutSlabsContent() {
                       value={formData.reason}
                       onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
                       placeholder="e.g. Revised slab commission rates for FY26"
-                      className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-[#FFFBEB] text-xs font-medium text-[#0F172A]"
+                      className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] bg-[#FFFBEB] text-xs font-medium text-[#FFFFFF]"
                     />
                   </div>
                 )}
@@ -1116,7 +1116,7 @@ function PayoutSlabsContent() {
                 <Power className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-extrabold text-[#0F172A]">
+                <h3 className="text-base font-extrabold text-[#FFFFFF]">
                   {statusTarget.action === "ACTIVATE" ? "Activate Payout Slab?" : "Deactivate Payout Slab?"}
                 </h3>
                 <p className="text-xs font-medium text-[#64748B]">
@@ -1140,7 +1140,7 @@ function PayoutSlabsContent() {
                 value={statusReason}
                 onChange={(e) => setStatusReason(e.target.value)}
                 placeholder={`Reason for ${statusTarget.action.toLowerCase()}...`}
-                className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] text-xs font-medium text-[#0F172A] focus:outline-none focus:border-[#2563EB]"
+                className="w-full px-3 py-2 rounded-xl border border-[#CBD5E1] text-xs font-medium text-[#FFFFFF] focus:outline-none focus:border-[#2563EB]"
               />
             </div>
 
@@ -1176,7 +1176,7 @@ function PayoutSlabsContent() {
           <div className="bg-white rounded-3xl border border-[#E2E8F0] shadow-2xl w-full max-w-3xl p-6 space-y-4 my-8 max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-4">
               <div>
-                <h3 className="text-base font-extrabold text-[#0F172A] flex items-center gap-2">
+                <h3 className="text-base font-extrabold text-[#FFFFFF] flex items-center gap-2">
                   <History className="w-5 h-5 text-[#2563EB]" />
                   Audit Trail History
                 </h3>
@@ -1216,7 +1216,7 @@ function PayoutSlabsContent() {
                           <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${badgeColor}`}>
                             {log.action}
                           </span>
-                          <span className="text-xs font-bold text-[#0F172A]">By {log.changed_by || "ADMIN"}</span>
+                          <span className="text-xs font-bold text-[#FFFFFF]">By {log.changed_by || "ADMIN"}</span>
                         </div>
                         <span className="text-[11px] font-mono text-[#64748B] flex items-center gap-1">
                           <Clock className="w-3 h-3 text-[#94A3B8]" />

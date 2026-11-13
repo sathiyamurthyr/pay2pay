@@ -106,7 +106,7 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
           sx={{
             width: 38,
             height: 38,
-            background: "linear-gradient(135deg, #1E293B 0%, #0F172A 100%)",
+            background: "linear-gradient(135deg, #1E293B 0%, #FFFFFF 100%)",
             color: "#FDE68A",
             fontWeight: 900,
             fontSize: "14px",
@@ -138,7 +138,7 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
               background: darkTheme ? "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)" : "none",
               WebkitBackgroundClip: darkTheme ? "text" : "unset",
               WebkitTextFillColor: darkTheme ? "transparent" : "inherit",
-              color: darkTheme ? "inherit" : "#0F172A",
+              color: darkTheme ? "inherit" : "#FFFFFF",
               whiteSpace: "nowrap",
               flexShrink: 0,
             }}
@@ -223,7 +223,7 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
             sx={{
               width: 38,
               height: 38,
-              background: "linear-gradient(135deg, #1E293B 0%, #0F172A 100%)",
+              background: "linear-gradient(135deg, #1E293B 0%, #FFFFFF 100%)",
               color: "#FDE68A",
               fontWeight: 900,
               fontSize: "14px",
@@ -245,7 +245,7 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
                   background: darkTheme ? "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)" : "none",
                   WebkitBackgroundClip: darkTheme ? "text" : "unset",
                   WebkitTextFillColor: darkTheme ? "transparent" : "inherit",
-                  color: darkTheme ? "inherit" : "#0F172A",
+                  color: darkTheme ? "inherit" : "#FFFFFF",
                 }}
               >
                 {name}

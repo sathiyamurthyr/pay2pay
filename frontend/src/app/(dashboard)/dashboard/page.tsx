@@ -338,9 +338,9 @@ export default function DynamicMasterDashboardPage() {
   });
 
   return (
-    <div className="min-h-screen bg-[#08111F] text-[#F8FAFC] p-3 sm:p-5 md:p-6 font-sans">
+    <div className="min-h-screen bg-[#FFFFFF] text-[#F8FAFC] p-3 sm:p-5 md:p-6 font-sans">
       {/* ── TOP HERO HEADER & CONTROLS ── */}
-      <div className="bg-[#0F172A]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-5 mb-5 shadow-2xl">
+      <div className="bg-[#FFFFFF]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-5 mb-5 shadow-2xl">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20 border border-white/20 shrink-0">
@@ -349,7 +349,7 @@ export default function DynamicMasterDashboardPage() {
             <div>
               <div className="flex items-center gap-2.5 flex-wrap">
                 <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                  Pay2Pay Operations & Analytics Command Center
+                  Near4You Operations & Analytics Command Center
                 </h1>
                 <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -359,7 +359,7 @@ export default function DynamicMasterDashboardPage() {
                   PostgreSQL 16 Views Active
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-[#625B60] mt-1">
                 Real-time telemetry across card swipe terminals, multi-service double-entry ledger, and hierarchy network
               </p>
             </div>
@@ -370,7 +370,7 @@ export default function DynamicMasterDashboardPage() {
             {/* Auto-refresh selector */}
             <div className="flex items-center gap-1.5 bg-[#1E293B]/80 border border-white/10 px-3 py-1.5 rounded-xl text-xs">
               <Clock className="w-3.5 h-3.5 text-blue-400" />
-              <span className="text-slate-400">Auto:</span>
+              <span className="text-[#625B60]">Auto:</span>
               <select
                 value={refreshIntervalSec}
                 onChange={(e) => {
@@ -380,10 +380,10 @@ export default function DynamicMasterDashboardPage() {
                 }}
                 className="bg-transparent text-white font-bold outline-none cursor-pointer text-xs"
               >
-                <option value={10} className="bg-[#0F172A] text-white">10s</option>
-                <option value={30} className="bg-[#0F172A] text-white">30s</option>
-                <option value={60} className="bg-[#0F172A] text-white">60s</option>
-                <option value={0} className="bg-[#0F172A] text-white">Off</option>
+                <option value={10} className="bg-[#FFFFFF] text-white">10s</option>
+                <option value={30} className="bg-[#FFFFFF] text-white">30s</option>
+                <option value={60} className="bg-[#FFFFFF] text-white">60s</option>
+                <option value={0} className="bg-[#FFFFFF] text-white">Off</option>
               </select>
               {refreshIntervalSec > 0 && (
                 <span className="text-[10px] font-mono text-amber-400 ml-1">({countdown}s)</span>
@@ -403,7 +403,7 @@ export default function DynamicMasterDashboardPage() {
             {/* Export Button */}
             <button
               onClick={handleExportData}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 font-semibold text-xs transition cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#F5F2F4] hover:bg-slate-700 text-[#292329] border border-white/10 font-semibold text-xs transition cursor-pointer"
             >
               <Download className="w-3.5 h-3.5 text-emerald-400" />
               <span>Export</span>
@@ -427,12 +427,12 @@ export default function DynamicMasterDashboardPage() {
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all flex flex-col items-start gap-0.5 cursor-pointer ${
                   isActive
-                    ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/30 border border-blue-400/40 scale-[1.02]"
-                    : "bg-[#1E293B]/60 text-slate-300 hover:bg-[#1E293B] hover:text-white border border-white/5"
+                    ? "bg-gradient-to-r from-[#A20A3A] to-[#85072F] text-white shadow-lg shadow-blue-600/30 border border-blue-400/40 scale-[1.02]"
+                    : "bg-[#1E293B]/60 text-[#292329] hover:bg-[#1E293B] hover:text-white border border-white/5"
                 }`}
               >
                 <span>{tab.label}</span>
-                <span className={`text-[9.5px] font-normal ${isActive ? "text-blue-100" : "text-slate-400"}`}>
+                <span className={`text-[9.5px] font-normal ${isActive ? "text-blue-100" : "text-[#625B60]"}`}>
                   {tab.desc}
                 </span>
               </button>
@@ -447,7 +447,7 @@ export default function DynamicMasterDashboardPage() {
           {/* 1. KEY HERO KPI CARDS */}
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3.5">
             {/* Total POS Volume */}
-            <div className="bg-gradient-to-br from-[#0F172A] to-[#1E293B] border border-blue-500/30 p-4 rounded-2xl shadow-lg relative overflow-hidden group hover:border-blue-500/60 transition">
+            <div className="bg-gradient-to-br from-[#FFFFFF] to-[#1E293B] border border-blue-500/30 p-4 rounded-2xl shadow-lg relative overflow-hidden group hover:border-blue-500/60 transition">
               <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition" />
               <div className="flex items-center justify-between text-blue-400 mb-2">
                 <CreditCard className="w-5 h-5" />
@@ -455,17 +455,17 @@ export default function DynamicMasterDashboardPage() {
                   POS View
                 </span>
               </div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">POS & Card Volume</p>
+              <p className="text-[11px] font-bold text-[#625B60] uppercase tracking-wider">POS & Card Volume</p>
               <h2 className="text-xl font-black text-white mt-1">
                 {fmtCurrency(summary?.pos.total_pos_volume ?? 169480850.45)}
               </h2>
-              <p className="text-[10px] text-slate-400 mt-1">
+              <p className="text-[10px] text-[#625B60] mt-1">
                 {fmtRawNumber(summary?.pos.total_pos_txns ?? 14279)} Card Swipes
               </p>
             </div>
 
             {/* Active POS Terminals */}
-            <div className="bg-gradient-to-br from-[#0F172A] to-[#1E293B] border border-purple-500/30 p-4 rounded-2xl shadow-lg relative overflow-hidden group hover:border-purple-500/60 transition">
+            <div className="bg-gradient-to-br from-[#FFFFFF] to-[#1E293B] border border-purple-500/30 p-4 rounded-2xl shadow-lg relative overflow-hidden group hover:border-purple-500/60 transition">
               <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition" />
               <div className="flex items-center justify-between text-purple-400 mb-2">
                 <Terminal className="w-5 h-5" />
@@ -473,17 +473,17 @@ export default function DynamicMasterDashboardPage() {
                   Terminals
                 </span>
               </div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active POS Machines</p>
+              <p className="text-[11px] font-bold text-[#625B60] uppercase tracking-wider">Active POS Machines</p>
               <h2 className="text-xl font-black text-white mt-1">
                 {summary?.pos.active_terminals ?? 45} Terminals
               </h2>
-              <p className="text-[10px] text-slate-400 mt-1">
+              <p className="text-[10px] text-[#625B60] mt-1">
                 Across 129 Retailers
               </p>
             </div>
 
             {/* Pending Operations Queue */}
-            <div className="bg-gradient-to-br from-[#0F172A] to-[#1E293B] border border-amber-500/30 p-4 rounded-2xl shadow-lg relative overflow-hidden group hover:border-amber-500/60 transition">
+            <div className="bg-gradient-to-br from-[#FFFFFF] to-[#1E293B] border border-amber-500/30 p-4 rounded-2xl shadow-lg relative overflow-hidden group hover:border-amber-500/60 transition">
               <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition" />
               <div className="flex items-center justify-between text-amber-400 mb-2">
                 <Clock className="w-5 h-5" />
@@ -491,17 +491,17 @@ export default function DynamicMasterDashboardPage() {
                   Queue
                 </span>
               </div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pending Operations</p>
+              <p className="text-[11px] font-bold text-[#625B60] uppercase tracking-wider">Pending Operations</p>
               <h2 className="text-xl font-black text-amber-400 mt-1">
                 {fmtCurrency(summary?.pending.total_pending_amount ?? 2415231.0)}
               </h2>
-              <p className="text-[10px] text-slate-400 mt-1">
+              <p className="text-[10px] text-[#625B60] mt-1">
                 {summary?.pending.pending_count ?? 53} Pending Transactions
               </p>
             </div>
 
             {/* Merchant Network */}
-            <div className="bg-gradient-to-br from-[#0F172A] to-[#1E293B] border border-emerald-500/30 p-4 rounded-2xl shadow-lg relative overflow-hidden group hover:border-emerald-500/60 transition">
+            <div className="bg-gradient-to-br from-[#FFFFFF] to-[#1E293B] border border-emerald-500/30 p-4 rounded-2xl shadow-lg relative overflow-hidden group hover:border-emerald-500/60 transition">
               <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition" />
               <div className="flex items-center justify-between text-emerald-400 mb-2">
                 <Users className="w-5 h-5" />
@@ -509,17 +509,17 @@ export default function DynamicMasterDashboardPage() {
                   Hierarchy
                 </span>
               </div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Retailer Network</p>
+              <p className="text-[11px] font-bold text-[#625B60] uppercase tracking-wider">Retailer Network</p>
               <h2 className="text-xl font-black text-white mt-1">
                 {summary?.hierarchy.total_retailers ?? 129} Partners
               </h2>
-              <p className="text-[10px] text-slate-400 mt-1">
+              <p className="text-[10px] text-[#625B60] mt-1">
                 1 Dist · 1 Super Dist
               </p>
             </div>
 
             {/* Wallet Liability */}
-            <div className="bg-gradient-to-br from-[#0F172A] to-[#1E293B] border border-cyan-500/30 p-4 rounded-2xl shadow-lg relative overflow-hidden group hover:border-cyan-500/60 transition">
+            <div className="bg-gradient-to-br from-[#FFFFFF] to-[#1E293B] border border-cyan-500/30 p-4 rounded-2xl shadow-lg relative overflow-hidden group hover:border-cyan-500/60 transition">
               <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-500/10 rounded-full blur-2xl group-hover:bg-cyan-500/20 transition" />
               <div className="flex items-center justify-between text-cyan-400 mb-2">
                 <Wallet className="w-5 h-5" />
@@ -527,17 +527,17 @@ export default function DynamicMasterDashboardPage() {
                   Ledger
                 </span>
               </div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Wallet Balances</p>
+              <p className="text-[11px] font-bold text-[#625B60] uppercase tracking-wider">Wallet Balances</p>
               <h2 className="text-xl font-black text-white mt-1">
                 {fmtCurrency(summary?.wallet.total_wallet_liability ?? 1542000.0)}
               </h2>
-              <p className="text-[10px] text-slate-400 mt-1">
+              <p className="text-[10px] text-[#625B60] mt-1">
                 Double-entry escrow
               </p>
             </div>
 
             {/* System Latency & Success SLA */}
-            <div className="bg-gradient-to-br from-[#0F172A] to-[#1E293B] border border-pink-500/30 p-4 rounded-2xl shadow-lg relative overflow-hidden group hover:border-pink-500/60 transition">
+            <div className="bg-gradient-to-br from-[#FFFFFF] to-[#1E293B] border border-pink-500/30 p-4 rounded-2xl shadow-lg relative overflow-hidden group hover:border-pink-500/60 transition">
               <div className="absolute top-0 right-0 w-24 h-24 bg-pink-500/10 rounded-full blur-2xl group-hover:bg-pink-500/20 transition" />
               <div className="flex items-center justify-between text-pink-400 mb-2">
                 <Activity className="w-5 h-5" />
@@ -545,11 +545,11 @@ export default function DynamicMasterDashboardPage() {
                   SLA
                 </span>
               </div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Success Rate</p>
+              <p className="text-[11px] font-bold text-[#625B60] uppercase tracking-wider">Success Rate</p>
               <h2 className="text-xl font-black text-emerald-400 mt-1">
                 {summary?.system_health.success_rate_pct ?? 98.8}%
               </h2>
-              <p className="text-[10px] text-slate-400 mt-1">
+              <p className="text-[10px] text-[#625B60] mt-1">
                 Latency: {summary?.system_health.latency_ms ?? 12}ms
               </p>
             </div>
@@ -558,14 +558,14 @@ export default function DynamicMasterDashboardPage() {
           {/* 2. INTERACTIVE CHARTS & LIVE METRICS SECTION */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             {/* Volume Trend Area Chart (2 Cols) */}
-            <div className="lg:col-span-2 bg-[#0F172A]/90 border border-white/10 rounded-2xl p-5 shadow-xl">
+            <div className="lg:col-span-2 bg-[#FFFFFF]/90 border border-white/10 rounded-2xl p-5 shadow-xl">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                 <div>
                   <h3 className="text-base font-bold text-white flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-blue-400" />
                     Live Volume Trajectory & Daily Turnover
                   </h3>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-[#625B60]">
                     Sourced dynamically from <code className="text-blue-300 font-mono">public.view_sales_pos_transactions</code>
                   </p>
                 </div>
@@ -575,7 +575,7 @@ export default function DynamicMasterDashboardPage() {
                       key={tf}
                       onClick={() => setTimeframe(tf)}
                       className={`px-3 py-1 text-xs font-bold rounded-lg transition cursor-pointer ${
-                        timeframe === tf ? "bg-blue-600 text-white shadow" : "text-slate-400 hover:text-white"
+                        timeframe === tf ? "bg-blue-600 text-white shadow" : "text-[#625B60] hover:text-white"
                       }`}
                     >
                       {tf}
@@ -602,11 +602,11 @@ export default function DynamicMasterDashboardPage() {
                     />
                     <RechartsTooltip
                       contentStyle={{
-                        backgroundColor: "#0F172A",
+                        backgroundColor: "#FFFFFF",
                         borderColor: "rgba(255,255,255,0.15)",
                         borderRadius: "12px",
                         fontSize: "12px",
-                        boxShadow: "0 10px 25px -5px rgba(0,0,0,0.5)",
+                        boxShadow: "0 10px 25px -5px rgba(41, 35, 41, 0.06)",
                       }}
                       formatter={(value: any) => [`₹${Number(value).toLocaleString("en-IN")}`, "Volume"]}
                     />
@@ -617,13 +617,13 @@ export default function DynamicMasterDashboardPage() {
             </div>
 
             {/* Service Breakdown & Pending Queue Distribution */}
-            <div className="bg-[#0F172A]/90 border border-white/10 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+            <div className="bg-[#FFFFFF]/90 border border-white/10 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
               <div>
                 <h3 className="text-base font-bold text-white flex items-center gap-2 mb-1">
                   <PieIcon className="w-4 h-4 text-emerald-400" />
                   Service Volume Breakdown
                 </h3>
-                <p className="text-xs text-slate-400 mb-4">
+                <p className="text-xs text-[#625B60] mb-4">
                   Multi-rail transaction flow distribution
                 </p>
 
@@ -634,12 +634,12 @@ export default function DynamicMasterDashboardPage() {
                     { label: "Domestic Money Transfer (DMT)", count: 120, amount: 890000.0, color: "bg-emerald-500", text: "text-emerald-400" },
                     { label: "AEPS & Micro-ATM", count: 45, amount: 340000.0, color: "bg-purple-500", text: "text-purple-400" },
                   ].map((srv) => (
-                    <div key={srv.label} className="p-2.5 rounded-xl bg-slate-800/40 border border-white/5 flex items-center justify-between">
+                    <div key={srv.label} className="p-2.5 rounded-xl bg-[#F5F2F4]/40 border border-white/5 flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
                         <span className={`w-2.5 h-2.5 rounded-full ${srv.color}`} />
                         <div>
                           <p className="text-xs font-bold text-white">{srv.label}</p>
-                          <p className="text-[10px] text-slate-400">{fmtRawNumber(srv.count)} transactions</p>
+                          <p className="text-[10px] text-[#625B60]">{fmtRawNumber(srv.count)} transactions</p>
                         </div>
                       </div>
                       <span className={`text-xs font-black font-mono ${srv.text}`}>
@@ -652,7 +652,7 @@ export default function DynamicMasterDashboardPage() {
 
               {/* Core Banking Infrastructure Health */}
               <div className="mt-4 pt-4 border-t border-white/10">
-                <div className="flex items-center justify-between text-xs font-bold text-slate-300 mb-2">
+                <div className="flex items-center justify-between text-xs font-bold text-[#292329] mb-2">
                   <span className="flex items-center gap-1.5">
                     <Server className="w-3.5 h-3.5 text-blue-400" /> Core Switch Health
                   </span>
@@ -660,11 +660,11 @@ export default function DynamicMasterDashboardPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-[11px]">
                   <div className="bg-[#1E293B]/70 p-2 rounded-lg border border-white/5 flex items-center justify-between">
-                    <span className="text-slate-400">NPCI/IMPS</span>
+                    <span className="text-[#625B60]">NPCI/IMPS</span>
                     <span className="text-emerald-400 font-bold">14ms</span>
                   </div>
                   <div className="bg-[#1E293B]/70 p-2 rounded-lg border border-white/5 flex items-center justify-between">
-                    <span className="text-slate-400">Database Ledger</span>
+                    <span className="text-[#625B60]">Database Ledger</span>
                     <span className="text-emerald-400 font-bold">6ms</span>
                   </div>
                 </div>
@@ -680,37 +680,37 @@ export default function DynamicMasterDashboardPage() {
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               {[
-                { title: "Money Transfer (DMT)", path: "/retailer/dmt", icon: Send, color: "from-blue-600 to-indigo-600", desc: "Instant IMPS / NEFT" },
+                { title: "Money Transfer (DMT)", path: "/retailer/dmt", icon: Send, color: "from-[#A20A3A] to-[#85072F]", desc: "Instant IMPS / NEFT" },
                 { title: "Wallet Top-Up", path: "/retailer/wallet-topup", icon: Wallet, color: "from-amber-500 to-orange-600", desc: "Add Bank Funds" },
                 { title: "Passbook & Ledger", path: "/retailer/dmt/ledger", icon: FileSpreadsheet, color: "from-emerald-600 to-teal-600", desc: "Double-Entry Audit" },
-                { title: "POS Settlements", path: "/retailer/pos/settlement-report", icon: Terminal, color: "from-purple-600 to-pink-600", desc: "Terminal Reports" },
-                { title: "Beneficiaries", path: "/retailer/beneficiary", icon: Users, color: "from-cyan-600 to-blue-600", desc: "Manage Accounts" },
+                { title: "POS Settlements", path: "/retailer/pos/settlement-report", icon: Terminal, color: "from-[#A20A3A] to-[#C42555]", desc: "Terminal Reports" },
+                { title: "Beneficiaries", path: "/retailer/beneficiary", icon: Users, color: "from-[#EDC11E] to-[#D4A915]", desc: "Manage Accounts" },
                 { title: "Verification Queue", path: "/admin/verification", icon: ShieldCheck, color: "from-rose-600 to-red-600", desc: "Merchant KYC" },
               ].map((act) => (
                 <button
                   key={act.title}
                   onClick={() => router.push(act.path)}
-                  className="bg-[#0F172A]/80 hover:bg-[#1E293B] border border-white/10 hover:border-white/20 p-3.5 rounded-2xl text-left transition-all hover:scale-[1.02] shadow-lg group cursor-pointer"
+                  className="bg-[#FFFFFF]/80 hover:bg-[#1E293B] border border-white/10 hover:border-white/20 p-3.5 rounded-2xl text-left transition-all hover:scale-[1.02] shadow-lg group cursor-pointer"
                 >
                   <div className={`w-9 h-9 rounded-xl bg-gradient-to-tr ${act.color} flex items-center justify-center text-white mb-2.5 shadow group-hover:scale-110 transition`}>
                     <act.icon className="w-4 h-4" />
                   </div>
                   <h4 className="text-xs font-bold text-white group-hover:text-blue-400 transition">{act.title}</h4>
-                  <p className="text-[10px] text-slate-400 mt-0.5">{act.desc}</p>
+                  <p className="text-[10px] text-[#625B60] mt-0.5">{act.desc}</p>
                 </button>
               ))}
             </div>
           </div>
 
           {/* 4. LIVE SNAPSHOT TABLE: TOP POS SWIPES */}
-          <div className="bg-[#0F172A]/90 border border-white/10 rounded-2xl p-5 shadow-xl">
+          <div className="bg-[#FFFFFF]/90 border border-white/10 rounded-2xl p-5 shadow-xl">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
               <div>
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
                   <CreditCard className="w-4 h-4 text-blue-400" />
                   Live POS Swipe Transactions Stream
                 </h3>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-[#625B60]">
                   Direct view from <code className="text-blue-300 font-mono">public.view_sales_pos_transactions</code> (Showing latest records)
                 </p>
               </div>
@@ -725,7 +725,7 @@ export default function DynamicMasterDashboardPage() {
             <div className="overflow-x-auto rounded-xl border border-white/10">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="bg-[#1E293B] text-slate-300 uppercase tracking-wider text-[10px] font-bold border-b border-white/10">
+                  <tr className="bg-[#1E293B] text-[#292329] uppercase tracking-wider text-[10px] font-bold border-b border-white/10">
                     <th className="py-3 px-4">Time</th>
                     <th className="py-3 px-4">Txn Number</th>
                     <th className="py-3 px-4">Terminal ID</th>
@@ -739,16 +739,16 @@ export default function DynamicMasterDashboardPage() {
                 <tbody className="divide-y divide-white/5 font-mono">
                   {posItems.slice(0, 8).map((tx) => (
                     <tr key={tx.txn_id} className="hover:bg-white/[0.02] transition">
-                      <td className="py-2.5 px-4 text-slate-400">
+                      <td className="py-2.5 px-4 text-[#625B60]">
                         {tx.transaction_time ? new Date(tx.transaction_time).toLocaleTimeString("en-IN", { timeStyle: "short" }) : "--"}
                       </td>
                       <td className="py-2.5 px-4 text-blue-400 font-bold">{tx.txn_id}</td>
                       <td className="py-2.5 px-4 text-purple-300">{tx.pos_terminal_id}</td>
-                      <td className="py-2.5 px-4 font-sans text-slate-200">
-                        {tx.retailer_name} <span className="text-[10px] text-slate-400">({tx.retailer_code})</span>
+                      <td className="py-2.5 px-4 font-sans text-[#292329]">
+                        {tx.retailer_name} <span className="text-[10px] text-[#625B60]">({tx.retailer_code})</span>
                       </td>
-                      <td className="py-2.5 px-4 font-sans text-slate-300">
-                        <span className="px-2 py-0.5 rounded bg-slate-800 text-[11px] border border-white/10">
+                      <td className="py-2.5 px-4 font-sans text-[#292329]">
+                        <span className="px-2 py-0.5 rounded bg-[#F5F2F4] text-[11px] border border-white/10">
                           {tx.card_network}
                         </span>
                       </td>
@@ -776,14 +776,14 @@ export default function DynamicMasterDashboardPage() {
       {activeTab === "pos" && (
         <div className="space-y-5">
           {/* Top Filters & Stats */}
-          <div className="bg-[#0F172A]/90 border border-white/10 rounded-2xl p-5 shadow-xl">
+          <div className="bg-[#FFFFFF]/90 border border-white/10 rounded-2xl p-5 shadow-xl">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5">
               <div>
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                   <CreditCard className="w-5 h-5 text-blue-400" />
                   POS Terminal & Card Transactions Explorer
                 </h3>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-[#625B60]">
                   Backed by <code className="text-blue-300 font-mono">public.view_sales_pos_transactions</code> · Real-time swipe data
                 </p>
               </div>
@@ -791,7 +791,7 @@ export default function DynamicMasterDashboardPage() {
               {/* Search and Filters */}
               <div className="flex items-center gap-2.5 flex-wrap">
                 <div className="relative">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <Search className="w-4 h-4 text-[#625B60] absolute left-3 top-2.5" />
                   <input
                     type="text"
                     value={searchTerm}
@@ -823,20 +823,20 @@ export default function DynamicMasterDashboardPage() {
 
             {/* Quick Filter Counts */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-              <div className="bg-slate-800/40 p-3 rounded-xl border border-white/5">
-                <span className="text-[11px] text-slate-400 font-bold block">TOTAL POS VOLUME</span>
+              <div className="bg-[#F5F2F4]/40 p-3 rounded-xl border border-white/5">
+                <span className="text-[11px] text-[#625B60] font-bold block">TOTAL POS VOLUME</span>
                 <span className="text-lg font-black text-white">{fmtCurrency(169480850.45)}</span>
               </div>
-              <div className="bg-slate-800/40 p-3 rounded-xl border border-white/5">
-                <span className="text-[11px] text-slate-400 font-bold block">TOTAL SWIPES</span>
+              <div className="bg-[#F5F2F4]/40 p-3 rounded-xl border border-white/5">
+                <span className="text-[11px] text-[#625B60] font-bold block">TOTAL SWIPES</span>
                 <span className="text-lg font-black text-blue-400">{fmtRawNumber(posTotal)}</span>
               </div>
-              <div className="bg-slate-800/40 p-3 rounded-xl border border-white/5">
-                <span className="text-[11px] text-slate-400 font-bold block">ACTIVE TERMINALS</span>
+              <div className="bg-[#F5F2F4]/40 p-3 rounded-xl border border-white/5">
+                <span className="text-[11px] text-[#625B60] font-bold block">ACTIVE TERMINALS</span>
                 <span className="text-lg font-black text-purple-400">45 Active TIDs</span>
               </div>
-              <div className="bg-slate-800/40 p-3 rounded-xl border border-white/5">
-                <span className="text-[11px] text-slate-400 font-bold block">MATCHING RECORDS</span>
+              <div className="bg-[#F5F2F4]/40 p-3 rounded-xl border border-white/5">
+                <span className="text-[11px] text-[#625B60] font-bold block">MATCHING RECORDS</span>
                 <span className="text-lg font-black text-emerald-400">{filteredPosItems.length} Shown</span>
               </div>
             </div>
@@ -845,7 +845,7 @@ export default function DynamicMasterDashboardPage() {
             <div className="overflow-x-auto rounded-xl border border-white/10">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="bg-[#1E293B] text-slate-300 uppercase tracking-wider text-[10px] font-bold border-b border-white/10">
+                  <tr className="bg-[#1E293B] text-[#292329] uppercase tracking-wider text-[10px] font-bold border-b border-white/10">
                     <th className="py-3 px-4">Date & Time</th>
                     <th className="py-3 px-4">Txn ID</th>
                     <th className="py-3 px-4">Terminal ID</th>
@@ -860,17 +860,17 @@ export default function DynamicMasterDashboardPage() {
                 <tbody className="divide-y divide-white/5 font-mono">
                   {filteredPosItems.map((tx) => (
                     <tr key={tx.txn_id} className="hover:bg-white/[0.02] transition">
-                      <td className="py-3 px-4 text-slate-400 font-sans">
+                      <td className="py-3 px-4 text-[#625B60] font-sans">
                         {tx.transaction_time ? new Date(tx.transaction_time).toLocaleString("en-IN") : "--"}
                       </td>
                       <td className="py-3 px-4 text-blue-400 font-bold">{tx.txn_id}</td>
                       <td className="py-3 px-4 text-purple-300">{tx.pos_terminal_id}</td>
-                      <td className="py-3 px-4 text-slate-400">{tx.pos_serial_number || "--"}</td>
-                      <td className="py-3 px-4 font-sans text-slate-200">
-                        {tx.retailer_name} <span className="text-[10px] text-slate-400">({tx.retailer_code})</span>
+                      <td className="py-3 px-4 text-[#625B60]">{tx.pos_serial_number || "--"}</td>
+                      <td className="py-3 px-4 font-sans text-[#292329]">
+                        {tx.retailer_name} <span className="text-[10px] text-[#625B60]">({tx.retailer_code})</span>
                       </td>
-                      <td className="py-3 px-4 font-sans text-slate-300">
-                        <span className="px-2 py-0.5 rounded bg-slate-800 text-[11px] border border-white/10">
+                      <td className="py-3 px-4 font-sans text-[#292329]">
+                        <span className="px-2 py-0.5 rounded bg-[#F5F2F4] text-[11px] border border-white/10">
                           {tx.card_network}
                         </span>
                       </td>
@@ -897,14 +897,14 @@ export default function DynamicMasterDashboardPage() {
       {/* ── TAB CONTENT: 3. PENDING OPERATIONS ── */}
       {activeTab === "pending" && (
         <div className="space-y-5">
-          <div className="bg-[#0F172A]/90 border border-white/10 rounded-2xl p-5 shadow-xl">
+          <div className="bg-[#FFFFFF]/90 border border-white/10 rounded-2xl p-5 shadow-xl">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5">
               <div>
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                   <Clock className="w-5 h-5 text-amber-400" />
                   Live Pending Operations & Processing Queue
                 </h3>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-[#625B60]">
                   Backed by <code className="text-amber-300 font-mono">public.view_all_pending_transactions</code> across Payout, DMT, AEPS, Recharge
                 </p>
               </div>
@@ -912,7 +912,7 @@ export default function DynamicMasterDashboardPage() {
               {/* Filters */}
               <div className="flex items-center gap-2.5 flex-wrap">
                 <div className="relative">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <Search className="w-4 h-4 text-[#625B60] absolute left-3 top-2.5" />
                   <input
                     type="text"
                     value={searchTerm}
@@ -945,24 +945,24 @@ export default function DynamicMasterDashboardPage() {
 
             {/* Queue KPI Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-              <div className="bg-slate-800/40 p-3 rounded-xl border border-white/5">
-                <span className="text-[11px] text-slate-400 font-bold block">TOTAL QUEUED AMOUNT</span>
+              <div className="bg-[#F5F2F4]/40 p-3 rounded-xl border border-white/5">
+                <span className="text-[11px] text-[#625B60] font-bold block">TOTAL QUEUED AMOUNT</span>
                 <span className="text-lg font-black text-amber-400">
                   {fmtCurrency(summary?.pending.total_pending_amount ?? 2415231.0)}
                 </span>
               </div>
-              <div className="bg-slate-800/40 p-3 rounded-xl border border-white/5">
-                <span className="text-[11px] text-slate-400 font-bold block">PENDING TRANSACTIONS</span>
+              <div className="bg-[#F5F2F4]/40 p-3 rounded-xl border border-white/5">
+                <span className="text-[11px] text-[#625B60] font-bold block">PENDING TRANSACTIONS</span>
                 <span className="text-lg font-black text-white">{pendingTotal} Items</span>
               </div>
-              <div className="bg-slate-800/40 p-3 rounded-xl border border-white/5">
-                <span className="text-[11px] text-slate-400 font-bold block">AFFECTED MERCHANTS</span>
+              <div className="bg-[#F5F2F4]/40 p-3 rounded-xl border border-white/5">
+                <span className="text-[11px] text-[#625B60] font-bold block">AFFECTED MERCHANTS</span>
                 <span className="text-lg font-black text-purple-400">
                   {summary?.pending.pending_retailers_count ?? 13} Retailers
                 </span>
               </div>
-              <div className="bg-slate-800/40 p-3 rounded-xl border border-white/5">
-                <span className="text-[11px] text-slate-400 font-bold block">GATEWAY VENDORS</span>
+              <div className="bg-[#F5F2F4]/40 p-3 rounded-xl border border-white/5">
+                <span className="text-[11px] text-[#625B60] font-bold block">GATEWAY VENDORS</span>
                 <span className="text-lg font-black text-blue-400">
                   {summary?.pending.pending_vendors_count ?? 1} Vendors
                 </span>
@@ -973,7 +973,7 @@ export default function DynamicMasterDashboardPage() {
             <div className="overflow-x-auto rounded-xl border border-white/10">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="bg-[#1E293B] text-slate-300 uppercase tracking-wider text-[10px] font-bold border-b border-white/10">
+                  <tr className="bg-[#1E293B] text-[#292329] uppercase tracking-wider text-[10px] font-bold border-b border-white/10">
                     <th className="py-3 px-4">Service</th>
                     <th className="py-3 px-4">Vendor</th>
                     <th className="py-3 px-4">Txn ID / External ID</th>
@@ -993,10 +993,10 @@ export default function DynamicMasterDashboardPage() {
                           {tx.service}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-slate-300 font-sans">{tx.vendor}</td>
+                      <td className="py-3 px-4 text-[#292329] font-sans">{tx.vendor}</td>
                       <td className="py-3 px-4 text-amber-400 font-bold">{tx.transaction_id}</td>
-                      <td className="py-3 px-4 font-sans text-slate-200">
-                        {tx.retailer_name} <span className="text-[10px] text-slate-400">({tx.retailer_code})</span>
+                      <td className="py-3 px-4 font-sans text-[#292329]">
+                        {tx.retailer_name} <span className="text-[10px] text-[#625B60]">({tx.retailer_code})</span>
                       </td>
                       <td className="py-3 px-4 text-right font-bold text-white">
                         ₹{Number(tx.transaction_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
@@ -1004,8 +1004,8 @@ export default function DynamicMasterDashboardPage() {
                       <td className="py-3 px-4 text-right text-rose-400 font-bold">
                         ₹{Number(tx.net_wallet_debit).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="py-3 px-4 text-slate-400">{tx.utr || tx.vendor_ref || "--"}</td>
-                      <td className="py-3 px-4 text-slate-400 font-sans">
+                      <td className="py-3 px-4 text-[#625B60]">{tx.utr || tx.vendor_ref || "--"}</td>
+                      <td className="py-3 px-4 text-[#625B60] font-sans">
                         {tx.created_at ? new Date(tx.created_at).toLocaleString("en-IN") : "--"}
                       </td>
                       <td className="py-3 px-4 text-center">
@@ -1025,21 +1025,21 @@ export default function DynamicMasterDashboardPage() {
       {/* ── TAB CONTENT: 4. SALES NETWORK & HIERARCHY ── */}
       {activeTab === "hierarchy" && (
         <div className="space-y-5">
-          <div className="bg-[#0F172A]/90 border border-white/10 rounded-2xl p-5 shadow-xl">
+          <div className="bg-[#FFFFFF]/90 border border-white/10 rounded-2xl p-5 shadow-xl">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5">
               <div>
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                   <Users className="w-5 h-5 text-emerald-400" />
                   Sales Hierarchy Scope & Partner Mapping
                 </h3>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-[#625B60]">
                   Backed by <code className="text-emerald-300 font-mono">public.view_sales_hierarchy_scope</code> · Partner network distribution
                 </p>
               </div>
 
               {/* Search */}
               <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                <Search className="w-4 h-4 text-[#625B60] absolute left-3 top-2.5" />
                 <input
                   type="text"
                   value={searchTerm}
@@ -1052,20 +1052,20 @@ export default function DynamicMasterDashboardPage() {
 
             {/* Network Summary Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-              <div className="bg-slate-800/40 p-3 rounded-xl border border-white/5">
-                <span className="text-[11px] text-slate-400 font-bold block">TOTAL RETAILERS</span>
+              <div className="bg-[#F5F2F4]/40 p-3 rounded-xl border border-white/5">
+                <span className="text-[11px] text-[#625B60] font-bold block">TOTAL RETAILERS</span>
                 <span className="text-lg font-black text-emerald-400">129 Merchants</span>
               </div>
-              <div className="bg-slate-800/40 p-3 rounded-xl border border-white/5">
-                <span className="text-[11px] text-slate-400 font-bold block">DISTRIBUTORS</span>
+              <div className="bg-[#F5F2F4]/40 p-3 rounded-xl border border-white/5">
+                <span className="text-[11px] text-[#625B60] font-bold block">DISTRIBUTORS</span>
                 <span className="text-lg font-black text-blue-400">1 Mapped</span>
               </div>
-              <div className="bg-slate-800/40 p-3 rounded-xl border border-white/5">
-                <span className="text-[11px] text-slate-400 font-bold block">SUPER DISTRIBUTORS</span>
+              <div className="bg-[#F5F2F4]/40 p-3 rounded-xl border border-white/5">
+                <span className="text-[11px] text-[#625B60] font-bold block">SUPER DISTRIBUTORS</span>
                 <span className="text-lg font-black text-purple-400">1 Mapped</span>
               </div>
-              <div className="bg-slate-800/40 p-3 rounded-xl border border-white/5">
-                <span className="text-[11px] text-slate-400 font-bold block">ASSIGNED POS TERMINALS</span>
+              <div className="bg-[#F5F2F4]/40 p-3 rounded-xl border border-white/5">
+                <span className="text-[11px] text-[#625B60] font-bold block">ASSIGNED POS TERMINALS</span>
                 <span className="text-lg font-black text-amber-400">50 Machines</span>
               </div>
             </div>
@@ -1074,7 +1074,7 @@ export default function DynamicMasterDashboardPage() {
             <div className="overflow-x-auto rounded-xl border border-white/10">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="bg-[#1E293B] text-slate-300 uppercase tracking-wider text-[10px] font-bold border-b border-white/10">
+                  <tr className="bg-[#1E293B] text-[#292329] uppercase tracking-wider text-[10px] font-bold border-b border-white/10">
                     <th className="py-3 px-4">Retailer Code</th>
                     <th className="py-3 px-4">Store Name</th>
                     <th className="py-3 px-4">Owner</th>
@@ -1090,17 +1090,17 @@ export default function DynamicMasterDashboardPage() {
                     <tr key={h.retailer_code} className="hover:bg-white/[0.02] transition">
                       <td className="py-3 px-4 text-blue-400 font-bold">{h.retailer_code}</td>
                       <td className="py-3 px-4 font-sans font-bold text-white">{h.retailer_name}</td>
-                      <td className="py-3 px-4 font-sans text-slate-300">{h.retailer_owner || "--"}</td>
-                      <td className="py-3 px-4 font-sans text-slate-400">{h.store_type}</td>
-                      <td className="py-3 px-4 font-sans text-slate-300">{h.distributor_name}</td>
-                      <td className="py-3 px-4 font-sans text-slate-300">{h.super_distributor_name}</td>
+                      <td className="py-3 px-4 font-sans text-[#292329]">{h.retailer_owner || "--"}</td>
+                      <td className="py-3 px-4 font-sans text-[#625B60]">{h.store_type}</td>
+                      <td className="py-3 px-4 font-sans text-[#292329]">{h.distributor_name}</td>
+                      <td className="py-3 px-4 font-sans text-[#292329]">{h.super_distributor_name}</td>
                       <td className="py-3 px-4 text-center font-bold text-amber-400">
                         {h.pos_machine_count > 0 ? (
                           <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
                             {h.pos_machine_count} POS
                           </span>
                         ) : (
-                          <span className="text-slate-500">0</span>
+                          <span className="text-[#8A8288]">0</span>
                         )}
                       </td>
                       <td className="py-3 px-4 text-center">

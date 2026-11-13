@@ -50,14 +50,14 @@ export default function CustomerDashboardPage() {
           <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
             <Users className="w-7 h-7 text-blue-400" /> Customer Lifecycle Telemetry
           </h1>
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-[#625B60] text-sm mt-1">
             Enterprise Single Source of Truth for Customer Onboarding, KYC & Eligibility
           </p>
         </div>
         <button
           onClick={fetchMetrics}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 text-sm font-medium transition-all"
+          className="flex items-center gap-2 px-4 py-2 bg-[#F5F2F4] hover:bg-slate-700 text-[#292329] rounded-lg border border-[#E8E2E5] text-sm font-medium transition-all"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh Data
         </button>
@@ -65,10 +65,10 @@ export default function CustomerDashboardPage() {
 
       {/* Primary KPI Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="glass-card p-5 rounded-xl border border-slate-800 bg-slate-900/60 relative overflow-hidden">
+        <div className="glass-card p-5 rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 relative overflow-hidden">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Total Customers</p>
+              <p className="text-[#625B60] text-xs font-semibold uppercase tracking-wider">Total Customers</p>
               <h3 className="text-2xl font-bold text-white mt-1">
                 {metrics?.total_customers ?? 0}
               </h3>
@@ -82,14 +82,14 @@ export default function CustomerDashboardPage() {
           </div>
         </div>
 
-        <div className="glass-card p-5 rounded-xl border border-slate-800 bg-slate-900/60 relative overflow-hidden">
+        <div className="glass-card p-5 rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 relative overflow-hidden">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Active Customers</p>
+              <p className="text-[#625B60] text-xs font-semibold uppercase tracking-wider">Active Customers</p>
               <h3 className="text-2xl font-bold text-emerald-400 mt-1">
                 {metrics?.active_customers ?? 0}
               </h3>
-              <p className="text-xs text-slate-500 mt-2">Validated for financial transactions</p>
+              <p className="text-xs text-[#8A8288] mt-2">Validated for financial transactions</p>
             </div>
             <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
               <UserCheck className="w-5 h-5" />
@@ -97,10 +97,10 @@ export default function CustomerDashboardPage() {
           </div>
         </div>
 
-        <div className="glass-card p-5 rounded-xl border border-slate-800 bg-slate-900/60 relative overflow-hidden">
+        <div className="glass-card p-5 rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 relative overflow-hidden">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Pending KYC Queue</p>
+              <p className="text-[#625B60] text-xs font-semibold uppercase tracking-wider">Pending KYC Queue</p>
               <h3 className="text-2xl font-bold text-amber-400 mt-1">
                 {metrics?.pending_kyc ?? 0}
               </h3>
@@ -112,10 +112,10 @@ export default function CustomerDashboardPage() {
           </div>
         </div>
 
-        <div className="glass-card p-5 rounded-xl border border-slate-800 bg-slate-900/60 relative overflow-hidden">
+        <div className="glass-card p-5 rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 relative overflow-hidden">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Blocked / High Risk</p>
+              <p className="text-[#625B60] text-xs font-semibold uppercase tracking-wider">Blocked / High Risk</p>
               <h3 className="text-2xl font-bold text-rose-400 mt-1">
                 {(metrics?.blocked_customers ?? 0) + (metrics?.high_risk_customers ?? 0)}
               </h3>
@@ -131,36 +131,36 @@ export default function CustomerDashboardPage() {
       {/* Secondary Metrics & Breakdown Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Status Distribution */}
-        <div className="glass-card p-6 rounded-xl border border-slate-800 bg-slate-900/60">
+        <div className="glass-card p-6 rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60">
           <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-blue-400" /> Lifecycle Status Breakdown
           </h3>
           <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-slate-800/40 border border-slate-800">
-              <span className="text-sm text-slate-300">Active</span>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-[#F5F2F4]/40 border border-[#E8E2E5]">
+              <span className="text-sm text-[#292329]">Active</span>
               <span className="text-sm font-semibold text-emerald-400">{metrics?.active_customers ?? 0}</span>
             </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-slate-800/40 border border-slate-800">
-              <span className="text-sm text-slate-300">Pending KYC</span>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-[#F5F2F4]/40 border border-[#E8E2E5]">
+              <span className="text-sm text-[#292329]">Pending KYC</span>
               <span className="text-sm font-semibold text-amber-400">{metrics?.pending_kyc ?? 0}</span>
             </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-slate-800/40 border border-slate-800">
-              <span className="text-sm text-slate-300">Rejected KYC</span>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-[#F5F2F4]/40 border border-[#E8E2E5]">
+              <span className="text-sm text-[#292329]">Rejected KYC</span>
               <span className="text-sm font-semibold text-rose-400">{metrics?.rejected_kyc ?? 0}</span>
             </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-slate-800/40 border border-slate-800">
-              <span className="text-sm text-slate-300">Blocked / Suspended</span>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-[#F5F2F4]/40 border border-[#E8E2E5]">
+              <span className="text-sm text-[#292329]">Blocked / Suspended</span>
               <span className="text-sm font-semibold text-rose-500">{metrics?.blocked_customers ?? 0}</span>
             </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-slate-800/40 border border-slate-800">
-              <span className="text-sm text-slate-300">Inactive</span>
-              <span className="text-sm font-semibold text-slate-400">{metrics?.inactive_customers ?? 0}</span>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-[#F5F2F4]/40 border border-[#E8E2E5]">
+              <span className="text-sm text-[#292329]">Inactive</span>
+              <span className="text-sm font-semibold text-[#625B60]">{metrics?.inactive_customers ?? 0}</span>
             </div>
           </div>
         </div>
 
         {/* KYC Verification Tier Distribution */}
-        <div className="glass-card p-6 rounded-xl border border-slate-800 bg-slate-900/60">
+        <div className="glass-card p-6 rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60">
           <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
             <FileCheck className="w-4 h-4 text-indigo-400" /> KYC Level Tiers
           </h3>
@@ -172,10 +172,10 @@ export default function CustomerDashboardPage() {
               { level: "Enhanced Due Diligence", count: metrics?.high_risk_customers ?? 0, color: "bg-purple-500" },
               { level: "Corporate KYC", count: 0, color: "bg-amber-500" },
             ].map((tier, idx) => (
-              <div key={idx} className="p-3 rounded-lg bg-slate-800/40 border border-slate-800 space-y-1.5">
+              <div key={idx} className="p-3 rounded-lg bg-[#F5F2F4]/40 border border-[#E8E2E5] space-y-1.5">
                 <div className="flex justify-between text-xs font-medium">
-                  <span className="text-slate-300">{tier.level}</span>
-                  <span className="text-slate-200 font-semibold">{tier.count}</span>
+                  <span className="text-[#292329]">{tier.level}</span>
+                  <span className="text-[#292329] font-semibold">{tier.count}</span>
                 </div>
                 <div className="w-full h-1.5 bg-slate-700/50 rounded-full overflow-hidden">
                   <div 
@@ -189,39 +189,39 @@ export default function CustomerDashboardPage() {
         </div>
 
         {/* Risk & Compliance Summary */}
-        <div className="glass-card p-6 rounded-xl border border-slate-800 bg-slate-900/60">
+        <div className="glass-card p-6 rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60">
           <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
             <Shield className="w-4 h-4 text-rose-400" /> Risk & Sanction Screening
           </h3>
           <div className="space-y-4">
-            <div className="p-4 rounded-xl bg-slate-800/30 border border-slate-800">
+            <div className="p-4 rounded-xl bg-[#F5F2F4]/30 border border-[#E8E2E5]">
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-slate-300">High Risk Accounts</span>
+                <span className="text-sm font-medium text-[#292329]">High Risk Accounts</span>
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/20 text-rose-400 border border-rose-500/30">
                   {metrics?.high_risk_customers ?? 0}
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-1">Requires enhanced velocity & AML review</p>
+              <p className="text-xs text-[#8A8288] mt-1">Requires enhanced velocity & AML review</p>
             </div>
 
-            <div className="p-4 rounded-xl bg-slate-800/30 border border-slate-800">
+            <div className="p-4 rounded-xl bg-[#F5F2F4]/30 border border-[#E8E2E5]">
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-slate-300">PEP & Watchlist Hits</span>
+                <span className="text-sm font-medium text-[#292329]">PEP & Watchlist Hits</span>
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30">
                   0 Active
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-1">Politically Exposed Persons & Global Watchlists</p>
+              <p className="text-xs text-[#8A8288] mt-1">Politically Exposed Persons & Global Watchlists</p>
             </div>
 
-            <div className="p-4 rounded-xl bg-slate-800/30 border border-slate-800">
+            <div className="p-4 rounded-xl bg-[#F5F2F4]/30 border border-[#E8E2E5]">
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-slate-300">Blacklisted Entries</span>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-700 text-slate-300">
+                <span className="text-sm font-medium text-[#292329]">Blacklisted Entries</span>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-700 text-[#292329]">
                   0 Entries
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-1">Mobile, Identity & PAN Blacklist registry</p>
+              <p className="text-xs text-[#8A8288] mt-1">Mobile, Identity & PAN Blacklist registry</p>
             </div>
           </div>
         </div>

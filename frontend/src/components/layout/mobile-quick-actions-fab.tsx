@@ -220,7 +220,7 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
               sx={{
                 fontWeight: 800,
                 fontSize: "16px",
-                color: isDark ? "#F1F5F9" : "#111827",
+                color: isDark ? "#F1F5F9" : "#FAF8F9",
                 lineHeight: 1.2,
               }}
             >
@@ -350,7 +350,7 @@ const QuickActionItem: React.FC<QuickActionItemProps> = ({
           display: "block",
           fontSize: "11px",
           fontWeight: 800,
-          color: isDark ? "#F1F5F9" : "#111827",
+          color: isDark ? "#F1F5F9" : "#FAF8F9",
           lineHeight: 1.2,
           whiteSpace: "nowrap",
         }}

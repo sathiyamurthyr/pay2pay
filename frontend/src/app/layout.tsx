@@ -14,8 +14,11 @@ export const metadata: Metadata = {
     apple: "/apple-touch-icon.png",
   },
   manifest: "/site.webmanifest",
-  title: "Pay2Pay FinTech Retailer Platform",
-  description: "Enterprise Merchant Banking & Settlement Terminal",
+  title: {
+    default: "Near4You FinTech Retailer Platform",
+    template: "%s | Near4You",
+  },
+  description: "Enterprise Merchant Banking & Settlement Terminal - Near 4 You",
 };
 
 export const viewport: Viewport = {
@@ -31,8 +34,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning style={{ overflowX: "hidden", maxWidth: "100vw" }}>
-      <body className="antialiased min-h-screen bg-slate-950 text-slate-100" suppressHydrationWarning style={{ overflowX: "hidden", maxWidth: "100vw" }}>
+    <html lang="en" className="light" suppressHydrationWarning style={{ overflowX: "hidden", maxWidth: "100vw" }}>
+      <body className="antialiased min-h-screen bg-[#FFFFFF] text-[#292329]" suppressHydrationWarning style={{ overflowX: "hidden", maxWidth: "100vw" }}>
         <Providers>{children}</Providers>
       </body>
     </html>

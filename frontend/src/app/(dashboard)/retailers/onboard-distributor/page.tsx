@@ -124,7 +124,7 @@ export default function DistributorOnboardPage() {
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div>
-            <h1 className="text-2xl font-extrabold text-[#0F172A] tracking-tight flex items-center gap-2.5">
+            <h1 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight flex items-center gap-2.5">
               <Users className="w-7 h-7 text-[#3B82F6]" /> Onboard Distributor
             </h1>
             <p className="text-xs font-medium text-[#64748B] mt-0.5">
@@ -209,7 +209,7 @@ export default function DistributorOnboardPage() {
           <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 space-y-4 shadow-sm">
             <div className="flex items-center gap-2 border-b border-[#F1F5F9] pb-3">
               <Users className="w-5 h-5 text-[#3B82F6]" />
-              <h2 className="text-sm font-extrabold text-[#0F172A] uppercase tracking-wider">
+              <h2 className="text-sm font-extrabold text-[#FFFFFF] uppercase tracking-wider">
                 2. Business Profile & Contact Details
               </h2>
             </div>
@@ -225,7 +225,7 @@ export default function DistributorOnboardPage() {
                   placeholder="Murugan Distributors"
                   value={formData.business_name}
                   onChange={(e) => setFormData({ ...formData, business_name: e.target.value })}
-                  className="w-full rounded-xl border border-[#D1D5DB] p-3 text-xs font-bold text-[#111827] focus:border-[#3B82F6] focus:outline-none"
+                  className="w-full rounded-xl border border-[#D1D5DB] p-3 text-xs font-bold text-[#FAF8F9] focus:border-[#3B82F6] focus:outline-none"
                 />
               </div>
 
@@ -239,7 +239,7 @@ export default function DistributorOnboardPage() {
                   placeholder="Murugan S"
                   value={formData.owner_name}
                   onChange={(e) => setFormData({ ...formData, owner_name: e.target.value })}
-                  className="w-full rounded-xl border border-[#D1D5DB] p-3 text-xs font-bold text-[#111827] focus:border-[#3B82F6] focus:outline-none"
+                  className="w-full rounded-xl border border-[#D1D5DB] p-3 text-xs font-bold text-[#FAF8F9] focus:border-[#3B82F6] focus:outline-none"
                 />
               </div>
 
@@ -253,7 +253,7 @@ export default function DistributorOnboardPage() {
                   placeholder="9876543210"
                   value={formData.mobile}
                   onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
-                  className="w-full rounded-xl border border-[#D1D5DB] p-3 font-mono text-xs font-bold text-[#111827] focus:border-[#3B82F6] focus:outline-none"
+                  className="w-full rounded-xl border border-[#D1D5DB] p-3 font-mono text-xs font-bold text-[#FAF8F9] focus:border-[#3B82F6] focus:outline-none"
                 />
               </div>
 
@@ -264,10 +264,10 @@ export default function DistributorOnboardPage() {
                 <input
                   type="email"
                   required
-                  placeholder="dist@pay2pay.com"
+                  placeholder="dist@near4you.store"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full rounded-xl border border-[#D1D5DB] p-3 text-xs font-bold text-[#111827] focus:border-[#3B82F6] focus:outline-none"
+                  className="w-full rounded-xl border border-[#D1D5DB] p-3 text-xs font-bold text-[#FAF8F9] focus:border-[#3B82F6] focus:outline-none"
                 />
               </div>
 
@@ -280,7 +280,7 @@ export default function DistributorOnboardPage() {
                   placeholder="33AAAAA0000A1Z5"
                   value={formData.gst_number}
                   onChange={(e) => setFormData({ ...formData, gst_number: e.target.value })}
-                  className="w-full rounded-xl border border-[#D1D5DB] p-3 font-mono text-xs font-bold text-[#111827] focus:border-[#3B82F6] focus:outline-none"
+                  className="w-full rounded-xl border border-[#D1D5DB] p-3 font-mono text-xs font-bold text-[#FAF8F9] focus:border-[#3B82F6] focus:outline-none"
                 />
               </div>
 
@@ -293,7 +293,7 @@ export default function DistributorOnboardPage() {
                   placeholder="ABCDE1234F"
                   value={formData.pan_number}
                   onChange={(e) => setFormData({ ...formData, pan_number: e.target.value.toUpperCase() })}
-                  className="w-full rounded-xl border border-[#D1D5DB] p-3 font-mono text-xs font-bold text-[#111827] focus:border-[#3B82F6] focus:outline-none"
+                  className="w-full rounded-xl border border-[#D1D5DB] p-3 font-mono text-xs font-bold text-[#FAF8F9] focus:border-[#3B82F6] focus:outline-none"
                 />
               </div>
 
@@ -306,7 +306,7 @@ export default function DistributorOnboardPage() {
                   required
                   value={formData.credit_limit}
                   onChange={(e) => setFormData({ ...formData, credit_limit: Number(e.target.value) })}
-                  className="w-full rounded-xl border border-[#D1D5DB] p-3 font-mono text-xs font-bold text-[#111827] focus:border-[#3B82F6] focus:outline-none"
+                  className="w-full rounded-xl border border-[#D1D5DB] p-3 font-mono text-xs font-bold text-[#FAF8F9] focus:border-[#3B82F6] focus:outline-none"
                 />
               </div>
             </div>
@@ -316,7 +316,7 @@ export default function DistributorOnboardPage() {
           <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 space-y-4 shadow-sm">
             <div className="flex items-center gap-2 border-b border-[#F1F5F9] pb-3">
               <CreditCard className="w-5 h-5 text-[#2563EB]" />
-              <h2 className="text-sm font-extrabold text-[#0F172A] uppercase tracking-wider">
+              <h2 className="text-sm font-extrabold text-[#FFFFFF] uppercase tracking-wider">
                 3. Bank Account & Address
               </h2>
             </div>
@@ -331,7 +331,7 @@ export default function DistributorOnboardPage() {
                   placeholder="50100234567890"
                   value={formData.bank_account_number}
                   onChange={(e) => setFormData({ ...formData, bank_account_number: e.target.value })}
-                  className="w-full rounded-xl border border-[#D1D5DB] p-3 font-mono text-xs font-bold text-[#111827] focus:border-[#2563EB] focus:outline-none"
+                  className="w-full rounded-xl border border-[#D1D5DB] p-3 font-mono text-xs font-bold text-[#FAF8F9] focus:border-[#2563EB] focus:outline-none"
                 />
               </div>
 
@@ -344,7 +344,7 @@ export default function DistributorOnboardPage() {
                   placeholder="HDFC0001234"
                   value={formData.ifsc}
                   onChange={(e) => setFormData({ ...formData, ifsc: e.target.value.toUpperCase() })}
-                  className="w-full rounded-xl border border-[#D1D5DB] p-3 font-mono text-xs font-bold text-[#111827] focus:border-[#2563EB] focus:outline-none"
+                  className="w-full rounded-xl border border-[#D1D5DB] p-3 font-mono text-xs font-bold text-[#FAF8F9] focus:border-[#2563EB] focus:outline-none"
                 />
               </div>
 
@@ -357,7 +357,7 @@ export default function DistributorOnboardPage() {
                   required
                   value={formData.state}
                   onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                  className="w-full rounded-xl border border-[#D1D5DB] p-3 text-xs font-bold text-[#111827] focus:border-[#2563EB] focus:outline-none"
+                  className="w-full rounded-xl border border-[#D1D5DB] p-3 text-xs font-bold text-[#FAF8F9] focus:border-[#2563EB] focus:outline-none"
                 />
               </div>
 
@@ -370,7 +370,7 @@ export default function DistributorOnboardPage() {
                   required
                   value={formData.city}
                   onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  className="w-full rounded-xl border border-[#D1D5DB] p-3 text-xs font-bold text-[#111827] focus:border-[#2563EB] focus:outline-none"
+                  className="w-full rounded-xl border border-[#D1D5DB] p-3 text-xs font-bold text-[#FAF8F9] focus:border-[#2563EB] focus:outline-none"
                 />
               </div>
 
@@ -383,7 +383,7 @@ export default function DistributorOnboardPage() {
                   required
                   value={formData.pincode}
                   onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
-                  className="w-full rounded-xl border border-[#D1D5DB] p-3 font-mono text-xs font-bold text-[#111827] focus:border-[#2563EB] focus:outline-none"
+                  className="w-full rounded-xl border border-[#D1D5DB] p-3 font-mono text-xs font-bold text-[#FAF8F9] focus:border-[#2563EB] focus:outline-none"
                 />
               </div>
             </div>
@@ -398,7 +398,7 @@ export default function DistributorOnboardPage() {
                 placeholder="45 Market Road, Commercial Complex"
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                className="w-full rounded-xl border border-[#D1D5DB] p-3 text-xs font-bold text-[#111827] focus:border-[#2563EB] focus:outline-none"
+                className="w-full rounded-xl border border-[#D1D5DB] p-3 text-xs font-bold text-[#FAF8F9] focus:border-[#2563EB] focus:outline-none"
               />
             </div>
           </div>

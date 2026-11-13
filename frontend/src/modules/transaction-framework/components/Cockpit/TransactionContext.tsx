@@ -56,12 +56,12 @@ export const TransactionContext: React.FC<TransactionContextProps> = ({ customer
           )}
         </Stack>
 
-        <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 1.5 }} />
+        <Divider sx={{ borderColor: "#E8E2E5", my: 1.5 }} />
 
         <Stack spacing={1}>
           <Stack direction="row" sx={{ justifyContent: "space-between" }}>
             <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px", fontWeight: 600 }}>Wallet Balance</Typography>
-            <Typography sx={{ fontWeight: 900, color: "#FBBF24", fontSize: "14px" }}>₹{Number(customer?.walletBalance ?? 0).toLocaleString()}</Typography>
+            <Typography sx={{ fontWeight: 900, color: "#A20A3A", fontSize: "14px" }}>₹{Number(customer?.walletBalance ?? 0).toLocaleString()}</Typography>
           </Stack>
           <Stack direction="row" sx={{ justifyContent: "space-between" }}>
             <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px", fontWeight: 600 }}>Daily Remaining</Typography>

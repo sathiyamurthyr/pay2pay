@@ -91,7 +91,7 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, initialPan = ""
         <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
           Verify PAN Details
         </h2>
-        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
+        <p className="text-xs font-semibold text-[#8A8288] dark:text-[#625B60] mt-1">
           Instant NSDL Permanent Account Number Verification
         </p>
       </div>
@@ -107,11 +107,11 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, initialPan = ""
       {!panData ? (
         <form onSubmit={handleVerify} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-xs font-bold text-slate-700 dark:text-[#292329] mb-1">
               PAN Number <span className="text-red-500">*</span>
             </label>
             <div className="relative">
-              <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#625B60]" />
               <input
                 type="text"
                 value={panNumber}
@@ -121,7 +121,7 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, initialPan = ""
                 }}
                 placeholder="ABCPV1234D"
                 required
-                className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm font-black uppercase tracking-widest text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-slate-50 dark:bg-[#FFFFFF] border border-slate-200 dark:border-[#E8E2E5] text-sm font-black uppercase tracking-widest text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
               />
             </div>
           </div>
@@ -131,16 +131,16 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, initialPan = ""
               <button
                 type="button"
                 onClick={onBack}
-                className="px-4 py-4 rounded-2xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-extrabold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                className="px-4 py-4 rounded-2xl bg-slate-100 dark:bg-[#FAF8F9] hover:bg-slate-200 dark:hover:bg-[#F5F2F4] border border-slate-200 dark:border-[#E8E2E5] text-slate-700 dark:text-[#292329] font-extrabold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
               >
-                <ArrowLeft className="w-4 h-4 text-slate-400" />
+                <ArrowLeft className="w-4 h-4 text-[#625B60]" />
                 <span>Back</span>
               </button>
             )}
             <button
               type="submit"
               disabled={loading || !isValidFormat}
-              className="flex-1 py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+              className="flex-1 py-4 rounded-2xl bg-gradient-to-r from-[#A20A3A] to-[#85072F] text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
             >
               {loading ? (
                 <>
@@ -169,16 +169,16 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, initialPan = ""
               <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-1.5">
                 <span>✓ PAN Verified Successfully</span>
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Your PAN details have been authenticated with NSDL.</p>
+              <p className="text-xs text-[#8A8288] dark:text-[#625B60] font-medium">Your PAN details have been authenticated with NSDL.</p>
             </div>
           </div>
 
           {/* Clean 5-Field Retailer Card */}
-          <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 space-y-4">
+          <div className="p-5 rounded-2xl bg-slate-50 dark:bg-[#FAF8F9]/80 border border-slate-200 dark:border-[#E8E2E5] space-y-4">
             
             {/* Field 1 & 2: PAN Code & Holder Name */}
-            <div className="border-b border-slate-200 dark:border-slate-800 pb-3.5 space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">PAN Holder Name</span>
+            <div className="border-b border-slate-200 dark:border-[#E8E2E5] pb-3.5 space-y-1">
+              <span className="text-[10px] font-bold text-[#625B60] uppercase tracking-wider block">PAN Holder Name</span>
               <p className="text-lg font-black text-slate-900 dark:text-white tracking-tight">
                 {registeredName}
               </p>
@@ -187,17 +187,17 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, initialPan = ""
             {/* Grid of 4 attributes */}
             <div className="grid grid-cols-2 gap-4 text-xs">
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">PAN Number</span>
+                <span className="text-[10px] font-bold text-[#625B60] uppercase tracking-wider block mb-0.5">PAN Number</span>
                 <p className="font-mono font-black text-slate-900 dark:text-white text-sm tracking-widest">{panCode}</p>
               </div>
 
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Entity Type</span>
-                <p className="font-bold text-slate-800 dark:text-slate-200 capitalize">{panType}</p>
+                <span className="text-[10px] font-bold text-[#625B60] uppercase tracking-wider block mb-0.5">Entity Type</span>
+                <p className="font-bold text-slate-800 dark:text-[#292329] capitalize">{panType}</p>
               </div>
 
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">PAN Status</span>
+                <span className="text-[10px] font-bold text-[#625B60] uppercase tracking-wider block mb-0.5">PAN Status</span>
                 <p className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>{panStatus}</span>
@@ -205,7 +205,7 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, initialPan = ""
               </div>
 
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Aadhaar Link Status</span>
+                <span className="text-[10px] font-bold text-[#625B60] uppercase tracking-wider block mb-0.5">Aadhaar Link Status</span>
                 <p className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span className="truncate">{aadhaarDesc}</span>
@@ -235,7 +235,7 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, initialPan = ""
               <button
                 type="button"
                 onClick={onBack}
-                className="px-4 py-3.5 rounded-2xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-extrabold text-xs transition-all cursor-pointer flex items-center gap-1.5"
+                className="px-4 py-3.5 rounded-2xl bg-slate-100 dark:bg-[#FAF8F9] hover:bg-slate-200 dark:hover:bg-[#F5F2F4] border border-slate-200 dark:border-[#E8E2E5] text-slate-700 dark:text-[#292329] font-extrabold text-xs transition-all cursor-pointer flex items-center gap-1.5"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Back</span>
@@ -244,7 +244,7 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, initialPan = ""
             <button
               type="button"
               onClick={() => setPanData(null)}
-              className="px-4 py-3.5 rounded-2xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-extrabold text-xs transition-all cursor-pointer flex items-center gap-1.5"
+              className="px-4 py-3.5 rounded-2xl bg-slate-100 dark:bg-[#FAF8F9] hover:bg-slate-200 dark:hover:bg-[#F5F2F4] border border-slate-200 dark:border-[#E8E2E5] text-slate-700 dark:text-[#292329] font-extrabold text-xs transition-all cursor-pointer flex items-center gap-1.5"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               <span>Change PAN</span>
@@ -252,7 +252,7 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, initialPan = ""
             <button
               type="button"
               onClick={handleConfirmNext}
-              className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 text-white font-extrabold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-[#A20A3A] to-[#85072F] hover:from-blue-700 text-white font-extrabold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>Continue</span>
               <ArrowRight className="w-4 h-4" />

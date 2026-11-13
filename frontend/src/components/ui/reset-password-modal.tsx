@@ -105,13 +105,13 @@ export function ResetPasswordModal({
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="Enter new password (min 6 chars)"
-                className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] p-3 text-[#0F172A] font-mono text-sm font-extrabold pr-10 focus:bg-white focus:border-[#2563EB] focus:outline-none"
+                className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] p-3 text-[#FFFFFF] font-mono text-sm font-extrabold pr-10 focus:bg-white focus:border-[#2563EB] focus:outline-none"
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-3.5 text-[#64748B] hover:text-[#0F172A]"
+                className="absolute right-3 top-3.5 text-[#64748B] hover:text-[#FFFFFF]"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>

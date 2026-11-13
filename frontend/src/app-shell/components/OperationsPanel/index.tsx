@@ -36,7 +36,7 @@ export const OperationsPanel: React.FC<{ width?: number | string }> = ({ width =
             SYSTEM STATUS: 100% ONLINE
           </Typography>
         </Stack>
-        <Chip label="OPERATIONAL" size="small" sx={{ bgcolor: "#4ADE80", color: "#0F172A", fontWeight: 900, height: 20, fontSize: "10px" }} />
+        <Chip label="OPERATIONAL" size="small" sx={{ bgcolor: "#4ADE80", color: "#FFFFFF", fontWeight: 900, height: 20, fontSize: "10px" }} />
       </Stack>
     </Paper>
 

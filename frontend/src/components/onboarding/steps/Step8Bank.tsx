@@ -100,10 +100,10 @@ export const Step8Bank: React.FC<Step8Props> = ({
         </div>
 
         {/* Verified Bank Profile Card */}
-        <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 space-y-4">
+        <div className="p-5 rounded-3xl bg-slate-50 dark:bg-[#FAF8F9]/90 border border-slate-200 dark:border-[#E8E2E5] space-y-4">
 
           {/* Header: Bank Icon + Bank Name */}
-          <div className="flex items-center gap-3 pb-4 border-b border-slate-200 dark:border-slate-800">
+          <div className="flex items-center gap-3 pb-4 border-b border-slate-200 dark:border-[#E8E2E5]">
             <div className="w-12 h-12 rounded-2xl bg-blue-600/10 dark:bg-blue-500/10 flex items-center justify-center shrink-0 border border-blue-200 dark:border-blue-800">
               <Building2 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
@@ -115,7 +115,7 @@ export const Step8Bank: React.FC<Step8Props> = ({
                 {bankName}
               </h4>
               {branch !== "—" && (
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
+                <p className="text-xs font-semibold text-[#8A8288] dark:text-[#625B60] flex items-center gap-1 mt-0.5">
                   <MapPin className="w-3 h-3" /> {branch}
                 </p>
               )}
@@ -127,7 +127,7 @@ export const Step8Bank: React.FC<Step8Props> = ({
 
             {/* Beneficiary Name */}
             <div className="col-span-2">
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-0.5">
+              <span className="text-[10px] font-extrabold text-[#625B60] uppercase tracking-wider block mb-0.5">
                 Beneficiary Name
               </span>
               <p className="font-black text-slate-900 dark:text-white text-sm flex items-center gap-1.5">
@@ -138,17 +138,17 @@ export const Step8Bank: React.FC<Step8Props> = ({
 
             {/* Masked Account Number */}
             <div>
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-0.5">
+              <span className="text-[10px] font-extrabold text-[#625B60] uppercase tracking-wider block mb-0.5">
                 Account Number
               </span>
               <p className="font-mono font-black text-slate-900 dark:text-white tracking-wider flex items-center gap-1">
-                <Hash className="w-3 h-3 text-slate-400" /> {masked}
+                <Hash className="w-3 h-3 text-[#625B60]" /> {masked}
               </p>
             </div>
 
             {/* IFSC */}
             <div>
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-0.5">
+              <span className="text-[10px] font-extrabold text-[#625B60] uppercase tracking-wider block mb-0.5">
                 IFSC Code
               </span>
               <p className="font-mono font-black text-slate-900 dark:text-white tracking-wider">
@@ -158,17 +158,17 @@ export const Step8Bank: React.FC<Step8Props> = ({
 
             {/* Account Type */}
             <div>
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-0.5">
+              <span className="text-[10px] font-extrabold text-[#625B60] uppercase tracking-wider block mb-0.5">
                 Account Type
               </span>
-              <p className="font-extrabold text-slate-800 dark:text-slate-200">
+              <p className="font-extrabold text-slate-800 dark:text-[#292329]">
                 {accType}
               </p>
             </div>
 
             {/* Verification Status */}
             <div>
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-0.5">
+              <span className="text-[10px] font-extrabold text-[#625B60] uppercase tracking-wider block mb-0.5">
                 Status
               </span>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-black text-[10px] uppercase tracking-wider">
@@ -181,7 +181,7 @@ export const Step8Bank: React.FC<Step8Props> = ({
         {/* Continue Button */}
         <button
           onClick={() => onSuccess(bankResult)}
-          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 hover:to-indigo-700 transition-all flex items-center justify-center gap-2 cursor-pointer"
+          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#A20A3A] to-[#85072F] text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 hover:to-indigo-700 transition-all flex items-center justify-center gap-2 cursor-pointer"
         >
           <span>Continue to Shop Details</span>
           <ChevronRight className="w-4 h-4" />
@@ -197,7 +197,7 @@ export const Step8Bank: React.FC<Step8Props> = ({
         <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
           Settlement Bank Account Verification
         </h2>
-        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
+        <p className="text-xs font-semibold text-[#8A8288] dark:text-[#625B60] mt-1">
           Instant Bank Account Audit &amp; Verification.
         </p>
       </div>
@@ -211,7 +211,7 @@ export const Step8Bank: React.FC<Step8Props> = ({
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+          <label className="block text-xs font-bold text-slate-700 dark:text-[#292329] mb-1">
             Bank Account Number <span className="text-red-500">*</span>
           </label>
           <input
@@ -226,12 +226,12 @@ export const Step8Bank: React.FC<Step8Props> = ({
             placeholder="Enter 9-18 digit account number"
             maxLength={18}
             required
-            className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm font-black text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+            className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-[#FFFFFF] border border-slate-200 dark:border-[#E8E2E5] text-sm font-black text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+          <label className="block text-xs font-bold text-slate-700 dark:text-[#292329] mb-1">
             IFSC Code <span className="text-red-500">*</span>
           </label>
           <input
@@ -248,12 +248,12 @@ export const Step8Bank: React.FC<Step8Props> = ({
             placeholder="e.g. SBIN0001234"
             maxLength={11}
             required
-            className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm font-black uppercase text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+            className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-[#FFFFFF] border border-slate-200 dark:border-[#E8E2E5] text-sm font-black uppercase text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+          <label className="block text-xs font-bold text-slate-700 dark:text-[#292329] mb-1">
             Account Holder Name (Matching PAN) <span className="text-red-500">*</span>
           </label>
           <input
@@ -269,14 +269,14 @@ export const Step8Bank: React.FC<Step8Props> = ({
             onChange={(e) => { setName(e.target.value.toUpperCase()); setErrorMsg(""); }}
             placeholder="Enter account holder name as per bank records"
             required
-            className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm font-bold uppercase text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+            className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-[#FFFFFF] border border-slate-200 dark:border-[#E8E2E5] text-sm font-bold uppercase text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
           />
         </div>
 
         <button
           type="submit"
           disabled={loading || !accountNumber || !ifsc || !name}
-          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#A20A3A] to-[#85072F] text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (
             <>

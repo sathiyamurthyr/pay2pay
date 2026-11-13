@@ -77,7 +77,7 @@ export default function AccountingJournalsPage() {
               <BookOpenCheck className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-extrabold text-[#0F172A] tracking-tight">Double-Entry Accounting General Ledger</h1>
+              <h1 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight">Double-Entry Accounting General Ledger</h1>
               <p className="text-xs font-medium text-[#64748B] mt-0.5">Immutable financial journal entries · debit/credit balancing · audit history</p>
             </div>
           </div>
@@ -121,7 +121,7 @@ export default function AccountingJournalsPage() {
               placeholder="Search journal #, reference…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 pr-3 py-1.5 w-52 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[12px] font-medium text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#6366F1] focus:ring-2 focus:ring-[#6366F1]/15 transition-all"
+              className="pl-8 pr-3 py-1.5 w-52 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[12px] font-medium text-[#FFFFFF] placeholder-[#94A3B8] focus:outline-none focus:border-[#6366F1] focus:ring-2 focus:ring-[#6366F1]/15 transition-all"
             />
           </div>
           <div className="h-6 w-px bg-[#E2E8F0] mx-0.5" />
@@ -244,7 +244,7 @@ export default function AccountingJournalsPage() {
       {/* Balance verification footer */}
       {filtered.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-3.5 rounded-xl border border-[#E2E8F0] bg-gradient-to-r from-[#F8FAFC] to-[#EEF2FF] text-xs font-semibold text-[#64748B]">
-          <span>Showing <strong className="text-[#0F172A]">{filtered.length}</strong> of <strong className="text-[#0F172A]">{journals.length}</strong> journal entries</span>
+          <span>Showing <strong className="text-[#FFFFFF]">{filtered.length}</strong> of <strong className="text-[#FFFFFF]">{journals.length}</strong> journal entries</span>
           <span className="flex items-center gap-3">
             <span>Σ Debit: <strong className="text-[#DC2626] font-mono">₹{(totalDebit/100000).toFixed(2)}L</strong></span>
             <span>Σ Credit: <strong className="text-[#2563EB] font-mono">₹{(totalCredit/100000).toFixed(2)}L</strong></span>

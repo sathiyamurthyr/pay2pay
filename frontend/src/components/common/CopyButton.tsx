@@ -92,12 +92,12 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
             onClose={() => setToastOpen(false)}
             severity="success"
             sx={{
-              bgcolor: "#0F172A",
+              bgcolor: "#FFFFFF",
               color: "#10B981",
               border: "1px solid rgba(16, 185, 129, 0.3)",
               fontWeight: 600,
               fontSize: "12px",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+              boxShadow: "0 4px 12px rgba(41, 35, 41, 0.06)",
               "& .MuiAlert-icon": { color: "#10B981" },
             }}
           >

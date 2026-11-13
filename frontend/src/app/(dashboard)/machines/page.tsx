@@ -101,7 +101,7 @@ function SearchableRetailerSelect({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] text-left text-xs font-bold hover:border-[#2563EB] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none transition-all cursor-pointer shadow-2xs"
+        className="w-full flex items-center justify-between rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#FAF8F9] text-left text-xs font-bold hover:border-[#2563EB] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none transition-all cursor-pointer shadow-2xs"
       >
         <span className="truncate">{displayLabel}</span>
         <div className="flex items-center gap-1.5 ml-2 shrink-0">
@@ -130,13 +130,13 @@ function SearchableRetailerSelect({
               placeholder="Search store, code, owner, mobile..."
               value={filterText}
               onChange={(e) => setFilterText(e.target.value)}
-              className="w-full pl-8 pr-7 py-2 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-xs font-semibold text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB] focus:bg-white transition-all"
+              className="w-full pl-8 pr-7 py-2 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-xs font-semibold text-[#FFFFFF] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB] focus:bg-white transition-all"
             />
             {filterText && (
               <button
                 type="button"
                 onClick={() => setFilterText("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#0F172A]"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#FFFFFF]"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -176,11 +176,11 @@ function SearchableRetailerSelect({
                     className={`w-full text-left px-3 py-2.5 rounded-lg text-xs transition-colors flex items-center justify-between cursor-pointer ${
                       isSelected
                         ? "bg-[#2563EB]/10 text-[#2563EB] font-extrabold"
-                        : "text-[#334155] font-semibold hover:bg-[#F8FAFC] hover:text-[#0F172A]"
+                        : "text-[#334155] font-semibold hover:bg-[#F8FAFC] hover:text-[#FFFFFF]"
                     }`}
                   >
                     <div className="truncate pr-2">
-                      <div className="font-bold text-[#0F172A]">{r.store_name || r.owner_name} <span className="font-mono text-[11px] text-[#64748B]">({r.retailer_code})</span></div>
+                      <div className="font-bold text-[#FFFFFF]">{r.store_name || r.owner_name} <span className="font-mono text-[11px] text-[#64748B]">({r.retailer_code})</span></div>
                       <div className="text-[11px] text-[#64748B] font-medium">{r.owner_name} {r.registered_mobile || r.mobile ? `| ${r.registered_mobile || r.mobile}` : ""}</div>
                     </div>
                     {isSelected && <Check className="w-4 h-4 text-[#2563EB] shrink-0" />}
@@ -720,7 +720,7 @@ export default function MachinesPage() {
       header: "Machine Mobile / SIM",
       sortable: true,
       cell: (m) => (
-        <div className="font-mono text-xs font-bold text-[#0F172A] flex items-center gap-1.5">
+        <div className="font-mono text-xs font-bold text-[#FFFFFF] flex items-center gap-1.5">
           <Phone className="w-3.5 h-3.5 text-[#64748B]" />
           {m.mobile_number || <span className="text-[#94A3B8] font-normal italic">Not Registered</span>}
         </div>
@@ -733,7 +733,7 @@ export default function MachinesPage() {
         <div>
           {m.vendor_id || m.vendor_name ? (
             <>
-              <span className="font-bold text-xs text-[#0F172A] block">{m.vendor_name || m.vendor_id}</span>
+              <span className="font-bold text-xs text-[#FFFFFF] block">{m.vendor_name || m.vendor_id}</span>
               <span className="inline-block mt-0.5 px-2 py-0.5 bg-[#F1F5F9] text-[#334155] border border-[#CBD5E1] rounded text-[11px] font-mono font-black">
                 {m.vendor_commission_value ?? 0}% {m.vendor_commission_type || "PERCENT"}
               </span>
@@ -753,7 +753,7 @@ export default function MachinesPage() {
         <div>
           {m.mapped_retailer_id ? (
             <div className="font-sans text-xs">
-              <div className="font-bold text-[#0F172A] flex items-center gap-1.5">
+              <div className="font-bold text-[#FFFFFF] flex items-center gap-1.5">
                 <Store className="w-3.5 h-3.5 text-[#2563EB]" />
                 {m.retailer_name || "Retailer Outlet"}
               </div>
@@ -802,7 +802,7 @@ export default function MachinesPage() {
           </button>
           <button
             onClick={() => openEditMachine(m)}
-            className="p-1 text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9] rounded-md transition-colors cursor-pointer"
+            className="p-1 text-[#64748B] hover:text-[#FFFFFF] hover:bg-[#F1F5F9] rounded-md transition-colors cursor-pointer"
             title="Edit Machine Spec"
           >
             <Edit3 className="w-3.5 h-3.5" />
@@ -827,7 +827,7 @@ export default function MachinesPage() {
             </div>
           ) : (
             <div className="font-sans text-xs">
-              <div className="font-bold text-[#0F172A] flex items-center gap-1.5">
+              <div className="font-bold text-[#FFFFFF] flex items-center gap-1.5">
                 <Store className="w-3.5 h-3.5 text-[#2563EB]" />
                 {c.retailer_name || "Custom Retailer"}
               </div>
@@ -844,7 +844,7 @@ export default function MachinesPage() {
       header: "POS Mode",
       sortable: true,
       cell: (c) => (
-        <span className="font-bold text-xs text-[#0F172A] bg-[#F8FAFC] border border-[#E2E8F0] px-2.5 py-1 rounded-md">
+        <span className="font-bold text-xs text-[#FFFFFF] bg-[#F8FAFC] border border-[#E2E8F0] px-2.5 py-1 rounded-md">
           {c.payment_mode}
         </span>
       ),
@@ -922,7 +922,7 @@ export default function MachinesPage() {
       {/* Top Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#0F172A] tracking-tight flex items-center gap-3">
+          <h1 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight flex items-center gap-3">
             <CreditCard className="w-7 h-7 text-[#2563EB]" /> POS Machines & Retailer Configuration
           </h1>
           <p className="mt-1 text-sm font-medium text-[#64748B]">
@@ -998,7 +998,7 @@ export default function MachinesPage() {
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
             activeTab === "machines"
               ? "bg-[#2563EB] text-white shadow-xs"
-              : "text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9]"
+              : "text-[#64748B] hover:text-[#FFFFFF] hover:bg-[#F1F5F9]"
           }`}
         >
           <CreditCard className="w-4 h-4" />
@@ -1009,7 +1009,7 @@ export default function MachinesPage() {
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
             activeTab === "mdr"
               ? "bg-[#2563EB] text-white shadow-xs"
-              : "text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9]"
+              : "text-[#64748B] hover:text-[#FFFFFF] hover:bg-[#F1F5F9]"
           }`}
         >
           <Scale className="w-4 h-4" />
@@ -1020,7 +1020,7 @@ export default function MachinesPage() {
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
             activeTab === "services"
               ? "bg-[#2563EB] text-white shadow-xs"
-              : "text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9]"
+              : "text-[#64748B] hover:text-[#FFFFFF] hover:bg-[#F1F5F9]"
           }`}
         >
           <Sliders className="w-4 h-4" />
@@ -1068,7 +1068,7 @@ export default function MachinesPage() {
               <div key={label} className="rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-2xs flex items-center justify-between">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wider text-[#64748B]">{label}</p>
-                  <h3 className="mt-1 text-2xl font-extrabold text-[#0F172A]">{value}</h3>
+                  <h3 className="mt-1 text-2xl font-extrabold text-[#FFFFFF]">{value}</h3>
                 </div>
                 <div className="rounded-xl p-3" style={{ background: bg, color }}>
                   <Icon className="h-6 w-6" />
@@ -1134,7 +1134,7 @@ export default function MachinesPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-3">
               <div>
-                <h3 className="text-sm font-extrabold text-[#0F172A] flex items-center gap-2">
+                <h3 className="text-sm font-extrabold text-[#FFFFFF] flex items-center gap-2">
                   <Sliders className="w-4 h-4 text-[#2563EB]" />
                   POS Settlement Mode Controls (Independent Enable / Disable)
                 </h3>
@@ -1168,7 +1168,7 @@ export default function MachinesPage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <span className={`w-2 h-2 rounded-full ${isActive ? "bg-[#16A34A] animate-pulse" : "bg-[#DC2626]"}`} />
-                        <span className="font-mono text-sm font-extrabold text-[#0F172A]">{mode.name}</span>
+                        <span className="font-mono text-sm font-extrabold text-[#FFFFFF]">{mode.name}</span>
                       </div>
                       <p className="text-[11px] text-[#64748B] mt-1 font-medium">
                         {mode.code === "POS - Instant"
@@ -1211,7 +1211,7 @@ export default function MachinesPage() {
                   <span className="px-2.5 py-0.5 rounded-full bg-[#2563EB] text-white text-[11px] font-black uppercase tracking-wider">
                     System Standard
                   </span>
-                  <h3 className="text-base font-extrabold text-[#0F172A]">
+                  <h3 className="text-base font-extrabold text-[#FFFFFF]">
                     Global Default POS MDR Configuration
                   </h3>
                 </div>
@@ -1286,7 +1286,7 @@ export default function MachinesPage() {
                   <span className="px-2.5 py-0.5 rounded-full bg-[#2563EB] text-white text-[11px] font-black uppercase tracking-wider">
                     Requirement 2
                   </span>
-                  <h3 className="text-base font-extrabold text-[#0F172A]">
+                  <h3 className="text-base font-extrabold text-[#FFFFFF]">
                     POS Top-Up Settlement Mode Controls
                   </h3>
                 </div>
@@ -1320,7 +1320,7 @@ export default function MachinesPage() {
                   >
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="font-mono text-base font-extrabold text-[#0F172A]">
+                        <span className="font-mono text-base font-extrabold text-[#FFFFFF]">
                           {mode.name}
                         </span>
                         <span
@@ -1379,7 +1379,7 @@ export default function MachinesPage() {
                 <span className="px-2.5 py-0.5 rounded-full bg-[#6C63FF] text-white text-[11px] font-black uppercase tracking-wider">
                   Requirement 1
                 </span>
-                <h3 className="text-base font-extrabold text-[#0F172A]">
+                <h3 className="text-base font-extrabold text-[#FFFFFF]">
                   Platform Customer Service Configuration
                 </h3>
               </div>
@@ -1405,7 +1405,7 @@ export default function MachinesPage() {
                     const isToggling = togglingServiceCode === svc.code;
                     return (
                       <tr key={svc.code} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="py-3.5 px-4 font-bold text-[#0F172A]">
+                        <td className="py-3.5 px-4 font-bold text-[#FFFFFF]">
                           <div className="flex items-center gap-2.5">
                             {svc.code === "RECHARGE" ? (
                               <Smartphone className="w-4 h-4 text-[#2563EB]" />
@@ -1485,17 +1485,17 @@ export default function MachinesPage() {
 
       {/* MODAL: ADD / EDIT POS MACHINE */}
       {showMachineModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FFFFFF]/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="w-full max-w-xl rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-2xl space-y-4 my-8 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex justify-between items-center border-b border-[#E5E7EB] pb-3">
-              <h3 className="text-lg font-bold text-[#0F172A] flex items-center gap-2">
+              <h3 className="text-lg font-bold text-[#FFFFFF] flex items-center gap-2">
                 <CreditCard className="w-5 h-5 text-[#2563EB]" />
                 {editingMachine ? "Edit POS Machine Specification" : "Deploy & Assign POS Machine"}
               </h3>
               <button
                 type="button"
                 onClick={() => setShowMachineModal(false)}
-                className="text-[#64748B] hover:text-[#0F172A] p-1 rounded-lg hover:bg-[#F1F5F9] transition-colors cursor-pointer"
+                className="text-[#64748B] hover:text-[#FFFFFF] p-1 rounded-lg hover:bg-[#F1F5F9] transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1536,7 +1536,7 @@ export default function MachinesPage() {
                     placeholder="e.g. SN10001"
                     value={machineForm.serial_number}
                     onChange={(e) => setMachineForm({ ...machineForm, serial_number: e.target.value.toUpperCase() })}
-                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#111827] focus:border-[#2563EB] focus:outline-none font-bold uppercase"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#FAF8F9] focus:border-[#2563EB] focus:outline-none font-bold uppercase"
                   />
                 </div>
                 <div>
@@ -1546,7 +1546,7 @@ export default function MachinesPage() {
                     placeholder="e.g. 9876543210"
                     value={machineForm.mobile_number}
                     onChange={(e) => setMachineForm({ ...machineForm, mobile_number: e.target.value })}
-                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#111827] focus:border-[#2563EB] focus:outline-none font-bold"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#FAF8F9] focus:border-[#2563EB] focus:outline-none font-bold"
                   />
                 </div>
               </div>
@@ -1578,7 +1578,7 @@ export default function MachinesPage() {
                         });
                       }
                     }}
-                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] font-bold cursor-pointer"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#FAF8F9] font-bold cursor-pointer"
                   >
                     <option value="">-- No Vendor / Direct Terminal (Optional) --</option>
                     {vendors.map((v) => (
@@ -1600,7 +1600,7 @@ export default function MachinesPage() {
                     value={machineForm.vendor_commission_value}
                     onChange={(e) => setMachineForm({ ...machineForm, vendor_commission_value: parseFloat(e.target.value) || 0 })}
                     placeholder={machineForm.vendor_id ? "0.50" : "0.00 (No Vendor)"}
-                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#111827] focus:border-[#2563EB] focus:outline-none font-bold disabled:bg-[#F1F5F9] disabled:text-[#94A3B8]"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#FAF8F9] focus:border-[#2563EB] focus:outline-none font-bold disabled:bg-[#F1F5F9] disabled:text-[#94A3B8]"
                   />
                 </div>
               </div>
@@ -1612,12 +1612,12 @@ export default function MachinesPage() {
                   <select
                     value={machineForm.pos_model}
                     onChange={(e) => setMachineForm({ ...machineForm, pos_model: e.target.value })}
-                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] font-bold cursor-pointer"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#FAF8F9] font-bold cursor-pointer"
                   >
                     <option value="Android POS Terminal">Android POS Terminal (Pax A920)</option>
                     <option value="Verifone V200c Countertop">Verifone V200c Countertop</option>
                     <option value="Ingenico Move/5000">Ingenico Move/5000 Wireless</option>
-                    <option value="Pay2Pay Smart EDC">Pay2Pay Smart EDC</option>
+                    <option value="Near4You Smart EDC">Near4You Smart EDC</option>
                   </select>
                 </div>
                 <div>
@@ -1625,7 +1625,7 @@ export default function MachinesPage() {
                   <select
                     value={machineForm.status}
                     onChange={(e) => setMachineForm({ ...machineForm, status: e.target.value })}
-                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] font-bold cursor-pointer"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#FAF8F9] font-bold cursor-pointer"
                   >
                     <option value="ACTIVE">ACTIVE</option>
                     <option value="ASSIGNED">ASSIGNED</option>
@@ -1659,17 +1659,17 @@ export default function MachinesPage() {
 
       {/* MODAL: CONFIGURE RETAILER POS MDR */}
       {showMdrModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FFFFFF]/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="w-full max-w-lg rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-2xl space-y-4 my-8 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex justify-between items-center border-b border-[#E5E7EB] pb-3">
-              <h3 className="text-lg font-bold text-[#0F172A] flex items-center gap-2">
+              <h3 className="text-lg font-bold text-[#FFFFFF] flex items-center gap-2">
                 <Scale className="w-5 h-5 text-[#2563EB]" />
                 {editingMdrConfig ? `Edit POS MDR Rate (${editingMdrConfig.payment_mode})` : "Configure Retailer POS MDR"}
               </h3>
               <button
                 type="button"
                 onClick={() => setShowMdrModal(false)}
-                className="text-[#64748B] hover:text-[#0F172A] p-1 rounded-lg hover:bg-[#F1F5F9] transition-colors cursor-pointer"
+                className="text-[#64748B] hover:text-[#FFFFFF] p-1 rounded-lg hover:bg-[#F1F5F9] transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1709,7 +1709,7 @@ export default function MachinesPage() {
                       const defVal = mode === "POS - Instant" ? 1.70 : 1.60;
                       setMdrForm({ ...mdrForm, payment_mode: mode, mdr: defVal });
                     }}
-                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] font-bold cursor-pointer disabled:bg-[#F1F5F9]"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#FAF8F9] font-bold cursor-pointer disabled:bg-[#F1F5F9]"
                   >
                     <option value="POS - Instant">POS - Instant (Default: 1.70%)</option>
                     <option value="POS+T1">POS+T1 (Default: 1.60%)</option>
@@ -1724,7 +1724,7 @@ export default function MachinesPage() {
                     required
                     value={mdrForm.mdr}
                     onChange={(e) => setMdrForm({ ...mdrForm, mdr: e.target.value })}
-                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#111827] focus:border-[#2563EB] focus:outline-none font-bold"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#FAF8F9] focus:border-[#2563EB] focus:outline-none font-bold"
                   />
                 </div>
               </div>
@@ -1739,7 +1739,7 @@ export default function MachinesPage() {
                     required
                     value={mdrForm.gst_rate}
                     onChange={(e) => setMdrForm({ ...mdrForm, gst_rate: e.target.value })}
-                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#111827] focus:border-[#2563EB] focus:outline-none font-bold"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#FAF8F9] focus:border-[#2563EB] focus:outline-none font-bold"
                     placeholder="0.00"
                   />
                 </div>
@@ -1748,7 +1748,7 @@ export default function MachinesPage() {
                   <select
                     value={mdrForm.is_active ? "true" : "false"}
                     onChange={(e) => setMdrForm({ ...mdrForm, is_active: e.target.value === "true" })}
-                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] font-bold cursor-pointer"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#FAF8F9] font-bold cursor-pointer"
                   >
                     <option value="true">ACTIVE</option>
                     <option value="false">INACTIVE</option>
@@ -1763,7 +1763,7 @@ export default function MachinesPage() {
                   placeholder="e.g. Special high volume merchant discount"
                   value={mdrForm.remarks}
                   onChange={(e) => setMdrForm({ ...mdrForm, remarks: e.target.value })}
-                  className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] focus:border-[#2563EB] focus:outline-none font-medium"
+                  className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#FAF8F9] focus:border-[#2563EB] focus:outline-none font-medium"
                 />
               </div>
 
@@ -1791,7 +1791,7 @@ export default function MachinesPage() {
 
       {/* DETAILS DRAWER (Slide-Over) */}
       {showDetailsDrawer && selectedMachineDetails && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex justify-end bg-[#FFFFFF]/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-lg bg-white h-full shadow-2xl p-6 overflow-y-auto space-y-6 flex flex-col justify-between">
             <div className="space-y-6">
               {/* Header */}
@@ -1800,14 +1800,14 @@ export default function MachinesPage() {
                   <span className="text-[11px] font-black uppercase tracking-wider text-[#2563EB]">
                     Terminal Specification & Timeline
                   </span>
-                  <h2 className="text-xl font-extrabold text-[#0F172A] flex items-center gap-2 mt-0.5">
+                  <h2 className="text-xl font-extrabold text-[#FFFFFF] flex items-center gap-2 mt-0.5">
                     <Cpu className="w-6 h-6 text-[#2563EB]" />
                     {selectedMachineDetails.machine.serial_number}
                   </h2>
                 </div>
                 <button
                   onClick={() => setShowDetailsDrawer(false)}
-                  className="p-1.5 rounded-lg text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9] cursor-pointer transition-colors"
+                  className="p-1.5 rounded-lg text-[#64748B] hover:text-[#FFFFFF] hover:bg-[#F1F5F9] cursor-pointer transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1829,7 +1829,7 @@ export default function MachinesPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-[#64748B]">Assigned Retailer:</span>
-                  <span className="text-xs font-bold text-[#0F172A]">
+                  <span className="text-xs font-bold text-[#FFFFFF]">
                     {selectedMachineDetails.machine.retailer_name || "Unassigned"}
                   </span>
                 </div>
@@ -1845,19 +1845,19 @@ export default function MachinesPage() {
 
               {/* Hardware Spec Grid */}
               <div className="space-y-3">
-                <h4 className="text-xs font-black uppercase text-[#0F172A] tracking-wider">
+                <h4 className="text-xs font-black uppercase text-[#FFFFFF] tracking-wider">
                   Hardware & Network Telemetry
                 </h4>
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div className="p-3 bg-[#F8FAFC] rounded-lg border border-[#E2E8F0]">
                     <span className="text-[11px] text-[#64748B] block font-medium">POS Mobile Number</span>
-                    <span className="font-mono font-bold text-[#0F172A]">
+                    <span className="font-mono font-bold text-[#FFFFFF]">
                       {selectedMachineDetails.machine.mobile_number || "None"}
                     </span>
                   </div>
                   <div className="p-3 bg-[#F8FAFC] rounded-lg border border-[#E2E8F0]">
                     <span className="text-[11px] text-[#64748B] block font-medium">POS Vendor</span>
-                    <span className="font-bold text-[#0F172A]">
+                    <span className="font-bold text-[#FFFFFF]">
                       {selectedMachineDetails.machine.vendor_name || (selectedMachineDetails.machine.vendor_id ? selectedMachineDetails.machine.vendor_id : "None (Direct)")}
                     </span>
                   </div>
@@ -1869,19 +1869,19 @@ export default function MachinesPage() {
                   </div>
                   <div className="p-3 bg-[#F8FAFC] rounded-lg border border-[#E2E8F0]">
                     <span className="text-[11px] text-[#64748B] block font-medium">Hardware Model</span>
-                    <span className="font-bold text-[#0F172A]">
+                    <span className="font-bold text-[#FFFFFF]">
                       {selectedMachineDetails.machine.pos_model}
                     </span>
                   </div>
                   <div className="p-3 bg-[#F8FAFC] rounded-lg border border-[#E2E8F0]">
                     <span className="text-[11px] text-[#64748B] block font-medium">Terminal ID (TID)</span>
-                    <span className="font-mono font-bold text-[#0F172A]">
+                    <span className="font-mono font-bold text-[#FFFFFF]">
                       {selectedMachineDetails.machine.tid}
                     </span>
                   </div>
                   <div className="p-3 bg-[#F8FAFC] rounded-lg border border-[#E2E8F0]">
                     <span className="text-[11px] text-[#64748B] block font-medium">Merchant ID (MID)</span>
-                    <span className="font-mono font-bold text-[#0F172A]">
+                    <span className="font-mono font-bold text-[#FFFFFF]">
                       {selectedMachineDetails.machine.mid}
                     </span>
                   </div>
@@ -1891,13 +1891,13 @@ export default function MachinesPage() {
               {/* Status History Timeline */}
               {selectedMachineDetails.status_history?.length > 0 && (
                 <div className="space-y-3">
-                  <h4 className="text-xs font-black uppercase text-[#0F172A] tracking-wider">
+                  <h4 className="text-xs font-black uppercase text-[#FFFFFF] tracking-wider">
                     Deployment History Timeline
                   </h4>
                   <div className="space-y-2 max-h-48 overflow-y-auto">
                     {selectedMachineDetails.status_history.map((h: any, i: number) => (
                       <div key={i} className="p-2.5 bg-[#F8FAFC] rounded-lg border border-[#E2E8F0] text-xs">
-                        <div className="flex items-center justify-between font-bold text-[#0F172A]">
+                        <div className="flex items-center justify-between font-bold text-[#FFFFFF]">
                           <span>Status Changed: {h.previous || "INITIAL"} → {h.new}</span>
                           <span className="text-[10px] text-[#64748B] font-mono">
                             {h.date ? new Date(h.date).toLocaleDateString() : ""}

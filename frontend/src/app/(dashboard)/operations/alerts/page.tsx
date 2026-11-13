@@ -42,21 +42,21 @@ export default function SystemAlertsPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100 flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-[#292329] flex items-center gap-3">
             <AlertTriangle className="h-8 w-8 text-amber-400" />
             System Alert & Incident Management Center
           </h1>
-          <p className="mt-1 text-slate-400">
+          <p className="mt-1 text-[#625B60]">
             Real-time infrastructure warnings, critical alert notifications, and incident resolution tracking
           </p>
         </div>
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 backdrop-blur-xl overflow-hidden shadow-2xl">
+      <div className="rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 backdrop-blur-xl overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-300">
-            <thead className="bg-slate-950/80 uppercase font-mono text-xs text-slate-400 border-b border-slate-800">
+          <table className="w-full text-left text-sm text-[#292329]">
+            <thead className="bg-[#FFFFFF]/80 uppercase font-mono text-xs text-[#625B60] border-b border-[#E8E2E5]">
               <tr>
                 <th className="px-5 py-4">Alert Code</th>
                 <th className="px-5 py-4">Severity</th>
@@ -66,18 +66,18 @@ export default function SystemAlertsPage() {
                 <th className="px-5 py-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 font-mono text-xs">
+            <tbody className="divide-y divide-[#E8E2E5]/60 font-mono text-xs">
               {loading ? (
-                <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-400">Loading System Alerts...</td></tr>
+                <tr><td colSpan={6} className="px-5 py-12 text-center text-[#625B60]">Loading System Alerts...</td></tr>
               ) : alerts.length === 0 ? (
-                <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-400">No active system alerts detected. All components online.</td></tr>
+                <tr><td colSpan={6} className="px-5 py-12 text-center text-[#625B60]">No active system alerts detected. All components online.</td></tr>
               ) : (
                 alerts.map((a) => (
-                  <tr key={a.public_id} className="hover:bg-slate-800/40 transition-colors">
+                  <tr key={a.public_id} className="hover:bg-[#F5F2F4]/40 transition-colors">
                     <td className="px-5 py-4 font-mono text-xs text-amber-400 font-bold">{a.alert_code}</td>
-                    <td className="px-5 py-4 font-mono text-xs text-slate-200">{a.severity}</td>
-                    <td className="px-5 py-4 font-mono text-xs text-slate-300">{a.component}</td>
-                    <td className="px-5 py-4 text-xs font-medium text-slate-300">{a.message}</td>
+                    <td className="px-5 py-4 font-mono text-xs text-[#292329]">{a.severity}</td>
+                    <td className="px-5 py-4 font-mono text-xs text-[#292329]">{a.component}</td>
+                    <td className="px-5 py-4 text-xs font-medium text-[#292329]">{a.message}</td>
                     <td className="px-5 py-4">
                       <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                         a.status === "RESOLVED"

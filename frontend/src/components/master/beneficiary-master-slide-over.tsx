@@ -560,7 +560,7 @@ export function BeneficiaryMasterSlideOver({
         backdrop: {
           sx: {
             backdropFilter: "blur(10px)",
-            backgroundColor: "rgba(15, 23, 42, 0.75)",
+            backgroundColor: "#FFFFFF",
           },
         },
         paper: {
@@ -570,7 +570,7 @@ export function BeneficiaryMasterSlideOver({
             maxWidth: "1200px !important",
             maxHeight: "92vh",
             backgroundColor: "#FFFFFF",
-            boxShadow: "0 25px 50px -12px rgba(15, 23, 42, 0.35)",
+            boxShadow: "0 25px 50px -12px #FFFFFF",
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",
@@ -583,7 +583,7 @@ export function BeneficiaryMasterSlideOver({
         sx={{
           px: 3.5,
           py: 2.2,
-          background: "linear-gradient(135deg, #0F2C59 0%, #1E1B4B 100%)",
+          background: "linear-gradient(135deg, #A20A3A 0%, #1E1B4B 100%)",
           color: "#FFFFFF",
           display: "flex",
           alignItems: "center",
@@ -662,14 +662,14 @@ export function BeneficiaryMasterSlideOver({
               >
                 <CheckCircleIcon sx={{ fontSize: 48 }} />
               </Box>
-              <Typography variant="h5" sx={{ fontWeight: 900, color: "#0F2C59", mb: 0.5 }}>
+              <Typography variant="h5" sx={{ fontWeight: 900, color: "#A20A3A", mb: 0.5 }}>
                 ✅ Bank Verified Successfully
               </Typography>
-              <Typography variant="body2" sx={{ color: "#64748B", mb: 3 }}>
+              <Typography variant="body2" sx={{ color: "#625B60", mb: 3 }}>
                 Verified via Automated Bank Penny Drop • Beneficiary Master & Customer Mapping Updated
               </Typography>
 
-              <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: "#F8FAFC", border: "1px solid #E2E8F0", textAlign: "left", mb: 3 }}>
+              <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: "#292329", border: "1px solid #E2E8F0", textAlign: "left", mb: 3 }}>
                 <Stack spacing={2}>
                   {/* HEADER STATUS BADGE */}
                   <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
@@ -690,40 +690,40 @@ export function BeneficiaryMasterSlideOver({
 
                   <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
                     <Box sx={{ width: "45%" }}>
-                      <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>NAME AT BANK</Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 900, color: "#0F2C59" }}>{verificationSuccess.name_at_bank || verificationSuccess.registered_name || "SATHUS TECHNOLOGY PRIVATE LIMITED"}</Typography>
+                      <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700 }}>NAME AT BANK</Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 900, color: "#A20A3A" }}>{verificationSuccess.name_at_bank || verificationSuccess.registered_name || "SATHUS TECHNOLOGY PRIVATE LIMITED"}</Typography>
                     </Box>
                     <Box sx={{ width: "45%" }}>
-                      <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>BANK NAME</Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 900, color: "#0F2C59" }}>{verificationSuccess.bank_name || "YES BANK"}</Typography>
+                      <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700 }}>BANK NAME</Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 900, color: "#A20A3A" }}>{verificationSuccess.bank_name || "YES BANK"}</Typography>
                     </Box>
                     <Box sx={{ width: "45%" }}>
-                      <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>MASKED ACCOUNT</Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 900, color: "#0F2C59" }}>{verificationSuccess.masked_account || verificationSuccess.account_number || "•••• •••• 7771"}</Typography>
+                      <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700 }}>MASKED ACCOUNT</Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 900, color: "#A20A3A" }}>{verificationSuccess.masked_account || verificationSuccess.account_number || "•••• •••• 7771"}</Typography>
                     </Box>
                     <Box sx={{ width: "45%" }}>
-                      <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>IFSC CODE</Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 900, color: "#0F2C59" }}>{verificationSuccess.ifsc_code || "YESB0000005"}</Typography>
+                      <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700 }}>IFSC CODE</Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 900, color: "#A20A3A" }}>{verificationSuccess.ifsc_code || "YESB0000005"}</Typography>
                     </Box>
                     <Box sx={{ width: "45%" }}>
-                      <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>BRANCH & CITY</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F2C59" }}>{verificationSuccess.branch || "NUNGAMBAKKAM, CHENNAI"} ({verificationSuccess.city || "CHENNAI"})</Typography>
+                      <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700 }}>BRANCH & CITY</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 800, color: "#A20A3A" }}>{verificationSuccess.branch || "NUNGAMBAKKAM, CHENNAI"} ({verificationSuccess.city || "CHENNAI"})</Typography>
                     </Box>
                     <Box sx={{ width: "45%" }}>
-                      <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>MICR CODE</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F2C59" }}>{verificationSuccess.micr || "600532002"}</Typography>
+                      <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700 }}>MICR CODE</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 800, color: "#A20A3A" }}>{verificationSuccess.micr || "600532002"}</Typography>
                     </Box>
                     <Box sx={{ width: "100%" }}>
-                      <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>BRANCH ADDRESS</Typography>
+                      <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700 }}>BRANCH ADDRESS</Typography>
                       <Typography variant="caption" sx={{ display: "block", fontWeight: 700, color: "#334155" }}>{verificationSuccess.address || "UTHAMAR GANDHI SALAI,, OPP PARK HOTEL,, NUNGAMBAKKAM,, CHENNAI, TAMIL NADU-600034"}</Typography>
                     </Box>
                     <Box sx={{ width: "45%" }}>
-                      <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>REFERENCE ID</Typography>
+                      <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700 }}>REFERENCE ID</Typography>
                       <Typography variant="body2" sx={{ fontWeight: 800, color: "#2563EB" }}>{verificationSuccess.ref_id || "1450540671"}</Typography>
                     </Box>
                     <Box sx={{ width: "45%" }}>
-                      <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>VERIFICATION TIME</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F2C59" }}>{verificationSuccess.verified_at || "Just now"}</Typography>
+                      <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700 }}>VERIFICATION TIME</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 800, color: "#A20A3A" }}>{verificationSuccess.verified_at || "Just now"}</Typography>
                     </Box>
                   </Box>
                 </Stack>
@@ -742,14 +742,14 @@ export function BeneficiaryMasterSlideOver({
                 <M3Button
                   variant="outlined"
                   onClick={resetForm}
-                  sx={{ py: 1.6, borderColor: "#CBD5E1", color: "#0F2C59", fontWeight: 800, borderRadius: 3 }}
+                  sx={{ py: 1.6, borderColor: "#CBD5E1", color: "#A20A3A", fontWeight: 800, borderRadius: 3 }}
                 >
                   Add Another
                 </M3Button>
                 <M3Button
                   variant="text"
                   onClick={onClose}
-                  sx={{ py: 1.6, color: "#64748B", fontWeight: 700 }}
+                  sx={{ py: 1.6, color: "#625B60", fontWeight: 700 }}
                 >
                   Close
                 </M3Button>
@@ -775,10 +775,10 @@ export function BeneficiaryMasterSlideOver({
               >
                 <ErrorIcon sx={{ fontSize: 44 }} />
               </Box>
-              <Typography variant="h5" sx={{ fontWeight: 900, color: "#0F2C59", mb: 0.5 }}>
+              <Typography variant="h5" sx={{ fontWeight: 900, color: "#A20A3A", mb: 0.5 }}>
                 Verification Failed
               </Typography>
-              <Typography variant="body2" sx={{ color: "#64748B", mb: 3 }}>
+              <Typography variant="body2" sx={{ color: "#625B60", mb: 3 }}>
                 Reason: {verificationFailure.reason}
               </Typography>
 
@@ -792,11 +792,11 @@ export function BeneficiaryMasterSlideOver({
                   fullWidth
                   onClick={resetForm}
                   startIcon={<ReplayIcon />}
-                  sx={{ py: 1.4, bgcolor: "#0F2C59", fontWeight: 900 }}
+                  sx={{ py: 1.4, bgcolor: "#A20A3A", fontWeight: 900 }}
                 >
                   Retry Verification
                 </M3Button>
-                <M3Button variant="outlined" onClick={onClose} sx={{ py: 1.4, borderColor: "#CBD5E1", color: "#0F2C59", fontWeight: 800 }}>
+                <M3Button variant="outlined" onClick={onClose} sx={{ py: 1.4, borderColor: "#CBD5E1", color: "#A20A3A", fontWeight: 800 }}>
                   Close
                 </M3Button>
               </Stack>
@@ -808,10 +808,10 @@ export function BeneficiaryMasterSlideOver({
             {/* ── LEFT COLUMN (60%): BANK SELECTION & BENEFICIARY DETAILS ── */}
             <Box sx={{ flex: 6 }}>
               <Paper elevation={0} sx={{ p: 3.5, borderRadius: 4, border: "1px solid #E2E8F0", bgcolor: "#FFFFFF", mb: 3 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 0.5, color: "#0F2C59", fontSize: "1.05rem" }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 0.5, color: "#A20A3A", fontSize: "1.05rem" }}>
                   Bank & Beneficiary Account Details
                 </Typography>
-                <Typography variant="body2" sx={{ color: "#64748B", mb: 3 }}>
+                <Typography variant="body2" sx={{ color: "#625B60", mb: 3 }}>
                   Search bank, verify read-only IFSC, and enter beneficiary account credentials.
                 </Typography>
 
@@ -819,7 +819,7 @@ export function BeneficiaryMasterSlideOver({
                   {/* STEP 1: STICKY TOP SEARCH INPUT (NEVER DISPLAYED BELOW LIST) */}
                   {!selectedBankObj ? (
                     <Box sx={{ position: "relative" }}>
-                      <Typography variant="caption" sx={{ fontWeight: 800, color: "#0F2C59", mb: 0.8, display: "block" }}>
+                      <Typography variant="caption" sx={{ fontWeight: 800, color: "#A20A3A", mb: 0.8, display: "block" }}>
                         🔍 SEARCH BANK NAME, IFSC, BRANCH OR CITY *
                       </Typography>
                       <TextField
@@ -838,7 +838,7 @@ export function BeneficiaryMasterSlideOver({
                           },
                         }}
                         sx={{
-                          bgcolor: "#F8FAFC",
+                          bgcolor: "#292329",
                           borderRadius: 3,
                           "& .MuiOutlinedInput-root": { borderRadius: 3, fontWeight: 700 },
                         }}
@@ -848,7 +848,7 @@ export function BeneficiaryMasterSlideOver({
                       {bankQuery.trim().length >= 2 ? (
                         <Box sx={{ mt: 1.5, maxHeight: 280, overflowY: "auto", border: "1px solid #CBD5E1", borderRadius: 3, bgcolor: "#FFF" }}>
                           <Stack direction="row" sx={{ justifyContent: "space-between", p: 1.5, bg: "#F1F5F9", borderBottom: "1px solid #E2E8F0" }}>
-                            <Typography variant="caption" sx={{ fontWeight: 800, color: "#0F2C59" }}>
+                            <Typography variant="caption" sx={{ fontWeight: 800, color: "#A20A3A" }}>
                               {searchResults.length > 0 ? `Showing ${searchResults.length} Banks Found` : "No Result"}
                             </Typography>
                           </Stack>
@@ -871,14 +871,14 @@ export function BeneficiaryMasterSlideOver({
                                 }}
                               >
                                 <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-                                  <Avatar src={bank.logo} sx={{ width: 36, height: 36, bgcolor: "#0F2C59", fontWeight: 800, fontSize: "0.8rem" }}>
+                                  <Avatar src={bank.logo} sx={{ width: 36, height: 36, bgcolor: "#A20A3A", fontWeight: 800, fontSize: "0.8rem" }}>
                                     {bank.bank_name.charAt(0)}
                                   </Avatar>
                                   <Box>
-                                    <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F2C59" }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 800, color: "#A20A3A" }}>
                                       {bank.bank_name}
                                     </Typography>
-                                    <Typography variant="caption" sx={{ color: "#64748B" }}>
+                                    <Typography variant="caption" sx={{ color: "#625B60" }}>
                                       {bank.branch} • IFSC: {bank.ifsc_code}
                                     </Typography>
                                   </Box>
@@ -892,10 +892,10 @@ export function BeneficiaryMasterSlideOver({
                           ) : (
                             /* NO RESULT STATE */
                             <Box sx={{ p: 3, textAlign: "center" }}>
-                              <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#0F2C59", mb: 0.5 }}>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#A20A3A", mb: 0.5 }}>
                                 No banks found.
                               </Typography>
-                              <Typography variant="caption" sx={{ color: "#64748B" }}>
+                              <Typography variant="caption" sx={{ color: "#625B60" }}>
                                 Try searching by Bank Name, IFSC prefix (e.g. HDFC), or Branch.
                               </Typography>
                             </Box>
@@ -908,11 +908,11 @@ export function BeneficiaryMasterSlideOver({
                     <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3.5, bgcolor: "#F0F9FF", border: "2px solid #0284C7" }}>
                       <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
                         <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-                          <Avatar src={selectedBankObj.logo} sx={{ width: 36, height: 36, bgcolor: "#0F2C59", fontSize: "0.85rem" }}>
+                          <Avatar src={selectedBankObj.logo} sx={{ width: 36, height: 36, bgcolor: "#A20A3A", fontSize: "0.85rem" }}>
                             {selectedBankObj.bank_name.charAt(0)}
                           </Avatar>
                           <Box>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#0F2C59" }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#A20A3A" }}>
                               {selectedBankObj.bank_name}
                             </Typography>
                             <Typography variant="caption" sx={{ color: "#0369A1", fontWeight: 700 }}>
@@ -935,7 +935,7 @@ export function BeneficiaryMasterSlideOver({
                       <Box sx={{ display: "flex", gap: 2, pt: 1, borderTop: "1px solid #BAE6FD" }}>
                         <Box sx={{ flex: 1 }}>
                           <Typography variant="caption" sx={{ color: "#0369A1", fontWeight: 700 }}>IFSC CODE (READ ONLY)</Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 900, color: "#0F2C59" }}>{selectedBankObj.ifsc_code}</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 900, color: "#A20A3A" }}>{selectedBankObj.ifsc_code}</Typography>
                         </Box>
                         <Box sx={{ flex: 1 }}>
                           <Typography variant="caption" sx={{ color: "#0369A1", fontWeight: 700 }}>PAYMENT CAPABILITIES</Typography>
@@ -959,7 +959,7 @@ export function BeneficiaryMasterSlideOver({
                       required
                     />
                     <Stack direction="row" sx={{ justifyContent: "space-between", mt: 0.5, px: 0.5 }}>
-                      <Typography variant="caption" sx={{ color: "#64748B" }}>
+                      <Typography variant="caption" sx={{ color: "#625B60" }}>
                         Numeric only • Auto space removal & paste support
                       </Typography>
                       <Typography variant="caption" sx={{ fontWeight: 800, color: isAccNumValid ? "#16A34A" : "#94A3B8" }}>
@@ -979,7 +979,7 @@ export function BeneficiaryMasterSlideOver({
                       required
                     />
                     <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mt: 0.5, px: 0.5 }}>
-                      <Typography variant="caption" sx={{ color: "#64748B" }}>
+                      <Typography variant="caption" sx={{ color: "#625B60" }}>
                         Must match account number exactly
                       </Typography>
 
@@ -1048,28 +1048,28 @@ export function BeneficiaryMasterSlideOver({
               <Paper elevation={0} sx={{ p: 3.5, borderRadius: 4, border: "1px solid #E2E8F0", bgcolor: "#FFFFFF", mb: 3 }}>
                 <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 2 }}>
                   <AccountBalanceWalletIcon sx={{ color: "#2563EB" }} />
-                  <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#0F2C59" }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#A20A3A" }}>
                     Wallet Summary & Fee Breakdown
                   </Typography>
                 </Stack>
 
-                <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, bgcolor: "#F8FAFC", border: "1px solid #E2E8F0", mb: 2 }}>
+                <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, bgcolor: "#292329", border: "1px solid #E2E8F0", mb: 2 }}>
                   <Stack spacing={1.2}>
                     <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                      <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>Current Wallet Balance</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 900, color: "#0F2C59" }}>₹{currentWalletBalance.toFixed(2)}</Typography>
+                      <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700 }}>Current Wallet Balance</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 900, color: "#A20A3A" }}>₹{currentWalletBalance.toFixed(2)}</Typography>
                     </Stack>
                     <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                       <Typography variant="caption" sx={{ color: "#EF4444", fontWeight: 700 }}>Verification Fee (Penny Drop)</Typography>
                       <Typography variant="body2" sx={{ fontWeight: 900, color: "#EF4444" }}>- ₹{verificationFee.toFixed(2)}</Typography>
                     </Stack>
                     <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                      <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>GST (18% Included)</Typography>
-                      <Typography variant="caption" sx={{ fontWeight: 700, color: "#64748B" }}>₹{gstAmount.toFixed(2)}</Typography>
+                      <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 600 }}>GST (18% Included)</Typography>
+                      <Typography variant="caption" sx={{ fontWeight: 700, color: "#625B60" }}>₹{gstAmount.toFixed(2)}</Typography>
                     </Stack>
                     <Divider sx={{ my: 0.5 }} />
                     <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                      <Typography variant="caption" sx={{ color: "#0F2C59", fontWeight: 900 }}>Remaining Balance</Typography>
+                      <Typography variant="caption" sx={{ color: "#A20A3A", fontWeight: 900 }}>Remaining Balance</Typography>
                       <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#16A34A", fontSize: "1.1rem" }}>
                         ₹{(currentWalletBalance - (duplicateFound ? 0 : verificationFee)).toFixed(2)}
                       </Typography>
@@ -1084,7 +1084,7 @@ export function BeneficiaryMasterSlideOver({
 
               {/* SECTION 2: VERIFICATION TIMELINE & PROVIDER METADATA */}
               <Paper elevation={0} sx={{ p: 3.5, borderRadius: 4, border: "1px solid #E2E8F0", bgcolor: "#FFFFFF", mb: 3 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#0F2C59", mb: 2 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#A20A3A", mb: 2 }}>
                   Verification Timeline & Provider
                 </Typography>
 
@@ -1117,7 +1117,7 @@ export function BeneficiaryMasterSlideOver({
                           </Box>
                         }
                       >
-                        <Typography variant="caption" sx={{ fontWeight: index <= activeStep ? 800 : 500, color: index <= activeStep ? "#0F2C59" : "#94A3B8" }}>
+                        <Typography variant="caption" sx={{ fontWeight: index <= activeStep ? 800 : 500, color: index <= activeStep ? "#A20A3A" : "#94A3B8" }}>
                           {label}
                         </Typography>
                       </StepLabel>
@@ -1138,18 +1138,18 @@ export function BeneficiaryMasterSlideOver({
 
                 <Stack spacing={0.8}>
                   <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                    <Typography variant="caption" sx={{ color: "#64748B" }}>Provider Gateway</Typography>
-                    <Typography variant="caption" sx={{ fontWeight: 800, color: "#0F2C59" }}>NPCI / IMPS Bank Sync</Typography>
+                    <Typography variant="caption" sx={{ color: "#625B60" }}>Provider Gateway</Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 800, color: "#A20A3A" }}>NPCI / IMPS Bank Sync</Typography>
                   </Stack>
                   <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                    <Typography variant="caption" sx={{ color: "#64748B" }}>Estimated Time</Typography>
+                    <Typography variant="caption" sx={{ color: "#625B60" }}>Estimated Time</Typography>
                     <Typography variant="caption" sx={{ fontWeight: 800, color: "#16A34A" }}>5 – 10 Seconds</Typography>
                   </Stack>
                 </Stack>
               </Paper>
 
               {/* SECURITY NOTICE */}
-              <Paper elevation={0} sx={{ p: 2.5, borderRadius: 4, bgcolor: "#0F2C59", color: "#FFFFFF" }}>
+              <Paper elevation={0} sx={{ p: 2.5, borderRadius: 4, bgcolor: "#A20A3A", color: "#FFFFFF" }}>
                 <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
                   <ShieldIcon sx={{ color: "#FDE047", fontSize: 24 }} />
                   <Box>
@@ -1183,7 +1183,7 @@ export function BeneficiaryMasterSlideOver({
         >
           <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
             <LockIcon sx={{ color: "#16A34A", fontSize: 18 }} />
-            <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>
+            <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700 }}>
               256-Bit SSL • NPCI Compliant • Bank Verified
             </Typography>
           </Stack>
@@ -1193,7 +1193,7 @@ export function BeneficiaryMasterSlideOver({
               variant="outlined"
               onClick={onClose}
               disabled={isProcessing}
-              sx={{ py: 1.4, px: 3, borderColor: "#CBD5E1", color: "#0F2C59", fontWeight: 800, borderRadius: 3 }}
+              sx={{ py: 1.4, px: 3, borderColor: "#CBD5E1", color: "#A20A3A", fontWeight: 800, borderRadius: 3 }}
             >
               Cancel
             </M3Button>

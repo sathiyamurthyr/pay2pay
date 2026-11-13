@@ -38,7 +38,7 @@ export const OnboardingStatusDashboard: React.FC<OnboardingStatusDashboardProps>
         account_status: "ONBOARDING",
         retailer_status: "UNDER_REVIEW",
         can_transact: false,
-        admin_remarks: "Your application has been received and is under compliance verification by Pay2Pay Risk Team.",
+        admin_remarks: "Your application has been received and is under compliance verification by Near4You Risk Team.",
         progress: {
           registration: "COMPLETED",
           pan: "VERIFIED",
@@ -62,7 +62,7 @@ export const OnboardingStatusDashboard: React.FC<OnboardingStatusDashboardProps>
   const progress = statusData?.progress || {};
 
   return (
-    <div className="w-full min-h-screen bg-slate-950 text-white p-6 sm:p-8 font-sans space-y-6">
+    <div className="w-full min-h-screen bg-[#FFFFFF] text-white p-6 sm:p-8 font-sans space-y-6">
       
       {/* Top Banner Status Card */}
       <div className={`p-6 sm:p-8 rounded-3xl border shadow-2xl space-y-4 relative overflow-hidden ${
@@ -103,8 +103,8 @@ export const OnboardingStatusDashboard: React.FC<OnboardingStatusDashboardProps>
         </div>
 
         {/* Admin Remarks Box */}
-        <div className="p-4 rounded-2xl bg-slate-950/80 border border-white/10 text-xs space-y-1">
-          <p className="text-[10px] font-black uppercase text-slate-400">Compliance Officer Remarks:</p>
+        <div className="p-4 rounded-2xl bg-[#FFFFFF]/80 border border-white/10 text-xs space-y-1">
+          <p className="text-[10px] font-black uppercase text-[#625B60]">Compliance Officer Remarks:</p>
           <p className="font-extrabold text-white text-sm leading-relaxed">"{remarks}"</p>
         </div>
 
@@ -124,8 +124,8 @@ export const OnboardingStatusDashboard: React.FC<OnboardingStatusDashboardProps>
       </div>
 
       {/* Verification Progress Tracker Timeline */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-4 shadow-2xl">
-        <h2 className="text-sm font-black text-white uppercase tracking-wider text-slate-400 flex items-center gap-2">
+      <div className="bg-[#FAF8F9] border border-[#E8E2E5] rounded-3xl p-6 sm:p-8 space-y-4 shadow-2xl">
+        <h2 className="text-sm font-black text-white uppercase tracking-wider text-[#625B60] flex items-center gap-2">
           <ShieldAlert className="w-4 h-4 text-blue-400" />
           Retailer Verification Progress Tracker
         </h2>
@@ -152,10 +152,10 @@ export const OnboardingStatusDashboard: React.FC<OnboardingStatusDashboardProps>
                     ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
                     : isPending
                     ? "bg-blue-500/10 border-blue-500/30 text-blue-400"
-                    : "bg-slate-950 border-slate-800 text-slate-500"
+                    : "bg-[#FFFFFF] border-[#E8E2E5] text-[#8A8288]"
                 }`}
               >
-                <div className="w-6 h-6 rounded-full bg-slate-950 flex items-center justify-center mx-auto text-xs font-black">
+                <div className="w-6 h-6 rounded-full bg-[#FFFFFF] flex items-center justify-center mx-auto text-xs font-black">
                   {isDone ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : idx + 1}
                 </div>
                 <p className="text-[11px] font-black text-white truncate">{item.step}</p>
@@ -167,9 +167,9 @@ export const OnboardingStatusDashboard: React.FC<OnboardingStatusDashboardProps>
       </div>
 
       {/* Transaction Control Blocked Modules Overlay Notice */}
-      <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-4">
+      <div className="p-6 rounded-3xl bg-[#FAF8F9] border border-[#E8E2E5] space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-black text-white uppercase tracking-wider text-slate-400 flex items-center gap-2">
+          <h3 className="text-sm font-black text-white uppercase tracking-wider text-[#625B60] flex items-center gap-2">
             <Lock className="w-4 h-4 text-red-400" />
             Financial Transaction Modules (Locked Until Approval)
           </h3>
@@ -180,9 +180,9 @@ export const OnboardingStatusDashboard: React.FC<OnboardingStatusDashboardProps>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {["Money Transfer (DMT)", "AEPS Cash Withdrawal", "BBPS Bill Payments", "UPI Payments", "Wallet Top-up", "Settlement Payout"].map((mod, idx) => (
-            <div key={idx} className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 text-center space-y-2 opacity-60 pointer-events-none select-none relative">
+            <div key={idx} className="p-4 rounded-2xl bg-[#FFFFFF]/60 border border-[#E8E2E5]/80 text-center space-y-2 opacity-60 pointer-events-none select-none relative">
               <Lock className="w-5 h-5 text-red-400 mx-auto" />
-              <p className="text-xs font-extrabold text-slate-300">{mod}</p>
+              <p className="text-xs font-extrabold text-[#292329]">{mod}</p>
               <p className="text-[10px] text-red-400 font-bold">DISABLED</p>
             </div>
           ))}

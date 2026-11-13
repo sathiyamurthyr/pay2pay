@@ -59,8 +59,8 @@ export const SecuritySettingsView: React.FC = () => {
   return (
     <Box
       sx={{
-        backgroundColor: "#08111F",
-        color: "#F8FAFC",
+        backgroundColor: "#FFFFFF",
+        color: "#292329",
         minHeight: "100vh",
         p: { xs: 2.5, md: 4 },
         fontFamily: "'Inter', 'Source Sans 3', 'IBM Plex Sans', sans-serif",
@@ -73,7 +73,7 @@ export const SecuritySettingsView: React.FC = () => {
           p: { xs: 2.5, md: 3.5 },
           mb: 4,
           borderRadius: 3.5,
-          backgroundColor: "rgba(15, 23, 42, 0.90)",
+          backgroundColor: "#FFFFFF",
           border: "1px solid rgba(255, 255, 255, 0.14)",
           display: "flex",
           justifyContent: "space-between",
@@ -99,7 +99,7 @@ export const SecuritySettingsView: React.FC = () => {
             <Typography variant="h3" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "22px" }}>
               Session Security & Auto-Lock Settings
             </Typography>
-            <Typography variant="body1" sx={{ color: "#CBD5E1", fontSize: "16px", mt: 0.3 }}>
+            <Typography variant="body1" sx={{ color: "#625B60", fontSize: "16px", mt: 0.3 }}>
               Configure automatic UI locking, MPIN re-authentication, and biometric settings.
             </Typography>
           </Box>
@@ -134,7 +134,7 @@ export const SecuritySettingsView: React.FC = () => {
             sx={{
               p: 3.5,
               borderRadius: 4,
-              bgcolor: "rgba(15, 23, 42, 0.95)",
+              bgcolor: "#FFFFFF",
               border: "1px solid rgba(255, 255, 255, 0.12)",
               height: "100%",
             }}
@@ -152,7 +152,7 @@ export const SecuritySettingsView: React.FC = () => {
                   <Typography variant="body1" sx={{ fontWeight: 700, fontSize: "16px", color: "#FFFFFF" }}>
                     Enable Auto-Lock
                   </Typography>
-                  <Typography variant="body1" sx={{ color: "#94A3B8", fontSize: "15px", mt: 0.2 }}>
+                  <Typography variant="body1" sx={{ color: "#625B60", fontSize: "15px", mt: 0.2 }}>
                     Automatically lock the screen after period of inactivity.
                   </Typography>
                 </Box>
@@ -181,7 +181,7 @@ export const SecuritySettingsView: React.FC = () => {
                     color: "#FFFFFF",
                     fontSize: "16px",
                     fontWeight: 600,
-                    "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
+                    "& fieldset": { borderColor: "#E8E2E5" },
                   }}
                 >
                   <MenuItem value={1}>1 Minute (Default - Enterprise Standard)</MenuItem>
@@ -199,7 +199,7 @@ export const SecuritySettingsView: React.FC = () => {
                   <Typography variant="body1" sx={{ fontWeight: 700, fontSize: "16px", color: "#FFFFFF" }}>
                     30-Second Countdown Warning
                   </Typography>
-                  <Typography variant="body1" sx={{ color: "#94A3B8", fontSize: "15px", mt: 0.2 }}>
+                  <Typography variant="body1" sx={{ color: "#625B60", fontSize: "15px", mt: 0.2 }}>
                     Display animated warning dialog 30 seconds before locking.
                   </Typography>
                 </Box>
@@ -221,7 +221,7 @@ export const SecuritySettingsView: React.FC = () => {
             sx={{
               p: 3.5,
               borderRadius: 4,
-              bgcolor: "rgba(15, 23, 42, 0.95)",
+              bgcolor: "#FFFFFF",
               border: "1px solid rgba(255, 255, 255, 0.12)",
               height: "100%",
             }}
@@ -239,7 +239,7 @@ export const SecuritySettingsView: React.FC = () => {
                   <Typography variant="body1" sx={{ fontWeight: 700, fontSize: "16px", color: "#FFFFFF" }}>
                     Lock on Browser Minimize / Tab Change
                   </Typography>
-                  <Typography variant="body1" sx={{ color: "#94A3B8", fontSize: "15px", mt: 0.2 }}>
+                  <Typography variant="body1" sx={{ color: "#625B60", fontSize: "15px", mt: 0.2 }}>
                     Immediately lock UI when switching tabs or minimizing browser window.
                   </Typography>
                 </Box>
@@ -257,7 +257,7 @@ export const SecuritySettingsView: React.FC = () => {
                   <Typography variant="body1" sx={{ fontWeight: 700, fontSize: "16px", color: "#FFFFFF" }}>
                     Lock on Laptop / Screen Sleep
                   </Typography>
-                  <Typography variant="body1" sx={{ color: "#94A3B8", fontSize: "15px", mt: 0.2 }}>
+                  <Typography variant="body1" sx={{ color: "#625B60", fontSize: "15px", mt: 0.2 }}>
                     Require MPIN re-authentication when resuming from computer sleep.
                   </Typography>
                 </Box>
@@ -275,7 +275,7 @@ export const SecuritySettingsView: React.FC = () => {
                   <Typography variant="body1" sx={{ fontWeight: 700, fontSize: "16px", color: "#FFFFFF" }}>
                     Biometric Unlock (Windows Hello / Touch ID)
                   </Typography>
-                  <Typography variant="body1" sx={{ color: "#94A3B8", fontSize: "15px", mt: 0.2 }}>
+                  <Typography variant="body1" sx={{ color: "#625B60", fontSize: "15px", mt: 0.2 }}>
                     Allow unlocking using device fingerprint or face scanner.
                   </Typography>
                 </Box>
@@ -297,9 +297,9 @@ export const SecuritySettingsView: React.FC = () => {
             sx={{
               p: 3.5,
               borderRadius: 4,
-              bgcolor: effectiveTheme === "dark" ? "rgba(15, 23, 42, 0.95)" : "#FFFFFF",
+              bgcolor: effectiveTheme === "dark" ? "#FFFFFF" : "#FFFFFF",
               border: effectiveTheme === "dark" ? "1px solid rgba(255, 255, 255, 0.12)" : "1px solid #E2E8F0",
-              color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A",
+              color: effectiveTheme === "dark" ? "#F8FAFC" : "#FFFFFF",
             }}
           >
             <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 2.5 }}>

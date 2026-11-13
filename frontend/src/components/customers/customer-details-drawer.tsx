@@ -354,7 +354,7 @@ export function CustomerDetailsDrawer({
   return (
     <AnimatePresence>
       <div 
-        className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex justify-end"
+        className="fixed inset-0 z-50 bg-[#FFFFFF]/60 backdrop-blur-xs flex justify-end"
         onClick={onClose}
       >
         <motion.div
@@ -363,17 +363,17 @@ export function CustomerDetailsDrawer({
           exit={{ x: "100%" }}
           transition={{ duration: 0.25, ease: "easeOut" }}
           onClick={(e) => e.stopPropagation()}
-          className="w-full md:max-w-[680px] lg:max-w-[840px] bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 h-full flex flex-col justify-between shadow-2xl relative overflow-hidden max-h-screen"
+          className="w-full md:max-w-[680px] lg:max-w-[840px] bg-white dark:bg-[#FAF8F9] border-l border-slate-200 dark:border-[#E8E2E5] h-full flex flex-col justify-between shadow-2xl relative overflow-hidden max-h-screen"
         >
           {/* ───────────────────────────────────────────────────────────────────
               1. STICKY HEADER (ALWAYS VISIBLE WITH EXPLICIT CLOSE BUTTON)
           ─────────────────────────────────────────────────────────────────── */}
-          <div className="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4 shrink-0 shadow-xs">
+          <div className="sticky top-0 z-30 bg-white/95 dark:bg-[#FAF8F9]/95 backdrop-blur-md px-6 py-4 border-b border-slate-200 dark:border-[#E8E2E5] flex items-center justify-between gap-4 shrink-0 shadow-xs">
             <div className="flex items-center gap-3">
               <button
                 onClick={onClose}
                 aria-label="Back to customer list"
-                className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="p-2 rounded-xl text-[#8A8288] hover:text-slate-900 hover:bg-slate-100 dark:hover:bg-[#F5F2F4] transition-colors"
                 title="Back / Close (Esc)"
               >
                 <ArrowLeft className="w-5 h-5" />
@@ -388,7 +388,7 @@ export function CustomerDetailsDrawer({
                     🟢 ACTIVE
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-500 font-mono">Single Source of Truth • ID: {customerId}</p>
+                <p className="text-[11px] text-[#8A8288] font-mono">Single Source of Truth • ID: {customerId}</p>
               </div>
             </div>
 
@@ -396,10 +396,10 @@ export function CustomerDetailsDrawer({
               <button
                 onClick={onClose}
                 aria-label="Close customer drawer"
-                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors border border-slate-300/60 dark:border-slate-700"
+                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#F5F2F4] dark:hover:bg-slate-700 text-slate-700 dark:text-[#292329] text-xs font-bold flex items-center gap-1.5 transition-colors border border-slate-300/60 dark:border-[#E8E2E5]"
                 title="Close drawer (Esc)"
               >
-                <X className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+                <X className="w-4 h-4 text-slate-600 dark:text-[#292329]" />
                 <span>Close</span>
               </button>
             </div>
@@ -410,7 +410,7 @@ export function CustomerDetailsDrawer({
           ─────────────────────────────────────────────────────────────────── */}
           <div className="flex-1 overflow-y-auto space-y-6 p-6 scrollbar-thin">
             {/* ── CUSTOMER HERO SECTION (80px Verified Aadhaar Photo) ── */}
-            <div className="p-6 rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white space-y-5 shadow-xl border border-slate-800 relative overflow-hidden">
+            <div className="p-6 rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white space-y-5 shadow-xl border border-[#E8E2E5] relative overflow-hidden">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 relative z-10">
                 <div className="flex items-center gap-4">
                   {/* 80px Verified Aadhaar Photo / Avatar Fallback with BlurHash */}
@@ -440,21 +440,21 @@ export function CustomerDetailsDrawer({
                         {customer.tier || "Individual"}
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-slate-300 font-mono flex-wrap">
+                    <div className="flex items-center gap-3 text-xs text-[#292329] font-mono flex-wrap">
                       <span>ID: {customerId}</span>
                       <span>•</span>
                       <span>+91 {mobile.replace("+91 ", "")}</span>
                       <span>•</span>
                       <span className="text-blue-300 font-bold">{maskedAadhaar}</span>
                     </div>
-                    <div className="text-[11px] text-slate-300 font-medium">
+                    <div className="text-[11px] text-[#292329] font-medium">
                       Verification Source: <strong className="text-emerald-400">UIDAI Aadhaar eKYC</strong> ({verifyDate})
                     </div>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[11px] font-bold text-slate-300 bg-white/10 px-3 py-1 rounded-xl border border-white/10">
+                  <span className="text-[11px] font-bold text-[#292329] bg-white/10 px-3 py-1 rounded-xl border border-white/10">
                     Since: {since}
                   </span>
                 </div>
@@ -475,7 +475,7 @@ export function CustomerDetailsDrawer({
 
               {/* Supported Banking Services Bar */}
               <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-white/10 text-[10px] font-mono">
-                <span className="text-slate-300 uppercase font-sans font-extrabold mr-1">Enabled Services:</span>
+                <span className="text-[#292329] uppercase font-sans font-extrabold mr-1">Enabled Services:</span>
                 {["DMT Payouts", "Card-to-Bank", "AEPS Cash", "Wallet Topup", "UPI Transfer", "BBPS BillPay", "Recharge"].map((svc, i) => (
                   <span key={i} className="px-2 py-0.5 rounded-md bg-white/10 text-white font-bold border border-white/15">
                     {svc}
@@ -486,8 +486,8 @@ export function CustomerDetailsDrawer({
 
             {/* ── TOP KPI SUMMARY CARDS (DYNAMIC METRICS FROM CUSTOMER DATA) ── */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs font-bold">
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 space-y-1">
-                <div className="text-slate-500 text-[10px] uppercase font-bold">Today Txns</div>
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#F5F2F4]/60 border border-slate-200/80 dark:border-[#E8E2E5] space-y-1">
+                <div className="text-[#8A8288] text-[10px] uppercase font-bold">Today Txns</div>
                 <div className="text-lg font-mono font-black text-slate-900 dark:text-white">
                   {customer.todayTxnCount ?? 0}
                 </div>
@@ -534,7 +534,7 @@ export function CustomerDetailsDrawer({
             </div>
 
             {/* ── STICKY TABS NAVIGATION ── */}
-            <div className="sticky top-0 z-10 bg-white dark:bg-slate-900 pb-2 border-b border-slate-200 dark:border-slate-800 overflow-x-auto scrollbar-none">
+            <div className="sticky top-0 z-10 bg-white dark:bg-[#FAF8F9] pb-2 border-b border-slate-200 dark:border-[#E8E2E5] overflow-x-auto scrollbar-none">
               <div className="flex items-center gap-1.5 min-w-[700px]">
                 {TABS.map((tab) => {
                   const Icon = tab.icon;
@@ -546,7 +546,7 @@ export function CustomerDetailsDrawer({
                       className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
                         isActive
                           ? "bg-blue-600 text-white shadow-sm"
-                          : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                          : "text-slate-600 dark:text-[#625B60] hover:bg-slate-100 dark:hover:bg-[#F5F2F4]"
                       }`}
                     >
                       <Icon className="w-3.5 h-3.5" />
@@ -561,7 +561,7 @@ export function CustomerDetailsDrawer({
             {activeTab === "overview" && (
               <div className="space-y-6">
                 {/* SECTION 1: VERIFIED IDENTITY WITH DATA SOURCE BADGES */}
-                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-4">
+                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-[#F5F2F4]/40 border border-slate-200 dark:border-[#E8E2E5] space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                       <ShieldCheck className="w-4 h-4 text-emerald-600" />
@@ -573,17 +573,17 @@ export function CustomerDetailsDrawer({
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-semibold">
-                    <div><span className="text-slate-500">Full Name:</span> <div className="font-bold text-slate-900 dark:text-white">{displayName}</div></div>
-                    <div><span className="text-slate-500">Masked Aadhaar:</span> <div className="font-mono font-bold text-blue-600">{maskedAadhaar}</div></div>
-                    <div><span className="text-slate-500">Mobile Number:</span> <div className="font-mono font-bold text-slate-900 dark:text-white">+91 {mobile.replace("+91 ", "")}</div></div>
-                    <div><span className="text-slate-500">Verification Provider:</span> <div className="font-bold text-slate-900 dark:text-white">UIDAI eKYC Gateway</div></div>
-                    <div><span className="text-slate-500">Verification Status:</span> <div className="font-mono font-bold text-emerald-600">{kycStatus}</div></div>
-                    <div><span className="text-slate-500">Verification Date:</span> <div className="font-mono font-bold text-slate-900 dark:text-white">{verifyDate}</div></div>
+                    <div><span className="text-[#8A8288]">Full Name:</span> <div className="font-bold text-slate-900 dark:text-white">{displayName}</div></div>
+                    <div><span className="text-[#8A8288]">Masked Aadhaar:</span> <div className="font-mono font-bold text-blue-600">{maskedAadhaar}</div></div>
+                    <div><span className="text-[#8A8288]">Mobile Number:</span> <div className="font-mono font-bold text-slate-900 dark:text-white">+91 {mobile.replace("+91 ", "")}</div></div>
+                    <div><span className="text-[#8A8288]">Verification Provider:</span> <div className="font-bold text-slate-900 dark:text-white">UIDAI eKYC Gateway</div></div>
+                    <div><span className="text-[#8A8288]">Verification Status:</span> <div className="font-mono font-bold text-emerald-600">{kycStatus}</div></div>
+                    <div><span className="text-[#8A8288]">Verification Date:</span> <div className="font-mono font-bold text-slate-900 dark:text-white">{verifyDate}</div></div>
                   </div>
                 </div>
 
                 {/* SECTION 2: CUSTOMER DETAILS */}
-                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-4">
+                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-[#F5F2F4]/40 border border-slate-200 dark:border-[#E8E2E5] space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                       <UserCheck className="w-4 h-4 text-blue-600" />
@@ -595,17 +595,17 @@ export function CustomerDetailsDrawer({
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-semibold">
-                    <div><span className="text-slate-500">Customer ID:</span> <div className="font-mono font-bold text-slate-900 dark:text-white">{customerId}</div></div>
-                    <div><span className="text-slate-500">Customer Type:</span> <div className="font-bold text-slate-900 dark:text-white">Individual</div></div>
-                    <div><span className="text-slate-500">Primary Mobile:</span> <div className="font-mono font-bold text-slate-900 dark:text-white">+91 {mobile.replace("+91 ", "")}</div></div>
-                    <div><span className="text-slate-500">Email:</span> <div className="font-bold text-slate-900 dark:text-white">{email || "Not Provided"}</div></div>
-                    <div><span className="text-slate-500">KYC Status:</span> <div className="font-bold text-emerald-600">{kycStatus}</div></div>
-                    <div><span className="text-slate-500">Member Since:</span> <div className="font-mono font-bold text-slate-900 dark:text-white">{since}</div></div>
+                    <div><span className="text-[#8A8288]">Customer ID:</span> <div className="font-mono font-bold text-slate-900 dark:text-white">{customerId}</div></div>
+                    <div><span className="text-[#8A8288]">Customer Type:</span> <div className="font-bold text-slate-900 dark:text-white">Individual</div></div>
+                    <div><span className="text-[#8A8288]">Primary Mobile:</span> <div className="font-mono font-bold text-slate-900 dark:text-white">+91 {mobile.replace("+91 ", "")}</div></div>
+                    <div><span className="text-[#8A8288]">Email:</span> <div className="font-bold text-slate-900 dark:text-white">{email || "Not Provided"}</div></div>
+                    <div><span className="text-[#8A8288]">KYC Status:</span> <div className="font-bold text-emerald-600">{kycStatus}</div></div>
+                    <div><span className="text-[#8A8288]">Member Since:</span> <div className="font-mono font-bold text-slate-900 dark:text-white">{since}</div></div>
                   </div>
                 </div>
 
                 {/* SECTION 3: VERIFIED ADDRESS */}
-                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-4">
+                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-[#F5F2F4]/40 border border-slate-200 dark:border-[#E8E2E5] space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                       <MapPin className="w-4 h-4 text-rose-600" />
@@ -616,7 +616,7 @@ export function CustomerDetailsDrawer({
                     </span>
                   </div>
 
-                  <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 leading-relaxed">
+                  <div className="p-4 rounded-xl bg-white dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5] text-xs font-semibold text-slate-800 dark:text-[#292329] leading-relaxed">
                     {(() => {
                       const cleanAddr = getCleanAddressString(customer);
                       return cleanAddr ? (
@@ -624,7 +624,7 @@ export function CustomerDetailsDrawer({
                           {cleanAddr}
                         </div>
                       ) : (
-                        <div className="text-slate-700 dark:text-slate-300">
+                        <div className="text-slate-700 dark:text-[#292329]">
                           S/O RAMASAMY, No. 42/B, GST Main Road, Near Bus Stand, Chromepet, Chengalpattu, Tamil Nadu - 600044
                         </div>
                       );
@@ -633,7 +633,7 @@ export function CustomerDetailsDrawer({
                 </div>
 
                 {/* SECTION 4: SERVICE LIMITS WITH PROGRESS BARS */}
-                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-4">
+                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-[#F5F2F4]/40 border border-slate-200 dark:border-[#E8E2E5] space-y-4">
                   <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                     <Lock className="w-4 h-4 text-amber-600" />
                     <span>Service Limits & Usage Progress</span>
@@ -691,15 +691,15 @@ export function CustomerDetailsDrawer({
                     { bank: "State Bank of India", acct: "••••4589", ifsc: "SBIN0001824", branch: "Cyber City Branch", type: "SAVINGS", isPrimary: true, isUpi: true },
                     { bank: "HDFC Bank", acct: "••••3411", ifsc: "HDFC0000128", branch: "Sector 18 Branch", type: "CURRENT", isPrimary: false, isUpi: true },
                   ].map((b, idx) => (
-                    <div key={idx} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4 text-xs font-bold">
+                    <div key={idx} className="p-4 rounded-2xl bg-slate-50 dark:bg-[#F5F2F4]/40 border border-slate-200 dark:border-[#E8E2E5] flex items-center justify-between gap-4 text-xs font-bold">
                       <div className="flex items-center gap-3">
                         <div className="p-2.5 rounded-xl bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 shrink-0">
                           <Building2 className="w-5 h-5" />
                         </div>
                         <div className="space-y-0.5">
                           <div className="text-slate-900 dark:text-white font-extrabold">{b.bank}</div>
-                          <div className="font-mono text-slate-500 text-[11px]">Acct: {b.acct} • IFSC: {b.ifsc} • {b.branch}</div>
-                          <div className="text-[10px] text-slate-400">Type: {b.type}</div>
+                          <div className="font-mono text-[#8A8288] text-[11px]">Acct: {b.acct} • IFSC: {b.ifsc} • {b.branch}</div>
+                          <div className="text-[10px] text-[#625B60]">Type: {b.type}</div>
                         </div>
                       </div>
 
@@ -719,7 +719,7 @@ export function CustomerDetailsDrawer({
               <div className="space-y-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="relative flex-1">
-                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#625B60]" />
                     <input
                       type="text"
                       placeholder="Search transactions by UTR or Reference..."
@@ -733,9 +733,9 @@ export function CustomerDetailsDrawer({
                   </button>
                 </div>
 
-                <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
+                <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-[#E8E2E5]">
                   <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 font-bold uppercase">
+                    <thead className="bg-slate-50 dark:bg-[#F5F2F4] text-[#8A8288] font-bold uppercase">
                       <tr>
                         <th className="p-3">Txn Ref</th>
                         <th className="p-3">Service</th>
@@ -744,7 +744,7 @@ export function CustomerDetailsDrawer({
                         <th className="p-3">Date</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold">
+                    <tbody className="divide-y divide-slate-100 dark:divide-[#E8E2E5] font-semibold">
                       {[
                         { ref: "TXN-90182A", service: "DMT Payout", amount: "₹15,000", status: "SUCCESS", date: "Today, 18:24 PM" },
                         { ref: "TXN-89012B", service: "AEPS Withdrawal", amount: "₹10,000", status: "SUCCESS", date: "Today, 16:10 PM" },
@@ -755,7 +755,7 @@ export function CustomerDetailsDrawer({
                           <td className="p-3">{t.service}</td>
                           <td className="p-3 font-mono font-bold">{t.amount}</td>
                           <td className="p-3"><span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-emerald-100 text-emerald-700">{t.status}</span></td>
-                          <td className="p-3 text-slate-500">{t.date}</td>
+                          <td className="p-3 text-[#8A8288]">{t.date}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -772,7 +772,7 @@ export function CustomerDetailsDrawer({
                     <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">
                       Linked Beneficiaries ({beneficiaries.length})
                     </h3>
-                    <p className="text-[11px] text-slate-500 font-medium">On-Demand API Load for Customer: {customerId}</p>
+                    <p className="text-[11px] text-[#8A8288] font-medium">On-Demand API Load for Customer: {customerId}</p>
                   </div>
                   <button
                     onClick={() => setShowAddBeneficiaryModal(true)}
@@ -785,16 +785,16 @@ export function CustomerDetailsDrawer({
                 {isLoadingBeneficiaries ? (
                   <div className="p-8 text-center space-y-3">
                     <RefreshCw className="w-6 h-6 animate-spin text-blue-600 mx-auto" />
-                    <p className="text-xs font-bold text-slate-500">Fetching linked beneficiaries for customer...</p>
+                    <p className="text-xs font-bold text-[#8A8288]">Fetching linked beneficiaries for customer...</p>
                   </div>
                 ) : beneficiaries.length === 0 ? (
-                  <div className="p-8 text-center space-y-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-300 dark:border-slate-700">
+                  <div className="p-8 text-center space-y-4 rounded-2xl bg-slate-50 dark:bg-[#F5F2F4]/40 border border-dashed border-slate-300 dark:border-[#E8E2E5]">
                     <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 mx-auto flex items-center justify-center">
                       <Users className="w-6 h-6" />
                     </div>
                     <div>
                       <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">No Beneficiaries Found</h4>
-                      <p className="text-xs text-slate-500 font-medium max-w-xs mx-auto mt-1">
+                      <p className="text-xs text-[#8A8288] font-medium max-w-xs mx-auto mt-1">
                         No linked bank account or UPI beneficiaries have been added for this customer yet.
                       </p>
                     </div>
@@ -809,14 +809,14 @@ export function CustomerDetailsDrawer({
                 ) : (
                   <div className="space-y-3">
                     {beneficiaries.map((b) => (
-                      <div key={b.id} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4 text-xs font-bold">
+                      <div key={b.id} className="p-4 rounded-2xl bg-slate-50 dark:bg-[#F5F2F4]/40 border border-slate-200 dark:border-[#E8E2E5] flex items-center justify-between gap-4 text-xs font-bold">
                         <div className="flex items-center gap-3">
                           <div className="p-2.5 rounded-xl bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 shrink-0">
                             <Building2 className="w-5 h-5" />
                           </div>
                           <div className="space-y-0.5 min-w-0">
                             <div className="text-slate-900 dark:text-white font-extrabold truncate">{b.name}</div>
-                            <div className="font-mono text-slate-500 text-[11px] truncate">
+                            <div className="font-mono text-[#8A8288] text-[11px] truncate">
                               {b.bankName} • {b.accountNumber} • {b.ifsc}
                             </div>
                           </div>
@@ -891,7 +891,7 @@ export function CustomerDetailsDrawer({
               <div className="p-5 rounded-2xl bg-slate-50 border space-y-4 text-xs font-bold">
                 <div className="flex items-center justify-between border-b pb-3">
                   <h3 className="text-slate-900 uppercase">Fraud Radar Audit & Risk Metrics</h3>
-                  <span className="text-[10px] text-slate-500 font-mono">Last Scan: Today, 18:00 PM</span>
+                  <span className="text-[10px] text-[#8A8288] font-mono">Last Scan: Today, 18:00 PM</span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="p-3 bg-white border rounded-xl">Risk Score: <strong className="text-emerald-600">12 / 100</strong></div>
@@ -918,9 +918,9 @@ export function CustomerDetailsDrawer({
                   <div key={idx} className="p-3.5 rounded-xl bg-slate-50 border space-y-1">
                     <div className="flex justify-between font-bold text-slate-900 dark:text-white">
                       <span>{a.event}</span>
-                      <span className="font-mono text-slate-500 text-[11px]">{a.time}</span>
+                      <span className="font-mono text-[#8A8288] text-[11px]">{a.time}</span>
                     </div>
-                    <div className="text-[10px] text-slate-500 font-mono">User: {a.user} • IP: {a.ip} • Device: {a.device}</div>
+                    <div className="text-[10px] text-[#8A8288] font-mono">User: {a.user} • IP: {a.ip} • Device: {a.device}</div>
                   </div>
                 ))}
               </div>
@@ -947,7 +947,7 @@ export function CustomerDetailsDrawer({
                     <div key={n.id} className="p-4 rounded-2xl bg-slate-50 border space-y-1">
                       <div className="flex justify-between items-center">
                         <span className="font-bold text-blue-700">{n.author}</span>
-                        <span className="text-[10px] text-slate-400 font-mono">{n.date}</span>
+                        <span className="text-[10px] text-[#625B60] font-mono">{n.date}</span>
                       </div>
                       <p className="text-slate-700 font-medium">{n.text}</p>
                     </div>
@@ -960,7 +960,7 @@ export function CustomerDetailsDrawer({
           {/* ───────────────────────────────────────────────────────────────────
               2. STICKY FOOTER (ALWAYS VISIBLE - NEVER SCROLLS)
           ─────────────────────────────────────────────────────────────────── */}
-          <div className="sticky bottom-0 z-20 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 p-4 px-6 flex items-center justify-between gap-3 shrink-0">
+          <div className="sticky bottom-0 z-20 bg-white dark:bg-[#FAF8F9] border-t border-slate-200 dark:border-[#E8E2E5] p-4 px-6 flex items-center justify-between gap-3 shrink-0">
             <button
               onClick={() => {
                 onStartPayout?.(customer);
@@ -974,14 +974,14 @@ export function CustomerDetailsDrawer({
 
             <button
               onClick={() => onTransferHistory?.(customer)}
-              className="h-12 min-h-[44px] px-4 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+              className="h-12 min-h-[44px] px-4 rounded-xl bg-slate-100 dark:bg-[#F5F2F4] text-slate-700 dark:text-[#292329] font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
             >
               Transfer History
             </button>
 
             <button
               onClick={() => onEditCustomer?.(customer)}
-              className="h-12 min-h-[44px] px-4 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5"
+              className="h-12 min-h-[44px] px-4 rounded-xl bg-slate-100 dark:bg-[#F5F2F4] text-slate-700 dark:text-[#292329] font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5"
             >
               <Edit3 className="w-4 h-4" />
               <span>Edit Customer</span>
@@ -991,13 +991,13 @@ export function CustomerDetailsDrawer({
             <div className="relative shrink-0">
               <button
                 onClick={() => setMoreMenuOpen(!moreMenuOpen)}
-                className="h-12 min-h-[44px] w-12 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center transition-colors"
+                className="h-12 min-h-[44px] w-12 rounded-xl bg-slate-100 dark:bg-[#F5F2F4] text-slate-700 dark:text-[#292329] hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center transition-colors"
               >
                 <MoreVertical className="w-5 h-5" />
               </button>
 
               {moreMenuOpen && (
-                <div className="absolute right-0 bottom-14 w-52 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-1.5 space-y-1 text-xs font-bold z-30">
+                <div className="absolute right-0 bottom-14 w-52 bg-white dark:bg-[#F5F2F4] border border-slate-200 dark:border-[#E8E2E5] rounded-xl shadow-xl p-1.5 space-y-1 text-xs font-bold z-30">
                   <button onClick={() => setMoreMenuOpen(false)} className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2">
                     <Download className="w-4 h-4 text-blue-600" /> Download KYC PDF
                   </button>
@@ -1024,55 +1024,55 @@ export function CustomerDetailsDrawer({
               CUSTOMER-SCOPED BENEFICIARY CREATION MODAL WITH PENNY DROP
           ─────────────────────────────────────────────────────────────────── */}
           {showAddBeneficiaryModal && (
-            <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-50 bg-[#FFFFFF]/70 backdrop-blur-xs flex items-center justify-center p-4">
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5"
+                className="w-full max-w-md bg-white dark:bg-[#FAF8F9] rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-[#E8E2E5] space-y-5"
               >
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
                       Add Beneficiary
                     </h3>
-                    <p className="text-xs text-slate-500 font-medium">
+                    <p className="text-xs text-[#8A8288] font-medium">
                       Customer Context: <strong className="text-blue-600">{displayName}</strong> ({customerId})
                     </p>
                   </div>
                   <button
                     onClick={() => !verifyingPennyDrop && setShowAddBeneficiaryModal(false)}
-                    className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                    className="p-1.5 rounded-xl text-[#625B60] hover:text-slate-700 dark:hover:text-[#292329]"
                   >
                     <X className="w-5 h-5" />
                   </button>
                 </div>
 
                 {verifyingPennyDrop ? (
-                  <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-4 text-center">
+                  <div className="p-6 rounded-2xl bg-slate-50 dark:bg-[#F5F2F4]/60 border border-slate-200 dark:border-[#E8E2E5] space-y-4 text-center">
                     <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-950 text-blue-600 mx-auto flex items-center justify-center">
                       <RefreshCw className="w-6 h-6 animate-spin" />
                     </div>
                     <div>
                       <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">Executing Bank Penny Drop</h4>
-                      <p className="text-xs text-slate-500">Verifying account credentials with bank gateway...</p>
+                      <p className="text-xs text-[#8A8288]">Verifying account credentials with bank gateway...</p>
                     </div>
 
                     <div className="space-y-2 text-xs text-left font-bold pt-2">
-                      <div className={`p-2.5 rounded-xl border flex items-center gap-2 ${pennyDropStep >= 1 ? "bg-emerald-50 border-emerald-300 text-emerald-900" : "bg-slate-100 text-slate-400"}`}>
+                      <div className={`p-2.5 rounded-xl border flex items-center gap-2 ${pennyDropStep >= 1 ? "bg-emerald-50 border-emerald-300 text-emerald-900" : "bg-slate-100 text-[#625B60]"}`}>
                         {pennyDropStep > 1 ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <RefreshCw className="w-4 h-4 animate-spin text-blue-600" />}
                         <span>1. Bank Validation ({newBeneBank})</span>
                       </div>
-                      <div className={`p-2.5 rounded-xl border flex items-center gap-2 ${pennyDropStep >= 2 ? "bg-emerald-50 border-emerald-300 text-emerald-900" : "bg-slate-100 text-slate-400"}`}>
-                        {pennyDropStep > 2 ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : pennyDropStep === 2 ? <RefreshCw className="w-4 h-4 animate-spin text-blue-600" /> : <Clock className="w-4 h-4 text-slate-400" />}
+                      <div className={`p-2.5 rounded-xl border flex items-center gap-2 ${pennyDropStep >= 2 ? "bg-emerald-50 border-emerald-300 text-emerald-900" : "bg-slate-100 text-[#625B60]"}`}>
+                        {pennyDropStep > 2 ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : pennyDropStep === 2 ? <RefreshCw className="w-4 h-4 animate-spin text-blue-600" /> : <Clock className="w-4 h-4 text-[#625B60]" />}
                         <span>2. IFSC Code Validation ({newBeneIfsc})</span>
                       </div>
-                      <div className={`p-2.5 rounded-xl border flex items-center gap-2 ${pennyDropStep >= 3 ? "bg-emerald-50 border-emerald-300 text-emerald-900" : "bg-slate-100 text-slate-400"}`}>
-                        {pennyDropStep > 3 ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : pennyDropStep === 3 ? <RefreshCw className="w-4 h-4 animate-spin text-blue-600" /> : <Clock className="w-4 h-4 text-slate-400" />}
+                      <div className={`p-2.5 rounded-xl border flex items-center gap-2 ${pennyDropStep >= 3 ? "bg-emerald-50 border-emerald-300 text-emerald-900" : "bg-slate-100 text-[#625B60]"}`}>
+                        {pennyDropStep > 3 ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : pennyDropStep === 3 ? <RefreshCw className="w-4 h-4 animate-spin text-blue-600" /> : <Clock className="w-4 h-4 text-[#625B60]" />}
                         <span>3. Penny Drop Verification (₹1.00 IMPS Test)</span>
                       </div>
-                      <div className={`p-2.5 rounded-xl border flex items-center gap-2 ${pennyDropStep >= 4 ? "bg-emerald-50 border-emerald-300 text-emerald-900" : "bg-slate-100 text-slate-400"}`}>
-                        {pennyDropStep === 4 ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Clock className="w-4 h-4 text-slate-400" />}
+                      <div className={`p-2.5 rounded-xl border flex items-center gap-2 ${pennyDropStep >= 4 ? "bg-emerald-50 border-emerald-300 text-emerald-900" : "bg-slate-100 text-[#625B60]"}`}>
+                        {pennyDropStep === 4 ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Clock className="w-4 h-4 text-[#625B60]" />}
                         <span>4. Beneficiary Activated & Ready for Transfer</span>
                       </div>
                     </div>
@@ -1080,7 +1080,7 @@ export function CustomerDetailsDrawer({
                 ) : (
                   <div className="space-y-3 text-xs font-bold">
                     <div>
-                      <label className="text-slate-500 block mb-1">Account Holder Name</label>
+                      <label className="text-[#8A8288] block mb-1">Account Holder Name</label>
                       <input
                         type="text"
                         inputMode="text"
@@ -1090,17 +1090,17 @@ export function CustomerDetailsDrawer({
                         placeholder="e.g. Ramesh Sharma"
                         value={newBeneName}
                         onChange={(e) => setNewBeneName(e.target.value)}
-                        className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 outline-none"
+                        className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 dark:bg-[#F5F2F4] dark:border-[#E8E2E5] outline-none"
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-slate-500 block mb-1">Bank Name</label>
+                        <label className="text-[#8A8288] block mb-1">Bank Name</label>
                         <select
                           value={newBeneBank}
                           onChange={(e) => setNewBeneBank(e.target.value)}
-                          className="w-full h-10 px-2 rounded-xl bg-slate-50 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 outline-none"
+                          className="w-full h-10 px-2 rounded-xl bg-slate-50 border border-slate-200 dark:bg-[#F5F2F4] dark:border-[#E8E2E5] outline-none"
                         >
                           <option value="State Bank of India">State Bank of India</option>
                           <option value="HDFC Bank">HDFC Bank</option>
@@ -1111,43 +1111,43 @@ export function CustomerDetailsDrawer({
                       </div>
 
                       <div>
-                        <label className="text-slate-500 block mb-1">IFSC Code</label>
+                        <label className="text-[#8A8288] block mb-1">IFSC Code</label>
                         <input
                           type="text"
                           placeholder="e.g. SBIN0001824"
                           value={newBeneIfsc}
                           onChange={(e) => setNewBeneIfsc(e.target.value)}
-                          className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 outline-none font-mono uppercase"
+                          className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 dark:bg-[#F5F2F4] dark:border-[#E8E2E5] outline-none font-mono uppercase"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="text-slate-500 block mb-1">Account Number</label>
+                      <label className="text-[#8A8288] block mb-1">Account Number</label>
                       <input
                         type="password"
                         placeholder="Enter 9-18 digit account number"
                         value={newBeneAcct}
                         onChange={(e) => setNewBeneAcct(e.target.value)}
-                        className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 outline-none font-mono"
+                        className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 dark:bg-[#F5F2F4] dark:border-[#E8E2E5] outline-none font-mono"
                       />
                     </div>
 
                     <div>
-                      <label className="text-slate-500 block mb-1">Re-enter Account Number</label>
+                      <label className="text-[#8A8288] block mb-1">Re-enter Account Number</label>
                       <input
                         type="text"
                         placeholder="Re-enter account number"
                         value={newBeneConfirmAcct}
                         onChange={(e) => setNewBeneConfirmAcct(e.target.value)}
-                        className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 outline-none font-mono"
+                        className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 dark:bg-[#F5F2F4] dark:border-[#E8E2E5] outline-none font-mono"
                       />
                     </div>
 
                     <div className="pt-2 flex items-center justify-end gap-2">
                       <button
                         onClick={() => setShowAddBeneficiaryModal(false)}
-                        className="h-10 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 font-bold"
+                        className="h-10 px-4 rounded-xl bg-slate-100 dark:bg-[#F5F2F4] text-slate-600 font-bold"
                       >
                         Cancel
                       </button>

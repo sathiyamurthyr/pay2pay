@@ -38,11 +38,11 @@ export default function BankReconciliationPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100 flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-[#292329] flex items-center gap-3">
             <Landmark className="h-8 w-8 text-blue-400" />
             Automated Bank Statement Reconciliation Engine
           </h1>
-          <p className="mt-1 text-slate-400">
+          <p className="mt-1 text-[#625B60]">
             Auto-match incoming/outgoing bank statement feeds against General Ledger bank clearing entries
           </p>
         </div>
@@ -62,10 +62,10 @@ export default function BankReconciliationPage() {
       )}
 
       {/* Table */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 backdrop-blur-xl overflow-hidden shadow-2xl">
+      <div className="rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 backdrop-blur-xl overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-300">
-            <thead className="bg-slate-950/80 uppercase font-mono text-xs text-slate-400 border-b border-slate-800">
+          <table className="w-full text-left text-sm text-[#292329]">
+            <thead className="bg-[#FFFFFF]/80 uppercase font-mono text-xs text-[#625B60] border-b border-[#E8E2E5]">
               <tr>
                 <th className="px-5 py-4">Reference UTR</th>
                 <th className="px-5 py-4">Transaction Date</th>
@@ -74,13 +74,13 @@ export default function BankReconciliationPage() {
                 <th className="px-5 py-4 font-mono text-right">Reconciliation Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 font-mono text-xs">
+            <tbody className="divide-y divide-[#E8E2E5]/60 font-mono text-xs">
               {mockLines.map((line, idx) => (
-                <tr key={idx} className="hover:bg-slate-800/40 transition-colors">
+                <tr key={idx} className="hover:bg-[#F5F2F4]/40 transition-colors">
                   <td className="px-5 py-4 text-blue-400 font-bold">{line.utr}</td>
-                  <td className="px-5 py-4 text-slate-400">{line.date}</td>
-                  <td className="px-5 py-4 font-bold text-slate-200">{line.type}</td>
-                  <td className="px-5 py-4 text-slate-100 font-bold">₹{line.amount.toLocaleString("en-IN")}</td>
+                  <td className="px-5 py-4 text-[#625B60]">{line.date}</td>
+                  <td className="px-5 py-4 font-bold text-[#292329]">{line.type}</td>
+                  <td className="px-5 py-4 text-[#292329] font-bold">₹{line.amount.toLocaleString("en-IN")}</td>
                   <td className="px-5 py-4 text-right">
                     <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${
                       line.status === "MATCHED"

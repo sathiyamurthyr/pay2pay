@@ -534,8 +534,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
       if (typeof window !== "undefined") {
         try {
           const snapshot = {
-            companyName: "SUPER REX PRODUCTS PRIVATE LIMITED",
-            brandName: "Pay2Pay",
+            companyName: "Sathus Technology Pvt. Ltd.",
+            brandName: "Near 4 You",
             brandTagline: "Enterprise Domestic Money Transfer (DMT) · Authorized Network",
             certifications: "NPCI IMPS Switch Certified · ISO 27001:2022 · 256-Bit SSL Encrypted",
             status: "SUCCESS",
@@ -656,7 +656,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   const displayBeneIfsc = beneficiary?.ifsc || "";
   const liveToken = (liveFinResult as any)?.receiptToken || (liveFinResult as any)?.receipt_token || shareRecord?.receiptToken || (liveFinResult?.transactionId ? `P2P-${liveFinResult.transactionId.slice(-8).toUpperCase()}` : "P2P-69439E2E");
 
-  const publicShareUrl = shareRecord ? ReceiptShare.getPublicReceiptUrl(shareRecord.receiptToken) : `https://receipt.pay2pay.in/r/${liveToken}`;
+  const publicShareUrl = shareRecord ? ReceiptShare.getPublicReceiptUrl(shareRecord.receiptToken) : `https://receipt.near4you.store/r/${liveToken}`;
   const liveUtr = liveFinResult?.utr || liveFinResult?.bankRef || liveFinResult?.referenceNo || utr || "UTR-" + (activeTxId || "202608221849");
 
   const [shareToast, setShareToast] = useState<{ open: boolean; message: string; severity: "success" | "info" | "warning" }>({
@@ -751,7 +751,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             top: 0;
             width: 100%;
             background: #FFFFFF !important;
-            color: #111827 !important;
+            color: #FAF8F9 !important;
             padding: 20px;
             box-sizing: border-box;
           }
@@ -867,7 +867,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             aria-label="Refresh Balance"
             onClick={() => useRetailerStore.getState().syncBalance?.()}
             sx={{
-              color: "#FBBF24",
+              color: "#A20A3A",
               bgcolor: "rgba(245, 158, 11, 0.12)",
               border: "1px solid rgba(245, 158, 11, 0.3)",
               borderRadius: "10px",
@@ -985,7 +985,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             sx={{
               p: { xs: 2, sm: 2.5 },
               borderRadius: "18px",
-              bgcolor: "rgba(15, 23, 42, 0.65)",
+              bgcolor: "#FFFFFF",
               backdropFilter: "blur(16px)",
               border: "1px solid rgba(245, 158, 11, 0.18)",
               boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)",
@@ -1084,7 +1084,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                   </Typography>
                 </Stack>
 
-                <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 0.5 }} />
+                <Divider sx={{ borderColor: "#E8E2E5", my: 0.5 }} />
 
                 {/* 6. Wallet Balance (Gold) */}
                 <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
@@ -1192,7 +1192,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             sx={{
               p: { xs: 2, sm: 2.5 },
               borderRadius: "18px",
-              bgcolor: "rgba(15, 23, 42, 0.7)",
+              bgcolor: "#FFFFFF",
               backdropFilter: "blur(20px)",
               border: "1px solid rgba(255, 255, 255, 0.1)",
               boxShadow: "0 10px 30px rgba(0, 0, 0, 0.4)",
@@ -1300,7 +1300,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                                   ? "rgba(245, 158, 11, 0.18)"
                                   : isFocusedBox
                                   ? "rgba(245, 158, 11, 0.1)"
-                                  : "rgba(15, 23, 42, 0.9)",
+                                  : "#FFFFFF",
                                 border: errorMessage
                                   ? "2px solid #EF4444"
                                   : isFocusedBox
@@ -1356,7 +1356,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                         cursor: "pointer",
                         display: "inline-block",
                         transition: "all 0.15s ease",
-                        "&:hover": { color: "#FBBF24", textDecoration: "underline" },
+                        "&:hover": { color: "#A20A3A", textDecoration: "underline" },
                       }}
                     >
                       Forgot PIN? (Contact Supervisor)
@@ -1528,9 +1528,9 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               >
                 <Box>
                   <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 1.5 }}>
-                    <SyncIcon sx={{ color: "#FBBF24", fontSize: 32, animation: "spin 1.5s linear infinite" }} />
+                    <SyncIcon sx={{ color: "#A20A3A", fontSize: 32, animation: "spin 1.5s linear infinite" }} />
                     <Box>
-                      <Typography sx={{ fontWeight: 900, color: "#FBBF24", fontSize: "18px" }}>
+                      <Typography sx={{ fontWeight: 900, color: "#A20A3A", fontSize: "18px" }}>
                         🟡 Bank Response Pending
                       </Typography>
                       <Typography sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "12.5px" }}>
@@ -1576,7 +1576,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     onClick={() => {
                       if (onAuthorize) onAuthorize();
                     }}
-                    sx={{ flex: 1, minWidth: "140px", height: 42, borderColor: "rgba(255,255,255,0.2)", color: "#FFFFFF", fontWeight: 800 }}
+                    sx={{ flex: 1, minWidth: "140px", height: 42, borderColor: "#E8E2E5", color: "#FFFFFF", fontWeight: 800 }}
                   >
                     🏠 Home / DMT Console
                   </Button>
@@ -1656,7 +1656,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     onClick={() => {
                       if (onBack) onBack();
                     }}
-                    sx={{ flex: 1, minWidth: "140px", height: 42, borderColor: "rgba(255,255,255,0.2)", color: "#FFFFFF", fontWeight: 800 }}
+                    sx={{ flex: 1, minWidth: "140px", height: 42, borderColor: "#E8E2E5", color: "#FFFFFF", fontWeight: 800 }}
                   >
                     Change Beneficiary
                   </Button>
@@ -1665,7 +1665,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     onClick={() => {
                       if (onAuthorize) onAuthorize();
                     }}
-                    sx={{ flex: 1, minWidth: "140px", height: 42, borderColor: "rgba(255,255,255,0.2)", color: "#FFFFFF", fontWeight: 800 }}
+                    sx={{ flex: 1, minWidth: "140px", height: 42, borderColor: "#E8E2E5", color: "#FFFFFF", fontWeight: 800 }}
                   >
                     🏠 Home / DMT Console
                   </Button>
@@ -1685,7 +1685,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                   justifyContent: "space-between",
                   overflow: "hidden",
                   bgcolor: "#FFFFFF",
-                  color: "#111827",
+                  color: "#FAF8F9",
                   p: 2,
                   borderRadius: "12px",
                   boxShadow: "0 10px 30px rgba(0, 0, 0, 0.2)",
@@ -1709,7 +1709,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     userSelect: "none",
                   }}
                 >
-                  Pay2Pay Enterprise
+                  Near 4 You Enterprise
                 </Box>
 
                 <Box sx={{ overflow: "hidden", position: "relative", zIndex: 1 }}>
@@ -1717,10 +1717,10 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                   <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "flex-start", mb: 0.75 }}>
                     <Box>
                       <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-                        <Typography sx={{ fontWeight: 900, color: "#2563EB", fontSize: "15px", letterSpacing: "-0.3px" }}>
-                          Pay2Pay Enterprise
+                        <Typography sx={{ fontWeight: 900, color: "#A20A3A", fontSize: "15px", letterSpacing: "-0.3px" }}>
+                          Near 4 You Enterprise
                         </Typography>
-                        <Tooltip title="Digitally Verified by Pay2Pay Verification Engine">
+                        <Tooltip title="Digitally Verified by Near4You Verification Engine">
                           <Chip
                             icon={<VerifiedUserIcon sx={{ fontSize: "12px !important", color: "#16A34A" }} />}
                             label="Verified"
@@ -1735,7 +1735,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                       </Typography>
                     </Box>
                     <Box sx={{ textAlign: "right" }}>
-                      <Typography sx={{ fontWeight: 800, color: "#111827", fontSize: "9.5px" }}>
+                      <Typography sx={{ fontWeight: 800, color: "#FAF8F9", fontSize: "9.5px" }}>
                         Token: {shareRecord?.receiptToken || "P2P-4F8A9B2C"}
                       </Typography>
                       <Typography sx={{ color: "#4B5563", fontSize: "8.5px" }}>
@@ -1754,7 +1754,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                         SUCCESS · Money Transferred Successfully
                       </Typography>
                     </Stack>
-                    <Typography sx={{ fontWeight: 900, color: "#111827", fontSize: "17px", mt: 0.25 }}>
+                    <Typography sx={{ fontWeight: 900, color: "#FAF8F9", fontSize: "17px", mt: 0.25 }}>
                       ₹{amount.toLocaleString()}.00
                     </Typography>
                   </Box>
@@ -1763,15 +1763,15 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                   <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0.75, mb: 0.75 }}>
                     <Paper elevation={0} sx={{ p: 0.75, borderRadius: "6px", bgcolor: "#F9FAFB", border: "1px solid #E5E7EB" }}>
                       <Typography sx={{ color: "#2563EB", fontWeight: 800, fontSize: "8.5px", textTransform: "uppercase", mb: 0.25 }}>TRANSACTION INFO</Typography>
-                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>Txn ID: <span style={{ color: "#111827", fontWeight: 700 }}>{txnId}</span></Typography>
+                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>Txn ID: <span style={{ color: "#FAF8F9", fontWeight: 700 }}>{txnId}</span></Typography>
                       <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>Ref No: <span style={{ color: "#2563EB", fontWeight: 700 }}>{refNo}</span></Typography>
                       <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>UTR: <span style={{ color: "#16A34A", fontWeight: 800 }}>{utr}</span></Typography>
                     </Paper>
 
                     <Paper elevation={0} sx={{ p: 0.75, borderRadius: "6px", bgcolor: "#F9FAFB", border: "1px solid #E5E7EB" }}>
                       <Typography sx={{ color: "#2563EB", fontWeight: 800, fontSize: "8.5px", textTransform: "uppercase", mb: 0.25 }}>RETAILER DETAILS</Typography>
-                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>Name: <span style={{ color: "#111827", fontWeight: 700 }}>{displayRetailerName}</span></Typography>
-                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>Mobile: <span style={{ color: "#111827", fontWeight: 700 }}>{displayRetailerMobile}</span></Typography>
+                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>Name: <span style={{ color: "#FAF8F9", fontWeight: 700 }}>{displayRetailerName}</span></Typography>
+                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>Mobile: <span style={{ color: "#FAF8F9", fontWeight: 700 }}>{displayRetailerMobile}</span></Typography>
                       <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>ID: <span style={{ color: "#2563EB", fontWeight: 700 }}>{displayRetailerCode}</span></Typography>
                     </Paper>
                   </Box>
@@ -1780,7 +1780,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                   <Paper elevation={0} sx={{ p: 0.75, mb: 0.75, borderRadius: "6px", bgcolor: "#F9FAFB", border: "1px solid #E5E7EB" }}>
                     <Typography sx={{ color: "#2563EB", fontWeight: 800, fontSize: "8.5px", textTransform: "uppercase", mb: 0.25 }}>BENEFICIARY DETAILS</Typography>
                     <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                      <Typography sx={{ fontSize: "9px", color: "#111827", fontWeight: 700 }}>
+                      <Typography sx={{ fontSize: "9px", color: "#FAF8F9", fontWeight: 700 }}>
                         {displayBeneName}
                       </Typography>
                       <Typography sx={{ fontSize: "9px", color: "#2563EB", fontWeight: 700 }}>
@@ -1788,7 +1788,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                       </Typography>
                     </Stack>
                     <Stack direction="row" sx={{ justifyContent: "space-between", mt: 0.25 }}>
-                      <Typography sx={{ fontSize: "9px", color: "#111827", fontFamily: "monospace", fontWeight: 700 }}>{displayBeneAccount}</Typography>
+                      <Typography sx={{ fontSize: "9px", color: "#FAF8F9", fontFamily: "monospace", fontWeight: 700 }}>{displayBeneAccount}</Typography>
                       <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>IFSC: {displayBeneIfsc}</Typography>
                     </Stack>
                   </Paper>
@@ -1814,14 +1814,14 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     </Paper>
 
                     <Box sx={{ textAlign: "center" }}>
-                      <QrCode2Icon sx={{ fontSize: 34, color: "#111827" }} />
+                      <QrCode2Icon sx={{ fontSize: 34, color: "#FAF8F9" }} />
                       <Typography sx={{ color: "#4B5563", fontSize: "7.5px", display: "block" }}>Scan to Verify</Typography>
                     </Box>
                   </Stack>
 
                   {/* FOOTER WITH DIGITAL SIGNATURE NARRATION */}
                   <Typography sx={{ color: "#6B7280", fontSize: "7.5px", textAlign: "center", mt: 0.5 }}>
-                    Digitally Signed by Pay2Pay Enterprise Verification Engine · Version: v2.4-ENT · Support: 1800-123-4567
+                    Digitally Signed by Near4You Enterprise Verification Engine · Version: v2.4-ENT · Support: 1800-123-4567
                   </Typography>
                 </Box>
 
@@ -1850,7 +1850,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                         if (shareRecord) ReceiptShare.trackEvent(shareRecord.receiptToken, "PRINT");
                         window.print();
                       }}
-                      sx={{ height: 30, borderRadius: "6px", fontWeight: 800, fontSize: "10px", color: "#111827", borderColor: "#D1D5DB" }}
+                      sx={{ height: 30, borderRadius: "6px", fontWeight: 800, fontSize: "10px", color: "#FAF8F9", borderColor: "#D1D5DB" }}
                     >
                       Print
                     </Button>
@@ -1900,14 +1900,14 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
       {/* DIGITAL RECEIPT VERIFICATION INSPECTOR MODAL (EPIC-037) */}
       <Dialog open={verifyModalOpen} onClose={() => setVerifyModalOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ bgcolor: "#0F172A", color: "#FFFFFF", fontWeight: 900, display: "flex", alignItems: "center", gap: 1 }}>
+        <DialogTitle sx={{ bgcolor: "#FFFFFF", color: "#FFFFFF", fontWeight: 900, display: "flex", alignItems: "center", gap: 1 }}>
           <SecurityIcon sx={{ color: "#4ADE80" }} /> Digital Receipt Verification
         </DialogTitle>
-        <DialogContent sx={{ bgcolor: "#0F172A", pt: 2, textAlign: "center" }}>
+        <DialogContent sx={{ bgcolor: "#FFFFFF", pt: 2, textAlign: "center" }}>
           {verificationResult?.isValid ? (
             <Paper elevation={0} sx={{ p: 2, borderRadius: "10px", bgcolor: "rgba(34, 197, 94, 0.15)", border: "1px solid #16A34A", color: "#FFFFFF", mb: 2 }}>
               <VerifiedUserIcon sx={{ fontSize: 44, color: "#4ADE80", mb: 0.5 }} />
-              <Typography sx={{ fontWeight: 900, fontSize: "16px", color: "#4ADE80" }}>Verified by Pay2Pay</Typography>
+              <Typography sx={{ fontWeight: 900, fontSize: "16px", color: "#4ADE80" }}>Verified by Near4You</Typography>
               <Typography sx={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.8)", mt: 0.5 }}>
                 {verificationResult.message}
               </Typography>
@@ -1945,13 +1945,13 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               variant="outlined"
               onClick={copyShareUrlToClipboard}
               startIcon={<ContentCopyIcon />}
-              sx={{ color: "#FFFFFF", borderColor: "rgba(255, 255, 255, 0.2)" }}
+              sx={{ color: "#FFFFFF", borderColor: "#E8E2E5" }}
             >
               {copiedLink ? "Link Copied!" : "Copy Verification URL"}
             </Button>
           </Stack>
         </DialogContent>
-        <DialogActions sx={{ bgcolor: "#0F172A", p: 2 }}>
+        <DialogActions sx={{ bgcolor: "#FFFFFF", p: 2 }}>
           <Button onClick={() => setVerifyModalOpen(false)} sx={{ color: "rgba(255, 255, 255, 0.6)" }}>
             Close
           </Button>
@@ -2028,10 +2028,10 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
       {/* SUPERVISOR LOCKOUT OVERRIDE MODAL */}
       <Dialog open={supervisorModalOpen} onClose={() => setSupervisorModalOpen(false)}>
-        <DialogTitle sx={{ bgcolor: "#0F172A", color: "#FFFFFF", fontWeight: 900 }}>
+        <DialogTitle sx={{ bgcolor: "#FFFFFF", color: "#FFFFFF", fontWeight: 900 }}>
           🔒 Supervisor Lockout Override
         </DialogTitle>
-        <DialogContent sx={{ bgcolor: "#0F172A", pt: 2 }}>
+        <DialogContent sx={{ bgcolor: "#FFFFFF", pt: 2 }}>
           <Typography sx={{ color: "rgba(255, 255, 255, 0.75)", fontSize: "13px", mb: 2 }}>
             Terminal security lockout requires Senior Supervisor PIN authorization.
           </Typography>
@@ -2053,7 +2053,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             }}
           />
         </DialogContent>
-        <DialogActions sx={{ bgcolor: "#0F172A", p: 2 }}>
+        <DialogActions sx={{ bgcolor: "#FFFFFF", p: 2 }}>
           <Button onClick={() => setSupervisorModalOpen(false)} sx={{ color: "rgba(255, 255, 255, 0.6)" }}>
             Cancel
           </Button>
@@ -2072,7 +2072,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
         slotProps={{
           paper: {
             sx: {
-              bgcolor: "#0A0F1E",
+              bgcolor: "#FFFFFF",
               backgroundImage: "radial-gradient(ellipse at 50% 0%, rgba(37, 99, 235, 0.16), transparent 70%)",
               borderRadius: "20px",
               border: "1px solid rgba(59, 130, 246, 0.3)",
@@ -2087,7 +2087,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
       >
         <DialogTitle
           sx={{
-            bgcolor: "rgba(15, 23, 42, 0.8)",
+            bgcolor: "#FFFFFF",
             borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
             color: "#FFFFFF",
             p: 2,
@@ -2207,7 +2207,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               p: 2.5,
               borderRadius: "16px",
               bgcolor: "#FFFFFF",
-              color: "#0F172A",
+              color: "#FFFFFF",
               textAlign: "left",
               boxShadow: "0 10px 30px rgba(0, 0, 0, 0.3)",
               mb: 2.5,
@@ -2236,8 +2236,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               >
                 <Box
                   component="img"
-                  src="/branding/logo.png"
-                  alt="Pay2Pay"
+                  src="/branding/logo.svg"
+                  alt="Near 4 You"
                   onError={(e: any) => {
                     e.currentTarget.style.display = "none";
                     if (e.currentTarget.nextSibling) {
@@ -2252,7 +2252,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     width: "100%",
                     height: "100%",
                     borderRadius: "8px",
-                    background: "linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)",
+                    background: "linear-gradient(135deg, #A20A3A 0%, #85072F 100%)",
                     alignItems: "center",
                     justifyContent: "center",
                     color: "#FFFFFF",
@@ -2260,14 +2260,14 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     fontSize: "14px",
                   }}
                 >
-                  P2P
+                  n4u
                 </Box>
               </Box>
 
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                  <Typography sx={{ fontWeight: 900, fontSize: "16px", color: "#0F172A", letterSpacing: "-0.3px", lineHeight: 1.2 }}>
-                    Pay2Pay
+                  <Typography sx={{ fontWeight: 900, fontSize: "16px", color: "#FFFFFF", letterSpacing: "-0.3px", lineHeight: 1.2 }}>
+                    Near 4 You
                   </Typography>
                   <Chip
                     label="Official"
@@ -2288,7 +2288,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 <Typography sx={{ fontWeight: 700, fontSize: "10.5px", color: "#2563EB" }}>
                   Enterprise Domestic Money Transfer (DMT) · Authorized Network
                 </Typography>
-                <Typography sx={{ fontSize: "9px", color: "#64748B" }}>
+                <Typography sx={{ fontSize: "9px", color: "#625B60" }}>
                   NPCI IMPS Switch Certified · ISO 27001:2022 · 256-Bit SSL Encrypted
                 </Typography>
               </Box>
@@ -2315,10 +2315,10 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
             {/* Big Amount Hero */}
             <Box sx={{ textAlign: "center", my: 1 }}>
-              <Typography sx={{ fontWeight: 900, fontSize: "28px", color: "#0F172A", lineHeight: 1.1 }}>
+              <Typography sx={{ fontWeight: 900, fontSize: "28px", color: "#FFFFFF", lineHeight: 1.1 }}>
                 ₹{amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </Typography>
-              <Typography sx={{ fontSize: "10.5px", color: "#64748B", fontWeight: 700, mt: 0.25 }}>
+              <Typography sx={{ fontSize: "10.5px", color: "#625B60", fontWeight: 700, mt: 0.25 }}>
                 Amount Credited to Beneficiary Account
               </Typography>
             </Box>
@@ -2328,7 +2328,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               elevation={0}
               sx={{
                 p: 1.5,
-                bgcolor: "#F8FAFC",
+                bgcolor: "#292329",
                 border: "1px solid #E2E8F0",
                 borderRadius: "10px",
                 my: 1.5,
@@ -2336,26 +2336,26 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             >
               <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
                 <Box>
-                  <Typography sx={{ fontSize: "10px", color: "#64748B", fontWeight: 600 }}>TRANSACTION ID</Typography>
-                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#0F172A", fontFamily: "monospace" }}>
+                  <Typography sx={{ fontSize: "10px", color: "#625B60", fontWeight: 600 }}>TRANSACTION ID</Typography>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#FFFFFF", fontFamily: "monospace" }}>
                     {activeTxId || txnId}
                   </Typography>
                 </Box>
                 <Box>
-                  <Typography sx={{ fontSize: "10px", color: "#64748B", fontWeight: 600 }}>BANK UTR / RRN</Typography>
-                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#0F172A", fontFamily: "monospace" }}>
+                  <Typography sx={{ fontSize: "10px", color: "#625B60", fontWeight: 600 }}>BANK UTR / RRN</Typography>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#FFFFFF", fontFamily: "monospace" }}>
                     {liveUtr}
                   </Typography>
                 </Box>
                 <Box>
-                  <Typography sx={{ fontSize: "10px", color: "#64748B", fontWeight: 600 }}>RECEIPT TOKEN</Typography>
+                  <Typography sx={{ fontSize: "10px", color: "#625B60", fontWeight: 600 }}>RECEIPT TOKEN</Typography>
                   <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#2563EB", fontFamily: "monospace" }}>
                     {liveToken}
                   </Typography>
                 </Box>
                 <Box>
-                  <Typography sx={{ fontSize: "10px", color: "#64748B", fontWeight: 600 }}>CHANNEL & DATE</Typography>
-                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#0F172A" }}>
+                  <Typography sx={{ fontSize: "10px", color: "#625B60", fontWeight: 600 }}>CHANNEL & DATE</Typography>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#FFFFFF" }}>
                     {transactionMode || "IMPS"} · {new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
                   </Typography>
                 </Box>
@@ -2377,7 +2377,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 <Typography sx={{ fontSize: "10px", fontWeight: 800, color: "#2563EB", textTransform: "uppercase" }}>
                   Retailer / Sender
                 </Typography>
-                <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#0F172A" }}>
+                <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#FFFFFF" }}>
                   {displayRetailerName} ({displayRetailerMobile})
                 </Typography>
               </Box>
@@ -2388,13 +2388,13 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 <Typography sx={{ fontSize: "10px", fontWeight: 800, color: "#16A34A", textTransform: "uppercase" }}>
                   Beneficiary Account Details
                 </Typography>
-                <Typography sx={{ fontSize: "12.5px", fontWeight: 800, color: "#0F172A" }}>
+                <Typography sx={{ fontSize: "12.5px", fontWeight: 800, color: "#FFFFFF" }}>
                   {displayBeneName}
                 </Typography>
                 <Typography sx={{ fontSize: "11px", color: "#475569" }}>
                   Bank: {displayBeneBank} · IFSC: {displayBeneIfsc || "N/A"}
                 </Typography>
-                <Typography sx={{ fontSize: "11.5px", fontWeight: 800, color: "#0F172A", fontFamily: "monospace" }}>
+                <Typography sx={{ fontSize: "11.5px", fontWeight: 800, color: "#FFFFFF", fontFamily: "monospace" }}>
                   A/C: {displayBeneAccount || "0630104000156974"}
                 </Typography>
               </Box>
@@ -2405,7 +2405,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               elevation={0}
               sx={{
                 p: 1.5,
-                bgcolor: "#F8FAFC",
+                bgcolor: "#292329",
                 border: "1px solid #E2E8F0",
                 borderRadius: "10px",
                 mb: 1.5,
@@ -2413,20 +2413,20 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             >
               <Stack spacing={0.5}>
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                  <Typography sx={{ fontSize: "11px", color: "#64748B" }}>Transfer Amount</Typography>
-                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#0F172A" }}>
+                  <Typography sx={{ fontSize: "11px", color: "#625B60" }}>Transfer Amount</Typography>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#FFFFFF" }}>
                     ₹{amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </Typography>
                 </Stack>
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                  <Typography sx={{ fontSize: "11px", color: "#64748B" }}>Convenience Fee</Typography>
-                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#0F172A" }}>
+                  <Typography sx={{ fontSize: "11px", color: "#625B60" }}>Convenience Fee</Typography>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#FFFFFF" }}>
                     ₹{charges.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </Typography>
                 </Stack>
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                  <Typography sx={{ fontSize: "11px", color: "#64748B" }}>GST (0%)</Typography>
-                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#0F172A" }}>
+                  <Typography sx={{ fontSize: "11px", color: "#625B60" }}>GST (0%)</Typography>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#FFFFFF" }}>
                     ₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </Typography>
                 </Stack>
@@ -2455,17 +2455,17 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                   justifyContent: "center",
                 }}
               >
-                <QrCode2Icon sx={{ fontSize: 52, color: "#0F172A" }} />
+                <QrCode2Icon sx={{ fontSize: 52, color: "#FFFFFF" }} />
               </Box>
               <Box>
-                <Typography sx={{ fontSize: "11px", fontWeight: 800, color: "#0F172A" }}>
+                <Typography sx={{ fontSize: "11px", fontWeight: 800, color: "#FFFFFF" }}>
                   Scan to Verify Online Receipt
                 </Typography>
                 <Typography sx={{ fontSize: "10px", color: "#2563EB", fontFamily: "monospace" }}>
-                  receipt.pay2pay.in/r/{liveToken}
+                  receipt.near4you.store/r/{liveToken}
                 </Typography>
-                <Typography sx={{ fontSize: "9px", color: "#64748B" }}>
-                  🔒 Non-Repudiable Digital Signature · Pay2Pay Core Switch
+                <Typography sx={{ fontSize: "9px", color: "#625B60" }}>
+                  🔒 Non-Repudiable Digital Signature · Near4You Core Switch
                 </Typography>
               </Box>
             </Stack>
@@ -2477,7 +2477,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             sx={{
               p: 2,
               borderRadius: "14px",
-              bgcolor: "rgba(15, 23, 42, 0.9)",
+              bgcolor: "#FFFFFF",
               border: "1px solid rgba(59, 130, 246, 0.25)",
             }}
           >
@@ -2588,7 +2588,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           </Paper>
         </DialogContent>
 
-        <DialogActions sx={{ bgcolor: "rgba(15, 23, 42, 0.95)", borderTop: "1px solid rgba(255, 255, 255, 0.08)", p: 1.5, px: 2.5 }}>
+        <DialogActions sx={{ bgcolor: "#FFFFFF", borderTop: "1px solid #E8E2E5", p: 1.5, px: 2.5 }}>
           <Button
             onClick={() => setShareModalOpen(false)}
             sx={{
@@ -2615,7 +2615,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           onClose={() => setShareToast({ ...shareToast, open: false })}
           severity={shareToast.severity}
           variant="filled"
-          sx={{ width: "100%", fontWeight: 700, borderRadius: "10px", boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}
+          sx={{ width: "100%", fontWeight: 700, borderRadius: "10px", boxShadow: "0 8px 24px rgba(41, 35, 41, 0.06)" }}
         >
           {shareToast.message}
         </Alert>
@@ -2630,7 +2630,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
         slotProps={{
           paper: {
             sx: {
-              bgcolor: "#0F172A",
+              bgcolor: "#FFFFFF",
               border: "1px solid #EF4444",
               borderRadius: "16px",
               color: "#FFFFFF",
@@ -2702,7 +2702,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 fontWeight: 800,
                 fontSize: "12.5px",
                 color: "#FFFFFF",
-                borderColor: "rgba(255, 255, 255, 0.2)",
+                borderColor: "#E8E2E5",
               }}
             >
               Change Beneficiary / Amount
@@ -2733,7 +2733,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               bgcolor: "rgba(26, 10, 15, 0.95)",
               backdropFilter: "blur(24px)",
               border: "1px solid rgba(239, 68, 68, 0.6)",
-              boxShadow: "0 12px 35px rgba(0, 0, 0, 0.75), 0 0 20px rgba(239, 68, 68, 0.3)",
+              boxShadow: "0 12px 35px rgba(41, 35, 41, 0.08), 0 0 20px rgba(239, 68, 68, 0.3)",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
@@ -2800,7 +2800,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           bgcolor: "rgba(8, 11, 17, 0.95)",
           backdropFilter: "blur(24px)",
           borderTop: "1px solid rgba(245, 158, 11, 0.25)",
-          boxShadow: "0 -10px 30px rgba(0, 0, 0, 0.75)",
+          boxShadow: "0 -10px 30px rgba(41, 35, 41, 0.08)",
           px: 1,
           pt: 1,
           pb: "calc(10px + env(safe-area-inset-bottom, 0px))",
@@ -2834,7 +2834,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             }}
           >
             <Box component="span" sx={{ fontSize: 18 }}>🏠</Box>
-            <Typography sx={{ fontSize: "9.5px", fontWeight: 700, color: "#94A3B8", mt: 0.25 }}>
+            <Typography sx={{ fontSize: "9.5px", fontWeight: 700, color: "#625B60", mt: 0.25 }}>
               Dashboard
             </Typography>
           </Box>
@@ -2894,12 +2894,12 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 height: 52,
                 borderRadius: "50%",
                 background: "linear-gradient(135deg, #FEF08A 0%, #F59E0B 50%, #D97706 100%)",
-                border: "3px solid #080B11",
-                boxShadow: "0 0 24px rgba(245, 158, 11, 0.55), 0 8px 16px rgba(0, 0, 0, 0.5)",
+                border: "3px solid #FFFFFF",
+                boxShadow: "0 0 24px rgba(245, 158, 11, 0.55), 0 8px 16px rgba(41, 35, 41, 0.06)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: "#080B11",
+                color: "#FFFFFF",
                 fontWeight: 900,
                 fontSize: "26px",
                 cursor: "pointer",
@@ -2933,7 +2933,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             }}
           >
             <Box component="span" sx={{ fontSize: 18 }}>💳</Box>
-            <Typography sx={{ fontSize: "9.5px", fontWeight: 700, color: "#94A3B8", mt: 0.25 }}>
+            <Typography sx={{ fontSize: "9.5px", fontWeight: 700, color: "#625B60", mt: 0.25 }}>
               Wallet
             </Typography>
           </Box>
@@ -2953,7 +2953,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             }}
           >
             <Box component="span" sx={{ fontSize: 18 }}>👤</Box>
-            <Typography sx={{ fontSize: "9.5px", fontWeight: 700, color: "#94A3B8", mt: 0.25 }}>
+            <Typography sx={{ fontSize: "9.5px", fontWeight: 700, color: "#625B60", mt: 0.25 }}>
               Profile
             </Typography>
           </Box>

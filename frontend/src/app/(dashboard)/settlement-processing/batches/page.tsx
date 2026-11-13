@@ -118,7 +118,7 @@ export default function SettlementBatchesPage() {
     <div className="space-y-5 pb-16">
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl bg-[#0F172A] px-5 py-3.5 text-xs font-bold text-white shadow-2xl animate-in slide-in-from-bottom-3">
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl bg-[#FFFFFF] px-5 py-3.5 text-xs font-bold text-white shadow-2xl animate-in slide-in-from-bottom-3">
           <CheckCircle2 className="w-4 h-4 text-[#4ADE80]" />
           <span>{toast}</span>
           <button onClick={() => setToast(null)}><XCircle className="w-4 h-4 text-[#94A3B8]" /></button>
@@ -133,7 +133,7 @@ export default function SettlementBatchesPage() {
               <Cpu className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-extrabold text-[#0F172A] tracking-tight">Settlement Batch Processor</h1>
+              <h1 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight">Settlement Batch Processor</h1>
               <p className="text-xs font-medium text-[#64748B] mt-0.5">
                 Execute batch calculations · credit retailer wallets · generate double-entry ledgers
               </p>
@@ -198,7 +198,7 @@ export default function SettlementBatchesPage() {
               placeholder="Search settlement #, batch, ref…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 pr-3 py-1.5 w-56 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[12px] font-medium text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/15 transition-all"
+              className="pl-8 pr-3 py-1.5 w-56 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[12px] font-medium text-[#FFFFFF] placeholder-[#94A3B8] focus:outline-none focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/15 transition-all"
             />
           </div>
           <div className="h-6 w-px bg-[#E2E8F0] mx-0.5" />
@@ -331,7 +331,7 @@ export default function SettlementBatchesPage() {
 
                       {/* Gross Amount */}
                       <td className="px-4 py-3.5">
-                        <span className="font-mono font-extrabold text-[#0F172A] text-[12px]">
+                        <span className="font-mono font-extrabold text-[#FFFFFF] text-[12px]">
                           ₹{t.gross_amount.toLocaleString("en-IN")}
                         </span>
                       </td>
@@ -380,9 +380,9 @@ export default function SettlementBatchesPage() {
         {filtered.length > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-3.5 border-t border-[#F1F5F9] bg-gradient-to-r from-[#F8FAFC] to-[#F0FDF4]">
             <div className="flex items-center gap-5 text-[11px] font-semibold text-[#64748B]">
-              <span>Showing <strong className="text-[#0F172A]">{filtered.length}</strong> of <strong className="text-[#0F172A]">{txns.length}</strong> batches</span>
+              <span>Showing <strong className="text-[#FFFFFF]">{filtered.length}</strong> of <strong className="text-[#FFFFFF]">{txns.length}</strong> batches</span>
               <span>·</span>
-              <span>Gross: <strong className="text-[#0F172A] font-mono">{fmt(filtered.reduce((s, t) => s + t.gross_amount, 0))}</strong></span>
+              <span>Gross: <strong className="text-[#FFFFFF] font-mono">{fmt(filtered.reduce((s, t) => s + t.gross_amount, 0))}</strong></span>
               <span>·</span>
               <span>Net: <strong className="text-[#15803D] font-mono">{fmt(filtered.reduce((s, t) => s + t.net_amount, 0))}</strong></span>
               <span>·</span>

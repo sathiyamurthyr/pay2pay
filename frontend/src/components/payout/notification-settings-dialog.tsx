@@ -96,7 +96,7 @@ export function NotificationSettingsDialog({ open, onClose }: NotificationSettin
             <Typography variant="h6" sx={{ fontWeight: 900, color: "#1E1B4B" }}>
               Notification & Haptic Settings
             </Typography>
-            <Typography variant="caption" sx={{ color: "#64748B" }}>
+            <Typography variant="caption" sx={{ color: "#625B60" }}>
               Audio synthesis, mobile vibration, and voice announcement preferences
             </Typography>
           </Box>
@@ -106,8 +106,8 @@ export function NotificationSettingsDialog({ open, onClose }: NotificationSettin
         </IconButton>
       </Stack>
 
-      <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, bgcolor: "#F8FAFC", border: "1px solid #E2E8F0", mb: 3 }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1.5, color: "#0F172A" }}>
+      <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, bgcolor: "#292329", border: "1px solid #E2E8F0", mb: 3 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1.5, color: "#FFFFFF" }}>
           Global Feedback Channels
         </Typography>
 
@@ -138,7 +138,7 @@ export function NotificationSettingsDialog({ open, onClose }: NotificationSettin
         </Stack>
       </Paper>
 
-      <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1.5, color: "#0F172A" }}>
+      <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1.5, color: "#FFFFFF" }}>
         Category Toggles & Live Demo Tests
       </Typography>
 

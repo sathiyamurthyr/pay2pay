@@ -23,7 +23,7 @@ export const StickyFooter: React.FC<StickyFooterProps> = ({
       display: "flex",
       alignItems: "center",
       justifyContent: "space-between",
-      bgcolor: "rgba(15, 23, 42, 0.95)",
+      bgcolor: "#FFFFFF",
       backdropFilter: "blur(20px)",
       borderTop: "1px solid rgba(255, 255, 255, 0.12)",
       width: "100%",

@@ -207,7 +207,7 @@ export default function WalletStatementPage() {
           <TableBody>
             {filteredEntries.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 6, color: "#64748B" }}>
+                <TableCell colSpan={8} align="center" sx={{ py: 6, color: "#625B60" }}>
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>
                     No wallet statement transactions found for this period.
                   </Typography>
@@ -225,7 +225,7 @@ export default function WalletStatementPage() {
                       {entry.utr}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 600, color: "#111827" }}>{entry.particulars}</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: "#FAF8F9" }}>{entry.particulars}</TableCell>
                   <TableCell align="right" sx={{ fontFamily: "monospace", color: "#6B7280" }}>
                     ₹{entry.openingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </TableCell>
@@ -235,7 +235,7 @@ export default function WalletStatementPage() {
                   <TableCell align="right" sx={{ fontWeight: 700, color: "#16A34A" }}>
                     +₹{entry.commission.toFixed(2)}
                   </TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 800, fontFamily: "monospace", color: "#111827" }}>
+                  <TableCell align="right" sx={{ fontWeight: 800, fontFamily: "monospace", color: "#FAF8F9" }}>
                     ₹{entry.closingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </TableCell>
                   <TableCell align="center">

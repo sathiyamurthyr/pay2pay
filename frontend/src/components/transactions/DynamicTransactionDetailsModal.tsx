@@ -275,9 +275,9 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
   const processing = details?.processing;
   const audit = details?.audit;
 
-  const companyLogo = details?.company?.logo || details?.company?.logo_url || branding.logo_url || "/branding/logo.png";
-  const companyName = details?.company?.name || details?.company?.company_name || branding.company_name || "SUPER REX PRODUCTS PRIVATE LIMITED";
-  const companyLegalName = details?.company?.legal_name || branding.legal_name || "SUPER REX PRODUCTS PRIVATE LIMITED";
+  const companyLogo = details?.company?.logo || details?.company?.logo_url || branding.logo_url || "/branding/logo.svg";
+  const companyName = details?.company?.name || details?.company?.company_name || branding.company_name || "Near 4 You";
+  const companyLegalName = details?.company?.legal_name || branding.legal_name || "Sathus Technology Pvt. Ltd.";
 
   const serviceRaw = (txn?.service || "PAYOUT").toUpperCase();
   const serviceStyle = SERVICE_COLORS[serviceRaw] || {
@@ -299,7 +299,7 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
 
   const handleShare = () => {
     if (!details) return;
-    const shareText = `Pay2Pay Transaction Details\nTxn ID: ${txn?.txn_id}\nService: ${txn?.service}\nStatus: ${txn?.status}\nPayout Amount: ₹${(financial?.amount ?? txn?.amount ?? 0).toFixed(2)}\nTotal Debit: ₹${(financial?.total_debit ?? 0).toFixed(2)}\nBeneficiary: ${beneficiary?.name || "N/A"} (${beneficiary?.account || "N/A"})\nDate: ${txn?.date_time}`;
+    const shareText = `Near 4 You Transaction Details\nTxn ID: ${txn?.txn_id}\nService: ${txn?.service}\nStatus: ${txn?.status}\nPayout Amount: ₹${(financial?.amount ?? txn?.amount ?? 0).toFixed(2)}\nTotal Debit: ₹${(financial?.total_debit ?? 0).toFixed(2)}\nBeneficiary: ${beneficiary?.name || "N/A"} (${beneficiary?.account || "N/A"})\nDate: ${txn?.date_time}`;
     copyToClipboard(shareText, "Transaction summary");
   };
 
@@ -311,19 +311,18 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
       fullWidth
       PaperProps={{
         sx: {
-          bgcolor: "#0B132B",
-          backgroundImage: "linear-gradient(to bottom, #0F172A, #0B132B)",
-          color: "#FFFFFF",
-          border: "1px solid rgba(59, 130, 246, 0.25)",
+          bgcolor: "#FFFFFF",
+          color: "#292329",
+          border: "1px solid #E8E2E5",
           borderRadius: "24px",
-          boxShadow: "0 25px 70px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+          boxShadow: "0 20px 60px rgba(41, 35, 41, 0.15)",
           overflow: "hidden",
           p: 0,
         },
       }}
     >
       {/* ── DYNAMIC MULTI-TENANT COMPANY HEADER ──────────────────────────── */}
-      <Box sx={{ borderBottom: "1px solid rgba(255, 255, 255, 0.08)" }}>
+      <Box sx={{ borderBottom: "1px solid #E8E2E5" }}>
         <CompanyHeader
           logoUrl={companyLogo}
           companyName={companyName}
@@ -332,7 +331,7 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
           subtitle={`Txn ID: ${txn?.txn_id || txnId || "N/A"}`}
           variant="modal"
           extraActions={
-            <IconButton onClick={handleClose} sx={{ color: "#94A3B8", "&:hover": { color: "#FFFFFF", bgcolor: "rgba(255,255,255,0.05)" } }}>
+            <IconButton onClick={handleClose} sx={{ color: "#625B60", "&:hover": { color: "#A20A3A", bgcolor: "#FFF0F4" } }}>
               <CloseIcon />
             </IconButton>
           }
@@ -340,20 +339,20 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
       </Box>
 
       {/* ── DIALOG CONTENT ────────────────────────────────────────────────── */}
-      <DialogContent sx={{ p: 3, overflowY: "auto", maxHeight: "calc(85vh - 140px)" }}>
+      <DialogContent sx={{ p: 3, overflowY: "auto", maxHeight: "calc(85vh - 140px)", bgcolor: "#FFFFFF" }}>
         {loading ? (
           <Box sx={{ py: 10, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2 }}>
-            <CircularProgress size={44} sx={{ color: "#3B82F6" }} />
-            <Typography variant="body2" sx={{ color: "#94A3B8", fontWeight: 600 }}>
+            <CircularProgress size={44} sx={{ color: "#A20A3A" }} />
+            <Typography variant="body2" sx={{ color: "#625B60", fontWeight: 600 }}>
               Loading transaction details...
             </Typography>
           </Box>
         ) : error ? (
-          <Paper sx={{ p: 4, borderRadius: "16px", bgcolor: "rgba(239, 68, 68, 0.08)", border: "1px solid rgba(239, 68, 68, 0.25)", textAlign: "center" }}>
-            <Typography variant="subtitle1" sx={{ color: "#F87171", fontWeight: 800, mb: 1 }}>
+          <Paper sx={{ p: 4, borderRadius: "16px", bgcolor: "#FFF0F4", border: "1px solid #FFD6E2", textAlign: "center" }}>
+            <Typography variant="subtitle1" sx={{ color: "#A20A3A", fontWeight: 800, mb: 1 }}>
               Unable to load transaction details.
             </Typography>
-            <Typography variant="body2" sx={{ color: "#CBD5E1", mb: 2.5 }}>
+            <Typography variant="body2" sx={{ color: "#625B60", mb: 2.5 }}>
               Could not retrieve live details from the payment ledger.
             </Typography>
             <Button
@@ -361,11 +360,11 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
               startIcon={<RefreshIcon />}
               onClick={fetchDetails}
               sx={{
-                borderColor: "#3B82F6",
-                color: "#60A5FA",
+                borderColor: "#A20A3A",
+                color: "#A20A3A",
                 fontWeight: 700,
                 borderRadius: "10px",
-                "&:hover": { borderColor: "#60A5FA", bgcolor: "rgba(59, 130, 246, 0.1)" },
+                "&:hover": { borderColor: "#85072F", bgcolor: "#FFF0F4" },
               }}
             >
               Retry
@@ -383,7 +382,7 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
                   : isPending
                   ? "rgba(245, 158, 11, 0.08)"
                   : isReversed
-                  ? "rgba(139, 92, 246, 0.08)"
+                  ? "#FFF0F4"
                   : "rgba(239, 68, 68, 0.08)",
                 border: `1px solid ${
                   isSuccess
@@ -391,7 +390,7 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
                     : isPending
                     ? "rgba(245, 158, 11, 0.25)"
                     : isReversed
-                    ? "rgba(139, 92, 246, 0.25)"
+                    ? "#FFD6E2"
                     : "rgba(239, 68, 68, 0.25)"
                 }`,
                 display: "flex",
@@ -407,9 +406,9 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
                     label={txn.service}
                     size="small"
                     sx={{
-                      bgcolor: serviceStyle.bg,
-                      color: serviceStyle.text,
-                      border: `1px solid ${serviceStyle.border}`,
+                      bgcolor: "#FFF0F4",
+                      color: "#A20A3A",
+                      border: "1px solid #FFD6E2",
                       fontWeight: 800,
                       fontSize: "11px",
                     }}
@@ -418,19 +417,19 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
                     label={txn.mode || "IMPS"}
                     size="small"
                     sx={{
-                      bgcolor: "rgba(99, 102, 241, 0.15)",
-                      color: "#818CF8",
-                      border: "1px solid rgba(99, 102, 241, 0.3)",
+                      bgcolor: "#FFF8DC",
+                      color: "#D4A915",
+                      border: "1px solid #FFF3C4",
                       fontWeight: 800,
                       fontSize: "11px",
                     }}
                   />
                 </Stack>
-                <Typography variant="h3" sx={{ fontWeight: 900, color: "#FFFFFF", fontFamily: "monospace", letterSpacing: "-0.02em" }}>
+                <Typography variant="h3" sx={{ fontWeight: 900, color: "#292329", fontFamily: "monospace", letterSpacing: "-0.02em" }}>
                   ₹{Number(txn.amount ?? financial?.amount ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Typography>
-                <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 600 }}>
-                  Wallet: <span style={{ color: "#60A5FA", fontWeight: 800 }}>{txn.wallet}</span> • {txn.initiated_at || txn.date_time}
+                <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 600 }}>
+                  Wallet: <span style={{ color: "#A20A3A", fontWeight: 800 }}>{txn.wallet}</span> • {txn.initiated_at || txn.date_time}
                 </Typography>
               </Box>
 
@@ -439,7 +438,7 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
                   icon={isSuccess ? <CheckCircleIcon sx={{ fontSize: 16 }} /> : isPending ? <AccessTimeIcon sx={{ fontSize: 16 }} /> : <CancelIcon sx={{ fontSize: 16 }} />}
                   label={txn.status}
                   sx={{
-                    bgcolor: isSuccess ? "#10B981" : isPending ? "#F59E0B" : isReversed ? "#8B5CF6" : "#EF4444",
+                    bgcolor: isSuccess ? "#10B981" : isPending ? "#EDC11E" : isReversed ? "#A20A3A" : "#EF4444",
                     color: "#FFFFFF",
                     fontWeight: 900,
                     fontSize: "13px",
@@ -452,22 +451,22 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
             </Paper>
 
             {/* ── SECTION A: TRANSACTION IDENTIFICATION ────────────────────── */}
-            <Paper sx={{ p: 2.5, borderRadius: "16px", bgcolor: "rgba(15, 23, 42, 0.6)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
-              <Typography variant="subtitle2" sx={{ color: "#60A5FA", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
+            <Paper sx={{ p: 2.5, borderRadius: "16px", bgcolor: "#FAF8F9", border: "1px solid #E8E2E5" }}>
+              <Typography variant="subtitle2" sx={{ color: "#A20A3A", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
                 <ShieldIcon sx={{ fontSize: 18 }} />
                 A. Transaction Identification
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+                  <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>
                     Txn ID
                   </Typography>
                   <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#FFFFFF", fontSize: "14px" }}>
+                    <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#292329", fontSize: "14px" }}>
                       {txn.txn_id}
                     </Typography>
                     <Tooltip title="Copy Txn ID" arrow>
-                      <IconButton size="small" onClick={() => copyToClipboard(txn.txn_id, "Txn ID")} sx={{ color: "#94A3B8", p: 0.5 }}>
+                      <IconButton size="small" onClick={() => copyToClipboard(txn.txn_id, "Txn ID")} sx={{ color: "#625B60", p: 0.5 }}>
                         <ContentCopyIcon sx={{ fontSize: 14 }} />
                       </IconButton>
                     </Tooltip>
@@ -475,15 +474,15 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
                 </Grid>
 
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+                  <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>
                     Ref ID / Client Ref
                   </Typography>
                   <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: "#FFFFFF", fontSize: "14px" }}>
+                    <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: "#292329", fontSize: "14px" }}>
                       {txn.reference_id || txn.txn_id}
                     </Typography>
                     <Tooltip title="Copy Ref ID" arrow>
-                      <IconButton size="small" onClick={() => copyToClipboard(txn.reference_id || txn.txn_id, "Ref ID")} sx={{ color: "#94A3B8", p: 0.5 }}>
+                      <IconButton size="small" onClick={() => copyToClipboard(txn.reference_id || txn.txn_id, "Ref ID")} sx={{ color: "#625B60", p: 0.5 }}>
                         <ContentCopyIcon sx={{ fontSize: 14 }} />
                       </IconButton>
                     </Tooltip>
@@ -491,55 +490,55 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
                 </Grid>
 
                 <Grid item xs={6} sm={3}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+                  <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>
                     Service
                   </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 700, color: "#FFFFFF" }}>
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: "#292329" }}>
                     {txn.service}
                   </Typography>
                 </Grid>
 
                 <Grid item xs={6} sm={3}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+                  <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>
                     Transfer Mode
                   </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 700, color: "#38BDF8" }}>
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: "#A20A3A" }}>
                     {txn.mode || "IMPS"}
                   </Typography>
                 </Grid>
 
                 <Grid item xs={6} sm={3}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+                  <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>
                     Wallet Type
                   </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 700, color: "#60A5FA" }}>
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: "#EDC11E" }}>
                     {txn.wallet}
                   </Typography>
                 </Grid>
 
                 <Grid item xs={6} sm={3}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+                  <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>
                     Status
                   </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 800, color: isSuccess ? "#34D399" : isPending ? "#FBBF24" : "#F87171" }}>
+                  <Typography variant="body2" sx={{ fontWeight: 800, color: isSuccess ? "#10B981" : isPending ? "#EDC11E" : "#EF4444" }}>
                     {txn.status}
                   </Typography>
                 </Grid>
 
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+                  <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>
                     Initiated At
                   </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: "#E2E8F0" }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: "#292329" }}>
                     {txn.initiated_at || txn.date_time}
                   </Typography>
                 </Grid>
 
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+                  <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>
                     Completed At
                   </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: "#E2E8F0" }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: "#292329" }}>
                     {txn.completed_at || audit?.updated_date || txn.initiated_at || txn.date_time}
                   </Typography>
                 </Grid>
@@ -547,49 +546,49 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
             </Paper>
 
             {/* ── SECTION B: PARTY / CUSTOMER HIERARCHY ───────────────────── */}
-            <Paper sx={{ p: 2.5, borderRadius: "16px", bgcolor: "rgba(15, 23, 42, 0.6)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
-              <Typography variant="subtitle2" sx={{ color: "#60A5FA", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
+            <Paper sx={{ p: 2.5, borderRadius: "16px", bgcolor: "#FAF8F9", border: "1px solid #E8E2E5" }}>
+              <Typography variant="subtitle2" sx={{ color: "#A20A3A", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
                 <AccountTreeIcon sx={{ fontSize: 18 }} />
                 B. Party &amp; Customer Hierarchy
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>Company</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 700, color: "#FFFFFF" }}>{companyName}</Typography>
+                  <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>Company</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: "#292329" }}>{companyName}</Typography>
                 </Grid>
                 {party?.retailer && (
                   <Grid item xs={12} sm={6}>
-                    <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>Retailer</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 700, color: "#38BDF8" }}>{party.retailer}</Typography>
+                    <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>Retailer</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700, color: "#A20A3A" }}>{party.retailer}</Typography>
                   </Grid>
                 )}
                 {party?.distributor && (
                   <Grid item xs={6} sm={4}>
-                    <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>Distributor</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 600, color: "#FFFFFF" }}>{party.distributor}</Typography>
+                    <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>Distributor</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: "#292329" }}>{party.distributor}</Typography>
                   </Grid>
                 )}
                 {party?.sd && (
                   <Grid item xs={6} sm={4}>
-                    <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>Super Distributor</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 600, color: "#FFFFFF" }}>{party.sd}</Typography>
+                    <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>Super Distributor</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: "#292329" }}>{party.sd}</Typography>
                   </Grid>
                 )}
                 {party?.rm && (
                   <Grid item xs={6} sm={4}>
-                    <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>Regional Manager</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 600, color: "#FFFFFF" }}>{party.rm}</Typography>
+                    <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>Regional Manager</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: "#292329" }}>{party.rm}</Typography>
                   </Grid>
                 )}
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>Customer Name</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 700, color: "#FFFFFF" }}>
+                  <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>Customer Name</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: "#292329" }}>
                     {customer?.name || party?.customer || "Not Available"}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>Customer Mobile</Typography>
-                  <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: "#FFFFFF" }}>
+                  <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>Customer Mobile</Typography>
+                  <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: "#292329" }}>
                     {customer?.mobile || party?.customer_mobile || "Not Available"}
                   </Typography>
                 </Grid>
@@ -597,27 +596,27 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
             </Paper>
 
             {/* ── SECTION C: BENEFICIARY DETAILS ──────────────────────────── */}
-            <Paper sx={{ p: 2.5, borderRadius: "16px", bgcolor: "rgba(15, 23, 42, 0.6)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
-              <Typography variant="subtitle2" sx={{ color: "#60A5FA", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
+            <Paper sx={{ p: 2.5, borderRadius: "16px", bgcolor: "#FAF8F9", border: "1px solid #E8E2E5" }}>
+              <Typography variant="subtitle2" sx={{ color: "#A20A3A", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
                 <AccountBalanceIcon sx={{ fontSize: 18 }} />
                 C. Beneficiary Details
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>Beneficiary Name</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 700, color: "#FFFFFF" }}>
+                  <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>Beneficiary Name</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: "#292329" }}>
                     {beneficiary?.name || "Not Available"}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>Account Number</Typography>
+                  <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>Account Number</Typography>
                   <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: "#FFFFFF" }}>
+                    <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: "#292329" }}>
                       {beneficiary?.account || "Not Available"}
                     </Typography>
                     {beneficiary?.account && beneficiary.account !== "Not Available" && (
                       <Tooltip title="Copy Account Number" arrow>
-                        <IconButton size="small" onClick={() => copyToClipboard(beneficiary.account, "Account Number")} sx={{ color: "#94A3B8", p: 0.5 }}>
+                        <IconButton size="small" onClick={() => copyToClipboard(beneficiary.account, "Account Number")} sx={{ color: "#625B60", p: 0.5 }}>
                           <ContentCopyIcon sx={{ fontSize: 14 }} />
                         </IconButton>
                       </Tooltip>
@@ -625,20 +624,20 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
                   </Stack>
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>Bank Name</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 700, color: "#FFFFFF" }}>
+                  <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>Bank Name</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: "#292329" }}>
                     {beneficiary?.bank || "Not Available"}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>IFSC Code</Typography>
+                  <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>IFSC Code</Typography>
                   <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: "#38BDF8" }}>
+                    <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: "#A20A3A" }}>
                       {beneficiary?.ifsc || "Not Available"}
                     </Typography>
                     {beneficiary?.ifsc && beneficiary.ifsc !== "Not Available" && (
                       <Tooltip title="Copy IFSC" arrow>
-                        <IconButton size="small" onClick={() => copyToClipboard(beneficiary.ifsc, "IFSC")} sx={{ color: "#94A3B8", p: 0.5 }}>
+                        <IconButton size="small" onClick={() => copyToClipboard(beneficiary.ifsc, "IFSC")} sx={{ color: "#625B60", p: 0.5 }}>
                           <ContentCopyIcon sx={{ fontSize: 14 }} />
                         </IconButton>
                       </Tooltip>
@@ -652,49 +651,49 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
             <Grid container spacing={2}>
               {/* Financial Movement */}
               <Grid item xs={12} md={6}>
-                <Paper sx={{ p: 2.5, height: "100%", borderRadius: "16px", bgcolor: "rgba(15, 23, 42, 0.6)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
-                  <Typography variant="subtitle2" sx={{ color: "#60A5FA", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", mb: 2 }}>
+                <Paper sx={{ p: 2.5, height: "100%", borderRadius: "16px", bgcolor: "#FAF8F9", border: "1px solid #E8E2E5" }}>
+                  <Typography variant="subtitle2" sx={{ color: "#A20A3A", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", mb: 2 }}>
                     D. Financial Summary
                   </Typography>
                   <Stack spacing={1.2}>
                     <Stack direction="row" justifyContent="space-between">
-                      <Typography variant="body2" sx={{ color: "#94A3B8" }}>Payout Amount</Typography>
-                      <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700 }}>
+                      <Typography variant="body2" sx={{ color: "#625B60" }}>Payout Amount</Typography>
+                      <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: "#292329" }}>
                         ₹{Number(financial?.amount ?? txn.amount ?? 0).toFixed(2)}
                       </Typography>
                     </Stack>
                     <Stack direction="row" justifyContent="space-between">
-                      <Typography variant="body2" sx={{ color: "#94A3B8" }}>Service / Transfer Charge</Typography>
-                      <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: (financial?.charge ?? 0) > 0 ? "#F87171" : "#94A3B8" }}>
+                      <Typography variant="body2" sx={{ color: "#625B60" }}>Service / Transfer Charge</Typography>
+                      <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: (financial?.charge ?? 0) > 0 ? "#EF4444" : "#625B60" }}>
                         +₹{Number(financial?.charge ?? 0).toFixed(2)}
                       </Typography>
                     </Stack>
                     <Stack direction="row" justifyContent="space-between">
-                      <Typography variant="body2" sx={{ color: "#94A3B8" }}>GST</Typography>
-                      <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: (financial?.gst ?? 0) > 0 ? "#F87171" : "#94A3B8" }}>
+                      <Typography variant="body2" sx={{ color: "#625B60" }}>GST</Typography>
+                      <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: (financial?.gst ?? 0) > 0 ? "#EF4444" : "#625B60" }}>
                         +₹{Number(financial?.gst ?? 0).toFixed(2)}
                       </Typography>
                     </Stack>
                     {(financial?.commission ?? 0) > 0 && (
                       <Stack direction="row" justifyContent="space-between">
-                        <Typography variant="body2" sx={{ color: "#34D399" }}>Commission Earned</Typography>
-                        <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#34D399" }}>
+                        <Typography variant="body2" sx={{ color: "#10B981" }}>Commission Earned</Typography>
+                        <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#10B981" }}>
                           +₹{Number(financial?.commission ?? 0).toFixed(2)}
                         </Typography>
                       </Stack>
                     )}
                     {(financial?.tds ?? 0) > 0 && (
                       <Stack direction="row" justifyContent="space-between">
-                        <Typography variant="body2" sx={{ color: "#94A3B8" }}>TDS Deduction</Typography>
-                        <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: "#F87171" }}>
+                        <Typography variant="body2" sx={{ color: "#625B60" }}>TDS Deduction</Typography>
+                        <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: "#EF4444" }}>
                           -₹{Number(financial?.tds ?? 0).toFixed(2)}
                         </Typography>
                       </Stack>
                     )}
-                    <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 0.5 }} />
+                    <Divider sx={{ borderColor: "#E8E2E5", my: 0.5 }} />
                     <Stack direction="row" justifyContent="space-between">
-                      <Typography variant="body2" sx={{ fontWeight: 800, color: "#FFFFFF" }}>Total Wallet Debit</Typography>
-                      <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 900, color: "#60A5FA", fontSize: "15px" }}>
+                      <Typography variant="body2" sx={{ fontWeight: 800, color: "#292329" }}>Total Wallet Debit</Typography>
+                      <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 900, color: "#A20A3A", fontSize: "15px" }}>
                         ₹{Number(financial?.total_debit ?? ((financial?.amount ?? 0) + (financial?.charge ?? 0) + (financial?.gst ?? 0))).toFixed(2)}
                       </Typography>
                     </Stack>
@@ -704,35 +703,35 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
 
               {/* Wallet Movement */}
               <Grid item xs={12} md={6}>
-                <Paper sx={{ p: 2.5, height: "100%", borderRadius: "16px", bgcolor: "rgba(15, 23, 42, 0.6)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
-                  <Typography variant="subtitle2" sx={{ color: "#60A5FA", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", mb: 2 }}>
+                <Paper sx={{ p: 2.5, height: "100%", borderRadius: "16px", bgcolor: "#FAF8F9", border: "1px solid #E8E2E5" }}>
+                  <Typography variant="subtitle2" sx={{ color: "#A20A3A", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", mb: 2 }}>
                     E. Wallet Balance Movement
                   </Typography>
                   <Stack spacing={1.2}>
                     <Stack direction="row" justifyContent="space-between">
-                      <Typography variant="body2" sx={{ color: "#94A3B8" }}>Opening Balance</Typography>
-                      <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700 }}>
+                      <Typography variant="body2" sx={{ color: "#625B60" }}>Opening Balance</Typography>
+                      <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: "#292329" }}>
                         ₹{Number(wallet?.opening_balance ?? 0).toFixed(2)}
                       </Typography>
                     </Stack>
                     <Stack direction="row" justifyContent="space-between">
-                      <Typography variant="body2" sx={{ color: "#F87171" }}>Debit Outflow (-)</Typography>
-                      <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#F87171" }}>
+                      <Typography variant="body2" sx={{ color: "#EF4444" }}>Debit Outflow (-)</Typography>
+                      <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#EF4444" }}>
                         -₹{Number(wallet?.debit ?? financial?.total_debit ?? 0).toFixed(2)}
                       </Typography>
                     </Stack>
                     {(wallet?.credit ?? 0) > 0 && (
                       <Stack direction="row" justifyContent="space-between">
-                        <Typography variant="body2" sx={{ color: "#34D399" }}>Credit / Reversal (+)</Typography>
-                        <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#34D399" }}>
+                        <Typography variant="body2" sx={{ color: "#10B981" }}>Credit / Reversal (+)</Typography>
+                        <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#10B981" }}>
                           +₹{Number(wallet?.credit ?? 0).toFixed(2)}
                         </Typography>
                       </Stack>
                     )}
-                    <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 0.5 }} />
+                    <Divider sx={{ borderColor: "#E8E2E5", my: 0.5 }} />
                     <Stack direction="row" justifyContent="space-between">
-                      <Typography variant="body2" sx={{ fontWeight: 800, color: "#FFFFFF" }}>Closing Balance</Typography>
-                      <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 900, color: "#38BDF8", fontSize: "15px" }}>
+                      <Typography variant="body2" sx={{ fontWeight: 800, color: "#292329" }}>Closing Balance</Typography>
+                      <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 900, color: "#EDC11E", fontSize: "15px" }}>
                         ₹{Number(wallet?.closing_balance ?? 0).toFixed(2)}
                       </Typography>
                     </Stack>
@@ -743,51 +742,51 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
 
             {/* ── SECTION F: FINANCIAL LEDGER ENTRIES ─────────────────────── */}
             {ledgerEntries.length > 0 && (
-              <Paper sx={{ p: 2.5, borderRadius: "16px", bgcolor: "rgba(15, 23, 42, 0.6)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
-                <Typography variant="subtitle2" sx={{ color: "#60A5FA", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", mb: 2 }}>
+              <Paper sx={{ p: 2.5, borderRadius: "16px", bgcolor: "#FAF8F9", border: "1px solid #E8E2E5" }}>
+                <Typography variant="subtitle2" sx={{ color: "#A20A3A", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", mb: 2 }}>
                   F. Financial Ledger Entries ({ledgerEntries.length} entries)
                 </Typography>
-                <TableContainer sx={{ borderRadius: "12px", border: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                <TableContainer sx={{ borderRadius: "12px", border: "1px solid #E8E2E5" }}>
                   <Table size="small">
-                    <TableHead sx={{ bgcolor: "rgba(0, 0, 0, 0.4)" }}>
+                    <TableHead sx={{ bgcolor: "#FFFFFF" }}>
                       <TableRow>
-                        <TableCell sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "11px" }}>ENTRY</TableCell>
-                        <TableCell sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "11px" }}>DESCRIPTION</TableCell>
-                        <TableCell align="right" sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "11px" }}>AMOUNT</TableCell>
-                        <TableCell align="right" sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "11px" }}>BEFORE</TableCell>
-                        <TableCell align="right" sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "11px" }}>AFTER</TableCell>
-                        <TableCell sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "11px" }}>DATE &amp; TIME</TableCell>
+                        <TableCell sx={{ color: "#A20A3A", fontWeight: 700, fontSize: "11px" }}>ENTRY</TableCell>
+                        <TableCell sx={{ color: "#A20A3A", fontWeight: 700, fontSize: "11px" }}>DESCRIPTION</TableCell>
+                        <TableCell align="right" sx={{ color: "#A20A3A", fontWeight: 700, fontSize: "11px" }}>AMOUNT</TableCell>
+                        <TableCell align="right" sx={{ color: "#A20A3A", fontWeight: 700, fontSize: "11px" }}>BEFORE</TableCell>
+                        <TableCell align="right" sx={{ color: "#A20A3A", fontWeight: 700, fontSize: "11px" }}>AFTER</TableCell>
+                        <TableCell sx={{ color: "#A20A3A", fontWeight: 700, fontSize: "11px" }}>DATE &amp; TIME</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {ledgerEntries.map((le, idx) => (
-                        <TableRow key={idx} sx={{ "&:hover": { bgcolor: "rgba(255,255,255,0.02)" } }}>
+                        <TableRow key={idx} sx={{ "&:hover": { bgcolor: "#FFF0F4" } }}>
                           <TableCell>
                             <Chip
                               label={le.entry_type}
                               size="small"
                               sx={{
                                 bgcolor: le.entry_type === "CREDIT" ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)",
-                                color: le.entry_type === "CREDIT" ? "#34D399" : "#F87171",
+                                color: le.entry_type === "CREDIT" ? "#10B981" : "#EF4444",
                                 fontWeight: 800,
                                 fontSize: "10px",
                                 height: "20px",
                               }}
                             />
                           </TableCell>
-                          <TableCell sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "12px" }}>
+                          <TableCell sx={{ color: "#292329", fontWeight: 600, fontSize: "12px" }}>
                             {le.narration}
                           </TableCell>
-                          <TableCell align="right" sx={{ fontFamily: "monospace", fontWeight: 800, color: le.entry_type === "CREDIT" ? "#34D399" : "#F87171" }}>
+                          <TableCell align="right" sx={{ fontFamily: "monospace", fontWeight: 800, color: le.entry_type === "CREDIT" ? "#10B981" : "#EF4444" }}>
                             {le.entry_type === "CREDIT" ? "+" : "-"}₹{Number(le.amount).toFixed(2)}
                           </TableCell>
-                          <TableCell align="right" sx={{ fontFamily: "monospace", color: "#94A3B8", fontSize: "12px" }}>
+                          <TableCell align="right" sx={{ fontFamily: "monospace", color: "#625B60", fontSize: "12px" }}>
                             ₹{Number(le.balance_before).toFixed(2)}
                           </TableCell>
-                          <TableCell align="right" sx={{ fontFamily: "monospace", color: "#60A5FA", fontWeight: 700, fontSize: "12px" }}>
+                          <TableCell align="right" sx={{ fontFamily: "monospace", color: "#A20A3A", fontWeight: 700, fontSize: "12px" }}>
                             ₹{Number(le.balance_after).toFixed(2)}
                           </TableCell>
-                          <TableCell sx={{ color: "#64748B", fontSize: "11px" }}>
+                          <TableCell sx={{ color: "#8A8288", fontSize: "11px" }}>
                             {le.date_time || le.created_at || "--"}
                           </TableCell>
                         </TableRow>
@@ -800,25 +799,25 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
 
             {/* ── SECTION G: VENDOR / API DETAILS (ADMIN & CRM ONLY) ──────── */}
             {vendor && (
-              <Paper sx={{ p: 2.5, borderRadius: "16px", bgcolor: "rgba(15, 23, 42, 0.6)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
-                <Typography variant="subtitle2" sx={{ color: "#60A5FA", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
+              <Paper sx={{ p: 2.5, borderRadius: "16px", bgcolor: "#FAF8F9", border: "1px solid #E8E2E5" }}>
+                <Typography variant="subtitle2" sx={{ color: "#A20A3A", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
                   <HubIcon sx={{ fontSize: 18 }} />
                   G. Vendor / Switch Information (Authorized Role Only)
                 </Typography>
                 <Grid container spacing={2}>
                   <Grid item xs={12} sm={6}>
-                    <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>Vendor Name</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 700, color: "#FFFFFF" }}>{vendor.name}</Typography>
+                    <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>Vendor Name</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700, color: "#292329" }}>{vendor.name}</Typography>
                   </Grid>
                   <Grid item xs={12} sm={6}>
-                    <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>API Status</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 800, color: vendor.api_status === "SUCCESS" ? "#34D399" : "#F87171" }}>
+                    <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>API Status</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 800, color: vendor.api_status === "SUCCESS" ? "#10B981" : "#EF4444" }}>
                       {vendor.api_status}
                     </Typography>
                   </Grid>
                   <Grid item xs={12}>
-                    <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>API Response / Status Message</Typography>
-                    <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#CBD5E1", fontSize: "13px", mt: 0.5, bgcolor: "rgba(0, 0, 0, 0.3)", p: 1.5, borderRadius: "8px" }}>
+                    <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>API Response / Status Message</Typography>
+                    <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#292329", fontSize: "13px", mt: 0.5, bgcolor: "#FFFFFF", border: "1px solid #E8E2E5", p: 1.5, borderRadius: "8px" }}>
                       {vendor.api_response}
                     </Typography>
                   </Grid>
@@ -828,40 +827,40 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
 
             {/* ── SECTION H: COMMENTS / REMARKS ───────────────────────────── */}
             {comments && (
-              <Paper sx={{ p: 2.5, borderRadius: "16px", bgcolor: "rgba(15, 23, 42, 0.6)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
-                <Typography variant="subtitle2" sx={{ color: "#60A5FA", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", mb: 1, display: "flex", alignItems: "center", gap: 1 }}>
+              <Paper sx={{ p: 2.5, borderRadius: "16px", bgcolor: "#FAF8F9", border: "1px solid #E8E2E5" }}>
+                <Typography variant="subtitle2" sx={{ color: "#A20A3A", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", mb: 1, display: "flex", alignItems: "center", gap: 1 }}>
                   <CommentIcon sx={{ fontSize: 18 }} />
                   H. Transaction Comments
                 </Typography>
-                <Typography variant="body2" sx={{ color: isSuccess ? "#34D399" : isPending ? "#FBBF24" : "#F87171", fontWeight: 600 }}>
+                <Typography variant="body2" sx={{ color: isSuccess ? "#10B981" : isPending ? "#EDC11E" : "#EF4444", fontWeight: 600 }}>
                   {comments}
                 </Typography>
               </Paper>
             )}
 
             {/* ── SECTION I: PROCESSING & AUDIT TRACE ──────────────────────── */}
-            <Paper sx={{ p: 2.5, borderRadius: "16px", bgcolor: "rgba(15, 23, 42, 0.6)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
-              <Typography variant="subtitle2" sx={{ color: "#60A5FA", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", mb: 2 }}>
+            <Paper sx={{ p: 2.5, borderRadius: "16px", bgcolor: "#FAF8F9", border: "1px solid #E8E2E5" }}>
+              <Typography variant="subtitle2" sx={{ color: "#A20A3A", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", mb: 2 }}>
                 I. Processing &amp; Audit Trace
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={6} sm={3}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>Gateway / Switch</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: "#FFFFFF" }}>{processing?.gateway || "PAY2PAY SWITCH"}</Typography>
+                  <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>Gateway / Switch</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: "#292329" }}>{processing?.gateway || "NEAR4YOU SWITCH"}</Typography>
                 </Grid>
                 <Grid item xs={6} sm={3}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>Channel</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: "#FFFFFF" }}>{processing?.channel || txn.mode || "IMPS"}</Typography>
+                  <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>Channel</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: "#292329" }}>{processing?.channel || txn.mode || "IMPS"}</Typography>
                 </Grid>
                 <Grid item xs={6} sm={3}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>Response Code</Typography>
-                  <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: isSuccess ? "#34D399" : "#F87171" }}>
+                  <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>Response Code</Typography>
+                  <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: isSuccess ? "#10B981" : "#EF4444" }}>
                     {processing?.api_response_code || (isSuccess ? "00" : "99")}
                   </Typography>
                 </Grid>
                 <Grid item xs={6} sm={3}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>Created Timestamp</Typography>
-                  <Typography variant="body2" sx={{ color: "#94A3B8", fontSize: "12px" }}>{audit?.created_date || txn.initiated_at || txn.date_time}</Typography>
+                  <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>Created Timestamp</Typography>
+                  <Typography variant="body2" sx={{ color: "#625B60", fontSize: "12px" }}>{audit?.created_date || txn.initiated_at || txn.date_time}</Typography>
                 </Grid>
               </Grid>
             </Paper>
@@ -870,19 +869,19 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
       </DialogContent>
 
       {/* ── DIALOG ACTIONS ────────────────────────────────────────────────── */}
-      <DialogActions sx={{ p: 2.5, borderTop: "1px solid rgba(255, 255, 255, 0.08)", justifyContent: "space-between" }}>
+      <DialogActions sx={{ p: 2.5, borderTop: "1px solid #E8E2E5", bgcolor: "#FAF8F9", justifyContent: "space-between" }}>
         <Stack direction="row" spacing={1.5}>
           <Button
             variant="contained"
             startIcon={<PrintIcon />}
             onClick={handlePrint}
             sx={{
-              bgcolor: "#2563EB",
+              bgcolor: "#A20A3A",
               color: "#FFFFFF",
               fontWeight: 700,
               borderRadius: "12px",
               px: 2.5,
-              "&:hover": { bgcolor: "#1D4ED8" },
+              "&:hover": { bgcolor: "#85072F" },
             }}
           >
             Print Slip
@@ -892,12 +891,12 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
             startIcon={<ShareIcon />}
             onClick={handleShare}
             sx={{
-              borderColor: "rgba(255, 255, 255, 0.15)",
-              color: "#94A3B8",
+              borderColor: "#E8E2E5",
+              color: "#292329",
               fontWeight: 700,
               borderRadius: "12px",
               px: 2.5,
-              "&:hover": { borderColor: "#3B82F6", color: "#FFFFFF" },
+              "&:hover": { borderColor: "#A20A3A", bgcolor: "#FFF0F4" },
             }}
           >
             Share
@@ -908,9 +907,9 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
           variant="text"
           onClick={handleClose}
           sx={{
-            color: "#94A3B8",
+            color: "#625B60",
             fontWeight: 700,
-            "&:hover": { color: "#FFFFFF" },
+            "&:hover": { color: "#292329" },
           }}
         >
           Close

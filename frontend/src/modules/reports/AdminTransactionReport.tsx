@@ -459,7 +459,7 @@ export default function AdminTransactionReport() {
   };
 
   return (
-    <Box sx={{ width: "100%", p: { xs: 1.5, md: 2.5 }, bgcolor: "#070E20", minHeight: "100vh", color: "#F1F5F9" }}>
+    <Box sx={{ width: "100%", p: { xs: 1.5, md: 2.5 }, bgcolor: "#FFFFFF", minHeight: "100vh", color: "#292329" }}>
       {/* ─────────────────────────────────────────────────────────────
           1. HEADER SECTION
       ───────────────────────────────────────────────────────────── */}
@@ -491,7 +491,7 @@ export default function AdminTransactionReport() {
               <Typography variant="h5" sx={{ fontWeight: 800, color: "#FFFFFF", letterSpacing: "-0.5px" }}>
                 Enterprise Transaction Report
               </Typography>
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "12px" }}>
+              <Typography variant="caption" sx={{ color: "#625B60", fontSize: "12px" }}>
                 Centralized Single-Source-of-Truth Financial Ledger across Companies, User Types, Vendors & Services
               </Typography>
             </Box>
@@ -548,8 +548,8 @@ export default function AdminTransactionReport() {
         <Grid item xs={12} sm={6} md={3}>
           <Card
             sx={{
-              bgcolor: "#0B1533",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
+              bgcolor: "#FAF8F9",
+              border: "1px solid #E8E2E5",
               borderRadius: "12px",
               p: 1.5,
               position: "relative",
@@ -558,7 +558,7 @@ export default function AdminTransactionReport() {
           >
             <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
               <Box>
-                <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase", fontSize: "11px" }}>
+                <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase", fontSize: "11px" }}>
                   Total Transactions
                 </Typography>
                 {summaryLoading ? (
@@ -590,7 +590,7 @@ export default function AdminTransactionReport() {
         <Grid item xs={12} sm={6} md={3}>
           <Card
             sx={{
-              bgcolor: "#0B1533",
+              bgcolor: "#FAF8F9",
               border: "1px solid rgba(16, 185, 129, 0.2)",
               borderRadius: "12px",
               p: 1.5,
@@ -632,7 +632,7 @@ export default function AdminTransactionReport() {
         <Grid item xs={12} sm={6} md={3}>
           <Card
             sx={{
-              bgcolor: "#0B1533",
+              bgcolor: "#FAF8F9",
               border: "1px solid rgba(239, 68, 68, 0.2)",
               borderRadius: "12px",
               p: 1.5,
@@ -674,7 +674,7 @@ export default function AdminTransactionReport() {
         <Grid item xs={12} sm={6} md={3}>
           <Card
             sx={{
-              bgcolor: "#0B1533",
+              bgcolor: "#FAF8F9",
               border: "1px solid rgba(245, 158, 11, 0.2)",
               borderRadius: "12px",
               p: 1.5,
@@ -701,7 +701,7 @@ export default function AdminTransactionReport() {
                     {formatINR(summary?.net_movement)}
                   </Typography>
                 )}
-                <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px" }}>
+                <Typography variant="caption" sx={{ color: "#625B60", fontSize: "11px" }}>
                   Success: <b style={{ color: "#10B981" }}>{summary?.successful_count || 0}</b> | Failed: <b style={{ color: "#EF4444" }}>{summary?.failed_count || 0}</b> | Rev: <b style={{ color: "#C084FC" }}>{summary?.reversed_count || 0}</b>
                 </Typography>
               </Box>
@@ -725,7 +725,7 @@ export default function AdminTransactionReport() {
       ───────────────────────────────────────────────────────────── */}
       <Paper
         sx={{
-          bgcolor: "#0E1838",
+          bgcolor: "#FAF8F9",
           border: "1px solid rgba(255, 255, 255, 0.1)",
           borderRadius: "12px",
           p: 2,
@@ -737,7 +737,7 @@ export default function AdminTransactionReport() {
           {/* Company Filter */}
           <Grid item xs={12} sm={6} md={2.4}>
             <FormControl fullWidth size="small">
-              <InputLabel sx={{ color: "#94A3B8", fontSize: "13px" }}>Company</InputLabel>
+              <InputLabel sx={{ color: "#625B60", fontSize: "13px" }}>Company</InputLabel>
               <Select
                 value={companyId}
                 label="Company"
@@ -746,7 +746,7 @@ export default function AdminTransactionReport() {
                   setPage(0);
                 }}
                 sx={{
-                  bgcolor: "#070E20",
+                  bgcolor: "#FFFFFF",
                   color: "#FFFFFF",
                   fontSize: "13px",
                   borderRadius: "8px",
@@ -767,7 +767,7 @@ export default function AdminTransactionReport() {
           {/* User Type Filter */}
           <Grid item xs={12} sm={6} md={2.4}>
             <FormControl fullWidth size="small">
-              <InputLabel sx={{ color: "#94A3B8", fontSize: "13px" }}>User Type</InputLabel>
+              <InputLabel sx={{ color: "#625B60", fontSize: "13px" }}>User Type</InputLabel>
               <Select
                 value={userType}
                 label="User Type"
@@ -776,7 +776,7 @@ export default function AdminTransactionReport() {
                   setPage(0);
                 }}
                 sx={{
-                  bgcolor: "#070E20",
+                  bgcolor: "#FFFFFF",
                   color: "#FFFFFF",
                   fontSize: "13px",
                   borderRadius: "8px",
@@ -797,7 +797,7 @@ export default function AdminTransactionReport() {
           {/* Service Filter */}
           <Grid item xs={12} sm={6} md={2.4}>
             <FormControl fullWidth size="small">
-              <InputLabel sx={{ color: "#94A3B8", fontSize: "13px" }}>Service</InputLabel>
+              <InputLabel sx={{ color: "#625B60", fontSize: "13px" }}>Service</InputLabel>
               <Select
                 value={serviceName}
                 label="Service"
@@ -806,7 +806,7 @@ export default function AdminTransactionReport() {
                   setPage(0);
                 }}
                 sx={{
-                  bgcolor: "#070E20",
+                  bgcolor: "#FFFFFF",
                   color: "#FFFFFF",
                   fontSize: "13px",
                   borderRadius: "8px",
@@ -827,7 +827,7 @@ export default function AdminTransactionReport() {
           {/* Transaction Source Filter */}
           <Grid item xs={12} sm={6} md={2.4}>
             <FormControl fullWidth size="small">
-              <InputLabel sx={{ color: "#94A3B8", fontSize: "13px" }}>Txn Source</InputLabel>
+              <InputLabel sx={{ color: "#625B60", fontSize: "13px" }}>Txn Source</InputLabel>
               <Select
                 value={transactionSource}
                 label="Txn Source"
@@ -836,7 +836,7 @@ export default function AdminTransactionReport() {
                   setPage(0);
                 }}
                 sx={{
-                  bgcolor: "#070E20",
+                  bgcolor: "#FFFFFF",
                   color: "#FFFFFF",
                   fontSize: "13px",
                   borderRadius: "8px",
@@ -857,7 +857,7 @@ export default function AdminTransactionReport() {
           {/* Status Filter */}
           <Grid item xs={12} sm={6} md={2.4}>
             <FormControl fullWidth size="small">
-              <InputLabel sx={{ color: "#94A3B8", fontSize: "13px" }}>Status</InputLabel>
+              <InputLabel sx={{ color: "#625B60", fontSize: "13px" }}>Status</InputLabel>
               <Select
                 value={statusFilter}
                 label="Status"
@@ -866,7 +866,7 @@ export default function AdminTransactionReport() {
                   setPage(0);
                 }}
                 sx={{
-                  bgcolor: "#070E20",
+                  bgcolor: "#FFFFFF",
                   color: "#FFFFFF",
                   fontSize: "13px",
                   borderRadius: "8px",
@@ -898,19 +898,19 @@ export default function AdminTransactionReport() {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon sx={{ color: "#94A3B8", fontSize: 18 }} />
+                    <SearchIcon sx={{ color: "#625B60", fontSize: 18 }} />
                   </InputAdornment>
                 ),
                 endAdornment: search ? (
                   <InputAdornment position="end">
-                    <IconButton size="small" onClick={() => setSearch("")} sx={{ color: "#94A3B8" }}>
+                    <IconButton size="small" onClick={() => setSearch("")} sx={{ color: "#625B60" }}>
                       <ClearIcon fontSize="small" />
                     </IconButton>
                   </InputAdornment>
                 ) : null,
               }}
               sx={{
-                bgcolor: "#070E20",
+                bgcolor: "#FFFFFF",
                 borderRadius: "8px",
                 input: { color: "#FFFFFF", fontSize: "13px" },
                 ".MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.15)" },
@@ -922,7 +922,7 @@ export default function AdminTransactionReport() {
           {/* Quick Date Presets */}
           <Grid item xs={12} md={5}>
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 600 }}>
+              <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 600 }}>
                 Dates:
               </Typography>
               <Button
@@ -930,7 +930,7 @@ export default function AdminTransactionReport() {
                 variant="outlined"
                 onClick={() => applyDatePreset("today")}
                 sx={{
-                  color: "#94A3B8",
+                  color: "#625B60",
                   borderColor: "rgba(255,255,255,0.15)",
                   fontSize: "11px",
                   py: 0.3,
@@ -946,7 +946,7 @@ export default function AdminTransactionReport() {
                 variant="outlined"
                 onClick={() => applyDatePreset("yesterday")}
                 sx={{
-                  color: "#94A3B8",
+                  color: "#625B60",
                   borderColor: "rgba(255,255,255,0.15)",
                   fontSize: "11px",
                   py: 0.3,
@@ -962,7 +962,7 @@ export default function AdminTransactionReport() {
                 variant="outlined"
                 onClick={() => applyDatePreset("week")}
                 sx={{
-                  color: "#94A3B8",
+                  color: "#625B60",
                   borderColor: "rgba(255,255,255,0.15)",
                   fontSize: "11px",
                   py: 0.3,
@@ -978,7 +978,7 @@ export default function AdminTransactionReport() {
                 variant="outlined"
                 onClick={() => applyDatePreset("month")}
                 sx={{
-                  color: "#94A3B8",
+                  color: "#625B60",
                   borderColor: "rgba(255,255,255,0.15)",
                   fontSize: "11px",
                   py: 0.3,
@@ -1029,7 +1029,7 @@ export default function AdminTransactionReport() {
 
         {/* Row 3: Collapsible Advanced Filters */}
         <Collapse in={showAdvancedFilters}>
-          <Divider sx={{ my: 1.5, borderColor: "rgba(255,255,255,0.08)" }} />
+          <Divider sx={{ my: 1.5, borderColor: "#E8E2E5" }} />
           <Grid container spacing={1.5} alignItems="center">
             {/* User Typeahead Autocomplete */}
             <Grid item xs={12} sm={6} md={3}>
@@ -1049,9 +1049,9 @@ export default function AdminTransactionReport() {
                     {...params}
                     placeholder="Search User / Store..."
                     label="User Typeahead"
-                    InputLabelProps={{ sx: { color: "#94A3B8", fontSize: "13px" } }}
+                    InputLabelProps={{ sx: { color: "#625B60", fontSize: "13px" } }}
                     sx={{
-                      bgcolor: "#070E20",
+                      bgcolor: "#FFFFFF",
                       borderRadius: "8px",
                       input: { color: "#FFFFFF", fontSize: "13px" },
                       ".MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.15)" },
@@ -1064,7 +1064,7 @@ export default function AdminTransactionReport() {
             {/* Vendor Filter */}
             <Grid item xs={12} sm={6} md={2}>
               <FormControl fullWidth size="small">
-                <InputLabel sx={{ color: "#94A3B8", fontSize: "13px" }}>Vendor</InputLabel>
+                <InputLabel sx={{ color: "#625B60", fontSize: "13px" }}>Vendor</InputLabel>
                 <Select
                   value={vendorName}
                   label="Vendor"
@@ -1073,7 +1073,7 @@ export default function AdminTransactionReport() {
                     setPage(0);
                   }}
                   sx={{
-                    bgcolor: "#070E20",
+                    bgcolor: "#FFFFFF",
                     color: "#FFFFFF",
                     fontSize: "13px",
                     borderRadius: "8px",
@@ -1093,7 +1093,7 @@ export default function AdminTransactionReport() {
             {/* Txn Type Filter (CR/DR) */}
             <Grid item xs={12} sm={6} md={2}>
               <FormControl fullWidth size="small">
-                <InputLabel sx={{ color: "#94A3B8", fontSize: "13px" }}>CR / DR</InputLabel>
+                <InputLabel sx={{ color: "#625B60", fontSize: "13px" }}>CR / DR</InputLabel>
                 <Select
                   value={transactionType}
                   label="CR / DR"
@@ -1102,7 +1102,7 @@ export default function AdminTransactionReport() {
                     setPage(0);
                   }}
                   sx={{
-                    bgcolor: "#070E20",
+                    bgcolor: "#FFFFFF",
                     color: "#FFFFFF",
                     fontSize: "13px",
                     borderRadius: "8px",
@@ -1128,9 +1128,9 @@ export default function AdminTransactionReport() {
                   setFromDate(e.target.value);
                   setPage(0);
                 }}
-                InputLabelProps={{ shrink: true, sx: { color: "#94A3B8", fontSize: "13px" } }}
+                InputLabelProps={{ shrink: true, sx: { color: "#625B60", fontSize: "13px" } }}
                 sx={{
-                  bgcolor: "#070E20",
+                  bgcolor: "#FFFFFF",
                   borderRadius: "8px",
                   input: { color: "#FFFFFF", fontSize: "13px" },
                   ".MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.15)" },
@@ -1150,9 +1150,9 @@ export default function AdminTransactionReport() {
                   setToDate(e.target.value);
                   setPage(0);
                 }}
-                InputLabelProps={{ shrink: true, sx: { color: "#94A3B8", fontSize: "13px" } }}
+                InputLabelProps={{ shrink: true, sx: { color: "#625B60", fontSize: "13px" } }}
                 sx={{
-                  bgcolor: "#070E20",
+                  bgcolor: "#FFFFFF",
                   borderRadius: "8px",
                   input: { color: "#FFFFFF", fontSize: "13px" },
                   ".MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.15)" },
@@ -1168,8 +1168,8 @@ export default function AdminTransactionReport() {
       ───────────────────────────────────────────────────────────── */}
       <Paper
         sx={{
-          bgcolor: "#0B1533",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
+          bgcolor: "#FAF8F9",
+          border: "1px solid #E8E2E5",
           borderRadius: "12px",
           overflow: "hidden",
           boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
@@ -1179,52 +1179,52 @@ export default function AdminTransactionReport() {
           <Table stickyHeader size="small">
             <TableHead>
               <TableRow>
-                <TableCell sx={{ bgcolor: "#0E1C44", color: "#94A3B8", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 150 }}>
+                <TableCell sx={{ bgcolor: "#FAF8F9", color: "#625B60", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 150 }}>
                   Date / Time
                 </TableCell>
-                <TableCell sx={{ bgcolor: "#0E1C44", color: "#94A3B8", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 140 }}>
+                <TableCell sx={{ bgcolor: "#FAF8F9", color: "#625B60", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 140 }}>
                   Txn ID
                 </TableCell>
-                <TableCell sx={{ bgcolor: "#0E1C44", color: "#94A3B8", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 120 }}>
+                <TableCell sx={{ bgcolor: "#FAF8F9", color: "#625B60", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 120 }}>
                   Company
                 </TableCell>
-                <TableCell sx={{ bgcolor: "#0E1C44", color: "#94A3B8", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 150 }}>
+                <TableCell sx={{ bgcolor: "#FAF8F9", color: "#625B60", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 150 }}>
                   User / Store
                 </TableCell>
-                <TableCell sx={{ bgcolor: "#0E1C44", color: "#94A3B8", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 110 }}>
+                <TableCell sx={{ bgcolor: "#FAF8F9", color: "#625B60", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 110 }}>
                   User Type
                 </TableCell>
-                <TableCell sx={{ bgcolor: "#0E1C44", color: "#94A3B8", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 130 }}>
+                <TableCell sx={{ bgcolor: "#FAF8F9", color: "#625B60", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 130 }}>
                   Vendor
                 </TableCell>
-                <TableCell sx={{ bgcolor: "#0E1C44", color: "#94A3B8", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 130 }}>
+                <TableCell sx={{ bgcolor: "#FAF8F9", color: "#625B60", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 130 }}>
                   Txn Source
                 </TableCell>
-                <TableCell sx={{ bgcolor: "#0E1C44", color: "#94A3B8", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 130 }}>
+                <TableCell sx={{ bgcolor: "#FAF8F9", color: "#625B60", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 130 }}>
                   Service
                 </TableCell>
-                <TableCell sx={{ bgcolor: "#0E1C44", color: "#94A3B8", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 80 }}>
+                <TableCell sx={{ bgcolor: "#FAF8F9", color: "#625B60", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 80 }}>
                   Type
                 </TableCell>
-                <TableCell align="right" sx={{ bgcolor: "#0E1C44", color: "#10B981", fontWeight: 800, fontSize: "12.5px", py: 1.5, minWidth: 110 }}>
+                <TableCell align="right" sx={{ bgcolor: "#FAF8F9", color: "#10B981", fontWeight: 800, fontSize: "12.5px", py: 1.5, minWidth: 110 }}>
                   CR (₹)
                 </TableCell>
-                <TableCell align="right" sx={{ bgcolor: "#0E1C44", color: "#EF4444", fontWeight: 800, fontSize: "12.5px", py: 1.5, minWidth: 110 }}>
+                <TableCell align="right" sx={{ bgcolor: "#FAF8F9", color: "#EF4444", fontWeight: 800, fontSize: "12.5px", py: 1.5, minWidth: 110 }}>
                   DR (₹)
                 </TableCell>
-                <TableCell align="right" sx={{ bgcolor: "#0E1C44", color: "#CBD5E1", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 110 }}>
+                <TableCell align="right" sx={{ bgcolor: "#FAF8F9", color: "#625B60", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 110 }}>
                   Opening Bal (₹)
                 </TableCell>
-                <TableCell align="right" sx={{ bgcolor: "#0E1C44", color: "#FFFFFF", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 110 }}>
+                <TableCell align="right" sx={{ bgcolor: "#FAF8F9", color: "#FFFFFF", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 110 }}>
                   Closing Bal (₹)
                 </TableCell>
-                <TableCell sx={{ bgcolor: "#0E1C44", color: "#94A3B8", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 110 }}>
+                <TableCell sx={{ bgcolor: "#FAF8F9", color: "#625B60", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 110 }}>
                   Status
                 </TableCell>
-                <TableCell sx={{ bgcolor: "#0E1C44", color: "#94A3B8", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 140 }}>
+                <TableCell sx={{ bgcolor: "#FAF8F9", color: "#625B60", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 140 }}>
                   Service Ref
                 </TableCell>
-                <TableCell align="center" sx={{ bgcolor: "#0E1C44", color: "#94A3B8", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 90 }}>
+                <TableCell align="center" sx={{ bgcolor: "#FAF8F9", color: "#625B60", fontWeight: 800, fontSize: "12px", py: 1.5, minWidth: 90 }}>
                   Action
                 </TableCell>
               </TableRow>
@@ -1243,12 +1243,12 @@ export default function AdminTransactionReport() {
               ) : items.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={16} align="center" sx={{ py: 8, borderColor: "transparent" }}>
-                    <Box sx={{ textAlign: "center", color: "#64748B" }}>
+                    <Box sx={{ textAlign: "center", color: "#625B60" }}>
                       <ReceiptIcon sx={{ fontSize: 48, mb: 1, opacity: 0.4 }} />
-                      <Typography variant="body1" sx={{ fontWeight: 600, color: "#94A3B8" }}>
+                      <Typography variant="body1" sx={{ fontWeight: 600, color: "#625B60" }}>
                         No transactions found
                       </Typography>
-                      <Typography variant="caption" sx={{ color: "#64748B" }}>
+                      <Typography variant="caption" sx={{ color: "#625B60" }}>
                         Try adjusting your filters or search terms.
                       </Typography>
                     </Box>
@@ -1269,11 +1269,11 @@ export default function AdminTransactionReport() {
                       }}
                     >
                       {/* Date / Time */}
-                      <TableCell sx={{ color: "#E2E8F0", fontSize: "12.5px", py: 1.2, borderColor: "rgba(255,255,255,0.05)" }}>
+                      <TableCell sx={{ color: "#292329", fontSize: "12.5px", py: 1.2, borderColor: "rgba(255,255,255,0.05)" }}>
                         <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "12.5px", color: "#FFFFFF" }}>
                           {row.date}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px" }}>
+                        <Typography variant="caption" sx={{ color: "#625B60", fontSize: "11px" }}>
                           {row.time}
                         </Typography>
                       </TableCell>
@@ -1308,9 +1308,9 @@ export default function AdminTransactionReport() {
                       </TableCell>
 
                       {/* Company */}
-                      <TableCell sx={{ color: "#F8FAFC", fontWeight: 600, fontSize: "12px", borderColor: "rgba(255,255,255,0.05)" }}>
+                      <TableCell sx={{ color: "#292329", fontWeight: 600, fontSize: "12px", borderColor: "rgba(255,255,255,0.05)" }}>
                         <Chip
-                          label={row.company_name || "Pay2Pay"}
+                          label={row.company_name || "Near4You"}
                           size="small"
                           sx={{
                             bgcolor: "rgba(56, 189, 248, 0.08)",
@@ -1324,10 +1324,10 @@ export default function AdminTransactionReport() {
 
                       {/* User / Store */}
                       <TableCell sx={{ borderColor: "rgba(255,255,255,0.05)" }}>
-                        <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "12.5px", color: "#F1F5F9" }}>
+                        <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "12.5px", color: "#292329" }}>
                           {row.user_name}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px" }}>
+                        <Typography variant="caption" sx={{ color: "#625B60", fontSize: "11px" }}>
                           {row.user_code !== "—" ? row.user_code : row.user_mobile}
                         </Typography>
                       </TableCell>
@@ -1339,7 +1339,7 @@ export default function AdminTransactionReport() {
                           size="small"
                           sx={{
                             bgcolor: "rgba(255, 255, 255, 0.06)",
-                            color: "#CBD5E1",
+                            color: "#625B60",
                             fontWeight: 700,
                             fontSize: "10.5px",
                             height: 20,
@@ -1348,7 +1348,7 @@ export default function AdminTransactionReport() {
                       </TableCell>
 
                       {/* Vendor */}
-                      <TableCell sx={{ color: "#CBD5E1", fontSize: "12px", fontWeight: 600, borderColor: "rgba(255,255,255,0.05)" }}>
+                      <TableCell sx={{ color: "#625B60", fontSize: "12px", fontWeight: 600, borderColor: "rgba(255,255,255,0.05)" }}>
                         {row.vendor_name}
                       </TableCell>
 
@@ -1359,7 +1359,7 @@ export default function AdminTransactionReport() {
                           size="small"
                           sx={{
                             bgcolor: "rgba(148, 163, 184, 0.1)",
-                            color: "#E2E8F0",
+                            color: "#292329",
                             fontWeight: 600,
                             fontSize: "10.5px",
                             height: 20,
@@ -1368,7 +1368,7 @@ export default function AdminTransactionReport() {
                       </TableCell>
 
                       {/* Service */}
-                      <TableCell sx={{ color: "#F1F5F9", fontWeight: 700, fontSize: "12px", borderColor: "rgba(255,255,255,0.05)" }}>
+                      <TableCell sx={{ color: "#292329", fontWeight: 700, fontSize: "12px", borderColor: "rgba(255,255,255,0.05)" }}>
                         {row.service_name}
                       </TableCell>
 
@@ -1418,14 +1418,14 @@ export default function AdminTransactionReport() {
 
                       {/* Opening Balance */}
                       <TableCell align="right" sx={{ borderColor: "rgba(255,255,255,0.05)" }}>
-                        <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "13px", color: "#CBD5E1" }}>
+                        <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "13px", color: "#625B60" }}>
                           {formatINR(row.opening_balance)}
                         </Typography>
                       </TableCell>
 
                       {/* Closing Balance */}
                       <TableCell align="right" sx={{ borderColor: "rgba(255,255,255,0.05)" }}>
-                        <Typography variant="body2" sx={{ fontWeight: 800, fontSize: "13px", color: "#F8FAFC" }}>
+                        <Typography variant="body2" sx={{ fontWeight: 800, fontSize: "13px", color: "#292329" }}>
                           {formatINR(row.closing_balance)}
                         </Typography>
                       </TableCell>
@@ -1437,7 +1437,7 @@ export default function AdminTransactionReport() {
 
                       {/* Service Ref */}
                       <TableCell sx={{ borderColor: "rgba(255,255,255,0.05)" }}>
-                        <Typography variant="caption" sx={{ fontFamily: "monospace", color: "#94A3B8", fontSize: "11px" }}>
+                        <Typography variant="caption" sx={{ fontFamily: "monospace", color: "#625B60", fontSize: "11px" }}>
                           {row.service_reference}
                         </Typography>
                       </TableCell>
@@ -1479,12 +1479,12 @@ export default function AdminTransactionReport() {
           }}
           rowsPerPageOptions={[10, 25, 50, 100]}
           sx={{
-            bgcolor: "#0E1C44",
-            color: "#94A3B8",
-            borderTop: "1px solid rgba(255,255,255,0.08)",
+            bgcolor: "#FAF8F9",
+            color: "#625B60",
+            borderTop: "1px solid #E8E2E5",
             ".MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows": {
               fontSize: "12px",
-              color: "#94A3B8",
+              color: "#625B60",
             },
             ".MuiTablePagination-select": {
               color: "#FFFFFF",
@@ -1507,7 +1507,7 @@ export default function AdminTransactionReport() {
         PaperProps={{
           sx: {
             width: { xs: "100%", sm: 520, md: 580 },
-            bgcolor: "#070E20",
+            bgcolor: "#FFFFFF",
             color: "#FFFFFF",
             borderLeft: "1px solid rgba(255,255,255,0.1)",
             p: 3,
@@ -1517,7 +1517,7 @@ export default function AdminTransactionReport() {
         {drawerLoading ? (
           <Box sx={{ p: 4, textAlign: "center" }}>
             <CircularProgress size={36} sx={{ color: "#38BDF8", mb: 2 }} />
-            <Typography variant="body2" sx={{ color: "#94A3B8" }}>
+            <Typography variant="body2" sx={{ color: "#625B60" }}>
               Loading authoritative transaction lifecycle...
             </Typography>
           </Box>
@@ -1539,11 +1539,11 @@ export default function AdminTransactionReport() {
                   </Typography>
                   {renderStatusBadge(selectedTxn.status)}
                 </Stack>
-                <Typography variant="caption" sx={{ color: "#94A3B8" }}>
+                <Typography variant="caption" sx={{ color: "#625B60" }}>
                   {selectedTxn.date_time}
                 </Typography>
               </Box>
-              <IconButton onClick={() => setDrawerOpen(false)} sx={{ color: "#94A3B8" }}>
+              <IconButton onClick={() => setDrawerOpen(false)} sx={{ color: "#625B60" }}>
                 <CloseIcon />
               </IconButton>
             </Stack>
@@ -1551,7 +1551,7 @@ export default function AdminTransactionReport() {
             {/* Financial Impact Card */}
             <Card
               sx={{
-                bgcolor: "#0B1533",
+                bgcolor: "#FAF8F9",
                 border: "1px solid rgba(255, 255, 255, 0.1)",
                 borderRadius: "12px",
                 p: 2,
@@ -1560,7 +1560,7 @@ export default function AdminTransactionReport() {
             >
               <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Box>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", textTransform: "uppercase", fontWeight: 700 }}>
+                  <Typography variant="caption" sx={{ color: "#625B60", textTransform: "uppercase", fontWeight: 700 }}>
                     Transaction Amount
                   </Typography>
                   <Typography
@@ -1585,19 +1585,19 @@ export default function AdminTransactionReport() {
                 />
               </Stack>
 
-              <Divider sx={{ my: 1.5, borderColor: "rgba(255,255,255,0.08)" }} />
+              <Divider sx={{ my: 1.5, borderColor: "#E8E2E5" }} />
 
               <Grid container spacing={1}>
                 <Grid item xs={6}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8" }}>
+                  <Typography variant="caption" sx={{ color: "#625B60" }}>
                     Opening Balance
                   </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 700, color: "#CBD5E1" }}>
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: "#625B60" }}>
                     {formatINR(selectedTxn.opening_balance)}
                   </Typography>
                 </Grid>
                 <Grid item xs={6} sx={{ textAlign: "right" }}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8" }}>
+                  <Typography variant="caption" sx={{ color: "#625B60" }}>
                     Closing Balance
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 800, color: "#FFFFFF" }}>
@@ -1611,47 +1611,47 @@ export default function AdminTransactionReport() {
             <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#38BDF8", mb: 1, textTransform: "uppercase", fontSize: "11px" }}>
               Core Metadata
             </Typography>
-            <Paper sx={{ bgcolor: "#0B1533", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", p: 1.5, mb: 2.5 }}>
+            <Paper sx={{ bgcolor: "#FAF8F9", border: "1px solid #E8E2E5", borderRadius: "10px", p: 1.5, mb: 2.5 }}>
               <Grid container spacing={1.5}>
                 <Grid item xs={6}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8" }}>Txn ID</Typography>
+                  <Typography variant="caption" sx={{ color: "#625B60" }}>Txn ID</Typography>
                   <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: "#FFFFFF" }}>
                     {selectedTxn.txn_id}
                   </Typography>
                 </Grid>
                 <Grid item xs={6}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8" }}>Company</Typography>
+                  <Typography variant="caption" sx={{ color: "#625B60" }}>Company</Typography>
                   <Typography variant="body2" sx={{ fontWeight: 700, color: "#FFFFFF" }}>
                     {selectedTxn.company_name} ({selectedTxn.company_code})
                   </Typography>
                 </Grid>
                 <Grid item xs={6}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8" }}>User / Store</Typography>
+                  <Typography variant="caption" sx={{ color: "#625B60" }}>User / Store</Typography>
                   <Typography variant="body2" sx={{ fontWeight: 700, color: "#FFFFFF" }}>
                     {selectedTxn.user_name}
                   </Typography>
                 </Grid>
                 <Grid item xs={6}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8" }}>User Type / Code</Typography>
+                  <Typography variant="caption" sx={{ color: "#625B60" }}>User Type / Code</Typography>
                   <Typography variant="body2" sx={{ fontWeight: 700, color: "#FFFFFF" }}>
                     {selectedTxn.user_type} • {selectedTxn.user_code}
                   </Typography>
                 </Grid>
                 <Grid item xs={6}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8" }}>Service / Vendor</Typography>
+                  <Typography variant="caption" sx={{ color: "#625B60" }}>Service / Vendor</Typography>
                   <Typography variant="body2" sx={{ fontWeight: 700, color: "#FFFFFF" }}>
                     {selectedTxn.service_name} • {selectedTxn.vendor_name}
                   </Typography>
                 </Grid>
                 <Grid item xs={6}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8" }}>Wallet Type</Typography>
+                  <Typography variant="caption" sx={{ color: "#625B60" }}>Wallet Type</Typography>
                   <Typography variant="body2" sx={{ fontWeight: 700, color: "#FFFFFF" }}>
                     {selectedTxn.wallet_type}
                   </Typography>
                 </Grid>
                 <Grid item xs={12}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8" }}>Service Ref / Narration</Typography>
-                  <Typography variant="body2" sx={{ color: "#E2E8F0", fontSize: "12px", mt: 0.2 }}>
+                  <Typography variant="caption" sx={{ color: "#625B60" }}>Service Ref / Narration</Typography>
+                  <Typography variant="body2" sx={{ color: "#292329", fontSize: "12px", mt: 0.2 }}>
                     {selectedTxn.narration} ({selectedTxn.service_reference})
                   </Typography>
                 </Grid>
@@ -1675,7 +1675,7 @@ export default function AdminTransactionReport() {
                         height: 16,
                         borderRadius: "50%",
                         bgcolor: step.status === "SUCCESS" ? "#10B981" : (step.status === "REVERSED" ? "#A855F7" : "#38BDF8"),
-                        border: "2px solid #070E20",
+                        border: "2px solid #FFFFFF",
                       }}
                     />
                     <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -1690,20 +1690,20 @@ export default function AdminTransactionReport() {
                           fontSize: "10px",
                           fontWeight: 800,
                           bgcolor: "rgba(255,255,255,0.08)",
-                          color: "#E2E8F0",
+                          color: "#292329",
                         }}
                       />
                     </Stack>
-                    <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", mt: 0.3 }}>
+                    <Typography variant="caption" sx={{ color: "#625B60", display: "block", mt: 0.3 }}>
                       {step.description}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: "#64748B", fontSize: "10.5px" }}>
+                    <Typography variant="caption" sx={{ color: "#625B60", fontSize: "10.5px" }}>
                       Actor: {step.actor} • {step.timestamp}
                     </Typography>
                   </Box>
                 ))
               ) : (
-                <Typography variant="caption" sx={{ color: "#94A3B8" }}>
+                <Typography variant="caption" sx={{ color: "#625B60" }}>
                   No extra audit events recorded.
                 </Typography>
               )}
@@ -1722,7 +1722,7 @@ export default function AdminTransactionReport() {
         <Alert
           onClose={() => setToastMsg({ ...toastMsg, open: false })}
           severity={toastMsg.severity}
-          sx={{ width: "100%", bgcolor: "#0B1533", color: "#FFFFFF", border: "1px solid rgba(255,255,255,0.15)" }}
+          sx={{ width: "100%", bgcolor: "#FAF8F9", color: "#FFFFFF", border: "1px solid rgba(255,255,255,0.15)" }}
         >
           {toastMsg.message}
         </Alert>

@@ -178,13 +178,13 @@ export default function DmtTransactionsPage() {
 
       {/* Reversal Modal */}
       {showRevModal && selectedTxn && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 w-full max-w-md space-y-4 shadow-xl text-[#111827]">
-            <h3 className="text-lg font-extrabold text-[#111827] flex items-center gap-2">
+        <div className="fixed inset-0 bg-[#FAF8F9] backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 w-full max-w-md space-y-4 shadow-xl text-[#FAF8F9]">
+            <h3 className="text-lg font-extrabold text-[#FAF8F9] flex items-center gap-2">
               <RotateCcw className="w-5 h-5 text-[#DC2626]" /> Reverse DMT Transaction
             </h3>
             <p className="text-xs text-[#6B7280]">
-              Txn: <span className="font-mono text-[#111827] font-bold">{selectedTxn.transaction_number}</span> | Amount: <strong className="text-[#111827]">₹{selectedTxn.total_debit_amount}</strong>
+              Txn: <span className="font-mono text-[#FAF8F9] font-bold">{selectedTxn.transaction_number}</span> | Amount: <strong className="text-[#FAF8F9]">₹{selectedTxn.total_debit_amount}</strong>
             </p>
 
             <form onSubmit={handleReversalSubmit} className="space-y-4">
@@ -195,7 +195,7 @@ export default function DmtTransactionsPage() {
                   value={revReason}
                   onChange={(e) => setRevReason(e.target.value)}
                   placeholder="Enter detailed reason for manual reversal..."
-                  className="w-full px-3 py-2 bg-white border border-[#D1D5DB] rounded-lg text-sm text-[#111827] focus:outline-none focus:border-[#2563EB] h-24"
+                  className="w-full px-3 py-2 bg-white border border-[#D1D5DB] rounded-lg text-sm text-[#FAF8F9] focus:outline-none focus:border-[#2563EB] h-24"
                 />
               </div>
 

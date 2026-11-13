@@ -28,6 +28,8 @@ pay2pay-platform/**/.turbo/
 
 # Deploy & Scratch Artifacts
 admin_deploy_staging/
+test-results/
+playwright-report/
 *.zip
 *.tar.gz
 *.tar

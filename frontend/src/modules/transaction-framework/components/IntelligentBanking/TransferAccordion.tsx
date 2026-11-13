@@ -116,8 +116,8 @@ export const TransferAccordion: React.FC<TransferAccordionProps> = ({
       id: "panel8",
       title: "8. Operator Telemetry & Analytics",
       badge: "₹1.24L TODAY",
-      badgeColor: "#FBBF24",
-      icon: <AnalyticsIcon sx={{ color: "#FBBF24", fontSize: 20 }} />,
+      badgecolor: "#A20A3A",
+      icon: <AnalyticsIcon sx={{ color: "#A20A3A", fontSize: 20 }} />,
       component: <OperatorIntelligence />,
     },
     {
@@ -133,7 +133,7 @@ export const TransferAccordion: React.FC<TransferAccordionProps> = ({
       title: "10. Session Security & Compliance Audit Log",
       badge: "SECURE LOG",
       badgeColor: "#94A3B8",
-      icon: <AdminPanelSettingsIcon sx={{ color: "#94A3B8", fontSize: 20 }} />,
+      icon: <AdminPanelSettingsIcon sx={{ color: "#625B60", fontSize: 20 }} />,
       component: <AuditPanel customerCode={customerCode} beneficiaryCode={beneficiaryCode} />,
     },
   ];
@@ -154,7 +154,7 @@ export const TransferAccordion: React.FC<TransferAccordionProps> = ({
               onChange={handleChange(p.id)}
               elevation={0}
               sx={{
-                bgcolor: isExp ? "rgba(18, 27, 48, 0.85)" : "rgba(18, 27, 48, 0.5)",
+                bgcolor: isExp ? "#FFFFFF" : "rgba(18, 27, 48, 0.5)",
                 backdropFilter: "blur(20px)",
                 border: isExp ? "1px solid #3B82F6" : "1px solid rgba(255, 255, 255, 0.1)",
                 borderRadius: "16px !important",

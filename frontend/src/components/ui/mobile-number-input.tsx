@@ -235,7 +235,7 @@ export const MobileNumberInput: React.FC<MobileNumberInputProps> = ({
                 ? "text-[#22C55E]"
                 : cleanDigits.length > 0
                 ? "text-slate-600"
-                : "text-slate-400"
+                : "text-[#625B60]"
             }`}
           >
             {cleanDigits.length}/10 Digits {is10Digits ? "✓" : ""}
@@ -246,7 +246,7 @@ export const MobileNumberInput: React.FC<MobileNumberInputProps> = ({
       {/* Input Container */}
       <div className="relative flex items-center">
         {/* Country Code Prefix */}
-        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500 font-bold text-xs">
+        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#8A8288] font-bold text-xs">
           <span className="flex items-center gap-1">
             <span>🇮🇳</span>
             <span className="font-mono text-slate-700">+91</span>
@@ -281,7 +281,7 @@ export const MobileNumberInput: React.FC<MobileNumberInputProps> = ({
           placeholder={placeholder}
           className={`w-full pl-20 pr-11 py-3 rounded-2xl text-sm font-black font-mono tracking-wider border-2 outline-none transition-all min-h-[48px] ${
             disabled
-              ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+              ? "bg-slate-100 text-[#625B60] border-slate-200 cursor-not-allowed"
               : activeError
               ? "border-[#EF4444] bg-red-50/40 text-red-900 focus:ring-2 focus:ring-red-500/20"
               : is10Digits
@@ -334,7 +334,7 @@ export const MobileNumberInput: React.FC<MobileNumberInputProps> = ({
             key="helper"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-[11px] font-medium text-slate-500 px-1"
+            className="text-[11px] font-medium text-[#8A8288] px-1"
           >
             Enter a valid 10-digit mobile number.
           </motion.div>

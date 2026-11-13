@@ -122,7 +122,7 @@ export default function FraudRulesPage() {
       sortable: true,
       cell: (r) => (
         <div>
-          <div className="font-bold text-[#0F172A]">{r.rule_name}</div>
+          <div className="font-bold text-[#FFFFFF]">{r.rule_name}</div>
           <div className="text-[10px] text-[#64748B]">Scope: {r.entity_type} Target</div>
         </div>
       ),
@@ -153,7 +153,7 @@ export default function FraudRulesPage() {
       accessorKey: "threshold_value",
       sortable: true,
       cell: (r) => (
-        <span className="font-mono text-xs font-extrabold text-[#0F172A]">
+        <span className="font-mono text-xs font-extrabold text-[#FFFFFF]">
           ₹{(r.threshold_value || 0).toLocaleString("en-IN")}
         </span>
       ),
@@ -199,7 +199,7 @@ export default function FraudRulesPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#0F172A] flex items-center gap-3">
+          <h1 className="text-2xl font-extrabold text-[#FFFFFF] flex items-center gap-3">
             <Sliders className="h-7 w-7 text-[#2563EB]" />
             Fraud Detection Rules Engine &amp; Threshold Builder
           </h1>
@@ -216,7 +216,7 @@ export default function FraudRulesPage() {
               className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-extrabold transition-all cursor-pointer ${
                 viewMode === "table"
                   ? "bg-white text-[#2563EB] shadow-2xs"
-                  : "text-[#64748B] hover:text-[#0F172A]"
+                  : "text-[#64748B] hover:text-[#FFFFFF]"
               }`}
             >
               <List className="h-4 w-4" />
@@ -227,7 +227,7 @@ export default function FraudRulesPage() {
               className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-extrabold transition-all cursor-pointer ${
                 viewMode === "grid"
                   ? "bg-white text-[#2563EB] shadow-2xs"
-                  : "text-[#64748B] hover:text-[#0F172A]"
+                  : "text-[#64748B] hover:text-[#FFFFFF]"
               }`}
             >
               <LayoutGrid className="h-4 w-4" />
@@ -300,7 +300,7 @@ export default function FraudRulesPage() {
               <Sliders className="h-4 w-4" />
             </div>
           </div>
-          <div className="mt-2 font-mono text-xl font-extrabold text-[#0F172A]">{metrics.total} Rules</div>
+          <div className="mt-2 font-mono text-xl font-extrabold text-[#FFFFFF]">{metrics.total} Rules</div>
           <p className="mt-1 text-[10px] font-semibold text-[#4F46E5]">Risk Mitigation Engine</p>
         </div>
       </div>
@@ -311,7 +311,7 @@ export default function FraudRulesPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-3">
-              <h3 className="text-sm font-extrabold text-[#0F172A]">Fraud Detection Cards</h3>
+              <h3 className="text-sm font-extrabold text-[#FFFFFF]">Fraud Detection Cards</h3>
               <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-extrabold bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]">
                 {rules.length} Cards
               </span>
@@ -337,7 +337,7 @@ export default function FraudRulesPage() {
                       <span className="font-mono text-xs font-extrabold text-[#2563EB] tracking-wide block">
                         {r.rule_code}
                       </span>
-                      <span className="font-bold text-xs text-[#0F172A] truncate max-w-[140px] block">
+                      <span className="font-bold text-xs text-[#FFFFFF] truncate max-w-[140px] block">
                         {r.rule_name}
                       </span>
                     </div>
@@ -362,13 +362,13 @@ export default function FraudRulesPage() {
                 <div className="space-y-3 text-xs">
                   <div className="flex items-center justify-between bg-[#F8FAFC] p-2.5 rounded-xl border border-[#E2E8F0]">
                     <span className="text-[#64748B] font-bold">Target &amp; Category:</span>
-                    <span className="font-bold text-[#0F172A]">{r.entity_type} ({r.category})</span>
+                    <span className="font-bold text-[#FFFFFF]">{r.entity_type} ({r.category})</span>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 font-mono">
                     <div className="p-2 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
                       <span className="text-[10px] text-[#64748B] font-sans font-extrabold block uppercase">Threshold Limit</span>
-                      <span className="font-extrabold text-[#0F172A]">₹{(r.threshold_value || 0).toLocaleString("en-IN")}</span>
+                      <span className="font-extrabold text-[#FFFFFF]">₹{(r.threshold_value || 0).toLocaleString("en-IN")}</span>
                     </div>
                     <div className="p-2 rounded-xl bg-[#FEF3C7] border border-[#FDE68A]">
                       <span className="text-[10px] text-[#B45309] font-sans font-extrabold block uppercase">Action</span>
@@ -417,13 +417,13 @@ export default function FraudRulesPage() {
 
       {/* Create Rule Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FAF8F9]/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="w-full max-w-lg rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xl space-y-4 my-8">
             <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-4">
-              <h3 className="text-lg font-bold text-[#111827] flex items-center gap-2">
+              <h3 className="text-lg font-bold text-[#FAF8F9] flex items-center gap-2">
                 <Sliders className="h-5 w-5 text-[#2563EB]" /> Create Fraud Detection Rule
               </h3>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setShowModal(false)} className="text-[#625B60] hover:text-slate-600">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -437,7 +437,7 @@ export default function FraudRulesPage() {
                   placeholder="e.g. High Value Spike Detection (> ₹100,000)"
                   value={ruleName}
                   onChange={(e) => setRuleName(e.target.value)}
-                  className="w-full rounded-xl border border-[#D1D5DB] bg-white p-2.5 text-[#0F172A] font-bold focus:border-[#2563EB] focus:outline-none"
+                  className="w-full rounded-xl border border-[#D1D5DB] bg-white p-2.5 text-[#FFFFFF] font-bold focus:border-[#2563EB] focus:outline-none"
                 />
               </div>
 
@@ -447,7 +447,7 @@ export default function FraudRulesPage() {
                   <select
                     value={entityType}
                     onChange={(e) => setEntityType(e.target.value)}
-                    className="w-full rounded-xl border border-[#D1D5DB] bg-white p-2.5 text-[#0F172A] font-bold focus:border-[#2563EB] focus:outline-none cursor-pointer"
+                    className="w-full rounded-xl border border-[#D1D5DB] bg-white p-2.5 text-[#FFFFFF] font-bold focus:border-[#2563EB] focus:outline-none cursor-pointer"
                   >
                     <option value="SETTLEMENT">SETTLEMENT</option>
                     <option value="PAYOUT">PAYOUT</option>
@@ -461,7 +461,7 @@ export default function FraudRulesPage() {
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    className="w-full rounded-xl border border-[#D1D5DB] bg-white p-2.5 text-[#0F172A] font-bold focus:border-[#2563EB] focus:outline-none cursor-pointer"
+                    className="w-full rounded-xl border border-[#D1D5DB] bg-white p-2.5 text-[#FFFFFF] font-bold focus:border-[#2563EB] focus:outline-none cursor-pointer"
                   >
                     <option value="VELOCITY">VELOCITY</option>
                     <option value="IDENTITY">IDENTITY</option>
@@ -478,7 +478,7 @@ export default function FraudRulesPage() {
                     type="number"
                     value={thresholdValue}
                     onChange={(e) => setThresholdValue(parseFloat(e.target.value) || 0)}
-                    className="w-full rounded-xl border border-[#D1D5DB] bg-white p-2.5 text-[#0F172A] font-bold focus:border-[#2563EB] focus:outline-none"
+                    className="w-full rounded-xl border border-[#D1D5DB] bg-white p-2.5 text-[#FFFFFF] font-bold focus:border-[#2563EB] focus:outline-none"
                     required
                   />
                 </div>
@@ -488,7 +488,7 @@ export default function FraudRulesPage() {
                   <select
                     value={action}
                     onChange={(e) => setAction(e.target.value)}
-                    className="w-full rounded-xl border border-[#D1D5DB] bg-white p-2.5 text-[#0F172A] font-bold focus:border-[#2563EB] focus:outline-none cursor-pointer"
+                    className="w-full rounded-xl border border-[#D1D5DB] bg-white p-2.5 text-[#FFFFFF] font-bold focus:border-[#2563EB] focus:outline-none cursor-pointer"
                   >
                     <option value="HOLD">HOLD ON APPROVAL</option>
                     <option value="FREEZE_WALLET">FREEZE WALLET</option>

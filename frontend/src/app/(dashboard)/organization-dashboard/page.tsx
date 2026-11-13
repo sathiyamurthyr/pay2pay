@@ -78,18 +78,18 @@ export default function OrganizationDashboardPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100 flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-[#292329] flex items-center gap-3">
             <Network className="h-8 w-8 text-emerald-400" />
             Organization & Hierarchy Telemetry
           </h1>
-          <p className="mt-1 text-slate-400">
+          <p className="mt-1 text-[#625B60]">
             Real-time sales hierarchy network topology, mapping coverage & transfer telemetry
           </p>
         </div>
         <button
           onClick={fetchMetrics}
           disabled={refreshing}
-          className="flex items-center gap-2 rounded-lg bg-slate-800/80 px-4 py-2.5 text-sm font-medium text-slate-200 border border-slate-700 hover:bg-slate-700/80 transition-all"
+          className="flex items-center gap-2 rounded-lg bg-[#F5F2F4]/80 px-4 py-2.5 text-sm font-medium text-[#292329] border border-[#E8E2E5] hover:bg-slate-700/80 transition-all"
         >
           <RefreshCw className={`h-4 w-4 text-emerald-400 ${refreshing ? "animate-spin" : ""}`} />
           Refresh
@@ -106,7 +106,7 @@ export default function OrganizationDashboardPage() {
               className={`relative overflow-hidden rounded-xl border bg-gradient-to-br p-5 backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] shadow-lg ${kpi.color}`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-300">{kpi.label}</span>
+                <span className="text-sm font-medium text-[#292329]">{kpi.label}</span>
                 <Icon className="h-5 w-5 opacity-80" />
               </div>
               <div className="mt-3 text-3xl font-extrabold text-white">{kpi.value}</div>
@@ -118,10 +118,10 @@ export default function OrganizationDashboardPage() {
       {/* Visualizers Grid */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Tier Distribution */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur-xl shadow-xl">
+        <div className="rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 p-6 backdrop-blur-xl shadow-xl">
           <div className="flex items-center gap-2 mb-6">
             <PieIcon className="h-5 w-5 text-emerald-400" />
-            <h3 className="font-semibold text-slate-200 text-lg">Sales Network Tier Breakdown</h3>
+            <h3 className="font-semibold text-[#292329] text-lg">Sales Network Tier Breakdown</h3>
           </div>
           <div className="space-y-4">
             {Object.entries(metrics.tier_distribution).map(([tier, count]) => {
@@ -130,10 +130,10 @@ export default function OrganizationDashboardPage() {
               return (
                 <div key={tier} className="space-y-1.5">
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-300 font-medium">{tier.replace("_", " ")}</span>
-                    <span className="font-mono text-slate-400">{count} ({pct}%)</span>
+                    <span className="text-[#292329] font-medium">{tier.replace("_", " ")}</span>
+                    <span className="font-mono text-[#625B60]">{count} ({pct}%)</span>
                   </div>
-                  <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                  <div className="h-2 w-full rounded-full bg-[#F5F2F4] overflow-hidden">
                     <div
                       className={`h-full rounded-full ${
                         tier === "REGIONAL_MANAGERS" ? "bg-blue-400" :
@@ -149,22 +149,22 @@ export default function OrganizationDashboardPage() {
         </div>
 
         {/* Hierarchy Growth Trend */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur-xl shadow-xl">
+        <div className="rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 p-6 backdrop-blur-xl shadow-xl">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-blue-400" />
-              <h3 className="font-semibold text-slate-200 text-lg">Network Expansion Trend</h3>
+              <h3 className="font-semibold text-[#292329] text-lg">Network Expansion Trend</h3>
             </div>
-            <span className="text-xs font-mono text-slate-400 bg-slate-800 px-2.5 py-1 rounded">2026 Telemetry</span>
+            <span className="text-xs font-mono text-[#625B60] bg-[#F5F2F4] px-2.5 py-1 rounded">2026 Telemetry</span>
           </div>
-          <div className="flex h-48 items-end gap-3 pt-6 border-b border-slate-800 pb-2">
+          <div className="flex h-48 items-end gap-3 pt-6 border-b border-[#E8E2E5] pb-2">
             {metrics.growth_chart.map((item, i) => (
               <div key={i} className="flex-1 flex flex-col items-center gap-2">
                 <div
                   style={{ height: `${Math.max(15, ((item.rms + item.super_distributors + item.distributors) / Math.max(1, metrics.total_rms + metrics.total_super_distributors + metrics.total_distributors)) * 100)}%` }}
                   className="w-full rounded-t bg-gradient-to-t from-blue-600 to-emerald-400 transition-all duration-500 hover:brightness-125"
                 />
-                <span className="text-xs font-mono text-slate-400">{item.month}</span>
+                <span className="text-xs font-mono text-[#625B60]">{item.month}</span>
               </div>
             ))}
           </div>

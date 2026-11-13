@@ -90,9 +90,9 @@ function SearchableEntityPicker({
       <button
         type="button"
         onClick={() => setOpen((p) => !p)}
-        className="w-full flex items-center justify-between rounded-2xl border border-[#CBD5E1] bg-white px-4 py-3 text-xs font-bold text-[#0F172A] hover:border-[#2563EB] focus:outline-none transition-all shadow-2xs cursor-pointer"
+        className="w-full flex items-center justify-between rounded-2xl border border-[#CBD5E1] bg-white px-4 py-3 text-xs font-bold text-[#FFFFFF] hover:border-[#2563EB] focus:outline-none transition-all shadow-2xs cursor-pointer"
       >
-        <span className={selected ? "text-[#0F172A] font-extrabold" : "text-[#94A3B8]"}>
+        <span className={selected ? "text-[#FFFFFF] font-extrabold" : "text-[#94A3B8]"}>
           {selected ? `${selected.name} (${selected.code})` : "Click to choose entity user from list..."}
         </span>
         <ChevronDown className={`w-4 h-4 text-[#64748B] flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
@@ -109,7 +109,7 @@ function SearchableEntityPicker({
                 placeholder="Search entity by name, code, phone..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="w-full bg-transparent text-xs font-semibold text-[#0F172A] focus:outline-none placeholder-[#94A3B8]"
+                className="w-full bg-transparent text-xs font-semibold text-[#FFFFFF] focus:outline-none placeholder-[#94A3B8]"
               />
               {query && (
                 <button type="button" onClick={() => setQuery("")}>
@@ -132,11 +132,11 @@ function SearchableEntityPicker({
                     setQuery("");
                   }}
                   className={`flex items-center justify-between px-4 py-3 text-xs cursor-pointer hover:bg-[#EFF6FF] transition-colors ${
-                    selected?.id === item.id ? "bg-[#EFF6FF] font-extrabold text-[#2563EB]" : "text-[#0F172A]"
+                    selected?.id === item.id ? "bg-[#EFF6FF] font-extrabold text-[#2563EB]" : "text-[#FFFFFF]"
                   }`}
                 >
                   <div>
-                    <p className="font-bold text-xs text-[#0F172A]">{item.name}</p>
+                    <p className="font-bold text-xs text-[#FFFFFF]">{item.name}</p>
                     <p className="font-mono text-[10px] font-bold text-[#2563EB]">{item.code} · {item.phone}</p>
                   </div>
                   <div className="text-right">
@@ -204,7 +204,7 @@ export default function EntityWalletsPage() {
               parent_dist: r.mapped_distributor_id ? `Distributor (${String(r.mapped_distributor_id).substring(0, 8)})` : "Direct Network",
               parent_sd: "South India Super Network",
               phone: r.mobile_number || r.mobile || "+91 98765 43210",
-              email: r.email || `${(r.retailer_code || "retailer").toLowerCase()}@pay2pay.in`,
+              email: r.email || `${(r.retailer_code || "retailer").toLowerCase()}@near4you.store`,
               location: r.city && r.state ? `${r.city}, ${r.state}` : "Chennai, Tamil Nadu",
               kyc_status: r.status === "ACTIVE" ? "VERIFIED" : (r.status || "PENDING"),
               main_balance: typeof r.wallet_balance === "number" ? Number(r.wallet_balance) : 0.0,
@@ -227,7 +227,7 @@ export default function EntityWalletsPage() {
             code: dist.distributor_code || dist.code || "DIST-UNKNOWN",
             parent_sd: "South India Super Network (SD-1002)",
             phone: dist.phone || "+91 94440 55112",
-            email: dist.email || "distributor@pay2pay.in",
+            email: dist.email || "distributor@near4you.store",
             location: dist.city || "Coimbatore, Tamil Nadu",
             kyc_status: "VERIFIED",
             main_balance: typeof dist.wallet_balance === "number" ? Number(dist.wallet_balance) : 0.0,
@@ -249,7 +249,7 @@ export default function EntityWalletsPage() {
             name: sd.company_name || sd.super_distributor_name || sd.name || "Super Distributor",
             code: sd.super_distributor_code || sd.code || "SD-UNKNOWN",
             phone: sd.phone || "+91 98401 23456",
-            email: sd.email || "sd@pay2pay.in",
+            email: sd.email || "sd@near4you.store",
             location: sd.city || "Chennai, Tamil Nadu",
             kyc_status: "VERIFIED",
             main_balance: typeof sd.wallet_balance === "number" ? Number(sd.wallet_balance) : 0.0,
@@ -385,7 +385,7 @@ export default function EntityWalletsPage() {
   const handleCopyFullSummary = () => {
     if (!selectedEntity || !walletSummary) return;
     const summaryText = `----------------------------------------
-PAY2PAY ENTITY WALLET SUMMARY
+NEAR4YOU ENTITY WALLET SUMMARY
 ----------------------------------------
 Entity Name: ${selectedEntity.name}
 Entity Code: ${selectedEntity.code}
@@ -415,7 +415,7 @@ Generated: ${new Date().toLocaleString("en-IN")}`;
       {/* Title & Action Buttons Bar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#0F172A] flex items-center gap-3">
+          <h1 className="text-2xl font-extrabold text-[#FFFFFF] flex items-center gap-3">
             <Layers className="h-7 w-7 text-[#2563EB]" />
             Entity Type Wallet Balances
           </h1>
@@ -583,7 +583,7 @@ Generated: ${new Date().toLocaleString("en-IN")}`;
               <div className="space-y-2">
                 {/* Title & Badges Row */}
                 <div className="flex items-center gap-2.5 flex-wrap">
-                  <h2 className="text-xl font-extrabold text-[#0F172A] tracking-tight">{selectedEntity.name}</h2>
+                  <h2 className="text-xl font-extrabold text-[#FFFFFF] tracking-tight">{selectedEntity.name}</h2>
                   
                   {/* Entity Code */}
                   <button
@@ -951,7 +951,7 @@ Generated: ${new Date().toLocaleString("en-IN")}`;
 
       {/* ── WALLET-SPECIFIC FREEZE (LOCK) REASON CONFIRMATION MODAL ───────── */}
       {showFreezeModal && (
-        <div className="fixed inset-0 z-[99999] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[99999] bg-[#FFFFFF]/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-200 space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-3">
@@ -959,11 +959,11 @@ Generated: ${new Date().toLocaleString("en-IN")}`;
                   <Lock className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base text-[#0F172A]">Freeze / Lock Specific Wallet</h3>
+                  <h3 className="font-extrabold text-base text-[#FFFFFF]">Freeze / Lock Specific Wallet</h3>
                   <p className="text-xs text-[#64748B] font-medium">{selectedEntity?.name} ({selectedEntity?.code})</p>
                 </div>
               </div>
-              <button type="button" onClick={() => setShowFreezeModal(false)} className="text-[#94A3B8] hover:text-[#0F172A]">
+              <button type="button" onClick={() => setShowFreezeModal(false)} className="text-[#94A3B8] hover:text-[#FFFFFF]">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -971,13 +971,13 @@ Generated: ${new Date().toLocaleString("en-IN")}`;
             <div className="space-y-4">
               {/* Target Wallet Type Selector Dropdown */}
               <div>
-                <label className="text-xs font-extrabold text-[#0F172A] block mb-1">
+                <label className="text-xs font-extrabold text-[#FFFFFF] block mb-1">
                   Choose Wallet to Freeze / Lock:
                 </label>
                 <select
                   value={targetWalletToFreeze}
                   onChange={(e) => setTargetWalletToFreeze(e.target.value)}
-                  className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl px-3 py-2.5 text-xs font-bold text-[#0F172A] focus:outline-none focus:border-[#DC2626]"
+                  className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl px-3 py-2.5 text-xs font-bold text-[#FFFFFF] focus:outline-none focus:border-[#DC2626]"
                 >
                   <option value="ALL">🔒 All Wallets (Global Entity Lock)</option>
                   <option value="MAIN">🟢 Main Settlement Wallet Only</option>
@@ -988,13 +988,13 @@ Generated: ${new Date().toLocaleString("en-IN")}`;
 
               {/* Compliance Reason Selector Dropdown */}
               <div>
-                <label className="text-xs font-extrabold text-[#0F172A] block mb-1">
+                <label className="text-xs font-extrabold text-[#FFFFFF] block mb-1">
                   Select Compliance Lock Reason:
                 </label>
                 <select
                   value={freezeReason}
                   onChange={(e) => setFreezeReason(e.target.value)}
-                  className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl px-3 py-2.5 text-xs font-bold text-[#0F172A] focus:outline-none focus:border-[#DC2626]"
+                  className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl px-3 py-2.5 text-xs font-bold text-[#FFFFFF] focus:outline-none focus:border-[#DC2626]"
                 >
                   <option value="Compliance Audit Lock">Compliance Audit Lock</option>
                   <option value="Suspicious Transaction Alert">Suspicious Transaction Alert</option>

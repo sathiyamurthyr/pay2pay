@@ -181,19 +181,19 @@ export default function AepsServicesPage() {
                 </div>
                 <div className="flex justify-between text-[#64748B]">
                   <span>RRN:</span>
-                  <span className="font-mono font-bold text-[#0F172A]">{txnResult.rrn}</span>
+                  <span className="font-mono font-bold text-[#FFFFFF]">{txnResult.rrn}</span>
                 </div>
                 <div className="flex justify-between text-[#64748B]">
                   <span>Aadhaar:</span>
-                  <span className="font-mono font-bold text-[#0F172A]">{txnResult.masked_aadhaar}</span>
+                  <span className="font-mono font-bold text-[#FFFFFF]">{txnResult.masked_aadhaar}</span>
                 </div>
                 <div className="flex justify-between text-[#64748B]">
                   <span>Bank:</span>
-                  <span className="text-[#0F172A] font-semibold">{txnResult.bank_name}</span>
+                  <span className="text-[#FFFFFF] font-semibold">{txnResult.bank_name}</span>
                 </div>
                 <div className="flex justify-between text-[#64748B] text-sm pt-1 border-t border-[#E2E8F0]">
                   <span>Dispatched Cash Amount:</span>
-                  <span className="font-mono font-extrabold text-[#0F172A]">₹{txnResult.transaction_amount?.toLocaleString()}</span>
+                  <span className="font-mono font-extrabold text-[#FFFFFF]">₹{txnResult.transaction_amount?.toLocaleString()}</span>
                 </div>
                 {txnResult.retailer_commission > 0 && (
                   <div className="flex justify-between text-xs text-emerald-700 font-bold pt-1">

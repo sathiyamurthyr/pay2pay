@@ -92,7 +92,7 @@ export const RetailerVerificationDashboard: React.FC = () => {
             <ShieldCheck className="w-7 h-7 text-blue-600" />
             Retailer Verification & Approval Portal
           </h1>
-          <p className="text-xs font-semibold text-slate-500 mt-1">
+          <p className="text-xs font-semibold text-[#8A8288] mt-1">
             Enterprise Compliance Dashboard for NSDL, UIDAI, and Cashfree Retailer Verification Audits.
           </p>
         </div>
@@ -144,7 +144,7 @@ export const RetailerVerificationDashboard: React.FC = () => {
       {/* Search & Filter Bar */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="relative col-span-2">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#625B60]" />
           <input
             type="text"
             value={search}
@@ -187,14 +187,14 @@ export const RetailerVerificationDashboard: React.FC = () => {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-500 font-bold">
+                  <td colSpan={7} className="px-6 py-12 text-center text-[#8A8288] font-bold">
                     <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-blue-600" />
                     Loading verification requests...
                   </td>
                 </tr>
               ) : requests.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-500 font-bold">
+                  <td colSpan={7} className="px-6 py-12 text-center text-[#8A8288] font-bold">
                     No retailer verification requests found under <span className="text-blue-600 font-extrabold">{activeTab}</span> status.
                   </td>
                 </tr>
@@ -208,14 +208,14 @@ export const RetailerVerificationDashboard: React.FC = () => {
                         </div>
                         <div>
                           <p className="font-extrabold text-slate-900">{item.retailer_name}</p>
-                          <p className="text-[11px] text-slate-500">{item.shop_name}</p>
+                          <p className="text-[11px] text-[#8A8288]">{item.shop_name}</p>
                         </div>
                       </div>
                     </td>
 
                     <td className="px-6 py-4">
                       <p className="font-extrabold text-slate-800">+91 {item.mobile_number}</p>
-                      <p className="text-[11px] text-slate-500">{item.email || "N/A"}</p>
+                      <p className="text-[11px] text-[#8A8288]">{item.email || "N/A"}</p>
                     </td>
 
                     <td className="px-6 py-4">
@@ -230,7 +230,7 @@ export const RetailerVerificationDashboard: React.FC = () => {
 
                     <td className="px-6 py-4 text-slate-700">
                       <p className="font-bold">{item.district || "Chennai"}</p>
-                      <p className="text-[11px] text-slate-500">{item.state || "Tamil Nadu"}</p>
+                      <p className="text-[11px] text-[#8A8288]">{item.state || "Tamil Nadu"}</p>
                     </td>
 
                     <td className="px-6 py-4">
@@ -238,7 +238,7 @@ export const RetailerVerificationDashboard: React.FC = () => {
                         <span className="px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono font-black text-[10px]">
                           Risk {item.risk_score}
                         </span>
-                        <span className="text-[10px] text-slate-500 font-bold uppercase">{item.priority}</span>
+                        <span className="text-[10px] text-[#8A8288] font-bold uppercase">{item.priority}</span>
                       </div>
                     </td>
 

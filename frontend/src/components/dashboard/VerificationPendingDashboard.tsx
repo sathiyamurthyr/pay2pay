@@ -88,7 +88,7 @@ export const VerificationPendingDashboard: React.FC<VerificationPendingProps> = 
                 {verificationStatus}
               </span>
             </h3>
-            <p className="text-xs text-slate-100 font-semibold mt-1">
+            <p className="text-xs text-[#292329] font-semibold mt-1">
               Estimated completion: <span className="font-extrabold text-yellow-400 text-sm">2 Hours</span> · Financial services will unlock automatically upon approval.
             </p>
           </div>
@@ -97,7 +97,7 @@ export const VerificationPendingDashboard: React.FC<VerificationPendingProps> = 
         <button
           type="button"
           onClick={() => openContactSupportModal()}
-          className="px-4 py-2.5 rounded-xl bg-slate-950/90 border border-amber-400/40 text-yellow-300 hover:text-white font-extrabold text-xs flex items-center gap-2 hover:bg-slate-800 transition-all shrink-0 shadow-md hover:border-amber-400 cursor-pointer"
+          className="px-4 py-2.5 rounded-xl bg-[#FFFFFF]/90 border border-amber-400/40 text-yellow-300 hover:text-white font-extrabold text-xs flex items-center gap-2 hover:bg-[#F5F2F4] transition-all shrink-0 shadow-md hover:border-amber-400 cursor-pointer"
         >
           <PhoneCall className="w-4 h-4 text-yellow-400" />
           <span>Need Help? Contact Support</span>
@@ -111,7 +111,7 @@ export const VerificationPendingDashboard: React.FC<VerificationPendingProps> = 
             <AlertTriangle className="w-5 h-5 text-yellow-400" />
             <span>Application On Hold</span>
           </div>
-          <p className="text-xs font-semibold text-slate-100">
+          <p className="text-xs font-semibold text-[#292329]">
             <strong className="text-yellow-300">Reason:</strong> {adminRemarks || "Missing or blurry document proof. Please re-upload required documents to proceed."}
           </p>
           <button className="px-4 py-2 rounded-xl bg-amber-400 text-slate-950 font-black text-xs inline-flex items-center gap-2 shadow-lg hover:bg-amber-300">
@@ -127,7 +127,7 @@ export const VerificationPendingDashboard: React.FC<VerificationPendingProps> = 
             <ShieldAlert className="w-5 h-5 text-red-400" />
             <span>Application Rejected</span>
           </div>
-          <p className="text-xs font-semibold text-slate-100">
+          <p className="text-xs font-semibold text-[#292329]">
             <strong className="text-red-400">Admin Remarks:</strong> {adminRemarks || "Identity or business address verification failed against government databases."}
           </p>
           <div className="flex gap-2.5">
@@ -135,7 +135,7 @@ export const VerificationPendingDashboard: React.FC<VerificationPendingProps> = 
               <UploadCloud className="w-4 h-4" />
               <span>Reupload Documents & Re-submit</span>
             </button>
-            <Link href="/support" className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 font-extrabold text-xs">
+            <Link href="/support" className="px-4 py-2 rounded-xl bg-[#FAF8F9] border border-[#E8E2E5] text-[#292329] font-extrabold text-xs">
               Appeal Decision
             </Link>
           </div>
@@ -143,8 +143,8 @@ export const VerificationPendingDashboard: React.FC<VerificationPendingProps> = 
       )}
 
       {/* 3. Large Premium Verification Status Card with Connected Company Info */}
-      <div className="p-6 rounded-3xl bg-slate-900/95 border border-slate-700/80 shadow-2xl relative overflow-hidden backdrop-blur-xl">
-        <div className="flex flex-wrap items-center justify-between gap-4 pb-4 mb-6 border-b border-slate-800">
+      <div className="p-6 rounded-3xl bg-[#FAF8F9]/95 border border-[#E8E2E5]/80 shadow-2xl relative overflow-hidden backdrop-blur-xl">
+        <div className="flex flex-wrap items-center justify-between gap-4 pb-4 mb-6 border-b border-[#E8E2E5]">
           <div>
             <span className="text-[11px] font-black uppercase tracking-wider text-yellow-400/90 block mb-0.5">Application Reference ID</span>
             <h2 className="text-xl font-black text-white font-mono tracking-wide">{applicationRef}</h2>
@@ -228,7 +228,7 @@ export const VerificationPendingDashboard: React.FC<VerificationPendingProps> = 
                       ? "bg-amber-500/20 border-amber-500/60 text-yellow-300"
                       : isRejected
                       ? "bg-red-500/20 border-red-500/60 text-red-400"
-                      : "bg-slate-950/80 border-slate-700 text-slate-300"
+                      : "bg-[#FFFFFF]/80 border-[#E8E2E5] text-[#292329]"
                   }`}
                 >
                   <div className="w-6 h-6 rounded-full mx-auto mb-1.5 flex items-center justify-center text-xs font-black">
@@ -237,12 +237,12 @@ export const VerificationPendingDashboard: React.FC<VerificationPendingProps> = 
                     ) : isInProgress ? (
                       <Clock className="w-4 h-4 text-yellow-400 animate-spin-slow" />
                     ) : (
-                      <Lock className="w-3.5 h-3.5 text-slate-400" />
+                      <Lock className="w-3.5 h-3.5 text-[#625B60]" />
                     )}
                   </div>
                   <p className="text-[12px] font-extrabold truncate text-white">{step.label}</p>
                   <p className={`text-[9.5px] font-extrabold uppercase tracking-tight mt-0.5 ${
-                    isCompleted ? "text-emerald-300" : isInProgress ? "text-yellow-300" : "text-slate-400"
+                    isCompleted ? "text-emerald-300" : isInProgress ? "text-yellow-300" : "text-[#625B60]"
                   }`}>
                     {step.status}
                   </p>
@@ -274,10 +274,10 @@ export const VerificationPendingDashboard: React.FC<VerificationPendingProps> = 
                 key={srv.title}
                 onMouseEnter={() => setShowTooltip(srv.title)}
                 onMouseLeave={() => setShowTooltip(null)}
-                className="relative p-4 rounded-2xl bg-slate-900/90 border border-slate-700/80 flex items-center justify-between cursor-not-allowed group hover:border-amber-400/60 transition-all shadow-md"
+                className="relative p-4 rounded-2xl bg-[#FAF8F9]/90 border border-[#E8E2E5]/80 flex items-center justify-between cursor-not-allowed group hover:border-amber-400/60 transition-all shadow-md"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-slate-800 text-yellow-400 flex items-center justify-center font-bold border border-slate-700">
+                  <div className="w-9 h-9 rounded-xl bg-[#F5F2F4] text-yellow-400 flex items-center justify-center font-bold border border-[#E8E2E5]">
                     <IconComp className="w-4 h-4" />
                   </div>
                   <div>
@@ -292,7 +292,7 @@ export const VerificationPendingDashboard: React.FC<VerificationPendingProps> = 
 
                 {/* Hover Tooltip */}
                 {showTooltip === srv.title && (
-                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-xl bg-slate-950 border border-amber-400 text-yellow-300 text-[11px] font-black whitespace-nowrap shadow-2xl z-30">
+                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-xl bg-[#FFFFFF] border border-amber-400 text-yellow-300 text-[11px] font-black whitespace-nowrap shadow-2xl z-30">
                     🔒 Available after account approval.
                   </div>
                 )}
@@ -303,23 +303,23 @@ export const VerificationPendingDashboard: React.FC<VerificationPendingProps> = 
       </div>
 
       {/* 6. Accessible Operations Quick Links */}
-      <div className="p-5 rounded-3xl bg-slate-900/90 border border-slate-700/80 flex flex-wrap items-center justify-between gap-4 shadow-xl">
+      <div className="p-5 rounded-3xl bg-[#FAF8F9]/90 border border-[#E8E2E5]/80 flex flex-wrap items-center justify-between gap-4 shadow-xl">
         <div>
           <h4 className="text-xs font-black text-white uppercase tracking-wider">Allowed & Active Features</h4>
-          <p className="text-[11px] font-semibold text-slate-200 mt-0.5">Manage account preferences while waiting for verification.</p>
+          <p className="text-[11px] font-semibold text-[#292329] mt-0.5">Manage account preferences while waiting for verification.</p>
         </div>
 
         <div className="flex flex-wrap gap-2.5">
           <Link href="/dashboard/verification" className="px-3.5 py-2 rounded-xl bg-blue-600/30 border border-blue-400/50 text-blue-300 hover:text-white font-extrabold text-xs flex items-center gap-1.5 hover:bg-blue-600/40 transition-all">
             <ShieldCheck className="w-3.5 h-3.5 text-blue-400" /> Track Verification
           </Link>
-          <Link href="/profile" className="px-3.5 py-2 rounded-xl bg-slate-800/90 border border-slate-700 text-white font-bold text-xs hover:text-yellow-300 hover:border-amber-400/40 transition-all">
+          <Link href="/profile" className="px-3.5 py-2 rounded-xl bg-[#F5F2F4]/90 border border-[#E8E2E5] text-white font-bold text-xs hover:text-yellow-300 hover:border-amber-400/40 transition-all">
             Profile & Documents
           </Link>
-          <Link href="/notifications" className="px-3.5 py-2 rounded-xl bg-slate-800/90 border border-slate-700 text-white font-bold text-xs hover:text-yellow-300 hover:border-amber-400/40 transition-all">
+          <Link href="/notifications" className="px-3.5 py-2 rounded-xl bg-[#F5F2F4]/90 border border-[#E8E2E5] text-white font-bold text-xs hover:text-yellow-300 hover:border-amber-400/40 transition-all">
             Notifications
           </Link>
-          <Link href="/settings" className="px-3.5 py-2 rounded-xl bg-slate-800/90 border border-slate-700 text-white font-bold text-xs hover:text-yellow-300 hover:border-amber-400/40 transition-all">
+          <Link href="/settings" className="px-3.5 py-2 rounded-xl bg-[#F5F2F4]/90 border border-[#E8E2E5] text-white font-bold text-xs hover:text-yellow-300 hover:border-amber-400/40 transition-all">
             Security Settings
           </Link>
         </div>

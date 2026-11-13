@@ -72,18 +72,18 @@ export default function SettlementProcessingDashboardPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100 flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-[#292329] flex items-center gap-3">
             <Cpu className="h-8 w-8 text-emerald-400" />
             Settlement Processing Engine Telemetry
           </h1>
-          <p className="mt-1 text-slate-400">
+          <p className="mt-1 text-[#625B60]">
             Real-time financial calculation engine, net wallet crediting, and double-entry general ledger posting
           </p>
         </div>
         <button
           onClick={fetchMetrics}
           disabled={refreshing}
-          className="flex items-center gap-2 rounded-lg bg-slate-800/80 px-4 py-2.5 text-sm font-medium text-slate-200 border border-slate-700 hover:bg-slate-700/80 transition-all"
+          className="flex items-center gap-2 rounded-lg bg-[#F5F2F4]/80 px-4 py-2.5 text-sm font-medium text-[#292329] border border-[#E8E2E5] hover:bg-slate-700/80 transition-all"
         >
           <RefreshCw className={`h-4 w-4 text-emerald-400 ${refreshing ? "animate-spin" : ""}`} />
           Refresh
@@ -100,7 +100,7 @@ export default function SettlementProcessingDashboardPage() {
               className={`relative overflow-hidden rounded-xl border bg-gradient-to-br p-5 backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] shadow-lg ${kpi.color}`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-300">{kpi.label}</span>
+                <span className="text-sm font-medium text-[#292329]">{kpi.label}</span>
                 <Icon className="h-5 w-5 opacity-80" />
               </div>
               <div className="mt-3 text-3xl font-extrabold text-white">{kpi.value}</div>
@@ -110,30 +110,30 @@ export default function SettlementProcessingDashboardPage() {
       </div>
 
       {/* Pipeline Status Overview */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur-xl shadow-xl space-y-4">
-        <h3 className="font-semibold text-slate-200 text-lg flex items-center gap-2">
+      <div className="rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 p-6 backdrop-blur-xl shadow-xl space-y-4">
+        <h3 className="font-semibold text-[#292329] text-lg flex items-center gap-2">
           <Cpu className="h-5 w-5 text-emerald-400" /> Settlement Processing Pipeline Flow
         </h3>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-5 text-center text-xs">
-          <div className="p-3 rounded-lg border border-slate-800 bg-slate-950/40">
+          <div className="p-3 rounded-lg border border-[#E8E2E5] bg-[#FFFFFF]/40">
             <span className="font-semibold text-blue-400 block mb-1">1. Staging Ingest</span>
-            <span className="text-slate-400">Validated records read from intake engine</span>
+            <span className="text-[#625B60]">Validated records read from intake engine</span>
           </div>
-          <div className="p-3 rounded-lg border border-slate-800 bg-slate-950/40">
+          <div className="p-3 rounded-lg border border-[#E8E2E5] bg-[#FFFFFF]/40">
             <span className="font-semibold text-purple-400 block mb-1">2. Config Resolution</span>
-            <span className="text-slate-400">7-tier MDR, GST, TDS, Commission rules applied</span>
+            <span className="text-[#625B60]">7-tier MDR, GST, TDS, Commission rules applied</span>
           </div>
-          <div className="p-3 rounded-lg border border-slate-800 bg-slate-950/40">
+          <div className="p-3 rounded-lg border border-[#E8E2E5] bg-[#FFFFFF]/40">
             <span className="font-semibold text-emerald-400 block mb-1">3. Net Settlement</span>
-            <span className="text-slate-400">Gross Amount - MDR - GST - TDS calculated</span>
+            <span className="text-[#625B60]">Gross Amount - MDR - GST - TDS calculated</span>
           </div>
-          <div className="p-3 rounded-lg border border-slate-800 bg-slate-950/40">
+          <div className="p-3 rounded-lg border border-[#E8E2E5] bg-[#FFFFFF]/40">
             <span className="font-semibold text-amber-400 block mb-1">4. Wallet Credit</span>
-            <span className="text-slate-400">Retailer wallet balance credited instantly</span>
+            <span className="text-[#625B60]">Retailer wallet balance credited instantly</span>
           </div>
-          <div className="p-3 rounded-lg border border-slate-800 bg-slate-950/40">
+          <div className="p-3 rounded-lg border border-[#E8E2E5] bg-[#FFFFFF]/40">
             <span className="font-semibold text-indigo-400 block mb-1">5. Journal Posted</span>
-            <span className="text-slate-400">Double-entry accounting entries written to ledger</span>
+            <span className="text-[#625B60]">Double-entry accounting entries written to ledger</span>
           </div>
         </div>
       </div>

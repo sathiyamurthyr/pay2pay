@@ -76,7 +76,7 @@ export const TransferPreview: React.FC<TransferPreviewProps> = ({
 
         <Stack direction="row" sx={{ justifyContent: "space-between" }}>
           <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "13px", fontWeight: 600 }}>Wallet Balance After Transfer</Typography>
-          <Typography sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "15px" }}>₹{balanceAfter.toLocaleString()}</Typography>
+          <Typography sx={{ fontWeight: 800, color: "#A20A3A", fontSize: "15px" }}>₹{balanceAfter.toLocaleString()}</Typography>
         </Stack>
       </Stack>
     </Paper>

@@ -11,7 +11,7 @@ export default defineConfig({
   workers: 1,
   reporter: 'list',
   use: {
-    baseURL: 'http://127.0.0.1:3000',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'https://login.near4you.store',
     trace: 'retain-on-failure',
     headless: true,
   },

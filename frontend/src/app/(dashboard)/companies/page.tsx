@@ -91,7 +91,7 @@ const MOCK_COMPANIES: Company[] = [
   {
     public_id: "comp_hq_001",
     company_code: "PAY2PAY_HQ",
-    company_name: "Pay2Pay Enterprise HQ",
+    company_name: "Near4You Enterprise HQ",
     legal_name: "SUPER REX PRODUCTS PRIVATE LIMITED",
     tenant_code: "PLATFORM_HQ",
     company_type: "PRIVATE_LIMITED",
@@ -104,7 +104,7 @@ const MOCK_COMPANIES: Company[] = [
     verified_on: "2026-01-16",
     enrolled_by: "platform_admin",
     state: "TN",
-    contact_email: "ops@pay2pay.in",
+    contact_email: "ops@near4you.store",
     contact_mobile: "+91 98765 43210",
   },
   {
@@ -660,7 +660,7 @@ export default function CompanyListPage() {
           className="text-left group outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/40 rounded p-1 -m-1"
           title="Click to view details side-drawer"
         >
-          <p className="text-[14px] font-bold text-[#111827] group-hover:text-[#2563EB] leading-tight transition-colors flex items-center gap-1.5">
+          <p className="text-[14px] font-bold text-[#FAF8F9] group-hover:text-[#2563EB] leading-tight transition-colors flex items-center gap-1.5">
             {c.company_name}
             <ChevronRight className="w-3.5 h-3.5 text-[#9CA3AF] group-hover:text-[#2563EB] transition-colors" />
           </p>
@@ -883,7 +883,7 @@ export default function CompanyListPage() {
             <div className="flex items-center justify-between px-6 py-4 bg-[#F8FAFC] border-b border-[#E2E8F0]">
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-[16px] font-extrabold text-[#111827]">
+                  <h2 className="text-[16px] font-extrabold text-[#FAF8F9]">
                     {selectedDrawerCompany.company_name}
                   </h2>
                   <StatusBadge status={selectedDrawerCompany.status} />
@@ -894,7 +894,7 @@ export default function CompanyListPage() {
               </div>
               <button
                 onClick={() => setSelectedDrawerCompany(null)}
-                className="p-1.5 rounded-lg text-[#9CA3AF] hover:text-[#111827] hover:bg-[#E2E8F0] transition-colors"
+                className="p-1.5 rounded-lg text-[#9CA3AF] hover:text-[#FAF8F9] hover:bg-[#E2E8F0] transition-colors"
                 aria-label="Close drawer"
               >
                 <X className="w-5 h-5" />
@@ -971,7 +971,7 @@ export default function CompanyListPage() {
                 <div className="grid grid-cols-2 gap-3 bg-[#F8FAFC] p-4 rounded-xl border border-[#E2E8F0]">
                   <div>
                     <span className="text-[10px] font-bold text-[#94A3B8] uppercase">Legal Registered Name</span>
-                    <p className="text-[12px] font-bold text-[#0F172A] mt-0.5 leading-snug">
+                    <p className="text-[12px] font-bold text-[#FFFFFF] mt-0.5 leading-snug">
                       {selectedDrawerCompany.legal_name}
                     </p>
                   </div>
@@ -995,7 +995,7 @@ export default function CompanyListPage() {
                   </div>
                   <div className="col-span-2">
                     <span className="text-[10px] font-bold text-[#94A3B8] uppercase">CIN Number</span>
-                    <p className="text-[13px] font-mono font-bold text-[#0F172A] mt-0.5">
+                    <p className="text-[13px] font-mono font-bold text-[#FFFFFF] mt-0.5">
                       {selectedDrawerCompany.cin_number || "N/A"}
                     </p>
                   </div>
@@ -1010,7 +1010,7 @@ export default function CompanyListPage() {
                 <div className="space-y-2 bg-[#F8FAFC] p-4 rounded-xl border border-[#E2E8F0] text-[12px]">
                   <div className="flex justify-between">
                     <span className="text-[#64748B] font-medium">State Code:</span>
-                    <span className="font-bold text-[#0F172A]">{selectedDrawerCompany.state || "TN"}</span>
+                    <span className="font-bold text-[#FFFFFF]">{selectedDrawerCompany.state || "TN"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-[#64748B] font-medium">Contact Email:</span>
@@ -1018,11 +1018,11 @@ export default function CompanyListPage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-[#64748B] font-medium">Contact Mobile:</span>
-                    <span className="font-mono font-bold text-[#0F172A]">{selectedDrawerCompany.contact_mobile || "+91 98765 43210"}</span>
+                    <span className="font-mono font-bold text-[#FFFFFF]">{selectedDrawerCompany.contact_mobile || "+91 98765 43210"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-[#64748B] font-medium">Enrolled Officer:</span>
-                    <span className="font-semibold text-[#0F172A]">{selectedDrawerCompany.enrolled_by || "platform_admin"}</span>
+                    <span className="font-semibold text-[#FFFFFF]">{selectedDrawerCompany.enrolled_by || "platform_admin"}</span>
                   </div>
                 </div>
               </div>
@@ -1054,7 +1054,7 @@ export default function CompanyListPage() {
                       <div className="flex items-center gap-2 min-w-0">
                         <FileText className="w-4 h-4 text-[#2563EB] shrink-0" />
                         <div className="min-w-0">
-                          <p className="font-bold text-[#0F172A] truncate">{doc.name}</p>
+                          <p className="font-bold text-[#FFFFFF] truncate">{doc.name}</p>
                           <p className="text-[10px] font-mono text-[#64748B]">{doc.docNumber}</p>
                         </div>
                       </div>
@@ -1146,13 +1146,13 @@ export default function CompanyListPage() {
             <div className="flex items-center justify-between px-6 py-4 bg-[#F8FAFC] border-b border-[#E2E8F0]">
               <div className="flex items-center gap-2">
                 <Edit2 className="w-4 h-4 text-[#2563EB]" />
-                <h2 className="text-[15px] font-extrabold text-[#0F172A]">
+                <h2 className="text-[15px] font-extrabold text-[#FFFFFF]">
                   Edit Company Metadata — {editingCompany.company_code}
                 </h2>
               </div>
               <button
                 onClick={() => setEditingCompany(null)}
-                className="p-1 rounded-lg text-[#94A3B8] hover:text-[#0F172A] hover:bg-[#E2E8F0]"
+                className="p-1 rounded-lg text-[#94A3B8] hover:text-[#FFFFFF] hover:bg-[#E2E8F0]"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1261,7 +1261,7 @@ export default function CompanyListPage() {
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-[#16A34A]" />
                 <div>
-                  <h2 className="text-[15px] font-extrabold text-[#0F172A]">
+                  <h2 className="text-[15px] font-extrabold text-[#FFFFFF]">
                     Maker-Checker Approval Review
                   </h2>
                   <p className="text-[11px] font-semibold text-[#15803D]">
@@ -1271,7 +1271,7 @@ export default function CompanyListPage() {
               </div>
               <button
                 onClick={() => setApprovingCompany(null)}
-                className="p-1 rounded-lg text-[#94A3B8] hover:text-[#0F172A] hover:bg-[#DCFCE7]"
+                className="p-1 rounded-lg text-[#94A3B8] hover:text-[#FFFFFF] hover:bg-[#DCFCE7]"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1281,7 +1281,7 @@ export default function CompanyListPage() {
               <div className="bg-[#F8FAFC] p-4 rounded-xl border border-[#E2E8F0] space-y-2 text-[12px]">
                 <div className="flex justify-between">
                   <span className="text-[#64748B]">Entity Type:</span>
-                  <span className="font-bold text-[#0F172A]">{approvingCompany.company_type.replace(/_/g, " ")}</span>
+                  <span className="font-bold text-[#FFFFFF]">{approvingCompany.company_type.replace(/_/g, " ")}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#64748B]">Tenant Code:</span>
@@ -1351,7 +1351,7 @@ export default function CompanyListPage() {
                   <Building2 className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-[15px] font-bold text-[#0F172A]">
+                  <h2 className="text-[15px] font-bold text-[#FFFFFF]">
                     Multi-Tenant Company Onboarding
                   </h2>
                   <p className="text-[12px] text-[#64748B]">Step {wizardStep} of 3</p>
@@ -1360,7 +1360,7 @@ export default function CompanyListPage() {
               <button
                 onClick={() => setShowModal(false)}
                 aria-label="Close onboarding wizard"
-                className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#0F172A] hover:bg-[#E2E8F0] transition-colors"
+                className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#FFFFFF] hover:bg-[#E2E8F0] transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1380,7 +1380,7 @@ export default function CompanyListPage() {
                     `}>
                       {wizardStep > step ? <ShieldCheck className="w-3 h-3" /> : step}
                     </div>
-                    <span className={`text-[11px] font-medium ${wizardStep >= step ? "text-[#0F172A]" : "text-[#94A3B8]"}`}>
+                    <span className={`text-[11px] font-medium ${wizardStep >= step ? "text-[#FFFFFF]" : "text-[#94A3B8]"}`}>
                       {step === 1 ? "Company Profile" : step === 2 ? "Contact & Banking" : "Admin Account"}
                     </span>
                   </div>
@@ -1404,7 +1404,7 @@ export default function CompanyListPage() {
                     <div className="grid grid-cols-2 gap-3">
                       {[
                         { field: "company_code", label: "Company Code (ID) *", placeholder: "e.g. PAY2PAY_HQ" },
-                        { field: "company_name", label: "Company Name *", placeholder: "e.g. Pay2Pay Financials" },
+                        { field: "company_name", label: "Company Name *", placeholder: "e.g. Near4You Financials" },
                         { field: "legal_name", label: "Legal / Registered Name *", placeholder: "Full legal entity name", colSpan: 2 },
                         { field: "tenant_code", label: "Tenant Identifier", placeholder: "e.g. TENANT_PAY2PAY" },
                       ].map(({ field, label, placeholder, colSpan }) => (
@@ -1415,7 +1415,7 @@ export default function CompanyListPage() {
                             placeholder={placeholder}
                             value={(formData as unknown as Record<string, string>)[field]}
                             onChange={(e) => setFormData({ ...formData, [field]: e.target.value })}
-                            className="w-full px-3 py-2 text-[13px] border border-[#CBD5E1] rounded-lg text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB] transition-colors"
+                            className="w-full px-3 py-2 text-[13px] border border-[#CBD5E1] rounded-lg text-[#FFFFFF] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB] transition-colors"
                           />
                         </div>
                       ))}
@@ -1424,7 +1424,7 @@ export default function CompanyListPage() {
                         <select
                           value={formData.company_type}
                           onChange={(e) => setFormData({ ...formData, company_type: e.target.value })}
-                          className="w-full px-3 py-2 text-[13px] border border-[#CBD5E1] rounded-lg text-[#0F172A] focus:outline-none focus:border-[#2563EB] bg-white"
+                          className="w-full px-3 py-2 text-[13px] border border-[#CBD5E1] rounded-lg text-[#FFFFFF] focus:outline-none focus:border-[#2563EB] bg-white"
                         >
                           {["PRIVATE_LIMITED", "PUBLIC_LIMITED", "LLP", "PARTNERSHIP", "PROPRIETORSHIP"].map((t) => (
                             <option key={t} value={t}>{t.replace(/_/g, " ")}</option>
@@ -1443,7 +1443,7 @@ export default function CompanyListPage() {
                             placeholder={placeholder}
                             value={(formData as unknown as Record<string, string>)[field]}
                             onChange={(e) => setFormData({ ...formData, [field]: e.target.value })}
-                            className="w-full px-3 py-2 text-[13px] border border-[#CBD5E1] rounded-lg text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB] font-mono"
+                            className="w-full px-3 py-2 text-[13px] border border-[#CBD5E1] rounded-lg text-[#FFFFFF] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB] font-mono"
                           />
                         </div>
                       ))}
@@ -1469,7 +1469,7 @@ export default function CompanyListPage() {
                           placeholder={placeholder}
                           value={(formData as unknown as Record<string, string>)[field]}
                           onChange={(e) => setFormData({ ...formData, [field]: e.target.value })}
-                          className="w-full px-3 py-2 text-[13px] border border-[#CBD5E1] rounded-lg text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB]"
+                          className="w-full px-3 py-2 text-[13px] border border-[#CBD5E1] rounded-lg text-[#FFFFFF] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB]"
                         />
                       </div>
                     ))}
@@ -1487,7 +1487,7 @@ export default function CompanyListPage() {
                         placeholder="Platform Admin Name"
                         value={formData.admin_full_name}
                         onChange={(e) => setFormData({ ...formData, admin_full_name: e.target.value })}
-                        className="w-full px-3 py-2 text-[13px] border border-[#CBD5E1] rounded-lg text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB]"
+                        className="w-full px-3 py-2 text-[13px] border border-[#CBD5E1] rounded-lg text-[#FFFFFF] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB]"
                       />
                     </div>
                     <div>
@@ -1498,7 +1498,7 @@ export default function CompanyListPage() {
                         placeholder="admin@company.com"
                         value={formData.admin_email}
                         onChange={(e) => setFormData({ ...formData, admin_email: e.target.value })}
-                        className="w-full px-3 py-2 text-[13px] border border-[#CBD5E1] rounded-lg text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB]"
+                        className="w-full px-3 py-2 text-[13px] border border-[#CBD5E1] rounded-lg text-[#FFFFFF] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB]"
                       />
                     </div>
                     <div className="col-span-2">
@@ -1509,7 +1509,7 @@ export default function CompanyListPage() {
                         placeholder="Min 8 characters"
                         value={formData.admin_password}
                         onChange={(e) => setFormData({ ...formData, admin_password: e.target.value })}
-                        className="w-full px-3 py-2 text-[13px] border border-[#CBD5E1] rounded-lg text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB]"
+                        className="w-full px-3 py-2 text-[13px] border border-[#CBD5E1] rounded-lg text-[#FFFFFF] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB]"
                       />
                     </div>
                   </div>
@@ -1556,13 +1556,13 @@ export default function CompanyListPage() {
               <div className="flex items-center gap-2">
                 <FileText className="w-5 h-5 text-[#2563EB]" />
                 <div>
-                  <h2 className="text-[15px] font-extrabold text-[#0F172A]">{previewDoc.name}</h2>
+                  <h2 className="text-[15px] font-extrabold text-[#FFFFFF]">{previewDoc.name}</h2>
                   <p className="text-[11px] font-mono text-[#64748B]">Document ID: {previewDoc.docNumber}</p>
                 </div>
               </div>
               <button
                 onClick={() => setPreviewDoc(null)}
-                className="p-1 rounded-lg text-[#94A3B8] hover:text-[#0F172A] hover:bg-[#E2E8F0]"
+                className="p-1 rounded-lg text-[#94A3B8] hover:text-[#FFFFFF] hover:bg-[#E2E8F0]"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1583,7 +1583,7 @@ export default function CompanyListPage() {
                   <FileText className="w-8 h-8" />
                 </div>
                 <div>
-                  <p className="text-[13px] font-bold text-[#0F172A]">{previewDoc.name}.pdf</p>
+                  <p className="text-[13px] font-bold text-[#FFFFFF]">{previewDoc.name}.pdf</p>
                   <p className="text-[11px] text-[#64748B]">Official Statutory Document · Size: 1.4 MB</p>
                 </div>
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-[#CBD5E1] rounded-lg text-[11px] font-mono text-[#334155] shadow-2xs">
@@ -1623,13 +1623,13 @@ export default function CompanyListPage() {
               <div className="flex items-center gap-2">
                 <UploadCloud className="w-5 h-5 text-[#2563EB]" />
                 <div>
-                  <h2 className="text-[15px] font-extrabold text-[#0F172A]">Re-upload Document</h2>
+                  <h2 className="text-[15px] font-extrabold text-[#FFFFFF]">Re-upload Document</h2>
                   <p className="text-[11px] font-semibold text-[#2563EB]">{reuploadDoc.name}</p>
                 </div>
               </div>
               <button
                 onClick={() => setReuploadDoc(null)}
-                className="p-1 rounded-lg text-[#94A3B8] hover:text-[#0F172A] hover:bg-[#DBEAFE]"
+                className="p-1 rounded-lg text-[#94A3B8] hover:text-[#FFFFFF] hover:bg-[#DBEAFE]"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1647,7 +1647,7 @@ export default function CompanyListPage() {
             >
               <div className="border-2 border-dashed border-[#BFDBFE] hover:border-[#2563EB] bg-[#F8FAFC] rounded-2xl p-6 text-center transition-colors cursor-pointer">
                 <UploadCloud className="w-10 h-10 text-[#2563EB] mx-auto mb-2" />
-                <p className="text-[13px] font-bold text-[#0F172A]">Drag &amp; drop updated document file here</p>
+                <p className="text-[13px] font-bold text-[#FFFFFF]">Drag &amp; drop updated document file here</p>
                 <p className="text-[11px] text-[#64748B] mt-1">Supports PDF, PNG, JPG (Max file size: 10 MB)</p>
                 <input type="file" className="hidden" id="reupload-file-input" />
                 <label
@@ -1694,11 +1694,11 @@ export default function CompanyListPage() {
             <div className="flex items-center justify-between px-6 py-4 bg-[#F8FAFC] border-b border-[#E2E8F0]">
               <div className="flex items-center gap-2">
                 <UploadCloud className="w-5 h-5 text-[#123B73]" />
-                <h2 className="text-[15px] font-extrabold text-[#0F172A]">Upload Statutory Document</h2>
+                <h2 className="text-[15px] font-extrabold text-[#FFFFFF]">Upload Statutory Document</h2>
               </div>
               <button
                 onClick={() => setShowUploadDocModal(false)}
-                className="p-1 rounded-lg text-[#94A3B8] hover:text-[#0F172A] hover:bg-[#E2E8F0]"
+                className="p-1 rounded-lg text-[#94A3B8] hover:text-[#FFFFFF] hover:bg-[#E2E8F0]"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1720,7 +1720,7 @@ export default function CompanyListPage() {
                 <select
                   value={newDocType}
                   onChange={(e) => setNewDocType(e.target.value)}
-                  className="w-full px-3 py-2 text-[13px] border border-[#CBD5E1] rounded-lg focus:outline-none focus:border-[#2563EB] bg-white font-medium text-[#0F172A]"
+                  className="w-full px-3 py-2 text-[13px] border border-[#CBD5E1] rounded-lg focus:outline-none focus:border-[#2563EB] bg-white font-medium text-[#FFFFFF]"
                 >
                   {DEFAULT_DOC_CATEGORIES.map((cat) => (
                     <option key={cat.value} value={cat.value}>
@@ -1743,7 +1743,7 @@ export default function CompanyListPage() {
 
               <div className="border-2 border-dashed border-[#CBD5E1] hover:border-[#123B73] bg-[#F8FAFC] rounded-2xl p-6 text-center transition-colors cursor-pointer">
                 <UploadCloud className="w-10 h-10 text-[#123B73] mx-auto mb-2" />
-                <p className="text-[13px] font-bold text-[#0F172A]">Select document file to upload</p>
+                <p className="text-[13px] font-bold text-[#FFFFFF]">Select document file to upload</p>
                 <p className="text-[11px] text-[#64748B] mt-1">PDF, PNG, JPG (Max 10MB)</p>
                 <input type="file" className="hidden" id="new-doc-file-input" />
                 <label

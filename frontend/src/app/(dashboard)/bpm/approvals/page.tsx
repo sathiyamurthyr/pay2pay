@@ -31,7 +31,7 @@ const MOCK_APPROVALS = [
   {
     public_id: "apr-001",
     request_code: "REQ-20240801-0091",
-    requested_by: "ops.manager@pay2pay.com",
+    requested_by: "ops.manager@near4you.store",
     action_type: "WALLET_TOPUP",
     required_level: 2,
     current_level: 1,
@@ -42,7 +42,7 @@ const MOCK_APPROVALS = [
   {
     public_id: "apr-002",
     request_code: "REQ-20240801-0087",
-    requested_by: "finance.lead@pay2pay.com",
+    requested_by: "finance.lead@near4you.store",
     action_type: "SETTLEMENT_RELEASE",
     required_level: 3,
     current_level: 3,
@@ -53,7 +53,7 @@ const MOCK_APPROVALS = [
   {
     public_id: "apr-003",
     request_code: "REQ-20240731-0073",
-    requested_by: "compliance.officer@pay2pay.com",
+    requested_by: "compliance.officer@near4you.store",
     action_type: "KYC_OVERRIDE",
     required_level: 2,
     current_level: 2,
@@ -64,7 +64,7 @@ const MOCK_APPROVALS = [
   {
     public_id: "apr-004",
     request_code: "REQ-20240802-0104",
-    requested_by: "sd.admin@pay2pay.com",
+    requested_by: "sd.admin@near4you.store",
     action_type: "LIMIT_INCREASE",
     required_level: 2,
     current_level: 1,
@@ -75,7 +75,7 @@ const MOCK_APPROVALS = [
   {
     public_id: "apr-005",
     request_code: "REQ-20240802-0098",
-    requested_by: "ops.manager@pay2pay.com",
+    requested_by: "ops.manager@near4you.store",
     action_type: "REFUND_PROCESS",
     required_level: 1,
     current_level: 1,
@@ -191,7 +191,7 @@ export default function BpmApprovalsPage() {
     <div className="max-w-7xl mx-auto space-y-5 pb-16">
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl bg-[#0F172A] px-5 py-3.5 text-xs font-bold text-white shadow-2xl animate-in slide-in-from-bottom-3">
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl bg-[#FFFFFF] px-5 py-3.5 text-xs font-bold text-white shadow-2xl animate-in slide-in-from-bottom-3">
           <CheckCircle2 className="w-4 h-4 text-[#4ADE80]" />
           <span>{toast}</span>
           <button onClick={() => setToast(null)}><X className="w-4 h-4 text-[#94A3B8]" /></button>
@@ -206,7 +206,7 @@ export default function BpmApprovalsPage() {
               <CheckSquare className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-extrabold text-[#0F172A] tracking-tight">
+              <h1 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight">
                 Maker-Checker Approval Centre
               </h1>
               <p className="text-xs font-medium text-[#64748B] mt-0.5">
@@ -255,7 +255,7 @@ export default function BpmApprovalsPage() {
               placeholder="Search request, requester, type…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 pr-3 py-1.5 w-56 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[12px] font-medium text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#6C63FF] focus:ring-2 focus:ring-[#6C63FF]/15 transition-all"
+              className="pl-8 pr-3 py-1.5 w-56 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[12px] font-medium text-[#FFFFFF] placeholder-[#94A3B8] focus:outline-none focus:border-[#6C63FF] focus:ring-2 focus:ring-[#6C63FF]/15 transition-all"
             />
           </div>
 
@@ -434,7 +434,7 @@ export default function BpmApprovalsPage() {
                           <User className="w-3.5 h-3.5 text-[#2563EB]" />
                         </div>
                         <div>
-                          <div className="font-bold text-[#0F172A] text-[12px] truncate max-w-[160px]">{a.requested_by}</div>
+                          <div className="font-bold text-[#FFFFFF] text-[12px] truncate max-w-[160px]">{a.requested_by}</div>
                           <div className="text-[10px] text-[#94A3B8] font-medium">Operations</div>
                         </div>
                       </div>
@@ -506,11 +506,11 @@ export default function BpmApprovalsPage() {
                   <CheckSquare className="w-5 h-5 text-[#6C63FF]" />
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-[#0F172A]">Review Approval Request</h3>
+                  <h3 className="text-base font-extrabold text-[#FFFFFF]">Review Approval Request</h3>
                   <p className="text-[11px] text-[#64748B] font-mono mt-0.5">{selectedItem.request_code}</p>
                 </div>
               </div>
-              <button onClick={() => setSelectedApproval(null)} className="p-1.5 rounded-xl text-[#94A3B8] hover:text-[#0F172A] hover:bg-[#F8FAFC] transition">
+              <button onClick={() => setSelectedApproval(null)} className="p-1.5 rounded-xl text-[#94A3B8] hover:text-[#FFFFFF] hover:bg-[#F8FAFC] transition">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -519,7 +519,7 @@ export default function BpmApprovalsPage() {
             <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-2 text-[11px]">
               <div className="flex justify-between">
                 <span className="text-[#64748B] font-semibold">Requested By</span>
-                <span className="font-bold text-[#0F172A]">{selectedItem.requested_by}</span>
+                <span className="font-bold text-[#FFFFFF]">{selectedItem.requested_by}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-[#64748B] font-semibold">Action Type</span>
@@ -527,7 +527,7 @@ export default function BpmApprovalsPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-[#64748B] font-semibold">Approval Level</span>
-                <span className="font-mono font-bold text-[#0F172A]">Level {selectedItem.required_level}</span>
+                <span className="font-mono font-bold text-[#FFFFFF]">Level {selectedItem.required_level}</span>
               </div>
               {selectedItem.remarks && (
                 <div className="pt-1 border-t border-[#E2E8F0]">
@@ -546,7 +546,7 @@ export default function BpmApprovalsPage() {
                 <select
                   value={action}
                   onChange={(e) => setAction(e.target.value)}
-                  className="w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2.5 text-xs font-bold text-[#0F172A] focus:outline-none focus:border-[#6C63FF] cursor-pointer"
+                  className="w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2.5 text-xs font-bold text-[#FFFFFF] focus:outline-none focus:border-[#6C63FF] cursor-pointer"
                 >
                   <option value="APPROVED">✅ APPROVE — Grant Request</option>
                   <option value="REJECTED">❌ REJECT — Deny Request</option>
@@ -562,7 +562,7 @@ export default function BpmApprovalsPage() {
                   value={comments}
                   onChange={(e) => setComments(e.target.value)}
                   placeholder="State justification for your approval or rejection decision…"
-                  className="w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2.5 text-xs font-medium text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#6C63FF] resize-none"
+                  className="w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2.5 text-xs font-medium text-[#FFFFFF] placeholder-[#94A3B8] focus:outline-none focus:border-[#6C63FF] resize-none"
                 />
               </div>
               <div className="flex justify-end gap-3 pt-2">

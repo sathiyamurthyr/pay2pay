@@ -15,11 +15,11 @@ export default function DashboardNotFound() {
         sx={{
           p: 5,
           borderRadius: "24px",
-          bgcolor: "rgba(18, 27, 48, 0.85)",
+          bgcolor: "#FFFFFF",
           backdropFilter: "blur(20px)",
           border: "1px solid rgba(255, 255, 255, 0.12)",
           textAlign: "center",
-          boxShadow: "0 20px 60px rgba(0, 0, 0, 0.5)",
+          boxShadow: "0 20px 60px rgba(41, 35, 41, 0.06)",
         }}
       >
         <WarningAmberIcon sx={{ fontSize: 72, color: "#60A5FA", mb: 2 }} />
@@ -64,7 +64,7 @@ export default function DashboardNotFound() {
               fontWeight: 700,
               fontSize: "14px",
               color: "rgba(255, 255, 255, 0.8)",
-              borderColor: "rgba(255, 255, 255, 0.2)",
+              borderColor: "#E8E2E5",
             }}
           >
             Register Customer

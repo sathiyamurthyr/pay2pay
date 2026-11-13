@@ -83,14 +83,14 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
           // Fallback dynamic structure if server offline
           setData({
             company: {
-              company_name: "SUPER REX PRODUCTS PRIVATE LIMITED",
-              company_logo_url: "/logo.png",
-              support_email: "support@pay2pay.com",
+              company_name: "Sathus Technology Pvt. Ltd.",
+              company_logo_url: "/logo.svg",
+              support_email: "support@near4you.store",
               support_phone: "+91 1800 292 982",
               whatsapp_number: "+91 70139 14767",
               support_hours: "Monday - Saturday | 09:00 AM - 07:00 PM IST",
               live_chat_enabled: true,
-              support_url: "https://pay2pay.in/support"
+              support_url: "https://near4you.store/support"
             },
             application_details: {
               application_id: "APP-REG-A7110CFE2B",
@@ -104,7 +104,7 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
               {
                 id: "faq-1",
                 question: "Why is my account under review?",
-                answer: "All new retailer applications undergo mandatory compliance verification by Pay2Pay risk and operations teams to prevent identity fraud and ensure NPCI/RBI regulatory compliance before granting financial payment access."
+                answer: "All new retailer applications undergo mandatory compliance verification by Near4You risk and operations teams to prevent identity fraud and ensure NPCI/RBI regulatory compliance before granting financial payment access."
               },
               {
                 id: "faq-2",
@@ -161,7 +161,7 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
   const whatsappUrl = `https://wa.me/${cleanWhatsappNum}?text=${encodeURIComponent(rawWhatsappMsg)}`;
 
   const cleanPhoneNum = (company?.support_phone || "+91 1800 292 982").replace(/[^\d+]/g, "");
-  const mailToUrl = `mailto:${company?.support_email || "support@pay2pay.com"}?subject=${encodeURIComponent(`Verification Help: ${appDetails?.application_id || "Retailer Account"}`)}&body=${encodeURIComponent(rawWhatsappMsg)}`;
+  const mailToUrl = `mailto:${company?.support_email || "support@near4you.store"}?subject=${encodeURIComponent(`Verification Help: ${appDetails?.application_id || "Retailer Account"}`)}&body=${encodeURIComponent(rawWhatsappMsg)}`;
 
   return createPortal(
     <AnimatePresence>
@@ -174,7 +174,7 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           onClick={onClose}
-          className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-0"
+          className="fixed inset-0 bg-[#FFFFFF]/80 backdrop-blur-md z-0"
         />
 
         {/* Centered Glassmorphism Modal */}
@@ -184,26 +184,26 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
-          className="relative w-full max-w-2xl max-h-[90vh] flex flex-col bg-slate-900/95 text-white border border-slate-700/60 rounded-3xl shadow-2xl backdrop-blur-xl overflow-hidden z-10"
+          className="relative w-full max-w-2xl max-h-[90vh] flex flex-col bg-[#FFFFFF] text-[#292329] border border-[#E8E2E5] rounded-3xl shadow-2xl overflow-hidden z-10"
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/50">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[#E8E2E5] bg-[#FAF8F9]">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-blue-600/20 border border-blue-500/40 text-blue-400 flex items-center justify-center font-black text-sm shadow-inner">
+              <div className="w-10 h-10 rounded-2xl bg-[#FFF0F4] border border-[#FFD6E2] text-[#A20A3A] flex items-center justify-center font-black text-sm shadow-xs">
                 <Headphones className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-lg font-black text-white tracking-tight">
-                  Contact Pay2Pay Support
+                <h2 className="text-lg font-black text-[#292329] tracking-tight">
+                  Contact Near4You Support
                 </h2>
-                <p className="text-xs font-medium text-slate-400">
+                <p className="text-xs font-medium text-[#625B60]">
                   Need help with your retailer verification? Our onboarding team is ready to assist you.
                 </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors border border-slate-700/50"
+              className="w-9 h-9 rounded-xl bg-[#FAF8F9] hover:bg-[#FFF0F4] text-[#625B60] hover:text-[#A20A3A] flex items-center justify-center transition-colors border border-[#E8E2E5]"
             >
               <X className="w-5 h-5" />
             </button>
@@ -213,27 +213,27 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
           <div className="flex-1 p-6 space-y-6 overflow-y-auto custom-scrollbar">
             {loading ? (
               <div className="py-12 text-center space-y-3">
-                <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
-                <p className="text-xs font-bold text-slate-400">Loading live support channels & application status...</p>
+                <div className="w-10 h-10 border-4 border-[#A20A3A] border-t-transparent rounded-full animate-spin mx-auto" />
+                <p className="text-xs font-bold text-[#625B60]">Loading live support channels & application status...</p>
               </div>
             ) : (
               <>
                 {/* 1. COMPANY INFORMATION */}
-                <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="p-4 rounded-2xl bg-[#FAF8F9] border border-[#E8E2E5] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-3.5">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-black text-base flex items-center justify-center shadow-lg">
-                      P2P
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#A20A3A] to-[#85072F] text-white font-black text-base flex items-center justify-center shadow-md">
+                      N4U
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <Building2 className="w-4 h-4 text-blue-400" />
-                        <h3 className="text-sm font-extrabold text-white">
-                          {company?.company_name || "SUPER REX PRODUCTS PRIVATE LIMITED"}
+                        <Building2 className="w-4 h-4 text-[#A20A3A]" />
+                        <h3 className="text-sm font-extrabold text-[#292329]">
+                          {company?.company_name || "Sathus Technology Pvt. Ltd."}
                         </h3>
                       </div>
-                      <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-400">
-                        <Clock className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Support Hours: <strong className="text-slate-200">{company?.support_hours || "Monday - Saturday | 09:00 AM - 07:00 PM IST"}</strong></span>
+                      <div className="flex items-center gap-1.5 mt-1 text-xs text-[#625B60]">
+                        <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Support Hours: <strong className="text-[#292329]">{company?.support_hours || "Monday - Saturday | 09:00 AM - 07:00 PM IST"}</strong></span>
                       </div>
                     </div>
                   </div>
@@ -241,32 +241,32 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
 
                 {/* 2. CONTACT OPTIONS */}
                 <div>
-                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-3">
+                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#A20A3A] mb-3">
                     Direct Contact Options
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     {/* Support Email */}
-                    <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/50 space-y-3">
+                    <div className="p-4 rounded-2xl bg-[#FFFFFF] border border-[#E8E2E5] space-y-3">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20">
+                        <div className="w-8 h-8 rounded-xl bg-[#FFF0F4] text-[#A20A3A] flex items-center justify-center border border-[#FFD6E2]">
                           <Mail className="w-4 h-4" />
                         </div>
                         <div>
-                          <p className="text-[11px] font-bold text-slate-400">Support Email</p>
-                          <p className="text-xs font-extrabold text-white font-mono">{company?.support_email || "support@pay2pay.com"}</p>
+                          <p className="text-[11px] font-bold text-[#625B60]">Support Email</p>
+                          <p className="text-xs font-extrabold text-[#292329] font-mono">{company?.support_email || "support@near4you.store"}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => copyToClipboard(company?.support_email || "support@pay2pay.com", "email")}
-                          className="flex-1 py-1.5 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-bold text-slate-200 flex items-center justify-center gap-1.5 transition-colors"
+                          onClick={() => copyToClipboard(company?.support_email || "support@near4you.store", "email")}
+                          className="flex-1 py-1.5 px-2.5 rounded-xl bg-[#FAF8F9] hover:bg-[#FFF0F4] border border-[#E8E2E5] text-[11px] font-bold text-[#292329] hover:text-[#A20A3A] flex items-center justify-center gap-1.5 transition-colors"
                         >
-                          {copiedField === "email" ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          {copiedField === "email" ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                           <span>{copiedField === "email" ? "Copied" : "Copy Email"}</span>
                         </button>
                         <a
                           href={mailToUrl}
-                          className="flex-1 py-1.5 px-2.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-[11px] font-bold text-blue-300 flex items-center justify-center gap-1.5 transition-colors"
+                          className="flex-1 py-1.5 px-2.5 rounded-xl bg-[#FFF0F4] hover:bg-[#FFD6E2] border border-[#FFD6E2] text-[11px] font-bold text-[#A20A3A] flex items-center justify-center gap-1.5 transition-colors"
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
                           <span>Open Mail Client</span>
@@ -275,134 +275,112 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
                     </div>
 
                     {/* Support Phone */}
-                    <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/50 space-y-3">
+                    <div className="p-4 rounded-2xl bg-[#FFFFFF] border border-[#E8E2E5] space-y-3">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200">
                           <Phone className="w-4 h-4" />
                         </div>
                         <div>
-                          <p className="text-[11px] font-bold text-slate-400">Phone Support</p>
-                          <p className="text-xs font-extrabold text-white font-mono">{company?.support_phone || "+91 1800 292 982"}</p>
+                          <p className="text-[11px] font-bold text-[#625B60]">Phone Support</p>
+                          <p className="text-xs font-extrabold text-[#292329] font-mono">{company?.support_phone || "+91 1800 292 982"}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <a
                           href={`tel:${cleanPhoneNum}`}
-                          className="flex-1 py-1.5 px-2.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-[11px] font-bold text-emerald-300 flex items-center justify-center gap-1.5 transition-colors"
+                          className="flex-1 py-1.5 px-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-[11px] font-bold text-emerald-700 flex items-center justify-center gap-1.5 transition-colors"
                         >
                           <Phone className="w-3.5 h-3.5" />
                           <span>Call Now (Mobile)</span>
                         </a>
                         <button
                           onClick={() => copyToClipboard(company?.support_phone || "+91 1800 292 982", "phone")}
-                          className="flex-1 py-1.5 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-bold text-slate-200 flex items-center justify-center gap-1.5 transition-colors"
+                          className="flex-1 py-1.5 px-2.5 rounded-xl bg-[#FAF8F9] hover:bg-[#FFF0F4] border border-[#E8E2E5] text-[11px] font-bold text-[#292329] hover:text-[#A20A3A] flex items-center justify-center gap-1.5 transition-colors"
                         >
-                          {copiedField === "phone" ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          {copiedField === "phone" ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                           <span>{copiedField === "phone" ? "Copied" : "Copy Number"}</span>
                         </button>
                       </div>
                     </div>
 
                     {/* WhatsApp Support */}
-                    <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/50 space-y-3 sm:col-span-2">
+                    <div className="p-4 rounded-2xl bg-[#FFFFFF] border border-[#E8E2E5] space-y-3 sm:col-span-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                          <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200">
                             <MessageSquare className="w-4 h-4" />
                           </div>
                           <div>
-                            <p className="text-[11px] font-bold text-slate-400">WhatsApp Instant Support</p>
-                            <p className="text-xs font-extrabold text-white font-mono">{company?.whatsapp_number || "+91 70139 14767"}</p>
+                            <p className="text-[11px] font-bold text-[#625B60]">WhatsApp Instant Support</p>
+                            <p className="text-xs font-extrabold text-[#292329] font-mono">{company?.whatsapp_number || "+91 70139 14767"}</p>
                           </div>
                         </div>
                         <a
                           href={whatsappUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all"
+                          className="py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold flex items-center gap-2 shadow-md transition-all"
                         >
                           <Send className="w-3.5 h-3.5" />
                           <span>Open WhatsApp</span>
                         </a>
                       </div>
                       {/* Prefilled message preview */}
-                      <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 text-[11px] text-slate-300 font-mono space-y-1">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Prefilled Message Preview:</p>
+                      <div className="p-3 rounded-xl bg-[#FAF8F9] border border-[#E8E2E5] text-[11px] text-[#292329] font-mono space-y-1">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-[#8A8288] mb-1">Prefilled Message Preview:</p>
                         <p className="whitespace-pre-line leading-relaxed">{rawWhatsappMsg}</p>
                       </div>
                     </div>
-
-                    {/* Live Chat (Conditional) */}
-                    {company?.live_chat_enabled && (
-                      <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-between sm:col-span-2">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
-                            <Headphones className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <p className="text-xs font-extrabold text-white">Live Onboarding Assistant Chat</p>
-                            <p className="text-[11px] font-medium text-indigo-300">Connect instantly with an online verification agent</p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => window.open(company?.support_url || "https://pay2pay.in/support", "_blank")}
-                          className="py-1.5 px-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold flex items-center gap-1.5 transition-colors"
-                        >
-                          <span>Open Live Chat</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </div>
 
                 {/* 3. APPLICATION DETAILS */}
-                <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/50 space-y-3">
-                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                    <FileText className="w-3.5 h-3.5 text-blue-400" />
+                <div className="p-4 rounded-2xl bg-[#FFFFFF] border border-[#E8E2E5] space-y-3">
+                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#A20A3A] flex items-center gap-2">
+                    <FileText className="w-3.5 h-3.5 text-[#A20A3A]" />
                     <span>Application Details</span>
                   </h4>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400">Application ID</p>
-                      <p className="font-extrabold text-white font-mono">{appDetails?.application_id || "APP-P2P-REG"}</p>
+                      <p className="text-[10px] font-bold text-[#625B60]">Application ID</p>
+                      <p className="font-extrabold text-[#292329] font-mono">{appDetails?.application_id || "APP-N4U-REG"}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400">Retailer Name</p>
-                      <p className="font-extrabold text-white">{appDetails?.retailer_name || "Sathiya Murthy"}</p>
+                      <p className="text-[10px] font-bold text-[#625B60]">Retailer Name</p>
+                      <p className="font-extrabold text-[#292329]">{appDetails?.retailer_name || "Sathiya Murthy"}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400">Mobile Number</p>
-                      <p className="font-extrabold text-white font-mono">{appDetails?.mobile_number || "+91 7013914767"}</p>
+                      <p className="text-[10px] font-bold text-[#625B60]">Mobile Number</p>
+                      <p className="font-extrabold text-[#292329] font-mono">{appDetails?.mobile_number || "+91 7013914767"}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400">Verification Status</p>
-                      <span className="inline-block mt-0.5 px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-extrabold">
+                      <p className="text-[10px] font-bold text-[#625B60]">Verification Status</p>
+                      <span className="inline-block mt-0.5 px-2 py-0.5 rounded-md bg-[#FFF8DC] text-[#D4A915] border border-[#FFF3C4] text-[10px] font-extrabold">
                         {appDetails?.verification_status || "UNDER_REVIEW"}
                       </span>
                     </div>
                     <div className="col-span-2">
-                      <p className="text-[10px] font-bold text-slate-400">Submission Date</p>
-                      <p className="font-bold text-slate-300">{appDetails?.submission_date || "August 09, 2026"}</p>
+                      <p className="text-[10px] font-bold text-[#625B60]">Submission Date</p>
+                      <p className="font-bold text-[#292329]">{appDetails?.submission_date || "August 09, 2026"}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* 4. ADMIN REMARKS */}
-                <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/50 space-y-2">
-                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                    <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
+                <div className="p-4 rounded-2xl bg-[#FFFFFF] border border-[#E8E2E5] space-y-2">
+                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#A20A3A] flex items-center gap-2">
+                    <AlertCircle className="w-3.5 h-3.5 text-[#EDC11E]" />
                     <span>Latest Admin Remarks</span>
                   </h4>
-                  <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-xs text-slate-300 font-medium">
+                  <div className="p-3 rounded-xl bg-[#FAF8F9] border border-[#E8E2E5] text-xs text-[#292329] font-medium">
                     {data?.admin_remarks || "No remarks available."}
                   </div>
                 </div>
 
                 {/* 5. HELP SECTION (FAQ ACCORDION) */}
                 <div className="space-y-3">
-                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                    <HelpCircle className="w-3.5 h-3.5 text-indigo-400" />
+                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#A20A3A] flex items-center gap-2">
+                    <HelpCircle className="w-3.5 h-3.5 text-[#A20A3A]" />
                     <span>Frequently Asked Questions</span>
                   </h4>
                   <div className="space-y-2">
@@ -411,21 +389,21 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
                       return (
                         <div
                           key={faq.id}
-                          className="rounded-2xl bg-slate-800/40 border border-slate-700/50 overflow-hidden transition-colors"
+                          className="rounded-2xl bg-[#FFFFFF] border border-[#E8E2E5] overflow-hidden transition-colors"
                         >
                           <button
                             onClick={() => setExpandedFaq(isExpanded ? null : faq.id)}
-                            className="w-full p-3.5 text-left text-xs font-extrabold text-white flex items-center justify-between gap-2 hover:bg-slate-800/60 transition-colors"
+                            className="w-full p-3.5 text-left text-xs font-extrabold text-[#292329] flex items-center justify-between gap-2 hover:bg-[#FAF8F9] transition-colors"
                           >
                             <span>{faq.question}</span>
                             {isExpanded ? (
-                              <ChevronUp className="w-4 h-4 text-blue-400 shrink-0" />
+                              <ChevronUp className="w-4 h-4 text-[#A20A3A] shrink-0" />
                             ) : (
-                              <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                              <ChevronDown className="w-4 h-4 text-[#8A8288] shrink-0" />
                             )}
                           </button>
                           {isExpanded && (
-                            <div className="px-3.5 pb-3.5 text-xs text-slate-300 font-normal leading-relaxed border-t border-slate-800 pt-2.5">
+                            <div className="px-3.5 pb-3.5 text-xs text-[#625B60] font-normal leading-relaxed border-t border-[#E8E2E5] pt-2.5">
                               {faq.answer}
                             </div>
                           )}
@@ -439,7 +417,7 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
           </div>
 
           {/* Footer Button Actions */}
-          <div className="p-4 border-t border-slate-800 bg-slate-950/60 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="p-4 border-t border-[#E8E2E5] bg-[#FAF8F9] flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
               <a
                 href={whatsappUrl}
@@ -452,22 +430,22 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
               </a>
               <a
                 href={`tel:${cleanPhoneNum}`}
-                className="py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-extrabold flex items-center justify-center gap-1.5 border border-slate-700 transition-colors flex-1 sm:flex-none"
+                className="py-2 px-4 rounded-xl bg-[#FFFFFF] hover:bg-[#FAF8F9] text-[#292329] text-xs font-extrabold flex items-center justify-center gap-1.5 border border-[#E8E2E5] transition-colors flex-1 sm:flex-none"
               >
-                <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                <Phone className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Call Support</span>
               </a>
               <a
                 href={mailToUrl}
-                className="py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-extrabold flex items-center justify-center gap-1.5 border border-slate-700 transition-colors flex-1 sm:flex-none"
+                className="py-2 px-4 rounded-xl bg-[#FFF0F4] hover:bg-[#FFD6E2] text-[#A20A3A] text-xs font-extrabold flex items-center justify-center gap-1.5 border border-[#FFD6E2] transition-colors flex-1 sm:flex-none"
               >
-                <Mail className="w-3.5 h-3.5 text-blue-400" />
+                <Mail className="w-3.5 h-3.5 text-[#A20A3A]" />
                 <span>Send Email</span>
               </a>
             </div>
             <button
               onClick={onClose}
-              className="py-2 px-5 rounded-xl text-slate-400 hover:text-white text-xs font-bold transition-colors"
+              className="py-2 px-5 rounded-xl text-[#625B60] hover:text-[#292329] text-xs font-bold transition-colors"
             >
               Close
             </button>

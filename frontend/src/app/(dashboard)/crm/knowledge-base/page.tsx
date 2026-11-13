@@ -40,11 +40,11 @@ export default function KnowledgeBasePage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100 flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-[#292329] flex items-center gap-3">
             <BookOpen className="h-8 w-8 text-emerald-400" />
             Knowledge Base & Announcement Broadcast Center
           </h1>
-          <p className="mt-1 text-slate-400">
+          <p className="mt-1 text-[#625B60]">
             Internal troubleshooting SOP guides & merchant-wide broadcast notifications
           </p>
         </div>
@@ -52,7 +52,7 @@ export default function KnowledgeBasePage() {
 
       {/* Broadcast Announcements */}
       <div className="space-y-4">
-        <h3 className="font-semibold text-slate-200 text-lg flex items-center gap-2">
+        <h3 className="font-semibold text-[#292329] text-lg flex items-center gap-2">
           <Megaphone className="h-5 w-5 text-amber-400" /> Active Platform Broadcast Announcements
         </h3>
         <div className="grid grid-cols-1 gap-4">
@@ -64,8 +64,8 @@ export default function KnowledgeBasePage() {
                   {a.audience}
                 </span>
               </div>
-              <h4 className="font-bold text-slate-100 text-base">{a.title}</h4>
-              <p className="text-xs text-slate-300 leading-relaxed">{a.content}</p>
+              <h4 className="font-bold text-[#292329] text-base">{a.title}</h4>
+              <p className="text-xs text-[#292329] leading-relaxed">{a.content}</p>
             </div>
           ))}
         </div>
@@ -73,25 +73,25 @@ export default function KnowledgeBasePage() {
 
       {/* Knowledge Base Articles */}
       <div className="space-y-4">
-        <h3 className="font-semibold text-slate-200 text-lg flex items-center gap-2">
+        <h3 className="font-semibold text-[#292329] text-lg flex items-center gap-2">
           <BookOpen className="h-5 w-5 text-emerald-400" /> Standard Operating Procedure (SOP) Knowledge Base
         </h3>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {loading ? (
-            <div className="col-span-3 p-12 text-center text-slate-400">Loading Knowledge Articles...</div>
+            <div className="col-span-3 p-12 text-center text-[#625B60]">Loading Knowledge Articles...</div>
           ) : (
             articles.map((art) => (
-              <div key={art.public_id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 backdrop-blur-xl shadow-xl space-y-3">
+              <div key={art.public_id} className="rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 p-5 backdrop-blur-xl shadow-xl space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-xs text-emerald-400 font-bold flex items-center gap-1">
                     <Tag className="h-3 w-3" /> {art.category}
                   </span>
-                  <span className="text-xs text-slate-400 flex items-center gap-1">
+                  <span className="text-xs text-[#625B60] flex items-center gap-1">
                     <Eye className="h-3 w-3" /> {art.view_count} views
                   </span>
                 </div>
-                <h4 className="font-bold text-slate-200 text-sm leading-snug">{art.title}</h4>
-                <p className="text-xs text-slate-400 leading-relaxed line-clamp-3">{art.content}</p>
+                <h4 className="font-bold text-[#292329] text-sm leading-snug">{art.title}</h4>
+                <p className="text-xs text-[#625B60] leading-relaxed line-clamp-3">{art.content}</p>
               </div>
             ))
           )}

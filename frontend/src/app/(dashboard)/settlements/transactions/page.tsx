@@ -304,7 +304,7 @@ function SearchableSelect({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="w-full flex items-center justify-between rounded-xl border border-[#CBD5E1] bg-white px-3 py-2 text-xs font-bold text-[#0F172A] hover:border-[#2563EB] focus:outline-none transition-colors shadow-2xs cursor-pointer"
+        className="w-full flex items-center justify-between rounded-xl border border-[#CBD5E1] bg-white px-3 py-2 text-xs font-bold text-[#FFFFFF] hover:border-[#2563EB] focus:outline-none transition-colors shadow-2xs cursor-pointer"
       >
         <span className="truncate">{selectedOpt ? selectedOpt.name : placeholder}</span>
         <ChevronDown className={`w-3.5 h-3.5 text-[#64748B] flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
@@ -322,7 +322,7 @@ function SearchableSelect({
                 placeholder="Search..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="w-full bg-transparent text-xs font-semibold text-[#0F172A] focus:outline-none placeholder-[#94A3B8]"
+                className="w-full bg-transparent text-xs font-semibold text-[#FFFFFF] focus:outline-none placeholder-[#94A3B8]"
               />
               {query && (
                 <button type="button" onClick={() => setQuery("")}>
@@ -346,7 +346,7 @@ function SearchableSelect({
                     setQuery("");
                   }}
                   className={`px-3 py-2 text-xs cursor-pointer hover:bg-[#EFF6FF] hover:text-[#2563EB] font-bold transition-colors ${
-                    value === opt.code ? "bg-[#EFF6FF] text-[#2563EB]" : "text-[#0F172A]"
+                    value === opt.code ? "bg-[#EFF6FF] text-[#2563EB]" : "text-[#FFFFFF]"
                   }`}
                 >
                   {opt.name}
@@ -586,7 +586,7 @@ export default function TransactionsPage() {
       header: "RRN REF",
       accessorKey: "rrn",
       sortable: true,
-      cell: (t) => <span className="font-mono text-xs text-[#0F172A] font-bold">{t.rrn}</span>,
+      cell: (t) => <span className="font-mono text-xs text-[#FFFFFF] font-bold">{t.rrn}</span>,
     },
     {
       id: "created_date",
@@ -626,7 +626,7 @@ export default function TransactionsPage() {
       header: "RETAILER OUTLET",
       cell: (t) => (
         <div>
-          <p className="font-bold text-xs text-[#0F172A]">{t.retailer_name || "Sathus Pay Store"}</p>
+          <p className="font-bold text-xs text-[#FFFFFF]">{t.retailer_name || "Sathus Pay Store"}</p>
           <p className="font-mono text-[10px] text-[#16A34A] font-bold">{t.retailer_code || "RET-10928"}</p>
         </div>
       ),
@@ -657,7 +657,7 @@ export default function TransactionsPage() {
       accessorKey: "amount",
       sortable: true,
       cell: (t) => (
-        <span className="font-mono font-extrabold text-[#0F172A] text-xs">
+        <span className="font-mono font-extrabold text-[#FFFFFF] text-xs">
           ₹{(t.amount || 0).toLocaleString("en-IN")}
         </span>
       ),
@@ -760,7 +760,7 @@ export default function TransactionsPage() {
       {/* Page Title */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#0F172A] flex items-center gap-3">
+          <h1 className="text-2xl font-extrabold text-[#FFFFFF] flex items-center gap-3">
             <TrendingUp className="h-7 w-7 text-[#2563EB]" />
             Swipe Transaction Ledger
           </h1>
@@ -811,7 +811,7 @@ export default function TransactionsPage() {
                   setFromDate(e.target.value);
                   setDatePreset("CUSTOM");
                 }}
-                className="rounded-xl border border-[#CBD5E1] bg-white px-2.5 py-1.5 text-xs font-bold text-[#0F172A] focus:border-[#2563EB] focus:outline-none"
+                className="rounded-xl border border-[#CBD5E1] bg-white px-2.5 py-1.5 text-xs font-bold text-[#FFFFFF] focus:border-[#2563EB] focus:outline-none"
               />
             </div>
             <div className="flex items-center gap-1.5">
@@ -823,7 +823,7 @@ export default function TransactionsPage() {
                   setToDate(e.target.value);
                   setDatePreset("CUSTOM");
                 }}
-                className="rounded-xl border border-[#CBD5E1] bg-white px-2.5 py-1.5 text-xs font-bold text-[#0F172A] focus:border-[#2563EB] focus:outline-none"
+                className="rounded-xl border border-[#CBD5E1] bg-white px-2.5 py-1.5 text-xs font-bold text-[#FFFFFF] focus:border-[#2563EB] focus:outline-none"
               />
             </div>
           </div>
@@ -901,7 +901,7 @@ export default function TransactionsPage() {
               <DollarSign className="h-4 w-4" />
             </div>
           </div>
-          <div className="mt-2 font-mono text-xl font-extrabold text-[#0F172A]">₹{metrics.volume.toLocaleString("en-IN")}</div>
+          <div className="mt-2 font-mono text-xl font-extrabold text-[#FFFFFF]">₹{metrics.volume.toLocaleString("en-IN")}</div>
           <p className="mt-1 text-[10px] font-semibold text-[#2563EB] truncate">{metrics.count} Transactions</p>
         </div>
 
@@ -965,14 +965,14 @@ export default function TransactionsPage() {
 
       {/* Ingestion Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FAF8F9]/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="w-full max-w-lg rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xl space-y-4 my-8">
             <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-4">
-              <h2 className="text-lg font-bold text-[#111827] flex items-center gap-2">
+              <h2 className="text-lg font-bold text-[#FAF8F9] flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-[#2563EB]" />
                 Ingest POS Swipe Transaction
               </h2>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-200">
+              <button onClick={() => setShowModal(false)} className="text-[#625B60] hover:text-[#292329]">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -983,7 +983,7 @@ export default function TransactionsPage() {
                 <select
                   value={formData.mapped_retailer_id}
                   onChange={(e) => setFormData({ ...formData, mapped_retailer_id: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-[#CBD5E1] bg-white p-2.5 text-[#0F172A] font-bold focus:border-[#2563EB] focus:outline-none"
+                  className="mt-1 w-full rounded-lg border border-[#CBD5E1] bg-white p-2.5 text-[#FFFFFF] font-bold focus:border-[#2563EB] focus:outline-none"
                 >
                   {retailers.map((r) => (
                     <option key={r.public_id} value={r.public_id}>{r.store_name || r.business_name} ({r.retailer_code})</option>
@@ -996,7 +996,7 @@ export default function TransactionsPage() {
                 <select
                   value={formData.service_type}
                   onChange={(e) => setFormData({ ...formData, service_type: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-[#CBD5E1] bg-white p-2.5 text-[#0F172A] font-bold focus:border-[#2563EB] focus:outline-none"
+                  className="mt-1 w-full rounded-lg border border-[#CBD5E1] bg-white p-2.5 text-[#FFFFFF] font-bold focus:border-[#2563EB] focus:outline-none"
                 >
                   <option value="POS_SWIPE">POS Card Swipe</option>
                   <option value="UPI">UPI Payment</option>
@@ -1015,7 +1015,7 @@ export default function TransactionsPage() {
                     step="0.01"
                     value={formData.amount}
                     onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
-                    className="mt-1 w-full rounded-lg border border-[#CBD5E1] bg-white p-2.5 text-[#0F172A] font-bold focus:border-[#2563EB] focus:outline-none"
+                    className="mt-1 w-full rounded-lg border border-[#CBD5E1] bg-white p-2.5 text-[#FFFFFF] font-bold focus:border-[#2563EB] focus:outline-none"
                     required
                   />
                 </div>
@@ -1025,7 +1025,7 @@ export default function TransactionsPage() {
                     type="text"
                     value={formData.mapped_tid}
                     onChange={(e) => setFormData({ ...formData, mapped_tid: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-[#CBD5E1] bg-white p-2.5 text-[#0F172A] font-bold focus:border-[#2563EB] focus:outline-none"
+                    className="mt-1 w-full rounded-lg border border-[#CBD5E1] bg-white p-2.5 text-[#FFFFFF] font-bold focus:border-[#2563EB] focus:outline-none"
                     required
                   />
                 </div>

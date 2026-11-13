@@ -59,7 +59,7 @@ export const Step1CustomerSearch: React.FC<Step1CustomerSearchProps> = ({
         sx={{
           p: 3,
           borderRadius: "20px",
-          bgcolor: "rgba(18, 27, 48, 0.85)",
+          bgcolor: "#FFFFFF",
           backdropFilter: "blur(24px)",
           border: "1px solid rgba(255, 255, 255, 0.12)",
           boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
@@ -136,7 +136,7 @@ export const Step1CustomerSearch: React.FC<Step1CustomerSearchProps> = ({
             p: 3.5,
             borderRadius: "20px",
             bgcolor: "rgba(18, 27, 48, 0.5)",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
+            border: "1px solid #E8E2E5",
           }}
         >
           <Stack direction="row" spacing={2} sx={{ alignItems: "center", mb: 2 }}>
@@ -224,13 +224,13 @@ export const Step1CustomerSearch: React.FC<Step1CustomerSearchProps> = ({
               <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "11px", fontWeight: 700, mb: 0.5 }}>
                 RETAILER WALLET BALANCE
               </Typography>
-              <Typography sx={{ fontWeight: 900, color: "#FBBF24", fontSize: "26px" }}>
+              <Typography sx={{ fontWeight: 900, color: "#A20A3A", fontSize: "26px" }}>
                 ₹{Number(customer.walletBalance ?? 0).toLocaleString()}
               </Typography>
             </Box>
           </Stack>
 
-          <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.12)", my: 2 }} />
+          <Divider sx={{ borderColor: "#E8E2E5", my: 2 }} />
 
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(4, 1fr)" }, gap: 2 }}>
             <Box>

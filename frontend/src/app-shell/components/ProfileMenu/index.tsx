@@ -128,12 +128,12 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
           sx: {
             mt: 1.5,
             width: 240,
-            bgcolor: "#0F172A",
+            bgcolor: "#FFFFFF",
             color: "#FFFFFF",
             border: `1px solid ${tokens.colors.neutral.dark.border}`,
             borderRadius: "14px",
             overflow: "visible",
-            boxShadow: "0 12px 32px rgba(0,0,0,0.5)",
+            boxShadow: "0 12px 32px rgba(41, 35, 41, 0.06)",
             "& .MuiMenuItem-root": {
               px: 2,
               py: 1.2,
@@ -142,7 +142,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
               my: 0.3,
               fontSize: "14px",
               fontWeight: 600,
-              color: "#CBD5E1",
+              color: "#625B60",
               "&:hover": {
                 bgcolor: "rgba(59, 130, 246, 0.15)",
                 color: "#FFFFFF",
@@ -169,7 +169,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
             <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#FFFFFF", noWrap: true }}>
               {ownerName}
             </Typography>
-            <Typography variant="caption" sx={{ color: "#94A3B8", display: "block" }}>
+            <Typography variant="caption" sx={{ color: "#625B60", display: "block" }}>
               Partner: {code}
             </Typography>
           </Box>

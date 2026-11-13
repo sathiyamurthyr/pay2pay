@@ -42,16 +42,16 @@ export default function RetailerSecurityPage() {
   };
 
   return (
-    <Box sx={{ maxWidth: 600, mx: "auto", p: 3, color: "#F8FAFC" }}>
+    <Box sx={{ maxWidth: 600, mx: "auto", p: 3, color: "#292329" }}>
       <Typography variant="h5" sx={{ fontWeight: 800, mb: 3, display: "flex", alignItems: "center", gap: 1.5 }}>
         <ShieldIcon sx={{ color: "#60A5FA" }} /> Account Security & PIN Settings
       </Typography>
 
-      <Paper sx={{ p: 4, borderRadius: "16px", bgcolor: "rgba(18, 27, 48, 0.85)", border: "1px solid rgba(255, 255, 255, 0.1)" }}>
+      <Paper sx={{ p: 4, borderRadius: "16px", bgcolor: "#FFFFFF", border: "1px solid rgba(255, 255, 255, 0.1)" }}>
         <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, color: "#FFFFFF" }}>
           Transaction Security PIN
         </Typography>
-        <Typography variant="body2" sx={{ color: "#94A3B8", mb: 3 }}>
+        <Typography variant="body2" sx={{ color: "#625B60", mb: 3 }}>
           Your 4-digit security PIN authorizes high-value transfers and unlocks screen lock sessions.
         </Typography>
 
@@ -71,7 +71,7 @@ export default function RetailerSecurityPage() {
               onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
               slotProps={{
                 htmlInput: { maxLength: 4, inputMode: "numeric" },
-                inputLabel: { style: { color: "#94A3B8" } },
+                inputLabel: { style: { color: "#625B60" } },
                 input: { style: { color: "#FFFFFF" } }
               }}
             />
@@ -84,7 +84,7 @@ export default function RetailerSecurityPage() {
               onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
               slotProps={{
                 htmlInput: { maxLength: 4, inputMode: "numeric" },
-                inputLabel: { style: { color: "#94A3B8" } },
+                inputLabel: { style: { color: "#625B60" } },
                 input: { style: { color: "#FFFFFF" } }
               }}
             />

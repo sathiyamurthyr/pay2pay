@@ -98,7 +98,7 @@ export const RightContextPanel: React.FC<{
               SYSTEM STATUS: 100% ONLINE
             </Typography>
           </Stack>
-          <Chip label="OPERATIONAL" size="small" sx={{ bgcolor: "#4ADE80", color: "#0F172A", fontWeight: 900, height: 20, fontSize: "10px" }} />
+          <Chip label="OPERATIONAL" size="small" sx={{ bgcolor: "#4ADE80", color: "#FFFFFF", fontWeight: 900, height: 20, fontSize: "10px" }} />
         </Stack>
       </Paper>
 
@@ -108,7 +108,7 @@ export const RightContextPanel: React.FC<{
         sx={{
           p: 2,
           borderRadius: "16px",
-          bgcolor: "rgba(15, 23, 42, 0.6)",
+          bgcolor: "#FAF8F9",
           border: "1px solid rgba(255, 255, 255, 0.12)",
         }}
       >
@@ -148,7 +148,7 @@ export const RightContextPanel: React.FC<{
         sx={{
           p: 2,
           borderRadius: "16px",
-          bgcolor: "rgba(15, 23, 42, 0.6)",
+          bgcolor: "#FAF8F9",
           border: "1px solid rgba(255, 255, 255, 0.12)",
         }}
       >
@@ -205,7 +205,7 @@ export const RightContextPanel: React.FC<{
         sx={{
           p: 2,
           borderRadius: "16px",
-          bgcolor: "rgba(15, 23, 42, 0.6)",
+          bgcolor: "#FAF8F9",
           border: "1px solid rgba(255, 255, 255, 0.12)",
         }}
       >

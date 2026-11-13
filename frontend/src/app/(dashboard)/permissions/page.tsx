@@ -29,11 +29,11 @@ export default function PermissionsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white tracking-tight">System Permissions</h1>
-        <p className="text-xs text-slate-400 mt-1">Foundational RBAC Permission Definitions Grouped by Module</p>
+        <p className="text-xs text-[#625B60] mt-1">Foundational RBAC Permission Definitions Grouped by Module</p>
       </div>
 
       {isLoading ? (
-        <div className="py-12 text-center text-slate-500 text-xs">Loading permissions registry...</div>
+        <div className="py-12 text-center text-[#8A8288] text-xs">Loading permissions registry...</div>
       ) : (
         <div className="space-y-6">
           {Object.entries(groupedPermissions).map(([module, perms]) => (
@@ -52,10 +52,10 @@ export default function PermissionsPage() {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {perms.map((p: any) => (
-                    <div key={p.code} className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
+                    <div key={p.code} className="p-3 rounded-xl bg-[#FAF8F9]/60 border border-[#E8E2E5] flex items-center justify-between">
                       <div>
                         <p className="font-mono text-xs text-blue-400 font-semibold">{p.code}</p>
-                        <p className="text-[11px] text-slate-300 mt-0.5">{p.name}</p>
+                        <p className="text-[11px] text-[#292329] mt-0.5">{p.name}</p>
                       </div>
                       <Badge variant="info" className="text-[10px]">{p.action}</Badge>
                     </div>

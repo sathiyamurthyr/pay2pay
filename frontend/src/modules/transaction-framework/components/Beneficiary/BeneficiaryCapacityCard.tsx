@@ -89,13 +89,13 @@ export const BeneficiaryCapacityCard: React.FC<BeneficiaryCapacityCardProps> = (
               icon={<StarIcon sx={{ fontSize: "12px !important", color: "#FBBF24 !important" }} />}
               label="Preferred Account"
               size="small"
-              sx={{ bgcolor: "rgba(251, 191, 36, 0.12)", color: "#FBBF24", fontWeight: 800, height: 20, fontSize: "10px" }}
+              sx={{ bgcolor: "rgba(251, 191, 36, 0.12)", color: "#A20A3A", fontWeight: 800, height: 20, fontSize: "10px" }}
             />
           )}
         </Stack>
       </Stack>
 
-      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 1 }} />
+      <Divider sx={{ borderColor: "#E8E2E5", my: 1 }} />
 
       {/* Grid: Beneficiary Capacity Metrics */}
       <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1.25, mb: 1.5 }}>

@@ -58,7 +58,7 @@ class ReceiptShareService {
     const signature = this.generateSignature(transactionId, referenceNumber, amount);
 
     const record: ReceiptShareRecord = {
-      tenantId: "TENANT-PAY2PAY",
+      tenantId: "TENANT-NEAR4YOU",
       companyId: "COMP-INDIA-01",
       receiptId: `REC-${Math.floor(100000 + Math.random() * 900000)}`,
       receiptToken,
@@ -122,7 +122,7 @@ class ReceiptShareService {
     return {
       isValid: true,
       status: "VERIFIED",
-      message: "Digitally Verified by Pay2Pay Enterprise Verification Engine.",
+      message: "Digitally Verified by Near4You Enterprise Verification Engine.",
       verifiedAt: timestamp,
       receiptRecord: record,
     };
@@ -146,7 +146,7 @@ class ReceiptShareService {
   }
 
   public getPublicReceiptUrl(receiptToken: string): string {
-    return `https://receipt.pay2pay.in/r/${receiptToken}`;
+    return `https://receipt.near4you.store/r/${receiptToken}`;
   }
 }
 

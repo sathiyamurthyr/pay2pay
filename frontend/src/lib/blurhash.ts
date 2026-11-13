@@ -1,5 +1,5 @@
 /**
- * Pay2Pay High-Performance BlurHash Engine
+ * Near4You High-Performance BlurHash Engine
  * Zero-dependency, isomorphic BlurHash decoder, data URL generator, and placeholder resolver.
  */
 
@@ -168,10 +168,10 @@ export function blurHashToDataUrl(
 }
 
 /**
- * Curated, high-accuracy precomputed BlurHashes across the Pay2Pay Enterprise Platform
+ * Curated, high-accuracy precomputed BlurHashes across the Near4You Enterprise Platform
  */
 export const KNOWN_BLURHASHES: Record<string, string> = {
-  // ── 1. Official Pay2Pay Branding & Logos ──
+  // ── 1. Official Near4You Branding & Logos ──
   LOGO: "LOAmA2az0*jss,ayR-jsRga|n}fQ",
   LOGO_BADGE: "LOAmA2az0*jss,ayR-jsRga|n}fQ",
   BRAND_BANNER: "L25#*WWB00of_3ofWBj[00of_3of",

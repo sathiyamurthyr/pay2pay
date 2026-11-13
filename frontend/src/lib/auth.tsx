@@ -171,7 +171,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Construct minimal profile from active session
           const minimalProfile: User = {
             public_id: "authenticated_session",
-            email: "merchant@pay2pay.in",
+            email: "merchant@near4you.store",
             full_name: storedRole === "SD" ? "Super Distributor" : storedRole === "DIST" ? "Distributor Partner" : "Retailer Partner",
             tenant_id: "547aa7bb-a790-4fe2-bd5b-27214ed176c8",
             roles: [storedRole],
@@ -242,7 +242,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const token = data.access_token;
         const userData = data.user || {
           public_id: data.retailer_id || "ret_user",
-          email: `${emailOrUsername}@pay2pay.in`,
+          email: `${emailOrUsername}@near4you.store`,
           full_name: data.owner_name || "Retailer Partner",
           tenant_id: "547aa7bb-a790-4fe2-bd5b-27214ed176c8",
           roles: ["RETAILER"],

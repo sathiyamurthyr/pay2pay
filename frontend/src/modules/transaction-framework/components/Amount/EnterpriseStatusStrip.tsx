@@ -77,7 +77,7 @@ export const EnterpriseStatusStrip: React.FC<EnterpriseStatusStripProps> = ({
       return (
         <>
           <InfoOutlinedIcon sx={{ color: "#F59E0B", fontSize: 18 }} />
-          <Typography sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "12.5px" }}>
+          <Typography sx={{ fontWeight: 800, color: "#A20A3A", fontSize: "12.5px" }}>
             ⚠ Unable to load beneficiary limits
           </Typography>
         </>
@@ -110,7 +110,7 @@ export const EnterpriseStatusStrip: React.FC<EnterpriseStatusStripProps> = ({
       return (
         <>
           <WarningAmberIcon sx={{ color: "#F59E0B", fontSize: 18 }} />
-          <Typography sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "12.5px" }}>
+          <Typography sx={{ fontWeight: 800, color: "#A20A3A", fontSize: "12.5px" }}>
             ⚠ Low Limit — ₹{monthlyRemaining.toLocaleString()} monthly remaining
           </Typography>
         </>

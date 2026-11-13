@@ -98,7 +98,7 @@ function Panel({
         style={{ borderLeftWidth: 3, borderLeftColor: accent, borderLeftStyle: "solid" }}
       >
         <span style={{ color: accent }}>{icon}</span>
-        <h2 className="text-[13px] font-extrabold text-[#0F172A] tracking-tight">{title}</h2>
+        <h2 className="text-[13px] font-extrabold text-[#FFFFFF] tracking-tight">{title}</h2>
       </div>
       <div className="p-5">{children}</div>
     </div>
@@ -372,13 +372,13 @@ export default function RetailerControllerPage() {
         <div className="flex items-center gap-4">
           <Link
             href={`/retailers/${retailerId}`}
-            className="flex items-center justify-center w-10 h-10 rounded-xl border border-[#E2E8F0] bg-white text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-all"
+            className="flex items-center justify-center w-10 h-10 rounded-xl border border-[#E2E8F0] bg-white text-[#475569] hover:bg-[#F8FAFC] hover:text-[#FFFFFF] transition-all"
           >
             <ChevronLeft className="w-5 h-5" />
           </Link>
           <div>
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl font-extrabold text-[#0F172A] tracking-tight flex items-center gap-2">
+              <h1 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight flex items-center gap-2">
                 <Settings2 className="w-6 h-6 text-[#7C3AED]" />
                 Admin Controller
               </h1>
@@ -418,7 +418,7 @@ export default function RetailerControllerPage() {
               <span className="flex items-center gap-1.5 text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">
                 {icon} {label}
               </span>
-              <span className="text-[12px] font-bold text-[#0F172A] truncate">{value}</span>
+              <span className="text-[12px] font-bold text-[#FFFFFF] truncate">{value}</span>
             </div>
           ))}
 
@@ -480,7 +480,7 @@ export default function RetailerControllerPage() {
               value={statusReason}
               onChange={(e) => setStatusReason(e.target.value)}
               placeholder="e.g. KYC documents verified successfully"
-              className="w-full px-3 py-2.5 text-[12px] font-medium border border-[#E2E8F0] rounded-xl bg-[#F8FAFC] text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/30 focus:border-[#7C3AED]"
+              className="w-full px-3 py-2.5 text-[12px] font-medium border border-[#E2E8F0] rounded-xl bg-[#F8FAFC] text-[#FFFFFF] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/30 focus:border-[#7C3AED]"
             />
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -553,7 +553,7 @@ export default function RetailerControllerPage() {
                   setLimits((prev) => ({ ...prev, [key]: parseFloat(e.target.value) || undefined }))
                 }
                 placeholder={placeholder}
-                className="w-full px-3 py-2.5 text-[12px] font-semibold border border-[#E2E8F0] rounded-xl bg-[#F8FAFC] text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#059669]/30 focus:border-[#059669]"
+                className="w-full px-3 py-2.5 text-[12px] font-semibold border border-[#E2E8F0] rounded-xl bg-[#F8FAFC] text-[#FFFFFF] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#059669]/30 focus:border-[#059669]"
               />
             </div>
           ))}
@@ -607,7 +607,7 @@ export default function RetailerControllerPage() {
               value={credOpts.reason}
               onChange={(e) => setCredOpts((p) => ({ ...p, reason: e.target.value }))}
               placeholder="Reason for credential reset"
-              className="w-full px-3 py-2 text-[12px] border border-[#E2E8F0] rounded-xl bg-[#F8FAFC] text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#DC2626]/20 focus:border-[#DC2626]"
+              className="w-full px-3 py-2 text-[12px] border border-[#E2E8F0] rounded-xl bg-[#F8FAFC] text-[#FFFFFF] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#DC2626]/20 focus:border-[#DC2626]"
             />
             <button
               id="reset-credentials-btn"
@@ -672,7 +672,7 @@ export default function RetailerControllerPage() {
                 value={walletAmount}
                 onChange={(e) => setWalletAmount(e.target.value)}
                 placeholder="0.00"
-                className="w-full px-3 py-2.5 text-[12px] font-bold border border-[#E2E8F0] rounded-xl bg-[#F8FAFC] text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/30 focus:border-[#7C3AED]"
+                className="w-full px-3 py-2.5 text-[12px] font-bold border border-[#E2E8F0] rounded-xl bg-[#F8FAFC] text-[#FFFFFF] focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/30 focus:border-[#7C3AED]"
               />
             </div>
             <div>
@@ -683,7 +683,7 @@ export default function RetailerControllerPage() {
                 value={walletReason}
                 onChange={(e) => setWalletReason(e.target.value)}
                 placeholder="Adjustment reason"
-                className="w-full px-3 py-2.5 text-[12px] font-medium border border-[#E2E8F0] rounded-xl bg-[#F8FAFC] text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/30 focus:border-[#7C3AED]"
+                className="w-full px-3 py-2.5 text-[12px] font-medium border border-[#E2E8F0] rounded-xl bg-[#F8FAFC] text-[#FFFFFF] focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/30 focus:border-[#7C3AED]"
               />
             </div>
             <div>
@@ -694,7 +694,7 @@ export default function RetailerControllerPage() {
                 value={walletRef}
                 onChange={(e) => setWalletRef(e.target.value)}
                 placeholder="Bank / ticket ref"
-                className="w-full px-3 py-2.5 text-[12px] font-medium border border-[#E2E8F0] rounded-xl bg-[#F8FAFC] text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/30 focus:border-[#7C3AED]"
+                className="w-full px-3 py-2.5 text-[12px] font-medium border border-[#E2E8F0] rounded-xl bg-[#F8FAFC] text-[#FFFFFF] focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/30 focus:border-[#7C3AED]"
               />
             </div>
           </div>

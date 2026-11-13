@@ -150,7 +150,7 @@ export default function KycUpload({
     <div className="space-y-2">
       <div className="flex items-center gap-2 mb-3">
         <Upload className="w-4 h-4 text-[#2563EB]" />
-        <span className="text-xs font-extrabold text-[#0F172A] uppercase tracking-wider">
+        <span className="text-xs font-extrabold text-[#FFFFFF] uppercase tracking-wider">
           KYC Document Upload
         </span>
         <span className="text-[10px] font-semibold text-[#64748B] ml-1">(PDF / JPG / PNG · Max 10 MB)</span>
@@ -183,7 +183,7 @@ export default function KycUpload({
                   ) : (
                     <Upload className="w-3.5 h-3.5 text-[#64748B]" />
                   )}
-                  <span className="text-[11px] font-extrabold text-[#0F172A]">
+                  <span className="text-[11px] font-extrabold text-[#FFFFFF]">
                     {doc.label}
                   </span>
                   {doc.required && (

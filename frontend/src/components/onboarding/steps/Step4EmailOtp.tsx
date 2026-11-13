@@ -91,7 +91,7 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
         <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
           Verify Email OTP
         </h2>
-        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
+        <p className="text-xs font-semibold text-[#8A8288] dark:text-[#625B60] mt-1">
           Code dispatched to{" "}
           <span className="font-extrabold text-blue-600 dark:text-blue-400">
             {activeEmail}
@@ -126,7 +126,7 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
       <form onSubmit={handleVerify} className="space-y-4">
         {/* 6-Digit OTP Box Matrix */}
         <div>
-          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 text-center">
+          <label className="block text-xs font-bold text-slate-700 dark:text-[#292329] mb-2 text-center">
             Enter 6-Digit Email OTP <span className="text-red-500">*</span>
           </label>
           <div className="flex items-center justify-center gap-2" onPaste={handlePaste}>
@@ -143,7 +143,7 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
                 className={`text-center text-xl font-black rounded-xl border-2 transition-all focus:outline-none
                   ${digit
                     ? "border-violet-500 bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-300"
-                    : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white"
+                    : "border-slate-200 dark:border-[#E8E2E5] bg-slate-50 dark:bg-[#FFFFFF] text-slate-900 dark:text-white"
                   }
                   focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20`}
                 style={{ width: 44, height: 52 }}
@@ -153,7 +153,7 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
         </div>
 
         {/* Countdown / Resend */}
-        <div className="flex items-center justify-end text-xs font-bold text-slate-500">
+        <div className="flex items-center justify-end text-xs font-bold text-[#8A8288]">
           {countdown > 0 ? (
             <span>
               Resend in <strong className="text-blue-500">{countdown}s</strong>
@@ -191,7 +191,7 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
         <button
           type="submit"
           disabled={loading || otpValue.length !== 6}
-          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#A20A3A] to-[#85072F] text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
         >
           {loading ? (
             <>

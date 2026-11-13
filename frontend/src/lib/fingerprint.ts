@@ -33,7 +33,7 @@ export async function generateDeviceFingerprint(): Promise<{
       ctx.fillStyle = "#F60";
       ctx.fillRect(125, 1, 62, 20);
       ctx.fillStyle = "#069";
-      ctx.fillText("Pay2Pay Enterprise Security 🔐", 2, 15);
+      ctx.fillText("Near4You Enterprise Security 🔐", 2, 15);
       ctx.fillStyle = "rgba(102, 204, 0, 0.7)";
       ctx.fillText("FinTech Authentication Portal", 4, 45);
       canvasHash = canvas.toDataURL().slice(-64);

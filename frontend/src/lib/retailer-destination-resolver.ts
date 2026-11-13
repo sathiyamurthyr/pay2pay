@@ -185,7 +185,7 @@ export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Pr
           updated_at: d.updated_at || null,
           support_contact: d.support_contact || {
             phone: "+91 8000 123 456",
-            email: "support@pay2pay.in",
+            email: "support@near4you.store",
             desk: "24x7 Priority Support Desk",
           },
         };

@@ -31,7 +31,7 @@ export const TransferSummary: React.FC<TransferSummaryProps> = ({
     { label: "GST (18%)", value: `+ ₹${gst.toLocaleString()}`, color: "#93C5FD", highlight: false },
     { label: "OPERATOR COMMISSION", value: `+ ₹${commission.toLocaleString()}`, color: "#4ADE80", highlight: true, bg: "rgba(34, 197, 94, 0.12)" },
     { label: "NET WALLET DEBIT", value: `₹${totalPayable.toLocaleString()}`, color: "#3B82F6", highlight: true, bg: "rgba(37, 99, 235, 0.25)" },
-    { label: "WALLET AFTER TXN", value: `₹${walletAfterTransfer.toLocaleString()}`, color: "#FBBF24", highlight: false },
+    { label: "WALLET AFTER TXN", value: `₹${walletAfterTransfer.toLocaleString()}`, color: "#A20A3A", highlight: false },
     { label: "SETTLEMENT ETA", value: "1.2 Seconds", color: "#4ADE80", highlight: false },
     { label: "DAILY REMAINING", value: `₹${dailyRemaining.toLocaleString()}`, color: "#60A5FA", highlight: false },
     { label: "MONTHLY REMAINING", value: `₹${monthlyRemaining.toLocaleString()}`, color: "#34D399", highlight: false },

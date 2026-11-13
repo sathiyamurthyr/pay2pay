@@ -17,7 +17,7 @@ export const OperatorIntelligence: React.FC = () => {
     <Stack spacing={2} sx={{ p: 1 }}>
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(3, 1fr)", md: "repeat(4, 1fr)" }, gap: 1.5 }}>
         {metrics.map((m) => (
-          <Paper key={m.label} elevation={0} sx={{ p: 1.75, borderRadius: "12px", bgcolor: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+          <Paper key={m.label} elevation={0} sx={{ p: 1.75, borderRadius: "12px", bgcolor: "rgba(255, 255, 255, 0.04)", border: "1px solid #E8E2E5" }}>
             <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "11px", fontWeight: 700, mb: 0.5 }}>
               {m.label}
             </Typography>

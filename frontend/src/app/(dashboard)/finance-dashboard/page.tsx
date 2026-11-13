@@ -72,18 +72,18 @@ export default function FinanceDashboardPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100 flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-[#292329] flex items-center gap-3">
             <Landmark className="h-8 w-8 text-emerald-400" />
             Enterprise Finance, Accounting & Reconciliation Telemetry
           </h1>
-          <p className="mt-1 text-slate-400">
+          <p className="mt-1 text-[#625B60]">
             Real-time double-entry general ledger, trial balance, financial statements, & bank reconciliation
           </p>
         </div>
         <button
           onClick={fetchMetrics}
           disabled={refreshing}
-          className="flex items-center gap-2 rounded-lg bg-slate-800/80 px-4 py-2.5 text-sm font-medium text-slate-200 border border-slate-700 hover:bg-slate-700/80 transition-all"
+          className="flex items-center gap-2 rounded-lg bg-[#F5F2F4]/80 px-4 py-2.5 text-sm font-medium text-[#292329] border border-[#E8E2E5] hover:bg-slate-700/80 transition-all"
         >
           <RefreshCw className={`h-4 w-4 text-emerald-400 ${refreshing ? "animate-spin" : ""}`} />
           Refresh
@@ -100,7 +100,7 @@ export default function FinanceDashboardPage() {
               className={`relative overflow-hidden rounded-xl border bg-gradient-to-br p-5 backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] shadow-lg ${kpi.color}`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-300">{kpi.label}</span>
+                <span className="text-sm font-medium text-[#292329]">{kpi.label}</span>
                 <Icon className="h-5 w-5 opacity-80" />
               </div>
               <div className="mt-3 text-3xl font-extrabold text-white">{kpi.value}</div>
@@ -114,8 +114,8 @@ export default function FinanceDashboardPage() {
         <div className="flex items-center gap-4">
           <CheckCircle2 className="h-8 w-8 text-emerald-400" />
           <div>
-            <h3 className="font-bold text-slate-100 text-lg">General Ledger Double-Entry Audit Integrity</h3>
-            <p className="text-slate-300 text-sm">All debit and credit balances are 100% synchronized and balanced across all active subledgers.</p>
+            <h3 className="font-bold text-[#292329] text-lg">General Ledger Double-Entry Audit Integrity</h3>
+            <p className="text-[#292329] text-sm">All debit and credit balances are 100% synchronized and balanced across all active subledgers.</p>
           </div>
         </div>
       </div>

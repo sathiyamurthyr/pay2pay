@@ -70,11 +70,11 @@ export const ApiStatusLoader: React.FC<ApiStatusLoaderProps> = ({
           {error && <AlertCircle size={24} style={{ color: "#DC2626" }} />}
           
           <Box>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: error ? "#991B1B" : successMessage ? "#166534" : "#0F172A" }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: error ? "#991B1B" : successMessage ? "#166534" : "#FFFFFF" }}>
               {isLoading ? title : successMessage ? "API Status: Verified" : "API Status: Error"}
             </Typography>
             {isLoading && (
-              <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 500 }}>
+              <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 500 }}>
                 Live API Response: HTTP 200 IN-PROGRESS
               </Typography>
             )}
@@ -103,7 +103,7 @@ export const ApiStatusLoader: React.FC<ApiStatusLoaderProps> = ({
               height: 6,
               borderRadius: 3,
               mb: 1.5,
-              bgcolor: "#E2E8F0",
+              bgcolor: "#292329",
               "& .MuiLinearProgress-bar": {
                 borderRadius: 3,
                 bgcolor: "#2563EB",
@@ -116,7 +116,7 @@ export const ApiStatusLoader: React.FC<ApiStatusLoaderProps> = ({
               {currentStep.label}
             </Typography>
             {currentStep.sublabel && (
-              <Typography variant="caption" sx={{ color: "#64748B", display: "block", mt: 0.2 }}>
+              <Typography variant="caption" sx={{ color: "#625B60", display: "block", mt: 0.2 }}>
                 {currentStep.sublabel}
               </Typography>
             )}

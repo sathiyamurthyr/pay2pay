@@ -240,7 +240,7 @@ export function sanitizeCustomerErrorMessage(rawError: any): string {
  * ==============================================================================
  *
  * export function generateTransactionNumber(prefix = "PO"): string { ... }
- * export function generateReferenceNumber(prefix = "PAY2PAY"): string { ... }
+ * export function generateReferenceNumber(prefix = "NEAR4YOU"): string { ... }
  * export function generateBankingUtr(): string { ... }
  */
 
