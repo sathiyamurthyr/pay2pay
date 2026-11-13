@@ -6,6 +6,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import ShieldIcon from "@mui/icons-material/Shield";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 interface EnterpriseAppShellProps {
   headerTitle?: string;
@@ -30,6 +31,7 @@ export const EnterpriseAppShell: React.FC<EnterpriseAppShellProps> = ({
   footerCenter,
   footerRight,
 }) => {
+  const branding = useCompanyBranding();
   return (
     <Box
       sx={{
@@ -71,21 +73,21 @@ export const EnterpriseAppShell: React.FC<EnterpriseAppShellProps> = ({
               width: 40,
               height: 40,
               borderRadius: "10px",
-              background: "linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)",
+              background: `linear-gradient(135deg, ${branding.primary_colour || "#2563EB"} 0%, ${branding.secondary_colour || "#1D4ED8"} 100%)`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               fontWeight: 900,
               color: "#FFF",
-              fontSize: "18px",
-              boxShadow: "0 4px 14px rgba(162, 10, 58, 0.25)",
+              fontSize: "16px",
+              boxShadow: `0 4px 14px ${(branding.primary_colour || "#2563EB")}40`,
             }}
           >
-            N4U
+            {branding.short_name || (branding.company_code === "PAY2PAY" ? "P2P" : "N4U")}
           </Box>
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 900, fontSize: "18px", color: "#292329", lineHeight: 1.2 }}>
-              NEAR4YOU <Typography component="span" sx={{ color: "#A20A3A", fontWeight: 700, fontSize: "16px", ml: 0.5 }}>{headerTitle}</Typography>
+              {branding.company_name.toUpperCase()} <Typography component="span" sx={{ color: branding.primary_colour || "#A20A3A", fontWeight: 700, fontSize: "16px", ml: 0.5 }}>{headerTitle}</Typography>
             </Typography>
             <Typography variant="caption" sx={{ color: "#625B60", fontSize: "11px", fontWeight: 600 }}>
               {headerSubtitle}

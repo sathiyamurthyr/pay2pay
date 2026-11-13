@@ -15,6 +15,7 @@ import {
 
 import { useAuth } from "@/lib/auth";
 import api from "@/lib/api";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 // Subtle Web Audio synthesizer for crisp feedback
 const playStarSound = (isAdded: boolean) => {
@@ -164,6 +165,7 @@ const ADMIN_NAV: NavCategory[] = [
 export const Sidebar: React.FC = () => {
   const pathname = usePathname();
   const { user } = useAuth();
+  const branding = useCompanyBranding();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
@@ -382,11 +384,15 @@ export const Sidebar: React.FC = () => {
         {!isCollapsed && (
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 overflow-hidden shadow-xs bg-gradient-to-tr from-[#A20A3A] to-[#85072F] border border-[#EDC11E]/30"
+              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 overflow-hidden shadow-xs border"
+              style={{
+                background: `linear-gradient(135deg, ${branding.primary_colour || "#A20A3A"} 0%, ${branding.secondary_colour || "#EDC11E"} 100%)`,
+                borderColor: `${branding.secondary_colour || "#EDC11E"}4D`,
+              }}
             >
               <img
-                src="/logo.svg"
-                alt="Near 4 You"
+                src={branding.logo_url || "/branding/logo.svg"}
+                alt={branding.display_name}
                 className="w-6 h-6 object-contain"
                 onError={(e) => {
                   (e.target as HTMLElement).style.display = "none";
@@ -398,13 +404,13 @@ export const Sidebar: React.FC = () => {
                 className="text-[14px] font-extrabold tracking-tight truncate leading-tight flex items-center gap-1"
                 style={{ color: "#292329" }}
               >
-                NEAR4YOU
-                <Sparkles className="w-3.5 h-3.5 text-[#EDC11E]" />
+                {branding.company_name.toUpperCase()}
+                <Sparkles className="w-3.5 h-3.5" style={{ color: branding.secondary_colour || "#EDC11E" }} />
               </h1>
               <span
                 className="text-[10px] font-mono font-bold tracking-wider uppercase block text-[#94A3B8]"
               >
-                Enterprise Portal
+                {branding.display_name} Portal
               </span>
             </div>
           </div>
@@ -412,11 +418,15 @@ export const Sidebar: React.FC = () => {
 
         {isCollapsed && (
           <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center mx-auto overflow-hidden shadow-xs bg-gradient-to-tr from-[#A20A3A] to-[#85072F] border border-[#EDC11E]/30"
+            className="w-8 h-8 rounded-lg flex items-center justify-center mx-auto overflow-hidden shadow-xs border"
+            style={{
+              background: `linear-gradient(135deg, ${branding.primary_colour || "#A20A3A"} 0%, ${branding.secondary_colour || "#EDC11E"} 100%)`,
+              borderColor: `${branding.secondary_colour || "#EDC11E"}4D`,
+            }}
           >
             <img
-              src="/logo.svg"
-              alt="Near 4 You"
+              src={branding.logo_url || "/branding/logo.svg"}
+              alt={branding.display_name}
               className="w-6 h-6 object-contain"
               onError={(e) => {
                 (e.target as HTMLElement).style.display = "none";

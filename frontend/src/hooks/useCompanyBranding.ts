@@ -71,6 +71,20 @@ export function getInitialBrandingByHostname(): CompanyBrandingData {
   if (typeof window === "undefined") {
     return COMPANY_PRESETS.NEAR4YOU;
   }
+  try {
+    const searchParams = new URLSearchParams(window.location.search);
+    const domainParam = (searchParams.get("domain") || "").toLowerCase();
+    if (domainParam.includes("pay2pay")) {
+      return COMPANY_PRESETS.PAY2PAY;
+    }
+    if (domainParam.includes("smspay")) {
+      return COMPANY_PRESETS.SMSPAY;
+    }
+    if (domainParam.includes("near4you")) {
+      return COMPANY_PRESETS.NEAR4YOU;
+    }
+  } catch {}
+
   const host = window.location.hostname.toLowerCase();
   if (host.includes("pay2pay")) {
     return COMPANY_PRESETS.PAY2PAY;

@@ -8,6 +8,7 @@ import { NotificationCenter } from "../NotificationCenter";
 import { QuickActions } from "../QuickActions";
 import { tokens } from "@/design-system/tokens/design-tokens";
 import { useWalletSync } from "@/context/WalletSyncProvider";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 export interface EnterpriseHeaderProps {
   pageTitle?: string;
@@ -17,6 +18,7 @@ export const EnterpriseHeader: React.FC<EnterpriseHeaderProps> = ({
   pageTitle = "Money Transfer (DMT)",
 }) => {
   const { walletData, isLoading } = useWalletSync();
+  const branding = useCompanyBranding();
 
   const formattedBalance = walletData
     ? `₹${walletData.wallet_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
@@ -24,6 +26,10 @@ export const EnterpriseHeader: React.FC<EnterpriseHeaderProps> = ({
 
   const shortName = walletData?.short_name || (walletData?.owner_name ? walletData.owner_name.split(" ")[0] : "");
   const retailerCode = walletData?.retailer_code || "";
+
+  const brandPrimary = branding.primary_colour || "#A20A3A";
+  const brandSecondary = branding.secondary_colour || "#EDC11E";
+  const brandMonogram = branding.short_name || (branding.company_code === "PAY2PAY" ? "P2P" : "N4U");
 
   return (
     <Paper
@@ -49,17 +55,21 @@ export const EnterpriseHeader: React.FC<EnterpriseHeaderProps> = ({
               width: 48,
               height: 48,
               borderRadius: "12px",
-              background: "linear-gradient(135deg, #A20A3A 0%, #85072F 100%)",
+              background: `linear-gradient(135deg, ${brandPrimary} 0%, ${brandSecondary} 100%)`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               color: "#FFFFFF",
               fontWeight: 900,
               fontSize: "18px",
-              boxShadow: "0 2px 8px rgba(162, 10, 58, 0.25)",
+              boxShadow: `0 2px 8px ${brandPrimary}40`,
             }}
           >
-            N4U
+            {branding.logo_url && !branding.logo_url.endsWith(".svg") ? (
+              <img src={branding.logo_url} alt={branding.display_name} style={{ width: 32, height: 32, objectFit: "contain" }} />
+            ) : (
+              brandMonogram
+            )}
           </Box>
           <Box>
             <Typography variant="h3" sx={{ fontWeight: 800, color: "#292329", fontSize: "22px", lineHeight: 1.2 }}>
