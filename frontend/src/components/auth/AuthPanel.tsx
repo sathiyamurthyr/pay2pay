@@ -202,6 +202,8 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       : "DIST";
 
   const { display_name, legal_name, logo_url, primary_colour, secondary_colour } = useCompanyBranding();
+  const brandPrimary = primary_colour || "#A20A3A";
+  const brandSecondary = secondary_colour || "#EDC11E";
 
   const portalTitle =
     normalizedRole === "COMMON"
@@ -705,7 +707,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 
   const inputFocusRing = (focused: boolean) =>
     focused
-      ? "ring-2 ring-[#A20A3A]/20 border-[#A20A3A] shadow-xs"
+      ? "ring-2 shadow-xs"
       : "";
 
   return (
@@ -733,7 +735,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 
           <div className="flex items-center gap-2">
             <div className="flex items-center text-xs font-bold rounded-xl px-2.5 py-1.5 border border-[#E8E2E5] bg-[#FFFFFF] text-[#292329] shadow-xs gap-1">
-              <Globe className="w-3.5 h-3.5 text-[#A20A3A]" />
+              <Globe className="w-3.5 h-3.5" style={{ color: brandPrimary }} />
               <select
                 value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value as LanguageKey)}
@@ -751,8 +753,14 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         {/* ─── Desktop Top Bar ─── */}
         <div className="hidden lg:flex items-center justify-between mb-4 2xl:mb-6">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#FFF0F4] border border-[#FFD6E2]">
-              <Shield className="w-4 h-4 text-[#A20A3A]" />
+            <div
+              className="w-7 h-7 rounded-lg flex items-center justify-center border"
+              style={{
+                backgroundColor: `${brandPrimary}12`,
+                borderColor: `${brandPrimary}25`,
+              }}
+            >
+              <Shield className="w-4 h-4" style={{ color: brandPrimary }} />
             </div>
             <span className="text-[11px] font-black uppercase tracking-widest text-[#625B60]">
               {portalTitle}
@@ -760,8 +768,8 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex items-center text-xs font-bold rounded-xl px-3 py-1.5 border border-[#E8E2E5] bg-[#FFFFFF] text-[#292329] hover:border-[#A20A3A]/40 shadow-xs gap-1.5 transition-colors">
-              <Globe className="w-3.5 h-3.5 text-[#A20A3A]" />
+            <div className="flex items-center text-xs font-bold rounded-xl px-3 py-1.5 border border-[#E8E2E5] bg-[#FFFFFF] text-[#292329] shadow-xs gap-1.5 transition-colors">
+              <Globe className="w-3.5 h-3.5" style={{ color: brandPrimary }} />
               <select
                 value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value as LanguageKey)}
@@ -817,9 +825,17 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                 onClick={() => { setAuthTab(tab); setErrorMsg(""); }}
                 className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
                   authTab === tab
-                    ? "bg-gradient-to-r from-[#A20A3A] to-[#85072F] text-white font-bold shadow-md shadow-[#A20A3A]/25"
+                    ? "text-white font-bold shadow-md"
                     : "text-[#625B60] hover:text-[#292329]"
                 }`}
+                style={
+                  authTab === tab
+                    ? {
+                        background: `linear-gradient(to right, ${brandPrimary}, ${brandSecondary})`,
+                        boxShadow: `0 4px 12px ${brandPrimary}40`,
+                      }
+                    : {}
+                }
               >
                 {tab === "PASSWORD" ? t.passwordLogin : tab === "OTP" ? t.otpLogin : t.biometricLogin}
               </button>
@@ -949,7 +965,8 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                   </label>
                   <Link
                     href="/forgot-password"
-                    className="text-xs font-bold text-[#A20A3A] hover:text-[#85072F] hover:underline transition-colors"
+                    className="text-xs font-bold hover:underline transition-colors"
+                    style={{ color: brandPrimary }}
                   >
                     {t.forgot}
                   </Link>
@@ -982,7 +999,8 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 rounded text-[#A20A3A] accent-[#A20A3A] cursor-pointer"
+                    className="w-4 h-4 rounded cursor-pointer"
+                    style={{ accentColor: brandPrimary }}
                   />
                   <span className="text-xs font-semibold text-[#292329]">
                     {t.rememberSession}
@@ -995,7 +1013,8 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                       type="checkbox"
                       checked={trustDevice}
                       onChange={(e) => setTrustDevice(e.target.checked)}
-                      className="w-4 h-4 rounded text-[#A20A3A] accent-[#A20A3A] cursor-pointer"
+                      className="w-4 h-4 rounded cursor-pointer"
+                      style={{ accentColor: brandPrimary }}
                     />
                     <span className="text-xs font-semibold text-[#292329]">
                       {t.trustDevice}
@@ -1016,13 +1035,20 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
               </div>
 
               {/* Security Consent */}
-              <div className="rounded-xl border border-[#FFD6E2] bg-[#FFF0F4] p-3">
+              <div
+                className="rounded-xl border p-3"
+                style={{
+                  borderColor: `${brandPrimary}25`,
+                  backgroundColor: `${brandPrimary}0A`,
+                }}
+              >
                 <label className="flex items-start gap-2.5 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={acceptedConsent}
                     onChange={(e) => setAcceptedConsent(e.target.checked)}
-                    className="w-4 h-4 mt-0.5 rounded text-[#A20A3A] accent-[#A20A3A] cursor-pointer shrink-0"
+                    className="w-4 h-4 mt-0.5 rounded cursor-pointer shrink-0"
+                    style={{ accentColor: brandPrimary }}
                   />
                   <span className="text-xs font-medium leading-relaxed text-[#625B60]">
                     {t.securityConsent}
@@ -1040,8 +1066,16 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                 className={`w-full py-3.5 rounded-xl text-white text-sm font-bold transition-all flex items-center justify-center gap-2 shadow-md ${
                   isLocked
                     ? "bg-[#FAF8F9] text-[#B8B0B6] border border-[#E8E2E5] cursor-not-allowed shadow-none"
-                    : "bg-gradient-to-r from-[#A20A3A] via-[#85072F] to-[#A20A3A] hover:shadow-lg hover:shadow-[#A20A3A]/30 cursor-pointer active:scale-[0.98]"
+                    : "cursor-pointer active:scale-[0.98]"
                 }`}
+                style={
+                  !isLocked
+                    ? {
+                        background: `linear-gradient(to right, ${brandPrimary}, ${brandSecondary})`,
+                        boxShadow: `0 4px 14px ${brandPrimary}40`,
+                      }
+                    : {}
+                }
               >
                 {isLocked ? (
                   <div className="flex items-center gap-2 text-red-600">
@@ -1098,8 +1132,16 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                     className={`px-4 py-3 rounded-xl text-white text-xs font-bold flex items-center gap-1.5 transition-all whitespace-nowrap shadow-md ${
                       mobileNumber.length !== 10 || loading
                         ? "bg-[#FAF8F9] text-[#B8B0B6] border border-[#E8E2E5] cursor-not-allowed shadow-none"
-                        : "bg-gradient-to-r from-[#A20A3A] via-[#85072F] to-[#EDC11E] hover:shadow-lg hover:shadow-[#A20A3A]/25 cursor-pointer"
+                        : "cursor-pointer"
                     }`}
+                    style={
+                      mobileNumber.length === 10 && !loading
+                        ? {
+                            background: `linear-gradient(to right, ${brandPrimary}, ${brandSecondary})`,
+                            boxShadow: `0 4px 14px ${brandPrimary}35`,
+                          }
+                        : {}
+                    }
                   >
                     {loading ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1130,22 +1172,38 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                           onKeyDown={(e) => handleOtpKeyDown(idx, e)}
                           className={`w-11 h-12 text-center font-black text-xl rounded-xl border-2 transition-all focus:outline-none focus:ring-0 ${
                             digit
-                              ? "border-[#A20A3A] bg-[#FFF0F4] text-[#A20A3A]"
-                              : "border-[#E8E2E5] bg-[#FFFFFF] text-[#292329] focus:border-[#A20A3A]"
+                              ? "text-brand"
+                              : "border-[#E8E2E5] bg-[#FFFFFF] text-[#292329]"
                           }`}
+                          style={
+                            digit
+                              ? {
+                                  borderColor: brandPrimary,
+                                  backgroundColor: `${brandPrimary}0D`,
+                                  color: brandPrimary,
+                                }
+                              : {}
+                          }
                         />
                       ))}
                     </div>
                   </div>
 
                   {/* Security consent for OTP tab */}
-                  <div className="rounded-xl border border-[#FFD6E2] bg-[#FFF0F4] p-3">
+                  <div
+                    className="rounded-xl border p-3"
+                    style={{
+                      borderColor: `${brandPrimary}25`,
+                      backgroundColor: `${brandPrimary}0A`,
+                    }}
+                  >
                     <label className="flex items-start gap-2.5 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={acceptedConsent}
                         onChange={(e) => setAcceptedConsent(e.target.checked)}
-                        className="w-4 h-4 mt-0.5 rounded text-[#A20A3A] accent-[#A20A3A] cursor-pointer shrink-0"
+                        className="w-4 h-4 mt-0.5 rounded cursor-pointer shrink-0"
+                        style={{ accentColor: brandPrimary }}
                       />
                       <span className="text-xs font-medium leading-relaxed text-[#625B60]">
                         {t.securityConsent}
@@ -1159,7 +1217,11 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                     whileTap="tap"
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#A20A3A] via-[#85072F] to-[#A20A3A] text-white text-sm font-bold shadow-md cursor-pointer hover:shadow-lg hover:shadow-[#A20A3A]/30 flex items-center justify-center gap-2"
+                    className="w-full py-3.5 rounded-xl text-white text-sm font-bold shadow-md cursor-pointer flex items-center justify-center gap-2"
+                    style={{
+                      background: `linear-gradient(to right, ${brandPrimary}, ${brandSecondary})`,
+                      boxShadow: `0 4px 14px ${brandPrimary}40`,
+                    }}
                   >
                     {loading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -1183,11 +1245,14 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
               <motion.div
                 animate={{ scale: [1, 1.06, 1] }}
                 transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto border-2 shadow-xl ${
-                  darkMode ? "bg-[#A20A3A]/10 border-[#A20A3A]/30 shadow-[#A20A3A]/10" : "bg-[#FFF0F4] border-[#A20A3A]/30 shadow-[#A20A3A]/10"
-                }`}
+                className="w-16 h-16 rounded-full flex items-center justify-center mx-auto border-2 shadow-xl"
+                style={{
+                  backgroundColor: `${brandPrimary}12`,
+                  borderColor: `${brandPrimary}33`,
+                  boxShadow: `0 8px 24px ${brandPrimary}20`,
+                }}
               >
-                <Fingerprint className="w-8 h-8 text-[#A20A3A]" />
+                <Fingerprint className="w-8 h-8" style={{ color: brandPrimary }} />
               </motion.div>
               <div className="space-y-1.5">
                 <h3 className={`text-base font-black ${darkMode ? "text-white" : "text-slate-900"}`}>
@@ -1207,7 +1272,11 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                   setSuccessMsg("✓ Biometric Authenticated. Redirecting...");
                   setTimeout(() => handleAuthSuccessRedirect(), 800);
                 }}
-                className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#A20A3A] via-[#85072F] to-[#EDC11E] text-white text-sm font-bold inline-flex items-center gap-2 shadow-md hover:shadow-lg hover:shadow-[#A20A3A]/25 cursor-pointer"
+                className="px-6 py-3 rounded-xl text-white text-sm font-bold inline-flex items-center gap-2 shadow-md cursor-pointer"
+                style={{
+                  background: `linear-gradient(to right, ${brandPrimary}, ${brandSecondary})`,
+                  boxShadow: `0 4px 14px ${brandPrimary}35`,
+                }}
               >
                 <Fingerprint className="w-4 h-4" />
                 <span>{t.authPasskey}</span>
@@ -1224,7 +1293,8 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             </span>
             <Link
               href={portalRegisterUrl}
-              className="font-bold transition-colors text-[#A20A3A] hover:text-[#85072F]"
+              className="font-bold transition-colors hover:underline"
+              style={{ color: brandPrimary }}
             >
               {t.registerAccount}
             </Link>
@@ -1234,11 +1304,11 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         {/* ── Footer Links ── */}
         <div className="mt-5 text-center space-y-1 text-[#8A8288]">
           <div className="flex items-center justify-center gap-3 text-xs font-medium">
-            <a href="#" className="hover:underline transition-colors hover:text-[#A20A3A]">{t.privacyPolicy}</a>
+            <a href="#" className="hover:underline transition-colors">{t.privacyPolicy}</a>
             <span>·</span>
-            <a href="#" className="hover:underline transition-colors hover:text-[#A20A3A]">{t.terms}</a>
+            <a href="#" className="hover:underline transition-colors">{t.terms}</a>
             <span>·</span>
-            <a href="#" className="hover:underline transition-colors hover:text-[#A20A3A]">{t.refundPolicy}</a>
+            <a href="#" className="hover:underline transition-colors">{t.refundPolicy}</a>
           </div>
           <p className="text-[11px] whitespace-pre-line leading-relaxed text-[#8A8288]">
             {`© ${new Date().getFullYear()} ${legal_name || "Sathus Technology Pvt. Ltd."}\n${display_name || "Near 4 You"} Portal`}
