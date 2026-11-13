@@ -86,6 +86,7 @@ class Settings(BaseSettings):
         "https://pay2pay.vercel.app",
         "https://pay2pay.in",
         "https://www.pay2pay.in",
+        "https://login.pay2pay.in",
         "https://admin.pay2pay.in",
         "https://super.pay2pay.in",
         "https://sd.pay2pay.in",
@@ -94,6 +95,18 @@ class Settings(BaseSettings):
         "https://sales.pay2pay.in",
         "https://auth.pay2pay.in",
         "https://api.pay2pay.in",
+        "https://near4you.store",
+        "https://www.near4you.store",
+        "https://login.near4you.store",
+        "https://admin.near4you.store",
+        "https://sales.near4you.store",
+        "https://api.near4you.store",
+        "https://smspay.store",
+        "https://www.smspay.store",
+        "https://login.smspay.store",
+        "https://api.smspay.store",
+        "https://smspay.in",
+        "https://login.smspay.in",
     ]
     
     # Session Inactivity Timeout (Minutes) - Closes session after 15m idle
