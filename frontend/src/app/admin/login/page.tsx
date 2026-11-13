@@ -1,8 +1,13 @@
+"use client";
+
 import React from "react";
 import { AuthPanel } from "@/components/auth/AuthPanel";
 import { ShieldAlert, KeyRound, Server } from "lucide-react";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 export default function AdminLoginPage() {
+  const branding = useCompanyBranding();
+
   return (
     <div className="min-h-screen bg-[#FFFFFF] text-[#292329] flex flex-col justify-between overflow-x-hidden relative select-none">
       {/* Main Container */}
@@ -13,7 +18,7 @@ export default function AdminLoginPage() {
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FFF0F4] border border-[#FFD6E2] w-fit">
               <ShieldAlert className="w-4 h-4 text-[#A20A3A]" />
               <span className="text-xs font-bold text-[#A20A3A]">
-                RESTRICTED ACCESS · Near4You Admin Security Zone
+                RESTRICTED ACCESS · {branding.company_name} Admin Security Zone
               </span>
             </div>
 
