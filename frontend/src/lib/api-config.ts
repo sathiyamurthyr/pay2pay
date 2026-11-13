@@ -1,8 +1,8 @@
 export const getApiBaseUrl = (): string => {
   if (typeof window !== "undefined") {
-    if (window.location.hostname.includes("near4you.store")) {
-      return "https://api.near4you.store/api/v1";
-    }
+    // In the browser, always use relative "/api/v1" so all API calls route
+    // through the same-origin reverse proxy (Nginx or Next.js rewrites).
+    // This avoids cross-origin CORS preflight failures and ensures cookies are preserved.
     return "/api/v1";
   }
   if (process.env.NEXT_PUBLIC_API_URL) {

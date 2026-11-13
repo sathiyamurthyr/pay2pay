@@ -29,7 +29,7 @@ export const Navbar: React.FC = () => {
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#F1F5F9] border border-[#E2E8F0]">
             <Building className="w-3.5 h-3.5 text-[#2563EB]" />
             <span className="text-[11px] font-medium text-[#475569]">Tenant:</span>
-            <span className="font-mono text-[12px] font-bold text-[#FFFFFF]">
+            <span className="font-mono text-[12px] font-bold text-[#0F172A]">
               {user?.tenant_id ? user.tenant_id.substring(0, 8) + "…" : "PLATFORM"}
             </span>
           </div>
@@ -93,7 +93,7 @@ export const Navbar: React.FC = () => {
               {initials}
             </div>
             <div className="text-left hidden lg:block">
-              <p className="text-[12px] font-extrabold text-[#FFFFFF] leading-tight">
+              <p className="text-[12px] font-extrabold text-[#0F172A] leading-tight">
                 {user?.full_name || user?.email || "Platform Admin"}
               </p>
               <span className="text-[10px] font-bold text-[#2563EB]">PLATFORM ADMIN</span>
