@@ -66,7 +66,10 @@ async def resolve_company_ref_by_domain(db: AsyncSession, domain_str: str) -> Op
     clean_dom = extract_clean_domain(domain_str)
     if not clean_dom:
         return None
-    dom_part = clean_dom.replace("login.", "").replace("www.", "")
+    dom_part = clean_dom
+    for sub in ["login.", "admin.", "superadmin.", "super-admin.", "sales.", "receipt.", "www."]:
+        if dom_part.startswith(sub):
+            dom_part = dom_part[len(sub):]
     code_guess = dom_part.split(".")[0].upper()
 
     stmt = text("""
