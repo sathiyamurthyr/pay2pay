@@ -59,11 +59,11 @@ export const COMPANY_PRESETS: Record<string, CompanyBrandingData> = {
     display_name: "SMSPAY",
     short_name: "SMSP",
     logo_url: "/branding/smspay-logo.svg",
-    favicon_url: "/branding/favicon.png",
+    favicon_url: "/branding/smspay-mark.svg",
     primary_colour: "#059669",
     secondary_colour: "#047857",
-    website: "https://smspay.in",
-    domains: ["smspay.in", "login.smspay.in"],
+    website: "https://smspay.store",
+    domains: ["smspay.store", "login.smspay.store", "smspay.in", "login.smspay.in"],
   },
 };
 

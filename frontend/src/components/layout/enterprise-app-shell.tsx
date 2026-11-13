@@ -83,7 +83,7 @@ export const EnterpriseAppShell: React.FC<EnterpriseAppShellProps> = ({
               boxShadow: `0 4px 14px ${(branding.primary_colour || "#2563EB")}40`,
             }}
           >
-            {branding.short_name || (branding.company_code === "PAY2PAY" ? "P2P" : "N4U")}
+            {branding.short_name || (branding.company_code === "PAY2PAY" ? "P2P" : branding.company_code === "SMSPAY" ? "SMSP" : "N4U")}
           </Box>
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 900, fontSize: "18px", color: "#292329", lineHeight: 1.2 }}>

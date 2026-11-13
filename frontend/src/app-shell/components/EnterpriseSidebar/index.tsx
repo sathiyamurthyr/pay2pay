@@ -61,7 +61,7 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
   const branding = useCompanyBranding();
   const brandPrimary = branding.primary_colour || "#A20A3A";
   const brandSecondary = branding.secondary_colour || "#EDC11E";
-  const brandLight = branding.company_code === "PAY2PAY" ? "#EFF6FF" : "#FFF0F4";
+  const brandLight = branding.company_code === "PAY2PAY" ? "#EFF6FF" : branding.company_code === "SMSPAY" ? "#ECFDF5" : "#FFF0F4";
 
   const [searchQuery, setSearchQuery] = useState("");
   const [favorites, setFavorites] = useState<string[]>([]);
