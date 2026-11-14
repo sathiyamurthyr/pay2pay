@@ -64,12 +64,15 @@ function BankMeCheckoutContent() {
 
       const utr = `UTR${Math.floor(100000000000 + Math.random() * 900000000000)}`;
 
-      // Dispatch authoritative BankMe webhook
+      // Dispatch authoritative BankMe webhook per https://bankme.co.in/developers.html
       const webhookPayload = {
-        event: statusToSimulate === "SUCCESS" ? "PAYMENT_SUCCESS" : "PAYMENT_FAILED",
+        event: statusToSimulate === "SUCCESS" ? "payin.success" : "payin.failed",
         status: statusToSimulate,
-        merchant_tid: tid,
+        referenceId: tid,
         reference_id: tid,
+        merchant_tid: tid,
+        tid: tid,
+        orderId: order,
         bankme_ref: order,
         amount: amount,
         utr: utr,
@@ -78,7 +81,8 @@ function BankMeCheckoutContent() {
 
       const res = await apiClient.post("/api/v1/payin/webhook/bankme", webhookPayload, {
         headers: {
-          "X-API-KEY": "sk_7d6dccc54ca9b1c0f5f99de1a9724f12f183f9fe4b6748fa",
+          "x-api-key": "sk_7d6dccc54ca9b1c0f5f99de1a9724f12f183f9fe4b6748fa",
+          "x-bankme-event": statusToSimulate === "SUCCESS" ? "payin.success" : "payin.failed",
         },
       });
 

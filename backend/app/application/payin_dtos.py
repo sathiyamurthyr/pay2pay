@@ -169,18 +169,50 @@ class PayInStatusResponse(BaseModel):
 class BankMeWebhookPayload(BaseModel):
     """
     BankMe Inbound Webhook / Callback Payload.
+    Official BankMe webhook body fields:
+    event: payin.success | payin.failed
+    orderId: BankMe order id
+    referenceId: Merchant order reference (our TID)
+    amount, fee, netAmount, status, utr, settlementStatus, reason, environment
     """
-    event: Optional[str] = Field(None, description="Webhook Event Type (e.g. PAYMENT_SUCCESS, PAYMENT_FAILED)")
+    event: Optional[str] = Field(None, description="Webhook Event Type (e.g. payin.success, payin.failed)")
     tid: Optional[str] = Field(None, description="Our authoritative Transaction ID")
+    referenceId: Optional[str] = Field(None, description="BankMe referenceId (maps to TID)")
+    reference_id: Optional[str] = Field(None, description="Merchant reference ID alias")
     merchant_tid: Optional[str] = Field(None, description="Merchant transaction ID alias for TID")
-    reference_id: Optional[str] = Field(None, description="Merchant reference ID")
-    bankme_ref: Optional[str] = Field(None, description="BankMe transaction ID / order ID")
+    orderId: Optional[str] = Field(None, description="BankMe order ID")
+    bankme_ref: Optional[str] = Field(None, description="BankMe transaction ID / order ID alias")
     utr: Optional[str] = Field(None, description="Bank UTR / RRN")
     amount: Optional[float] = Field(None, description="Collected Amount")
-    status: Optional[str] = Field(None, description="Provider status: SUCCESS, FAILED, PENDING")
+    fee: Optional[float] = Field(None, description="BankMe Fee")
+    netAmount: Optional[float] = Field(None, description="Net Amount credited to BankMe wallet")
+    status: Optional[str] = Field(None, description="Provider status: pending, success, failed, expired")
+    settlementStatus: Optional[str] = Field(None, description="Settlement status: pending, settled")
+    reason: Optional[str] = Field(None, description="Failure reason")
+    environment: Optional[str] = Field(None, description="sandbox or live")
     signature: Optional[str] = Field(None, description="HMAC / digital signature for verification")
     raw_payload: Optional[Dict[str, Any]] = None
 
     def model_post_init(self, __context: Any) -> None:
-        if not self.tid and self.merchant_tid:
-            self.tid = self.merchant_tid
+        if not self.tid:
+            self.tid = self.referenceId or self.reference_id or self.merchant_tid
+        if not self.bankme_ref and self.orderId:
+            self.bankme_ref = self.orderId
+        if not self.reference_id and self.tid:
+            self.reference_id = self.tid
+
+        # Normalize BankMe events / statuses
+        if self.event:
+            ev = self.event.lower()
+            if "success" in ev:
+                self.status = "SUCCESS"
+            elif "fail" in ev or "expire" in ev:
+                self.status = "FAILED"
+        elif self.status:
+            st = self.status.upper()
+            if st in ("SUCCESS", "SETTLED"):
+                self.status = "SUCCESS"
+            elif st in ("FAILED", "EXPIRED", "DECLINED"):
+                self.status = "FAILED"
+            else:
+                self.status = "PENDING"

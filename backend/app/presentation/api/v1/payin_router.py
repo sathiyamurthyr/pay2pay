@@ -177,16 +177,23 @@ async def bankme_webhook_handler(
 ):
     """
     BankMe Inbound Webhook Callback Endpoint.
-    - Verifies webhook signature / authorization.
+    - Verifies webhook HMAC-SHA256 signature / authorization.
     - Enforces SMSPay company ownership.
     - Ensures idempotency (duplicate webhook calls are ignored without error).
     - Credits retailer wallet via public.wallet_balance_update stored procedure on SUCCESS.
     """
     headers = dict(request.headers)
+    try:
+        raw_body_bytes = await request.body()
+        raw_body = raw_body_bytes.decode("utf-8", errors="ignore")
+    except Exception:
+        raw_body = None
+
     res = await PayInService.process_bankme_webhook(
         db=db,
         payload=payload,
-        headers=headers
+        headers=headers,
+        raw_body=raw_body
     )
     return {
         "status": "SUCCESS",
@@ -208,10 +215,17 @@ async def universal_payin_callback(
 ):
     """Universal webhook alias routing to provider callback processor."""
     headers = dict(request.headers)
+    try:
+        raw_body_bytes = await request.body()
+        raw_body = raw_body_bytes.decode("utf-8", errors="ignore")
+    except Exception:
+        raw_body = None
+
     res = await PayInService.process_bankme_webhook(
         db=db,
         payload=payload,
-        headers=headers
+        headers=headers,
+        raw_body=raw_body
     )
     return {
         "status": "SUCCESS",

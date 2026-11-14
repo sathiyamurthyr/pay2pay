@@ -128,11 +128,32 @@ class Settings(BaseSettings):
     URBANRUPEE_API_TOKEN: str = Field(default_factory=lambda: os.getenv("URBANRUPEE_API_TOKEN", ""))
 
     # ── BankMe Production PayIn API Credentials (SMSPay Only) ────────────────
+    # Official BankMe Developer Portal: https://bankme.co.in/developers.html
+    # Base URLs: Production = https://api.bankme.co.in, Sandbox = https://sandbox.bankme.co.in
+    # Headers: x-api-key: pk_..., x-api-secret: sk_...
+    BANKME_PAYIN_API_KEY_ID: str = Field(
+        default_factory=lambda: os.getenv("BANKME_PAYIN_API_KEY_ID", "pk_live_smspay")
+    )
+    BANKME_PAYIN_API_SECRET: str = Field(
+        default_factory=lambda: os.getenv(
+            "BANKME_PAYIN_API_SECRET",
+            os.getenv("BANKME_PAYIN_API_KEY", "sk_7d6dccc54ca9b1c0f5f99de1a9724f12f183f9fe4b6748fa")
+        )
+    )
     BANKME_PAYIN_API_KEY: str = Field(
         default_factory=lambda: os.getenv("BANKME_PAYIN_API_KEY", "sk_7d6dccc54ca9b1c0f5f99de1a9724f12f183f9fe4b6748fa")
     )
+    BANKME_PAYIN_WEBHOOK_SECRET: str = Field(
+        default_factory=lambda: os.getenv(
+            "BANKME_PAYIN_WEBHOOK_SECRET",
+            "sk_7d6dccc54ca9b1c0f5f99de1a9724f12f183f9fe4b6748fa"
+        )
+    )
     BANKME_PAYIN_BASE_URL: str = Field(
-        default_factory=lambda: os.getenv("BANKME_PAYIN_BASE_URL", "https://bankme.co.in/api/v1")
+        default_factory=lambda: os.getenv("BANKME_PAYIN_BASE_URL", "https://api.bankme.co.in")
+    )
+    BANKME_PAYIN_CHECKOUT_URL: str = Field(
+        default_factory=lambda: os.getenv("BANKME_PAYIN_CHECKOUT_URL", "")
     )
     BANKME_PAYIN_SIMULATION: bool = Field(
         default_factory=lambda: os.getenv("BANKME_PAYIN_SIMULATION", "true").lower() in ("true", "1", "yes")

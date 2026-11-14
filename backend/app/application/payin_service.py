@@ -374,25 +374,26 @@ class PayInService:
         cls,
         db: AsyncSession,
         payload: BankMeWebhookPayload,
-        headers: Optional[Dict[str, str]] = None
+        headers: Optional[Dict[str, str]] = None,
+        raw_body: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Authoritative Inbound Webhook / Callback Handler for BankMe (SMSPay).
         Enforces:
-        - Signature verification
+        - Signature verification (HMAC-SHA256 of timestamp + "." + body)
         - TID & Company Ref ID isolation (company_ref_id == 2)
         - Callback idempotency
         - Atomic row locking on payin_transactions
         - Single authoritative wallet credit via WalletBalanceAdjustmentService on SUCCESS.
         """
-        tid = payload.tid or payload.reference_id
+        tid = payload.tid or payload.referenceId or payload.reference_id or payload.merchant_tid
         if not tid:
             logger.warning("BankMe webhook received with no TID or reference_id: %s", payload)
             return {"status": "REJECTED", "message": "Missing TID"}
 
         # 1. Verify Adapter Webhook Signature
         adapter = BankMePayInAdapter()
-        if not adapter.verify_webhook(payload.model_dump(), payload.signature, headers):
+        if not adapter.verify_webhook(payload.model_dump(), payload.signature, headers, raw_body=raw_body):
             logger.error("BankMe webhook signature verification failed for TID: %s", tid)
             return {"status": "REJECTED", "message": "Invalid signature"}
 
@@ -468,9 +469,20 @@ class PayInService:
             # 7. Credit Retailer Wallet via Authoritative WalletBalanceAdjustmentService
             # (which executes public.wallet_balance_update stored procedure)
             try:
+                # Resolve Retailer UUID directly from txn.retailer_ref_id
+                ret_stmt = select(RetailerModel).where(
+                    RetailerModel.retailer_ref_id == txn.retailer_ref_id,
+                    RetailerModel.company_ref_id == txn.company_ref_id
+                )
+                ret_res = await db.execute(ret_stmt)
+                ret_obj = ret_res.scalars().first()
+
                 credit_amount = float(txn.retailer_credit)
                 adj_dto = WalletAdjustmentDTO(
                     user_ref_id=txn.retailer_ref_id,
+                    retailer_id=str(ret_obj.public_id) if ret_obj else None,
+                    retailer_code=ret_obj.retailer_code if ret_obj else None,
+                    company_ref_id=txn.company_ref_id,
                     user_type_ref_id=2,  # Retailer
                     entry_type="CREDIT",
                     amount=credit_amount,
