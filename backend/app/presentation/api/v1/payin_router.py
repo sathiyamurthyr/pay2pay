@@ -122,6 +122,12 @@ async def preview_mdr_charges(
     status_code=status.HTTP_201_CREATED,
     summary="Initiate Common PayIn Collection (All Companies)"
 )
+@router.post(
+    "/initiate",
+    response_model=CommonPayInResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Initiate PayIn Collection Alias"
+)
 async def initiate_common_payin(
     request: Request,
     req_dto: CommonPayInRequest,
