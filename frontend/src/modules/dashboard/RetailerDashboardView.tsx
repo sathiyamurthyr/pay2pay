@@ -744,7 +744,7 @@ export const RetailerDashboardView: React.FC = () => {
                         setDashboardLockedModal({ label: "Wallet Top-Up" });
                         return;
                       }
-                      router.push("/retailer/wallet");
+                      router.push("/retailer/wallet-topup");
                     }}
                     sx={{
                       py: 1,
