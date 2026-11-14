@@ -91,14 +91,32 @@ function getJwtClaims(token?: string | null): Record<string, any> | null {
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const host = request.headers.get("host") || "";
+  const portMatch = host.match(/:(\d+)$/);
+  const incomingPort = portMatch ? portMatch[1] : request.nextUrl.port || "";
 
-  // ── Logout Route Handler: Clears ALL session cookies & redirects to /login?logout=true ──
+  // ── Dedicated Port Portal Enforcement ──
+  // Port 4001: Retailer Portal
+  // Port 4002: Admin Portal
+  // Port 4003: Super Admin Portal
+  let forcedPortal: PortalConfig | null = null;
+  if (incomingPort === "4001") {
+    forcedPortal = PORTAL_CONFIGS.RETAILER;
+  } else if (incomingPort === "4002") {
+    forcedPortal = PORTAL_CONFIGS.ADMIN;
+  } else if (incomingPort === "4003") {
+    forcedPortal = PORTAL_CONFIGS.SUPER_ADMIN;
+  }
+
+  // ── Logout Route Handler: Clears ALL session cookies & redirects to appropriate login ──
   if (pathname === "/logout") {
-    const res = NextResponse.redirect(new URL("/login?logout=true", request.url));
+    const defaultLogin = forcedPortal ? forcedPortal.login : "/login";
+    const res = NextResponse.redirect(new URL(`${defaultLogin}?logout=true`, request.url));
     const allCookieNames = [
       "p2p_token", "pay2pay_token", "p2p_access_token", "pay2pay_access_token", "pay2pay_auth_token",
-      "p2p_sales_token", "pay2pay_sales_token", "p2p_retailer_token", "p2p_dist_token", "p2p_sd_token", "p2p_admin_token",
+      "p2p_sales_token", "pay2pay_sales_token", "p2p_retailer_token", "p2p_dist_token", "p2p_sd_token", "p2p_admin_token", "p2p_super_admin_token",
       "p2p_user_role", "pay2pay_user_role", "p2p_user_type_ref_id", "pay2pay_user_type_ref_id",
+      "p2p_user_role_4001", "p2p_user_role_4002", "p2p_user_role_4003",
       "p2p_active_role", "p2p_active_destination", "p2p_destination", "p2p_account_access",
       "p2p_active_retailer_id", "p2p_retailer_code", "p2p_retailer_approval_status",
       "p2p_active_distributor_id", "p2p_distributor_code", "p2p_distributor_ref_id",
@@ -113,53 +131,118 @@ export function middleware(request: NextRequest) {
     return res;
   }
 
-  const token =
-    request.cookies.get("p2p_token")?.value ||
-    request.cookies.get("pay2pay_token")?.value ||
-    request.cookies.get("p2p_access_token")?.value ||
-    request.cookies.get("pay2pay_access_token")?.value ||
-    request.cookies.get("pay2pay_auth_token")?.value ||
-    request.cookies.get("p2p_sales_token")?.value ||
-    request.cookies.get("pay2pay_sales_token")?.value ||
-    request.cookies.get("access_token")?.value ||
-    request.cookies.get("token")?.value ||
-    request.headers.get("authorization");
-
-  const isAuthenticated = Boolean(token && token.trim().length > 10);
-
-  // Authoritatively derive authenticated role from JWT claims and session cookies
-  // user_type_ref_id: 1=ADMIN, 2=RETAILER, 3=DISTRIBUTOR, 4=SUPER_DISTRIBUTOR
-  const jwtClaims = getJwtClaims(token);
-  const jwtUserType = jwtClaims?.user_type_ref_id;
-  const cookieUserType =
-    request.cookies.get("p2p_user_type_ref_id")?.value ||
-    request.cookies.get("pay2pay_user_type_ref_id")?.value;
-
-  const rawUserType = jwtUserType !== undefined ? jwtUserType : cookieUserType;
-
-  const jwtRole = Array.isArray(jwtClaims?.roles) ? jwtClaims.roles[0] : jwtClaims?.role;
-  const cookieRole =
-    request.cookies.get("p2p_user_role")?.value ||
-    request.cookies.get("pay2pay_user_role")?.value;
-
+  // ── Port-Aware Token and Role Resolution ──
+  let token: string | undefined;
   let resolvedRole: UserPortalRole = "RETAILER";
-  if (rawUserType !== undefined && rawUserType !== null && String(rawUserType).trim() !== "") {
-    const numId = Number(rawUserType);
-    if (numId === 1) {
-      const explicitRole = normalizeUserRole(jwtRole || cookieRole);
-      resolvedRole = explicitRole === "SUPER_ADMIN" ? "SUPER_ADMIN" : "ADMIN";
-    }
-    else if (numId === 2) resolvedRole = "RETAILER";
-    else if (numId === 3) resolvedRole = "DIST";
-    else if (numId === 4) resolvedRole = "SD";
-    else {
-      resolvedRole = normalizeUserRole(jwtRole || cookieRole);
+  let isAuthenticated = false;
+
+  if (forcedPortal) {
+    if (incomingPort === "4001") {
+      // Retailer portal preference
+      token = request.cookies.get("p2p_retailer_token")?.value;
+      if (!token) {
+        const candidate =
+          request.cookies.get("p2p_token")?.value ||
+          request.cookies.get("p2p_access_token")?.value ||
+          request.cookies.get("pay2pay_access_token")?.value ||
+          request.cookies.get("access_token")?.value;
+        if (candidate) {
+          const claims = getJwtClaims(candidate);
+          const cRole = normalizeUserRole(Array.isArray(claims?.roles) ? claims.roles[0] : claims?.role);
+          const cType = Number(claims?.user_type_ref_id);
+          // Only accept candidate if it is a RETAILER or general user (not Admin/SD/Dist)
+          if (cRole === "RETAILER" || cType === 2) {
+            token = candidate;
+          }
+        }
+      }
+      resolvedRole = "RETAILER";
+      isAuthenticated = Boolean(token && token.trim().length > 10);
+    } else if (incomingPort === "4002") {
+      // Admin portal preference
+      token = request.cookies.get("p2p_admin_token")?.value;
+      if (!token) {
+        const candidate =
+          request.cookies.get("p2p_token")?.value ||
+          request.cookies.get("p2p_access_token")?.value ||
+          request.cookies.get("pay2pay_access_token")?.value ||
+          request.cookies.get("access_token")?.value;
+        if (candidate) {
+          const claims = getJwtClaims(candidate);
+          const cRole = normalizeUserRole(Array.isArray(claims?.roles) ? claims.roles[0] : claims?.role);
+          const cType = Number(claims?.user_type_ref_id);
+          if (cRole === "ADMIN" || cRole === "SUPER_ADMIN" || cType === 1) {
+            token = candidate;
+          }
+        }
+      }
+      const claims = getJwtClaims(token);
+      const cRole = normalizeUserRole(Array.isArray(claims?.roles) ? claims.roles[0] : claims?.role);
+      resolvedRole = cRole === "SUPER_ADMIN" ? "SUPER_ADMIN" : "ADMIN";
+      isAuthenticated = Boolean(token && token.trim().length > 10);
+    } else if (incomingPort === "4003") {
+      // Super Admin portal preference
+      token = request.cookies.get("p2p_super_admin_token")?.value;
+      if (!token) {
+        const candidate =
+          request.cookies.get("p2p_token")?.value ||
+          request.cookies.get("p2p_access_token")?.value ||
+          request.cookies.get("pay2pay_access_token")?.value ||
+          request.cookies.get("access_token")?.value;
+        if (candidate) {
+          const claims = getJwtClaims(candidate);
+          const cRole = normalizeUserRole(Array.isArray(claims?.roles) ? claims.roles[0] : claims?.role);
+          const cType = Number(claims?.user_type_ref_id);
+          if (cRole === "SUPER_ADMIN" || (cType === 1 && cRole === "SUPER_ADMIN")) {
+            token = candidate;
+          }
+        }
+      }
+      resolvedRole = "SUPER_ADMIN";
+      isAuthenticated = Boolean(token && token.trim().length > 10);
     }
   } else {
-    resolvedRole = normalizeUserRole(jwtRole || cookieRole);
+    // Generic fallback (e.g. port 3000 or production domain without port)
+    token =
+      request.cookies.get("p2p_token")?.value ||
+      request.cookies.get("pay2pay_token")?.value ||
+      request.cookies.get("p2p_access_token")?.value ||
+      request.cookies.get("pay2pay_access_token")?.value ||
+      request.cookies.get("pay2pay_auth_token")?.value ||
+      request.cookies.get("p2p_sales_token")?.value ||
+      request.cookies.get("pay2pay_sales_token")?.value ||
+      request.cookies.get("access_token")?.value ||
+      request.cookies.get("token")?.value ||
+      request.headers.get("authorization");
+
+    isAuthenticated = Boolean(token && token.trim().length > 10);
+
+    const jwtClaims = getJwtClaims(token);
+    const jwtUserType = jwtClaims?.user_type_ref_id;
+    const cookieUserType =
+      request.cookies.get("p2p_user_type_ref_id")?.value ||
+      request.cookies.get("pay2pay_user_type_ref_id")?.value;
+    const rawUserType = jwtUserType !== undefined ? jwtUserType : cookieUserType;
+    const jwtRole = Array.isArray(jwtClaims?.roles) ? jwtClaims.roles[0] : jwtClaims?.role;
+    const cookieRole =
+      request.cookies.get("p2p_user_role")?.value ||
+      request.cookies.get("pay2pay_user_role")?.value;
+
+    if (rawUserType !== undefined && rawUserType !== null && String(rawUserType).trim() !== "") {
+      const numId = Number(rawUserType);
+      if (numId === 1) {
+        const explicitRole = normalizeUserRole(jwtRole || cookieRole);
+        resolvedRole = explicitRole === "SUPER_ADMIN" ? "SUPER_ADMIN" : "ADMIN";
+      } else if (numId === 2) resolvedRole = "RETAILER";
+      else if (numId === 3) resolvedRole = "DIST";
+      else if (numId === 4) resolvedRole = "SD";
+      else resolvedRole = normalizeUserRole(jwtRole || cookieRole);
+    } else {
+      resolvedRole = normalizeUserRole(jwtRole || cookieRole);
+    }
   }
 
-  const portalConfig = resolvePortalRoute(resolvedRole);
+  const portalConfig = forcedPortal || resolvePortalRoute(resolvedRole);
 
   // Helper to add security & no-cache headers to responses
   const applySecurityHeaders = (res: NextResponse) => {
@@ -169,14 +252,10 @@ export function middleware(request: NextRequest) {
     res.headers.set("X-Content-Type-Options", "nosniff");
     res.headers.set("X-Frame-Options", "DENY");
 
-    // Sync authoritative role cookies if authenticated
-    if (isAuthenticated) {
+    // Sync authoritative role cookies if authenticated and not in forced portal mode
+    if (isAuthenticated && !forcedPortal) {
       res.cookies.set("p2p_user_role", resolvedRole, { path: "/", maxAge: 2592000, sameSite: "lax" });
       res.cookies.set("pay2pay_user_role", resolvedRole, { path: "/", maxAge: 2592000, sameSite: "lax" });
-      if (rawUserType !== undefined && rawUserType !== null) {
-        res.cookies.set("p2p_user_type_ref_id", String(rawUserType), { path: "/", maxAge: 2592000, sameSite: "lax" });
-        res.cookies.set("pay2pay_user_type_ref_id", String(rawUserType), { path: "/", maxAge: 2592000, sameSite: "lax" });
-      }
     }
     return res;
   };
@@ -193,7 +272,6 @@ export function middleware(request: NextRequest) {
   }
 
   // 1. Explicit Public Routes (Always accessible without authentication)
-  const host = request.headers.get("host") || "";
   const isReceiptDomain = host.includes("receipt.near4you.store");
   const isReceiptRoute =
     isReceiptDomain ||
@@ -221,12 +299,13 @@ export function middleware(request: NextRequest) {
 
   // Handle logout parameter on login page: /login?logout=true or /login?reason=...
   const isLogoutQuery = request.nextUrl.searchParams.has("logout") || request.nextUrl.searchParams.get("reason") === "session_terminated";
-  if (pathname === "/login" && isLogoutQuery) {
+  if (isLoginRoute && isLogoutQuery) {
     const res = NextResponse.next();
     const allCookieNames = [
       "p2p_token", "pay2pay_token", "p2p_access_token", "pay2pay_access_token", "pay2pay_auth_token",
-      "p2p_sales_token", "pay2pay_sales_token", "p2p_retailer_token", "p2p_dist_token", "p2p_sd_token", "p2p_admin_token",
+      "p2p_sales_token", "pay2pay_sales_token", "p2p_retailer_token", "p2p_dist_token", "p2p_sd_token", "p2p_admin_token", "p2p_super_admin_token",
       "p2p_user_role", "pay2pay_user_role", "p2p_user_type_ref_id", "pay2pay_user_type_ref_id",
+      "p2p_user_role_4001", "p2p_user_role_4002", "p2p_user_role_4003",
       "p2p_active_role", "p2p_active_destination", "p2p_destination", "p2p_account_access",
       "p2p_active_retailer_id", "p2p_retailer_code", "p2p_retailer_approval_status",
       "p2p_active_distributor_id", "p2p_distributor_code", "p2p_distributor_ref_id",
@@ -241,12 +320,21 @@ export function middleware(request: NextRequest) {
     return res;
   }
 
-  // If user is already authenticated and visits a login page, redirect to active dashboard
+  // ── Port Enforced Login Redirection ──
   if (isLoginRoute) {
     if (isAuthenticated) {
       return applySecurityHeaders(
         NextResponse.redirect(new URL(portalConfig.dashboard, request.url))
       );
+    }
+    // If unauthenticated and on a dedicated port:
+    if (forcedPortal) {
+      // If user navigated to generic /login or wrong portal login, direct to this port's login
+      if (pathname !== forcedPortal.login) {
+        return applySecurityHeaders(
+          NextResponse.redirect(new URL(forcedPortal.login, request.url))
+        );
+      }
     }
     return applySecurityHeaders(NextResponse.next());
   }
@@ -261,10 +349,11 @@ export function middleware(request: NextRequest) {
     return applySecurityHeaders(NextResponse.next());
   }
 
-  // 2. Unauthenticated user accessing ANY protected route -> Fail-closed redirect to unified login
+  // 2. Unauthenticated user accessing ANY protected route -> Fail-closed redirect
   if (!isAuthenticated) {
-    const loginUrl = new URL("/login", request.url);
-    if (pathname !== "/" && pathname !== "/dashboard" && pathname !== "/retailer-dashboard") {
+    const loginTarget = forcedPortal ? forcedPortal.login : "/login";
+    const loginUrl = new URL(loginTarget, request.url);
+    if (pathname !== "/" && pathname !== "/dashboard" && pathname !== "/retailer-dashboard" && pathname !== "/admin-dashboard") {
       loginUrl.searchParams.set("redirect", pathname);
     }
     return applySecurityHeaders(NextResponse.redirect(loginUrl));
@@ -283,20 +372,39 @@ export function middleware(request: NextRequest) {
     );
   }
 
-  // 4. Role-based prefix boundary checks
+  // 4. Role-based and Port-based prefix boundary checks
   const allPrefixes = Object.values(PORTAL_CONFIGS).map((c) => c.prefix);
   const targetPrefix = allPrefixes.find((prefix) => pathname.startsWith(prefix));
 
-  if (targetPrefix && targetPrefix !== portalConfig.prefix) {
-    // Super Admin has administrative access to both /super-admin/* and /admin/*
-    if (resolvedRole === "SUPER_ADMIN" && targetPrefix === "/admin") {
-      return applySecurityHeaders(NextResponse.next());
+  if (forcedPortal) {
+    // Port 4001: Retailer only
+    if (incomingPort === "4001" && targetPrefix && targetPrefix !== "/retailer") {
+      return applySecurityHeaders(
+        NextResponse.redirect(new URL(PORTAL_CONFIGS.RETAILER.dashboard, request.url))
+      );
     }
-    // If accessing another portal's prefixed routes (e.g. Retailer trying /dist/*, /sd/*, or /admin/*),
-    // redirect safely back to their own authorized dashboard
-    return applySecurityHeaders(
-      NextResponse.redirect(new URL(portalConfig.dashboard, request.url))
-    );
+    // Port 4002: Admin only
+    if (incomingPort === "4002" && targetPrefix && targetPrefix !== "/admin") {
+      return applySecurityHeaders(
+        NextResponse.redirect(new URL(PORTAL_CONFIGS.ADMIN.dashboard, request.url))
+      );
+    }
+    // Port 4003: Super Admin (can access /super-admin and /admin)
+    if (incomingPort === "4003" && targetPrefix && targetPrefix !== "/super-admin" && targetPrefix !== "/admin") {
+      return applySecurityHeaders(
+        NextResponse.redirect(new URL(PORTAL_CONFIGS.SUPER_ADMIN.dashboard, request.url))
+      );
+    }
+  } else {
+    // Standard role prefix boundary check
+    if (targetPrefix && targetPrefix !== portalConfig.prefix) {
+      if (resolvedRole === "SUPER_ADMIN" && targetPrefix === "/admin") {
+        return applySecurityHeaders(NextResponse.next());
+      }
+      return applySecurityHeaders(
+        NextResponse.redirect(new URL(portalConfig.dashboard, request.url))
+      );
+    }
   }
 
   return applySecurityHeaders(NextResponse.next());

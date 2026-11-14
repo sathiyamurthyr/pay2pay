@@ -60,7 +60,7 @@ export default function SuperAdminLoginPage() {
           {/* Right Column — Auth Panel Card */}
           <div className="lg:col-span-6 flex justify-center w-full">
             <div className="w-full max-w-md">
-              <AuthPanel portalRole="ADMIN" />
+              <AuthPanel portalRole="SUPER_ADMIN" />
             </div>
           </div>
         </div>

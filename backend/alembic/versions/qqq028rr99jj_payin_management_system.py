@@ -48,3 +48,4 @@ def downgrade():
     DROP TABLE IF EXISTS public.payin_vendors CASCADE;
     DROP TABLE IF EXISTS public.payin_company_cfg CASCADE;
     """)
+

@@ -328,3 +328,4 @@ class PayinAuditLogModel(Base):
     new_value: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
     ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
+

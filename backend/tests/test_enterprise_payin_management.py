@@ -241,3 +241,4 @@ async def test_cross_company_isolation():
                 auth_context={"company_ref_id": 1}  # Different company!
             )
         assert "403" in str(exc_info.value) or "Access denied" in str(exc_info.value)
+

@@ -60,21 +60,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // Check for valid session cookie or localStorage token
-      const cookies = document.cookie.split("; ");
-      const tokenCookie = cookies.find((row) =>
-        row.startsWith("p2p_access_token=") ||
-        row.startsWith("pay2pay_access_token=") ||
-        row.startsWith("pay2pay_auth_token=") ||
-        row.startsWith("p2p_sales_token=") ||
-        row.startsWith("pay2pay_sales_token=") ||
-        row.startsWith("access_token=") ||
-        row.startsWith("token=")
-      );
+      const port = typeof window !== "undefined" ? window.location.port : "";
+      const path = typeof window !== "undefined" ? window.location.pathname : "";
+      let portTokenKey: string | null = null;
+      let portRole: UserRole | null = null;
+      if (port === "4001" || path.startsWith("/retailer")) {
+        portTokenKey = "p2p_retailer_token";
+        portRole = "RETAILER";
+      } else if (port === "4002" || path.startsWith("/admin")) {
+        portTokenKey = "p2p_admin_token";
+        portRole = "PLATFORM_ADMIN";
+      } else if (port === "4003" || path.startsWith("/super-admin")) {
+        portTokenKey = "p2p_super_admin_token";
+        portRole = "SUPER_ADMIN";
+      }
 
-      const cookieToken = tokenCookie ? tokenCookie.split("=")[1]?.trim() : null;
+      const cookies = document.cookie.split("; ");
+      let cookieToken: string | null = null;
+
+      if (portTokenKey) {
+        const specificCookie = cookies.find((row) => row.startsWith(`${portTokenKey}=`));
+        if (specificCookie) {
+          cookieToken = specificCookie.split("=")[1]?.trim() || null;
+        }
+      }
+
+      if (!cookieToken) {
+        const tokenCookie = cookies.find((row) =>
+          row.startsWith("p2p_access_token=") ||
+          row.startsWith("pay2pay_access_token=") ||
+          row.startsWith("pay2pay_auth_token=") ||
+          row.startsWith("p2p_sales_token=") ||
+          row.startsWith("pay2pay_sales_token=") ||
+          row.startsWith("access_token=") ||
+          row.startsWith("token=")
+        );
+        cookieToken = tokenCookie ? tokenCookie.split("=")[1]?.trim() || null : null;
+      }
+
       const lsToken =
         typeof window !== "undefined"
-          ? localStorage.getItem("p2p_access_token") ||
+          ? (portTokenKey ? localStorage.getItem(portTokenKey) : null) ||
+            localStorage.getItem("p2p_access_token") ||
             localStorage.getItem("pay2pay_access_token") ||
             localStorage.getItem("pay2pay_auth_token") ||
             localStorage.getItem("p2p_sales_token") ||
@@ -112,7 +139,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           : null) ||
         (userTypeCookie ? userTypeCookie.split("=")[1]?.trim() : null);
 
-      let storedRole = "RETAILER";
+      let storedRole: UserRole = portRole || "RETAILER";
       if (storedUserType === "4") storedRole = "SD";
       else if (storedUserType === "3") storedRole = "DIST";
       else if (storedUserType === "1") storedRole = "PLATFORM_ADMIN";
@@ -137,16 +164,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (typeof window !== "undefined") {
-        document.cookie = `p2p_user_role=${storedRole}; path=/; max-age=2592000; SameSite=Lax`;
-        document.cookie = `pay2pay_user_role=${storedRole}; path=/; max-age=2592000; SameSite=Lax`;
+        if (!portRole) {
+          document.cookie = `p2p_user_role=${storedRole}; path=/; max-age=2592000; SameSite=Lax`;
+          document.cookie = `pay2pay_user_role=${storedRole}; path=/; max-age=2592000; SameSite=Lax`;
+        }
         if (storedUserType) {
-          document.cookie = `p2p_user_type_ref_id=${storedUserType}; path=/; max-age=2592000; SameSite=Lax`;
-          document.cookie = `pay2pay_user_type_ref_id=${storedUserType}; path=/; max-age=2592000; SameSite=Lax`;
+          if (!portRole) {
+            document.cookie = `p2p_user_type_ref_id=${storedUserType}; path=/; max-age=2592000; SameSite=Lax`;
+            document.cookie = `pay2pay_user_type_ref_id=${storedUserType}; path=/; max-age=2592000; SameSite=Lax`;
+          }
           localStorage.setItem("p2p_user_type_ref_id", storedUserType);
           localStorage.setItem("pay2pay_user_type_ref_id", storedUserType);
         }
-        localStorage.setItem("p2p_user_role", storedRole);
-        localStorage.setItem("pay2pay_user_role", storedRole);
+        if (!portRole) {
+          localStorage.setItem("p2p_user_role", storedRole);
+          localStorage.setItem("pay2pay_user_role", storedRole);
+        }
         localStorage.setItem("p2p_session_start_time", String(now));
         localStorage.setItem("p2p_session_last_active", String(now));
         localStorage.setItem("p2p_retailer_approval_status", "APPROVED");

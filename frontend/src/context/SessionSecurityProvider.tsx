@@ -49,6 +49,29 @@ const DEFAULT_SETTINGS: SecuritySettings = {
 export const getAuthToken = (): string | null => {
   if (typeof window === "undefined") return null;
   try {
+    const port = window.location.port;
+    const path = window.location.pathname;
+    let portTokenKey: string | null = null;
+    if (port === "4001" || path.startsWith("/retailer")) {
+      portTokenKey = "p2p_retailer_token";
+    } else if (port === "4002" || path.startsWith("/admin")) {
+      portTokenKey = "p2p_admin_token";
+    } else if (port === "4003" || path.startsWith("/super-admin")) {
+      portTokenKey = "p2p_super_admin_token";
+    }
+
+    if (portTokenKey) {
+      const specificLs = localStorage.getItem(portTokenKey);
+      if (specificLs && specificLs.trim() !== "") return specificLs.trim();
+
+      const cookies = document.cookie.split("; ");
+      const specificCookie = cookies.find((row) => row.startsWith(`${portTokenKey}=`));
+      if (specificCookie) {
+        const val = specificCookie.split("=")[1]?.trim();
+        if (val) return val;
+      }
+    }
+
     const lsToken =
       localStorage.getItem("p2p_access_token") ||
       localStorage.getItem("pay2pay_access_token") ||

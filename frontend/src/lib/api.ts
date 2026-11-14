@@ -17,20 +17,48 @@ apiClient.interceptors.request.use(
       config.url = config.url.replace(/^\/api\/v1/, "");
     }
     if (typeof window !== "undefined") {
+      const port = window.location.port;
+      const path = window.location.pathname;
+
+      let portTokenKey: string | null = null;
+      let portUserKey: string | null = null;
+      if (port === "4001" || path.startsWith("/retailer")) {
+        portTokenKey = "p2p_retailer_token";
+        portUserKey = "p2p_retailer_user";
+      } else if (port === "4002" || path.startsWith("/admin")) {
+        portTokenKey = "p2p_admin_token";
+        portUserKey = "p2p_admin_user";
+      } else if (port === "4003" || path.startsWith("/super-admin")) {
+        portTokenKey = "p2p_super_admin_token";
+        portUserKey = "p2p_super_admin_user";
+      }
+
       const cookies = document.cookie.split("; ");
-      const tokenCookie = cookies.find((row) =>
-        row.startsWith("p2p_access_token=") ||
-        row.startsWith("pay2pay_access_token=") ||
-        row.startsWith("pay2pay_auth_token=") ||
-        row.startsWith("p2p_sales_token=") ||
-        row.startsWith("pay2pay_sales_token=") ||
-        row.startsWith("access_token=") ||
-        row.startsWith("token=")
-      );
-      const cookieToken = tokenCookie ? tokenCookie.split("=")[1] : null;
+      let cookieToken: string | null = null;
+
+      if (portTokenKey) {
+        const specificCookie = cookies.find((row) => row.startsWith(`${portTokenKey}=`));
+        if (specificCookie) {
+          cookieToken = specificCookie.split("=")[1];
+        }
+      }
+
+      if (!cookieToken) {
+        const tokenCookie = cookies.find((row) =>
+          row.startsWith("p2p_access_token=") ||
+          row.startsWith("pay2pay_access_token=") ||
+          row.startsWith("pay2pay_auth_token=") ||
+          row.startsWith("p2p_sales_token=") ||
+          row.startsWith("pay2pay_sales_token=") ||
+          row.startsWith("access_token=") ||
+          row.startsWith("token=")
+        );
+        cookieToken = tokenCookie ? tokenCookie.split("=")[1] : null;
+      }
 
       const token =
         cookieToken ||
+        (portTokenKey ? localStorage.getItem(portTokenKey) : null) ||
         localStorage.getItem("p2p_access_token") ||
         localStorage.getItem("pay2pay_access_token") ||
         localStorage.getItem("pay2pay_auth_token") ||
@@ -45,6 +73,7 @@ apiClient.interceptors.request.use(
 
       try {
         const userStr =
+          (portUserKey ? localStorage.getItem(portUserKey) : null) ||
           localStorage.getItem("user_info") ||
           localStorage.getItem("user") ||
           localStorage.getItem("auth_user") ||

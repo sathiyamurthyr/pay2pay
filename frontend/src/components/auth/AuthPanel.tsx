@@ -456,6 +456,33 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       document.cookie = `p2p_account_access=${isBothTrue ? "ALLOWED" : "RESTRICTED"}; path=/; max-age=2592000; SameSite=Lax`;
       document.cookie = `p2p_retailer_approval_status=APPROVED; path=/; max-age=2592000; SameSite=Lax`;
 
+      // Role and Port-specific scoped session tokens for multi-portal isolation
+      const currentPort = typeof window !== "undefined" ? window.location.port : "";
+      if (authoritativeRole === "RETAILER" || currentPort === "4001") {
+        document.cookie = `p2p_retailer_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
+        document.cookie = `p2p_user_role_4001=RETAILER; path=/; max-age=2592000; SameSite=Lax`;
+        try {
+          localStorage.setItem("p2p_retailer_token", validToken);
+          localStorage.setItem("p2p_retailer_user", JSON.stringify(normalizedUser));
+        } catch {}
+      }
+      if (authoritativeRole === "ADMIN" || currentPort === "4002") {
+        document.cookie = `p2p_admin_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
+        document.cookie = `p2p_user_role_4002=ADMIN; path=/; max-age=2592000; SameSite=Lax`;
+        try {
+          localStorage.setItem("p2p_admin_token", validToken);
+          localStorage.setItem("p2p_admin_user", JSON.stringify(normalizedUser));
+        } catch {}
+      }
+      if (authoritativeRole === "SUPER_ADMIN" || currentPort === "4003") {
+        document.cookie = `p2p_super_admin_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
+        document.cookie = `p2p_user_role_4003=SUPER_ADMIN; path=/; max-age=2592000; SameSite=Lax`;
+        try {
+          localStorage.setItem("p2p_super_admin_token", validToken);
+          localStorage.setItem("p2p_super_admin_user", JSON.stringify(normalizedUser));
+        } catch {}
+      }
+
       // Set retailer identifier cookies if resolved
       const isUuid = (val?: string | null) => Boolean(val && val.length === 36 && (val.match(/-/g) || []).length === 4);
       let rCode = normalizedUser.retailer_code || normalizedUser.code;
