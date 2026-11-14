@@ -125,7 +125,13 @@ class BankMePayInClient:
             f"&am={amount:.2f}&tr={tid}&tn=PayIn+{tid}&cu=INR"
         )
         qr_image = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={upi_string}"
-        checkout_url = f"https://bankme.co.in/checkout?order={ref_code}&tid={tid}&amount={amount:.2f}"
+
+        # Resolve checkout URL: use configured external gateway URL if provided, otherwise internal BankMe checkout
+        checkout_base = os.getenv("BANKME_PAYIN_CHECKOUT_URL", "").strip()
+        if not checkout_base:
+            checkout_url = f"/retailer/payin/checkout?order={ref_code}&tid={tid}&amount={amount:.2f}&mode={payment_mode}"
+        else:
+            checkout_url = f"{checkout_base}?order={ref_code}&tid={tid}&amount={amount:.2f}&mode={payment_mode}"
 
         logger.info("BankMe PayIn simulated successfully: TID=%s, BM_REF=%s", tid, ref_code)
         return {

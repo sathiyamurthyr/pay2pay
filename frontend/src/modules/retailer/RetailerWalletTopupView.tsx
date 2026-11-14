@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Box, Paper, Typography, Button, TextField, Chip, Alert,
   CircularProgress, Card, CardContent, CardActionArea,
@@ -78,6 +78,7 @@ interface MdrPreview {
 
 export default function RetailerWalletTopupView() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { wallet, syncBalance, isSyncing } = useRetailerStore();
 
   const [loadingConfig, setLoadingConfig] = useState(true);
@@ -104,6 +105,44 @@ export default function RetailerWalletTopupView() {
   const [txnResult, setTxnResult] = useState<any | null>(null);
   const [txnError, setTxnError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(false);
+  const [paymentSuccessVerified, setPaymentSuccessVerified] = useState(false);
+
+  const checkPaymentStatus = useCallback(async (targetTid?: string) => {
+    const tidToQuery = targetTid || txnResult?.tid || searchParams?.get("tid");
+    if (!tidToQuery) return;
+    try {
+      setCheckingStatus(true);
+      const res = await apiClient.get(`/api/v1/payin/${tidToQuery}/status`);
+      if (res.data && (res.data.status === "SUCCESS" || res.data.txn_status === "SUCCESS")) {
+        setPaymentSuccessVerified(true);
+        setTxnResult((prev: any) => ({
+          ...(prev || {}),
+          status: "SUCCESS",
+          tid: tidToQuery,
+          amount: res.data.amount || prev?.amount,
+          retailer_credit: res.data.retailer_credit || prev?.retailer_credit || res.data.amount,
+          provider: res.data.provider || prev?.provider || "BANKME",
+        }));
+        setStep(5);
+        try {
+          syncBalance();
+        } catch {}
+      }
+    } catch (e) {
+      console.warn("Status check notice:", e);
+    } finally {
+      setCheckingStatus(false);
+    }
+  }, [txnResult?.tid, searchParams, syncBalance]);
+
+  useEffect(() => {
+    const paramStatus = searchParams?.get("status");
+    const paramTid = searchParams?.get("tid");
+    if (paramStatus === "success" && paramTid) {
+      checkPaymentStatus(paramTid);
+    }
+  }, [searchParams, checkPaymentStatus]);
 
   const PRESETS = [1000, 2000, 5000, 10000, 25000, 50000];
 
@@ -551,32 +590,78 @@ export default function RetailerWalletTopupView() {
               </Box>
             </Paper>
 
-            {txnResult.payment_url && (
-              <Box sx={{ mb: 4 }}>
-                <Button
-                  variant="contained"
-                  color="success"
-                  size="large"
-                  href={txnResult.payment_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  endIcon={<OpenInNewIcon />}
-                  sx={{ px: 5, py: 1.5, fontWeight: 700, fontSize: "1rem" }}
-                >
-                  Proceed to BankMe Checkout
-                </Button>
-              </Box>
+            {paymentSuccessVerified && (
+              <Alert severity="success" icon={<CheckCircleIcon sx={{ fontSize: 24 }} />} sx={{ maxWidth: 500, mx: "auto", mb: 3 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  Payment Verified & Completed!
+                </Typography>
+                <Typography variant="body2">
+                  ₹{txnResult.retailer_credit?.toFixed(2)} has been credited to your retailer wallet.
+                </Typography>
+              </Alert>
             )}
 
-            {txnResult.qr_string && (
-              <Box sx={{ mb: 4, p: 2, bgcolor: "grey.50", display: "inline-block", borderRadius: 2 }}>
-                <Typography variant="caption" sx={{ display: "block", mb: 1 }}>
-                  Scan UPI QR using PhonePe / GPay / Paytm
-                </Typography>
-                <Typography variant="body2" sx={{ wordBreak: "break-all", maxWidth: 400 }}>
-                  {txnResult.qr_string}
-                </Typography>
-              </Box>
+            {!paymentSuccessVerified && (
+              <>
+                {/* Inline QR Code Display */}
+                {(txnResult.qr_code_url || txnResult.qr_string) && (
+                  <Box sx={{ mb: 3 }}>
+                    <Box
+                      sx={{
+                        display: "inline-block",
+                        p: 2,
+                        borderRadius: 3,
+                        bgcolor: "#FFFFFF",
+                        border: "2px solid #E2E8F0",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+                      }}
+                    >
+                      <img
+                        src={
+                          txnResult.qr_code_url ||
+                          `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=${encodeURIComponent(txnResult.qr_string)}`
+                        }
+                        alt="PayIn UPI QR Code"
+                        width={200}
+                        height={200}
+                        style={{ display: "block", borderRadius: 8 }}
+                      />
+                    </Box>
+                    <Typography variant="caption" sx={{ display: "block", mt: 1, color: "text.secondary" }}>
+                      Scan using Google Pay, PhonePe, Paytm, or any UPI App
+                    </Typography>
+                  </Box>
+                )}
+
+                {txnResult.payment_url && (
+                  <Box sx={{ mb: 3, display: "flex", justifyContent: "center", gap: 2, flexWrap: "wrap" }}>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      size="large"
+                      href={txnResult.payment_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      endIcon={<OpenInNewIcon />}
+                      sx={{ px: 4, py: 1.3, fontWeight: 700, borderRadius: 2 }}
+                    >
+                      Open BankMe Checkout Portal
+                    </Button>
+
+                    <Button
+                      variant="outlined"
+                      color="inherit"
+                      size="large"
+                      disabled={checkingStatus}
+                      onClick={() => checkPaymentStatus()}
+                      startIcon={checkingStatus ? <CircularProgress size={16} /> : <RefreshIcon />}
+                      sx={{ px: 3, py: 1.3, fontWeight: 600, borderRadius: 2 }}
+                    >
+                      {checkingStatus ? "Verifying..." : "Check Status"}
+                    </Button>
+                  </Box>
+                )}
+              </>
             )}
 
             <Box>
