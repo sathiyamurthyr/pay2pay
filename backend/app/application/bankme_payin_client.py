@@ -47,7 +47,11 @@ class BankMePayInClient:
         Conforms with https://bankme.co.in/developers.html
         """
         key_id = getattr(settings, "BANKME_PAYIN_API_KEY_ID", "pk_live_smspay")
-        secret = getattr(settings, "BANKME_PAYIN_API_SECRET", "sk_7d6dccc54ca9b1c0f5f99de1a9724f12f183f9fe4b6748fa")
+        secret = (
+            getattr(settings, "SMSPAY_PAYIN_AUTHKEY", None)
+            or getattr(settings, "BANKME_PAYIN_API_SECRET", None)
+            or getattr(settings, "BANKME_PAYIN_API_KEY", "sk_7d6dccc54ca9b1c0f5f99de1a9724f12f183f9fe4b6748fa")
+        )
         webhook_secret = getattr(settings, "BANKME_PAYIN_WEBHOOK_SECRET", secret)
         base_url = (getattr(settings, "BANKME_PAYIN_BASE_URL", "https://api.bankme.co.in") or "https://api.bankme.co.in").rstrip("/")
         return key_id, secret, webhook_secret, base_url
@@ -94,6 +98,7 @@ class BankMePayInClient:
         headers = {
             "x-api-key": key_id,
             "x-api-secret": secret,
+            "authkey": secret,
             "Content-Type": "application/json",
             "Accept": "application/json"
         }

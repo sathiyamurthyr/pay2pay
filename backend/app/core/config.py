@@ -134,14 +134,20 @@ class Settings(BaseSettings):
     BANKME_PAYIN_API_KEY_ID: str = Field(
         default_factory=lambda: os.getenv("BANKME_PAYIN_API_KEY_ID", "pk_live_smspay")
     )
+    SMSPAY_PAYIN_AUTHKEY: str = Field(
+        default_factory=lambda: os.getenv("SMSPAY_PAYIN_AUTHKEY", "sk_7d6dccc54ca9b1c0f5f99de1a9724f12f183f9fe4b6748fa")
+    )
     BANKME_PAYIN_API_SECRET: str = Field(
         default_factory=lambda: os.getenv(
-            "BANKME_PAYIN_API_SECRET",
-            os.getenv("BANKME_PAYIN_API_KEY", "sk_7d6dccc54ca9b1c0f5f99de1a9724f12f183f9fe4b6748fa")
+            "SMSPAY_PAYIN_AUTHKEY",
+            os.getenv(
+                "BANKME_PAYIN_API_SECRET",
+                os.getenv("BANKME_PAYIN_API_KEY", "sk_7d6dccc54ca9b1c0f5f99de1a9724f12f183f9fe4b6748fa")
+            )
         )
     )
     BANKME_PAYIN_API_KEY: str = Field(
-        default_factory=lambda: os.getenv("BANKME_PAYIN_API_KEY", "sk_7d6dccc54ca9b1c0f5f99de1a9724f12f183f9fe4b6748fa")
+        default_factory=lambda: os.getenv("SMSPAY_PAYIN_AUTHKEY", os.getenv("BANKME_PAYIN_API_KEY", "sk_7d6dccc54ca9b1c0f5f99de1a9724f12f183f9fe4b6748fa"))
     )
     BANKME_PAYIN_WEBHOOK_SECRET: str = Field(
         default_factory=lambda: os.getenv(
