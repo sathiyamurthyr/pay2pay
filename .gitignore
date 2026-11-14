@@ -1,7 +1,8 @@
 # Python
 backend/venv/
 backend/.pytest_cache/
-backend/__pycache__/
+__pycache__/
+**/__pycache__/**
 *.pyc
 *.db
 
@@ -38,6 +39,8 @@ bw.exe
 scratch/
 backend/scratch/
 test_*.py
+!backend/tests/**
+backend/tests/**/__pycache__/**
 check_real_db.py
 convert_ppk.py
 sync_backend_to_server.py
