@@ -58,7 +58,7 @@ export const COMPANY_PRESETS: Record<string, CompanyBrandingData> = {
     legal_name: "SMSPAY Technologies Pvt. Ltd.",
     display_name: "SMSPAY",
     short_name: "SMSP",
-    logo_url: "/branding/smspay-logo.svg",
+    logo_url: "/branding/smspay-mark.svg",
     favicon_url: "/branding/smspay-mark.svg",
     primary_colour: "#059669",
     secondary_colour: "#047857",
@@ -69,30 +69,57 @@ export const COMPANY_PRESETS: Record<string, CompanyBrandingData> = {
 
 export function getInitialBrandingByHostname(): CompanyBrandingData {
   if (typeof window === "undefined") {
-    return COMPANY_PRESETS.NEAR4YOU;
+    return COMPANY_PRESETS.SMSPAY;
   }
   try {
     const searchParams = new URLSearchParams(window.location.search);
     const domainParam = (searchParams.get("domain") || "").toLowerCase();
-    if (domainParam.includes("pay2pay")) {
-      return COMPANY_PRESETS.PAY2PAY;
-    }
-    if (domainParam.includes("smspay")) {
+    const companyParam = (searchParams.get("company") || "").toLowerCase();
+    if (domainParam.includes("smspay") || companyParam.includes("smspay")) {
       return COMPANY_PRESETS.SMSPAY;
     }
-    if (domainParam.includes("near4you")) {
+    if (domainParam.includes("pay2pay") || companyParam.includes("pay2pay")) {
+      return COMPANY_PRESETS.PAY2PAY;
+    }
+    if (domainParam.includes("near4you") || companyParam.includes("near4you")) {
       return COMPANY_PRESETS.NEAR4YOU;
     }
   } catch {}
 
+  // Check authenticated user profile in localStorage / cookies
+  try {
+    const userStr =
+      localStorage.getItem("p2p_retailer_user") ||
+      localStorage.getItem("p2p_admin_user") ||
+      localStorage.getItem("user_info") ||
+      localStorage.getItem("user") ||
+      localStorage.getItem("pay2pay_user_data");
+    if (userStr) {
+      const u = JSON.parse(userStr);
+      const cRef = Number(u.company_ref_id || u.companyRefId);
+      const cCode = String(u.company_code || u.companyCode || u.company_name || "").toUpperCase();
+      if (cRef === 2 || cCode.includes("SMSPAY")) {
+        return COMPANY_PRESETS.SMSPAY;
+      }
+      if (cRef === 47 || cCode.includes("PAY2PAY")) {
+        return COMPANY_PRESETS.PAY2PAY;
+      }
+      if (cRef === 1 || cCode.includes("NEAR4YOU")) {
+        return COMPANY_PRESETS.NEAR4YOU;
+      }
+    }
+  } catch {}
+
   const host = window.location.hostname.toLowerCase();
+  const port = window.location.port;
+
   if (host.includes("pay2pay")) {
     return COMPANY_PRESETS.PAY2PAY;
   }
-  if (host.includes("smspay")) {
+  if (host.includes("smspay") || port === "4001") {
     return COMPANY_PRESETS.SMSPAY;
   }
-  return COMPANY_PRESETS.NEAR4YOU;
+  return COMPANY_PRESETS.SMSPAY;
 }
 
 export function useCompanyBranding() {
@@ -106,11 +133,12 @@ export function useCompanyBranding() {
       try {
         const token =
           typeof window !== "undefined"
-            ? localStorage.getItem("accessToken") ||
+            ? localStorage.getItem("p2p_retailer_token") ||
+              localStorage.getItem("p2p_access_token") ||
+              localStorage.getItem("accessToken") ||
               localStorage.getItem("token") ||
               localStorage.getItem("auth_token") ||
-              localStorage.getItem("pay2pay_access_token") ||
-              localStorage.getItem("p2p_access_token")
+              localStorage.getItem("pay2pay_access_token")
             : null;
 
         const headers: Record<string, string> = {};
