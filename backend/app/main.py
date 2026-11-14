@@ -214,6 +214,7 @@ from app.presentation.api.v1 import enterprise_auth_router
 from app.presentation.api.v1 import transaction_router
 from app.presentation.api.v1 import payout_callback_router
 from app.presentation.api.v1 import payin_router
+from app.presentation.api.v1 import admin_payin_router
 app.include_router(beneficiary_verification.router, prefix=settings.API_V1_STR)
 app.include_router(reverse_penny_drop_router.router, prefix=settings.API_V1_STR)
 app.include_router(urbanrupee_payout_router.router, prefix=settings.API_V1_STR)
@@ -228,6 +229,8 @@ app.include_router(payout_callback_router.router, prefix="")
 app.include_router(payin_router.router, prefix=settings.API_V1_STR)
 app.include_router(payin_router.router, prefix="/api")
 app.include_router(payin_router.router, prefix="")
+app.include_router(admin_payin_router.router, prefix=settings.API_V1_STR)
+app.include_router(admin_payin_router.router, prefix="/api")
 from app.presentation.api.v1 import transaction_report_router
 app.include_router(transaction_report_router.router, prefix=settings.API_V1_STR)
 app.include_router(transaction_report_router.router, prefix="/api")

@@ -2,9 +2,11 @@
 Enterprise PayIn Presentation API Router.
 Exposes:
 1. POST /api/v1/payin/collect: Common PayIn API endpoint for all companies.
-2. GET  /api/v1/payin/{tid}/status: Transaction status inquiry with company data isolation.
-3. POST /api/v1/payin/webhook/bankme: Inbound webhook receiver for BankMe notifications.
-4. POST /api/v1/payin/callback: Universal webhook callback alias.
+2. GET  /api/v1/payin/options: Eligible services, payment modes, card types, and vendors for authenticated company.
+3. POST /api/v1/payin/mdr/preview: Live dynamic MDR calculation and financial preview for retailer top-up.
+4. GET  /api/v1/payin/{tid}/status: Transaction status inquiry with company data isolation.
+5. POST /api/v1/payin/webhook/bankme: Inbound webhook receiver for BankMe notifications.
+6. POST /api/v1/payin/callback: Universal webhook callback alias.
 
 Enterprise Rules:
 - All companies call the same common PayIn API endpoint.
@@ -23,9 +25,12 @@ from app.application.dependencies import (
     get_current_token_payload, get_optional_token_payload, get_current_tenant_id
 )
 from app.application.payin_dtos import (
-    CommonPayInRequest, CommonPayInResponse, PayInStatusResponse, BankMeWebhookPayload
+    CommonPayInRequest, CommonPayInResponse, PayInStatusResponse,
+    MdrPreviewRequest, MdrPreviewResponse, PayInOptionsResponse,
+    BankMeWebhookPayload
 )
 from app.application.payin_service import PayInService
+from app.application.payin_config_service import PayInConfigService
 from app.application.payin_routing_service import SMSPAY_COMPANY_REF_ID
 
 logger = logging.getLogger("payin_router")
@@ -66,6 +71,49 @@ def extract_auth_context(payload: Dict[str, Any], request: Request) -> Dict[str,
         "roles": roles,
         "sub": payload.get("sub")
     }
+
+
+@router.get(
+    "/options",
+    response_model=PayInOptionsResponse,
+    summary="Get Enabled PayIn Services, Modes, Cards & Vendors for Retailer"
+)
+async def get_payin_options(
+    request: Request,
+    payload: Dict[str, Any] = Depends(get_current_token_payload),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Retrieves all enabled PayIn services, payment modes, card types, and vendors
+    configured specifically for the authenticated retailer's company.
+    """
+    auth_ctx = extract_auth_context(payload, request)
+    c_ref = auth_ctx.get("company_ref_id") or SMSPAY_COMPANY_REF_ID
+    return await PayInConfigService.get_retailer_payin_options(db=db, company_ref_id=c_ref)
+
+
+@router.post(
+    "/mdr/preview",
+    response_model=MdrPreviewResponse,
+    summary="Live Dynamic MDR Calculation & Financial Preview"
+)
+async def preview_mdr_charges(
+    request: Request,
+    preview_req: MdrPreviewRequest,
+    payload: Dict[str, Any] = Depends(get_current_token_payload),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Calculates live MDR fee, GST, total charges, customer payable amount,
+    retailer credit, and company liability based on the active dynamic MDR rules.
+    """
+    auth_ctx = extract_auth_context(payload, request)
+    c_ref = auth_ctx.get("company_ref_id") or SMSPAY_COMPANY_REF_ID
+    return await PayInService.calculate_preview(
+        db=db,
+        company_ref_id=c_ref,
+        preview_req=preview_req
+    )
 
 
 @router.post(
@@ -120,44 +168,55 @@ async def get_payin_status(
 
 @router.post(
     "/webhook/bankme",
-    summary="BankMe PayIn Webhook Receiver"
+    summary="Authoritative BankMe Webhook Receiver (SMSPay)"
 )
-async def bankme_webhook_receiver(
+async def bankme_webhook_handler(
     request: Request,
-    payload: Dict[str, Any],
+    payload: BankMeWebhookPayload,
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Receives and processes asynchronous webhook callbacks from BankMe PayIn.
-    - Validates authenticity.
-    - Verifies TID and SMSPay ownership.
-    - Idempotently updates transaction status.
-    - Credits retailer wallet on SUCCESS.
+    BankMe Inbound Webhook Callback Endpoint.
+    - Verifies webhook signature / authorization.
+    - Enforces SMSPay company ownership.
+    - Ensures idempotency (duplicate webhook calls are ignored without error).
+    - Credits retailer wallet via public.wallet_balance_update stored procedure on SUCCESS.
     """
-    headers = {k.lower(): v for k, v in request.headers.items()}
-    return await PayInService.process_bankme_webhook(
+    headers = dict(request.headers)
+    res = await PayInService.process_bankme_webhook(
         db=db,
         payload=payload,
         headers=headers
     )
+    return {
+        "status": "SUCCESS",
+        "processed": True,
+        "tid": res.get("tid"),
+        "txn_status": res.get("txn_status", "SUCCESS"),
+        "message": res.get("message", "Webhook processed successfully")
+    }
 
 
 @router.post(
     "/callback",
-    summary="Universal PayIn Callback Endpoint"
+    summary="Universal PayIn Callback Alias"
 )
 async def universal_payin_callback(
     request: Request,
-    payload: Dict[str, Any],
+    payload: BankMeWebhookPayload,
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Universal PayIn Webhook Callback alias.
-    """
-    headers = {k.lower(): v for k, v in request.headers.items()}
-    return await PayInService.process_bankme_webhook(
+    """Universal webhook alias routing to provider callback processor."""
+    headers = dict(request.headers)
+    res = await PayInService.process_bankme_webhook(
         db=db,
         payload=payload,
         headers=headers
     )
-
+    return {
+        "status": "SUCCESS",
+        "processed": True,
+        "tid": res.get("tid"),
+        "txn_status": res.get("txn_status", "SUCCESS"),
+        "message": res.get("message", "Webhook processed successfully")
+    }

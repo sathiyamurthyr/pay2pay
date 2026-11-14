@@ -146,6 +146,23 @@ const ADMIN_NAV: NavCategory[] = [
     ],
   },
   {
+    category: "PayIn Management",
+    items: [
+      { label: "PayIn Dashboard", href: "/admin/payin/dashboard", icon: LayoutDashboard, badge: "Live" },
+      { label: "Company Config", href: "/admin/payin/companies", icon: Building2 },
+      { label: "Vendor Management", href: "/admin/payin/vendors", icon: Layers },
+      { label: "Company Vendors", href: "/admin/payin/company-vendors", icon: Network },
+      { label: "Service Types", href: "/admin/payin/service-types", icon: Sliders },
+      { label: "Payment Modes", href: "/admin/payin/payment-modes", icon: CreditCard },
+      { label: "Card Types", href: "/admin/payin/card-types", icon: CreditCard },
+      { label: "MDR Matrix", href: "/admin/payin/mdr", icon: Scale, badge: "Dynamic" },
+      { label: "PayIn Transactions", href: "/admin/payin/transactions", icon: TrendingUp },
+      { label: "Callback Logs", href: "/admin/payin/callbacks", icon: Terminal },
+      { label: "Reconciliation", href: "/admin/payin/reconciliation", icon: Scale },
+      { label: "Audit Logs", href: "/admin/payin/audit-logs", icon: ScrollText },
+    ],
+  },
+  {
     category: "Reports",
     items: [
       { label: "Transaction Report", href: "/admin/reports/transactions", icon: FileText, badge: "Master" },
