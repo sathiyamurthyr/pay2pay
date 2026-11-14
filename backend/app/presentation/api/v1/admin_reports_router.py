@@ -14,6 +14,7 @@ from app.infrastructure.db.enterprise_payout_models import (
     EnterprisePayoutTransactionModel, PayoutTransactionStatus
 )
 from app.infrastructure.db.models import TransactionLedgerModel
+from app.application.dependencies import CompanyContext, get_company_context
 
 router = APIRouter(prefix="/admin/reports", tags=["Admin Enterprise Reports"])
 
@@ -295,15 +296,17 @@ async def get_top_performing_retailers(
     from_date: Optional[str] = Query(None),
     to_date: Optional[str] = Query(None),
     limit: int = Query(5, ge=1, le=50),
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
-    """Returns top performing retailers ranked by real transaction volume from PostgreSQL."""
+    """Returns top performing retailers ranked by real transaction volume from PostgreSQL strictly scoped by company."""
     await ensure_payout_views(db)
     start_dt, end_dt = parse_date_range(from_date, to_date)
+    comp_ref = ctx.company_ref_id if not ctx.is_super_admin else None
     try:
         res = await db.execute(
-            text("SELECT * FROM sp_get_top_performing_retailers(:start_dt, :end_dt, :limit) ORDER BY total_volume DESC;"),
-            {"start_dt": start_dt, "end_dt": end_dt, "limit": limit}
+            text("SELECT * FROM sp_get_top_performing_retailers(:start_dt, :end_dt, :limit, :comp_ref) ORDER BY total_volume DESC;"),
+            {"start_dt": start_dt, "end_dt": end_dt, "limit": limit, "comp_ref": comp_ref}
         )
         rows = res.fetchall()
         top_list = []
@@ -343,15 +346,17 @@ async def get_payout_transactions_summary(
     company_id: Optional[uuid.UUID] = Query(None),
     from_date: Optional[str] = Query(None),
     to_date: Optional[str] = Query(None),
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
     await ensure_payout_views(db)
     start_dt, end_dt = parse_date_range(from_date, to_date)
+    comp_ref = ctx.company_ref_id if not ctx.is_super_admin else None
 
     try:
         sp_res = await db.execute(
-            text("SELECT * FROM fn_admin_payout_summary(:start_dt, :end_dt)"),
-            {"start_dt": start_dt, "end_dt": end_dt}
+            text("SELECT * FROM fn_admin_payout_summary(:start_dt, :end_dt, :comp_ref)"),
+            {"start_dt": start_dt, "end_dt": end_dt, "comp_ref": comp_ref}
         )
         row = sp_res.fetchone()
         if row:
@@ -376,7 +381,12 @@ async def get_payout_transactions_summary(
         pass
 
     # Direct query fallback
-    q_res = await db.execute(text("""
+    comp_filter = "AND company_ref_id = :comp_ref" if comp_ref is not None else ""
+    f_params = {"start_dt": start_dt, "end_dt": end_dt}
+    if comp_ref is not None:
+        f_params["comp_ref"] = comp_ref
+
+    q_res = await db.execute(text(f"""
         SELECT 
             COUNT(*) as cnt,
             COALESCE(SUM(amount), 0.00) as total_volume,
@@ -389,8 +399,8 @@ async def get_payout_transactions_summary(
             COUNT(CASE WHEN UPPER(status) IN ('FAILED', 'REJECTED', 'REVERSED') THEN 1 END) as failed_count,
             COALESCE(SUM(CASE WHEN UPPER(status) IN ('FAILED', 'REJECTED', 'REVERSED') THEN amount ELSE 0 END), 0.00) as failed_volume
         FROM public.view_admin_payout_reports
-        WHERE created_date >= :start_dt AND created_date <= :end_dt
-    """), {"start_dt": start_dt, "end_dt": end_dt})
+        WHERE created_date >= :start_dt AND created_date <= :end_dt {comp_filter}
+    """), f_params)
     row = q_res.fetchone()
     return {
         "status": "SUCCESS",
@@ -431,6 +441,7 @@ async def list_payout_transactions_report(
     search: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=200),
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
     await ensure_payout_views(db)
@@ -438,6 +449,10 @@ async def list_payout_transactions_report(
 
     where_clauses = ["created_date >= :start_dt", "created_date <= :end_dt"]
     params = {"start_dt": start_dt, "end_dt": end_dt}
+
+    if not ctx.is_super_admin:
+        where_clauses.append("company_ref_id = :comp_ref")
+        params["comp_ref"] = ctx.company_ref_id
 
     if isinstance(status, str) and status.strip():
         st_clean = status.strip().upper()
@@ -572,6 +587,7 @@ async def list_payout_transactions_report(
 async def get_payout_transaction_details(
     id: str,
     request: Request,
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
     await ensure_payout_views(db)
@@ -586,6 +602,8 @@ async def get_payout_transaction_details(
     row = row_res.fetchone()
     if row:
         d = dict(zip(row_res.keys(), row))
+        if not ctx.is_super_admin and d.get("company_ref_id") is not None and d.get("company_ref_id") != ctx.company_ref_id:
+            raise HTTPException(status_code=403, detail="Cross-tenant access prohibited: Cannot view details of another company's transaction")
         c_dt = d["created_date"]
         u_dt = d["updated_date"]
         amt = float(d["amount"] or 0.0)
@@ -671,6 +689,7 @@ async def export_payout_transactions_csv(
     status: Optional[str] = Query(None),
     payment_mode: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
     await ensure_payout_views(db)
@@ -678,6 +697,10 @@ async def export_payout_transactions_csv(
 
     where_clauses = ["created_date >= :start_dt", "created_date <= :end_dt"]
     params = {"start_dt": start_dt, "end_dt": end_dt}
+
+    if not ctx.is_super_admin:
+        where_clauses.append("company_ref_id = :comp_ref")
+        params["comp_ref"] = ctx.company_ref_id
 
     if isinstance(status, str) and status.strip():
         st_clean = status.strip().upper()

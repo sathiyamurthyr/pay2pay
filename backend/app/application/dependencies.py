@@ -1,8 +1,8 @@
 import uuid
-from typing import List, Optional
+from typing import List, Optional, Any
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -205,7 +205,9 @@ async def get_current_user(
                 full_name=auth_user.full_name or "Retailer User",
                 status=status_val,
                 user_type=resolved_type,
-                user_roles=[]
+                user_roles=[],
+                company_ref_id=getattr(auth_user, "company_ref_id", None),
+                tenant_ref_id=getattr(auth_user, "tenant_ref_id", 1) or 1
             )
     except Exception:
         pass
@@ -276,7 +278,9 @@ async def get_current_user(
             status=ret_status,
             phone=phone_val,
             user_type=resolved_user_type,
-            user_roles=[]
+            user_roles=[],
+            company_ref_id=retailer.company_ref_id,
+            tenant_ref_id=retailer.tenant_ref_id
         )
 
     # 4. Fallback from validated token claims if user was signed in with valid session
@@ -293,7 +297,9 @@ async def get_current_user(
             full_name=payload.get("name") or "Retailer Partner",
             status="ACTIVE",
             user_type=user_type_val,
-            user_roles=[]
+            user_roles=[],
+            company_ref_id=payload.get("company_ref_id"),
+            tenant_ref_id=payload.get("tenant_ref_id")
         )
 
     raise UnauthorizedException("User not found or account is inactive")
@@ -338,3 +344,116 @@ class PermissionChecker:
 
 def require_permission(permission_code: str):
     return Depends(PermissionChecker(permission_code))
+
+
+class CompanyContext:
+    """
+    Authoritative server-side multi-tenant company context.
+    Strictly binds company-scoped users to their authenticated company_ref_id.
+    Prevents data leakage across different companies (SMSPay, Pay2Pay, Near4You, etc.).
+    Super Admins (platform admins with no bound company_ref_id) retain global visibility.
+    """
+    def __init__(
+        self,
+        company_ref_id: Optional[int],
+        is_super_admin: bool,
+        user: Optional[AdminUserModel] = None,
+        role: Optional[str] = None,
+        tenant_ref_id: Optional[int] = 1
+    ):
+        self.company_ref_id = company_ref_id
+        self.is_super_admin = is_super_admin
+        self.user = user
+        self.role = role
+        self.tenant_ref_id = tenant_ref_id
+
+    def filter_query(self, query, column_or_model):
+        """
+        Applies company isolation filter to a SQLAlchemy query.
+        Super Admin sees all companies.
+        Company Admin / Retailer sees ONLY their company_ref_id.
+        """
+        if self.is_super_admin:
+            return query
+        if hasattr(column_or_model, 'company_ref_id'):
+            return query.filter(column_or_model.company_ref_id == self.company_ref_id)
+        return query.filter(column_or_model == self.company_ref_id)
+
+    def validate_access(self, target_company_ref_id: Optional[int]):
+        """
+        Prevents IDOR attacks where a user requests access to another company.
+        """
+        if self.is_super_admin:
+            return
+        if target_company_ref_id is not None and int(target_company_ref_id) != self.company_ref_id:
+            raise ForbiddenException("Access forbidden: Cannot access or modify data for another company.")
+
+
+async def get_company_context(
+    payload: dict = Depends(get_current_token_payload),
+    current_user: AdminUserModel = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+) -> CompanyContext:
+    """
+    FastAPI dependency that extracts and validates the multi-tenant company boundary
+    from the server-side authenticated user and JWT claims.
+    """
+    token_roles = [str(r).upper() for r in (payload.get("roles") or [])]
+    user_roles = [ur.role.code.upper() for ur in getattr(current_user, "user_roles", []) or [] if ur.role]
+    all_roles = set(token_roles + user_roles)
+    if getattr(current_user, "role", None):
+        all_roles.add(str(current_user.role).upper())
+
+    # Direct company_ref_id resolution
+    comp_ref = getattr(current_user, "company_ref_id", None)
+    if comp_ref is None and payload.get("company_ref_id") is not None:
+        try:
+            comp_ref = int(payload.get("company_ref_id"))
+        except (ValueError, TypeError):
+            comp_ref = None
+
+    if comp_ref is None and hasattr(current_user, "public_id") and current_user.public_id:
+        # Check admin_user directly in database
+        stmt = text("SELECT company_ref_id FROM public.admin_user WHERE public_id = :pid LIMIT 1")
+        res = (await db.execute(stmt, {"pid": current_user.public_id})).scalar_one_or_none()
+        if res is not None:
+            comp_ref = int(res)
+        else:
+            # Check retailer table
+            r_stmt = text("SELECT company_ref_id FROM public.retailer WHERE public_id = :pid LIMIT 1")
+            r_res = (await db.execute(r_stmt, {"pid": current_user.public_id})).scalar_one_or_none()
+            if r_res is not None:
+                comp_ref = int(r_res)
+
+    is_super = False
+    # A user is ONLY Super Admin if:
+    # 1. They have NO company_ref_id assigned (they do NOT belong to any specific company tenant), AND
+    # 2. They possess SUPER_ADMIN role or is the root platform 'admin' user.
+    if comp_ref is None:
+        if "SUPER_ADMIN" in all_roles or "SUPERADMIN" in all_roles or current_user.username == "admin" or payload.get("is_super_admin") is True:
+            is_super = True
+
+    if not is_super and comp_ref is None:
+        # Default fallback safety for non-superadmin users
+        comp_ref = 1
+
+    return CompanyContext(
+        company_ref_id=comp_ref,
+        is_super_admin=is_super,
+        user=current_user,
+        role=list(all_roles)[0] if all_roles else "ADMIN",
+        tenant_ref_id=getattr(current_user, "tenant_ref_id", 1) or 1
+    )
+
+
+async def get_optional_company_context(
+    payload: dict = Depends(get_optional_token_payload),
+    user: Optional[AdminUserModel] = Depends(get_optional_current_user),
+    db: AsyncSession = Depends(get_db)
+) -> Optional[CompanyContext]:
+    if not payload or not user:
+        return None
+    try:
+        return await get_company_context(payload, user, db)
+    except Exception:
+        return None

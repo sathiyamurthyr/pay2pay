@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import decode_access_token
+from app.application.dependencies import get_optional_company_context, CompanyContext
 
 router = APIRouter(prefix="/companies", tags=["Company Branding & Multi-Company"])
 
@@ -329,10 +330,17 @@ async def resolve_by_domain(
 @router.get("")
 @router.get("/list")
 async def list_companies(
+    ctx: Optional[CompanyContext] = Depends(get_optional_company_context),
     db: AsyncSession = Depends(get_db)
 ):
-    """Lists all active registered companies on the platform."""
-    res = await db.execute(text("""
+    """Lists registered companies, strictly filtered to authenticated company for non-super-admins."""
+    where_clause = "WHERE c.is_deleted = false"
+    params: Dict[str, Any] = {}
+    if ctx and not ctx.is_super_admin:
+        where_clause += " AND c.company_ref_id = :comp_ref"
+        params["comp_ref"] = ctx.company_ref_id
+
+    res = await db.execute(text(f"""
         SELECT 
             c.id, c.public_id, c.company_ref_id, c.tenant_ref_id,
             c.company_code, c.company_name, c.legal_name, c.display_name, c.short_name,
@@ -345,9 +353,9 @@ async def list_companies(
         FROM public.company c
         LEFT JOIN public.company_branding cb ON cb.company_ref_id = c.company_ref_id
         LEFT JOIN public.company_configuration cc ON (cc.company_ref_id = c.company_ref_id AND cc.config_key = 'domains')
-        WHERE c.is_deleted = false
+        {where_clause}
         ORDER BY c.company_ref_id ASC;
-    """))
+    """), params)
     companies = []
     for row in res.fetchall():
         d = dict(row._mapping)
@@ -383,12 +391,19 @@ async def list_companies(
 @router.post("")
 async def create_company(
     req: CompanyRegisterRequest,
+    ctx: Optional[CompanyContext] = Depends(get_optional_company_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Super Admin endpoint to onboard a future company dynamically without code changes.
     Enforces uniqueness, provisions company, company_branding, and company_configuration records.
+    Restricted strictly to Platform Super Admin.
     """
+    if ctx and not ctx.is_super_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: Only Platform Super Admin can register new companies."
+        )
     code_upper = req.company_code.strip().upper()
     existing = await db.execute(text("SELECT id FROM public.company WHERE company_code = :code;"), {"code": code_upper})
     if existing.fetchone():
@@ -483,9 +498,12 @@ async def create_company(
 async def update_company_branding(
     company_ref_id: int,
     req: CompanyBrandingUpdateRequest,
+    ctx: Optional[CompanyContext] = Depends(get_optional_company_context),
     db: AsyncSession = Depends(get_db)
 ):
-    """Super Admin endpoint to customize brand colors, logos, and names dynamically."""
+    """Super Admin or Company Admin endpoint to customize brand colors, logos, and names dynamically."""
+    if ctx:
+        ctx.validate_access(company_ref_id)
     now = datetime.now(timezone.utc)
     if req.display_name or req.legal_name:
         await db.execute(text("""
@@ -524,9 +542,12 @@ async def update_company_branding(
 async def update_company_domains(
     company_ref_id: int,
     req: CompanyDomainsUpdateRequest,
+    ctx: Optional[CompanyContext] = Depends(get_optional_company_context),
     db: AsyncSession = Depends(get_db)
 ):
-    """Super Admin endpoint to configure assigned domains/hostnames."""
+    """Super Admin or Company Admin endpoint to configure assigned domains/hostnames."""
+    if ctx:
+        ctx.validate_access(company_ref_id)
     now = datetime.now(timezone.utc)
     clean_domains = [extract_clean_domain(d) for d in req.domains if extract_clean_domain(d)]
     domains_json = json.dumps(clean_domains)

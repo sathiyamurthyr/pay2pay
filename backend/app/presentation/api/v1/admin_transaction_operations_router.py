@@ -21,7 +21,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.application.dependencies import get_current_token_payload
+from app.application.dependencies import get_current_token_payload, CompanyContext, get_company_context
 
 logger = logging.getLogger("admin_transaction_operations_router")
 
@@ -67,11 +67,11 @@ def safe_iso(dt_val: Any) -> Optional[str]:
 # ─── 1. DYNAMIC KPI SUMMARY ───
 @router.get("/pending/summary", summary="Dynamic Top KPI Summary for Pending Transactions")
 async def get_pending_summary(
-    db: AsyncSession = Depends(get_db),
-    payload: Optional[Dict[str, Any]] = Depends(get_current_token_payload)
+    ctx: CompanyContext = Depends(get_company_context),
+    db: AsyncSession = Depends(get_db)
 ):
     """
-    Returns real-time aggregated metrics across all pending transactions:
+    Returns real-time aggregated metrics across all pending transactions strictly scoped by company:
     - Pending Transactions Count
     - Total Pending Amount (₹)
     - Pending Vendors Count
@@ -79,7 +79,10 @@ async def get_pending_summary(
     - Today's Pending Count
     - Oldest Pending Transaction Datetime
     """
-    query = text("""
+    comp_filter = "WHERE company_ref_id = :comp_ref" if not ctx.is_super_admin else ""
+    params = {"comp_ref": ctx.company_ref_id} if not ctx.is_super_admin else {}
+
+    query = text(f"""
         SELECT 
             COUNT(*) AS pending_count,
             COALESCE(SUM(transaction_amount), 0.00) AS total_pending_amount,
@@ -87,10 +90,11 @@ async def get_pending_summary(
             COUNT(DISTINCT retailer_id) AS pending_retailers_count,
             COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE) AS todays_pending_count,
             MIN(created_at) AS oldest_pending_created_at
-        FROM public.view_all_pending_transactions;
+        FROM public.view_all_pending_transactions
+        {comp_filter};
     """)
 
-    result = await db.execute(query)
+    result = await db.execute(query, params)
     row = result.mappings().first()
 
     if not row:
@@ -143,15 +147,21 @@ async def list_pending_transactions(
     max_amount: Optional[float] = Query(None, ge=0),
     sort_by: str = Query("created_at", description="Field to sort by"),
     sort_order: str = Query("desc", regex="^(asc|desc)$"),
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db),
     payload: Optional[Dict[str, Any]] = Depends(get_current_token_payload)
 ):
     """
     Retrieves currently pending transactions from public.view_all_pending_transactions.
     Supports multi-filtering, sorting, searching, and pagination.
+    Strictly scoped to authenticated Company Ref ID for non-super-admin users.
     """
     conditions = ["1=1"]
     params: Dict[str, Any] = {}
+
+    if not ctx.is_super_admin:
+        params["comp_ref"] = ctx.company_ref_id
+        conditions.append("company_ref_id = :comp_ref")
 
     if search and search.strip():
         term = f"%{search.strip()}%"
@@ -368,12 +378,14 @@ async def list_pending_transactions(
 @router.get("/pending/{transaction_id}", summary="Complete Transaction Details & Audit Trail")
 async def get_pending_transaction_details(
     transaction_id: str,
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db),
     payload: Optional[Dict[str, Any]] = Depends(get_current_token_payload)
 ):
     """
     Returns full transaction object from view_all_pending_transactions,
     all accounting entries from public.transactions, and audit timeline logs.
+    Strictly restricted to authenticated company unless super admin.
     """
     clean_id = transaction_id.strip()
 
@@ -392,6 +404,15 @@ async def get_pending_transaction_details(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Pending transaction '{clean_id}' not found or has already been resolved."
         )
+
+    # Multi-Tenant Company Isolation Check
+    if not ctx.is_super_admin:
+        row_comp_ref = txn_row.get("company_ref_id")
+        if row_comp_ref is not None and row_comp_ref != ctx.company_ref_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied: Transaction belongs to company {row_comp_ref}, not {ctx.company_ref_id}."
+            )
 
     # 2. Fetch Ledger Entries from public.transactions
     ledger_query = text("""
@@ -540,6 +561,7 @@ async def update_transaction_status(
     transaction_id: str,
     body: StatusUpdateRequest,
     request: Request,
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db),
     payload: Optional[Dict[str, Any]] = Depends(get_current_token_payload)
 ):
@@ -549,6 +571,7 @@ async def update_transaction_status(
     - PENDING -> FAILED: Mandatory failure reason, triggers atomic reversal back to retailer wallet.
     - Terminal state protection: strictly blocks changing SUCCESS or FAILED transactions.
     - Strict idempotency: blocks double credit reversal.
+    - Multi-tenant boundary: strictly verifies transaction belongs to company.
     """
     clean_id = transaction_id.strip()
     target_status = body.status.strip().upper()
@@ -564,6 +587,25 @@ async def update_transaction_status(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Failure reason is mandatory when marking a transaction as FAILED."
         )
+
+    # Multi-tenant boundary check
+    if not ctx.is_super_admin:
+        chk_res = await db.execute(
+            text("SELECT company_ref_id FROM public.view_all_pending_transactions WHERE transaction_id = :txn_id OR external_txn_id = :txn_id LIMIT 1;"),
+            {"txn_id": clean_id}
+        )
+        chk_row = chk_res.mappings().first()
+        if not chk_row:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Pending transaction '{clean_id}' not found."
+            )
+        row_comp_ref = chk_row.get("company_ref_id")
+        if row_comp_ref is not None and row_comp_ref != ctx.company_ref_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied: Cannot update transaction belonging to company {row_comp_ref}."
+            )
 
     # Extract Admin Context
     admin_id = "ADMIN"

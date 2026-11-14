@@ -9,7 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.application.dtos import DashboardWidgetsResponse
 from app.application.services import DashboardService
-from app.application.dependencies import get_current_user, get_current_tenant_id, get_current_token_payload
+from app.application.dependencies import (
+    get_current_user, get_current_tenant_id, get_current_token_payload,
+    CompanyContext, get_company_context
+)
 from app.infrastructure.db.models import AdminUserModel
 
 logger = logging.getLogger("dashboard_router")
@@ -39,28 +42,22 @@ def safe_int(val: Any) -> int:
 @router.get("/widgets", response_model=DashboardWidgetsResponse)
 async def get_dashboard_widgets(
     tenant_id: Optional[uuid.UUID] = Depends(get_current_tenant_id),
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Returns real-time refreshable KPI metrics for Admin Dashboard widgets:
-    1. Total Companies
-    2. Active Retailers
-    3. Total Machines
-    4. Today's Settlement
-    5. Wallet Liability
-    6. Pending Payouts
-    7. Today's Profit
-    8. Failed Settlement
-    9. Pending Approvals
-    10. Recent Activities Feed
+    Strictly isolated by Company Ref ID for Company Admins.
     """
     t_id = tenant_id or uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8")
-    return await DashboardService.get_dashboard_metrics(db, t_id)
+    comp_ref = ctx.company_ref_id if not ctx.is_super_admin else None
+    return await DashboardService.get_dashboard_metrics(db, t_id, company_ref_id=comp_ref)
 
 
 # ─── 2. DYNAMIC COMPREHENSIVE SUMMARY ───
 @router.get("/summary", summary="Get High-Velocity Dashboard Summary Across Views")
 async def get_dashboard_summary(
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -69,7 +66,12 @@ async def get_dashboard_summary(
     - view_all_pending_transactions
     - view_sales_hierarchy_scope
     - public.retailer_wallet & payout_transaction
+    Strictly filtered by authenticated Company Ref ID.
     """
+    comp_ref = ctx.company_ref_id if not ctx.is_super_admin else None
+    comp_where = "WHERE company_ref_id = :comp_ref" if comp_ref is not None else ""
+    params = {"comp_ref": comp_ref} if comp_ref is not None else {}
+
     # 1. POS Metrics from view_sales_pos_transactions
     pos_data = {
         "total_pos_txns": 0,
@@ -80,7 +82,7 @@ async def get_dashboard_summary(
         "todays_pos_volume": 0.0
     }
     try:
-        pos_res = await db.execute(text("""
+        pos_res = await db.execute(text(f"""
             SELECT 
                 COUNT(*) AS total_pos_txns,
                 COALESCE(SUM(transaction_amount), 0.0) AS total_pos_volume,
@@ -88,8 +90,9 @@ async def get_dashboard_summary(
                 COUNT(DISTINCT pos_terminal_id) AS active_terminals,
                 COUNT(*) FILTER (WHERE transaction_time >= CURRENT_DATE) AS todays_pos_txns,
                 COALESCE(SUM(transaction_amount) FILTER (WHERE transaction_time >= CURRENT_DATE), 0.0) AS todays_pos_volume
-            FROM public.view_sales_pos_transactions;
-        """))
+            FROM public.view_sales_pos_transactions
+            {comp_where};
+        """), params)
         p_row = pos_res.mappings().first()
         if p_row:
             pos_data = {
@@ -112,14 +115,15 @@ async def get_dashboard_summary(
         "services_breakdown": []
     }
     try:
-        pend_res = await db.execute(text("""
+        pend_res = await db.execute(text(f"""
             SELECT 
                 COUNT(*) AS pending_count,
                 COALESCE(SUM(transaction_amount), 0.0) AS total_pending_amount,
                 COUNT(DISTINCT vendor) AS pending_vendors_count,
                 COUNT(DISTINCT retailer_id) AS pending_retailers_count
-            FROM public.view_all_pending_transactions;
-        """))
+            FROM public.view_all_pending_transactions
+            {comp_where};
+        """), params)
         pend_row = pend_res.mappings().first()
         if pend_row:
             pending_data["pending_count"] = safe_int(pend_row["pending_count"])
@@ -128,14 +132,15 @@ async def get_dashboard_summary(
             pending_data["pending_retailers_count"] = safe_int(pend_row["pending_retailers_count"])
 
         # Service breakdown
-        srv_res = await db.execute(text("""
+        srv_res = await db.execute(text(f"""
             SELECT 
                 service, 
                 COUNT(*) as count, 
                 COALESCE(SUM(transaction_amount), 0.0) as amount
             FROM public.view_all_pending_transactions
+            {comp_where}
             GROUP BY service;
-        """))
+        """), params)
         pending_data["services_breakdown"] = [
             {
                 "service": r["service"],
@@ -155,14 +160,15 @@ async def get_dashboard_summary(
         "total_pos_machines": 0
     }
     try:
-        h_res = await db.execute(text("""
+        h_res = await db.execute(text(f"""
             SELECT 
                 COUNT(DISTINCT retailer_id) AS total_retailers,
                 COUNT(DISTINCT distributor_id) AS total_distributors,
                 COUNT(DISTINCT super_distributor_id) AS total_super_distributors,
                 COALESCE(SUM(pos_machine_count), 0) AS total_pos_machines
-            FROM public.view_sales_hierarchy_scope;
-        """))
+            FROM public.view_sales_hierarchy_scope
+            {comp_where};
+        """), params)
         h_row = h_res.mappings().first()
         if h_row:
             hierarchy_data = {
@@ -178,17 +184,32 @@ async def get_dashboard_summary(
     wallet_liability = 0.0
     todays_payout_volume = 0.0
     try:
-        w_res = await db.execute(text("SELECT COALESCE(SUM(wallet_balance), 0.0) FROM public.retailer_wallet WHERE is_active = true;"))
+        if comp_ref is not None:
+            w_res = await db.execute(text("""
+                SELECT COALESCE(SUM(rw.wallet_balance), 0.0) 
+                FROM public.retailer_wallet rw
+                JOIN public.retailer r ON rw.retailer_id = r.public_id
+                WHERE r.company_ref_id = :comp_ref AND rw.is_active = true;
+            """), params)
+        else:
+            w_res = await db.execute(text("SELECT COALESCE(SUM(wallet_balance), 0.0) FROM public.retailer_wallet WHERE is_active = true;"))
         wallet_liability = safe_float(w_res.scalar())
     except Exception:
         pass
 
     try:
-        p_res = await db.execute(text("""
-            SELECT COALESCE(SUM(amount), 0.0) 
-            FROM public.payout_transaction 
-            WHERE status = 'SUCCESS' AND created_date >= CURRENT_DATE;
-        """))
+        if comp_ref is not None:
+            p_res = await db.execute(text("""
+                SELECT COALESCE(SUM(amount), 0.0) 
+                FROM public.payout_transaction 
+                WHERE company_ref_id = :comp_ref AND status = 'SUCCESS' AND created_date >= CURRENT_DATE;
+            """), params)
+        else:
+            p_res = await db.execute(text("""
+                SELECT COALESCE(SUM(amount), 0.0) 
+                FROM public.payout_transaction 
+                WHERE status = 'SUCCESS' AND created_date >= CURRENT_DATE;
+            """))
         todays_payout_volume = safe_float(p_res.scalar())
     except Exception:
         pass
@@ -220,13 +241,19 @@ async def get_pos_transactions(
     search: Optional[str] = Query(None, description="Search by txn_id, terminal_id, or retailer_name"),
     limit: int = Query(25, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Directly streams and searches records from public.view_sales_pos_transactions.
+    Strictly restricted by authenticated Company Ref ID for Company Admins.
     """
     where_clauses = ["1=1"]
     params: Dict[str, Any] = {"limit": limit, "offset": offset}
+
+    if not ctx.is_super_admin:
+        where_clauses.append("company_ref_id = :comp_ref")
+        params["comp_ref"] = ctx.company_ref_id
 
     if status:
         where_clauses.append("UPPER(transaction_status) = :status")
@@ -295,7 +322,8 @@ async def get_pos_transactions(
             mdr_charge,
             gst_amount,
             commission_rate,
-            net_amount
+            net_amount,
+            company_ref_id
         FROM public.view_sales_pos_transactions
         WHERE {where_sql}
         ORDER BY transaction_time DESC NULLS LAST
@@ -309,6 +337,7 @@ async def get_pos_transactions(
     for r in rows:
         items.append({
             "transaction_id": str(r["transaction_id"]) if r["transaction_id"] else None,
+            "company_ref_id": r["company_ref_id"],
             "txn_id": r["txn_id"],
             "ref_id": r["ref_id"],
             "transaction_time": r["transaction_time"].isoformat() if r["transaction_time"] else None,
@@ -354,13 +383,19 @@ async def get_pending_transactions(
     search: Optional[str] = Query(None, description="Search by transaction_id, retailer_code, or utr"),
     limit: int = Query(25, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Directly streams and searches records from public.view_all_pending_transactions.
+    Strictly isolated by Company Ref ID for Company Admins.
     """
     where_clauses = ["1=1"]
     params: Dict[str, Any] = {"limit": limit, "offset": offset}
+
+    if not ctx.is_super_admin:
+        where_clauses.append("company_ref_id = :comp_ref")
+        params["comp_ref"] = ctx.company_ref_id
 
     if service:
         where_clauses.append("UPPER(service) = :service")
@@ -424,7 +459,8 @@ async def get_pending_transactions(
             provider_response,
             utr,
             rrn,
-            is_reversed
+            is_reversed,
+            company_ref_id
         FROM public.view_all_pending_transactions
         WHERE {where_sql}
         ORDER BY created_at DESC NULLS LAST
@@ -438,6 +474,7 @@ async def get_pending_transactions(
     for r in rows:
         items.append({
             "transaction_id": r["transaction_id"],
+            "company_ref_id": r["company_ref_id"],
             "external_txn_id": r["external_txn_id"],
             "service": r["service"],
             "vendor": r["vendor"],
@@ -482,13 +519,19 @@ async def get_hierarchy_scope(
     search: Optional[str] = Query(None, description="Search retailer name, distributor, or code"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Streams hierarchy distribution from public.view_sales_hierarchy_scope.
+    Strictly isolated by Company Ref ID for Company Admins.
     """
     where_clauses = ["1=1"]
     params: Dict[str, Any] = {"limit": limit, "offset": offset}
+
+    if not ctx.is_super_admin:
+        where_clauses.append("company_ref_id = :comp_ref")
+        params["comp_ref"] = ctx.company_ref_id
 
     if search:
         where_clauses.append("""
@@ -574,12 +617,19 @@ async def get_hierarchy_scope(
 @router.get("/analytics-charts", summary="Get Interactive Volume & Trend Analytics for Charts")
 async def get_analytics_charts(
     timeframe: str = Query("7D", description="1D | 7D | 30D"),
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Returns time-series daily aggregations from view_sales_pos_transactions and payout transactions.
+    Strictly isolated by Company Ref ID for Company Admins.
     """
     limit_days = 30 if timeframe == "30D" else (1 if timeframe == "1D" else 7)
+
+    comp_filter = "AND company_ref_id = :comp_ref" if not ctx.is_super_admin else ""
+    chart_params: Dict[str, Any] = {}
+    if not ctx.is_super_admin:
+        chart_params["comp_ref"] = ctx.company_ref_id
 
     daily_pos = []
     try:
@@ -591,12 +641,12 @@ async def get_analytics_charts(
                 COALESCE(SUM(mdr_charge), 0.0) AS mdr,
                 COALESCE(SUM(net_amount), 0.0) AS net_settlement
             FROM public.view_sales_pos_transactions
-            WHERE transaction_time IS NOT NULL
+            WHERE transaction_time IS NOT NULL {comp_filter}
             GROUP BY TO_CHAR(transaction_time, 'YYYY-MM-DD')
             ORDER BY day DESC
             LIMIT {limit_days};
         """)
-        chart_res = await db.execute(chart_q)
+        chart_res = await db.execute(chart_q, chart_params)
         raw_rows = chart_res.mappings().all()
 
         for r in reversed(raw_rows):

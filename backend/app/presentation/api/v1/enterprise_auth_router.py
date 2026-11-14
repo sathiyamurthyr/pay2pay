@@ -1208,15 +1208,36 @@ async def login_with_password(
             except Exception:
                 pass
 
-        # Generate signed enterprise JWT access token
+        # Multi-Tenant Authority: Resolve company_ref_id, roles and super_admin status
         tenant_str = str(admin_user.tenant_id if (is_admin and admin_user) else (existing_retailer.tenant_id if existing_retailer else (getattr(auth_user, "tenant_id", None) or DEFAULT_TENANT_ID)))
         company_str = str(admin_user.company_id if (is_admin and admin_user and admin_user.company_id) else (existing_retailer.company_id if existing_retailer and existing_retailer.company_id else (getattr(auth_user, "company_id", None) or DEFAULT_COMPANY_ID)))
-        user_roles = ["SUPER_ADMIN", "PLATFORM_ADMIN"] if is_admin else ([auth_user.role] if auth_user and auth_user.role else ["RETAILER"])
         subject_id = str(admin_user.public_id if (is_admin and admin_user) else ret_public_id)
 
         ret_ref_id = getattr(existing_retailer, "retailer_ref_id", None)
-        comp_ref_id = getattr(existing_retailer, "company_ref_id", None) or (getattr(admin_user, "company_ref_id", None) if admin_user else 1)
         ten_ref_id = getattr(existing_retailer, "tenant_ref_id", None) or (getattr(admin_user, "tenant_ref_id", None) if admin_user else 1)
+
+        is_super = False
+        if is_admin and admin_user:
+            admin_comp_ref = getattr(admin_user, "company_ref_id", None)
+            if admin_comp_ref is not None:
+                # User belongs to a specific company -> STRICT COMPANY ADMIN
+                comp_ref_id = int(admin_comp_ref)
+                is_super = False
+                user_roles = ["ADMIN"]
+                auth_role_name = "ADMIN"
+                dash_url = "/admin/dashboard"
+            else:
+                # No company bound: check if platform Super Admin
+                is_super = bool(admin_user.username == "admin" or getattr(admin_user, "user_type", "") == "PLATFORM_ADMIN" or getattr(admin_user, "role", "") == "SUPER_ADMIN")
+                comp_ref_id = None
+                user_roles = ["SUPER_ADMIN", "PLATFORM_ADMIN"] if is_super else ["ADMIN"]
+                auth_role_name = "SUPER_ADMIN" if is_super else "ADMIN"
+                dash_url = "/super-admin/dashboard" if is_super else "/admin/dashboard"
+        else:
+            comp_ref_id = getattr(existing_retailer, "company_ref_id", None) or (getattr(auth_user, "company_ref_id", None) if auth_user else 1)
+            user_roles = [auth_user.role] if auth_user and auth_user.role else ["RETAILER"]
+            auth_role_name = "RETAILER"
+            dash_url = "/retailer/dashboard"
 
         if not ret_ref_id and existing_retailer:
             try:
@@ -1243,18 +1264,16 @@ async def login_with_password(
                 user_type_ref_id=1 if is_admin else 2,
                 mobile=clean_mobile,
                 approve_status=approve_status,
-                active_status=active_status
+                active_status=active_status,
+                is_super_admin=is_super
             )
         except Exception as e:
             logger.error(f"Error creating access token: {e}", exc_info=True)
             access_token = f"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.{session_id}.auth_token"
 
         if is_admin:
-            admin_full_name = admin_user.full_name if admin_user and admin_user.full_name else "Platform Super Admin"
+            admin_full_name = admin_user.full_name if admin_user and admin_user.full_name else ("Platform Super Admin" if is_super else "Company Admin")
             email = admin_user.email if admin_user and admin_user.email else "admin@pay2pay.com"
-            is_super = bool(getattr(admin_user, "user_type", "") == "PLATFORM_ADMIN" or admin_user.username == "admin" or getattr(admin_user, "role", "") == "SUPER_ADMIN")
-            auth_role_name = "SUPER_ADMIN" if is_super else "ADMIN"
-            dash_url = "/super-admin/dashboard" if is_super else "/admin/dashboard"
 
             set_auth_session_cookies(
                 response=response,
@@ -1281,6 +1300,7 @@ async def login_with_password(
                     "approve_status": True,
                     "active_status": True,
                     "destination": "DASHBOARD",
+                    "is_super_admin": is_super,
                     "user": {
                         "id": subject_id,
                         "public_id": subject_id,
@@ -1293,11 +1313,12 @@ async def login_with_password(
                         "full_name": admin_full_name,
                         "role": auth_role_name,
                         "roles": [auth_role_name, "PLATFORM_ADMIN"] if is_super else ["ADMIN"],
-                        "user_type": getattr(admin_user, "user_type", "PLATFORM_ADMIN"),
+                        "user_type": "PLATFORM_ADMIN" if is_super else "COMPANY_ADMIN",
                         "tenant_id": tenant_str,
                         "company_id": company_str,
                         "approve_status": True,
-                        "active_status": True
+                        "active_status": True,
+                        "is_super_admin": is_super
                     },
                     "onboarding": {
                         "completed": True,

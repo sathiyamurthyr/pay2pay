@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 
 from app.core.database import get_db
-from app.application.dependencies import get_current_token_payload
+from app.application.dependencies import get_current_token_payload, CompanyContext, get_company_context
 from app.infrastructure.db.payin_models import (
     PayinCompanyCfgModel, PayinVendorModel, PayinCompanyVendorModel,
     PayinServiceTypeModel, PayinPaymentModeModel, PayinCardTypeModel,
@@ -59,14 +59,16 @@ class UpdateCompanyLimitsRequest(BaseModel):
 @router.get("/dashboard")
 async def get_payin_dashboard_metrics(
     company_ref_id: Optional[int] = None,
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
-    """Calculates high-level metrics for the Admin PayIn Dashboard."""
+    """Calculates high-level metrics for the Admin PayIn Dashboard strictly isolated by company."""
+    effective_comp = ctx.company_ref_id if not ctx.is_super_admin else company_ref_id
     filter_clause = "WHERE 1=1"
     params = {}
-    if company_ref_id:
+    if effective_comp:
         filter_clause += " AND company_ref_id = :comp_ref"
-        params["comp_ref"] = company_ref_id
+        params["comp_ref"] = effective_comp
 
     stmt = text(f"""
         SELECT 
@@ -98,9 +100,18 @@ async def get_payin_dashboard_metrics(
 
 
 @router.get("/companies")
-async def list_company_configurations(db: AsyncSession = Depends(get_db)):
-    """Lists company PayIn configurations joined with company details."""
-    stmt = text("""
+async def list_company_configurations(
+    ctx: CompanyContext = Depends(get_company_context),
+    db: AsyncSession = Depends(get_db)
+):
+    """Lists company PayIn configurations strictly filtered by company for Company Admins."""
+    where_clause = ""
+    params = {}
+    if not ctx.is_super_admin:
+        where_clause = "WHERE cfg.company_ref_id = :comp_ref"
+        params["comp_ref"] = ctx.company_ref_id
+
+    stmt = text(f"""
         SELECT 
             cfg.payin_company_cfg_ref_id,
             cfg.company_ref_id,
@@ -114,19 +125,23 @@ async def list_company_configurations(db: AsyncSession = Depends(get_db)):
             cfg.updated_at
         FROM public.payin_company_cfg cfg
         JOIN public.company c ON cfg.company_ref_id = c.company_ref_id
+        {where_clause}
         ORDER BY cfg.company_ref_id ASC;
     """)
-    res = await db.execute(stmt)
-    return {"success": True, "companies": [dict(r) for r in res.mappings().all()]}
+    res = await db.execute(stmt, params)
+    rows = [dict(r) for r in res.mappings().all()]
+    return {"success": True, "companies": rows, "data": rows}
 
 
 @router.post("/companies/{company_ref_id}/toggle")
 async def toggle_company_payin(
     company_ref_id: int,
     req: ToggleStatusRequest,
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
-    """Enables or disables PayIn for a company."""
+    """Enables or disables PayIn for a company. Validates cross-tenant boundaries."""
+    ctx.validate_access(company_ref_id)
     stmt = select(PayinCompanyCfgModel).where(PayinCompanyCfgModel.company_ref_id == company_ref_id)
     res = await db.execute(stmt)
     cfg = res.scalars().first()
@@ -162,9 +177,18 @@ async def list_vendors(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/company-vendors")
-async def list_company_vendors(db: AsyncSession = Depends(get_db)):
-    """Lists company to vendor mapping."""
-    stmt = text("""
+async def list_company_vendors(
+    ctx: CompanyContext = Depends(get_company_context),
+    db: AsyncSession = Depends(get_db)
+):
+    """Lists company to vendor mapping strictly filtered by company for Company Admins."""
+    where_clause = ""
+    params = {}
+    if not ctx.is_super_admin:
+        where_clause = "WHERE cv.company_ref_id = :comp_ref"
+        params["comp_ref"] = ctx.company_ref_id
+
+    stmt = text(f"""
         SELECT 
             cv.payin_company_vendor_ref_id,
             cv.company_ref_id,
@@ -178,10 +202,12 @@ async def list_company_vendors(db: AsyncSession = Depends(get_db)):
         FROM public.payin_company_vendors cv
         JOIN public.company c ON cv.company_ref_id = c.company_ref_id
         JOIN public.payin_vendors v ON cv.payin_vendor_ref_id = v.payin_vendor_ref_id
+        {where_clause}
         ORDER BY cv.company_ref_id ASC, cv.vendor_priority ASC;
     """)
-    res = await db.execute(stmt)
-    return {"success": True, "mappings": [dict(r) for r in res.mappings().all()]}
+    res = await db.execute(stmt, params)
+    rows = [dict(r) for r in res.mappings().all()]
+    return {"success": True, "mappings": rows, "data": rows}
 
 
 @router.get("/services")
@@ -285,10 +311,18 @@ async def toggle_card_type(card_ref_id: int, req: ToggleStatusRequest, db: Async
 @router.get("/mdr")
 async def list_mdr_rules(
     company_ref_id: Optional[int] = None,
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
-    """Lists dynamic MDR rules."""
-    stmt = text("""
+    """Lists dynamic MDR rules strictly isolated by company for Company Admins."""
+    effective_comp = ctx.company_ref_id if not ctx.is_super_admin else company_ref_id
+    where_clause = ""
+    params = {}
+    if effective_comp:
+        where_clause = "WHERE m.company_ref_id = :comp_ref"
+        params["comp_ref"] = effective_comp
+
+    stmt = text(f"""
         SELECT 
             m.payin_mdr_cfg_ref_id,
             m.company_ref_id,
@@ -312,15 +346,22 @@ async def list_mdr_rules(
         LEFT JOIN public.payin_service_types s ON m.payin_service_type_ref_id = s.payin_service_type_ref_id
         LEFT JOIN public.payin_payment_modes p ON m.payin_payment_mode_ref_id = p.payin_payment_mode_ref_id
         LEFT JOIN public.payin_card_types ct ON m.payin_card_type_ref_id = ct.payin_card_type_ref_id
+        {where_clause}
         ORDER BY m.company_ref_id ASC, m.priority DESC;
     """)
-    res = await db.execute(stmt)
-    return {"success": True, "rules": [dict(r) for r in res.mappings().all()]}
+    res = await db.execute(stmt, params)
+    rows = [dict(r) for r in res.mappings().all()]
+    return {"success": True, "rules": rows, "data": rows}
 
 
 @router.post("/mdr")
-async def create_mdr_rule(req: CreateMdrRuleRequest, db: AsyncSession = Depends(get_db)):
-    """Creates a new dynamic MDR rule."""
+async def create_mdr_rule(
+    req: CreateMdrRuleRequest,
+    ctx: CompanyContext = Depends(get_company_context),
+    db: AsyncSession = Depends(get_db)
+):
+    """Creates a new dynamic MDR rule. Validates company boundary."""
+    ctx.validate_access(req.company_ref_id)
     rule = PayinMdrCfgModel(
         company_ref_id=req.company_ref_id,
         payin_vendor_ref_id=req.payin_vendor_ref_id,
@@ -350,9 +391,11 @@ async def list_transactions(
     tid: Optional[str] = None,
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
-    """Lists PayIn transactions with filtering."""
+    """Lists PayIn transactions strictly isolated by company for Company Admins."""
+    effective_comp = ctx.company_ref_id if not ctx.is_super_admin else company_ref_id
     stmt = text("""
         SELECT 
             t.payin_transactions_ref_id,
@@ -388,7 +431,7 @@ async def list_transactions(
         LIMIT :limit OFFSET :offset;
     """)
     res = await db.execute(stmt, {
-        "comp_ref": company_ref_id,
+        "comp_ref": effective_comp,
         "status": txn_status.upper() if txn_status else None,
         "tid_query": f"%{tid}%" if tid else None,
         "limit": limit,
@@ -401,15 +444,34 @@ async def list_transactions(
 async def list_callback_logs(
     tid: Optional[str] = None,
     limit: int = Query(50, ge=1, le=200),
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
-    """Lists incoming webhook callback logs."""
+    """Lists incoming webhook callback logs strictly isolated by company."""
     stmt = select(PayinCallbackLogModel)
+    if not ctx.is_super_admin:
+        stmt = stmt.where(PayinCallbackLogModel.company_ref_id == ctx.company_ref_id)
     if tid:
         stmt = stmt.where(PayinCallbackLogModel.tid == tid)
     stmt = stmt.order_by(PayinCallbackLogModel.received_at.desc()).limit(limit)
     res = await db.execute(stmt)
     logs = res.scalars().all()
+    return {
+        "success": True,
+        "callback_logs": [
+            {
+                "payin_callback_log_ref_id": l.payin_callback_log_ref_id,
+                "tid": l.tid,
+                "company_ref_id": l.company_ref_id,
+                "provider_ref_id": l.provider_ref_id,
+                "callback_status": l.callback_status,
+                "signature_valid": l.signature_valid,
+                "process_status": l.process_status,
+                "error_msg": l.error_msg,
+                "received_at": l.received_at.isoformat() if l.received_at else None
+            } for l in logs
+        ]
+    }
     return {
         "success": True,
         "callback_logs": [

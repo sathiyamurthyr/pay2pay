@@ -15,6 +15,9 @@ class AuthUserModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "auth_users"
     __table_args__ = {"extend_existing": True}
 
+    auth_users_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    tenant_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    company_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, unique=True, index=True, default=uuid.uuid4)
     mobile_number: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     full_name: Mapped[str] = mapped_column(String(250), nullable=False)

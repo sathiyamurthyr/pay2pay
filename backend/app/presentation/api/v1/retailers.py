@@ -11,7 +11,7 @@ from app.application.dtos import (
     RetailerHierarchyMapRequest
 )
 from app.application.services import RetailerManagementService
-from app.application.dependencies import get_current_user, get_current_tenant_id, require_permission
+from app.application.dependencies import get_current_user, get_current_tenant_id, require_permission, CompanyContext, get_company_context
 from app.infrastructure.db.models import AdminUserModel
 
 from app.application.retailer_duplicate_validation_service import (
@@ -124,19 +124,19 @@ async def onboard_retailer(
 async def list_approved_retailers(
     search: Optional[str] = Query(None),
     company_id: Optional[str] = Query(None),
-    current_user: AdminUserModel = Depends(get_current_user),
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Returns only Approved and Active retailers loaded via SP / database.
     Requires authenticated user session and enforces multi-tenant boundary.
     """
-    user_type = (getattr(current_user, "user_type", "") or "").upper()
-    is_super = user_type in ("PLATFORM_ADMIN", "SUPER_ADMIN")
+    is_super = ctx.is_super_admin
+    comp_ref = ctx.company_ref_id if not is_super else None
 
     comp_uuid = None
-    if not is_super and getattr(current_user, "company_id", None):
-        comp_uuid = current_user.company_id
+    if not is_super and getattr(ctx.user, "company_id", None):
+        comp_uuid = ctx.user.company_id
     elif company_id:
         try:
             comp_uuid = uuid.UUID(str(company_id).strip())
@@ -148,10 +148,10 @@ async def list_approved_retailers(
         sp_query = text("""
             SELECT id, public_id, retailer_code, store_name, legal_name, owner_name,
                    business_category, registered_mobile, email, status, wallet_balance,
-                   company_id, tenant_id, created_date
-            FROM public.get_approved_retailers_list(:search, :comp_id)
+                   company_id, company_ref_id, tenant_id, created_date
+            FROM public.get_approved_retailers_list(p_search => CAST(:search AS varchar), p_company_ref_id => CAST(:comp_ref AS bigint))
         """)
-        res = await db.execute(sp_query, {"search": search or None, "comp_id": comp_uuid})
+        res = await db.execute(sp_query, {"search": search or None, "comp_ref": comp_ref})
         rows = res.fetchall()
         items = [
             {
@@ -167,6 +167,7 @@ async def list_approved_retailers(
                 "status": r.status,
                 "wallet_balance": float(r.wallet_balance) if r.wallet_balance is not None else 0.0,
                 "company_id": str(r.company_id) if r.company_id else None,
+                "company_ref_id": r.company_ref_id,
                 "tenant_id": str(r.tenant_id) if r.tenant_id else None,
                 "created_date": r.created_date.isoformat() if r.created_date else None
             }
@@ -174,12 +175,16 @@ async def list_approved_retailers(
         ]
         return {"items": items, "total": len(items)}
     except Exception:
+        await db.rollback()
         from app.infrastructure.db.models import RetailerModel
         from sqlalchemy import select
         stmt = select(RetailerModel).where(
             RetailerModel.is_deleted == False,
             RetailerModel.status.in_(["ACTIVE", "APPROVED"])
-        ).order_by(RetailerModel.store_name.asc())
+        )
+        if comp_ref is not None:
+            stmt = stmt.where(RetailerModel.company_ref_id == comp_ref)
+        stmt = stmt.order_by(RetailerModel.store_name.asc())
         res = await db.execute(stmt)
         items = [
             {
@@ -194,6 +199,7 @@ async def list_approved_retailers(
                 "status": r.status,
                 "wallet_balance": 0.0,
                 "company_id": str(r.company_id) if r.company_id else None,
+                "company_ref_id": r.company_ref_id,
                 "tenant_id": str(r.tenant_id) if r.tenant_id else None,
                 "created_date": r.created_date.isoformat() if r.created_date else None
             }
@@ -210,11 +216,12 @@ async def list_retailers(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     tenant_id: uuid.UUID = Depends(get_current_tenant_id),
-    current_user: AdminUserModel = Depends(get_current_user),
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
+    comp_ref = ctx.company_ref_id if not ctx.is_super_admin else None
     retailers, total = await RetailerManagementService.list_retailers(
-        db, tenant_id, search=search, status=status, distributor_id=distributor_id, page=page, page_size=page_size
+        db, tenant_id, search=search, status=status, distributor_id=distributor_id, page=page, page_size=page_size, company_ref_id=comp_ref
     )
     items = [
         {
@@ -254,10 +261,11 @@ async def get_retailer_dashboard_metrics(
 async def get_retailer_details(
     retailer_id: uuid.UUID,
     tenant_id: uuid.UUID = Depends(get_current_tenant_id),
-    current_user: AdminUserModel = Depends(get_current_user),
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
-    return await RetailerManagementService.get_retailer_details(db, tenant_id, retailer_id)
+    comp_ref = ctx.company_ref_id if not ctx.is_super_admin else None
+    return await RetailerManagementService.get_retailer_details(db, tenant_id, retailer_id, company_ref_id=comp_ref)
 
 
 @router.post("/{retailer_id}/approve", response_model=RetailerResponse)

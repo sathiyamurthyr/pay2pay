@@ -258,6 +258,9 @@ class UserTypeModel(Base):
 class AdminUserModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "admin_user"
 
+    admin_user_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    tenant_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    company_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     username: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
