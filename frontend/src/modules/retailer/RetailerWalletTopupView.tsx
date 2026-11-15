@@ -122,7 +122,7 @@ export default function RetailerWalletTopupView() {
           tid: tidToQuery,
           amount: res.data.amount || prev?.amount,
           retailer_credit: res.data.retailer_credit || prev?.retailer_credit || res.data.amount,
-          provider: res.data.provider || prev?.provider || "BANKME",
+          provider: res.data.provider || prev?.provider || "Gateway G-1",
         }));
         setStep(5);
         try {
@@ -645,7 +645,7 @@ export default function RetailerWalletTopupView() {
                       endIcon={<OpenInNewIcon />}
                       sx={{ px: 4, py: 1.3, fontWeight: 700, borderRadius: 2 }}
                     >
-                      Open BankMe Checkout Portal
+                      Open Secure Checkout Portal
                     </Button>
 
                     <Button

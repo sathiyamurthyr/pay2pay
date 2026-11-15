@@ -38,75 +38,74 @@ interface WalletSyncContextType {
 const WalletSyncContext = createContext<WalletSyncContextType | undefined>(undefined);
 
 export const triggerWalletSync = () => {
+  // Manual trigger only — invokes the central syncBalance without interval/polling loops
+  useRetailerStore.getState().syncBalance().catch(() => {});
+};
+
+const getInitialWalletData = (): WalletDataPayload | null => {
   if (typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent("p2p_wallet_update"));
+    try {
+      const cached = sessionStorage.getItem("p2p_header_wallet_cache");
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch {}
   }
+  return null;
 };
 
 export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [walletData, setWalletData] = useState<WalletDataPayload | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false); // No auto-loader on page load
+  const [walletData, setWalletData] = useState<WalletDataPayload | null>(getInitialWalletData);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchWalletData = useCallback(async () => {
+  // Client-side hydration from sessionStorage on mount (zero network calls)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = sessionStorage.getItem("p2p_header_wallet_cache");
+        if (cached) {
+          setWalletData(JSON.parse(cached));
+        }
+      } catch {}
+    }
+  }, []);
+
+  // Synchronize with the central useRetailerStore manual events
+  useEffect(() => {
+    const handleRefreshed = (e: any) => {
+      if (e.detail) {
+        setWalletData(e.detail);
+        setError(null);
+      }
+    };
+    const handleError = (e: any) => {
+      setError(e.detail?.message || "Failed to refresh wallet balance");
+    };
+
+    window.addEventListener("p2p_wallet_refreshed", handleRefreshed);
+    window.addEventListener("p2p_wallet_refresh_error", handleError);
+    return () => {
+      window.removeEventListener("p2p_wallet_refreshed", handleRefreshed);
+      window.removeEventListener("p2p_wallet_refresh_error", handleError);
+    };
+  }, []);
+
+  const refreshWallet = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
     try {
-      // Call /header-wallet with NO query params.
-      // The backend resolves the authenticated retailer from the JWT cookie (p2p_access_token).
-      // Zero localStorage reads — identity comes from the server session only.
-      const res = await apiClient.get<WalletDataPayload>("/api/v1/payout/dashboard/retailer/header-wallet");
-      const data = res.data;
-
-      // Sync balance into useRetailerStore (in-memory only — NO localStorage write)
-      const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : (data.wallet?.main_balance ?? 0.0);
-      const avail = typeof data.available_balance === "number" ? data.available_balance : bal;
-      const rInfo = (data as any).retailer_info || data;
-      const retCode = (data as any).retailer_code || (data as any).retailer_id || rInfo.retailer_code || rInfo.retailer_id || "";
-      const photoUrl = (data as any).photo_url || (data as any).avatar_url || rInfo.photo_url || rInfo.avatar_url || "";
-      const storeName = (data as any).company_name || (data as any).retailer_name || rInfo.company_name || rInfo.retailer_name || "";
-      const ownerName = (data as any).owner_name || rInfo.owner_name || "";
-
-      useRetailerStore.getState().updateWallet({
-        mainBalance: bal,
-        availableBalance: avail,
-        commissionBalance: data.todays_commission ?? 0.0,
-        todayMargin: data.todays_commission ?? 0.0,
-        todaySettlement: data.settlement_pending_amount ?? 0.0,
-      });
-
-      useRetailerStore.getState().updateOutlet({
-        code: retCode || useRetailerStore.getState().outlet.code,
-        name: storeName || useRetailerStore.getState().outlet.name,
-        ownerName: ownerName || useRetailerStore.getState().outlet.ownerName,
-        avatar: photoUrl || useRetailerStore.getState().outlet.avatar,
-        photo_url: photoUrl || useRetailerStore.getState().outlet.photo_url,
-      });
-
-      setWalletData(data);
-      setError(null);
+      await useRetailerStore.getState().syncBalance();
     } catch (err: any) {
-      console.warn("Wallet sync fetch error:", err);
       setError("Failed to synchronize wallet balance");
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-
-  // Initial fetch on component mount
-  useEffect(() => {
-    fetchWalletData();
-  }, [fetchWalletData]);
-
-  // Event listener for explicit transaction action refreshes
-  useEffect(() => {
-    const handleCustomUpdate = () => {
-      fetchWalletData();
-    };
-
-    window.addEventListener("p2p_wallet_update", handleCustomUpdate);
-    return () => window.removeEventListener("p2p_wallet_update", handleCustomUpdate);
-  }, [fetchWalletData]);
+  // Intentionally NO useEffect on mount — balance refresh is strictly manual only
+  // Intentionally NO automatic polling or setInterval loops
+  // Intentionally NO window focus or visibility listeners
 
   return (
     <WalletSyncContext.Provider
@@ -114,7 +113,7 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
         walletData,
         isLoading,
         error,
-        refreshWallet: fetchWalletData,
+        refreshWallet,
       }}
     >
       {children}

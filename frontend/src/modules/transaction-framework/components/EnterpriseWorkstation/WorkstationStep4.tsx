@@ -128,11 +128,6 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
-  // Fetch fresh authoritative wallet balance on mount
-  useEffect(() => {
-    useRetailerStore.getState().syncBalance?.();
-  }, []);
-
   // Keep animatedWallet updated when balance changes during PIN entry
   useEffect(() => {
     if (viewState === "PIN_ENTRY") {

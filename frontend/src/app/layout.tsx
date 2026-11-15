@@ -6,29 +6,12 @@ import Providers from "./providers";
 export async function generateMetadata(): Promise<Metadata> {
   try {
     const headersList = await headers();
-    const host = (headersList.get("host") || "").toLowerCase();
+    const forwardedHost = headersList.get("x-forwarded-host") || "";
+    const rawHost = headersList.get("host") || "";
+    const host = (forwardedHost || rawHost).toLowerCase();
+    const port = host.includes(":") ? host.split(":")[1] : "";
 
-    if (host.includes("pay2pay")) {
-      return {
-        title: {
-          default: "Pay2Pay FinTech Retailer Platform",
-          template: "%s | Pay2Pay",
-        },
-        description: "Enterprise Merchant Banking & Settlement Terminal - Pay2Pay",
-        icons: {
-          icon: [
-            { url: "/branding/pay2pay-logo.png", type: "image/png" },
-            { url: "/branding/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-            { url: "/branding/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-          ],
-          shortcut: "/branding/pay2pay-logo.png",
-          apple: "/branding/pay2pay-logo.png",
-        },
-        manifest: "/site.webmanifest",
-      };
-    }
-
-    if (host.includes("smspay")) {
+    if (host.includes("smspay") || port === "4002") {
       return {
         title: {
           default: "SMSPAY FinTech Retailer Platform",
@@ -47,23 +30,62 @@ export async function generateMetadata(): Promise<Metadata> {
         manifest: "/site.webmanifest",
       };
     }
+
+    if (host.includes("near4you") || port === "4001") {
+      return {
+        title: {
+          default: "Near4You FinTech Retailer Platform",
+          template: "%s | Near4You",
+        },
+        description: "Enterprise Merchant Banking & Settlement Terminal - Near4You",
+        icons: {
+          icon: [
+            { url: "/branding/logo.svg", type: "image/svg+xml" },
+            { url: "/branding/favicon.png", type: "image/png" },
+            { url: "/favicon.ico" },
+          ],
+          shortcut: "/favicon.ico",
+          apple: "/branding/logo.svg",
+        },
+        manifest: "/site.webmanifest",
+      };
+    }
+
+    // Default / Pay2Pay (pay2pay.in, port 3000, port 4003, or default)
+    return {
+      title: {
+        default: "Pay2Pay FinTech Retailer Platform",
+        template: "%s | Pay2Pay",
+      },
+      description: "Enterprise Merchant Banking & Settlement Terminal - Pay2Pay",
+      icons: {
+        icon: [
+          { url: "/branding/pay2pay-logo.png", type: "image/png" },
+          { url: "/branding/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+          { url: "/branding/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+        ],
+        shortcut: "/branding/pay2pay-logo.png",
+        apple: "/branding/pay2pay-logo.png",
+      },
+      manifest: "/site.webmanifest",
+    };
   } catch {}
 
-  // Default: Near 4 You
+  // Fallback default: Pay2Pay
   return {
     title: {
-      default: "Near4You FinTech Retailer Platform",
-      template: "%s | Near4You",
+      default: "Pay2Pay FinTech Retailer Platform",
+      template: "%s | Pay2Pay",
     },
-    description: "Enterprise Merchant Banking & Settlement Terminal - Near 4 You",
+    description: "Enterprise Merchant Banking & Settlement Terminal - Pay2Pay",
     icons: {
       icon: [
-        { url: "/branding/logo.svg", type: "image/svg+xml" },
-        { url: "/branding/favicon.png", type: "image/png" },
-        { url: "/favicon.ico" },
+        { url: "/branding/pay2pay-logo.png", type: "image/png" },
+        { url: "/branding/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+        { url: "/branding/favicon-16x16.png", sizes: "16x16", type: "image/png" },
       ],
-      shortcut: "/favicon.ico",
-      apple: "/branding/logo.svg",
+      shortcut: "/branding/pay2pay-logo.png",
+      apple: "/branding/pay2pay-logo.png",
     },
     manifest: "/site.webmanifest",
   };
@@ -83,7 +105,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="light" suppressHydrationWarning style={{ overflowX: "hidden", maxWidth: "100vw" }}>
-      <body className="antialiased min-h-screen bg-[#FFFFFF] text-[#292329]" suppressHydrationWarning style={{ overflowX: "hidden", maxWidth: "100vw" }}>
+      <body className="antialiased min-h-screen bg-[#FFFFFF] text-[var(--text-primary,#0F172A)]" suppressHydrationWarning style={{ overflowX: "hidden", maxWidth: "100vw" }}>
         <Providers>{children}</Providers>
       </body>
     </html>

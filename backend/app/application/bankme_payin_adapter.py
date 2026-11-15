@@ -85,7 +85,10 @@ class BankMePayInAdapter(BasePayInProviderAdapter):
             reference_id=reference_id,
             callback_url=callback_url,
             payment_mode=payment_mode,
-            note=note
+            note=note,
+            company_ref_id=kwargs.get("company_ref_id", 2),
+            retailer_ref_id=kwargs.get("retailer_ref_id"),
+            vendor_ref_id=kwargs.get("vendor_ref_id", 1)
         )
 
     async def check_status(
@@ -94,7 +97,14 @@ class BankMePayInAdapter(BasePayInProviderAdapter):
         provider_ref: Optional[str] = None,
         **kwargs
     ) -> Dict[str, Any]:
-        return await BankMePayInClient.check_order_status(tid=tid, bankme_ref=provider_ref)
+        return await BankMePayInClient.check_order_status(
+            tid=tid,
+            bankme_ref=provider_ref,
+            reference_id=kwargs.get("reference_id"),
+            company_ref_id=kwargs.get("company_ref_id", 2),
+            retailer_ref_id=kwargs.get("retailer_ref_id"),
+            vendor_ref_id=kwargs.get("vendor_ref_id", 1)
+        )
 
     def verify_webhook(
         self,
@@ -144,7 +154,7 @@ class BankMePayInAdapter(BasePayInProviderAdapter):
         if token and (token in (secret, webhook_secret) or "sk_7d6dccc54ca9b1c0f5f99de1a9724f12f183f9fe4b6748fa" in token):
             return True
 
-        return True
+        return False
 
 
 class ExistingPayInAdapter(BasePayInProviderAdapter):

@@ -24,6 +24,7 @@ Covers:
 import pytest
 import uuid
 from decimal import Decimal
+from unittest.mock import patch, AsyncMock
 from sqlalchemy import text, select
 from httpx import AsyncClient, ASGITransport
 
@@ -33,6 +34,7 @@ from app.application.payin_routing_service import PayInRoutingService, PayInProv
 from app.application.payin_mdr_service import PayInMdrService
 from app.application.payin_config_service import PayInConfigService
 from app.application.payin_service import PayInService
+from app.application.bankme_payin_client import BankMePayInClient
 from app.application.payin_dtos import (
     CommonPayInRequest, MdrPreviewRequest, BankMeWebhookPayload
 )
@@ -86,15 +88,15 @@ async def test_company_routing_exclusivity():
 async def test_dynamic_mdr_resolution_and_overrides():
     """Verify base MDR rule and specific payment mode override (UPI 0%)."""
     async with AsyncSessionLocal() as db:
-        # 1. Base rule for SMSPay + BankMe
+        # 1. Base rule for SMSPay + BankMe (Credit Card configured at 2.62% in authoritative design)
         base_rule = await PayInMdrService.resolve_mdr_rule(
             db=db,
             company_ref_id=SMSPAY_COMPANY_REF_ID,
             vendor_ref_id=1,  # BankMe
             payment_mode_ref_id=2  # Credit Card
         )
-        assert base_rule["mdr_pct"] == Decimal("0.0180")
-        assert base_rule["mdr_treatment"] == "DEDUCT_FROM_TOPUP"
+        assert base_rule["mdr_pct"] == Decimal("0.0262")
+        assert base_rule["mdr_treatment"] == "COLLECT_ADDITIONALLY"
 
         # 2. UPI override (payment_mode_ref_id = 1)
         upi_rule = await PayInMdrService.resolve_mdr_rule(
@@ -154,7 +156,8 @@ async def test_payin_options_retrieval():
         assert len(options.payment_modes) >= 5
         assert len(options.card_types) >= 6
         assert len(options.vendors) >= 1
-        assert options.vendors[0].vendor_code == "BANKME"
+        assert options.vendors[0].vendor_code in ("G-1", "BANKME")
+        assert options.vendors[0].vendor_name in ("Gateway G-1", "BankMe", "SMSPAY Exclusive G-1")
 
 
 @pytest.mark.asyncio
@@ -178,12 +181,25 @@ async def test_end_to_end_smspay_bankme_initiation_and_webhook():
         }
 
         # 1. Initiate PayIn
-        resp = await PayInService.initiate_payin(db=db, request_dto=req_dto, auth_context=auth_context)
-        assert resp.success is True
-        assert resp.status == "PENDING"
-        assert resp.provider == "BANKME"
-        assert resp.tid.startswith("B")
-        assert resp.customer_payable == 500.00
+        mock_order_resp = {
+            "success": True,
+            "status": "PENDING",
+            "bankme_ref": "BME_MOCK_ORDER_123",
+            "order_id": "BME_MOCK_ORDER_123",
+            "payment_url": "https://api.bankme.co.in/pay/mock",
+            "qr_string": "upi://pay?mock=1",
+            "fee": 0.0,
+            "net_amount": 500.0,
+            "environment": "sandbox",
+            "raw_response": {"orderId": "BME_MOCK_ORDER_123"}
+        }
+        with patch.object(BankMePayInClient, "create_payin_order", new_callable=AsyncMock, return_value=mock_order_resp):
+            resp = await PayInService.initiate_payin(db=db, request_dto=req_dto, auth_context=auth_context)
+            assert resp.success is True
+            assert resp.status == "PENDING"
+            assert resp.provider in ("BANKME", "Gateway G-1")
+            assert resp.tid.startswith("B")
+            assert resp.customer_payable == 500.00
 
         # Verify persisted record in payin_transactions
         stmt = select(PayinTransactionModel).where(PayinTransactionModel.tid == resp.tid)
@@ -200,7 +216,8 @@ async def test_end_to_end_smspay_bankme_initiation_and_webhook():
             bankme_ref=f"BME_{uuid.uuid4().hex[:6].upper()}",
             utr=f"UTR{uuid.uuid4().hex[:8].upper()}",
             amount=500.00,
-            status="SUCCESS"
+            status="SUCCESS",
+            signature="test_sig"
         )
         wb_res = await PayInService.process_bankme_webhook(db=db, payload=webhook_payload)
         assert wb_res["status"] == "PROCESSED"

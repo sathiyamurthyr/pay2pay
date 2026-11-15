@@ -30,6 +30,7 @@ import {
 import RefreshIcon from "@mui/icons-material/Refresh";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import WarningIcon from "@mui/icons-material/Warning";
+import CloseIcon from "@mui/icons-material/Close";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import HistoryIcon from "@mui/icons-material/History";
 import LockIcon from "@mui/icons-material/Lock";
@@ -279,6 +280,29 @@ export const RetailerDashboardView: React.FC = () => {
   const [dashboardLockedModal, setDashboardLockedModal] = useState<{ label: string } | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [hasLoaded, setHasLoaded] = useState<boolean>(false);
+  const [payinTimeoutTid, setPayinTimeoutTid] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tidFromUrl = urlParams.get("payin_timeout");
+      const tidFromStorage = sessionStorage.getItem("p2p_payin_timeout_tid");
+      const resolvedTid = tidFromUrl || tidFromStorage;
+      if (resolvedTid) {
+        setPayinTimeoutTid(resolvedTid);
+      }
+    }
+  }, []);
+
+  const handleDismissTimeoutAlert = () => {
+    setPayinTimeoutTid(null);
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("p2p_payin_timeout_tid");
+      const url = new URL(window.location.href);
+      url.searchParams.delete("payin_timeout");
+      window.history.replaceState({}, "", url.toString());
+    }
+  };
 
   // API State Data
   const [finKpis, setFinKpis] = useState<FinancialKPIData | null>(null);
@@ -628,6 +652,83 @@ export const RetailerDashboardView: React.FC = () => {
           <NotificationCenter />
         </Box>
       </Paper>
+
+      {/* PAYIN TIMEOUT NOTIFICATION BANNER */}
+      {payinTimeoutTid && (
+        <Paper
+          elevation={0}
+          sx={{
+            p: 2,
+            mb: 2.5,
+            borderRadius: "14px",
+            bgcolor: "#FFFBEB",
+            border: "1px solid #FCD34D",
+            display: "flex",
+            alignItems: { xs: "flex-start", sm: "center" },
+            justifyContent: "space-between",
+            flexDirection: { xs: "column", sm: "row" },
+            gap: 1.5,
+            boxShadow: "0 2px 8px rgba(245, 158, 11, 0.08)"
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Box
+              sx={{
+                width: 36,
+                height: 36,
+                minWidth: 36,
+                minHeight: 36,
+                borderRadius: "10px",
+                bgcolor: "#FEF3C7",
+                color: "#D97706",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+            >
+              <WarningIcon sx={{ fontSize: 20 }} />
+            </Box>
+            <Box>
+              <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#92400E" }}>
+                Payment verification timed out. Transaction ID:{" "}
+                <Box component="span" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#78350F" }}>
+                  {payinTimeoutTid}
+                </Box>
+                . Please check Transaction History for the latest status.
+              </Typography>
+              <Typography sx={{ fontSize: "11.5px", color: "#B45309", mt: 0.3 }}>
+                Your transaction remains pending in backend. If funds were debited, your wallet will be credited automatically once confirmed by the bank.
+              </Typography>
+            </Box>
+          </Box>
+
+          <Stack direction="row" spacing={1} sx={{ alignSelf: { xs: "flex-end", sm: "center" }, flexShrink: 0 }}>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => router.push("/retailer/transactions")}
+              sx={{
+                borderColor: "#D97706",
+                color: "#92400E",
+                fontSize: "12px",
+                fontWeight: 700,
+                textTransform: "none",
+                "&:hover": { borderColor: "#B45309", bgcolor: "#FEF3C7" }
+              }}
+            >
+              View Transactions
+            </Button>
+            <IconButton
+              size="small"
+              onClick={handleDismissTimeoutAlert}
+              sx={{ color: "#92400E", "&:hover": { bgcolor: "#FEF3C7" } }}
+              aria-label="Dismiss notification"
+            >
+              <CloseIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Stack>
+        </Paper>
+      )}
 
       {/* SECTION B & C: PROMINENT WALLET SUMMARY & QUICK ACTIONS */}
       <Grid container spacing={2.5} sx={{ mb: 3, alignItems: "stretch" }}>

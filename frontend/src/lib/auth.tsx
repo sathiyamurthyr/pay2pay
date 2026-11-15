@@ -202,9 +202,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setActiveRole(isRet ? "RETAILER" : "PLATFORM_ADMIN");
         } else {
           // Construct minimal profile from active session
+          const host = typeof window !== "undefined" ? window.location.hostname.toLowerCase() : "";
+          const port = typeof window !== "undefined" ? window.location.port : "";
+          const fallbackDomain = (host.includes("smspay") || port === "4002")
+            ? "smspay.store"
+            : (host.includes("near4you") || port === "4001")
+            ? "near4you.store"
+            : "pay2pay.in";
+
           const minimalProfile: User = {
             public_id: "authenticated_session",
-            email: "merchant@near4you.store",
+            email: `merchant@${fallbackDomain}`,
             full_name: storedRole === "SD" ? "Super Distributor" : storedRole === "DIST" ? "Distributor Partner" : "Retailer Partner",
             tenant_id: "547aa7bb-a790-4fe2-bd5b-27214ed176c8",
             roles: [storedRole],
@@ -273,9 +281,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const data = res.data?.data || res.data;
       if (data?.access_token) {
         const token = data.access_token;
+        const host = typeof window !== "undefined" ? window.location.hostname.toLowerCase() : "";
+        const port = typeof window !== "undefined" ? window.location.port : "";
+        const fallbackDomain = (host.includes("smspay") || port === "4002")
+          ? "smspay.store"
+          : (host.includes("near4you") || port === "4001")
+          ? "near4you.store"
+          : "pay2pay.in";
+
         const userData = data.user || {
           public_id: data.retailer_id || "ret_user",
-          email: `${emailOrUsername}@near4you.store`,
+          email: `${emailOrUsername}@${fallbackDomain}`,
           full_name: data.owner_name || "Retailer Partner",
           tenant_id: "547aa7bb-a790-4fe2-bd5b-27214ed176c8",
           roles: ["RETAILER"],

@@ -149,6 +149,7 @@ const ADMIN_NAV: NavCategory[] = [
     category: "PayIn Management",
     items: [
       { label: "PayIn Dashboard", href: "/admin/payin/dashboard", icon: LayoutDashboard, badge: "Live" },
+      { label: "Payment Gateways", href: "/admin/payin/gateways", icon: ArrowLeftRight, badge: "Dynamic" },
       { label: "Pricing Policy", href: "/admin/payin/policy", icon: ShieldCheck, badge: "Policy" },
       { label: "Company Config", href: "/admin/payin/companies", icon: Building2 },
       { label: "Vendor Management", href: "/admin/payin/vendors", icon: Layers },
@@ -440,15 +441,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
         ${isCollapsed ? "w-[64px]" : "w-[275px]"}
       `}
       style={{
-        background: "#FFFFFF",
-        borderRight: "1px solid #E2E8F0",
-        boxShadow: "1px 0 4px rgba(0, 0, 0, 0.03)",
+        background: "rgba(15, 23, 42, 0.94)",
+        backdropFilter: "blur(20px) saturate(180%)",
+        WebkitBackdropFilter: "blur(20px) saturate(180%)",
+        borderRight: "1px solid rgba(255, 255, 255, 0.10)",
+        boxShadow: "inset -1px 0 0 0 rgba(255, 255, 255, 0.06), 0 20px 40px rgba(0, 0, 0, 0.4)",
       }}
     >
       {/* ── Brand Header ── */}
       <div
         className="h-14 px-3 flex items-center justify-between shrink-0"
-        style={{ borderBottom: "1px solid #E2E8F0" }}
+        style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.08)" }}
       >
         {!isCollapsed && (
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -471,13 +474,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
             <div className="min-w-0">
               <h1
                 className="text-[14px] font-extrabold tracking-tight truncate leading-tight flex items-center gap-1"
-                style={{ color: "#0F172A" }}
+                style={{ color: "#F8FAFC" }}
               >
                 {brandInfo.name}
                 <Sparkles className="w-3.5 h-3.5" style={{ color: brandInfo.secondary }} />
               </h1>
               <span
-                className="text-[10px] font-mono font-bold tracking-wider block text-[#64748B]"
+                className="text-[10px] font-mono font-bold tracking-wider block text-[#94A3B8]"
               >
                 {brandInfo.portal}
               </span>
@@ -507,12 +510,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
         {!alwaysExpanded && (
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className={`p-1.5 rounded-lg transition-all duration-200 focus:outline-none cursor-pointer hover:bg-slate-100 ${
+            className={`p-1.5 rounded-lg transition-all duration-200 focus:outline-none cursor-pointer hover:bg-white/10 ${
               isCollapsed ? "mx-auto" : "ml-1.5 shrink-0"
             }`}
             style={{
-              border: "1px solid #E2E8F0",
-              color: "#64748B",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              color: "#93C5FD",
             }}
             title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
@@ -525,11 +528,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
       {!isCollapsed && (
         <div
           className="px-2.5 py-2 shrink-0"
-          style={{ borderBottom: "1px solid #E2E8F0" }}
+          style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}
         >
           <div className="relative">
             <Search
-              className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#64748B]"
+              className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#94A3B8]"
             />
             <input
               id="sidebar-search"
@@ -539,25 +542,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-8.5 pr-7 py-1.5 text-[13px] rounded-lg focus:outline-none transition-all duration-200 font-semibold"
               style={{
-                background: "#F8FAFC",
-                border: "1px solid #E2E8F0",
-                color: "#0F172A",
+                background: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.10)",
+                color: "#F8FAFC",
               }}
               onFocus={(e) => {
-                e.target.style.borderColor = "#2563EB";
-                e.target.style.background = "#FFFFFF";
-                e.target.style.boxShadow = "0 0 0 3px rgba(37, 99, 235, 0.12)";
+                e.target.style.borderColor = "rgba(96, 165, 250, 0.6)";
+                e.target.style.boxShadow = "0 0 10px rgba(37, 99, 235, 0.25)";
               }}
               onBlur={(e) => {
-                e.target.style.borderColor = "#E2E8F0";
-                e.target.style.background = "#F8FAFC";
+                e.target.style.borderColor = "rgba(255, 255, 255, 0.10)";
                 e.target.style.boxShadow = "none";
               }}
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#64748B] hover:text-[#0F172A]"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-white"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -571,12 +572,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
         className="flex-1 overflow-y-auto py-1.5 px-2 custom-scrollbar space-y-1.5"
         style={{
           scrollbarWidth: "thin",
-          scrollbarColor: "#CBD5E1 transparent",
+          scrollbarColor: "rgba(255, 255, 255, 0.18) transparent",
         }}
       >
         {filteredCategories.length === 0 ? (
           <div className="px-3 py-6 text-center">
-            <p className="text-[12px] font-bold text-[#64748B]">No results for &quot;{searchQuery}&quot;</p>
+            <p className="text-[12px] font-bold text-[#94A3B8]">No results for &quot;{searchQuery}&quot;</p>
           </div>
         ) : (
           filteredCategories.map((cat) => {
@@ -590,7 +591,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
                   <button
                     onClick={() => toggleCategory(cat.category)}
                     className={`w-full flex items-center justify-between px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-[0.1em] transition-colors duration-150 focus:outline-none ${
-                      isFavCat ? "text-[#D97706] hover:text-[#B45309]" : "text-[#64748B] hover:text-[#0F172A]"
+                      isFavCat ? "text-[#FBBF24] hover:text-[#FCD34D]" : "text-[#94A3B8] hover:text-[#F8FAFC]"
                     }`}
                   >
                     <span className="truncate flex items-center gap-1.5">
@@ -601,16 +602,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
                       <span
                         className={`px-1.5 py-0.2 rounded text-[9.5px] font-mono font-bold ${
                           isFavCat
-                            ? "bg-[#FEF3C7] border border-[#FDE68A] text-[#B45309]"
-                            : "bg-slate-100 border border-slate-200 text-slate-700"
+                            ? "bg-[#FEF3C7]/20 border border-[#FDE68A]/30 text-[#FDE68A]"
+                            : "bg-white/10 border border-white/12 text-[#93C5FD]"
                         }`}
                       >
                         {itemCount}
                       </span>
                       {isCategoryCollapsed ? (
-                        <ChevronRight className="w-3 h-3 text-[#64748B]" />
+                        <ChevronRight className="w-3 h-3 text-[#94A3B8]" />
                       ) : (
-                        <ChevronDown className="w-3 h-3 text-[#64748B]" />
+                        <ChevronDown className="w-3 h-3 text-[#94A3B8]" />
                       )}
                     </div>
                   </button>
@@ -641,38 +642,40 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
                           style={
                             isActive
                               ? {
-                                  background: "linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, rgba(30, 64, 175, 0.08) 100%)",
-                                  color: "#1D4ED8",
-                                  border: "1px solid rgba(37, 99, 235, 0.3)",
-                                  boxShadow: "0 1px 3px rgba(37, 99, 235, 0.08)",
+                                  background: `linear-gradient(135deg, ${brandInfo.primary}66 0%, ${brandInfo.secondary}4D 100%)`,
+                                  backdropFilter: "blur(12px)",
+                                  WebkitBackdropFilter: "blur(12px)",
+                                  color: "#FFFFFF",
+                                  border: "1px solid rgba(147, 197, 253, 0.35)",
+                                  boxShadow: `0 2px 10px ${brandInfo.primary}33, inset 0 1px 0 rgba(255, 255, 255, 0.2)`,
                                 }
                               : {
-                                  color: "#334155",
+                                  color: "#CBD5E1",
                                   border: "1px solid transparent",
                                 }
                           }
                           onMouseEnter={(e) => {
                             if (!isActive) {
-                              (e.currentTarget as HTMLElement).style.background = "#F1F5F9";
-                              (e.currentTarget as HTMLElement).style.borderColor = "#E2E8F0";
-                              (e.currentTarget as HTMLElement).style.color = "#0F172A";
+                              (e.currentTarget as HTMLElement).style.background = "rgba(255, 255, 255, 0.08)";
+                              (e.currentTarget as HTMLElement).style.borderColor = "rgba(255, 255, 255, 0.12)";
+                              (e.currentTarget as HTMLElement).style.color = "#F8FAFC";
                             }
                           }}
                           onMouseLeave={(e) => {
                             if (!isActive) {
                               (e.currentTarget as HTMLElement).style.background = "transparent";
                               (e.currentTarget as HTMLElement).style.borderColor = "transparent";
-                              (e.currentTarget as HTMLElement).style.color = "#334155";
+                              (e.currentTarget as HTMLElement).style.color = "#CBD5E1";
                             }
                           }}
                         >
-                          {/* Active Left Indicator Pill */}
+                          {/* Active Glowing Left Pill */}
                           {isActive && (
                             <span
                               className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full"
                               style={{
-                                background: "#2563EB",
-                                boxShadow: "0 0 6px rgba(37, 99, 235, 0.4)",
+                                background: brandInfo.secondary || "#60A5FA",
+                                boxShadow: `0 0 6px ${brandInfo.secondary || "#60A5FA"}`,
                               }}
                             />
                           )}
@@ -682,7 +685,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
                               isFavCat ? "text-[#F59E0B]" : ""
                             }`}
                             style={{
-                              color: isActive ? "#2563EB" : isFavCat ? "#D97706" : "#64748B",
+                              color: isActive ? "#60A5FA" : isFavCat ? "#F59E0B" : "#94A3B8",
                             }}
                           />
 
@@ -694,7 +697,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
                             <span
                               className="ml-auto px-1.5 py-0.2 rounded text-[9.5px] font-bold shadow-2xs shrink-0"
                               style={{
-                                background: "linear-gradient(135deg, #2563EB 0%, #4F46E5 100%)",
+                                background: `linear-gradient(135deg, ${brandInfo.primary} 0%, ${brandInfo.secondary} 100%)`,
                                 color: "#FFFFFF",
                                 border: "1px solid rgba(255,255,255,0.2)",
                               }}
@@ -736,23 +739,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
       {/* ── Ultra-Compact Minimal Footer ── */}
       <div
         className="shrink-0 px-3 py-2 flex items-center justify-between"
-        style={{ borderTop: "1px solid #E2E8F0", background: "#F8FAFC" }}
+        style={{ borderTop: "1px solid rgba(255, 255, 255, 0.08)", background: "rgba(15, 23, 42, 0.6)" }}
       >
         {!isCollapsed ? (
           <>
             <div className="flex items-center gap-1.5 min-w-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse shrink-0" />
-              <span className="text-[10px] font-mono font-bold text-[#64748B] truncate">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#34D399] animate-pulse shrink-0" />
+              <span className="text-[10px] font-mono font-bold text-[#94A3B8] truncate">
                 asia-south1
               </span>
             </div>
-            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#10B981]/15 text-[#34D399] border border-[#10B981]/20">
               Live
             </span>
           </>
         ) : (
           <div className="flex justify-center w-full">
-            <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-[#34D399] animate-pulse" />
           </div>
         )}
       </div>

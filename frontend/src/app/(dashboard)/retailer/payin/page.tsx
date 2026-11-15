@@ -257,10 +257,11 @@ export default function RetailerPayinPage() {
   const [activeTxn, setActiveTxn] = useState<ActiveTransaction | null>(null);
 
   // Form State
+  const [gateways, setGateways] = useState<GatewayOption[]>(CONFIGURED_GATEWAYS);
   const [selectedGatewayId, setSelectedGatewayId] = useState<string>("gateway-g1");
   const selectedGateway = useMemo(() => {
-    return GATEWAYS.find((g) => g.id === selectedGatewayId) || GATEWAYS[0];
-  }, [selectedGatewayId]);
+    return gateways.find((g) => g.id === selectedGatewayId) || gateways[0] || CONFIGURED_GATEWAYS[0];
+  }, [gateways, selectedGatewayId]);
 
   // Supported Card Schemes with Admin-Configured MDR (Display Only)
   const [cardSchemes, setCardSchemes] = useState<CardSchemeItem[]>(DEFAULT_CARD_SCHEMES);
@@ -326,6 +327,33 @@ export default function RetailerPayinPage() {
     async function fetchCompanyPayinConfig() {
       setIsLoadingSchemes(true);
       try {
+        // 0. Fetch Dynamic Gateways configured by Admin
+        try {
+          const gwRes = await apiClient.get("/api/v1/payin/gateways");
+          if (!isCancelled && gwRes.data && gwRes.data.success && Array.isArray(gwRes.data.gateways) && gwRes.data.gateways.length > 0) {
+            const dynamicList: GatewayOption[] = gwRes.data.gateways.map((g: any, index: number) => ({
+              id: g.id || `gateway-${(g.code || 'g1').toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+              code: g.code || `G-${index + 1}`,
+              name: g.name || `Gateway G-${index + 1}`,
+              subtitle: g.description || (index === 0 ? "Primary Payment Gateway" : "Secondary Payment Gateway"),
+              vendorCode: g.vendorCode || g.code || `G-${index + 1}`,
+              internalProviderRef: g.internalVendorCode || (index === 0 ? "BANKME" : "EXISTING"),
+              badge: "Active",
+              badgeColor: "#10B981",
+              iconText: g.code || `G-${index + 1}`,
+              isActive: g.is_active ?? true,
+              isRecommended: index === 0,
+              supportedMethods: g.supported_methods || ["CREDIT_CARD", "DEBIT_CARD", "UPI", "NET_BANKING"]
+            }));
+            setGateways(dynamicList);
+            if (!dynamicList.some(g => g.id === selectedGatewayId) && dynamicList.length > 0) {
+              setSelectedGatewayId(dynamicList[0].id);
+            }
+          }
+        } catch (gwErr) {
+          console.warn("Could not load dynamic gateways, falling back to default:", gwErr);
+        }
+
         // 1. Fetch Company PayIn Options (Authoritative Admin Policy)
         try {
           const optRes = await apiClient.get("/api/v1/payin/options");
@@ -2063,14 +2091,14 @@ export default function RetailerPayinPage() {
                 description="Choose an authorized payment gateway provider"
                 action={
                   <span className="badge badge-counter">
-                    2 Active Gateways
+                    {gateways.length} Active Gateway{gateways.length === 1 ? "" : "s"}
                   </span>
                 }
               />
 
-              {/* Gateway Cards Grid (Exactly 2 Configured Gateways: G-1 and G-2) */}
+              {/* Gateway Cards Grid (Dynamic Active Gateways) */}
               <div className="payin-gateway__grid">
-                {GATEWAYS.map((gateway) => {
+                {gateways.map((gateway) => {
                   const isSelected = selectedGatewayId === gateway.id;
                   return (
                     <button

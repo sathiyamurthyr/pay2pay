@@ -27,7 +27,7 @@ from app.application.dependencies import (
 from app.application.payin_dtos import (
     CommonPayInRequest, CommonPayInResponse, PayInStatusResponse,
     MdrPreviewRequest, MdrPreviewResponse, PayInOptionsResponse,
-    BankMeWebhookPayload
+    BankMeWebhookPayload, CardSchemeMdrItem
 )
 from app.application.payin_service import PayInService
 from app.application.payin_config_service import PayInConfigService
@@ -89,7 +89,73 @@ async def get_payin_options(
     """
     auth_ctx = extract_auth_context(payload, request)
     c_ref = auth_ctx.get("company_ref_id") or SMSPAY_COMPANY_REF_ID
-    return await PayInConfigService.get_retailer_payin_options(db=db, company_ref_id=c_ref)
+    role = (auth_ctx.get("roles") or ["RETAILER"])[0] if auth_ctx.get("roles") else "RETAILER"
+    return await PayInConfigService.get_retailer_payin_options(db=db, company_ref_id=c_ref, role=role)
+
+
+@router.get(
+    "/gateways",
+    summary="Get Active Payment Gateways for Retailer Checkout"
+)
+async def get_payin_gateways(
+    request: Request,
+    payload: Optional[Dict[str, Any]] = Depends(get_current_token_payload),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Retrieves dynamically configured active payment gateways for the authenticated company.
+    Vendor names are strictly masked to generic gateway identifiers (e.g. Gateway G-1, Gateway G-2).
+    """
+    auth_ctx = extract_auth_context(payload, request)
+    c_ref = auth_ctx.get("company_ref_id") or SMSPAY_COMPANY_REF_ID
+    role = (auth_ctx.get("roles") or ["RETAILER"])[0] if auth_ctx.get("roles") else "RETAILER"
+    options = await PayInConfigService.get_retailer_payin_options(db=db, company_ref_id=c_ref, role=role)
+    return {
+        "success": True,
+        "company_ref_id": c_ref,
+        "company_name": options.company_name,
+        "gateways": [
+            {
+                "id": f"gateway-{(v.gateway_code or 'g1').lower()}",
+                "code": v.gateway_code or "G-1",
+                "name": v.display_name or f"Gateway {v.gateway_code}",
+                "subtitle": v.subtitle or v.description,
+                "vendorCode": v.gateway_code or "G-1",
+                "badge": v.badge or "Active",
+                "badgeColor": v.badge_color or "#10B981",
+                "iconText": v.gateway_code or "G-1",
+                "isActive": v.is_active,
+                "isRecommended": v.is_default,
+                "displayOrder": v.display_order or 1,
+                "description": v.description or v.subtitle,
+                "supportedMethods": v.supported_methods
+            } for v in options.vendors
+        ]
+    }
+
+
+@router.get(
+    "/card-schemes",
+    summary="Get Admin-Configured MDR for Supported Card Schemes (Display Only)"
+)
+async def get_payin_card_schemes(
+    request: Request,
+    vendor_code: Optional[str] = Query(None, description="Optional vendor override"),
+    payload: Dict[str, Any] = Depends(get_current_token_payload),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Retrieves the 5 standard card schemes and their Admin-configured MDR rates
+    strictly isolated by the authenticated retailer's Company Ref ID.
+    Used for display and informational purposes only.
+    """
+    auth_ctx = extract_auth_context(payload, request)
+    c_ref = auth_ctx.get("company_ref_id") or SMSPAY_COMPANY_REF_ID
+    return await PayInConfigService.get_card_schemes_mdr(
+        db=db,
+        company_ref_id=c_ref,
+        vendor_code=vendor_code
+    )
 
 
 @router.post(
@@ -109,10 +175,12 @@ async def preview_mdr_charges(
     """
     auth_ctx = extract_auth_context(payload, request)
     c_ref = auth_ctx.get("company_ref_id") or SMSPAY_COMPANY_REF_ID
+    role = (auth_ctx.get("roles") or ["RETAILER"])[0] if auth_ctx.get("roles") else "RETAILER"
     return await PayInService.calculate_preview(
         db=db,
         company_ref_id=c_ref,
-        preview_req=preview_req
+        preview_req=preview_req,
+        role=role
     )
 
 
@@ -166,6 +234,29 @@ async def get_payin_status(
     """
     auth_ctx = extract_auth_context(payload, request)
     return await PayInService.get_payin_status(
+        db=db,
+        tid=tid,
+        auth_context=auth_ctx
+    )
+
+
+@router.get(
+    "/{tid}/audit",
+    summary="Get Complete Request/Response API Audit Trail for PayIn Transaction"
+)
+async def get_payin_audit(
+    tid: str,
+    request: Request,
+    payload: Dict[str, Any] = Depends(get_current_token_payload),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Retrieves full request and response audit logs for a transaction.
+    Enforces strict company data isolation: A retailer or admin can only view
+    the audit trail for transactions belonging to their authenticated company.
+    """
+    auth_ctx = extract_auth_context(payload, request)
+    return await PayInService.get_transaction_audit(
         db=db,
         tid=tid,
         auth_context=auth_ctx

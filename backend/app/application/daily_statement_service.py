@@ -719,7 +719,8 @@ class DailyAccountStatementService:
                             is_admin=False,
                             password_hint=pwd_info["hint"],
                             password_formula=pwd_info["formula"],
-                            password_example=pwd_info["example"]
+                            password_example=pwd_info["example"],
+                            company_context=d.get("company_code") or d.get("company_id") or recipient_email
                         )
                         if email_res.get("delivered"):
                             email_status = "SENT"
@@ -901,7 +902,8 @@ class DailyAccountStatementService:
                         is_admin=True,
                         password_hint=pwd_info["hint"],
                         password_formula=pwd_info["formula"],
-                        password_example=pwd_info["example"]
+                        password_example=pwd_info["example"],
+                        company_context=d.get("company_code") or d.get("company_id") or admin_email
                     )
                     if email_res.get("delivered"):
                         email_status = "SENT"
@@ -1202,7 +1204,8 @@ class DailyAccountStatementService:
                 is_admin=d.get("statement_type") == "ADMIN",
                 password_hint=pwd_info["hint"],
                 password_formula=pwd_info["formula"],
-                password_example=pwd_info["example"]
+                password_example=pwd_info["example"],
+                company_context=d.get("company_code") or d.get("company_id") or recipient_email
             )
 
             new_status = "SENT" if email_res.get("delivered") else "FAILED"

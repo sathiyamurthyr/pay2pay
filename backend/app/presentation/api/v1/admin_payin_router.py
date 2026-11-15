@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 from datetime import datetime, timezone
 from app.core.database import get_db
-from app.application.dependencies import get_current_token_payload, CompanyContext, get_company_context
+from app.application.dependencies import get_current_token_payload, get_current_user, CompanyContext, get_company_context, AdminUserModel
 from app.infrastructure.db.payin_models import (
     PayinCompanyCfgModel, PayinVendorModel, PayinCompanyVendorModel,
     PayinServiceTypeModel, PayinPaymentModeModel, PayinCardTypeModel,
@@ -22,7 +22,8 @@ from app.infrastructure.db.payin_models import (
     PayinAuditLogModel
 )
 from app.application.payin_dtos import (
-    PayinPolicyResponse, PayinPolicyOptionItem, UpdatePayinPolicyRequest
+    PayinPolicyResponse, PayinPolicyOptionItem, UpdatePayinPolicyRequest,
+    GatewayConfigItemResponse, UpdateGatewayConfigRequest, CreateGatewayConfigRequest
 )
 from app.application.payin_config_service import PayInConfigService
 
@@ -398,6 +399,370 @@ async def list_company_vendors(
     return {"success": True, "mappings": rows, "data": rows}
 
 
+# ── PAYMENT GATEWAY DYNAMIC MANAGEMENT ──
+
+def require_admin_guard(
+    payload: dict = Depends(get_current_token_payload),
+    current_user: AdminUserModel = Depends(get_current_user)
+) -> AdminUserModel:
+    token_roles = [str(r).upper() for r in (payload.get("roles") or [])]
+    user_type = str(getattr(current_user, "user_type", "") or "").upper()
+    admin_roles = {"SUPER_ADMIN", "PLATFORM_ADMIN", "OPERATIONS_ADMIN", "ROOT_ADMIN", "ADMIN", "COMPANY_ADMIN"}
+    
+    is_admin = bool(
+        any(r in admin_roles for r in token_roles)
+        or user_type in admin_roles
+    )
+    if not is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Administrative privileges required to manage payment gateways."
+        )
+    return current_user
+
+
+@router.get("/gateways")
+async def list_payment_gateways(
+    company_ref_id: Optional[int] = Query(None, description="Optional company ID override for Super Admin"),
+    _admin: AdminUserModel = Depends(require_admin_guard),
+    ctx: CompanyContext = Depends(get_company_context),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Lists Payment Gateway configurations for Admin management.
+    Includes Reference ID, Internal Provider Name, Retailer Display Name,
+    Description, Display Order, Status, and Enabled switch state.
+    Strictly enforces company tenant isolation for Company Admins.
+    """
+    effective_company_ref_id = ctx.company_ref_id
+    if ctx.is_super_admin and company_ref_id is not None:
+        effective_company_ref_id = company_ref_id
+
+    # Resolve company name
+    c_stmt = text("SELECT company_name FROM public.company WHERE company_ref_id = :cid")
+    c_res = await db.execute(c_stmt, {"cid": effective_company_ref_id})
+    c_row = c_res.fetchone()
+    company_name = c_row[0] if c_row else f"Company {effective_company_ref_id}"
+
+    stmt = text("""
+        SELECT 
+            cv.payin_company_vendor_ref_id,
+            cv.company_ref_id,
+            c.company_name,
+            cv.payin_vendor_ref_id,
+            v.vendor_code,
+            v.vendor_name,
+            v.provider_name,
+            cv.gateway_code,
+            cv.retailer_display_name,
+            cv.description,
+            cv.display_order,
+            cv.status,
+            cv.is_enabled,
+            cv.is_default,
+            cv.updated_by,
+            cv.updated_at
+        FROM public.payin_company_vendors cv
+        JOIN public.company c ON cv.company_ref_id = c.company_ref_id
+        JOIN public.payin_vendors v ON cv.payin_vendor_ref_id = v.payin_vendor_ref_id
+        WHERE cv.company_ref_id = :cid
+        ORDER BY cv.display_order ASC, cv.vendor_priority ASC;
+    """)
+    res = await db.execute(stmt, {"cid": effective_company_ref_id})
+    rows = []
+    for r in res.mappings().all():
+        rows.append({
+            "payin_company_vendor_ref_id": r["payin_company_vendor_ref_id"],
+            "company_ref_id": r["company_ref_id"],
+            "company_name": r["company_name"],
+            "payin_vendor_ref_id": r["payin_vendor_ref_id"],
+            "vendor_code": r["vendor_code"],
+            "internal_provider_name": r["vendor_name"] or r["provider_name"],
+            "gateway_code": r["gateway_code"],
+            "retailer_display_name": r["retailer_display_name"],
+            "description": r["description"],
+            "display_order": r["display_order"],
+            "status": r["status"],
+            "is_enabled": r["is_enabled"],
+            "is_default": r["is_default"],
+            "updated_by": r["updated_by"],
+            "updated_at": r["updated_at"].isoformat() if r["updated_at"] else None
+        })
+
+    return {
+        "success": True,
+        "company_ref_id": effective_company_ref_id,
+        "company_name": company_name,
+        "gateways": rows
+    }
+
+
+@router.post("/gateways/{ref_id}")
+async def update_payment_gateway(
+    ref_id: int,
+    req: UpdateGatewayConfigRequest,
+    _admin: AdminUserModel = Depends(require_admin_guard),
+    ctx: CompanyContext = Depends(get_company_context),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Updates Payment Gateway configuration for an authorized Admin.
+    Allows updating retailer display name, description, display order,
+    status (ACTIVE / INACTIVE), and enabled state while strictly preserving
+    the internal payment provider integration and tenant isolation.
+    """
+    stmt = select(PayinCompanyVendorModel, PayinVendorModel).join(
+        PayinVendorModel,
+        PayinCompanyVendorModel.payin_vendor_ref_id == PayinVendorModel.payin_vendor_ref_id
+    ).where(PayinCompanyVendorModel.payin_company_vendor_ref_id == ref_id)
+
+    if not ctx.is_super_admin:
+        stmt = stmt.where(PayinCompanyVendorModel.company_ref_id == ctx.company_ref_id)
+
+    res = await db.execute(stmt)
+    row = res.first()
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Payment gateway configuration #{ref_id} not found or unauthorized for your company scope."
+        )
+
+    cv, v = row
+
+    # Capture old values for audit logging
+    old_val = {
+        "retailer_display_name": cv.retailer_display_name,
+        "description": cv.description,
+        "display_order": cv.display_order,
+        "status": cv.status,
+        "is_enabled": cv.is_enabled,
+        "internal_vendor_code": v.vendor_code
+    }
+
+    # Apply updates with validation
+    if req.retailer_display_name is not None and req.retailer_display_name.strip():
+        cv.retailer_display_name = req.retailer_display_name.strip()
+    if req.description is not None:
+        cv.description = req.description.strip()
+    if req.display_order is not None:
+        cv.display_order = req.display_order
+    if req.status is not None:
+        cv.status = req.status.strip().upper()
+        if cv.status == "INACTIVE":
+            cv.is_enabled = False
+        elif cv.status == "ACTIVE" and req.is_enabled is None:
+            cv.is_enabled = True
+    if req.is_enabled is not None:
+        cv.is_enabled = req.is_enabled
+        if not cv.is_enabled and cv.status == "ACTIVE":
+            cv.status = "INACTIVE"
+        elif cv.is_enabled and cv.status == "INACTIVE":
+            cv.status = "ACTIVE"
+
+    cv.updated_by = ctx.user_email
+    cv.updated_at = datetime.now(timezone.utc)
+
+    new_val = {
+        "retailer_display_name": cv.retailer_display_name,
+        "description": cv.description,
+        "display_order": cv.display_order,
+        "status": cv.status,
+        "is_enabled": cv.is_enabled,
+        "internal_vendor_code": v.vendor_code
+    }
+
+    # Record audit log
+    audit_entry = PayinAuditLogModel(
+        company_ref_id=cv.company_ref_id,
+        action_type="UPDATE_GATEWAY_CONFIG",
+        entity_type="payin_company_vendors",
+        entity_ref_id=ref_id,
+        old_value=old_val,
+        new_value=new_val,
+        created_at=datetime.now(timezone.utc)
+    )
+    db.add(audit_entry)
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": f"Payment gateway '{cv.retailer_display_name}' updated successfully.",
+        "gateway": {
+            "payin_company_vendor_ref_id": cv.payin_company_vendor_ref_id,
+            "company_ref_id": cv.company_ref_id,
+            "internal_provider_name": v.vendor_name,
+            "vendor_code": v.vendor_code,
+            "gateway_code": cv.gateway_code,
+            "retailer_display_name": cv.retailer_display_name,
+            "description": cv.description,
+            "display_order": cv.display_order,
+            "status": cv.status,
+            "is_enabled": cv.is_enabled,
+            "updated_by": cv.updated_by,
+            "updated_at": cv.updated_at.isoformat() if cv.updated_at else None
+        }
+    }
+
+
+@router.post("/gateways/{ref_id}/toggle-status")
+async def toggle_gateway_status(
+    ref_id: int,
+    _admin: AdminUserModel = Depends(require_admin_guard),
+    ctx: CompanyContext = Depends(get_company_context),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Toggles the ACTIVE / INACTIVE and enabled status of a Payment Gateway.
+    Prevents complete deactivation if it is the sole active gateway for the company.
+    """
+    stmt = select(PayinCompanyVendorModel, PayinVendorModel).join(
+        PayinVendorModel,
+        PayinCompanyVendorModel.payin_vendor_ref_id == PayinVendorModel.payin_vendor_ref_id
+    ).where(PayinCompanyVendorModel.payin_company_vendor_ref_id == ref_id)
+
+    if not ctx.is_super_admin:
+        stmt = stmt.where(PayinCompanyVendorModel.company_ref_id == ctx.company_ref_id)
+
+    res = await db.execute(stmt)
+    row = res.first()
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Payment gateway configuration #{ref_id} not found."
+        )
+
+    cv, v = row
+    current_active = (cv.status == "ACTIVE" and cv.is_enabled)
+    target_active = not current_active
+
+    # Check sole active gateway guard
+    if not target_active:
+        active_count_stmt = select(func.count()).select_from(PayinCompanyVendorModel).where(
+            PayinCompanyVendorModel.company_ref_id == cv.company_ref_id,
+            PayinCompanyVendorModel.payin_company_vendor_ref_id != ref_id,
+            PayinCompanyVendorModel.status == "ACTIVE",
+            PayinCompanyVendorModel.is_enabled == True
+        )
+        active_remaining = (await db.execute(active_count_stmt)).scalar() or 0
+        if active_remaining == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot deactivate '{cv.retailer_display_name}'. At least one payment gateway must remain active for company checkout."
+            )
+
+    old_status = cv.status
+    cv.status = "ACTIVE" if target_active else "INACTIVE"
+    cv.is_enabled = target_active
+    cv.updated_by = ctx.user_email
+    cv.updated_at = datetime.now(timezone.utc)
+
+    # Record audit log
+    audit_entry = PayinAuditLogModel(
+        company_ref_id=cv.company_ref_id,
+        action_type="TOGGLE_GATEWAY_STATUS",
+        entity_type="payin_company_vendors",
+        entity_ref_id=ref_id,
+        old_value={"status": old_status, "is_enabled": not target_active},
+        new_value={"status": cv.status, "is_enabled": target_active},
+        created_at=datetime.now(timezone.utc)
+    )
+    db.add(audit_entry)
+    await db.commit()
+
+    return {
+        "success": True,
+        "payin_company_vendor_ref_id": cv.payin_company_vendor_ref_id,
+        "retailer_display_name": cv.retailer_display_name,
+        "status": cv.status,
+        "is_enabled": cv.is_enabled,
+        "message": f"Gateway '{cv.retailer_display_name}' is now {cv.status}."
+    }
+
+
+@router.post("/gateways")
+async def create_payment_gateway(
+    req: CreateGatewayConfigRequest,
+    _admin: AdminUserModel = Depends(require_admin_guard),
+    ctx: CompanyContext = Depends(get_company_context),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Registers a new payment gateway mapping for an authorized company.
+    """
+    effective_company_ref_id = ctx.company_ref_id
+    if ctx.is_super_admin and req.company_ref_id:
+        effective_company_ref_id = req.company_ref_id
+
+    # Verify vendor exists
+    v_stmt = select(PayinVendorModel).where(PayinVendorModel.payin_vendor_ref_id == req.payin_vendor_ref_id)
+    v_res = await db.execute(v_stmt)
+    vendor = v_res.scalars().first()
+    if not vendor:
+        raise HTTPException(status_code=404, detail=f"Vendor #{req.payin_vendor_ref_id} does not exist.")
+
+    # Check if mapping already exists
+    dup_stmt = select(PayinCompanyVendorModel).where(
+        PayinCompanyVendorModel.company_ref_id == effective_company_ref_id,
+        PayinCompanyVendorModel.payin_vendor_ref_id == req.payin_vendor_ref_id
+    )
+    dup = (await db.execute(dup_stmt)).scalars().first()
+    if dup:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Vendor '{vendor.vendor_name}' is already registered for this company (Ref #{dup.payin_company_vendor_ref_id}). Please edit the existing entry."
+        )
+
+    new_cv = PayinCompanyVendorModel(
+        company_ref_id=effective_company_ref_id,
+        payin_vendor_ref_id=req.payin_vendor_ref_id,
+        gateway_code=req.gateway_code.strip().upper(),
+        retailer_display_name=req.retailer_display_name.strip(),
+        description=req.description.strip() if req.description else "Fast and secure payment processing.",
+        display_order=req.display_order or 1,
+        status=req.status.strip().upper() if req.status else "ACTIVE",
+        is_enabled=req.is_enabled if req.is_enabled is not None else True,
+        is_default=False,
+        vendor_priority=req.display_order or 1,
+        updated_by=ctx.user_email
+    )
+    db.add(new_cv)
+    await db.flush()
+
+    # Record audit log
+    db.add(PayinAuditLogModel(
+        company_ref_id=effective_company_ref_id,
+        action_type="CREATE_GATEWAY_CONFIG",
+        entity_type="payin_company_vendors",
+        entity_ref_id=new_cv.payin_company_vendor_ref_id,
+        old_value=None,
+        new_value={
+            "gateway_code": new_cv.gateway_code,
+            "retailer_display_name": new_cv.retailer_display_name,
+            "provider_name": vendor.vendor_name,
+            "status": new_cv.status
+        },
+        created_at=datetime.now(timezone.utc)
+    ))
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": f"Payment gateway '{new_cv.retailer_display_name}' registered successfully.",
+        "gateway": {
+            "payin_company_vendor_ref_id": new_cv.payin_company_vendor_ref_id,
+            "company_ref_id": new_cv.company_ref_id,
+            "internal_provider_name": vendor.vendor_name,
+            "vendor_code": vendor.vendor_code,
+            "gateway_code": new_cv.gateway_code,
+            "retailer_display_name": new_cv.retailer_display_name,
+            "description": new_cv.description,
+            "display_order": new_cv.display_order,
+            "status": new_cv.status,
+            "is_enabled": new_cv.is_enabled
+        }
+    }
+
+
 @router.get("/services")
 async def list_service_types(db: AsyncSession = Depends(get_db)):
     """Lists all service types."""
@@ -466,20 +831,70 @@ async def toggle_payment_mode(mode_ref_id: int, req: ToggleStatusRequest, db: As
 
 
 @router.get("/card-types")
-async def list_card_types(db: AsyncSession = Depends(get_db)):
-    """Lists all card types."""
+async def list_card_types(
+    search: Optional[str] = None,
+    network: Optional[str] = None,
+    status: Optional[str] = None,
+    company_ref_id: Optional[int] = None,
+    ctx: CompanyContext = Depends(get_company_context),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Lists card classification & network catalog directly from the database.
+    Supports optional search, network filter, status filter, and returns authoritative DB counts.
+    """
     stmt = select(PayinCardTypeModel).order_by(PayinCardTypeModel.card_type_code.asc())
-    cards = (await db.execute(stmt)).scalars().all()
+    cards_all = (await db.execute(stmt)).scalars().all()
+    
+    total_count = len(cards_all)
+    active_count = sum(1 for c in cards_all if c.is_enabled)
+    inactive_count = total_count - active_count
+    
+    # Extract networks dynamically from authoritative DB records
+    networks = sorted(list({c.card_network for c in cards_all if c.card_network}))
+    
+    filtered_cards = cards_all
+    if network and network.strip() and network.upper() != "ALL":
+        filtered_cards = [c for c in filtered_cards if c.card_network.upper() == network.strip().upper()]
+
+    if status and status.strip() and status.upper() != "ALL":
+        if status.upper() in ("ACTIVE", "ENABLED", "TRUE"):
+            filtered_cards = [c for c in filtered_cards if c.is_enabled]
+        elif status.upper() in ("INACTIVE", "DISABLED", "FALSE"):
+            filtered_cards = [c for c in filtered_cards if not c.is_enabled]
+
+    if search and search.strip():
+        q = search.strip().lower()
+        filtered_cards = [
+            c for c in filtered_cards
+            if q in c.card_type_code.lower() 
+            or q in c.card_type_name.lower()
+            or q in c.card_network.lower()
+            or (c.card_desc and q in c.card_desc.lower())
+        ]
+
+    effective_comp = ctx.company_ref_id if not ctx.is_super_admin else (company_ref_id or ctx.company_ref_id or 2)
+
     return {
         "success": True,
+        "company_ref_id": effective_comp,
+        "total": total_count,
+        "active_count": active_count,
+        "inactive_count": inactive_count,
+        "networks": networks,
+        "filtered_total": len(filtered_cards),
         "card_types": [
             {
                 "payin_card_type_ref_id": c.payin_card_type_ref_id,
                 "card_type_code": c.card_type_code,
                 "card_type_name": c.card_type_name,
                 "card_network": c.card_network,
-                "is_enabled": c.is_enabled
-            } for c in cards
+                "card_desc": c.card_desc,
+                "status": "ACTIVE" if c.is_enabled else "DISABLED",
+                "is_enabled": c.is_enabled,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+                "updated_at": c.updated_at.isoformat() if c.updated_at else None
+            } for c in filtered_cards
         ]
     }
 

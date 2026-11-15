@@ -153,8 +153,50 @@ class VendorOptionItem(BaseModel):
     gateway_code: Optional[str] = "G-1"
     display_name: Optional[str] = "Gateway G-1"
     subtitle: Optional[str] = "Primary Payment Gateway"
+    description: Optional[str] = "Fast and secure payment processing with instant confirmation."
+    display_order: Optional[int] = 1
     badge: Optional[str] = "Active"
+    badge_color: Optional[str] = "#10B981"
     is_active: Optional[bool] = True
+    is_enabled: Optional[bool] = True
+    supported_methods: List[str] = ["CREDIT_CARD", "DEBIT_CARD", "UPI", "NET_BANKING"]
+
+
+class GatewayConfigItemResponse(BaseModel):
+    payin_company_vendor_ref_id: int
+    company_ref_id: int
+    company_name: str
+    payin_vendor_ref_id: int
+    vendor_code: str
+    internal_provider_name: str
+    gateway_code: str
+    retailer_display_name: str
+    description: str
+    display_order: int
+    status: str
+    is_enabled: bool
+    is_default: bool
+    updated_by: str
+    updated_at: str
+
+
+class UpdateGatewayConfigRequest(BaseModel):
+    retailer_display_name: Optional[str] = Field(None, min_length=1, max_length=150)
+    description: Optional[str] = Field(None, max_length=255)
+    display_order: Optional[int] = Field(None, ge=1, le=100)
+    status: Optional[str] = Field(None, pattern="^(ACTIVE|INACTIVE)$")
+    is_enabled: Optional[bool] = None
+
+
+class CreateGatewayConfigRequest(BaseModel):
+    company_ref_id: int
+    payin_vendor_ref_id: int
+    gateway_code: str = Field(..., min_length=1, max_length=50)
+    retailer_display_name: str = Field(..., min_length=1, max_length=150)
+    description: Optional[str] = Field("Fast and secure payment processing with instant confirmation.", max_length=255)
+    display_order: Optional[int] = Field(1, ge=1, le=100)
+    status: Optional[str] = Field("ACTIVE", pattern="^(ACTIVE|INACTIVE)$")
+    is_enabled: Optional[bool] = True
 
 
 class PayInOptionsResponse(BaseModel):

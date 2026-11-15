@@ -4,15 +4,13 @@ import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Box, Paper, Typography, Button, Stack, Alert, CircularProgress,
-  Chip, Radio, RadioGroup, FormControlLabel, FormControl, FormLabel,
-  Card, CardContent, Divider, Grid, TextField, Tooltip
+  Chip, Radio, FormControl, Divider, Grid, TextField
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SaveIcon from "@mui/icons-material/Save";
 import ShieldCheckIcon from "@mui/icons-material/Shield";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import InfoIcon from "@mui/icons-material/Info";
 import BuildingIcon from "@mui/icons-material/AccountBalance";
 import PersonIcon from "@mui/icons-material/Person";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
@@ -39,6 +37,25 @@ interface PolicyData {
   }[];
 }
 
+interface MdrPreviewData {
+  success: boolean;
+  txn_amount: number;
+  mdr_pct: number;
+  mdr_fixed: number;
+  mdr_amount: number;
+  tax_pct: number;
+  tax_amount: number;
+  total_charges: number;
+  customer_payable: number;
+  retailer_credit: number;
+  company_mdr_liability: number;
+  mdr_treatment: string;
+  rule_ref_id?: number | null;
+  vendor_name?: string | null;
+  customer_payable_policy?: string | null;
+  policy_display_name?: string | null;
+}
+
 export default function AdminPayinPolicyPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
@@ -48,9 +65,9 @@ export default function AdminPayinPolicyPage() {
   const [policyData, setPolicyData] = useState<PolicyData | null>(null);
   const [selectedPolicy, setSelectedPolicy] = useState<string>("WITH_MDR");
 
-  // Simulator State
-  const [simAmount, setSimAmount] = useState<string>("5000");
-  const [simPreview, setSimPreview] = useState<any | null>(null);
+  // Simulator State (Default 56,320)
+  const [simAmount, setSimAmount] = useState<string>("56320");
+  const [simPreview, setSimPreview] = useState<MdrPreviewData | null>(null);
   const [simLoading, setSimLoading] = useState<boolean>(false);
 
   const fetchPolicy = useCallback(async () => {
@@ -74,34 +91,7 @@ export default function AdminPayinPolicyPage() {
     fetchPolicy();
   }, [fetchPolicy]);
 
-  const handleSave = async () => {
-    if (!policyData) return;
-    try {
-      setSaving(true);
-      setError(null);
-      setSuccessMsg(null);
-      const res = await apiClient.post("/api/v1/admin/payin/policy", {
-        company_ref_id: policyData.company_ref_id,
-        policy: selectedPolicy
-      });
-      if (res.data && res.data.success) {
-        setPolicyData(res.data);
-        setSelectedPolicy(res.data.policy);
-        setSuccessMsg(
-          `Pricing policy updated successfully to "${res.data.display_name}". New transactions will immediately follow this policy.`
-        );
-        // Refresh simulation with new policy
-        runSimulation(res.data.policy);
-      }
-    } catch (e: any) {
-      console.error("Failed to save policy:", e);
-      setError(e?.response?.data?.detail || "Failed to update policy.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const runSimulation = useCallback(async (overridePolicy?: string) => {
+  const runSimulation = useCallback(async () => {
     const amt = parseFloat(simAmount);
     if (!amt || isNaN(amt) || amt <= 0) return;
     try {
@@ -127,6 +117,32 @@ export default function AdminPayinPolicyPage() {
     }
   }, [loading, policyData, runSimulation]);
 
+  const handleSave = async () => {
+    if (!policyData) return;
+    try {
+      setSaving(true);
+      setError(null);
+      setSuccessMsg(null);
+      const res = await apiClient.post("/api/v1/admin/payin/policy", {
+        company_ref_id: policyData.company_ref_id,
+        policy: selectedPolicy
+      });
+      if (res.data && res.data.success) {
+        setPolicyData(res.data);
+        setSelectedPolicy(res.data.policy);
+        setSuccessMsg(
+          `Pricing policy updated successfully to "${res.data.display_name}". New transactions will immediately follow this policy.`
+        );
+        runSimulation();
+      }
+    } catch (e: any) {
+      console.error("Failed to save policy:", e);
+      setError(e?.response?.data?.detail || "Failed to update policy.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const formatTimestamp = (ts?: string | null) => {
     if (!ts) return "Default / Initialized";
     try {
@@ -144,59 +160,87 @@ export default function AdminPayinPolicyPage() {
     }
   };
 
+  const hasUnsavedChanges = Boolean(policyData && selectedPolicy !== policyData.policy);
+
+  // Dynamic preview numbers
+  const topupAmt = simPreview ? simPreview.txn_amount : parseFloat(simAmount) || 0;
+  const totalCharges = simPreview ? simPreview.total_charges : 0;
+
+  // Active view numbers according to current selected option
+  const activeCustPayable = selectedPolicy === "WITH_MDR" ? topupAmt + totalCharges : topupAmt;
+  const activeRetailerCredit = selectedPolicy === "WITH_MDR" ? topupAmt : Math.max(0, topupAmt - totalCharges);
+
   return (
     <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1200, mx: "auto" }}>
       {/* ── Top Header Toolbar ── */}
-      <Stack
-        direction={{ xs: "column", sm: "row" }}
-        alignItems={{ xs: "flex-start", sm: "center" }}
-        justifyContent="space-between"
-        gap={2}
-        sx={{ mb: 4 }}
-      >
-        <Stack direction="row" alignItems="center" spacing={1.5}>
+      <Box sx={{ mb: 4 }}>
+        {/* Back navigation */}
+        <Box sx={{ mb: 1 }}>
           <Button
             component={Link}
             href="/admin/payin/dashboard"
             startIcon={<ArrowBackIcon />}
             variant="text"
-            sx={{ fontWeight: 600, color: "text.secondary" }}
+            sx={{ fontWeight: 600, color: "text.secondary", p: 0, minWidth: 0, "&:hover": { bgcolor: "transparent" } }}
           >
             Dashboard
           </Button>
-          <Box>
+        </Box>
+
+        {/* Title row and right-aligned actions */}
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          alignItems={{ xs: "flex-start", md: "center" }}
+          justifyContent="space-between"
+          gap={2}
+        >
+          {/* Dedicated Title and Subtitle Area */}
+          <Box sx={{ maxWidth: { xs: "100%", md: "700px" } }}>
             <Typography variant="h5" fontWeight="800" sx={{ color: "#0F172A", display: "flex", alignItems: "center", gap: 1 }}>
               <ShieldCheckIcon sx={{ color: "#2563EB", fontSize: 28 }} />
               Customer Payable Amount Policy
+              {hasUnsavedChanges && (
+                <Chip
+                  label="Unsaved Changes"
+                  size="small"
+                  color="warning"
+                  sx={{ fontWeight: 700, fontSize: "11px", height: 22, ml: 1 }}
+                />
+              )}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
               Centralized Admin pricing policy controlling MDR charge allocation and retailer wallet credits
             </Typography>
           </Box>
-        </Stack>
 
-        <Stack direction="row" spacing={1.5}>
-          <Button
-            variant="outlined"
-            startIcon={<RefreshIcon />}
-            onClick={fetchPolicy}
-            disabled={loading || saving}
-            sx={{ textTransform: "none", fontWeight: 600 }}
+          {/* Right-aligned Consolidated Action Area */}
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1.5}
+            sx={{ width: { xs: "100%", sm: "auto" } }}
           >
-            Refresh
-          </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={saving ? <CircularProgress size={18} color="inherit" /> : <SaveIcon />}
-            onClick={handleSave}
-            disabled={loading || saving || selectedPolicy === policyData?.policy}
-            sx={{ textTransform: "none", fontWeight: 700, px: 3, boxShadow: 2 }}
-          >
-            {saving ? "Saving Policy..." : "Save Policy"}
-          </Button>
+            <Button
+              variant="outlined"
+              startIcon={<RefreshIcon />}
+              onClick={fetchPolicy}
+              disabled={loading || saving}
+              sx={{ textTransform: "none", fontWeight: 600, width: { xs: "100%", sm: "auto" } }}
+            >
+              Refresh
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={saving ? <CircularProgress size={18} color="inherit" /> : <SaveIcon />}
+              onClick={handleSave}
+              disabled={loading || saving || !hasUnsavedChanges}
+              sx={{ textTransform: "none", fontWeight: 700, px: 3, boxShadow: 2, width: { xs: "100%", sm: "auto" } }}
+            >
+              {saving ? "Saving Policy..." : "Save Policy"}
+            </Button>
+          </Stack>
         </Stack>
-      </Stack>
+      </Box>
 
       {/* ── Feedback Alerts ── */}
       {error && (
@@ -230,14 +274,19 @@ export default function AdminPayinPolicyPage() {
               </Typography>
 
               <FormControl component="fieldset" fullWidth>
-                <RadioGroup
-                  value={selectedPolicy}
-                  onChange={(e) => setSelectedPolicy(e.target.value)}
-                  sx={{ display: "flex", flexDirection: "column", gap: 2 }}
-                >
-                  {/* OPTION A: WITH MDR */}
+                <Stack spacing={2}>
+                  {/* OPTION A: WITH MDR (Restored Existing Color Codes) */}
                   <Paper
                     variant="outlined"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setSelectedPolicy("WITH_MDR")}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelectedPolicy("WITH_MDR");
+                      }
+                    }}
                     sx={{
                       p: 2.5,
                       borderRadius: 2.5,
@@ -246,12 +295,18 @@ export default function AdminPayinPolicyPage() {
                       borderColor: selectedPolicy === "WITH_MDR" ? "#2563EB" : "#E2E8F0",
                       bgcolor: selectedPolicy === "WITH_MDR" ? "#EFF6FF" : "#F8FAFC",
                       borderWidth: selectedPolicy === "WITH_MDR" ? 2 : 1,
-                      "&:hover": { borderColor: "#2563EB" }
+                      outline: "none",
+                      "&:hover": { borderColor: "#2563EB" },
+                      "&:focus-visible": { boxShadow: "0 0 0 2px #2563EB" }
                     }}
-                    onClick={() => setSelectedPolicy("WITH_MDR")}
                   >
                     <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>
-                      <Radio value="WITH_MDR" checked={selectedPolicy === "WITH_MDR"} sx={{ p: 0.5, mt: 0.2 }} />
+                      <Radio
+                        value="WITH_MDR"
+                        checked={selectedPolicy === "WITH_MDR"}
+                        onChange={() => setSelectedPolicy("WITH_MDR")}
+                        sx={{ p: 0.5, mt: 0.2 }}
+                      />
                       <Box sx={{ flex: 1 }}>
                         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.5 }}>
                           <Typography variant="subtitle1" fontWeight="800" sx={{ color: "#1E3A8A" }}>
@@ -274,9 +329,18 @@ export default function AdminPayinPolicyPage() {
                     </Box>
                   </Paper>
 
-                  {/* OPTION B: WITHOUT MDR */}
+                  {/* OPTION B: WITHOUT MDR (Restored Existing Color Codes) */}
                   <Paper
                     variant="outlined"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setSelectedPolicy("WITHOUT_MDR")}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelectedPolicy("WITHOUT_MDR");
+                      }
+                    }}
                     sx={{
                       p: 2.5,
                       borderRadius: 2.5,
@@ -285,12 +349,23 @@ export default function AdminPayinPolicyPage() {
                       borderColor: selectedPolicy === "WITHOUT_MDR" ? "#D97706" : "#E2E8F0",
                       bgcolor: selectedPolicy === "WITHOUT_MDR" ? "#FFFBEB" : "#F8FAFC",
                       borderWidth: selectedPolicy === "WITHOUT_MDR" ? 2 : 1,
-                      "&:hover": { borderColor: "#D97706" }
+                      outline: "none",
+                      "&:hover": { borderColor: "#D97706" },
+                      "&:focus-visible": { boxShadow: "0 0 0 2px #D97706" }
                     }}
-                    onClick={() => setSelectedPolicy("WITHOUT_MDR")}
                   >
                     <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>
-                      <Radio value="WITHOUT_MDR" checked={selectedPolicy === "WITHOUT_MDR"} sx={{ p: 0.5, mt: 0.2, color: "#D97706", "&.Mui-checked": { color: "#D97706" } }} />
+                      <Radio
+                        value="WITHOUT_MDR"
+                        checked={selectedPolicy === "WITHOUT_MDR"}
+                        onChange={() => setSelectedPolicy("WITHOUT_MDR")}
+                        sx={{
+                          p: 0.5,
+                          mt: 0.2,
+                          color: "#D97706",
+                          "&.Mui-checked": { color: "#D97706" }
+                        }}
+                      />
                       <Box sx={{ flex: 1 }}>
                         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.5 }}>
                           <Typography variant="subtitle1" fontWeight="800" sx={{ color: "#92400E" }}>
@@ -312,26 +387,12 @@ export default function AdminPayinPolicyPage() {
                       </Box>
                     </Box>
                   </Paper>
-                </RadioGroup>
+                </Stack>
               </FormControl>
-
-              <Box sx={{ mt: 3, pt: 2, borderTop: "1px solid #E2E8F0", display: "flex", justifyContent: "flex-end" }}>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  size="large"
-                  startIcon={saving ? <CircularProgress size={18} color="inherit" /> : <SaveIcon />}
-                  onClick={handleSave}
-                  disabled={loading || saving || selectedPolicy === policyData.policy}
-                  sx={{ textTransform: "none", fontWeight: 700, px: 4 }}
-                >
-                  {saving ? "Saving..." : "Apply & Save Policy"}
-                </Button>
-              </Box>
             </Paper>
           </Grid>
 
-          {/* ── Right Column: Scope & Live Simulator ── */}
+          {/* ── Right Column: Scope & Live Simulator (Restored Existing Color Codes) ── */}
           <Grid size={{ xs: 12, md: 5 }}>
             {/* Scope & Audit Card */}
             <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, bgcolor: "#FFFFFF", mb: 3 }}>
@@ -393,7 +454,7 @@ export default function AdminPayinPolicyPage() {
               </Stack>
             </Paper>
 
-            {/* Live Calculation Preview Card */}
+            {/* Live Calculation Preview Card (Restored Existing Color Codes) */}
             <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, bgcolor: "#F8FAFC" }}>
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
                 <Typography variant="subtitle2" fontWeight="800" sx={{ color: "#0F172A", display: "flex", alignItems: "center", gap: 1 }}>
@@ -403,7 +464,7 @@ export default function AdminPayinPolicyPage() {
                 <Chip label="Backend Authoritative" size="small" variant="outlined" sx={{ fontWeight: 600, fontSize: "10px" }} />
               </Box>
 
-              <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2.5 }}>
+              <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
                 <TextField
                   size="small"
                   type="number"
@@ -422,6 +483,22 @@ export default function AdminPayinPolicyPage() {
                   Recalculate
                 </Button>
               </Stack>
+
+              {/* Quick Preset Buttons */}
+              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 2 }}>
+                {["5000", "10000", "56320", "100000"].map((preset) => (
+                  <Chip
+                    key={preset}
+                    label={`₹${Number(preset).toLocaleString("en-IN")}`}
+                    size="small"
+                    clickable
+                    onClick={() => setSimAmount(preset)}
+                    color={simAmount === preset ? "primary" : "default"}
+                    variant={simAmount === preset ? "filled" : "outlined"}
+                    sx={{ fontSize: "11px", fontWeight: 600 }}
+                  />
+                ))}
+              </Box>
 
               {simLoading ? (
                 <Box sx={{ p: 3, textAlign: "center" }}>
@@ -448,14 +525,33 @@ export default function AdminPayinPolicyPage() {
 
                   <Divider sx={{ my: 0.5 }} />
 
+                  {/* Restored Existing Customer Payable & Expected Wallet Credit Cards */}
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", bgcolor: "#EFF6FF", p: 1.5, borderRadius: 2 }}>
-                    <Typography variant="body2" fontWeight="700" sx={{ color: "#1E3A8A" }}>Customer Payable</Typography>
-                    <Typography variant="subtitle1" fontWeight="800" sx={{ color: "#2563EB" }}>₹{simPreview.customer_payable?.toFixed(2)}</Typography>
+                    <Box>
+                      <Typography variant="body2" fontWeight="700" sx={{ color: "#1E3A8A" }}>
+                        Customer Payable
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: "#1E40AF" }}>
+                        {selectedPolicy === "WITH_MDR" ? "Top-Up + Charges" : "Top-Up Only"}
+                      </Typography>
+                    </Box>
+                    <Typography variant="subtitle1" fontWeight="800" sx={{ color: "#2563EB" }}>
+                      ₹{activeCustPayable.toFixed(2)}
+                    </Typography>
                   </Box>
 
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", bgcolor: "#F0FDF4", p: 1.5, borderRadius: 2 }}>
-                    <Typography variant="body2" fontWeight="700" sx={{ color: "#166534" }}>Expected Wallet Credit</Typography>
-                    <Typography variant="subtitle1" fontWeight="800" sx={{ color: "#16A34A" }}>₹{simPreview.retailer_credit?.toFixed(2)}</Typography>
+                    <Box>
+                      <Typography variant="body2" fontWeight="700" sx={{ color: "#166534" }}>
+                        Expected Wallet Credit
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: "#15803D" }}>
+                        {selectedPolicy === "WITH_MDR" ? "100% Full Top-Up" : "Top-Up Deducted"}
+                      </Typography>
+                    </Box>
+                    <Typography variant="subtitle1" fontWeight="800" sx={{ color: "#16A34A" }}>
+                      ₹{activeRetailerCredit.toFixed(2)}
+                    </Typography>
                   </Box>
                 </Box>
               ) : null}

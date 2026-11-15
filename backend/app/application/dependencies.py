@@ -393,6 +393,14 @@ class CompanyContext:
         if target_company_ref_id is not None and int(target_company_ref_id) != self.company_ref_id:
             raise ForbiddenException("Access forbidden: Cannot access or modify data for another company.")
 
+    @property
+    def user_email(self) -> str:
+        if self.user and getattr(self.user, "email", None):
+            return str(self.user.email)
+        if self.user and getattr(self.user, "username", None):
+            return str(self.user.username)
+        return "SYSTEM"
+
 
 async def get_company_context(
     payload: dict = Depends(get_current_token_payload),

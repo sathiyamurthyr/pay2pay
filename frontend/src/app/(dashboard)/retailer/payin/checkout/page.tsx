@@ -58,7 +58,7 @@ function BankMeCheckoutContent() {
       setProcessing(true);
       setStatusMessage(
         statusToSimulate === "SUCCESS"
-          ? "Authorizing transaction with BankMe payment switch..."
+          ? "Authorizing transaction with secure payment switch..."
           : "Declining transaction as requested..."
       );
 
@@ -136,17 +136,17 @@ function BankMeCheckoutContent() {
               justifyContent: "center",
               color: "#FFFFFF",
               fontWeight: 900,
-              fontSize: 20,
+              fontSize: 16,
             }}
           >
-            BM
+            G-1
           </Box>
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 800, fontSize: "1.1rem", lineHeight: 1.2 }}>
-              BankMe Payment Gateway
+              Payment Gateway G-1
             </Typography>
             <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.7)" }}>
-              SMSPay Secure Checkout Service
+              Secure Payment Checkout Service
             </Typography>
           </Box>
         </Box>
@@ -248,7 +248,7 @@ function BankMeCheckoutContent() {
                 >
                   <img
                     src={qrCodeUrl}
-                    alt="BankMe PayIn QR Code"
+                    alt="Payment Gateway QR Code"
                     width={220}
                     height={220}
                     style={{ display: "block", borderRadius: 8 }}

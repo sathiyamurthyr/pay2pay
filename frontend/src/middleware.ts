@@ -296,6 +296,8 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/forgot-password") ||
     pathname.startsWith("/reset-password") ||
     pathname.startsWith("/design-system") ||
+    pathname.startsWith("/global-security") ||
+    pathname.startsWith("/developer/global-security") ||
     pathname.startsWith("/api/public") ||
     pathname === "/403";
 

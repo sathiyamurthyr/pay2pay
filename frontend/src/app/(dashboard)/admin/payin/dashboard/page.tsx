@@ -15,6 +15,7 @@ import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import LayersIcon from "@mui/icons-material/Layers";
 import SettingsIcon from "@mui/icons-material/Settings";
 import ShieldIcon from "@mui/icons-material/Shield";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 
 import apiClient from "@/lib/api";
 
@@ -157,6 +158,31 @@ export default function AdminPayinDashboardPage() {
         Management Subsystems
       </Typography>
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "1fr 1fr 1fr 1fr" }, gap: 3 }}>
+        <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
+          <Box sx={{ display: "flex", gap: 2, alignItems: "center", mb: 2 }}>
+            <SwapHorizIcon color="primary" />
+            <Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                Payment Gateways
+              </Typography>
+              <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                Manage internal gateway providers, customer display names, and active status
+              </Typography>
+            </Box>
+          </Box>
+          <Button
+            component={Link}
+            href="/admin/payin/gateways"
+            variant="contained"
+            color="primary"
+            size="small"
+            endIcon={<ArrowForwardIcon />}
+            fullWidth
+          >
+            Manage Gateways
+          </Button>
+        </Paper>
+
         <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
           <Box sx={{ display: "flex", gap: 2, alignItems: "center", mb: 2 }}>
             <ShieldIcon color="primary" />

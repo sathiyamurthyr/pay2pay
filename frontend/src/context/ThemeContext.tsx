@@ -1,8 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from "react";
 import { ThemeProvider as MuiThemeProvider, createTheme, Theme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
+import { getInitialBrandingByHostname, type CompanyBrandingData } from "@/hooks/useCompanyBranding";
 
 export type ThemeMode = "AUTO" | "LIGHT" | "DARK";
 export type EffectiveTheme = "light" | "dark";
@@ -57,64 +58,87 @@ export const resolveEffectiveTheme = (
 };
 
 /**
- * Applies dynamic CSS variables and DOM data attributes for Near4You strict white brand styling.
+ * Applies dynamic CSS variables and DOM data attributes for the active canonical domain brand styling.
  */
-export const applyThemeTokensToDOM = (_effectiveTheme: EffectiveTheme = "light") => {
+export const applyThemeTokensToDOM = (
+  _effectiveTheme: EffectiveTheme = "light",
+  branding: CompanyBrandingData = getInitialBrandingByHostname()
+) => {
   if (typeof window === "undefined") return;
   const root = document.documentElement;
   const body = document.body;
 
   root.setAttribute("data-theme", "light");
+  root.setAttribute("data-company", branding.company_code);
   root.classList.add("light");
   root.classList.remove("dark");
   body?.classList.add("light");
   body?.classList.remove("dark");
 
-  // Semantic CSS Tokens - Near4You Strict White Brand System
+  const isNear4You = branding.company_code === "NEAR4YOU";
+  const isPay2Pay = branding.company_code === "PAY2PAY";
+  const isSmsPay = branding.company_code === "SMSPAY";
+
+  const primary = branding.primary_colour || (isPay2Pay ? "#2563EB" : isSmsPay ? "#059669" : "#A20A3A");
+  const secondary = branding.secondary_colour || (isPay2Pay ? "#1E40AF" : isSmsPay ? "#047857" : "#EDC11E");
+
+  // Semantic CSS Tokens
   root.style.setProperty("--background-primary", "#FFFFFF");
-  root.style.setProperty("--background-secondary", "#FAF8F9");
+  root.style.setProperty("--background-secondary", isNear4You ? "#FAF8F9" : "#F8FAFC");
   root.style.setProperty("--surface", "#FFFFFF");
   root.style.setProperty("--surface-elevated", "#FFFFFF");
-  root.style.setProperty("--border", "#E8E2E5");
-  root.style.setProperty("--border-strong", "#D8D0D4");
-  root.style.setProperty("--text-primary", "#292329");
-  root.style.setProperty("--text-secondary", "#625B60");
-  root.style.setProperty("--text-muted", "#8A8288");
-  root.style.setProperty("--accent", "#A20A3A");
-  root.style.setProperty("--accent-hover", "#85072F");
-  root.style.setProperty("--accent-gold", "#EDC11E");
-  root.style.setProperty("--accent-orange", "#EDC11E");
+  root.style.setProperty("--border", isNear4You ? "#E8E2E5" : "#E2E8F0");
+  root.style.setProperty("--border-strong", isNear4You ? "#D8D0D4" : "#CBD5E1");
+  root.style.setProperty("--text-primary", isNear4You ? "#292329" : "#0F172A");
+  root.style.setProperty("--text-secondary", isNear4You ? "#625B60" : "#334155");
+  root.style.setProperty("--text-muted", isNear4You ? "#8A8288" : "#64748B");
+  root.style.setProperty("--brand-primary", primary);
+  root.style.setProperty("--brand-secondary", secondary);
+  root.style.setProperty("--accent", primary);
+  root.style.setProperty("--accent-hover", isPay2Pay ? "#1D4ED8" : isSmsPay ? "#047857" : "#85072F");
+  root.style.setProperty("--accent-gold", secondary);
+  root.style.setProperty("--accent-orange", secondary);
   root.style.setProperty("--success", "#16A34A");
   root.style.setProperty("--warning", "#F59E0B");
   root.style.setProperty("--danger", "#DC2626");
-  root.style.setProperty("--info", "#A20A3A");
+  root.style.setProperty("--info", primary);
   root.style.setProperty("--p2p-header-bg", "#FFFFFF");
-  root.style.setProperty("--p2p-header-text", "#292329");
-  root.style.setProperty("--p2p-page-bg", "#FFFFFF");
+  root.style.setProperty("--p2p-header-text", isNear4You ? "#292329" : "#0F172A");
+  root.style.setProperty("--p2p-page-bg", isNear4You ? "#FFFFFF" : "#F8FAFC");
   root.style.setProperty("--p2p-card-bg", "#FFFFFF");
-  root.style.setProperty("--p2p-card-border", "#E8E2E5");
-  root.style.setProperty("--p2p-text-color", "#292329");
-  root.style.setProperty("--p2p-subtext-color", "#625B60");
+  root.style.setProperty("--p2p-card-border", isNear4You ? "#E8E2E5" : "#E2E8F0");
+  root.style.setProperty("--p2p-text-color", isNear4You ? "#292329" : "#0F172A");
+  root.style.setProperty("--p2p-subtext-color", isNear4You ? "#625B60" : "#334155");
 };
 
 /**
- * Creates dynamic MUI Theme based on Near4You brand system
+ * Creates dynamic MUI Theme based on the active domain's brand system
  */
-export const createMuiThemeForEffectiveTheme = (_effectiveTheme: EffectiveTheme = "light"): Theme => {
+export const createMuiThemeForEffectiveTheme = (
+  _effectiveTheme: EffectiveTheme = "light",
+  branding: CompanyBrandingData = getInitialBrandingByHostname()
+): Theme => {
+  const isNear4You = branding.company_code === "NEAR4YOU";
+  const isPay2Pay = branding.company_code === "PAY2PAY";
+  const isSmsPay = branding.company_code === "SMSPAY";
+
+  const primary = branding.primary_colour || (isPay2Pay ? "#2563EB" : isSmsPay ? "#059669" : "#A20A3A");
+  const secondary = branding.secondary_colour || (isPay2Pay ? "#1E40AF" : isSmsPay ? "#047857" : "#EDC11E");
+
   return createTheme({
     palette: {
       mode: "light",
       primary: {
-        main: "#A20A3A",
-        dark: "#85072F",
-        light: "#FFF0F4",
+        main: primary,
+        dark: isPay2Pay ? "#1D4ED8" : isSmsPay ? "#047857" : "#85072F",
+        light: isPay2Pay ? "#EFF6FF" : isSmsPay ? "#ECFDF5" : "#FFF0F4",
         contrastText: "#FFFFFF",
       },
       secondary: {
-        main: "#EDC11E",
-        dark: "#D4A915",
-        light: "#FFF3C4",
-        contrastText: "#292329",
+        main: secondary,
+        dark: isPay2Pay ? "#1E3A8A" : isSmsPay ? "#065F46" : "#D4A915",
+        light: isPay2Pay ? "#DBEAFE" : isSmsPay ? "#D1FAE5" : "#FFF3C4",
+        contrastText: isNear4You ? "#292329" : "#FFFFFF",
       },
       success: {
         main: "#16A34A",
@@ -130,14 +154,14 @@ export const createMuiThemeForEffectiveTheme = (_effectiveTheme: EffectiveTheme 
         light: "#FEE2E2",
       },
       background: {
-        default: "#FFFFFF",
+        default: isNear4You ? "#FFFFFF" : "#F8FAFC",
         paper: "#FFFFFF",
       },
-      divider: "#E8E2E5",
+      divider: isNear4You ? "#E8E2E5" : "#E2E8F0",
       text: {
-        primary: "#292329",
-        secondary: "#625B60",
-        disabled: "#B8B0B6",
+        primary: isNear4You ? "#292329" : "#0F172A",
+        secondary: isNear4You ? "#625B60" : "#334155",
+        disabled: isNear4You ? "#B8B0B6" : "#94A3B8",
       },
     },
     typography: {
@@ -150,8 +174,8 @@ export const createMuiThemeForEffectiveTheme = (_effectiveTheme: EffectiveTheme 
       MuiCssBaseline: {
         styleOverrides: {
           body: {
-            backgroundColor: "#FFFFFF",
-            color: "#292329",
+            backgroundColor: isNear4You ? "#FFFFFF" : "#F8FAFC",
+            color: isNear4You ? "#292329" : "#0F172A",
             transition: "background-color 0.25s ease, color 0.25s ease",
           },
         },
@@ -161,7 +185,7 @@ export const createMuiThemeForEffectiveTheme = (_effectiveTheme: EffectiveTheme 
           root: {
             backgroundImage: "none",
             backgroundColor: "#FFFFFF",
-            borderColor: "#E8E2E5",
+            borderColor: isNear4You ? "#E8E2E5" : "#E2E8F0",
           },
         },
       },
@@ -169,7 +193,7 @@ export const createMuiThemeForEffectiveTheme = (_effectiveTheme: EffectiveTheme 
         styleOverrides: {
           root: {
             backgroundColor: "#FFFFFF",
-            borderColor: "#E8E2E5",
+            borderColor: isNear4You ? "#E8E2E5" : "#E2E8F0",
           },
         },
       },
@@ -193,17 +217,22 @@ export const CustomThemeProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [effectiveTheme, setEffectiveTheme] = useState<EffectiveTheme>(() =>
     resolveEffectiveTheme(getStoredThemeMode(), DEFAULT_TIMEZONE)
   );
+  const [branding, setBranding] = useState<CompanyBrandingData>(() => getInitialBrandingByHostname());
 
   // Sync DOM tokens synchronously on mount and when effectiveTheme updates
   useEffect(() => {
-    applyThemeTokensToDOM(effectiveTheme);
+    const current = getInitialBrandingByHostname();
+    setBranding(current);
+    applyThemeTokensToDOM(effectiveTheme, current);
   }, [effectiveTheme]);
 
   // Recalculate effective theme whenever mode or timezone changes
   useEffect(() => {
     const newEffective = resolveEffectiveTheme(themeMode, timezone);
     setEffectiveTheme(newEffective);
-    applyThemeTokensToDOM(newEffective);
+    const current = getInitialBrandingByHostname();
+    setBranding(current);
+    applyThemeTokensToDOM(newEffective, current);
   }, [themeMode, timezone]);
 
   // Pure local storage preference initialization - no timers, no auto-fetching on mount
@@ -223,7 +252,9 @@ export const CustomThemeProvider: React.FC<{ children: ReactNode }> = ({ childre
 
       const newEffective = resolveEffectiveTheme(newMode, timezone);
       setEffectiveTheme(newEffective);
-      applyThemeTokensToDOM(newEffective);
+      const current = getInitialBrandingByHostname();
+      setBranding(current);
+      applyThemeTokensToDOM(newEffective, current);
 
       if (typeof window !== "undefined") {
         localStorage.setItem("pay2pay_theme_mode", newMode);
@@ -247,7 +278,10 @@ export const CustomThemeProvider: React.FC<{ children: ReactNode }> = ({ childre
     setTimezoneState(tz);
   }, []);
 
-  const muiTheme = createMuiThemeForEffectiveTheme(effectiveTheme);
+  const muiTheme = useMemo(
+    () => createMuiThemeForEffectiveTheme(effectiveTheme, branding),
+    [effectiveTheme, branding]
+  );
 
   return (
     <ThemeContext.Provider

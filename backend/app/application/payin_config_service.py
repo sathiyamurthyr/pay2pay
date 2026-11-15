@@ -7,7 +7,7 @@ payment modes, card types, and administrative audits.
 import logging
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
-from sqlalchemy import text, select, and_
+from sqlalchemy import text, select, and_, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.infrastructure.db.payin_models import (
     PayinCompanyCfgModel, PayinVendorModel, PayinCompanyVendorModel,
@@ -107,15 +107,27 @@ class PayInConfigService:
             ) for c in card_res.scalars().all()
         ]
 
-        # 5. Eligible Vendors mapped to company with role-based vendor masking
+        # 5. Eligible Vendors mapped to company with dynamic Admin-configured gateway display
         v_stmt = text("""
-            SELECT v.payin_vendor_ref_id, v.vendor_code, v.vendor_name, v.provider_name, cv.is_default
+            SELECT 
+                v.payin_vendor_ref_id, 
+                v.vendor_code, 
+                v.vendor_name, 
+                v.provider_name, 
+                cv.is_default,
+                cv.gateway_code,
+                cv.retailer_display_name,
+                cv.description,
+                cv.display_order,
+                cv.status,
+                cv.is_enabled
             FROM public.payin_company_vendors cv
             JOIN public.payin_vendors v ON cv.payin_vendor_ref_id = v.payin_vendor_ref_id
             WHERE cv.company_ref_id = :c_ref 
               AND cv.is_enabled = TRUE 
+              AND cv.status = 'ACTIVE'
               AND v.vendor_status = 'ACTIVE'
-            ORDER BY cv.vendor_priority ASC, cv.is_default DESC;
+            ORDER BY cv.display_order ASC, cv.vendor_priority ASC, cv.is_default DESC;
         """)
         v_res = await db.execute(v_stmt, {"c_ref": company_ref_id})
         raw_vendors = v_res.fetchall()
@@ -128,7 +140,12 @@ class PayInConfigService:
             raw_vname = r[2]
             raw_pname = r[3]
             is_def = r[4]
-            g_code = GatewayMaskingService.get_gateway_code(raw_vcode)
+            g_code = r[5] or GatewayMaskingService.get_gateway_code(raw_vcode)
+            display_name = r[6] or f"Gateway {g_code}"
+            desc = r[7] or ("Fast and secure payment processing with instant confirmation." if g_code == "G-1" else "Enterprise-grade payment gateway with redundant routing.")
+            disp_order = r[8] or (1 if g_code == "G-1" else 2)
+            g_status = r[9] or "ACTIVE"
+            g_enabled = r[10] if r[10] is not None else True
 
             if is_admin:
                 # Authorized admin preserves internal provider visibility
@@ -139,29 +156,37 @@ class PayInConfigService:
                     provider_name=raw_pname,
                     is_default=is_def,
                     gateway_code=g_code,
-                    display_name=raw_vname,
+                    display_name=display_name,
                     subtitle=f"Internal Provider ({raw_vcode})",
-                    badge="Active",
-                    is_active=True
+                    description=desc,
+                    display_order=disp_order,
+                    badge="Active" if g_status == "ACTIVE" and g_enabled else "Inactive",
+                    badge_color="#10B981" if g_status == "ACTIVE" and g_enabled else "#94A3B8",
+                    is_active=(g_status == "ACTIVE" and g_enabled),
+                    is_enabled=g_enabled
                 ))
             else:
-                # Customer-facing roles see only generic Gateway G-1 / Gateway G-2
+                # Customer-facing roles see only Admin-configured dynamic gateway name and masked code
                 vendors.append(VendorOptionItem(
                     payin_vendor_ref_id=v_ref_id,
                     vendor_code=g_code,
-                    vendor_name=f"Gateway {g_code}",
-                    provider_name=f"Gateway {g_code}",
-                    is_default=(g_code == "G-1"),
+                    vendor_name=display_name,
+                    provider_name=display_name,
+                    is_default=(is_def or disp_order == 1 or g_code == "G-1"),
                     gateway_code=g_code,
-                    display_name=f"Gateway {g_code}",
-                    subtitle="Primary Payment Gateway" if g_code == "G-1" else "Secondary Payment Gateway",
+                    display_name=display_name,
+                    subtitle=desc,
+                    description=desc,
+                    display_order=disp_order,
                     badge="Active",
-                    is_active=True
+                    badge_color="#10B981",
+                    is_active=True,
+                    is_enabled=True,
+                    supported_methods=["CREDIT_CARD", "DEBIT_CARD", "UPI", "NET_BANKING"]
                 ))
 
         if not is_admin:
-            # Sort so Gateway G-1 is always displayed first, followed by Gateway G-2
-            vendors.sort(key=lambda x: x.gateway_code or x.vendor_code)
+            vendors.sort(key=lambda x: (x.display_order or 1, x.gateway_code or x.vendor_code))
 
         # 6. Configured Card Schemes with Admin MDR
         card_schemes = await cls.get_card_schemes_mdr(db=db, company_ref_id=company_ref_id)
@@ -318,20 +343,28 @@ class PayInConfigService:
         SMSPay (company_ref_id = 2) always defaults to BANKME unless explicitly remapped.
         """
         if requested_vendor_code and requested_vendor_code.strip():
-            internal_code = GatewayMaskingService.resolve_internal_vendor(requested_vendor_code)
-            stmt = select(PayinVendorModel).join(
-                PayinCompanyVendorModel,
+            req_code = requested_vendor_code.strip().upper()
+            internal_code = GatewayMaskingService.resolve_internal_vendor(req_code)
+
+            # Check if this company vendor mapping exists and whether it is inactive
+            check_stmt = select(PayinCompanyVendorModel, PayinVendorModel).join(
+                PayinVendorModel,
                 PayinCompanyVendorModel.payin_vendor_ref_id == PayinVendorModel.payin_vendor_ref_id
             ).where(
                 PayinCompanyVendorModel.company_ref_id == company_ref_id,
-                PayinCompanyVendorModel.is_enabled == True,
-                PayinVendorModel.vendor_code == internal_code.strip().upper(),
-                PayinVendorModel.vendor_status == "ACTIVE"
+                or_(
+                    func.upper(PayinCompanyVendorModel.gateway_code) == req_code,
+                    func.upper(PayinVendorModel.vendor_code) == internal_code,
+                    func.upper(PayinVendorModel.vendor_code) == req_code
+                )
             )
-            res = await db.execute(stmt)
-            vendor = res.scalars().first()
-            if vendor:
-                return vendor
+            check_res = await db.execute(check_stmt)
+            cv_row = check_res.first()
+            if cv_row:
+                cv_obj, v_obj = cv_row
+                if not cv_obj.is_enabled or cv_obj.status == "INACTIVE" or v_obj.vendor_status != "ACTIVE":
+                    raise DomainException(f"Selected payment gateway '{cv_obj.retailer_display_name or req_code}' is currently inactive or disabled.")
+                return v_obj
 
         # Fallback to default active vendor for company
         stmt_def = select(PayinVendorModel).join(
@@ -340,9 +373,11 @@ class PayInConfigService:
         ).where(
             PayinCompanyVendorModel.company_ref_id == company_ref_id,
             PayinCompanyVendorModel.is_enabled == True,
+            PayinCompanyVendorModel.status == "ACTIVE",
             PayinVendorModel.vendor_status == "ACTIVE"
         ).order_by(
             PayinCompanyVendorModel.is_default.desc(),
+            PayinCompanyVendorModel.display_order.asc(),
             PayinCompanyVendorModel.vendor_priority.asc()
         )
         res_def = await db.execute(stmt_def)
