@@ -144,6 +144,11 @@ class Settings(BaseSettings):
     WHATSAPP_PHONE_NUMBER_ID: str = Field(default_factory=lambda: os.getenv("WHATSAPP_PHONE_NUMBER_ID", ""))
     WHATSAPP_AUTH_TOKEN: str = Field(default_factory=lambda: os.getenv("WHATSAPP_AUTH_TOKEN", ""))
 
+    # ── Sathus Shared Notification Platform Integration ─────────────────────
+    NOTIFICATION_PLATFORM_URL: str = Field(default_factory=lambda: os.getenv("NOTIFICATION_PLATFORM_URL", "http://127.0.0.1:8150"))
+    NOTIFICATION_PLATFORM_API_KEY: str = Field(default_factory=lambda: os.getenv("NOTIFICATION_PLATFORM_API_KEY", ""))
+    NOTIFICATION_PLATFORM_ENABLED: bool = Field(default_factory=lambda: os.getenv("NOTIFICATION_PLATFORM_ENABLED", "true").lower() in ("true", "1", "yes"))
+
 
     # ── SMTP Email Dispatcher Credentials ────────────────────────────────────
     SMTP_SERVER: str = Field(default="smtp.gmail.com")
