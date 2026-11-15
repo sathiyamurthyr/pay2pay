@@ -148,22 +148,21 @@ echo '=== 5. Waiting for containers to become healthy ==='
 sleep 15
 docker compose ps frontend backend
 
-echo '=== 5. Title & Branding Verification ==='
-echo -n 'Root Login Title: '
-curl -s http://127.0.0.1:3060/login | grep -o '<title>[^<]*</title>' || true
+echo '=== 5. Domain-Based Branding & Route Verification ==='
+echo -n 'Pay2Pay Host Title: '
+curl -s -H 'Host: pay2pay.in' http://127.0.0.1:3060/login | grep -o '<title>[^<]*</title>' || true
 
-echo -n 'Retailer Login Title: '
-curl -s http://127.0.0.1:3060/retailer/login | grep -o '<title>[^<]*</title>' || true
+echo -n 'SMSPAY Host Title: '
+curl -s -H 'Host: smspay.store' http://127.0.0.1:3060/login | grep -o '<title>[^<]*</title>' || true
 
-echo -n 'Check for Pay2Pay in Login: '
-if curl -s http://127.0.0.1:3060/login | grep -qi 'Pay2Pay'; then
-    echo 'WARNING: Pay2Pay found in HTML!'
-else
-    echo 'SUCCESS: No Pay2Pay references found in login HTML!'
-fi
+echo -n 'Near4You Host Title: '
+curl -s -H 'Host: near4you.store' http://127.0.0.1:3060/login | grep -o '<title>[^<]*</title>' || true
 
-echo 'Backend Services Status Check:'
-curl -s http://127.0.0.1:8090/api/v1/services/status || true
+echo -n 'Manual Topup HTTP Status: '
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3060/wallet-ledger/manual-topup || true
+
+echo -n 'Backend Health Check: '
+curl -s http://127.0.0.1:8090/health || true
 
 echo ''
 echo '=== Live Server Deployment Complete! ==='
