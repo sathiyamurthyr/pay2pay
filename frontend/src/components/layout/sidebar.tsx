@@ -179,13 +179,66 @@ const ADMIN_NAV: NavCategory[] = [
   },
 ];
 
-export const Sidebar: React.FC = () => {
+export interface SidebarProps {
+  alwaysExpanded?: boolean;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
   const pathname = usePathname();
   const { user } = useAuth();
   const branding = useCompanyBranding();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // Dynamic Company Branding Resolution (SMSPAY, Near4You, Pay2Pay)
+  const brandInfo = useMemo(() => {
+    const raw = (branding.company_code || branding.company_name || branding.display_name || "").toUpperCase();
+    if (raw.includes("SMSPAY")) {
+      return {
+        name: "SMSPAY",
+        portal: "SMSPAY Portal",
+        logo: branding.logo_url || "/branding/smspay-logo.svg",
+        primary: branding.primary_colour || "#059669",
+        secondary: branding.secondary_colour || "#047857",
+      };
+    }
+    if (raw.includes("NEAR4YOU") || raw.includes("NEAR 4 YOU")) {
+      return {
+        name: "Near4You",
+        portal: "Near4You Portal",
+        logo: branding.logo_url || "/branding/logo.svg",
+        primary: branding.primary_colour || "#A20A3A",
+        secondary: branding.secondary_colour || "#EDC11E",
+      };
+    }
+    if (raw.includes("PAY2PAY")) {
+      return {
+        name: "Pay2Pay",
+        portal: "Pay2Pay Portal",
+        logo: branding.logo_url || "/branding/pay2pay-logo.png",
+        primary: branding.primary_colour || "#2563EB",
+        secondary: branding.secondary_colour || "#1E40AF",
+      };
+    }
+    const fallbackName = branding.display_name?.replace(/\s+/g, "") || branding.company_name || "SMSPAY";
+    return {
+      name: fallbackName,
+      portal: `${fallbackName} Portal`,
+      logo: branding.logo_url || "/branding/smspay-logo.svg",
+      primary: branding.primary_colour || "#059669",
+      secondary: branding.secondary_colour || "#047857",
+    };
+  }, [branding]);
+  const [isCollapsed, setIsCollapsed] = useState(alwaysExpanded ? false : true);
   const [searchQuery, setSearchQuery] = useState("");
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+
+  // Maintain state: Admin Portal is ALWAYS expanded; other portals retain collapsed default
+  useEffect(() => {
+    if (alwaysExpanded) {
+      setIsCollapsed(false);
+    } else {
+      setIsCollapsed(true);
+    }
+  }, [pathname, alwaysExpanded]);
 
   // ── Database Favorites State ──
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
@@ -401,13 +454,13 @@ export const Sidebar: React.FC = () => {
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 overflow-hidden shadow-xs border"
               style={{
-                background: `linear-gradient(135deg, ${branding.primary_colour || "#2563EB"} 0%, ${branding.secondary_colour || "#1E40AF"} 100%)`,
-                borderColor: `${branding.secondary_colour || "#1E40AF"}4D`,
+                background: `linear-gradient(135deg, ${brandInfo.primary} 0%, ${brandInfo.secondary} 100%)`,
+                borderColor: `${brandInfo.secondary}4D`,
               }}
             >
               <img
-                src={branding.logo_url || "/branding/pay2pay-logo.png"}
-                alt={branding.display_name}
+                src={brandInfo.logo}
+                alt={brandInfo.name}
                 className="w-6 h-6 object-contain"
                 onError={(e) => {
                   (e.target as HTMLElement).style.display = "none";
@@ -419,13 +472,13 @@ export const Sidebar: React.FC = () => {
                 className="text-[14px] font-extrabold tracking-tight truncate leading-tight flex items-center gap-1"
                 style={{ color: "#0F172A" }}
               >
-                {branding.company_name.toUpperCase()}
-                <Sparkles className="w-3.5 h-3.5" style={{ color: branding.secondary_colour || "#2563EB" }} />
+                {brandInfo.name}
+                <Sparkles className="w-3.5 h-3.5" style={{ color: brandInfo.secondary }} />
               </h1>
               <span
-                className="text-[10px] font-mono font-bold tracking-wider uppercase block text-[#64748B]"
+                className="text-[10px] font-mono font-bold tracking-wider block text-[#64748B]"
               >
-                {branding.display_name} Portal
+                {brandInfo.portal}
               </span>
             </div>
           </div>
@@ -435,13 +488,13 @@ export const Sidebar: React.FC = () => {
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center mx-auto overflow-hidden shadow-xs border"
             style={{
-              background: `linear-gradient(135deg, ${branding.primary_colour || "#2563EB"} 0%, ${branding.secondary_colour || "#1E40AF"} 100%)`,
-              borderColor: `${branding.secondary_colour || "#1E40AF"}4D`,
+              background: `linear-gradient(135deg, ${brandInfo.primary} 0%, ${brandInfo.secondary} 100%)`,
+              borderColor: `${brandInfo.secondary}4D`,
             }}
           >
             <img
-              src={branding.logo_url || "/branding/pay2pay-logo.png"}
-              alt={branding.display_name}
+              src={brandInfo.logo}
+              alt={brandInfo.name}
               className="w-6 h-6 object-contain"
               onError={(e) => {
                 (e.target as HTMLElement).style.display = "none";
@@ -450,19 +503,21 @@ export const Sidebar: React.FC = () => {
           </div>
         )}
 
-        <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className={`p-1.5 rounded-lg transition-all duration-200 focus:outline-none cursor-pointer hover:bg-slate-100 ${
-            isCollapsed ? "mx-auto" : "ml-1.5 shrink-0"
-          }`}
-          style={{
-            border: "1px solid #E2E8F0",
-            color: "#64748B",
-          }}
-          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {isCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
-        </button>
+        {!alwaysExpanded && (
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className={`p-1.5 rounded-lg transition-all duration-200 focus:outline-none cursor-pointer hover:bg-slate-100 ${
+              isCollapsed ? "mx-auto" : "ml-1.5 shrink-0"
+            }`}
+            style={{
+              border: "1px solid #E2E8F0",
+              color: "#64748B",
+            }}
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+          </button>
+        )}
       </div>
 
       {/* ── Glassmorphic Search Bar ── */}
