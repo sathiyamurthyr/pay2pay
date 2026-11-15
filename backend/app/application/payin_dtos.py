@@ -51,6 +51,8 @@ class CommonPayInResponse(BaseModel):
     net_amount: Optional[float] = Field(None, description="Net amount credited to retailer (backward-compatible alias)")
     company_mdr_liability: float = Field(0.0, description="Company absorbed MDR liability")
     mdr_treatment: str = Field("DEDUCT_FROM_TOPUP", description="Applied MDR treatment")
+    customer_payable_policy: Optional[str] = Field("WITH_MDR", description="Policy code: WITH_MDR or WITHOUT_MDR")
+    policy_display_name: Optional[str] = Field("Customer Pays MDR Charges", description="Policy display name")
     provider: str = Field(..., description="Resolved provider code (e.g. BANKME, EXISTING)")
     payment_url: Optional[str] = Field(None, description="Payment gateway checkout / intent URL")
     qr_string: Optional[str] = Field(None, description="Raw UPI payment URI / QR payload")
@@ -94,6 +96,8 @@ class MdrPreviewResponse(BaseModel):
     mdr_treatment: str
     rule_ref_id: Optional[int] = None
     vendor_name: str
+    customer_payable_policy: Optional[str] = "WITH_MDR"
+    policy_display_name: Optional[str] = "Customer Pays MDR Charges"
 
 
 class ServiceOptionItem(BaseModel):
@@ -122,12 +126,35 @@ class CardTypeOptionItem(BaseModel):
     is_enabled: bool
 
 
+class CardSchemeMdrItem(BaseModel):
+    """
+    Informational card scheme display item with Admin-configured MDR rate.
+    Strictly isolated by the authenticated retailer's Company Ref ID.
+    """
+    id: str
+    name: str
+    category: str
+    card_network: str
+    mdr_percent: Optional[float] = None
+    mdr_display: str
+    mdr_treatment: Optional[str] = None
+    is_configured: bool = False
+    brand_color: str
+    icon_text: str
+    rule_ref_id: Optional[int] = None
+
+
 class VendorOptionItem(BaseModel):
     payin_vendor_ref_id: int
     vendor_code: str
     vendor_name: str
     provider_name: str
     is_default: bool
+    gateway_code: Optional[str] = "G-1"
+    display_name: Optional[str] = "Gateway G-1"
+    subtitle: Optional[str] = "Primary Payment Gateway"
+    badge: Optional[str] = "Active"
+    is_active: Optional[bool] = True
 
 
 class PayInOptionsResponse(BaseModel):
@@ -143,6 +170,10 @@ class PayInOptionsResponse(BaseModel):
     payment_modes: List[PaymentModeOptionItem]
     card_types: List[CardTypeOptionItem]
     vendors: List[VendorOptionItem]
+    card_schemes: List[CardSchemeMdrItem] = []
+    customer_payable_policy: Optional[str] = "WITH_MDR"
+    policy_display_name: Optional[str] = "Customer Pays MDR Charges"
+    mdr_treatment: Optional[str] = "COLLECT_ADDITIONALLY"
 
 
 class PayInStatusResponse(BaseModel):
@@ -161,6 +192,10 @@ class PayInStatusResponse(BaseModel):
     customer_payable: float = 0.0
     retailer_credit: float = 0.0
     provider: str
+    card_network: Optional[str] = None
+    mdr_treatment: Optional[str] = None
+    customer_payable_policy: Optional[str] = None
+    policy_display_name: Optional[str] = None
     ledger_txn_id: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
@@ -191,6 +226,9 @@ class BankMeWebhookPayload(BaseModel):
     reason: Optional[str] = Field(None, description="Failure reason")
     environment: Optional[str] = Field(None, description="sandbox or live")
     signature: Optional[str] = Field(None, description="HMAC / digital signature for verification")
+    card_network: Optional[str] = Field(None, description="Actual card network returned by provider (e.g. VISA, MASTERCARD, RUPAY, AMEX, CORP)")
+    card_type: Optional[str] = Field(None, description="Actual card type / category returned by provider")
+    card_category: Optional[str] = Field(None, description="Card category: DEBIT, CREDIT, CORPORATE")
     raw_payload: Optional[Dict[str, Any]] = None
 
     def model_post_init(self, __context: Any) -> None:
@@ -216,3 +254,32 @@ class BankMeWebhookPayload(BaseModel):
                 self.status = "FAILED"
             else:
                 self.status = "PENDING"
+
+
+class PayinPolicyOptionItem(BaseModel):
+    policy: str
+    display_name: str
+    option: str
+    description: str
+    mdr_treatment: str
+
+
+class PayinPolicyResponse(BaseModel):
+    success: bool = True
+    company_ref_id: int
+    company_name: str
+    company_code: str
+    policy: str
+    display_name: str
+    option: str
+    description: str
+    mdr_treatment: str
+    updated_by: Optional[str] = None
+    updated_at: Optional[str] = None
+    available_policies: List[PayinPolicyOptionItem] = []
+
+
+class UpdatePayinPolicyRequest(BaseModel):
+    company_ref_id: Optional[int] = None
+    policy: str = Field(..., description="WITH_MDR or WITHOUT_MDR")
+

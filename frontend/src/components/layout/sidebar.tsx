@@ -149,6 +149,7 @@ const ADMIN_NAV: NavCategory[] = [
     category: "PayIn Management",
     items: [
       { label: "PayIn Dashboard", href: "/admin/payin/dashboard", icon: LayoutDashboard, badge: "Live" },
+      { label: "Pricing Policy", href: "/admin/payin/policy", icon: ShieldCheck, badge: "Policy" },
       { label: "Company Config", href: "/admin/payin/companies", icon: Building2 },
       { label: "Vendor Management", href: "/admin/payin/vendors", icon: Layers },
       { label: "Company Vendors", href: "/admin/payin/company-vendors", icon: Network },

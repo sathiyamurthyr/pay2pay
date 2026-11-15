@@ -12,6 +12,7 @@ from sqlalchemy import text, select, func, and_, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 
+from datetime import datetime, timezone
 from app.core.database import get_db
 from app.application.dependencies import get_current_token_payload, CompanyContext, get_company_context
 from app.infrastructure.db.payin_models import (
@@ -19,6 +20,9 @@ from app.infrastructure.db.payin_models import (
     PayinServiceTypeModel, PayinPaymentModeModel, PayinCardTypeModel,
     PayinMdrCfgModel, PayinTransactionModel, PayinCallbackLogModel,
     PayinAuditLogModel
+)
+from app.application.payin_dtos import (
+    PayinPolicyResponse, PayinPolicyOptionItem, UpdatePayinPolicyRequest
 )
 from app.application.payin_config_service import PayInConfigService
 
@@ -99,6 +103,24 @@ async def get_payin_dashboard_metrics(
     }
 
 
+AVAILABLE_POLICIES = [
+    PayinPolicyOptionItem(
+        policy="WITH_MDR",
+        display_name="Customer Pays MDR Charges",
+        option="OPTION A: WITH MDR",
+        description="Customer pays top-up amount plus applicable MDR and GST. Full eligible top-up amount is credited to the retailer wallet.",
+        mdr_treatment="COLLECT_ADDITIONALLY"
+    ),
+    PayinPolicyOptionItem(
+        policy="WITHOUT_MDR",
+        display_name="Retailer Bears MDR Charges",
+        option="OPTION B: WITHOUT MDR",
+        description="Customer pays only the top-up amount. Applicable MDR and GST are borne by the retailer and deducted from wallet credit.",
+        mdr_treatment="DEDUCT_FROM_TOPUP"
+    )
+]
+
+
 @router.get("/companies")
 async def list_company_configurations(
     ctx: CompanyContext = Depends(get_company_context),
@@ -122,6 +144,8 @@ async def list_company_configurations(
             cfg.max_amount,
             cfg.daily_txn_limit,
             cfg.daily_amt_limit,
+            COALESCE(cfg.customer_payable_policy, 'WITH_MDR') AS customer_payable_policy,
+            cfg.updated_by,
             cfg.updated_at
         FROM public.payin_company_cfg cfg
         JOIN public.company c ON cfg.company_ref_id = c.company_ref_id
@@ -129,8 +153,172 @@ async def list_company_configurations(
         ORDER BY cfg.company_ref_id ASC;
     """)
     res = await db.execute(stmt, params)
-    rows = [dict(r) for r in res.mappings().all()]
+    rows = []
+    for r in res.mappings().all():
+        d = dict(r)
+        d["customer_payable_policy_name"] = "Customer Pays MDR Charges" if d.get("customer_payable_policy") == "WITH_MDR" else "Retailer Bears MDR Charges"
+        rows.append(d)
     return {"success": True, "companies": rows, "data": rows}
+
+
+@router.get("/policy", response_model=PayinPolicyResponse)
+async def get_payin_policy(
+    company_ref_id: Optional[int] = Query(None),
+    ctx: CompanyContext = Depends(get_company_context),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Retrieves the effective Customer Payable Amount Policy for the requested or authenticated company.
+    Strictly isolated by company scope.
+    """
+    target_comp = company_ref_id or ctx.company_ref_id or 2
+    if not ctx.is_super_admin:
+        ctx.validate_access(target_comp)
+        target_comp = ctx.company_ref_id or 2
+
+    comp_stmt = text("""
+        SELECT c.company_ref_id, c.company_name, c.company_code,
+               COALESCE(cfg.customer_payable_policy, 'WITH_MDR') AS policy,
+               cfg.updated_by, cfg.updated_at
+        FROM public.company c
+        LEFT JOIN public.payin_company_cfg cfg ON c.company_ref_id = cfg.company_ref_id
+        WHERE c.company_ref_id = :comp_ref
+        LIMIT 1;
+    """)
+    res = await db.execute(comp_stmt, {"comp_ref": target_comp})
+    row = res.mappings().first()
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Company with Ref ID {target_comp} not found.")
+
+    policy_code = row["policy"] or "WITH_MDR"
+    meta = next((p for p in AVAILABLE_POLICIES if p.policy == policy_code), AVAILABLE_POLICIES[0])
+
+    return PayinPolicyResponse(
+        success=True,
+        company_ref_id=row["company_ref_id"],
+        company_name=row["company_name"],
+        company_code=row["company_code"],
+        policy=meta.policy,
+        display_name=meta.display_name,
+        option=meta.option,
+        description=meta.description,
+        mdr_treatment=meta.mdr_treatment,
+        updated_by=row["updated_by"],
+        updated_at=row["updated_at"].isoformat() if row["updated_at"] else None,
+        available_policies=AVAILABLE_POLICIES
+    )
+
+
+@router.post("/policy", response_model=PayinPolicyResponse)
+async def update_payin_policy(
+    req: UpdatePayinPolicyRequest,
+    ctx: CompanyContext = Depends(get_company_context),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Updates the Customer Payable Amount Policy for the specified company.
+    Requires Admin authorization and updates both company config and MDR matrix treatments.
+    """
+    target_comp = req.company_ref_id or ctx.company_ref_id or 2
+    if not ctx.is_super_admin:
+        ctx.validate_access(target_comp)
+        target_comp = ctx.company_ref_id or 2
+
+    policy_norm = (req.policy or "").strip().upper()
+    if policy_norm not in ("WITH_MDR", "WITHOUT_MDR"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid policy '{req.policy}'. Exactly two options supported: 'WITH_MDR' or 'WITHOUT_MDR'."
+        )
+
+    # Fetch or create payin_company_cfg
+    stmt = select(PayinCompanyCfgModel).where(PayinCompanyCfgModel.company_ref_id == target_comp)
+    cfg = (await db.execute(stmt)).scalars().first()
+    now_utc = datetime.now(timezone.utc)
+    user_identifier = ctx.user.email if (ctx.user and getattr(ctx.user, "email", None)) else (getattr(ctx.user, "username", None) or "ADMIN")
+
+    old_policy = cfg.customer_payable_policy if cfg else "WITH_MDR"
+
+    if not cfg:
+        cfg = PayinCompanyCfgModel(
+            company_ref_id=target_comp,
+            payin_enabled=True,
+            customer_payable_policy=policy_norm,
+            created_by=user_identifier,
+            updated_by=user_identifier,
+            created_at=now_utc,
+            updated_at=now_utc
+        )
+        db.add(cfg)
+        await db.flush()
+    else:
+        cfg.customer_payable_policy = policy_norm
+        cfg.updated_by = user_identifier
+        cfg.updated_at = now_utc
+
+    # Sync corresponding mdr_treatment across active payin_mdr_cfg rules for this company
+    target_treatment = "COLLECT_ADDITIONALLY" if policy_norm == "WITH_MDR" else "DEDUCT_FROM_TOPUP"
+    sync_mdr_stmt = text("""
+        UPDATE public.payin_mdr_cfg
+        SET mdr_treatment = :t_treat,
+            updated_by = :u_by,
+            updated_at = :u_at
+        WHERE company_ref_id = :comp_ref;
+    """)
+    await db.execute(sync_mdr_stmt, {
+        "t_treat": target_treatment,
+        "u_by": user_identifier,
+        "u_at": now_utc,
+        "comp_ref": target_comp
+    })
+
+    # Record Audit Log
+    meta = next((p for p in AVAILABLE_POLICIES if p.policy == policy_norm), AVAILABLE_POLICIES[0])
+    audit = PayinAuditLogModel(
+        action_type="UPDATE_CUSTOMER_PAYABLE_POLICY",
+        entity_type="payin_company_cfg",
+        entity_ref_id=cfg.payin_company_cfg_ref_id,
+        old_value={"policy": old_policy},
+        new_value={"policy": policy_norm, "display_name": meta.display_name, "mdr_treatment": target_treatment},
+        company_ref_id=target_comp,
+        created_at=now_utc
+    )
+    db.add(audit)
+    await db.commit()
+
+    # Query Company Name and Code
+    name_stmt = text("SELECT company_name, company_code FROM public.company WHERE company_ref_id = :comp_ref LIMIT 1;")
+    c_res = await db.execute(name_stmt, {"comp_ref": target_comp})
+    c_row = c_res.mappings().first()
+    comp_name = c_row["company_name"] if c_row else "Company"
+    comp_code = c_row["company_code"] if c_row else "CODE"
+
+    return PayinPolicyResponse(
+        success=True,
+        company_ref_id=target_comp,
+        company_name=comp_name,
+        company_code=comp_code,
+        policy=meta.policy,
+        display_name=meta.display_name,
+        option=meta.option,
+        description=meta.description,
+        mdr_treatment=meta.mdr_treatment,
+        updated_by=user_identifier,
+        updated_at=now_utc.isoformat(),
+        available_policies=AVAILABLE_POLICIES
+    )
+
+
+@router.post("/companies/{company_ref_id}/policy", response_model=PayinPolicyResponse)
+async def update_company_policy_alias(
+    company_ref_id: int,
+    req: UpdatePayinPolicyRequest,
+    ctx: CompanyContext = Depends(get_company_context),
+    db: AsyncSession = Depends(get_db)
+):
+    """Company-scoped policy update alias."""
+    req.company_ref_id = company_ref_id
+    return await update_payin_policy(req=req, ctx=ctx, db=db)
 
 
 @router.post("/companies/{company_ref_id}/toggle")

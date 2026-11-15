@@ -7,6 +7,7 @@ import {
 } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import ShieldIcon from "@mui/icons-material/Shield";
 import Link from "next/link";
 import { apiClient } from "@/lib/api";
 
@@ -62,9 +63,21 @@ export default function AdminPayinCompaniesPage() {
             Company PayIn Configurations
           </Typography>
         </Stack>
-        <Button variant="outlined" startIcon={<RefreshIcon />} onClick={fetchCompanies}>
-          Refresh
-        </Button>
+        <Stack direction="row" spacing={1.5}>
+          <Button
+            component={Link}
+            href="/admin/payin/policy"
+            variant="contained"
+            color="primary"
+            startIcon={<ShieldIcon />}
+            sx={{ textTransform: "none", fontWeight: 700 }}
+          >
+            Manage Pricing Policy
+          </Button>
+          <Button variant="outlined" startIcon={<RefreshIcon />} onClick={fetchCompanies}>
+            Refresh
+          </Button>
+        </Stack>
       </Stack>
 
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
@@ -81,6 +94,7 @@ export default function AdminPayinCompaniesPage() {
                 <TableCell><strong>Code</strong></TableCell>
                 <TableCell><strong>Min / Max (₹)</strong></TableCell>
                 <TableCell><strong>Daily Limit (₹)</strong></TableCell>
+                <TableCell><strong>Customer Payable Policy</strong></TableCell>
                 <TableCell><strong>Status</strong></TableCell>
                 <TableCell align="center"><strong>PayIn Enabled</strong></TableCell>
               </TableRow>
@@ -95,6 +109,14 @@ export default function AdminPayinCompaniesPage() {
                   <TableCell>{c.company_code}</TableCell>
                   <TableCell>₹{Number(c.min_amount).toLocaleString()} - ₹{Number(c.max_amount).toLocaleString()}</TableCell>
                   <TableCell>₹{Number(c.daily_amt_limit).toLocaleString()}</TableCell>
+                  <TableCell>
+                    <Chip
+                      label={c.customer_payable_policy === "WITH_MDR" ? "Customer Pays MDR" : "Retailer Bears MDR"}
+                      color={c.customer_payable_policy === "WITH_MDR" ? "primary" : "warning"}
+                      size="small"
+                      sx={{ fontWeight: 600 }}
+                    />
+                  </TableCell>
                   <TableCell>
                     <Chip
                       label={c.payin_enabled ? "ACTIVE" : "DISABLED"}

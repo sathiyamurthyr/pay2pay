@@ -39,6 +39,7 @@ class PayinCompanyCfgModel(Base):
     max_amount: Mapped[float] = mapped_column(Numeric(14, 2), default=500000.00, nullable=False)
     daily_txn_limit: Mapped[int] = mapped_column(Integer, default=500, nullable=False)
     daily_amt_limit: Mapped[float] = mapped_column(Numeric(14, 2), default=2000000.00, nullable=False)
+    customer_payable_policy: Mapped[str] = mapped_column(String(50), default="WITH_MDR", nullable=False)
     created_by: Mapped[str] = mapped_column(String(100), default="SYSTEM", nullable=False)
     updated_by: Mapped[str] = mapped_column(String(100), default="SYSTEM", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
@@ -264,6 +265,7 @@ class PayinTransactionModel(Base):
     company_mdr_liability: Mapped[float] = mapped_column(Numeric(14, 2), default=0.00, nullable=False)
     currency: Mapped[str] = mapped_column(String(10), default="INR", nullable=False)
     mdr_treatment: Mapped[str] = mapped_column(String(30), default="DEDUCT_FROM_TOPUP", nullable=False)
+    customer_payable_policy: Mapped[Optional[str]] = mapped_column(String(50), default="WITH_MDR", nullable=True)
     
     txn_status: Mapped[str] = mapped_column(String(30), default="INITIATED", nullable=False)
     provider_status: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
@@ -328,4 +330,43 @@ class PayinAuditLogModel(Base):
     new_value: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
     ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
+
+
+class PayinApiLogModel(Base):
+    """Complete audit log of outbound and inbound payment provider API calls."""
+    __tablename__ = "payin_api_logs"
+    __table_args__ = (
+        Index("idx_payin_api_logs_tid", "tid"),
+        Index("idx_payin_api_logs_cmp", "company_ref_id"),
+        Index("idx_payin_api_logs_vendor_order", "vendor_order_id"),
+        Index("idx_payin_api_logs_vendor_ref", "vendor_reference_id"),
+        Index("idx_payin_api_logs_created_at", "created_at"),
+        {"extend_existing": True}
+    )
+
+    payin_api_log_ref_id: Mapped[int] = mapped_column(
+        BigInteger, Identity(start=1, cycle=False), primary_key=True
+    )
+    tid: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    company_ref_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    retailer_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    vendor_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    vendor_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    api_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    endpoint: Mapped[str] = mapped_column(String(512), nullable=False)
+    http_method: Mapped[str] = mapped_column(String(16), nullable=False)
+    req_headers: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+    req_payload: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+    res_status_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    res_payload: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+    execution_duration_ms: Mapped[Optional[float]] = mapped_column(Numeric(10, 2), nullable=True)
+    vendor_order_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    vendor_reference_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    vendor_status: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    error_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    environment: Mapped[str] = mapped_column(String(32), default="sandbox", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False)
+
 

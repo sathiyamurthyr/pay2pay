@@ -38,11 +38,13 @@ from app.application.payin_routing_service import PayInRoutingService, PayInProv
 from app.application.payin_mdr_service import PayInMdrService
 from app.application.payin_config_service import PayInConfigService
 from app.application.bankme_payin_adapter import BankMePayInAdapter, ExistingPayInAdapter
+from app.application.gateway_masking_service import GatewayMaskingService
+from app.application.bankme_payin_client import BankMePayInClient, record_payin_api_audit_log
 from app.application.transaction_reference_service import TransactionReferenceService
 from app.application.wallet_balance_service import WalletBalanceAdjustmentService, WalletAdjustmentDTO
 from app.infrastructure.db.payin_models import (
     PayinTransactionModel, PayinCallbackLogModel, PayinServiceTypeModel,
-    PayinPaymentModeModel, PayinCardTypeModel, PayinVendorModel
+    PayinPaymentModeModel, PayinCardTypeModel, PayinVendorModel, PayinApiLogModel
 )
 from app.infrastructure.db.models import RetailerWalletModel, RetailerModel
 
@@ -104,7 +106,8 @@ class PayInService:
         cls,
         db: AsyncSession,
         company_ref_id: int,
-        preview_req: MdrPreviewRequest
+        preview_req: MdrPreviewRequest,
+        role: Optional[str] = "RETAILER"
     ) -> MdrPreviewResponse:
         """
         Calculates live MDR and financial breakdown for retailer top-up preview.
@@ -129,8 +132,11 @@ class PayInService:
         # 3. Resolve Payment Mode ID
         p_mode_id = None
         if preview_req.payment_mode_code:
+            mode_code = preview_req.payment_mode_code.strip().upper()
+            if mode_code in ("CARD", "CARDS"):
+                mode_code = "CREDIT_CARD"
             m_stmt = select(PayinPaymentModeModel.payin_payment_mode_ref_id).where(
-                PayinPaymentModeModel.pay_mode_code == preview_req.payment_mode_code.strip().upper(),
+                PayinPaymentModeModel.pay_mode_code == mode_code,
                 PayinPaymentModeModel.is_enabled == True
             )
             m_res = await db.execute(m_stmt)
@@ -172,7 +178,9 @@ class PayInService:
             company_mdr_liability=calc["company_mdr_liability"],
             mdr_treatment=calc["mdr_treatment"],
             rule_ref_id=calc["rule_ref_id"],
-            vendor_name=vendor.vendor_name
+            vendor_name=GatewayMaskingService.get_masked_display_name(vendor.vendor_code if vendor else None, role=role),
+            customer_payable_policy=calc.get("customer_payable_policy", "WITH_MDR"),
+            policy_display_name=calc.get("policy_display_name", "Customer Pays MDR Charges")
         )
 
     @classmethod
@@ -240,6 +248,8 @@ class PayInService:
 
         # Payment Mode
         mode_code = (request_dto.payment_mode_code or request_dto.payment_mode or "UPI").strip().upper()
+        if mode_code in ("CARD", "CARDS"):
+            mode_code = "CREDIT_CARD"
         m_stmt = select(PayinPaymentModeModel).where(
             PayinPaymentModeModel.pay_mode_code == mode_code,
             PayinPaymentModeModel.is_enabled == True
@@ -304,6 +314,7 @@ class PayInService:
             company_mdr_liability=calc["company_mdr_liability"],
             currency="INR",
             mdr_treatment=calc["mdr_treatment"],
+            customer_payable_policy=calc.get("customer_payable_policy", "WITH_MDR"),
             txn_status="INITIATED",
             callback_status="PENDING",
             idempotency_key=idempotency_key,
@@ -313,14 +324,22 @@ class PayInService:
         db.add(payin_txn)
         await db.flush()
 
-        # 8. Route to Provider Adapter exclusively by Company Ref ID
-        provider = PayInRoutingService.resolve_provider(company_ref_id)
-        if provider == PayInProvider.BANKME:
+        # 8. Route to Provider Adapter with support for G-1 / G-2 selection
+        resolved_vcode = GatewayMaskingService.resolve_internal_vendor(request_dto.vendor_code)
+        if resolved_vcode == "BANKME":
             adapter = BankMePayInAdapter()
             provider_code = "BANKME"
-        else:
+        elif resolved_vcode == "EXISTING":
             adapter = ExistingPayInAdapter()
             provider_code = "EXISTING"
+        else:
+            provider = PayInRoutingService.resolve_provider(company_ref_id)
+            if provider == PayInProvider.BANKME:
+                adapter = BankMePayInAdapter()
+                provider_code = "BANKME"
+            else:
+                adapter = ExistingPayInAdapter()
+                provider_code = "EXISTING"
 
         # 9. Invoke Provider Adapter
         provider_resp = await adapter.initiate_payin(
@@ -329,10 +348,13 @@ class PayInService:
             customer_name=request_dto.customer_name,
             customer_mobile=request_dto.customer_mobile,
             customer_email=request_dto.customer_email,
-            reference_id=request_dto.reference_id,
-            callback_url=request_dto.callback_url or vendor.callback_url,
+            reference_id=tid,
+            callback_url=request_dto.callback_url or (vendor.callback_url if vendor else None),
             payment_mode=mode_code,
-            note=request_dto.note
+            note=request_dto.note,
+            company_ref_id=company_ref_id,
+            retailer_ref_id=retailer_ref_id,
+            vendor_ref_id=vendor.payin_vendor_ref_id if vendor else 1
         )
 
         # 10. Update PayIn Transaction with Provider Details
@@ -340,12 +362,17 @@ class PayInService:
         new_status = "PENDING" if is_success else "FAILED"
         payin_txn.txn_status = new_status
         payin_txn.provider_status = provider_resp.get("status", "PENDING")
-        payin_txn.provider_ref_id = provider_resp.get("bankme_ref") or provider_resp.get("provider_reference")
+        payin_txn.provider_ref_id = provider_resp.get("order_id") or provider_resp.get("bankme_ref") or provider_resp.get("provider_reference")
         payin_txn.response_ref = provider_resp
         if not is_success:
             payin_txn.failure_reason = provider_resp.get("message", "Provider initiation failed")
 
         await db.commit()
+
+        # Mask provider for customer-facing roles
+        caller_roles = auth_context.get("roles") or []
+        primary_caller_role = caller_roles[0] if caller_roles else "RETAILER"
+        masked_provider = GatewayMaskingService.get_masked_display_name(provider_code, role=primary_caller_role)
 
         return CommonPayInResponse(
             success=is_success,
@@ -361,7 +388,9 @@ class PayInService:
             retailer_credit=calc["retailer_credit"],
             company_mdr_liability=calc["company_mdr_liability"],
             mdr_treatment=calc["mdr_treatment"],
-            provider=provider_code,
+            customer_payable_policy=calc.get("customer_payable_policy", "WITH_MDR"),
+            policy_display_name=calc.get("policy_display_name", "Customer Pays MDR Charges"),
+            provider=masked_provider,
             payment_url=provider_resp.get("payment_url"),
             qr_string=provider_resp.get("qr_string"),
             qr_code_url=provider_resp.get("qr_code_url"),
@@ -455,6 +484,30 @@ class PayInService:
         db.add(cb_log)
         await db.flush()
 
+        # Also record in payin_api_logs for unified API audit trail
+        try:
+            await record_payin_api_audit_log(
+                tid=tid,
+                company_ref_id=txn.company_ref_id,
+                retailer_ref_id=txn.retailer_ref_id,
+                vendor_ref_id=txn.payin_vendor_ref_id,
+                vendor_name="BANKME",
+                api_type="WEBHOOK",
+                endpoint="/api/v1/payin/webhook/bankme",
+                http_method="POST",
+                req_headers=headers or {},
+                req_payload=payload.model_dump(),
+                res_status_code=200,
+                res_payload={"status": "PROCESSING"},
+                execution_duration_ms=0.0,
+                vendor_order_id=payload.orderId or payload.bankme_ref or txn.provider_ref_id,
+                vendor_reference_id=tid,
+                vendor_status=str(payload.status or "SUCCESS").upper(),
+                environment="sandbox"
+            )
+        except Exception as api_log_err:
+            logger.warning("Failed to record webhook in payin_api_logs: %s", api_log_err)
+
         # 6. Evaluate Provider Status
         provider_status = (payload.status or "SUCCESS").strip().upper()
         now_utc = datetime.now(timezone.utc)
@@ -465,6 +518,52 @@ class PayInService:
             txn.provider_ref_id = payload.bankme_ref or payload.utr or txn.provider_ref_id
             txn.callback_status = "SUCCESS"
             txn.completed_at = now_utc
+
+            # Actual Card Type Identification & Reconciliation
+            actual_network = (
+                payload.card_network or 
+                (payload.raw_payload.get("card_network") if payload.raw_payload else None) or
+                (payload.raw_payload.get("card_category") if payload.raw_payload else None) or
+                (payload.raw_payload.get("cardScheme") if payload.raw_payload else None)
+            )
+            if actual_network:
+                actual_str = str(actual_network).strip().upper()
+                if "VISA" in actual_str:
+                    norm_net = "VISA"
+                elif "MASTER" in actual_str or actual_str == "MC":
+                    norm_net = "MASTERCARD"
+                elif "RUPAY" in actual_str:
+                    norm_net = "RUPAY"
+                elif "AMEX" in actual_str or "DINERS" in actual_str:
+                    norm_net = "AMEX"
+                elif "CORP" in actual_str or "BUSINESS" in actual_str:
+                    norm_net = "CORP"
+                else:
+                    norm_net = actual_str
+
+                try:
+                    mdr_cfg = await PayInMdrService.resolve_mdr_rule(
+                        db=db,
+                        company_ref_id=txn.company_ref_id,
+                        vendor_ref_id=txn.payin_vendor_ref_id,
+                        card_network=norm_net
+                    )
+                    calc = PayInMdrService.calculate_charges(txn.txn_amount, mdr_cfg)
+                    txn.card_network = norm_net
+                    txn.mdr_rate = calc["mdr_pct"]
+                    txn.mdr_amount = calc["mdr_amount"]
+                    txn.tax_amount = calc["tax_amount"]
+                    txn.total_charges = calc["total_charges"]
+                    txn.customer_payable = calc["customer_payable"]
+                    txn.retailer_credit = calc["retailer_credit"]
+                    txn.company_mdr_liability = calc["company_mdr_liability"]
+                    txn.mdr_treatment = calc["mdr_treatment"]
+                    logger.info(
+                        "Reconciled TID %s with verified provider card network %s: MDR=%.4f (%s), credit=%.2f",
+                        tid, norm_net, calc["mdr_pct"], calc["mdr_treatment"], calc["retailer_credit"]
+                    )
+                except Exception as e:
+                    logger.warning("Could not reconcile provider card network %s for TID %s: %s", norm_net, tid, e)
 
             # 7. Credit Retailer Wallet via Authoritative WalletBalanceAdjustmentService
             # (which executes public.wallet_balance_update stored procedure)
@@ -564,23 +663,185 @@ class PayInService:
 
         provider_name = "BANKME" if txn.company_ref_id == SMSPAY_COMPANY_REF_ID else "EXISTING"
 
+        # Capture fields in local variables to avoid lazy load on expired instance after commit
+        final_tid = txn.tid
+        final_merchant_ref = txn.merchant_ref_id or ""
+        final_provider_ref = txn.provider_ref_id
+        final_status = txn.txn_status
+        final_amount = float(txn.txn_amount)
+        final_mdr_charge = float(txn.mdr_amount)
+        final_gst_amount = float(txn.tax_amount)
+        final_total_charges = float(txn.total_charges)
+        final_customer_payable = float(txn.customer_payable)
+        final_retailer_credit = float(txn.retailer_credit)
+        final_card_network = txn.card_network
+        final_mdr_treatment = txn.mdr_treatment
+        final_ledger_txn_id = txn.ledger_txn_id
+        final_created_at = txn.created_at.isoformat() if txn.created_at else None
+        final_updated_at = txn.updated_at.isoformat() if txn.updated_at else None
+
+        # If transaction is PENDING and belongs to BankMe, perform live status sync
+        if txn.txn_status == "PENDING" and txn.company_ref_id == SMSPAY_COMPANY_REF_ID:
+            try:
+                live_check = await BankMePayInClient.check_order_status(
+                    tid=txn.tid,
+                    bankme_ref=txn.provider_ref_id,
+                    company_ref_id=txn.company_ref_id,
+                    retailer_ref_id=txn.retailer_ref_id
+                )
+                if live_check.get("success") and live_check.get("status") in ("SUCCESS", "FAILED"):
+                    new_st = live_check.get("status")
+                    final_status = new_st
+                    txn.txn_status = new_st
+                    txn.provider_status = new_st
+                    if live_check.get("utr"):
+                        final_provider_ref = live_check.get("utr")
+                        txn.provider_ref_id = live_check.get("utr")
+                    if new_st == "SUCCESS":
+                        now_utc = datetime.now(timezone.utc)
+                        txn.completed_at = now_utc
+                        final_updated_at = now_utc.isoformat()
+                        # Automatic wallet credit if not already credited
+                        if not txn.ledger_txn_id:
+                            try:
+                                ret_stmt = select(RetailerModel).where(
+                                    RetailerModel.retailer_ref_id == txn.retailer_ref_id,
+                                    RetailerModel.company_ref_id == txn.company_ref_id
+                                )
+                                ret_res = await db.execute(ret_stmt)
+                                ret_obj = ret_res.scalars().first()
+                                credit_amount = float(txn.retailer_credit)
+                                adj_dto = WalletAdjustmentDTO(
+                                    user_ref_id=txn.retailer_ref_id,
+                                    retailer_id=str(ret_obj.public_id) if ret_obj else None,
+                                    retailer_code=ret_obj.retailer_code if ret_obj else None,
+                                    company_ref_id=txn.company_ref_id,
+                                    user_type_ref_id=2,
+                                    entry_type="CREDIT",
+                                    amount=credit_amount,
+                                    payout_amount=credit_amount,
+                                    charge_amount=0.0,
+                                    gst_amount=0.0,
+                                    service_name="PAYIN_TOPUP",
+                                    wallet_type="MAIN",
+                                    user_type="RETAILER",
+                                    txn_id=txn.tid,
+                                    ref_id=live_check.get("utr") or txn.provider_ref_id or txn.tid,
+                                    narration=f"PayIn Wallet Top-Up via BankMe (TID: {txn.tid})"
+                                )
+                                adj_res = await WalletBalanceAdjustmentService.execute_wallet_balance_update(db=db, dto=adj_dto)
+                                if adj_res and adj_res.success:
+                                    final_ledger_txn_id = adj_res.txn_id
+                                    txn.ledger_txn_id = adj_res.txn_id
+                                    logger.info("Credited ₹%s to retailer_ref_id=%s via sync for TID=%s", credit_amount, txn.retailer_ref_id, txn.tid)
+                            except Exception as w_err:
+                                logger.error("Wallet credit error during status sync for TID %s: %s", txn.tid, w_err)
+                    await db.commit()
+            except Exception as sync_err:
+                logger.warning("Error performing live BankMe status check for TID %s: %s", tid, sync_err)
+
+        # Mask provider for customer-facing roles
+        caller_roles = auth_context.get("roles") or []
+        primary_caller_role = caller_roles[0] if caller_roles else "RETAILER"
+        masked_provider = GatewayMaskingService.get_masked_display_name(provider_name, role=primary_caller_role)
+
         return PayInStatusResponse(
             success=True,
-            tid=txn.tid,
-            merchant_reference=txn.merchant_ref_id or "",
-            provider_reference=txn.provider_ref_id,
-            status=txn.txn_status,
-            amount=float(txn.txn_amount),
-            mdr_charge=float(txn.mdr_amount),
-            gst_amount=float(txn.tax_amount),
-            total_charges=float(txn.total_charges),
-            customer_payable=float(txn.customer_payable),
-            retailer_credit=float(txn.retailer_credit),
-            provider=provider_name,
-            ledger_txn_id=txn.ledger_txn_id,
-            created_at=txn.created_at.isoformat() if txn.created_at else None,
-            updated_at=txn.updated_at.isoformat() if txn.updated_at else None
+            tid=final_tid,
+            merchant_reference=final_merchant_ref,
+            provider_reference=final_provider_ref,
+            status=final_status,
+            amount=final_amount,
+            mdr_charge=final_mdr_charge,
+            gst_amount=final_gst_amount,
+            total_charges=final_total_charges,
+            customer_payable=final_customer_payable,
+            retailer_credit=final_retailer_credit,
+            provider=masked_provider,
+            card_network=final_card_network,
+            mdr_treatment=final_mdr_treatment,
+            customer_payable_policy=txn.customer_payable_policy or ("WITH_MDR" if final_mdr_treatment == "COLLECT_ADDITIONALLY" else "WITHOUT_MDR"),
+            policy_display_name="Customer Pays MDR Charges" if (txn.customer_payable_policy == "WITH_MDR" or final_mdr_treatment == "COLLECT_ADDITIONALLY") else "Retailer Bears MDR Charges",
+            ledger_txn_id=final_ledger_txn_id,
+            created_at=final_created_at,
+            updated_at=final_updated_at
         )
 
     # Alias for router compatibility
     get_payin_status = get_transaction_status
+
+    @classmethod
+    async def get_transaction_audit(
+        cls,
+        db: AsyncSession,
+        tid: str,
+        auth_context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Retrieves complete request/response audit logs for a PayIn transaction.
+        Enforces strict company data isolation.
+        """
+        company_ref_id = auth_context.get("company_ref_id")
+
+        # 1. Verify transaction existence & ownership
+        stmt = select(PayinTransactionModel).where(PayinTransactionModel.tid == tid)
+        res = await db.execute(stmt)
+        txn = res.scalars().first()
+
+        if not txn:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Transaction with TID '{tid}' not found."
+            )
+
+        if company_ref_id is not None and txn.company_ref_id != int(company_ref_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: Transaction belongs to a different company."
+            )
+
+        # 2. Fetch all API audit logs for this TID
+        log_stmt = select(PayinApiLogModel).where(
+            PayinApiLogModel.tid == tid
+        ).order_by(PayinApiLogModel.payin_api_log_ref_id.asc())
+        log_res = await db.execute(log_stmt)
+        logs = log_res.scalars().all()
+
+        roles = auth_context.get("roles") or []
+        primary_role = roles[0] if roles else "RETAILER"
+        raw_pname = "BANKME" if txn.company_ref_id == SMSPAY_COMPANY_REF_ID else "EXISTING"
+        masked_p = GatewayMaskingService.get_masked_display_name(raw_pname, role=primary_role)
+
+        return {
+            "success": True,
+            "tid": txn.tid,
+            "company_ref_id": txn.company_ref_id,
+            "retailer_ref_id": txn.retailer_ref_id,
+            "provider": masked_p,
+            "provider_reference": txn.provider_ref_id,
+            "status": txn.txn_status,
+            "amount": float(txn.txn_amount),
+            "customer_payable": float(txn.customer_payable),
+            "retailer_credit": float(txn.retailer_credit),
+            "ledger_txn_id": txn.ledger_txn_id,
+            "logs_count": len(logs),
+            "audit_trail": [
+                {
+                    "log_id": l.payin_api_log_ref_id,
+                    "api_type": l.api_type,
+                    "vendor_name": l.vendor_name,
+                    "endpoint": l.endpoint,
+                    "http_method": l.http_method,
+                    "req_headers": l.req_headers,
+                    "req_payload": l.req_payload,
+                    "res_status_code": l.res_status_code,
+                    "res_payload": l.res_payload,
+                    "execution_duration_ms": float(l.execution_duration_ms) if l.execution_duration_ms else None,
+                    "vendor_order_id": l.vendor_order_id,
+                    "vendor_status": l.vendor_status,
+                    "environment": l.environment,
+                    "created_at": l.created_at.isoformat() if l.created_at else None
+                }
+                for l in logs
+            ]
+        }

@@ -147,6 +147,34 @@ class PayInMdrService:
         })
         row = res.mappings().first()
 
+        # Resolve Company-level Customer Payable Amount Policy
+        comp_policy_stmt = text("""
+            SELECT customer_payable_policy 
+            FROM public.payin_company_cfg 
+            WHERE company_ref_id = :c_ref
+            LIMIT 1;
+        """)
+        cp_res = await db.execute(comp_policy_stmt, {"c_ref": company_ref_id})
+        comp_policy = cp_res.scalar()
+
+        if comp_policy == "WITH_MDR":
+            effective_treatment = "COLLECT_ADDITIONALLY"
+            policy_code = "WITH_MDR"
+            policy_name = "Customer Pays MDR Charges"
+        elif comp_policy == "WITHOUT_MDR":
+            effective_treatment = "DEDUCT_FROM_TOPUP"
+            policy_code = "WITHOUT_MDR"
+            policy_name = "Retailer Bears MDR Charges"
+        else:
+            if row and row.get("mdr_treatment") == "DEDUCT_FROM_TOPUP":
+                effective_treatment = "DEDUCT_FROM_TOPUP"
+                policy_code = "WITHOUT_MDR"
+                policy_name = "Retailer Bears MDR Charges"
+            else:
+                effective_treatment = "COLLECT_ADDITIONALLY"
+                policy_code = "WITH_MDR"
+                policy_name = "Customer Pays MDR Charges"
+
         if row:
             return {
                 "rule_ref_id": row["payin_mdr_cfg_ref_id"],
@@ -155,7 +183,9 @@ class PayInMdrService:
                 "tax_pct": Decimal(str(row["tax_pct"])),
                 "min_mdr": Decimal(str(row["min_mdr"])),
                 "max_mdr": Decimal(str(row["max_mdr"])),
-                "mdr_treatment": str(row["mdr_treatment"] or "DEDUCT_FROM_TOPUP"),
+                "mdr_treatment": effective_treatment,
+                "customer_payable_policy": policy_code,
+                "policy_display_name": policy_name,
                 "priority": int(row["priority"])
             }
 
@@ -182,7 +212,9 @@ class PayInMdrService:
                 "tax_pct": Decimal("0.1800") if fb_row.get("gst_applicable", True) else Decimal("0.0000"),
                 "min_mdr": Decimal(str(fb_row.get("minimum_charge") or "0.00")),
                 "max_mdr": Decimal(str(fb_row.get("maximum_charge") or "5000.00")),
-                "mdr_treatment": "DEDUCT_FROM_TOPUP",
+                "mdr_treatment": effective_treatment,
+                "customer_payable_policy": policy_code,
+                "policy_display_name": policy_name,
                 "priority": 0
             }
 
@@ -275,5 +307,7 @@ class PayInMdrService:
             "mdr_fixed": float(fixed),
             "tax_pct": float(tax_pct),
             "mdr_treatment": treatment,
+            "customer_payable_policy": mdr_config.get("customer_payable_policy", "WITH_MDR" if treatment == "COLLECT_ADDITIONALLY" else "WITHOUT_MDR"),
+            "policy_display_name": mdr_config.get("policy_display_name", "Customer Pays MDR Charges" if treatment == "COLLECT_ADDITIONALLY" else "Retailer Bears MDR Charges"),
             "rule_ref_id": mdr_config.get("rule_ref_id")
         }

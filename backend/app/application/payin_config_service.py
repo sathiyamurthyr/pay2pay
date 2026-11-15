@@ -16,8 +16,9 @@ from app.infrastructure.db.payin_models import (
 )
 from app.application.payin_dtos import (
     PayInOptionsResponse, ServiceOptionItem, PaymentModeOptionItem,
-    CardTypeOptionItem, VendorOptionItem
+    CardTypeOptionItem, VendorOptionItem, CardSchemeMdrItem
 )
+from app.application.gateway_masking_service import GatewayMaskingService
 from app.core.exceptions import DomainException
 
 logger = logging.getLogger("payin_config_service")
@@ -32,7 +33,8 @@ class PayInConfigService:
     async def get_retailer_payin_options(
         cls,
         db: AsyncSession,
-        company_ref_id: int
+        company_ref_id: int,
+        role: Optional[str] = "RETAILER"
     ) -> PayInOptionsResponse:
         """
         Retrieves all enabled services, payment modes, card types, and vendors
@@ -105,7 +107,7 @@ class PayInConfigService:
             ) for c in card_res.scalars().all()
         ]
 
-        # 5. Eligible Vendors mapped to company
+        # 5. Eligible Vendors mapped to company with role-based vendor masking
         v_stmt = text("""
             SELECT v.payin_vendor_ref_id, v.vendor_code, v.vendor_name, v.provider_name, cv.is_default
             FROM public.payin_company_vendors cv
@@ -116,15 +118,57 @@ class PayInConfigService:
             ORDER BY cv.vendor_priority ASC, cv.is_default DESC;
         """)
         v_res = await db.execute(v_stmt, {"c_ref": company_ref_id})
-        vendors = [
-            VendorOptionItem(
-                payin_vendor_ref_id=r[0],
-                vendor_code=r[1],
-                vendor_name=r[2],
-                provider_name=r[3],
-                is_default=r[4]
-            ) for r in v_res.fetchall()
-        ]
+        raw_vendors = v_res.fetchall()
+        
+        is_admin = GatewayMaskingService.is_admin_role(role)
+        vendors = []
+        for r in raw_vendors:
+            v_ref_id = r[0]
+            raw_vcode = r[1]
+            raw_vname = r[2]
+            raw_pname = r[3]
+            is_def = r[4]
+            g_code = GatewayMaskingService.get_gateway_code(raw_vcode)
+
+            if is_admin:
+                # Authorized admin preserves internal provider visibility
+                vendors.append(VendorOptionItem(
+                    payin_vendor_ref_id=v_ref_id,
+                    vendor_code=raw_vcode,
+                    vendor_name=raw_vname,
+                    provider_name=raw_pname,
+                    is_default=is_def,
+                    gateway_code=g_code,
+                    display_name=raw_vname,
+                    subtitle=f"Internal Provider ({raw_vcode})",
+                    badge="Active",
+                    is_active=True
+                ))
+            else:
+                # Customer-facing roles see only generic Gateway G-1 / Gateway G-2
+                vendors.append(VendorOptionItem(
+                    payin_vendor_ref_id=v_ref_id,
+                    vendor_code=g_code,
+                    vendor_name=f"Gateway {g_code}",
+                    provider_name=f"Gateway {g_code}",
+                    is_default=(g_code == "G-1"),
+                    gateway_code=g_code,
+                    display_name=f"Gateway {g_code}",
+                    subtitle="Primary Payment Gateway" if g_code == "G-1" else "Secondary Payment Gateway",
+                    badge="Active",
+                    is_active=True
+                ))
+
+        if not is_admin:
+            # Sort so Gateway G-1 is always displayed first, followed by Gateway G-2
+            vendors.sort(key=lambda x: x.gateway_code or x.vendor_code)
+
+        # 6. Configured Card Schemes with Admin MDR
+        card_schemes = await cls.get_card_schemes_mdr(db=db, company_ref_id=company_ref_id)
+
+        active_policy = comp_cfg.customer_payable_policy if comp_cfg and comp_cfg.customer_payable_policy else "WITH_MDR"
+        policy_name = "Customer Pays MDR Charges" if active_policy == "WITH_MDR" else "Retailer Bears MDR Charges"
+        treatment = "COLLECT_ADDITIONALLY" if active_policy == "WITH_MDR" else "DEDUCT_FROM_TOPUP"
 
         return PayInOptionsResponse(
             success=True,
@@ -135,8 +179,132 @@ class PayInConfigService:
             services=services,
             payment_modes=modes,
             card_types=cards,
-            vendors=vendors
+            vendors=vendors,
+            card_schemes=card_schemes,
+            customer_payable_policy=active_policy,
+            policy_display_name=policy_name,
+            mdr_treatment=treatment
         )
+
+    @classmethod
+    async def get_card_schemes_mdr(
+        cls,
+        db: AsyncSession,
+        company_ref_id: int,
+        vendor_code: Optional[str] = None
+    ) -> List[CardSchemeMdrItem]:
+        """
+        Retrieves the 5 standard card categories and their Admin-configured MDR rates
+        for the authenticated company and selected vendor/gateway.
+        Strict company isolation is enforced.
+        """
+        vendor = await cls.resolve_company_vendor(
+            db=db,
+            company_ref_id=company_ref_id,
+            requested_vendor_code=vendor_code
+        )
+        vendor_ref_id = vendor.payin_vendor_ref_id if vendor else 1
+
+        schemes_meta = [
+            {
+                "id": "visa",
+                "name": "Visa",
+                "category": "Consumer Debit / Credit",
+                "card_network": "VISA",
+                "brand_color": "#1A1F71",
+                "icon_text": "VISA"
+            },
+            {
+                "id": "mastercard",
+                "name": "MasterCard",
+                "category": "Consumer Debit / Credit",
+                "card_network": "MASTERCARD",
+                "brand_color": "#EB001B",
+                "icon_text": "MC"
+            },
+            {
+                "id": "rupay",
+                "name": "RuPay",
+                "category": "Domestic NPCI Network",
+                "card_network": "RUPAY",
+                "brand_color": "#097939",
+                "icon_text": "RUPAY"
+            },
+            {
+                "id": "amex_diners",
+                "name": "AMEX / Diners",
+                "category": "Premium Card Schemes",
+                "card_network": "AMEX",
+                "brand_color": "#006FCF",
+                "icon_text": "AMEX"
+            },
+            {
+                "id": "business_corporate",
+                "name": "Business / Corporate",
+                "category": "Commercial & Purchasing",
+                "card_network": "CORP",
+                "brand_color": "#475569",
+                "icon_text": "CORP"
+            }
+        ]
+
+        now = datetime.now(timezone.utc)
+        results: List[CardSchemeMdrItem] = []
+
+        for sm in schemes_meta:
+            net = sm["card_network"]
+            stmt = text("""
+                SELECT payin_mdr_cfg_ref_id, mdr_pct, mdr_fixed, tax_pct, mdr_treatment, is_enabled
+                FROM public.payin_mdr_cfg
+                WHERE company_ref_id = :c_ref
+                  AND payin_vendor_ref_id = :v_ref
+                  AND card_network = :c_net
+                  AND is_enabled = TRUE
+                  AND effective_from <= :now_dt
+                  AND (effective_to IS NULL OR effective_to >= :now_dt)
+                ORDER BY priority DESC, payin_mdr_cfg_ref_id DESC
+                LIMIT 1;
+            """)
+            res = await db.execute(stmt, {
+                "c_ref": company_ref_id,
+                "v_ref": vendor_ref_id,
+                "c_net": net,
+                "now_dt": now
+            })
+            row = res.mappings().first()
+
+            if row:
+                pct = float(row["mdr_pct"])
+                display_pct = f"{pct * 100:.2f}%" if pct > 0 else "0.00%"
+                results.append(CardSchemeMdrItem(
+                    id=sm["id"],
+                    name=sm["name"],
+                    category=sm["category"],
+                    card_network=sm["card_network"],
+                    mdr_percent=round(pct * 100, 2),
+                    mdr_display=display_pct,
+                    mdr_treatment=str(row["mdr_treatment"] or "COLLECT_ADDITIONALLY"),
+                    is_configured=True,
+                    brand_color=sm["brand_color"],
+                    icon_text=sm["icon_text"],
+                    rule_ref_id=row["payin_mdr_cfg_ref_id"]
+                ))
+            else:
+                results.append(CardSchemeMdrItem(
+                    id=sm["id"],
+                    name=sm["name"],
+                    category=sm["category"],
+                    card_network=sm["card_network"],
+                    mdr_percent=None,
+                    mdr_display="Not Configured",
+                    mdr_treatment=None,
+                    is_configured=False,
+                    brand_color=sm["brand_color"],
+                    icon_text=sm["icon_text"],
+                    rule_ref_id=None
+                ))
+
+        return results
 
     @classmethod
     async def resolve_company_vendor(
@@ -150,13 +318,14 @@ class PayInConfigService:
         SMSPay (company_ref_id = 2) always defaults to BANKME unless explicitly remapped.
         """
         if requested_vendor_code and requested_vendor_code.strip():
+            internal_code = GatewayMaskingService.resolve_internal_vendor(requested_vendor_code)
             stmt = select(PayinVendorModel).join(
                 PayinCompanyVendorModel,
                 PayinCompanyVendorModel.payin_vendor_ref_id == PayinVendorModel.payin_vendor_ref_id
             ).where(
                 PayinCompanyVendorModel.company_ref_id == company_ref_id,
                 PayinCompanyVendorModel.is_enabled == True,
-                PayinVendorModel.vendor_code == requested_vendor_code.strip().upper(),
+                PayinVendorModel.vendor_code == internal_code.strip().upper(),
                 PayinVendorModel.vendor_status == "ACTIVE"
             )
             res = await db.execute(stmt)
