@@ -42,6 +42,7 @@ import apiClient from "@/lib/api";
 import { useWalletSync } from "@/context/WalletSyncProvider";
 import { SectionHeader } from "@/components/shared";
 import { CONFIGURED_GATEWAYS, getCustomerGateway, maskGatewayName, GatewayConfigItem } from "@/lib/gateway-config";
+import "./payin.css";
 
 // ─── INDIAN CURRENCY IN WORDS CONVERTER ───
 function numberToIndianWords(num: number): string {
