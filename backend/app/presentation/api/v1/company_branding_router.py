@@ -139,10 +139,25 @@ async def get_authenticated_company_branding(
         if clean_h and clean_h not in ["localhost", "127.0.0.1", "0.0.0.0"]:
             target_domain = clean_h
 
-    if target_domain and target_domain.lower() not in ["localhost", "127.0.0.1", "0.0.0.0"]:
+    domain_was_specified = bool(target_domain and target_domain.lower() not in ["localhost", "127.0.0.1", "0.0.0.0"])
+
+    if domain_was_specified:
         resolved_ref = await resolve_company_ref_by_domain(db, target_domain)
         if resolved_ref:
             company_ref_id = resolved_ref
+        else:
+            # Unmapped domain: Fail closed! Never return default company as fallback
+            corr_id = str(uuid.uuid4())
+            logger.warning(f"Domain resolution failure for target_domain='{target_domain}', correlation_id='{corr_id}'")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "code": "UNMAPPED_DOMAIN",
+                    "message": f"Domain '{target_domain}' is not mapped to any registered company identity.",
+                    "domain": target_domain,
+                    "correlation_id": corr_id
+                }
+            )
 
     # 2. If not resolved by domain, extract and decode JWT Bearer token / cookies
     if not company_ref_id and not company_id_uuid:
@@ -194,6 +209,24 @@ async def get_authenticated_company_branding(
             company_id_uuid = company_id_uuid or r_dict.get("company_id")
             tenant_id_uuid = tenant_id_uuid or r_dict.get("tenant_id")
 
+    # If neither domain nor company context could be resolved, fail closed
+    if not company_ref_id and not company_id_uuid and not tenant_ref_id and not tenant_id_uuid:
+        # Check if running on localhost / 127.0.0.1 for local dev fallback only
+        host_hdr = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+        clean_host = extract_clean_domain(host_hdr)
+        if clean_host in ["localhost", "127.0.0.1", "0.0.0.0"]:
+            company_ref_id = 47 # Pay2Pay default for local development on generic localhost
+        else:
+            corr_id = str(uuid.uuid4())
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "code": "COMPANY_NOT_FOUND",
+                    "message": "Unable to identify your company account.",
+                    "correlation_id": corr_id
+                }
+            )
+
     # 4. Query company joined with company_branding and company_configuration (domains)
     query_sql = """
         SELECT 
@@ -203,16 +236,13 @@ async def get_authenticated_company_branding(
             c.tenant_ref_id,
             c.company_code,
             c.website,
-            COALESCE(c.company_name, c.display_name, c.legal_name, 'Near4You') AS company_name,
-            COALESCE(c.legal_name, c.company_name, 'Near4You Enterprise Technologies Pvt. Ltd.') AS legal_name,
-            CASE 
-                WHEN c.company_code = 'NEAR4YOU' THEN 'Near4You'
-                ELSE COALESCE(c.display_name, c.company_name, 'Near4You')
-            END AS display_name,
+            c.company_name,
+            c.legal_name,
+            c.display_name,
             COALESCE(cb.logo_url, c.logo_path, '/branding/logo.svg') AS logo_url,
             COALESCE(cb.favicon_url, '/branding/favicon.png') AS favicon_url,
-            COALESCE(cb.primary_colour, '#A20A3A') AS primary_colour,
-            COALESCE(cb.secondary_colour, '#EDC11E') AS secondary_colour,
+            COALESCE(cb.primary_colour, '#2563EB') AS primary_colour,
+            COALESCE(cb.secondary_colour, '#1E40AF') AS secondary_colour,
             cc.config_value AS configured_domains
         FROM public.company c
         LEFT JOIN public.company_branding cb ON (cb.company_ref_id = c.company_ref_id OR cb.company_id = c.public_id)
@@ -243,23 +273,15 @@ async def get_authenticated_company_branding(
     row = res.fetchone()
 
     if not row:
-        return {
-            "success": True,
-            "data": {
-                "company_id": None,
-                "company_ref_id": 1,
-                "tenant_ref_id": 1,
-                "company_code": "NEAR4YOU",
-                "company_name": "Near4You",
-                "legal_name": "Near4You Enterprise Technologies Pvt. Ltd.",
-                "display_name": "Near 4 You",
-                "logo_url": "/branding/logo.svg",
-                "favicon_url": "/branding/favicon.png",
-                "primary_colour": "#A20A3A",
-                "secondary_colour": "#EDC11E",
-                "domains": ["near4you.store", "login.near4you.store"]
+        corr_id = str(uuid.uuid4())
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "COMPANY_NOT_FOUND",
+                "message": "Unable to identify your company account.",
+                "correlation_id": corr_id
             }
-        }
+        )
 
     d = dict(row._mapping)
     domains_list = []

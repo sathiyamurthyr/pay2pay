@@ -62,25 +62,28 @@ export const resolveEffectiveTheme = (
  */
 export const applyThemeTokensToDOM = (
   _effectiveTheme: EffectiveTheme = "light",
-  branding: CompanyBrandingData = getInitialBrandingByHostname()
+  branding?: CompanyBrandingData | null
 ) => {
   if (typeof window === "undefined") return;
+  const targetBranding = branding ?? getInitialBrandingByHostname();
+  if (!targetBranding) return;
+
   const root = document.documentElement;
   const body = document.body;
 
   root.setAttribute("data-theme", "light");
-  root.setAttribute("data-company", branding.company_code);
+  root.setAttribute("data-company", targetBranding.company_code);
   root.classList.add("light");
   root.classList.remove("dark");
   body?.classList.add("light");
   body?.classList.remove("dark");
 
-  const isNear4You = branding.company_code === "NEAR4YOU";
-  const isPay2Pay = branding.company_code === "PAY2PAY";
-  const isSmsPay = branding.company_code === "SMSPAY";
+  const isNear4You = targetBranding.company_code === "NEAR4YOU";
+  const isPay2Pay = targetBranding.company_code === "PAY2PAY";
+  const isSmsPay = targetBranding.company_code === "SMSPAY";
 
-  const primary = branding.primary_colour || (isPay2Pay ? "#2563EB" : isSmsPay ? "#059669" : "#A20A3A");
-  const secondary = branding.secondary_colour || (isPay2Pay ? "#1E40AF" : isSmsPay ? "#047857" : "#EDC11E");
+  const primary = targetBranding.primary_colour || (isPay2Pay ? "#2563EB" : isSmsPay ? "#059669" : "#A20A3A");
+  const secondary = targetBranding.secondary_colour || (isPay2Pay ? "#1E40AF" : isSmsPay ? "#047857" : "#EDC11E");
 
   // Semantic CSS Tokens
   root.style.setProperty("--background-primary", "#FFFFFF");

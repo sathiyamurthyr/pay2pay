@@ -237,6 +237,30 @@ async def resolve_retailer_context(
         approve_status = False
         active_status = False
 
+    eff_company_ref = getattr(ret_model, "company_ref_id", None) or payload.get("company_ref_id")
+    eff_tenant_ref = getattr(ret_model, "tenant_ref_id", None) or payload.get("tenant_ref_id")
+
+    # Domain vs Company Isolation check
+    host_hdr = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+    clean_host = host_hdr.strip().lower().split(":")[0] if host_hdr else ""
+    if clean_host and clean_host not in ["localhost", "127.0.0.1", "0.0.0.0"] and not is_admin:
+        # Cross-tenant boundary check
+        if "pay2pay" in clean_host and eff_company_ref and eff_company_ref != 47:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access Denied: Retailer account belongs to another company and cannot access Pay2Pay domain."
+            )
+        elif "smspay" in clean_host and eff_company_ref and eff_company_ref != 2:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access Denied: Retailer account belongs to another company and cannot access SMSPAY domain."
+            )
+        elif "near4you" in clean_host and eff_company_ref and eff_company_ref != 1:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access Denied: Retailer account belongs to another company and cannot access Near4You domain."
+            )
+
     return {
         "retailer_id": final_id,
         "retailer_code": (ret_model.retailer_code if ret_model else final_id),
@@ -251,8 +275,8 @@ async def resolve_retailer_context(
         "user_ref_id": getattr(ret_model, "retailer_ref_id", None) or eff_ref_id,
         "user_type_ref_id": eff_type_id,
         "retailer_ref_id": getattr(ret_model, "retailer_ref_id", None) or eff_ref_id,
-        "tenant_ref_id": getattr(ret_model, "tenant_ref_id", None) or 1,
-        "company_ref_id": getattr(ret_model, "company_ref_id", None) or 1,
+        "tenant_ref_id": eff_tenant_ref or 1,
+        "company_ref_id": eff_company_ref or 1,
         "tenant_id": final_tenant_id,
         "company_id": final_company_id,
         "is_approved": approve_status,

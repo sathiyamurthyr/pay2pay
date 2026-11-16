@@ -159,40 +159,41 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Multi-brand Financial Applications: Pay2Pay, Near4You, SMSPAY
   const isPay2Pay =
-    branding.company_code === "PAY2PAY" ||
-    branding.company_name?.toUpperCase().includes("PAY2PAY") ||
+    branding?.company_code === "PAY2PAY" ||
+    branding?.company_name?.toUpperCase().includes("PAY2PAY") ||
     user?.company_ref_id === 47 ||
     (typeof window !== "undefined" && window.location.hostname.includes("pay2pay"));
 
   const isNear4You =
-    branding.company_code === "NEAR4YOU" ||
-    branding.company_name?.toUpperCase().includes("NEAR4YOU") ||
+    branding?.company_code === "NEAR4YOU" ||
+    branding?.company_name?.toUpperCase().includes("NEAR4YOU") ||
     user?.company_ref_id === 1 ||
     (typeof window !== "undefined" && window.location.hostname.includes("near4you"));
 
   const isSmsPay =
-    (!isPay2Pay && !isNear4You) ||
-    branding.company_code === "SMSPAY" ||
-    branding.company_name?.toUpperCase().includes("SMSPAY") ||
+    branding?.company_code === "SMSPAY" ||
+    branding?.company_name?.toUpperCase().includes("SMSPAY") ||
     user?.company_ref_id === 2 ||
-    (typeof window !== "undefined" && window.location.port === "4001") ||
+    (typeof window !== "undefined" && window.location.port === "4002") ||
     (typeof window !== "undefined" && window.location.hostname.includes("smspay"));
 
   const isFinancialApp = isPay2Pay || isNear4You || isSmsPay;
 
-  const appName = isPay2Pay ? "Pay2Pay" : isNear4You ? "Near 4 You" : "SMSPAY";
-  const appSubtitle = isPay2Pay ? "Pay2Pay Operations" : isNear4You ? "Near4You Operations" : "SMSPAY Operations";
-  const appLogo = isPay2Pay ? "/branding/pay2pay-logo.png" : isNear4You ? (branding.logo_url || "/branding/logo.svg") : "/branding/smspay-mark.svg";
+  const appName = branding?.display_name || branding?.company_name || (isPay2Pay ? "Pay2Pay" : isNear4You ? "Near 4 You" : isSmsPay ? "SMSPAY" : "FinTech Platform");
+  const appSubtitle = `${appName} Operations`;
+  const appLogo = branding?.logo_url || (isPay2Pay ? "/branding/pay2pay-logo.png" : isNear4You ? "/branding/logo.svg" : "/branding/smspay-mark.svg");
 
-  const brandPrimary = isPay2Pay ? "#2563EB" : isNear4You ? "#A20A3A" : "#059669";
-  const brandSecondary = isPay2Pay ? "#1E40AF" : isNear4You ? "#85072F" : "#047857";
+  const brandPrimary = branding?.primary_colour || (isPay2Pay ? "#2563EB" : isNear4You ? "#A20A3A" : "#059669");
+  const brandSecondary = branding?.secondary_colour || (isPay2Pay ? "#1E40AF" : isNear4You ? "#85072F" : "#047857");
   const brandLight = isPay2Pay ? "#EFF6FF" : isNear4You ? "#FFF0F4" : "#ECFDF5";
 
   const headerGradient = isPay2Pay
     ? "linear-gradient(110deg, #0F172A 0%, #2563EB 60%, #38BDF8 100%)"
     : isNear4You
     ? "linear-gradient(110deg, #6B0525 0%, #A20A3A 60%, #EDC11E 100%)"
-    : "linear-gradient(110deg, #102A43 0%, #1D4ED8 65%, #0D9488 100%)";
+    : isSmsPay
+    ? "linear-gradient(110deg, #102A43 0%, #1D4ED8 65%, #0D9488 100%)"
+    : `linear-gradient(110deg, ${brandSecondary} 0%, ${brandPrimary} 65%, #0D9488 100%)`;
 
   const [lockedModalItem, setLockedModalItem] = useState<{ label: string; path: string } | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);

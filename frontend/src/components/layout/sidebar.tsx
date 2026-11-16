@@ -220,13 +220,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
         secondary: branding.secondary_colour || "#1E40AF",
       };
     }
-    const fallbackName = branding.display_name?.replace(/\s+/g, "") || branding.company_name || "SMSPAY";
+    const fallbackName = branding?.display_name || branding?.company_name || "FinTech";
     return {
       name: fallbackName,
       portal: `${fallbackName} Portal`,
-      logo: branding.logo_url || "/branding/smspay-logo.svg",
-      primary: branding.primary_colour || "#059669",
-      secondary: branding.secondary_colour || "#047857",
+      logo: branding?.logo_url || "/branding/logo.svg",
+      primary: branding?.primary_colour || "#2563EB",
+      secondary: branding?.secondary_colour || "#1E40AF",
     };
   }, [branding]);
   const [isCollapsed, setIsCollapsed] = useState(alwaysExpanded ? false : true);
