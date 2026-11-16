@@ -236,27 +236,31 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     location?: string | null;
     last_login_at?: string | null;
     plan_name?: string | null;
+    company_name?: string;
     loading?: boolean;
     error?: boolean;
   }>(() => {
     let initialOwner = null;
     let initialRetailer = null;
     let initialCode = null;
+    let initialCompany = null;
     if (typeof window !== "undefined") {
       try {
         const uStr = localStorage.getItem("p2p_retailer_user") || localStorage.getItem("user_info") || localStorage.getItem("user");
         if (uStr) {
           const u = JSON.parse(uStr);
           initialOwner = u.owner_name || u.name || u.full_name || null;
-          initialRetailer = u.store_name || u.retailer_name || u.company_name || null;
+          initialRetailer = u.store_name || u.retailer_name || null;
           initialCode = u.retailer_code || u.code || u.retailer_id || null;
+          initialCompany = u.company_name || null;
         }
       } catch {}
     }
     return {
-      owner_name: initialOwner || "Sathus Retailer 3",
-      retailer_name: initialRetailer || "Sathus Express Mart 03",
-      retailer_code: initialCode || "P2P-R264322",
+      owner_name: initialOwner || "",
+      retailer_name: initialRetailer || "",
+      retailer_code: initialCode || "",
+      company_name: initialCompany || "",
       loading: false,
       error: false,
     };
@@ -266,19 +270,22 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const [refreshErrorToast, setRefreshErrorToast] = useState<string | null>(null);
 
-  // Restore last known wallet balance from storage on client load (zero network calls)
+  // Restore last known wallet balance strictly scoped to active retailer
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
-        const savedBal = localStorage.getItem("p2p_cached_wallet_balance") || sessionStorage.getItem("p2p_cached_wallet_balance");
-        const savedAvail = localStorage.getItem("p2p_cached_available_balance") || sessionStorage.getItem("p2p_cached_available_balance");
-        if (savedBal && !isNaN(Number(savedBal))) {
-          const bal = Number(savedBal);
-          const avail = savedAvail && !isNaN(Number(savedAvail)) ? Number(savedAvail) : bal;
-          useRetailerStore.getState().updateWallet({
-            mainBalance: bal,
-            availableBalance: avail,
-          });
+        const activeCode = localStorage.getItem("p2p_active_retailer_code");
+        if (activeCode) {
+          const savedBal = localStorage.getItem(`p2p_cached_wallet_balance_${activeCode}`);
+          const savedAvail = localStorage.getItem(`p2p_cached_available_balance_${activeCode}`);
+          if (savedBal && !isNaN(Number(savedBal))) {
+            const bal = Number(savedBal);
+            const avail = savedAvail && !isNaN(Number(savedAvail)) ? Number(savedAvail) : bal;
+            useRetailerStore.getState().updateWallet({
+              mainBalance: bal,
+              availableBalance: avail,
+            });
+          }
         }
       } catch {}
     }
@@ -303,7 +310,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           }
         } catch {}
         return null;
-      })()) || "Sathus Retailer 3";
+      })()) || "";
 
       const fallbackCode = (typeof window !== "undefined" && (() => {
         try {
@@ -314,11 +321,12 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           }
         } catch {}
         return null;
-      })()) || "P2P-R264322";
+      })()) || "";
 
-      const resolvedOwner = personal.first_name ? `${personal.first_name} ${personal.last_name || ""}`.trim() : (personal.retailer_name || fallbackOwner);
-      const resolvedRetailer = company.company_name || personal.retailer_name || fallbackOwner || "Sathus Express Mart 03";
-      const resolvedCode = personal.retailer_id || personal.application_reference || fallbackCode;
+      const resolvedOwner = personal.owner_name || (personal.first_name ? `${personal.first_name} ${personal.last_name || ""}`.trim() : personal.retailer_name) || fallbackOwner;
+      const resolvedRetailer = personal.retailer_name || personal.store_name || fallbackOwner || "Retailer Store";
+      const resolvedCompany = company.company_name || company.legal_name || branding?.display_name || "Enterprise Portal";
+      const resolvedCode = personal.retailer_id || personal.application_reference || fallbackCode || "";
       const photoUrl = photo.photo_url || outlet.avatar || outlet.photo_url || "";
       const approvalStatus = personal.status === "ACTIVE" ? "ACTIVE" : (outlet.approvalStatus || "ACTIVE");
 
@@ -330,6 +338,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         ...prev,
         owner_name: resolvedOwner,
         retailer_name: resolvedRetailer,
+        company_name: resolvedCompany,
         retailer_code: resolvedCode,
         photo_url: photoUrl,
         approval_status: approvalStatus,
@@ -344,14 +353,14 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       console.warn("Profile details fetch notice:", err);
       setProfileDetails((prev) => ({ ...prev, loading: false, error: false }));
     }
-  }, [setApprovalStatus, outlet]);
+  }, [setApprovalStatus, outlet, branding]);
 
   useEffect(() => {
     if (!isAuthenticatedSession) return;
     fetchProfileDetails();
-    // Intentionally NO automatic syncBalance() on mount or navigation.
-    // Wallet balance refresh is strictly manual only.
-  }, [isAuthenticatedSession, fetchProfileDetails]);
+    // Authoritative balance sync on mount so header and popup immediately show live wallet balance
+    syncBalance();
+  }, [isAuthenticatedSession, fetchProfileDetails, syncBalance]);
 
   // Synchronize profile and notification if manual wallet refresh occurs
   useEffect(() => {
@@ -1624,12 +1633,17 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                     flexShrink: 0,
                   }}
                 >
-                  {(profileDetails.retailer_name || profileDetails.owner_name || outlet.name || outlet.ownerName || "S").charAt(0).toUpperCase()}
+                  {(profileDetails.retailer_name || profileDetails.owner_name || outlet.name || outlet.ownerName || "R").charAt(0).toUpperCase()}
                 </Avatar>
                 <Box sx={{ minWidth: 0, flex: 1 }}>
                   <Typography variant="subtitle1" sx={{ fontSize: "15px", fontWeight: 800, color: "#0F172A", lineHeight: 1.2 }}>
                     {profileDetails.retailer_name || profileDetails.owner_name || outlet.name || outlet.ownerName || "—"}
                   </Typography>
+                  {(profileDetails.company_name || branding?.display_name) && (
+                    <Typography variant="caption" sx={{ fontSize: "11px", fontWeight: 700, color: brandPrimary, display: "block", mt: 0.25 }}>
+                      {profileDetails.company_name || branding?.display_name}
+                    </Typography>
+                  )}
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5, flexWrap: "wrap" }}>
                     {profileDetails.plan_name && (
                       <Chip
@@ -1697,6 +1711,13 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                       fontSize: "0.68rem",
                     }}
                   />
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>Company</Typography>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#0F172A", fontWeight: 700, textAlign: "right", maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {profileDetails.company_name || branding?.company_name || branding?.display_name || "Enterprise"}
+                  </Typography>
                 </Box>
 
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1995,7 +2016,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           >
             <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
               <Typography variant="caption" sx={{ fontWeight: 600, fontSize: "12px" }}>
-                © 2021 Sathus Technology Pvt. Ltd. · {branding.display_name} Retailer Portal
+                © {new Date().getFullYear()} {branding.legal_name || branding.company_name} · {branding.display_name} Retailer Portal
               </Typography>
               <Chip label="v2.4.0-ENT" size="small" sx={{ height: 20, fontSize: "0.65rem", fontWeight: 800 }} />
             </Stack>

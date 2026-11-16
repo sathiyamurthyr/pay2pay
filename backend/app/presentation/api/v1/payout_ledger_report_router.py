@@ -912,10 +912,10 @@ async def fetch_payout_report_dataset(
 
     comp_row = (await db.execute(text(comp_sql), comp_p)).fetchone()
     company_meta = dict(comp_row._mapping) if comp_row else {
-        "company_name": "Pay2Pay Fintech",
-        "legal_name": "SUPER REX PRODUCTS PRIVATE LIMITED",
-        "company_code": "PAY2PAY",
-        "logo_url": "/branding/pay2pay-logo.png"
+        "company_name": "Enterprise FinTech",
+        "legal_name": "Enterprise FinTech Platform",
+        "company_code": "ENT",
+        "logo_url": "/branding/logo.svg"
     }
 
     return {

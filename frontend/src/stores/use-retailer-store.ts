@@ -254,19 +254,22 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
             ? rawData.available_balance
             : bal;
 
-        // In-memory update & persistent cache backup for cross-navigation retention
+        const rInfo = rawData.retailer_info || rawData;
+        const retCode = rawData.retailer_code || rawData.retailer_id || rInfo.retailer_code || rInfo.retailer_id || "";
+
+        // In-memory update & persistent cache backup strictly scoped to retailer_code
         if (typeof window !== "undefined") {
           try {
-            localStorage.setItem("p2p_cached_wallet_balance", String(bal));
-            localStorage.setItem("p2p_cached_available_balance", String(avail));
-            sessionStorage.setItem("p2p_cached_wallet_balance", String(bal));
-            sessionStorage.setItem("p2p_cached_available_balance", String(avail));
+            if (retCode) {
+              localStorage.setItem(`p2p_cached_wallet_balance_${retCode}`, String(bal));
+              localStorage.setItem(`p2p_cached_available_balance_${retCode}`, String(avail));
+              localStorage.setItem("p2p_active_retailer_code", retCode);
+              sessionStorage.setItem(`p2p_cached_wallet_balance_${retCode}`, String(bal));
+              sessionStorage.setItem(`p2p_cached_available_balance_${retCode}`, String(avail));
+            }
             sessionStorage.setItem("p2p_header_wallet_cache", JSON.stringify(rawData));
           } catch {}
         }
-
-        const rInfo = rawData.retailer_info || rawData;
-        const retCode = rawData.retailer_code || rawData.retailer_id || rInfo.retailer_code || rInfo.retailer_id || "";
         const photoUrl = rawData.photo_url || rawData.avatar_url || rInfo.photo_url || rInfo.avatar_url || "";
         const storeName = rawData.company_name || rawData.retailer_name || rInfo.company_name || rInfo.retailer_name || "";
         const ownerName = rawData.owner_name || rInfo.owner_name || "";

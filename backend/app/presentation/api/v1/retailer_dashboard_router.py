@@ -80,7 +80,23 @@ async def resolve_retailer_context(
             pass
 
     clean_mobile = ""
-    target_ident = retailer_id or payload.get("retailer_id") or payload.get("registration_id")
+    target_ident = retailer_id or payload.get("retailer_id") or payload.get("retailer_code") or payload.get("registration_id")
+    session_comp_ref = payload.get("company_ref_id")
+    roles = payload.get("roles") or []
+    is_admin = any(r in ["ADMIN", "SUPER_ADMIN", "OPS_ADMIN", "PLATFORM_ADMIN"] for r in roles)
+
+    if retailer_id and str(retailer_id).strip() and not is_admin:
+        allowed = {
+            str(payload.get("sub") or "").lower(),
+            str(payload.get("retailer_code") or "").lower(),
+            str(payload.get("retailer_id") or "").lower(),
+            str(payload.get("retailer_ref_id") or "").lower()
+        }
+        if str(retailer_id).strip().lower() not in allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: Retailer does not have permission for the requested entity (COMPANY_IDENTITY_MISMATCH)."
+            )
 
     if payload.get("mobile"):
         clean_mobile = str(payload.get("mobile"))[-10:]
@@ -124,6 +140,8 @@ async def resolve_retailer_context(
                 ),
                 RetailerModel.is_deleted == False
             )
+            if session_comp_ref and not is_admin:
+                ret_stmt = ret_stmt.where(RetailerModel.company_ref_id == session_comp_ref)
             ret_model = (await db.execute(ret_stmt)).scalars().first()
 
         # 2. Search RetailerContactModel by mobile to find RetailerModel
@@ -132,19 +150,29 @@ async def resolve_retailer_context(
             if clean_mobile.startswith("91") and len(clean_mobile) == 12:
                 mob_vars.append(clean_mobile[2:])
             try:
+                ret_contact_conds = [
+                    RetailerContactModel.mobile.in_(mob_vars),
+                    RetailerModel.is_deleted == False,
+                    RetailerContactModel.is_deleted == False
+                ]
+                if session_comp_ref and not is_admin:
+                    ret_contact_conds.append(RetailerModel.company_ref_id == session_comp_ref)
                 ret_contact_stmt = (
                     select(RetailerModel)
                     .join(RetailerContactModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
-                    .where(
-                        RetailerContactModel.mobile.in_(mob_vars),
-                        RetailerModel.is_deleted == False,
-                        RetailerContactModel.is_deleted == False
-                    )
+                    .where(*ret_contact_conds)
                     .order_by(RetailerModel.created_date.asc())
                 )
                 ret_model = (await db.execute(ret_contact_stmt)).scalars().first()
             except Exception:
                 pass
+
+        if ret_model and session_comp_ref and not is_admin:
+            if ret_model.company_ref_id and ret_model.company_ref_id != session_comp_ref:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied: Retailer entity belongs to another company (COMPANY_IDENTITY_MISMATCH)."
+                )
 
         # 3. Search RetailerVerificationModel if not found in RetailerModel
         if not ret_model:
