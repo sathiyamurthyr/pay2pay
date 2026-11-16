@@ -23,6 +23,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Authentication & Approval check
   useEffect(() => {
     if (DEV_BYPASS || !mounted || authLoading) return;
+
+    // Allow public payin receipt & status routes to render without login
+    if (
+      pathname?.startsWith("/retailer/payin/status") ||
+      pathname?.startsWith("/retailer/payin/callback") ||
+      pathname?.startsWith("/retailer/payin/checkout")
+    ) {
+      return;
+    }
+
     if (!user) {
       // Check if session token exists in cookie or localStorage before kicking user out
       if (typeof document !== "undefined") {
@@ -123,6 +133,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </div>
     );
+  }
+
+  if (
+    (pathname?.startsWith("/retailer/payin/status") ||
+      pathname?.startsWith("/retailer/payin/callback") ||
+      pathname?.startsWith("/retailer/payin/checkout")) &&
+    !user
+  ) {
+    return <main className="min-h-screen bg-[#0F172A] text-slate-100">{children}</main>;
   }
 
   return <RetailerLayout>{children}</RetailerLayout>;

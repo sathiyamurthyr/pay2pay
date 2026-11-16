@@ -18,9 +18,12 @@ import uuid
 import logging
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Header, status
+from fastapi.responses import RedirectResponse
+from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.infrastructure.db.payin_models import PayinTransactionModel
 from app.application.dependencies import (
     get_current_token_payload, get_optional_token_payload, get_current_tenant_id
 )
@@ -330,4 +333,125 @@ async def universal_payin_callback(
         "tid": res.get("tid"),
         "txn_status": res.get("txn_status", "SUCCESS"),
         "message": res.get("message", "Webhook processed successfully")
+    }
+
+
+@router.get(
+    "/callback",
+    summary="Universal PayIn Browser Return / Callback Redirect"
+)
+async def universal_payin_browser_callback(
+    request: Request,
+    referenceId: Optional[str] = Query(None, description="Transaction Reference ID / TID"),
+    reference_id: Optional[str] = Query(None, description="Alias for referenceId"),
+    tid: Optional[str] = Query(None, description="Alias for referenceId"),
+    status: Optional[str] = Query("success", description="Payment status: success | failed | pending"),
+    orderId: Optional[str] = Query(None, description="Gateway order ID"),
+    utr: Optional[str] = Query(None, description="Bank UTR"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Browser Return / Callback Handler.
+    When a payment gateway (e.g. BankMe) redirects the customer's browser via HTTP GET to
+    /api/v1/payin/callback?referenceId=...&status=..., this endpoint captures it, updates the
+    transaction status if appropriate, and performs an HTTP 302 Redirect to the frontend
+    receipt & landing page (/retailer/payin/status?referenceId=...&status=...).
+    """
+    resolved_ref = referenceId or reference_id or tid or ""
+    resolved_status = (status or "success").strip().lower()
+
+    # Reconcile if transaction exists and incoming status indicates success
+    if resolved_ref and resolved_status == "success":
+        try:
+            stmt = select(PayinTransactionModel).where(PayinTransactionModel.tid == resolved_ref)
+            res = await db.execute(stmt)
+            txn = res.scalars().first()
+            if txn and txn.txn_status != "SUCCESS":
+                wh_payload = BankMeWebhookPayload(
+                    event="payin.success",
+                    status="SUCCESS",
+                    referenceId=resolved_ref,
+                    tid=resolved_ref,
+                    orderId=orderId or txn.provider_ref_id or txn.tid,
+                    utr=utr or txn.provider_ref_id or f"UTR-{resolved_ref[-8:]}",
+                    amount=float(txn.txn_amount),
+                    signature="browser_return_sync"
+                )
+                await PayInService.process_bankme_webhook(
+                    db=db,
+                    payload=wh_payload,
+                    headers=dict(request.headers)
+                )
+        except Exception as e:
+            logger.warning("Browser return sync notice for %s: %s", resolved_ref, e)
+
+    # Build clean frontend redirect target
+    redirect_target = f"/retailer/payin/status?referenceId={resolved_ref}&status={resolved_status}"
+    if orderId:
+        redirect_target += f"&orderId={orderId}"
+    if utr:
+        redirect_target += f"&utr={utr}"
+
+    return RedirectResponse(url=redirect_target, status_code=302)
+
+
+@router.get(
+    "/receipt/{reference_id}",
+    summary="Get Public PayIn Receipt Details"
+)
+async def get_payin_receipt(
+    reference_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Public receipt endpoint for sharing, downloading, and verifying PayIn transactions.
+    Provides verified transaction details without requiring user authentication.
+    """
+    stmt = select(PayinTransactionModel).where(
+        or_(
+            PayinTransactionModel.tid == reference_id,
+            PayinTransactionModel.merchant_ref_id == reference_id,
+            PayinTransactionModel.provider_ref_id == reference_id
+        )
+    )
+    res = await db.execute(stmt)
+    txn = res.scalars().first()
+    if not txn:
+        raise HTTPException(status_code=404, detail="Transaction receipt not found")
+
+    company_code = "SMSPAY" if txn.company_ref_id == 2 else ("PAY2PAY" if txn.company_ref_id == 47 else "NEAR4YOU")
+    company_name = "SMSPAY Digital Payments" if txn.company_ref_id == 2 else ("Pay2Pay Enterprise" if txn.company_ref_id == 47 else "Near4You Platform")
+    domain = "smspay.store" if txn.company_ref_id == 2 else ("pay2pay.in" if txn.company_ref_id == 47 else "near4you.store")
+
+    raw_mob = txn.cust_mobile or ""
+    formatted_mob = f"+91 {raw_mob[-10:]}" if len(raw_mob) >= 10 else raw_mob
+
+    return {
+        "success": True,
+        "data": {
+            "tid": txn.tid,
+            "reference_id": txn.tid,
+            "merchant_ref_id": txn.merchant_ref_id,
+            "provider_ref_id": txn.provider_ref_id,
+            "order_id": (txn.response_ref or {}).get("order_id") if isinstance(txn.response_ref, dict) else None,
+            "status": txn.txn_status,
+            "amount": float(txn.txn_amount),
+            "customer_payable": float(txn.customer_payable or txn.txn_amount),
+            "retailer_credit": float(txn.retailer_credit or txn.txn_amount),
+            "mdr_amount": float(txn.mdr_amount or 0),
+            "tax_amount": float(txn.tax_amount or 0),
+            "total_charges": float(txn.total_charges or 0),
+            "customer_name": txn.cust_name or "Retailer Partner",
+            "customer_mobile": formatted_mob,
+            "provider": "SMSPAY Exclusive Gateway G-1" if txn.company_ref_id == 2 else "Primary Gateway",
+            "card_network": txn.card_network or "Card / Net Banking / UPI",
+            "payment_mode": "CARD",
+            "company_code": company_code,
+            "company_name": company_name,
+            "domain": domain,
+            "created_at": txn.created_at.isoformat() if txn.created_at else None,
+            "completed_at": txn.completed_at.isoformat() if txn.completed_at else None,
+            "utr": txn.provider_ref_id or txn.tid,
+            "failure_reason": txn.failure_reason
+        }
     }

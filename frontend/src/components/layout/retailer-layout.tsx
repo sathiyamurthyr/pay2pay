@@ -129,7 +129,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       const isAuthPage =
         pathname.includes("/login") ||
         pathname.includes("/register") ||
-        pathname.includes("/reset-password");
+        pathname.includes("/reset-password") ||
+        pathname.startsWith("/retailer/payin/status") ||
+        pathname.startsWith("/retailer/payin/callback") ||
+        pathname.startsWith("/retailer/payin/checkout");
       if (!isAuthPage) {
         // Double check cookies before redirecting to avoid false positives on reload
         const cks = typeof document !== "undefined" ? document.cookie : "";

@@ -292,6 +292,10 @@ export function middleware(request: NextRequest) {
     isLoginRoute ||
     pathname.startsWith("/checkout") ||
     pathname.startsWith("/retailer/payin/checkout") ||
+    pathname.startsWith("/retailer/payin/status") ||
+    pathname.startsWith("/retailer/payin/callback") ||
+    pathname.startsWith("/payin/status") ||
+    pathname.startsWith("/payin/callback") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/forgot-password") ||
     pathname.startsWith("/reset-password") ||

@@ -100,7 +100,7 @@ def package_backend():
     if be_tar.exists():
         be_tar.unlink()
 
-    items_to_include = ["app", "requirements.txt", "alembic", "alembic.ini"]
+    items_to_include = ["app", "requirements.txt", "alembic", "alembic.ini", "sathus_notification"]
     with tarfile.open(be_tar, "w:gz") as tar:
         for item_name in items_to_include:
             item_path = BACKEND_DIR / item_name
@@ -137,6 +137,9 @@ tar --no-same-owner --no-same-permissions -xzf /tmp/near4you_backend_update.tar.
 
 echo '=== 3. Updating Backend in Container ==='
 docker cp /opt/near4you-retailer/backend/app near4you-retailer-backend:/app/
+if [ -d /opt/near4you-retailer/backend/sathus_notification ]; then
+    docker cp /opt/near4you-retailer/backend/sathus_notification near4you-retailer-backend:/app/
+fi
 docker restart near4you-retailer-backend
 
 echo '=== 4. Rebuilding Frontend Container ==='

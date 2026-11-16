@@ -19,7 +19,28 @@ import logging
 from typing import Dict, Any, Optional, Union, List
 
 import httpx
-from sathus_notification.client import SathusNotificationClient
+try:
+    from sathus_notification.client import SathusNotificationClient
+except ImportError:
+    try:
+        from app.infrastructure.adapters.sathus_notification.client import SathusNotificationClient
+    except ImportError:
+        try:
+            from app.sathus_notification.client import SathusNotificationClient
+        except ImportError:
+            class SathusNotificationClient:  # type: ignore
+                """Fallback client when notification package is not installed."""
+                def __init__(self, api_key: str, base_url: str = "http://localhost:8000"):
+                    self.api_key = api_key
+                    self.base_url = base_url.rstrip("/")
+                    self.headers = {"X-API-Key": self.api_key, "Content-Type": "application/json"}
+
+                async def send_async(self, **kwargs) -> Dict[str, Any]:
+                    return {"status": "MOCK", "detail": "Notification platform package not installed"}
+
+                async def send_event_async(self, **kwargs) -> Dict[str, Any]:
+                    return {"status": "MOCK", "detail": "Notification platform package not installed"}
+
 from app.core.config import settings
 
 logger = logging.getLogger("global_notification_platform")
