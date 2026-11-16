@@ -42,6 +42,7 @@ import apiClient from "@/lib/api";
 import { useWalletSync } from "@/context/WalletSyncProvider";
 import { SectionHeader } from "@/components/shared";
 import { CONFIGURED_GATEWAYS, getCustomerGateway, maskGatewayName, GatewayConfigItem } from "@/lib/gateway-config";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 import "./payin.css";
 
 // ─── INDIAN CURRENCY IN WORDS CONVERTER ───
@@ -251,6 +252,7 @@ interface ActiveTransaction {
 export default function RetailerPayinPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const branding = useCompanyBranding();
   const { walletData, refreshWallet: syncWallet } = useWalletSync();
 
   // Workflow State: FORM | PROCESSING | SUCCESS | FAILED
@@ -1553,7 +1555,7 @@ export default function RetailerPayinPage() {
             {/* TAB ANNOTATION INDICATOR */}
             <div className="pt-2 flex items-center justify-between text-xs">
               <span className="px-3.5 py-1.5 rounded-lg bg-white font-bold text-xs text-slate-700 border border-slate-300 shadow-xs">
-                Original Tab (SMSPAY)
+                Original Tab ({branding.display_name})
               </span>
               <button
                 onClick={handleReopenPaymentTab}
@@ -1844,7 +1846,7 @@ export default function RetailerPayinPage() {
                       <div className="text-[10px] text-slate-500 space-y-0.5">
                         <div className="flex items-center gap-1">
                           <span className="text-slate-400">Merchant :</span>
-                          <span className="font-semibold text-slate-700">SMSPAY Operations</span>
+                          <span className="font-semibold text-slate-700">{branding.display_name} Operations</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <span className="text-slate-400">Transaction ID :</span>
@@ -1932,7 +1934,15 @@ export default function RetailerPayinPage() {
 
             <div className="payin-secondary-header__title-group">
               <div className="payin-secondary-header__icon-box">
-                <Layers className="w-5 h-5 text-blue-600" />
+                {branding.logo_url ? (
+                  <img
+                    src={branding.logo_url}
+                    alt={branding.display_name}
+                    className="w-5 h-5 object-contain"
+                  />
+                ) : (
+                  <Layers className="w-5 h-5 text-blue-600" />
+                )}
               </div>
               <h1 className="payin-secondary-header__title">
                 PayIn (Add Money)

@@ -624,12 +624,119 @@ class PayInService:
             cb_log.process_status = "PAYMENT_FAILED"
 
         await db.commit()
+
+        # 8. Automated Multi-Channel Retailer Notifications (WhatsApp & Email)
+        if txn.txn_status == "SUCCESS":
+            try:
+                await cls.dispatch_payin_success_notifications(
+                    db=db,
+                    txn=txn,
+                    ret_obj=ret_obj
+                )
+            except Exception as notif_err:
+                logger.error("Failed to dispatch PayIn success notifications for TID %s: %s", tid, notif_err)
+
         return {
             "status": "PROCESSED",
             "tid": tid,
             "txn_status": txn.txn_status,
             "message": "Webhook processed successfully"
         }
+
+    @classmethod
+    async def dispatch_payin_success_notifications(
+        cls,
+        db: AsyncSession,
+        txn: PayinTransactionModel,
+        ret_obj: Optional[RetailerModel] = None
+    ) -> Dict[str, Any]:
+        """
+        Dispatches automated WhatsApp message and confirmation Email to retailer
+        upon successful PayIn wallet top-up payment.
+        Uses approved WhatsApp template: payin_wallet_topup_notification (2039975033358041)
+        and sends official receipt verification link: https://receipt.sathus.in/r/{tid}
+        """
+        from app.infrastructure.db.models import RetailerContactModel
+        from app.infrastructure.adapters.whatsapp_service import whatsapp_service
+        from app.infrastructure.adapters.global_notification_platform_client import global_notification_platform_client
+
+        tid = txn.tid
+        # 1. Resolve Contact Info
+        target_name = txn.cust_name or (ret_obj.owner_name if ret_obj else None) or (ret_obj.store_name if ret_obj else "Retailer Partner")
+        target_mobile = txn.cust_mobile
+        target_email = txn.cust_email
+
+        if ret_obj and (not target_mobile or not target_email):
+            try:
+                c_stmt = select(RetailerContactModel).where(RetailerContactModel.retailer_id == ret_obj.public_id)
+                contact = (await db.execute(c_stmt)).scalars().first()
+                if contact:
+                    if not target_mobile:
+                        target_mobile = contact.mobile or contact.alternate_mobile
+                    if not target_email:
+                        target_email = contact.email or contact.support_email
+            except Exception as c_err:
+                logger.warning("RetailerContactModel lookup error for TID %s: %s", tid, c_err)
+
+        # 2. Company branding determination
+        company_code = "SMSPAY" if txn.company_ref_id == 2 else ("PAY2PAY" if txn.company_ref_id == 47 else "NEAR4YOU")
+        company_name = "SMSPAY" if txn.company_ref_id == 2 else ("Pay2Pay" if txn.company_ref_id == 47 else "Near4You")
+
+        # 3. Format Date
+        created_dt = txn.completed_at or txn.created_at
+        date_str = created_dt.strftime("%d-%b-%Y %I:%M %p") if created_dt else datetime.now().strftime("%d-%b-%Y %I:%M %p")
+
+        results = {}
+
+        # 4. Dispatch WhatsApp
+        if target_mobile:
+            try:
+                wa_res = await whatsapp_service.send_payin_wallet_topup_notification(
+                    mobile_number=target_mobile,
+                    retailer_name=target_name,
+                    transaction_id=tid,
+                    amount=float(txn.txn_amount),
+                    date_time_str=date_str,
+                    payment_mode=txn.card_network or "CARD",
+                    status="SUCCESS",
+                    receipt_token=tid,
+                    company_name=company_name,
+                    company_context=company_code
+                )
+                results["whatsapp"] = wa_res
+                logger.info("PayIn WhatsApp notification dispatched for TID %s to %s: %s", tid, target_mobile, wa_res.get("status"))
+            except Exception as wa_err:
+                logger.error("PayIn WhatsApp dispatch error for TID %s: %s", tid, wa_err)
+                results["whatsapp"] = {"status": "ERROR", "detail": str(wa_err)}
+        else:
+            logger.warning("PayIn WhatsApp notification skipped: No mobile number for TID %s", tid)
+            results["whatsapp"] = {"status": "SKIPPED", "detail": "No phone number available"}
+
+        # 5. Dispatch Email
+        if target_email:
+            try:
+                email_res = await global_notification_platform_client.send_payin_wallet_topup_email(
+                    recipient_email=target_email,
+                    recipient_name=target_name,
+                    transaction_id=tid,
+                    amount=float(txn.txn_amount),
+                    net_credit=float(txn.retailer_credit or txn.txn_amount),
+                    payment_mode=txn.card_network or "CARD",
+                    payment_date=date_str,
+                    status="SUCCESS",
+                    receipt_token=tid,
+                    company_context=company_code
+                )
+                results["email"] = email_res
+                logger.info("PayIn Email notification dispatched for TID %s to %s: %s", tid, target_email, email_res.get("status"))
+            except Exception as email_err:
+                logger.error("PayIn Email dispatch error for TID %s: %s", tid, email_err)
+                results["email"] = {"status": "ERROR", "detail": str(email_err)}
+        else:
+            logger.info("PayIn Email notification skipped: No email address for TID %s", tid)
+            results["email"] = {"status": "SKIPPED", "detail": "No email address available"}
+
+        return results
 
     @classmethod
     async def get_transaction_status(

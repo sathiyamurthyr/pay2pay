@@ -658,6 +658,169 @@ class WhatsAppService:
                 "detail": str(ex)
             }
 
+    async def send_payin_wallet_topup_notification(
+        self,
+        mobile_number: str,
+        retailer_name: str,
+        transaction_id: str,
+        amount: Union[float, str],
+        date_time_str: str,
+        payment_mode: str,
+        status: str,
+        receipt_token: str,
+        company_name: str = "SMSPAY",
+        template_name: str = "payin_wallet_topup_notification",
+        template_id: str = "2039975033358041",
+        language_code: str = "en",
+        phone_number_id: Optional[str] = None,
+        company_context: Optional[Any] = None
+    ) -> Dict[str, Any]:
+        """
+        Dispatches automated WhatsApp notification to Retailer on PayIn wallet top-up payment.
+        Approved Meta Template: payin_wallet_topup_notification (2039975033358041)
+        Attempts Sathus Notification Platform first, with non-blocking fallback to direct Meta Cloud API.
+        """
+        # 1. Attempt Sathus Notification Platform
+        if getattr(global_notification_platform_client, "enabled", True):
+            try:
+                res = await global_notification_platform_client.send_payin_wallet_topup_whatsapp(
+                    mobile_number=mobile_number,
+                    retailer_name=retailer_name,
+                    transaction_id=transaction_id,
+                    amount=float(amount) if isinstance(amount, (int, float, str)) else 0.0,
+                    date_time_str=date_time_str,
+                    payment_mode=payment_mode,
+                    status=status,
+                    receipt_token=receipt_token,
+                    company_context=company_context
+                )
+                if res.get("status") == "SUCCESS" and res.get("delivered"):
+                    logger.info(
+                        f"[WHATSAPP SERVICE] PayIn top-up notification delivered via Sathus Notification Platform to {res.get('recipient')} (Project: {res.get('project_code')})"
+                    )
+                    return res
+            except Exception as ex:
+                logger.warning(f"[WHATSAPP SERVICE] Platform dispatch failed for payin topup: {ex}. Falling back to direct Meta Cloud API.")
+
+        # 2. Direct Meta Cloud API Fallback
+        clean_digits = "".join(filter(str.isdigit, str(mobile_number or "")))
+        if len(clean_digits) < 10:
+            logger.warning(f"[WHATSAPP PAYIN ALERT] Refusing to send: Invalid phone number '{mobile_number}' (< 10 digits).")
+            return {
+                "status": "FAILED",
+                "delivered": False,
+                "status_code": 400,
+                "recipient": str(mobile_number),
+                "detail": "Invalid recipient phone number: must be at least 10 digits."
+            }
+        clean_mobile = clean_digits[-10:]
+        formatted_mobile = f"91{clean_mobile}"
+
+        try:
+            amt_num = float(amount)
+            amt_str = f"₹{amt_num:,.2f}"
+        except Exception:
+            amt_str = f"₹{amount}"
+
+        safe_retailer_name = str(retailer_name or "Retailer").strip()[:50]
+        safe_action = "credited" if status.upper() == "SUCCESS" else status.lower()
+        safe_txn_id = str(transaction_id or "").strip()[:50]
+        safe_dt = str(date_time_str or "").strip()[:50]
+        safe_mode = str(payment_mode or "CARD").strip()[:50]
+        safe_status = str(status or "SUCCESS").strip().upper()[:50]
+        safe_company = str(company_name or "SMSPAY").strip()[:50]
+        safe_token = str(receipt_token or transaction_id).strip()
+
+        payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": formatted_mobile,
+            "type": "template",
+            "template": {
+                "name": template_name,
+                "language": {"code": language_code},
+                "components": [
+                    {
+                        "type": "body",
+                        "parameters": [
+                            {"type": "text", "text": safe_retailer_name},
+                            {"type": "text", "text": safe_action},
+                            {"type": "text", "text": safe_txn_id},
+                            {"type": "text", "text": amt_str},
+                            {"type": "text", "text": safe_dt},
+                            {"type": "text", "text": safe_mode},
+                            {"type": "text", "text": safe_status},
+                            {"type": "text", "text": safe_company}
+                        ]
+                    },
+                    {
+                        "type": "button",
+                        "sub_type": "url",
+                        "index": "0",
+                        "parameters": [
+                            {"type": "text", "text": safe_token}
+                        ]
+                    }
+                ]
+            }
+        }
+
+        active_phone_id = phone_number_id or self.phone_number_id
+        target_url = f"{self.api_url}/{active_phone_id}/messages"
+        headers = {
+            "Authorization": f"Bearer {self.auth_token}",
+            "Content-Type": "application/json"
+        }
+
+        receipt_url = f"https://receipt.sathus.in/r/{safe_token}"
+
+        try:
+            logger.info(
+                f"[WHATSAPP PAYIN ALERT] Destination: +{formatted_mobile} | Txn: {safe_txn_id} | Amount: {amt_str} | Receipt: {receipt_url}"
+            )
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                res = await client.post(target_url, headers=headers, json=payload)
+                if res.status_code == 200:
+                    res_data = res.json()
+                    msg_id = res_data.get("messages", [{}])[0].get("id", "N/A")
+                    logger.info(f"WhatsApp API 200 OK | PayIn alert delivered to +{formatted_mobile} | MsgID: {msg_id}")
+                    return {
+                        "status": "SUCCESS",
+                        "delivered": True,
+                        "status_code": 200,
+                        "recipient": formatted_mobile,
+                        "message_id": msg_id,
+                        "template_id": template_id,
+                        "template_name": template_name,
+                        "view_url": receipt_url,
+                        "meta_response": res_data
+                    }
+                else:
+                    logger.warning(f"WhatsApp API HTTP {res.status_code}: {res.text}")
+                    return {
+                        "status": "FAILED",
+                        "delivered": False,
+                        "status_code": res.status_code,
+                        "recipient": formatted_mobile,
+                        "template_id": template_id,
+                        "template_name": template_name,
+                        "view_url": receipt_url,
+                        "detail": res.text,
+                        "meta_response": res.text
+                    }
+        except Exception as ex:
+            logger.error(f"WhatsApp API Exception during payin alert: {ex}")
+            return {
+                "status": "FAILED",
+                "delivered": False,
+                "status_code": 500,
+                "recipient": formatted_mobile,
+                "template_id": template_id,
+                "template_name": template_name,
+                "view_url": receipt_url,
+                "detail": str(ex)
+            }
+
 
 whatsapp_service = WhatsAppService()
 

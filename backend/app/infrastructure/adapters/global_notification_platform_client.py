@@ -473,5 +473,212 @@ class GlobalNotificationPlatformClient:
             logger.warning(f"[NOTIF PLATFORM TOPUP WA NOTICE] Delivery to {formatted_mobile} encountered error: {e}. Falling back to Meta API.")
             return {"status": "FALLBACK_REQUIRED", "detail": str(e)}
 
+    async def send_payin_wallet_topup_whatsapp(
+        self,
+        mobile_number: str,
+        retailer_name: str,
+        transaction_id: str,
+        amount: float,
+        date_time_str: str,
+        payment_mode: str,
+        status: str,
+        receipt_token: str,
+        company_context: Any = None,
+        idempotency_key: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Dispatches WhatsApp Wallet Top-Up notification to Retailer using Meta template: payin_wallet_topup_notification.
+        Template ID: 2039975033358041
+        Variables:
+            {{1}}: Retailer Name
+            {{2}}: Outcome verb (e.g. "successful" or "credited")
+            {{3}}: Transaction ID
+            {{4}}: Amount (formatted with ₹)
+            {{5}}: Payment Date
+            {{6}}: Payment Mode
+            {{7}}: Status
+            {{8}}: Company Name
+        Receipt parameter: receipt_token (points to https://receipt.sathus.in/r/{receipt_token})
+        """
+        if not self.enabled:
+            return {"status": "FALLBACK_REQUIRED", "reason": "Platform disabled"}
+
+        client, cfg = self.get_client(company_context)
+        clean_mobile = "".join(filter(str.isdigit, str(mobile_number or "")))
+        formatted_mobile = f"+91{clean_mobile[-10:]}" if len(clean_mobile) >= 10 else f"+91{clean_mobile}"
+
+        company_display = "SMSPAY" if cfg["project_code"] == "SMSPAY" else ("Pay2Pay" if cfg["project_code"] == "PAY2PAY" else "Near4You")
+        outcome_verb = "credited" if status.upper() == "SUCCESS" else status.lower()
+
+        try:
+            amt_num = float(amount)
+            amt_str = f"₹{amt_num:,.2f}"
+        except Exception:
+            amt_str = f"₹{amount}"
+
+        safe_token = str(receipt_token or transaction_id).strip()
+
+        variables = {
+            "1": retailer_name or "Retailer",
+            "2": outcome_verb,
+            "3": transaction_id,
+            "4": amt_str,
+            "5": date_time_str,
+            "6": payment_mode or "CARD",
+            "7": status.upper(),
+            "8": company_display,
+            "retailer_name": retailer_name or "Retailer",
+            "outcome": outcome_verb,
+            "transaction_id": transaction_id,
+            "amount": amt_str,
+            "payment_date": date_time_str,
+            "payment_mode": payment_mode or "CARD",
+            "status": status.upper(),
+            "company_name": company_display,
+            "receipt_token": safe_token,
+            "button_param": safe_token,
+            "view_id": safe_token,
+            "receipt_url": f"https://receipt.sathus.in/r/{safe_token}"
+        }
+
+        logger.info(
+            f"[NOTIF PLATFORM] Sending WhatsApp payin_wallet_topup_notification to {formatted_mobile} ({transaction_id}) as {cfg['project_code']}..."
+        )
+
+        try:
+            res = await client.send_async(
+                channel="whatsapp",
+                recipient_phone=formatted_mobile,
+                template_code="payin_wallet_topup_notification",
+                variables=variables,
+                idempotency_key=idempotency_key or f"wa_payin_{transaction_id}_{status}",
+                timeout=8.0
+            )
+            return {
+                "status": "SUCCESS",
+                "delivered": True,
+                "provider": "SATHUS_NOTIFICATION_PLATFORM",
+                "notification_id": res.get("notification_id"),
+                "project_code": cfg["project_code"],
+                "recipient": formatted_mobile,
+                "receipt_url": f"https://receipt.sathus.in/r/{safe_token}",
+                "data": res
+            }
+        except Exception as e:
+            logger.warning(f"[NOTIF PLATFORM PAYIN WA NOTICE] Delivery to {formatted_mobile} encountered error: {e}. Falling back to Meta API.")
+            return {"status": "FALLBACK_REQUIRED", "detail": str(e)}
+
+    async def send_payin_wallet_topup_email(
+        self,
+        recipient_email: str,
+        recipient_name: str,
+        transaction_id: str,
+        amount: float,
+        net_credit: float,
+        payment_mode: str,
+        payment_date: str,
+        status: str,
+        receipt_token: str,
+        company_context: Any = None,
+        idempotency_key: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Dispatches automated branded email notification to Retailer for wallet top-up payment confirmation.
+        """
+        if not self.enabled:
+            return {"status": "FALLBACK_REQUIRED", "reason": "Platform disabled"}
+
+        if not recipient_email or "@" not in recipient_email:
+            logger.warning(f"[NOTIF PLATFORM] Skipping email: Invalid recipient email '{recipient_email}'")
+            return {"status": "SKIPPED", "reason": "No valid email address"}
+
+        client, cfg = self.get_client(company_context)
+        safe_token = str(receipt_token or transaction_id).strip()
+        receipt_url = f"https://receipt.sathus.in/r/{safe_token}"
+
+        company_display = "SMSPAY Digital Payments" if cfg["project_code"] == "SMSPAY" else ("Pay2Pay Enterprise" if cfg["project_code"] == "PAY2PAY" else "Near4You Platform")
+        primary_color = cfg.get("primary_color", "#059669")
+
+        subject = f"Wallet Top-Up {status.upper()} - {transaction_id} | {company_display}"
+
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; margin: 0; padding: 20px; color: #1e293b; }}
+            .container {{ max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }}
+            .header {{ background: {primary_color}; padding: 24px; text-align: center; color: #ffffff; }}
+            .content {{ padding: 28px; }}
+            .amount-card {{ background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 18px; text-align: center; margin: 20px 0; }}
+            .table-details {{ width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 14px; }}
+            .table-details td {{ padding: 10px 0; border-bottom: 1px solid #f1f5f9; }}
+            .table-details td:last-child {{ text-align: right; font-weight: 600; color: #0f172a; }}
+            .btn {{ display: block; text-align: center; background: {primary_color}; color: #ffffff !important; padding: 14px 24px; border-radius: 10px; font-weight: bold; text-decoration: none; margin: 24px 0 12px 0; }}
+            .footer {{ background: #f8fafc; padding: 16px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid #e2e8f0; }}
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h2 style="margin: 0; font-size: 20px; font-weight: 700;">{company_display}</h2>
+              <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.9;">Wallet Top-Up Confirmation</p>
+            </div>
+            <div class="content">
+              <p style="font-size: 15px; margin-top: 0;">Hello <strong>{recipient_name}</strong>,</p>
+              <p style="font-size: 14px; color: #475569;">Your wallet top-up payment has been <strong>{status.lower()}</strong> and your main wallet has been credited.</p>
+              
+              <div class="amount-card">
+                <div style="font-size: 12px; font-weight: 600; color: #166534; text-transform: uppercase;">Total Credited Amount</div>
+                <div style="font-size: 30px; font-weight: 800; color: #15803d; margin-top: 4px;">₹{float(net_credit or amount):,.2f}</div>
+              </div>
+
+              <table class="table-details">
+                <tr><td>Transaction Ref ID (TID)</td><td style="font-family: monospace;">{transaction_id}</td></tr>
+                <tr><td>Gross Payment</td><td>₹{float(amount):,.2f}</td></tr>
+                <tr><td>Net Wallet Credit</td><td style="color: #16a34a;">₹{float(net_credit or amount):,.2f}</td></tr>
+                <tr><td>Payment Date</td><td>{payment_date}</td></tr>
+                <tr><td>Payment Mode</td><td>{payment_mode}</td></tr>
+                <tr><td>Status</td><td style="color: #16a34a;">{status.upper()}</td></tr>
+              </table>
+
+              <a href="{receipt_url}" class="btn" target="_blank">View Official Digital Receipt</a>
+              <p style="text-align: center; font-size: 12px; color: #64748b; margin-top: 8px;">Or copy link: <a href="{receipt_url}" style="color: {primary_color};">{receipt_url}</a></p>
+            </div>
+            <div class="footer">
+              <p style="margin: 0;">Thank you for choosing {company_display}.</p>
+              <p style="margin: 4px 0 0 0;">This is an automated notification. Please do not reply to this message.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+        """
+
+        logger.info(f"[NOTIF PLATFORM] Sending PayIn confirmation email to {recipient_email} as {cfg['project_code']}...")
+
+        try:
+            res = await client.send_async(
+                channel="email",
+                recipient_email=recipient_email,
+                recipient_name=recipient_name or "Retailer Partner",
+                custom_subject=subject,
+                custom_body=html_body,
+                idempotency_key=idempotency_key or f"email_payin_{transaction_id}_{status}",
+                timeout=10.0
+            )
+            return {
+                "status": "SUCCESS",
+                "delivered": True,
+                "provider": "SATHUS_NOTIFICATION_PLATFORM",
+                "notification_id": res.get("notification_id"),
+                "project_code": cfg["project_code"],
+                "recipient": recipient_email,
+                "data": res
+            }
+        except Exception as e:
+            logger.warning(f"[NOTIF PLATFORM PAYIN EMAIL NOTICE] Delivery to {recipient_email} encountered error: {e}. Falling back to local SMTP.")
+            return {"status": "FALLBACK_REQUIRED", "detail": str(e)}
+
 # Global Singleton Instance
 global_notification_platform_client = GlobalNotificationPlatformClient()

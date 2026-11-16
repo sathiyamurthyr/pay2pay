@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "./(dashboard)/retailer/payin/payin.css";
 import Providers from "./providers";
 
 export async function generateMetadata(): Promise<Metadata> {

@@ -7,6 +7,7 @@ import { RetailerLayout } from "@/components/layout/retailer-layout";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Navbar } from "@/components/layout/navbar";
 import "@/app/admin.css";
+import "@/app/(dashboard)/retailer/payin/payin.css";
 
 const DEV_BYPASS = false;
 

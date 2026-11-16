@@ -85,10 +85,8 @@ def prepare_and_package_frontend():
     if fe_tar.exists():
         fe_tar.unlink()
 
-    print(f"\n📦 Compressing standalone folder to {fe_tar.name}...")
-    with tarfile.open(fe_tar, "w:gz") as tar:
-        for item in STANDALONE_DIR.iterdir():
-            tar.add(item, arcname=item.name)
+    print(f"\n📦 Compressing standalone folder to {fe_tar.name} with fast native tar...")
+    subprocess.run(["tar", "-czf", str(fe_tar), "-C", str(STANDALONE_DIR), "."], check=True)
 
     size_mb = os.path.getsize(fe_tar) / (1024 * 1024)
     print(f"✅ Created {fe_tar.name}: {size_mb:.2f} MB")

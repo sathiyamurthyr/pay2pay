@@ -11,15 +11,15 @@
  */
 
 :root {
-  /* ── Primary Brand Palette ── */
+  /* ── Primary Brand Palette (Domain Aware) ── */
   --color-primary-navy: #102A43;
-  --color-primary-blue: #2563EB;
-  --color-primary-blue-hover: #1D4ED8;
-  --color-primary-blue-dark: #1E40AF;
-  --color-emerald: #059669;
-  --color-emerald-hover: #047857;
+  --color-primary-blue: var(--brand-primary, #2563EB);
+  --color-primary-blue-hover: var(--brand-secondary, #1D4ED8);
+  --color-primary-blue-dark: var(--brand-secondary, #1E40AF);
+  --color-emerald: var(--brand-primary, #059669);
+  --color-emerald-hover: var(--brand-secondary, #047857);
   --color-emerald-dark: #065F46;
-  --color-teal: #0D9488;
+  --color-teal: var(--brand-secondary, #0D9488);
   --color-teal-hover: #0F766E;
   --color-sky-blue: #38BDF8;
 

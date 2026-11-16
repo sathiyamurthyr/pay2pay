@@ -455,3 +455,47 @@ async def get_payin_receipt(
             "failure_reason": txn.failure_reason
         }
     }
+
+
+@router.post(
+    "/{tid}/send-notifications",
+    summary="Dispatch PayIn Wallet Top-Up WhatsApp and Email Notifications"
+)
+async def dispatch_payin_notifications_endpoint(
+    tid: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Triggers or resends PayIn success notifications (WhatsApp & Email) for a transaction.
+    Uses official WhatsApp template payin_wallet_topup_notification (2039975033358041)
+    and receipt verification link https://receipt.sathus.in/r/{tid}.
+    """
+    stmt = select(PayinTransactionModel).where(
+        or_(
+            PayinTransactionModel.tid == tid,
+            PayinTransactionModel.merchant_ref_id == tid,
+            PayinTransactionModel.provider_ref_id == tid
+        )
+    )
+    res = await db.execute(stmt)
+    txn = res.scalars().first()
+    if not txn:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    ret_obj = None
+    if txn.retailer_ref_id:
+        from app.infrastructure.db.models import RetailerModel
+        ret_stmt = select(RetailerModel).where(RetailerModel.retailer_ref_id == txn.retailer_ref_id)
+        ret_obj = (await db.execute(ret_stmt)).scalars().first()
+
+    results = await PayInService.dispatch_payin_success_notifications(
+        db=db,
+        txn=txn,
+        ret_obj=ret_obj
+    )
+    return {
+        "success": True,
+        "tid": txn.tid,
+        "results": results
+    }
+

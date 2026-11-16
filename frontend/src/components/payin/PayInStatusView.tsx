@@ -24,6 +24,7 @@ import {
   Lock,
   ChevronRight
 } from "lucide-react";
+import { useCompanyBranding, COMPANY_PRESETS } from "@/hooks/useCompanyBranding";
 
 interface ReceiptData {
   tid: string;
@@ -117,6 +118,7 @@ function formatIST(isoDate?: string | null): string {
 export function PayInStatusView() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const branding = useCompanyBranding();
 
   const refParam =
     searchParams.get("referenceId") ||
@@ -255,7 +257,8 @@ export function PayInStatusView() {
     const utrStr = receipt?.utr || utrParam || "N/A";
     const dateStr = formatIST(receipt?.completed_at || receipt?.created_at);
 
-    const shareUrl = typeof window !== "undefined" ? window.location.href : `https://sms-pay.in/retailer/payin/status?referenceId=${tid}`;
+    const effectiveBranding = COMPANY_PRESETS[companyCode] || branding;
+    const shareUrl = `https://receipt.sathus.in/r/${tid}`;
 
     const text =
       `🧾 *PAYMENT RECEIPT*\n` +
@@ -347,10 +350,18 @@ export function PayInStatusView() {
           <span>Back to Dashboard</span>
         </Link>
 
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-sm">
-            {companyCode.slice(0, 2)}
-          </div>
+        <div className="flex items-center gap-3">
+          {effectiveBranding.logo_url ? (
+            <img
+              src={effectiveBranding.logo_url}
+              alt={companyTitle}
+              className="h-8 max-w-[130px] object-contain"
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-lg bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-sm">
+              {companyCode.slice(0, 2)}
+            </div>
+          )}
           <div className="flex flex-col text-right sm:text-left">
             <span className="text-xs sm:text-sm font-bold text-slate-200 tracking-wide">
               {companyTitle}

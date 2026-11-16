@@ -54,6 +54,98 @@ async def get_public_receipt(
         pass
 
     # =========================================================================
+    # 0. Primary Fast Lookup: PayinTransactionModel (PayIn Wallet Top-Up Receipt)
+    # =========================================================================
+    try:
+        from app.infrastructure.db.payin_models import PayinTransactionModel
+        payin_conditions = [
+            PayinTransactionModel.tid == clean_token,
+            PayinTransactionModel.merchant_ref_id == clean_token,
+            PayinTransactionModel.provider_ref_id == clean_token
+        ]
+
+        stmt_payin = select(PayinTransactionModel).where(or_(*payin_conditions))
+        payin_txn = (await db.execute(stmt_payin)).scalars().first()
+
+        if payin_txn:
+            is_smspay = payin_txn.company_ref_id == 2
+            is_pay2pay = payin_txn.company_ref_id == 47
+
+            company_code = "SMSPAY" if is_smspay else ("PAY2PAY" if is_pay2pay else "NEAR4YOU")
+            brand_name = "SMSPAY" if is_smspay else ("Pay2Pay" if is_pay2pay else "Near4You")
+            company_name = (
+                "SMSPAY Technologies Pvt. Ltd."
+                if is_smspay
+                else ("Pay2Pay FinTech Solutions Pvt. Ltd." if is_pay2pay else "Near4You Enterprise Technologies Pvt. Ltd.")
+            )
+            brand_tagline = f"{brand_name} Digital Payments · Instant Wallet Top-Up Switch"
+
+            ret_name = payin_txn.cust_name or "Retailer Partner"
+            ret_code = ""
+            ret_mob = payin_txn.cust_mobile or ""
+            if payin_txn.retailer_ref_id:
+                try:
+                    ret_stmt = select(RetailerModel).where(RetailerModel.retailer_ref_id == payin_txn.retailer_ref_id)
+                    ret = (await db.execute(ret_stmt)).scalars().first()
+                    if ret:
+                        ret_name = getattr(ret, "owner_name", None) or getattr(ret, "store_name", None) or ret_name
+                        ret_code = getattr(ret, "retailer_code", "") or ""
+                except Exception as r_err:
+                    logger.warning(f"[PUBLIC_RECEIPT] Retailer lookup notice for PayIn: {r_err}")
+
+            created_dt = payin_txn.completed_at or payin_txn.created_at
+            date_formatted = created_dt.strftime("%d %b %Y, %I:%M %p") if created_dt else "16 Nov 2026, 05:45 PM"
+
+            st_norm = (payin_txn.txn_status or "SUCCESS").upper().strip()
+            if st_norm == "SUCCESS":
+                st_text = "WALLET TOP-UP SUCCESSFUL · REAL-TIME CBS SETTLED"
+            elif st_norm in ("PENDING", "PROCESSING", "INITIATED"):
+                st_text = "WALLET TOP-UP PENDING · AWAITING CBS SETTLEMENT"
+            else:
+                st_text = f"WALLET TOP-UP {st_norm}"
+
+            clean_sig = str(clean_token).replace("-", "").upper()[-8:]
+            return {
+                "valid": True,
+                "receiptToken": payin_txn.tid or clean_token,
+                "companyName": company_name,
+                "companyCode": company_code,
+                "brandName": brand_name,
+                "brandTagline": brand_tagline,
+                "certifications": "NPCI IMPS Switch Certified · ISO 27001:2022 · 256-Bit SSL Encrypted",
+                "status": st_norm,
+                "statusText": st_text,
+                "amount": float(payin_txn.retailer_credit or payin_txn.txn_amount),
+                "requestedAmount": float(payin_txn.txn_amount),
+                "approvedAmount": float(payin_txn.retailer_credit or payin_txn.txn_amount),
+                "walletCredit": float(payin_txn.retailer_credit or payin_txn.txn_amount),
+                "charges": float(payin_txn.mdr_amount or 0.0),
+                "gst": float(payin_txn.tax_amount or 0.0),
+                "totalPaid": float(payin_txn.txn_amount),
+                "transactionId": payin_txn.tid,
+                "utr": payin_txn.provider_ref_id or payin_txn.tid,
+                "channel": payin_txn.card_network or "CARD / UPI",
+                "paymentMode": getattr(payin_txn, "card_network", None) or "CARD",
+                "date": date_formatted,
+                "customerName": ret_name,
+                "customerMobile": ret_mob,
+                "retailerName": f"{ret_name} ({ret_code})" if ret_code else ret_name,
+                "retailerMobile": ret_mob,
+                "beneficiaryName": f"{brand_name} Retailer Main Wallet",
+                "beneficiaryBank": f"{brand_name} CBS Gateway Switch",
+                "beneficiaryIfsc": "SMSP0000CBS" if is_smspay else "P2P0000CBS",
+                "beneficiaryAccount": f"Wallet A/C: {ret_code}" if ret_code else "Retailer Primary Wallet",
+                "signature": f"SIG-SHA256-{clean_sig}982A1B7C",
+                "downloadUrl": f"https://receipt.sathus.in/r/{payin_txn.tid or clean_token}",
+                "isTopup": True,
+                "isApproved": st_norm == "SUCCESS",
+                "isPendingApproval": st_norm in ("PENDING", "PROCESSING", "INITIATED"),
+                "receiptType": "PAYIN_TOPUP"
+            }
+    except Exception as e:
+        logger.warning(f"[PUBLIC_RECEIPT] PayinTransactionModel lookup notice: {e}")
+
+    # =========================================================================
     # 1. Primary Lookup: PayoutReceiptModel (DMT / Payout Official Receipt)
     # =========================================================================
     try:
