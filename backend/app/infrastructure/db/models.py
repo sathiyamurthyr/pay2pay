@@ -36,7 +36,7 @@ class CompanyModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "company"
 
     # Core Identifiers & Names
-    company_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    company_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, unique=True, index=True)
     tenant_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenant.public_id", ondelete="CASCADE"), nullable=False, index=True)
     company_code: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
@@ -546,7 +546,7 @@ class OrganizationNoteModel(BaseEntity, EnterpriseBaseMixin):
 class RetailerModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "retailer"
 
-    retailer_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, Identity(always=False), nullable=True, index=True)
+    retailer_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, Identity(always=False), nullable=False, unique=True, index=True)
     tenant_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     company_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     distributor_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
@@ -1944,7 +1944,7 @@ class PayoutBatchModel(BaseEntity, EnterpriseBaseMixin):
 class PayoutTransactionModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "payout_transaction"
 
-    payout_transaction_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, Identity(always=True))
+    payout_transaction_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, Identity(always=True), nullable=False)
     tenant_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     company_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     retailer_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
@@ -2764,15 +2764,7 @@ class RiskHistoryModel(BaseEntity, EnterpriseBaseMixin):
     reason: Mapped[Text] = mapped_column(Text, nullable=False)
 
 
-class DeviceFingerprintModel(BaseEntity, EnterpriseBaseMixin):
-    __tablename__ = "device_fingerprint"
-    __table_args__ = {"extend_existing": True}
-
-    fingerprint_hash: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
-    ip_address: Mapped[str] = mapped_column(String(50), nullable=False)
-    os: Mapped[str] = mapped_column(String(50), nullable=False)
-    browser: Mapped[str] = mapped_column(String(50), nullable=False)
-    risk_score: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
+from app.infrastructure.db.auth_models import DeviceFingerprintModel
 
 
 class LoginHistoryModel(BaseEntity, EnterpriseBaseMixin):

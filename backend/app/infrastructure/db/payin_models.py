@@ -230,7 +230,7 @@ class PayinTransactionModel(Base):
     payin_transactions_ref_id: Mapped[int] = mapped_column(
         BigInteger, Identity(start=1, cycle=False), primary_key=True
     )
-    tid: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
+    tid: Mapped[str] = mapped_column(String(60), nullable=False, unique=True, index=True)
     company_ref_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("company.company_ref_id", ondelete="RESTRICT"), nullable=False
     )
