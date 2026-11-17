@@ -410,17 +410,37 @@ export default function PublicReceiptPage() {
             {/* Subtle Watermark */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] select-none -rotate-12">
               <span className="text-6xl sm:text-7xl font-black text-slate-900 uppercase tracking-widest">
-                Near4You Verified
+                {receiptData.brandName?.toUpperCase().includes("SMSPAY")
+                  ? "SMSPAY Verified"
+                  : receiptData.brandName?.toUpperCase().includes("PAY2PAY")
+                  ? "Pay2Pay Verified"
+                  : "Near4You Verified"}
               </span>
             </div>
 
           {/* ── 1. HEADER: BRAND & COMPANY DETAILS ── */}
           <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-4 relative z-10">
           <div className="flex items-center gap-3">
-            {/* Near4You Dual Emblem Logo */}
-            <div className="w-13 h-13 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white font-black text-lg shadow-md shadow-blue-500/30 shrink-0 border-2 border-white/20">
-              P2P
-            </div>
+            {/* Dynamic Brand Logo */}
+            {receiptData.brandName?.toUpperCase().includes("SMSPAY") ? (
+              <img
+                src="/branding/smspay-logo.svg"
+                alt="SMSPAY"
+                className="h-12 w-auto max-w-[130px] object-contain shrink-0"
+              />
+            ) : receiptData.brandName?.toUpperCase().includes("PAY2PAY") ? (
+              <img
+                src="/branding/pay2pay-logo.png"
+                alt="Pay2Pay"
+                className="h-12 w-auto max-w-[130px] object-contain shrink-0"
+              />
+            ) : (
+              <img
+                src="/branding/logo.svg"
+                alt="Near4You"
+                className="h-12 w-auto max-w-[130px] object-contain shrink-0"
+              />
+            )}
             <div>
               <div className="flex items-center gap-1.5">
                 <h1 className="text-base sm:text-lg font-black tracking-tight text-slate-900">

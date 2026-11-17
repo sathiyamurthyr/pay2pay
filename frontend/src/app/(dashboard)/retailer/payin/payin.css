@@ -1,0 +1,1918 @@
+/**
+ * PayIn Dedicated Stylesheet (Self-Contained & Isolated to Retailer PayIn)
+ * Restores all design tokens, glassmorphism, cards, inputs, section headers,
+ * gateway selectors, card schemes grid, and payment summary breakdown.
+ */
+
+/* ─── [colors.css] ─────────────────────────────────────────────────── */
+/**
+ * SMSPAY Central Design Tokens: Colors
+ * Master authoritative color palette for SMSPAY enterprise fintech theme.
+ */
+
+:root {
+  /* ── Primary Brand Palette (Domain Aware) ── */
+  --color-primary-navy: #102A43;
+  --color-primary-blue: var(--brand-primary, #2563EB);
+  --color-primary-blue-hover: var(--brand-secondary, #1D4ED8);
+  --color-primary-blue-dark: var(--brand-secondary, #1E40AF);
+  --color-emerald: var(--brand-primary, #059669);
+  --color-emerald-hover: var(--brand-secondary, #047857);
+  --color-emerald-dark: #065F46;
+  --color-teal: var(--brand-secondary, #0D9488);
+  --color-teal-hover: #0F766E;
+  --color-sky-blue: #38BDF8;
+
+  /* ── Backgrounds & Surfaces ── */
+  --color-background: #F3F6FC;
+  --color-background-soft: #F8FAFC;
+  --color-surface: #FFFFFF;
+  --color-surface-hover: #F8FAFC;
+  --color-surface-elevated: #FFFFFF;
+  --color-surface-subtle: #F1F5F9;
+
+  /* ── Typography & Text Colors ── */
+  --color-text-primary: #102A43;
+  --color-text-heading: #102A43;
+  --color-text-body: #172033;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748B;
+  --color-text-light: #94A3B8;
+  --color-text-inverse: #FFFFFF;
+  --color-text-inverse-muted: rgba(255, 255, 255, 0.78);
+
+  /* ── Borders & Dividers ── */
+  --color-border: #CBD5E1;
+  --color-border-subtle: rgba(148, 163, 184, 0.28);
+  --color-border-medium: #E2E8F0;
+  --color-border-strong: #94A3B8;
+  --color-border-focus: #2563EB;
+
+  /* ── Status & Feedback ── */
+  --color-success: #059669;
+  --color-success-bg: #ECFDF5;
+  --color-success-border: #A7F3D0;
+  --color-success-text: #065F46;
+
+  --color-warning: #D97706;
+  --color-warning-bg: #FEF3C7;
+  --color-warning-border: #FDE68A;
+  --color-warning-text: #B45309;
+
+  --color-error: #DC2626;
+  --color-error-bg: #FEF2F2;
+  --color-error-border: #FECACA;
+  --color-error-text: #991B1B;
+
+  --color-disabled: #64748B;
+  --color-disabled-bg: #F1F5F9;
+  --color-disabled-border: #E2E8F0;
+  --color-disabled-text: #94A3B8;
+
+  /* ── Soft Semantic Tints ── */
+  --color-blue-tint: #EFF6FF;
+  --color-blue-tint-border: #BFDBFE;
+  --color-mint-tint: #ECFDF5;
+  --color-mint-tint-border: #A7F3D0;
+  --color-amber-tint: #FEF3C7;
+  --color-amber-tint-border: #FDE68A;
+}
+
+/* ─── [gradients.css] ─────────────────────────────────────────────────── */
+/**
+ * SMSPAY Central Design Tokens: Gradients
+ * Master authoritative gradient systems for SMSPAY enterprise fintech theme.
+ */
+
+:root {
+  /* ── Application Header Gradient ── */
+  --gradient-header: linear-gradient(110deg, #102A43 0%, #1D4ED8 65%, #0D9488 100%);
+
+  /* ── Primary Action Button Gradient ── */
+  --gradient-primary-button: linear-gradient(100deg, #2563EB 0%, #0D9488 100%);
+  --gradient-primary-button-hover: linear-gradient(100deg, #1D4ED8 0%, #0F766E 100%);
+
+  /* ── Selected Card Surface Gradient ── */
+  --gradient-selected-card: linear-gradient(135deg, #EFF6FF 0%, #F0FDFA 100%);
+
+  /* ── Financial Highlight Gradients ── */
+  --gradient-customer-payable: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+  --gradient-expected-credit: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);
+
+  /* ── Master Page Background ── */
+  --gradient-page-bg: linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 55%, #ECFDF5 100%);
+
+  /* ── Payment Summary Card Header ── */
+  --gradient-summary-header: linear-gradient(110deg, #1D4ED8 0%, #2563EB 100%);
+
+  /* ── Amount in Words / Info Banner Gradient ── */
+  --gradient-info-banner: linear-gradient(135deg, rgba(239, 246, 255, 0.95) 0%, rgba(236, 253, 245, 0.95) 100%);
+
+  /* ── Subtle Active Glow ── */
+  --gradient-active-glow: radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 70%);
+}
+
+/* ─── [glassmorphism.css] ─────────────────────────────────────────────────── */
+/**
+ * SMSPAY Central Design Tokens: Glassmorphism
+ * Frosted glass surfaces, dark-glass controls, and depth effects.
+ */
+
+:root {
+  /* ── Light Surface Glass (Cards & Containers) ── */
+  --glass-bg: rgba(255, 255, 255, 0.78);
+  --glass-bg-hover: rgba(255, 255, 255, 0.90);
+  --glass-bg-solid: rgba(255, 255, 255, 0.96);
+  --glass-blur: blur(14px) saturate(150%);
+  --glass-border: 1px solid rgba(148, 163, 184, 0.28);
+  --glass-border-hover: 1px solid rgba(37, 99, 235, 0.40);
+  --glass-shadow: 0 8px 24px rgba(16, 42, 67, 0.06);
+  --glass-shadow-hover: 0 12px 32px rgba(16, 42, 67, 0.10);
+
+  /* ── Summary Glass Panel ── */
+  --glass-summary-bg: rgba(255, 255, 255, 0.88);
+  --glass-summary-blur: blur(16px) saturate(150%);
+  --glass-summary-border: 1px solid rgba(148, 163, 184, 0.32);
+  --glass-summary-shadow: 0 10px 30px rgba(16, 42, 67, 0.08);
+
+  /* ── Dark Translucent Glass (Header Navigation & Controls) ── */
+  --glass-dark-bg: rgba(255, 255, 255, 0.12);
+  --glass-dark-bg-hover: rgba(255, 255, 255, 0.18);
+  --glass-dark-bg-active: rgba(255, 255, 255, 0.22);
+  --glass-dark-border: 1px solid rgba(255, 255, 255, 0.20);
+  --glass-dark-border-hover: 1px solid rgba(255, 255, 255, 0.35);
+  --glass-dark-blur: blur(10px);
+  --glass-dark-text: #FFFFFF;
+
+  /* ── Pill & Capsule Glass ── */
+  --glass-pill-bg: rgba(255, 255, 255, 0.85);
+  --glass-pill-border: 1px solid rgba(148, 163, 184, 0.40);
+  --glass-pill-shadow: 0 2px 8px rgba(16, 42, 67, 0.04);
+}
+
+/* ─── [typography.css] ─────────────────────────────────────────────────── */
+/**
+ * SMSPAY Central Design Tokens: Typography
+ * High-legibility enterprise fintech typography hierarchy.
+ */
+
+:root {
+  /* ── Font Families ── */
+  --font-family-sans: 'Inter', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-mono: var(--font-geist-mono), 'JetBrains Mono', 'Roboto Mono', 'SF Mono', Consolas, monospace;
+
+  /* ── Font Sizes Scale ── */
+  --font-size-2xs: 0.625rem;    /* 10px - Micro badges & tags */
+  --font-size-xs: 0.6875rem;    /* 11px - Captions, subtexts, table headers */
+  --font-size-sm: 0.75rem;      /* 12px - Secondary text, pills, inputs */
+  --font-size-base: 0.8125rem;  /* 13px - Body text, table rows */
+  --font-size-md: 0.875rem;     /* 14px - Primary body, standard inputs */
+  --font-size-lg: 0.9375rem;    /* 15px - Section subheads, button text */
+  --font-size-xl: 1.0625rem;    /* 17px - Card titles, summary header */
+  --font-size-2xl: 1.25rem;     /* 20px - Page subtitle, modal title */
+  --font-size-3xl: 1.5rem;      /* 24px - Main page title, financial payable */
+  --font-size-4xl: 1.875rem;    /* 30px - Large dashboard totals */
+
+  /* ── Font Weights ── */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+  --font-weight-black: 900;
+
+  /* ── Line Heights ── */
+  --line-height-none: 1;
+  --line-height-tight: 1.2;
+  --line-height-snug: 1.35;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.625;
+
+  /* ── Letter Spacing ── */
+  --letter-spacing-tighter: -0.035em;
+  --letter-spacing-tight: -0.02em;
+  --letter-spacing-normal: 0em;
+  --letter-spacing-wide: 0.025em;
+  --letter-spacing-wider: 0.05em;
+  --letter-spacing-widest: 0.08em;
+}
+
+/* ─── [spacing.css] ─────────────────────────────────────────────────── */
+/**
+ * SMSPAY Central Design Tokens: Spacing, Radii, Z-Index & Transitions
+ */
+
+:root {
+  /* ── Spacing Scale ── */
+  --space-2xs: 0.125rem; /* 2px */
+  --space-xs: 0.25rem;   /* 4px */
+  --space-sm: 0.375rem;  /* 6px */
+  --space-md: 0.5rem;    /* 8px */
+  --space-base: 0.75rem; /* 12px */
+  --space-lg: 1rem;      /* 16px */
+  --space-xl: 1.25rem;   /* 20px */
+  --space-2xl: 1.5rem;   /* 24px */
+  --space-3xl: 2rem;     /* 32px */
+
+  /* ── Border Radii ── */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
+  --radius-full: 9999px;
+
+  /* ── Z-Index Layers ── */
+  --z-base: 1;
+  --z-dropdown: 1000;
+  --z-header: 1100;
+  --z-drawer: 1200;
+  --z-modal: 1300;
+  --z-popover: 1400;
+  --z-toast: 1500;
+
+  /* ── Transitions ── */
+  --transition-fast: all 0.15s ease;
+  --transition-base: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ─── [shadows.css] ─────────────────────────────────────────────────── */
+/**
+ * SMSPAY Central Design Tokens: Shadows & Elevation
+ */
+
+:root {
+  /* ── Depth & Elevation ── */
+  --shadow-2xs: 0 1px 2px rgba(16, 42, 67, 0.04);
+  --shadow-xs: 0 1px 3px rgba(16, 42, 67, 0.05);
+  --shadow-sm: 0 2px 6px rgba(16, 42, 67, 0.06);
+  --shadow-md: 0 4px 12px rgba(16, 42, 67, 0.08);
+  --shadow-lg: 0 8px 24px rgba(16, 42, 67, 0.08);
+  --shadow-xl: 0 12px 36px rgba(16, 42, 67, 0.12);
+
+  /* ── Component-Specific Glows & Shadows ── */
+  --shadow-btn-primary: 0 4px 14px rgba(37, 99, 235, 0.25);
+  --shadow-btn-primary-hover: 0 6px 18px rgba(37, 99, 235, 0.32);
+  --shadow-card-selected: 0 4px 16px rgba(37, 99, 235, 0.10);
+  --shadow-emerald-glow: 0 0 12px rgba(5, 150, 105, 0.25);
+  --shadow-dropdown: 0 12px 36px rgba(16, 42, 67, 0.14);
+}
+
+/* ─── [buttons.css] ─────────────────────────────────────────────────── */
+/**
+ * SMSPAY Reusable Component Styles: Buttons
+ */
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  background: var(--gradient-primary-button);
+  color: var(--color-text-inverse);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  height: 48px;
+  padding: 0 var(--space-xl);
+  border: none;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-btn-primary);
+  cursor: pointer;
+  transition: var(--transition-base);
+  text-decoration: none;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--gradient-primary-button-hover);
+  box-shadow: var(--shadow-btn-primary-hover);
+  opacity: 0.98;
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.btn-primary:disabled {
+  opacity: 0.85;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  height: 38px;
+  padding: 0 var(--space-lg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2xs);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-secondary:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-primary-blue);
+  color: var(--color-primary-blue);
+}
+
+.btn-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  background: var(--glass-pill-bg);
+  color: var(--color-text-primary);
+  border: var(--glass-pill-border);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  padding: var(--space-xs) var(--space-base);
+  border-radius: var(--radius-full);
+  box-shadow: var(--glass-pill-shadow);
+  text-decoration: none;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-pill:hover {
+  background: var(--color-surface);
+  border-color: var(--color-primary-blue);
+  color: var(--color-primary-blue);
+}
+
+.btn-soundbox {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  background-color: var(--color-emerald);
+  color: var(--color-text-inverse);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-extrabold);
+  letter-spacing: var(--letter-spacing-wide);
+  height: 32px;
+  padding: 0 var(--space-base);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-soundbox:hover {
+  background-color: var(--color-emerald-hover);
+}
+
+.btn-soundbox--muted {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* ─── [cards.css] ─────────────────────────────────────────────────── */
+/**
+ * SMSPAY Reusable Component Styles: Cards & Containers
+ */
+
+.card-glass {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--radius-2xl);
+  padding: var(--space-base);
+  transition: var(--transition-base);
+}
+
+.card-glass--summary {
+  background: var(--glass-summary-bg);
+  backdrop-filter: var(--glass-summary-blur);
+  -webkit-backdrop-filter: var(--glass-summary-blur);
+  border: var(--glass-summary-border);
+  box-shadow: var(--glass-summary-shadow);
+  border-radius: var(--radius-2xl);
+  overflow: hidden;
+}
+
+.card-surface {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-medium);
+  border-radius: var(--radius-xl);
+  padding: var(--space-base);
+  box-shadow: var(--shadow-2xs);
+  transition: var(--transition-fast);
+}
+
+.card-surface:hover {
+  border-color: var(--color-border-strong);
+}
+
+.card-interactive {
+  cursor: pointer;
+  user-select: none;
+}
+
+.card-interactive:hover {
+  background: var(--color-surface);
+  border-color: var(--color-primary-blue);
+  box-shadow: var(--shadow-sm);
+}
+
+.card-selected {
+  border: 2px solid var(--color-primary-blue) !important;
+  background: var(--gradient-selected-card) !important;
+  box-shadow: var(--shadow-card-selected);
+  position: relative;
+}
+
+.card-disabled {
+  background: rgba(248, 250, 252, 0.70) !important;
+  border: 1px solid var(--color-border-medium) !important;
+  cursor: not-allowed !important;
+  opacity: 0.92;
+}
+
+.card-highlight-blue {
+  background: var(--gradient-customer-payable);
+  border: 1.5px solid var(--color-blue-tint-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-base) var(--space-lg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-2xs);
+}
+
+.card-highlight-green {
+  background: var(--gradient-expected-credit);
+  border: 1.5px solid var(--color-mint-tint-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-base) var(--space-lg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-2xs);
+}
+
+.card-info-banner {
+  background: var(--gradient-info-banner);
+  border: 1px solid var(--color-blue-tint-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-sm) var(--space-base);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  box-shadow: var(--shadow-2xs);
+}
+
+/* ─── [inputs.css] ─────────────────────────────────────────────────── */
+/**
+ * SMSPAY Reusable Component Styles: Form Inputs
+ * Perfectly aligned two-column form controls with identical vertical coordinates.
+ */
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.input-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 22px;
+  min-height: 22px;
+  margin-bottom: 2px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.input-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--font-family-sans);
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--color-text-primary, #102A43);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.input-label__required {
+  color: var(--color-error, #DC2626);
+  font-weight: 900;
+  margin-left: 2px;
+}
+
+.input-limits-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 19px;
+  line-height: 1;
+  padding: 0 8px;
+  border-radius: 9999px;
+  background-color: #F0F9FF;
+  border: 1px solid #BAE6FD;
+  color: #0284C7;
+  font-family: var(--font-family-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 44px;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.input-field {
+  width: 100%;
+  height: 44px;
+  min-height: 44px;
+  background-color: var(--color-surface, #FFFFFF);
+  color: var(--color-text-primary, #102A43);
+  font-family: var(--font-family-mono);
+  font-size: 14px;
+  font-weight: 700;
+  border: 1.5px solid var(--color-border, #CBD5E1);
+  border-radius: var(--radius-xl, 10px);
+  padding: 0 14px;
+  outline: none;
+  box-sizing: border-box;
+  transition: var(--transition-fast, all 0.15s ease);
+  line-height: 41px;
+}
+
+.input-field:focus {
+  border-color: var(--color-primary-blue, #2563EB);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.input-field::placeholder {
+  color: var(--color-text-muted, #94A3B8);
+  font-weight: 500;
+  font-family: var(--font-family-sans);
+  font-size: 13px;
+}
+
+.input-field--with-prefix {
+  padding-left: 72px;
+  padding-right: 38px;
+}
+
+.input-field--amount {
+  padding-left: 34px;
+  padding-right: 38px;
+}
+
+.input-field--valid {
+  border-color: var(--color-emerald, #059669);
+}
+
+.input-field--valid:focus {
+  border-color: var(--color-emerald, #059669);
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
+}
+
+.input-field--error {
+  border-color: var(--color-error, #DC2626);
+  background-color: rgba(254, 242, 242, 0.45);
+}
+
+.input-field--error:focus {
+  border-color: var(--color-error, #DC2626);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
+.input-prefix {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-secondary, #475569);
+  pointer-events: none;
+  z-index: 2;
+  height: 20px;
+}
+
+.input-prefix__text {
+  font-family: var(--font-family-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary, #102A43);
+  border-right: 1px solid var(--color-border, #CBD5E1);
+  padding-right: 8px;
+  line-height: 1;
+}
+
+.input-prefix__currency {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  font-family: var(--font-family-mono);
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-text-primary, #102A43);
+  pointer-events: none;
+  z-index: 2;
+  line-height: 1;
+  height: 20px;
+}
+
+.input-valid-indicator {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full, 9999px);
+  background-color: var(--color-mint-tint, #ECFDF5);
+  color: var(--color-emerald, #059669);
+  border: 1px solid var(--color-success-border, #A7F3D0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.input-subtext {
+  font-family: var(--font-family-sans);
+  font-size: 11px;
+  color: var(--color-text-secondary, #64748B);
+  font-weight: 500;
+  margin: 0;
+  line-height: 1.35;
+  min-height: 16px;
+}
+
+.input-error {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-family-sans);
+  font-size: 11px;
+  color: var(--color-error, #DC2626);
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.35;
+  min-height: 16px;
+}
+
+/* ─── [badges.css] ─────────────────────────────────────────────────── */
+/**
+ * SMSPAY Reusable Component Styles: Badges & Tags
+ */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-extrabold);
+  line-height: var(--line-height-none);
+  white-space: nowrap;
+}
+
+.badge-active {
+  background-color: var(--color-mint-tint);
+  border: 1px solid var(--color-success-border);
+  color: var(--color-emerald);
+}
+
+.badge-recommended {
+  background-color: var(--color-amber-tint);
+  border: 1px solid var(--color-warning-border);
+  color: var(--color-warning-text);
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+}
+
+.badge-disabled {
+  background-color: var(--color-disabled-bg);
+  border: 1px solid var(--color-disabled-border);
+  color: var(--color-disabled-text);
+  font-weight: var(--font-weight-bold);
+}
+
+.badge-counter {
+  background-color: var(--color-blue-tint);
+  border: 1px solid var(--color-blue-tint-border);
+  color: var(--color-primary-blue);
+  font-size: var(--font-size-xs);
+  padding: 4px 10px;
+}
+
+.badge-live {
+  background-color: rgba(5, 150, 105, 0.20);
+  border: 1px solid rgba(52, 211, 153, 0.45);
+  color: #34D399;
+  font-size: var(--font-size-2xs);
+  letter-spacing: var(--letter-spacing-wide);
+  padding: 4px 10px;
+  box-shadow: var(--shadow-2xs);
+}
+
+.badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.badge-dot--pulse {
+  animation: badge-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes badge-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.badge-scheme {
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-black);
+  text-transform: uppercase;
+  color: var(--color-text-inverse);
+  box-shadow: var(--shadow-2xs);
+}
+
+/* ─── [payin-page.css] ─────────────────────────────────────────────────── */
+/**
+ * SMSPAY Domain Styles: PayIn Main Page
+ */
+
+.payin-page {
+  --color-text-secondary: var(--color-text-slate);
+  --color-border: var(--color-border-card);
+  width: 100%;
+  min-height: calc(100vh - 56px);
+  padding-bottom: 16px;
+  background: radial-gradient(circle at 10% 20%, rgba(56, 189, 248, 0.08) 0%, transparent 40%),
+              radial-gradient(circle at 90% 10%, rgba(37, 99, 235, 0.06) 0%, transparent 50%),
+              radial-gradient(circle at 50% 80%, rgba(13, 148, 136, 0.05) 0%, transparent 40%),
+              #F0F5FA;
+  color: var(--color-primary-navy);
+  font-family: var(--font-family-sans);
+  transition: var(--transition-base);
+}
+
+.payin-page__container {
+  width: 100%;
+  max-width: 82rem;
+  margin: 0 auto;
+  padding: 8px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── SECONDARY HEADER ROW ── */
+.payin-secondary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 2px 0 4px 0;
+}
+
+.payin-secondary-header__left-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.payin-secondary-header__back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  background-color: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(203, 213, 225, 0.85);
+  color: #1E293B;
+  font-size: 11.5px;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+  text-decoration: none;
+}
+
+.payin-secondary-header__back-btn:hover {
+  background-color: #FFFFFF;
+  border-color: #94A3B8;
+  color: #0F172A;
+}
+
+.payin-secondary-header__title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.payin-secondary-header__icon-box {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2563EB;
+}
+
+.payin-secondary-header__title {
+  font-size: 19px;
+  font-weight: 900;
+  color: #102A43;
+  letter-spacing: -0.02em;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.payin-secondary-header__encryption-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  background-color: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(203, 213, 225, 0.85);
+  color: #1E293B;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  backdrop-filter: blur(8px);
+}
+
+.payin-page__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .payin-page__grid {
+    grid-template-columns: 7fr 5fr;
+  }
+}
+
+.payin-page__left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.payin-page__right-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+@media (min-width: 1024px) {
+  .payin-page__right-col {
+    position: sticky;
+    top: 12px;
+  }
+}
+
+/* ─── [gateway.css] ─────────────────────────────────────────────────── */
+/**
+ * SMSPAY Domain Styles: PayIn Gateway Selection Component
+ */
+
+.payin-gateway {
+  /* Inherits .card-glass */
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-base);
+}
+
+.payin-gateway__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.payin-gateway__title-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.payin-gateway__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-black);
+  color: var(--color-primary-navy);
+}
+
+.payin-gateway__icon-wrap {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-md);
+  background-color: var(--color-blue-tint);
+  color: var(--color-primary-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.payin-gateway__subtitle {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+  padding-left: 32px;
+}
+
+.payin-gateway__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-base);
+  padding-top: 2px;
+}
+
+@media (min-width: 640px) {
+  .payin-gateway__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.payin-gateway__card {
+  padding: var(--space-base);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.95);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: left;
+  cursor: pointer;
+  transition: var(--transition-base);
+  position: relative;
+}
+
+.payin-gateway__card--active {
+  border: 2px solid var(--color-primary-blue) !important;
+  background: var(--gradient-selected-card) !important;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.08);
+}
+
+.payin-gateway__card--disabled {
+  background: rgba(248, 250, 252, 0.65) !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  cursor: not-allowed !important;
+}
+
+.payin-gateway__card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 100%;
+  gap: var(--space-sm);
+}
+
+.payin-gateway__logo-box {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background-color: #0052CC;
+  color: var(--color-text-inverse);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-black);
+  flex-shrink: 0;
+}
+
+.payin-gateway__logo-box--disabled {
+  background-color: #E2E8F0;
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-bold);
+}
+
+.payin-gateway__name-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.payin-gateway__name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.payin-gateway__name {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary-navy);
+  line-height: var(--line-height-tight);
+}
+
+.payin-gateway__desc {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+  margin-top: 2px;
+  line-height: var(--line-height-tight);
+}
+
+.payin-gateway__check-badge {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary-blue);
+  color: var(--color-text-inverse);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.payin-gateway__status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--space-sm);
+  margin-top: var(--space-sm);
+  border-top: 1px solid rgba(191, 219, 254, 0.8);
+  font-size: var(--font-size-sm);
+}
+
+.payin-gateway__selected-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-primary-blue);
+  font-weight: var(--font-weight-bold);
+}
+
+.payin-gateway__settlement-tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary-navy);
+}
+
+.payin-gateway__selected-circle {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary-blue);
+  color: var(--color-text-inverse);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.payin-gateway__settlement-icon {
+  color: var(--color-emerald);
+  fill: var(--color-emerald);
+}
+
+.payin-gateway__unselected-indicator {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #64748B;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.payin-gateway__disabled-name {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-tight);
+  display: block;
+}
+
+.payin-gateway__disabled-desc {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-medium);
+  margin-top: 2px;
+  line-height: var(--line-height-tight);
+  display: block;
+}
+
+.payin-gateway__disabled-footer {
+  padding-top: var(--space-sm);
+  margin-top: var(--space-sm);
+  border-top: 1px solid var(--color-border-medium);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.payin-gateway__disabled-icon {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+/* ─── [card-schemes.css] ─────────────────────────────────────────────────── */
+/**
+ * SMSPAY Domain Styles: PayIn Supported Card Schemes (Display Only)
+ */
+
+.payin-schemes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-base);
+}
+
+.payin-schemes__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  padding-top: 2px;
+}
+
+@media (min-width: 640px) {
+  .payin-schemes__grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .payin-schemes__grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+.payin-schemes__card {
+  padding: var(--space-base);
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  background-color: rgba(255, 255, 255, 0.95);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(16, 42, 67, 0.03);
+  transition: var(--transition-fast);
+}
+
+.payin-schemes__card:hover {
+  border-color: var(--color-border);
+}
+
+.payin-schemes__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+.payin-schemes__name {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-extrabold);
+  color: var(--color-primary-navy);
+  display: block;
+  line-height: var(--line-height-tight);
+}
+
+.payin-schemes__category {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-2xs);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+  display: block;
+  margin-top: 2px;
+  line-height: var(--line-height-snug);
+}
+
+.payin-schemes__bottom {
+  padding-top: var(--space-sm);
+  margin-top: var(--space-sm);
+  border-top: 1px solid rgba(241, 245, 249, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.payin-schemes__mdr-label {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-secondary);
+}
+
+.payin-schemes__mdr-rate {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-black);
+  color: var(--color-primary-blue);
+}
+
+.badge-scheme--visa {
+  background-color: #1A1F71;
+  font-style: italic;
+  font-weight: 900;
+}
+
+.badge-scheme--amex {
+  background-color: #006FCF;
+  font-weight: 900;
+}
+
+.card-brand-logo--rupay-text {
+  font-family: var(--font-family-sans);
+  font-weight: 900;
+  font-style: italic;
+  font-size: var(--font-size-xs);
+  letter-spacing: -0.02em;
+  color: #0A3681;
+}
+
+.card-brand-logo--rupay-arrow {
+  font-size: 10px;
+  font-weight: 900;
+  color: #F26522;
+  margin-left: 2px;
+}
+
+.payin-schemes__corp-icon {
+  width: 28px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  color: var(--color-text-secondary);
+}
+
+.payin-schemes__status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-emerald);
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.15);
+  flex-shrink: 0;
+}
+
+/* ─── [payment-summary.css] ─────────────────────────────────────────────────── */
+/**
+ * SMSPAY Domain Styles: PayIn Payment Summary Component
+ * Authoritative financial breakdown card adhering strictly to centralized design tokens.
+ */
+
+.payin-summary {
+  display: flex;
+  flex-direction: column;
+  background: var(--glass-summary-bg);
+  backdrop-filter: var(--glass-summary-blur);
+  -webkit-backdrop-filter: var(--glass-summary-blur);
+  border: var(--glass-summary-border);
+  box-shadow: var(--glass-summary-shadow);
+  border-radius: var(--radius-2xl);
+  overflow: hidden;
+}
+
+/* ── 1. PAYMENT SUMMARY HEADER ── */
+.payin-summary__header {
+  background: var(--gradient-summary-header);
+  color: var(--color-text-inverse);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.payin-summary__header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.payin-summary__icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background-color: rgba(255, 255, 255, 0.20);
+  color: var(--color-text-inverse);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.payin-summary__title {
+  font-family: var(--font-family-sans);
+  font-size: 15px;
+  font-weight: var(--font-weight-black);
+  color: var(--color-text-inverse);
+  line-height: var(--line-height-tight);
+}
+
+.payin-summary__subtitle {
+  font-family: var(--font-family-sans);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: var(--font-weight-medium);
+  margin-top: 1px;
+}
+
+/* ── 2. PAYMENT SUMMARY BODY ── */
+.payin-summary__body {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── 3. FINANCIAL BREAKDOWN ROWS (STRICT HORIZONTAL ALIGNMENT) ── */
+.payin-summary__table,
+.payin-summary .table-financial {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+}
+
+.payin-summary__row,
+.payin-summary .table-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 8px 0 !important;
+  border-bottom: 1px solid var(--color-border-subtle) !important;
+  width: 100% !important;
+}
+
+.payin-summary__row:last-child,
+.payin-summary .table-row:last-child {
+  border-bottom: 1px solid var(--color-border-subtle) !important;
+}
+
+.payin-summary__row-label,
+.payin-summary .table-label {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  color: var(--color-text-slate) !important;
+  font-family: var(--font-family-sans) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+.payin-summary__row-icon,
+.payin-summary .table-label__icon {
+  width: 15px !important;
+  height: 15px !important;
+  color: var(--color-text-slate) !important;
+  flex-shrink: 0 !important;
+}
+
+.payin-summary__row-value,
+.payin-summary .table-value {
+  font-family: var(--font-family-sans) !important;
+  font-size: 13.5px !important;
+  font-weight: 700 !important;
+  color: var(--color-primary-navy) !important;
+  text-align: right !important;
+  letter-spacing: -0.01em !important;
+}
+
+/* ── 4. FINANCIAL HIGHLIGHT CARDS ── */
+.payin-summary__highlights {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+/* Card 1: Customer Payable Amount */
+.card-highlight-blue {
+  background: var(--gradient-customer-payable);
+  border: 1.5px solid var(--color-blue-tint-border);
+  border-radius: var(--radius-xl);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-2xs);
+}
+
+.card-highlight-blue__icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-lg);
+  background-color: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--color-blue-tint-border);
+  color: var(--color-royal-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.card-highlight-blue__label {
+  display: block;
+  font-family: var(--font-family-sans);
+  font-size: 11px;
+  font-weight: var(--font-weight-black);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-royal-blue);
+}
+
+.card-highlight-blue__desc {
+  font-family: var(--font-family-sans);
+  font-size: 10.5px;
+  color: var(--color-text-slate);
+  font-weight: var(--font-weight-medium);
+  display: block;
+  margin-top: 1px;
+}
+
+.card-highlight-blue__value {
+  font-family: var(--font-family-sans);
+  font-size: 22px;
+  font-weight: var(--font-weight-black);
+  color: var(--color-royal-blue);
+  letter-spacing: -0.02em;
+}
+
+/* Card 2: Expected Wallet Credit */
+.card-highlight-green {
+  background: var(--gradient-expected-credit);
+  border: 1.5px solid var(--color-mint-tint-border);
+  border-radius: var(--radius-xl);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-2xs);
+}
+
+.card-highlight-green__icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-lg);
+  background-color: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--color-mint-tint-border);
+  color: var(--color-emerald-green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.card-highlight-green__label {
+  display: block;
+  font-family: var(--font-family-sans);
+  font-size: 11px;
+  font-weight: var(--font-weight-black);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-emerald-green);
+}
+
+.card-highlight-green__desc {
+  font-family: var(--font-family-sans);
+  font-size: 10.5px;
+  color: var(--color-text-slate);
+  font-weight: var(--font-weight-medium);
+  display: block;
+  margin-top: 1px;
+}
+
+.card-highlight-green__value {
+  font-family: var(--font-family-sans);
+  font-size: 22px;
+  font-weight: var(--font-weight-black);
+  color: var(--color-emerald-green);
+  letter-spacing: -0.02em;
+}
+
+/* ── 5. APPLIED POLICY ROW ── */
+.payin-summary__policy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: var(--radius-lg);
+  background: rgba(248, 250, 252, 0.8);
+  border: 1px solid var(--color-border-subtle);
+  margin-top: 2px;
+}
+
+.payin-summary__policy-label {
+  font-family: var(--font-family-sans);
+  font-size: 11.5px;
+  color: var(--color-text-slate);
+  font-weight: var(--font-weight-semibold);
+}
+
+.payin-summary__policy-pill {
+  font-family: var(--font-family-sans);
+  font-size: 11.5px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary-navy);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 2px rgba(16, 42, 67, 0.04);
+}
+
+/* ── 6. COMPLIANCE CHECKBOX ── */
+.payin-summary__terms {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  padding-top: 2px;
+}
+
+.payin-summary__checkbox {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  accent-color: var(--color-royal-blue);
+  cursor: pointer;
+  margin-top: 2px;
+}
+
+.payin-summary__terms-text {
+  font-family: var(--font-family-sans);
+  font-size: 11.5px;
+  color: var(--color-primary-navy);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.35;
+}
+
+/* ── 7. PRIMARY PAYMENT BUTTON ── */
+.payin-summary .btn-primary {
+  width: 100%;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--radius-xl);
+  background: var(--gradient-primary-button);
+  color: var(--color-text-inverse);
+  font-family: var(--font-family-sans);
+  font-size: 14px;
+  font-weight: var(--font-weight-black);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
+  transition: var(--transition-base);
+}
+
+.payin-summary .btn-primary:hover:not(:disabled) {
+  background: var(--gradient-primary-button-hover);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35);
+}
+
+.payin-summary__helper-text {
+  font-family: var(--font-family-sans);
+  font-size: 10.5px;
+  color: var(--color-text-slate);
+  text-align: center;
+  margin-top: 6px;
+  font-weight: var(--font-weight-medium);
+}
+
+/* ── 8. SECURITY FOOTER ── */
+.payin-summary__security-footer {
+  padding-top: var(--space-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--font-family-sans);
+  font-size: 11px;
+  color: var(--color-text-slate);
+  font-weight: var(--font-weight-semibold);
+}
+
+.payin-summary__security-icon {
+  width: 15px;
+  height: 15px;
+  color: var(--color-emerald-green);
+  flex-shrink: 0;
+}
+
+/* ── 9. ERROR STATE ── */
+.payin-summary__error-box {
+  padding: 10px 12px;
+  border-radius: var(--radius-lg);
+  background-color: var(--color-error-bg);
+  border: 1px solid var(--color-error-border);
+  color: var(--color-error-text);
+  font-size: var(--font-size-xs);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+.payin-summary__error-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--color-error);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* ─── [section-header.css] ─────────────────────────────────────────────────── */
+/**
+ * SMSPAY Reusable Component Styles: Section Header
+ * Color-coded section headers powered exclusively by centralized design tokens.
+ * Features numbered indicators, subtle accent backgrounds, and strong visual hierarchy.
+ */
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: var(--radius-lg);
+  margin-bottom: 7px;
+  border: 1px solid var(--color-border);
+  transition: var(--transition-fast);
+}
+
+.section-header__title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.section-header__number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5px 6.5px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-family-mono);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.section-header__icon-box {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: var(--transition-fast);
+}
+
+.section-header__text-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.section-header__title {
+  font-family: var(--font-family-sans);
+  font-size: 13.5px;
+  font-weight: var(--font-weight-black);
+  color: var(--color-primary-navy);
+  line-height: 1.2;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.section-header__subtitle {
+  font-family: var(--font-family-sans);
+  font-size: 10.5px;
+  color: var(--color-text-slate);
+  font-weight: var(--font-weight-semibold);
+  margin-top: 1px;
+  line-height: 1.2;
+}
+
+.section-header__action {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: var(--space-sm);
+}
+
+/* ── Semantic Color Variants with Crisp Left Accent & Subtle Backdrop ── */
+
+/* 1. Teal Variant (Section 01: Payment Details) */
+.section-header--teal {
+  background: linear-gradient(135deg, rgba(240, 253, 250, 0.95) 0%, rgba(204, 251, 241, 0.4) 100%);
+  border-color: rgba(94, 234, 212, 0.7);
+  border-left: 3.5px solid var(--color-teal);
+}
+
+.section-header--teal .section-header__number {
+  background: var(--color-teal);
+  color: #FFFFFF;
+  box-shadow: 0 1px 2px rgba(13, 148, 136, 0.3);
+}
+
+.section-header--teal .section-header__icon-box {
+  background: var(--gradient-section-teal);
+  border: 1px solid var(--color-tint-teal-border);
+  color: var(--color-teal);
+  box-shadow: var(--shadow-xs);
+}
+
+.section-header--teal .section-header__title {
+  color: var(--color-primary-navy);
+}
+
+/* 2. Primary / Blue Variant (Section 02: Select Payment Gateway) */
+.section-header--primary {
+  background: linear-gradient(135deg, rgba(239, 246, 255, 0.95) 0%, rgba(219, 234, 254, 0.4) 100%);
+  border-color: rgba(147, 197, 253, 0.7);
+  border-left: 3.5px solid var(--color-royal-blue);
+}
+
+.section-header--primary .section-header__number {
+  background: var(--color-royal-blue);
+  color: #FFFFFF;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.3);
+}
+
+.section-header--primary .section-header__icon-box {
+  background: var(--gradient-section-primary);
+  border: 1px solid var(--color-blue-tint-border);
+  color: var(--color-royal-blue);
+  box-shadow: var(--shadow-xs);
+}
+
+.section-header--primary .section-header__title {
+  color: var(--color-primary-navy);
+}
+
+/* 3. Success / Emerald Variant (Section 03: Supported Card Schemes & Applicable MDR) */
+.section-header--success {
+  background: linear-gradient(135deg, rgba(240, 253, 244, 0.95) 0%, rgba(220, 252, 231, 0.4) 100%);
+  border-color: rgba(134, 239, 172, 0.7);
+  border-left: 3.5px solid var(--color-emerald-green);
+}
+
+.section-header--success .section-header__number {
+  background: var(--color-emerald-green);
+  color: #FFFFFF;
+  box-shadow: 0 1px 2px rgba(5, 150, 105, 0.3);
+}
+
+.section-header--success .section-header__icon-box {
+  background: var(--gradient-section-success);
+  border: 1px solid var(--color-mint-tint-border);
+  color: var(--color-emerald-green);
+  box-shadow: var(--shadow-xs);
+}
+
+.section-header--success .section-header__title {
+  color: var(--color-primary-navy);
+}
+
+/* ─── [payment-details.css] ─────────────────────────────────────────────────── */
+/**
+ * SMSPAY Domain Styles: PayIn Payment Details Component
+ * High-visibility layout with prominent fields and clear amount in words panel.
+ */
+
+.payin-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.payin-details__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  align-items: start;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .payin-details__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    align-items: start;
+  }
+}
+
+.payin-details__words-panel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md, 8px);
+  border: 1.5px solid rgba(186, 230, 253, 0.9);
+  background: linear-gradient(135deg, rgba(240, 249, 255, 0.95) 0%, rgba(240, 253, 250, 0.9) 100%);
+  margin-top: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.payin-details__words-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-family-sans);
+  font-size: 12px;
+  min-width: 0;
+  flex: 1;
+}
+
+.payin-details__words-label {
+  font-family: var(--font-family-sans);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #0369A1;
+  flex-shrink: 0;
+}
+
+.payin-details__words-text {
+  font-weight: 800;
+  color: #0F172A;
+  font-size: 12px;
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+.payin-details__words-icon {
+  width: 16px;
+  height: 16px;
+  color: #0284C7;
+  flex-shrink: 0;
+}
+

@@ -1,8 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { Suspense } from "react";
 import { RetailerDashboardView } from "@/modules/dashboard/RetailerDashboardView";
 
 export default function RetailerPortalDashboardPage() {
-  return <RetailerDashboardView />;
+  return (
+    <Suspense fallback={null}>
+      <RetailerDashboardView />
+    </Suspense>
+  );
 }

@@ -14,7 +14,7 @@ from app.application.dtos import (
     WalletLedgerDashboardMetricsResponse
 )
 from app.application.services import WalletLedgerPlatformService
-from app.application.dependencies import get_current_user, get_current_tenant_id
+from app.application.dependencies import get_current_user, get_current_tenant_id, CompanyContext, get_company_context
 from app.infrastructure.db.models import AdminUserModel
 
 router = APIRouter(prefix="/wallet-ledger", tags=["Enterprise Wallet & Ledger Platform (EPIC-009)"])
@@ -324,14 +324,16 @@ async def get_user_wallet_endpoint(
 @router.get("/entities", summary="Dynamic entities list for SD, Distributor, and Retailer filters")
 async def get_wallet_ledger_entities(
     user_type: Optional[str] = Query(None, description="User type filter: SD, DISTRIBUTOR, RETAILER, ALL"),
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Returns dynamically resolved entity list for cascading filters.
-    SDs, Distributors, Retailers from live database records.
+    SDs, Distributors, Retailers strictly filtered by authenticated company.
     """
     from app.application.wallet_ledger_audit_service import WalletLedgerAuditService
-    entities = await WalletLedgerAuditService.get_entities_by_user_type(db, user_type)
+    comp_ref = ctx.company_ref_id if not ctx.is_super_admin else None
+    entities = await WalletLedgerAuditService.get_entities_by_user_type(db, user_type, company_ref_id=comp_ref)
     return {
         "success": True,
         "total": len(entities),
@@ -355,13 +357,15 @@ async def get_wallet_ledger_audit_transactions(
     sort_by: Optional[str] = Query("created_at", description="Sort by field"),
     sort_order: Optional[str] = Query("DESC", description="Sort direction (ASC, DESC)"),
     company_ref_id: Optional[int] = Query(None, description="Optional company scoping"),
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Major Financial Tracking and Audit Report Endpoint.
     Combines transactions, wallet ledgers, and reconciliation results.
-    Authoritative server-side calculations for CR/DR, Net Movement, and Mismatch Detection.
+    Authoritative server-side calculations strictly scoped by company.
     """
+    effective_comp = ctx.company_ref_id if not ctx.is_super_admin else company_ref_id
     from app.application.wallet_ledger_audit_service import WalletLedgerAuditService
 
     result = await WalletLedgerAuditService.get_audit_report(
@@ -379,7 +383,7 @@ async def get_wallet_ledger_audit_transactions(
         search=search,
         sort_by=sort_by,
         sort_order=sort_order,
-        company_ref_id=company_ref_id
+        company_ref_id=effective_comp
     )
     return result
 
@@ -398,15 +402,18 @@ async def export_wallet_ledger_audit_csv(
     reconciliation: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     company_ref_id: Optional[int] = Query(None),
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Exports filtered audit report as CSV stream respecting all applied filters.
+    Exports filtered audit report as CSV stream respecting all applied filters and company boundaries.
     """
     import io
     import csv
     from fastapi.responses import StreamingResponse
     from app.application.wallet_ledger_audit_service import WalletLedgerAuditService
+
+    effective_comp = ctx.company_ref_id if not ctx.is_super_admin else company_ref_id
 
     # Fetch up to 10,000 matching records for export
     result = await WalletLedgerAuditService.get_audit_report(
@@ -422,7 +429,7 @@ async def export_wallet_ledger_audit_csv(
         status=status,
         reconciliation=reconciliation,
         search=search,
-        company_ref_id=company_ref_id
+        company_ref_id=effective_comp
     )
 
     items = result.get("data", [])

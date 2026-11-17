@@ -85,10 +85,8 @@ def prepare_and_package_frontend():
     if fe_tar.exists():
         fe_tar.unlink()
 
-    print(f"\n📦 Compressing standalone folder to {fe_tar.name}...")
-    with tarfile.open(fe_tar, "w:gz") as tar:
-        for item in STANDALONE_DIR.iterdir():
-            tar.add(item, arcname=item.name)
+    print(f"\n📦 Compressing standalone folder to {fe_tar.name} with fast native tar...")
+    subprocess.run(["tar", "-czf", str(fe_tar), "-C", str(STANDALONE_DIR), "."], check=True)
 
     size_mb = os.path.getsize(fe_tar) / (1024 * 1024)
     print(f"✅ Created {fe_tar.name}: {size_mb:.2f} MB")
@@ -100,7 +98,7 @@ def package_backend():
     if be_tar.exists():
         be_tar.unlink()
 
-    items_to_include = ["app", "requirements.txt", "alembic", "alembic.ini"]
+    items_to_include = ["app", "requirements.txt", "alembic", "alembic.ini", "sathus_notification"]
     with tarfile.open(be_tar, "w:gz") as tar:
         for item_name in items_to_include:
             item_path = BACKEND_DIR / item_name
@@ -137,6 +135,9 @@ tar --no-same-owner --no-same-permissions -xzf /tmp/near4you_backend_update.tar.
 
 echo '=== 3. Updating Backend in Container ==='
 docker cp /opt/near4you-retailer/backend/app near4you-retailer-backend:/app/
+if [ -d /opt/near4you-retailer/backend/sathus_notification ]; then
+    docker cp /opt/near4you-retailer/backend/sathus_notification near4you-retailer-backend:/app/
+fi
 docker restart near4you-retailer-backend
 
 echo '=== 4. Rebuilding Frontend Container ==='
@@ -148,22 +149,21 @@ echo '=== 5. Waiting for containers to become healthy ==='
 sleep 15
 docker compose ps frontend backend
 
-echo '=== 5. Title & Branding Verification ==='
-echo -n 'Root Login Title: '
-curl -s http://127.0.0.1:3060/login | grep -o '<title>[^<]*</title>' || true
+echo '=== 5. Domain-Based Branding & Route Verification ==='
+echo -n 'Pay2Pay Host Title: '
+curl -s -H 'Host: pay2pay.in' http://127.0.0.1:3060/login | grep -o '<title>[^<]*</title>' || true
 
-echo -n 'Retailer Login Title: '
-curl -s http://127.0.0.1:3060/retailer/login | grep -o '<title>[^<]*</title>' || true
+echo -n 'SMSPAY Host Title: '
+curl -s -H 'Host: smspay.store' http://127.0.0.1:3060/login | grep -o '<title>[^<]*</title>' || true
 
-echo -n 'Check for Pay2Pay in Login: '
-if curl -s http://127.0.0.1:3060/login | grep -qi 'Pay2Pay'; then
-    echo 'WARNING: Pay2Pay found in HTML!'
-else
-    echo 'SUCCESS: No Pay2Pay references found in login HTML!'
-fi
+echo -n 'Near4You Host Title: '
+curl -s -H 'Host: near4you.store' http://127.0.0.1:3060/login | grep -o '<title>[^<]*</title>' || true
 
-echo 'Backend Services Status Check:'
-curl -s http://127.0.0.1:8090/api/v1/services/status || true
+echo -n 'Manual Topup HTTP Status: '
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3060/wallet-ledger/manual-topup || true
+
+echo -n 'Backend Health Check: '
+curl -s http://127.0.0.1:8090/health || true
 
 echo ''
 echo '=== Live Server Deployment Complete! ==='

@@ -36,6 +36,7 @@ import { retailerApi } from "@/services/retailer-api";
 import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 const FINANCIAL_PATHS = new Set([
+  "/retailer/wallet-topup",
   "/retailer/dmt",
   "/retailer/card-to-cash",
   "/retailer/aeps",
@@ -140,8 +141,10 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
       title: "Retailer Console",
       items: [
         { label: "Dashboard", path: "/retailer/dashboard", icon: DashboardIcon },
+        { label: "PayIn & Wallet Top-Up", path: "/retailer/wallet-topup", icon: CreditCardIcon, financial: true, badge: "Instant" },
         { label: "Money Transfer (DMT)", path: "/retailer/dmt", icon: SendIcon, financial: true },
         { label: "POS Settlement", path: "/retailer/settlements", icon: ReceiptIcon, financial: true },
+        { label: "Wallet Overview", path: "/retailer/wallet", icon: AccountBalanceIcon, financial: true },
       ],
     },
     {

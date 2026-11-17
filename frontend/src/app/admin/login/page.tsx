@@ -4,12 +4,13 @@ import React from "react";
 import { AuthPanel } from "@/components/auth/AuthPanel";
 import { ShieldAlert, KeyRound, Server } from "lucide-react";
 import { useCompanyBranding } from "@/hooks/useCompanyBranding";
+import "@/app/admin.css";
 
 export default function AdminLoginPage() {
   const branding = useCompanyBranding();
 
   return (
-    <div className="min-h-screen bg-[#FFFFFF] text-[#292329] flex flex-col justify-between overflow-x-hidden relative select-none">
+    <div className="admin-portal-theme min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col justify-between overflow-x-hidden relative select-none" data-portal="admin">
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center py-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center w-full">

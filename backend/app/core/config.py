@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List, Optional, Dict, Any
 from dotenv import load_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -127,6 +127,50 @@ class Settings(BaseSettings):
     URBANRUPEE_USER_ID: str = Field(default_factory=lambda: os.getenv("URBANRUPEE_USER_ID", ""))
     URBANRUPEE_API_TOKEN: str = Field(default_factory=lambda: os.getenv("URBANRUPEE_API_TOKEN", ""))
 
+    # ── BankMe Production PayIn API Credentials (SMSPay Only) ────────────────
+    # Official BankMe Developer Portal: https://bankme.co.in/developers.html
+    # Base URLs: Production = https://api.bankme.co.in, Sandbox = https://sandbox.bankme.co.in
+    # Headers: x-api-key: pk_..., x-api-secret: sk_...
+    BANKME_PAYIN_API_KEY_ID: str = Field(
+        default_factory=lambda: os.getenv("BANKME_PAYIN_API_KEY_ID", os.getenv("SMSPAY_PAYIN_KEY", "pk_8bcb535627250637"))
+    )
+    SMSPAY_PAYIN_KEY: str = Field(
+        default_factory=lambda: os.getenv("SMSPAY_PAYIN_KEY", os.getenv("BANKME_PAYIN_API_KEY_ID", "pk_8bcb535627250637"))
+    )
+    SMSPAY_PAYIN_AUTHKEY: str = Field(
+        default_factory=lambda: os.getenv("SMSPAY_PAYIN_AUTHKEY", "sk_70c79e7ddb7b9f1adda195b0d9f9e6bd3e2343d7c99e9df7")
+    )
+    BANKME_PAYIN_API_SECRET: str = Field(
+        default_factory=lambda: os.getenv(
+            "SMSPAY_PAYIN_AUTHKEY",
+            os.getenv(
+                "BANKME_PAYIN_API_SECRET",
+                os.getenv("BANKME_PAYIN_API_KEY", "sk_70c79e7ddb7b9f1adda195b0d9f9e6bd3e2343d7c99e9df7")
+            )
+        )
+    )
+    BANKME_PAYIN_API_KEY: str = Field(
+        default_factory=lambda: os.getenv("SMSPAY_PAYIN_AUTHKEY", os.getenv("BANKME_PAYIN_API_KEY", "sk_70c79e7ddb7b9f1adda195b0d9f9e6bd3e2343d7c99e9df7"))
+    )
+    BANKME_PAYIN_WEBHOOK_SECRET: str = Field(
+        default_factory=lambda: os.getenv(
+            "BANKME_PAYIN_WEBHOOK_SECRET",
+            "sk_70c79e7ddb7b9f1adda195b0d9f9e6bd3e2343d7c99e9df7"
+        )
+    )
+    BANKME_PAYIN_BASE_URL: str = Field(
+        default_factory=lambda: os.getenv("BANKME_PAYIN_BASE_URL", "https://api.bankme.co.in")
+    )
+    BANKME_PAYIN_CHECKOUT_URL: str = Field(
+        default_factory=lambda: os.getenv("BANKME_PAYIN_CHECKOUT_URL", "")
+    )
+    BANKME_PAYIN_REDIRECT_BASE_URL: str = Field(
+        default_factory=lambda: os.getenv("BANKME_PAYIN_REDIRECT_BASE_URL", "https://login.near4you.store/retailer/payin")
+    )
+    BANKME_PAYIN_SIMULATION: bool = Field(
+        default_factory=lambda: os.getenv("BANKME_PAYIN_SIMULATION", "false").lower() in ("true", "1", "yes")
+    )
+
     # ── Backblaze B2 Storage ──────────────────────────────────────────────────
     # These are overridden by .env (which is populated by secrets_bootstrap.py)
     B2_KEY_ID:      str = Field(default_factory=lambda: os.getenv("B2_KEY_ID", ""))
@@ -149,6 +193,13 @@ class Settings(BaseSettings):
     NOTIFICATION_PLATFORM_API_KEY: str = Field(default_factory=lambda: os.getenv("NOTIFICATION_PLATFORM_API_KEY", ""))
     NOTIFICATION_PLATFORM_ENABLED: bool = Field(default_factory=lambda: os.getenv("NOTIFICATION_PLATFORM_ENABLED", "true").lower() in ("true", "1", "yes"))
 
+
+    # ── Sathus Centralized Notification Platform (Multi-Tenant & Multi-Domain) ──
+    NOTIFICATION_PLATFORM_URL: str = Field(default="http://127.0.0.1:8150")
+    NOTIFICATION_PLATFORM_API_KEY_PAY2PAY: Optional[str] = Field(default="snk_pay2pay_dAU78TfCYeD-cE9YEFtPmVOGidLpf5ItmaKoGXPEsno")
+    NOTIFICATION_PLATFORM_API_KEY_SMSPAY: Optional[str] = Field(default="snk_smspay_7iCbkmylRX0nOJyAteGKfG2Sl_OeezwWhZjGFAaQl_I")
+    NOTIFICATION_PLATFORM_API_KEY_NEAR4YOU: Optional[str] = Field(default="snk_near4you_kcX8KkGb8o872D66YndUWerbBG85k1CTKSHvkFituKw")
+    NOTIFICATION_PLATFORM_ENABLED: bool = Field(default=True)
 
     # ── SMTP Email Dispatcher Credentials ────────────────────────────────────
     SMTP_SERVER: str = Field(default="smtp.gmail.com")

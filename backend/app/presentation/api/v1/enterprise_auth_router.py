@@ -100,18 +100,21 @@ def set_auth_session_cookies(
     distributor_ref_id: Optional[int] = None,
     super_distributor_code: Optional[str] = None,
     super_distributor_id: Optional[str] = None,
-    super_distributor_ref_id: Optional[int] = None
+    super_distributor_ref_id: Optional[int] = None,
+    remember_me: bool = True
 ):
     """
     Sets dynamic, enterprise session cookies directly on the HTTP response.
     Eliminates reliance on localStorage for authentication and session management.
     Cookies are automatically propagated to Next.js SSR middleware, API routes, and browser fetches.
+    When remember_me is True, sets 30-day persistent cookies.
+    When remember_me is False, sets session cookies (max_age=None, discarded on browser exit).
     """
     is_secure = (
         request.url.scheme == "https"
         or request.headers.get("x-forwarded-proto") == "https"
     )
-    cookie_max_age = 30 * 24 * 3600  # 30 days
+    cookie_max_age: Optional[int] = (30 * 24 * 3600) if remember_me else None
     access_state = "ALLOWED" if (approve_status and active_status) else "RESTRICTED"
 
     host = request.headers.get("host", "").lower()
@@ -291,6 +294,18 @@ def set_auth_session_cookies(
             samesite="lax"
         )
 
+    # 5. Persistent Session Marker
+    response.set_cookie(
+        key="p2p_remember_session",
+        value="true" if remember_me else "false",
+        max_age=cookie_max_age,
+        path="/",
+        domain=cookie_domain,
+        secure=is_secure,
+        httponly=False,
+        samesite="lax"
+    )
+
 
 router = APIRouter(prefix="/auth/enterprise", tags=["Enterprise Authentication"])
 
@@ -324,6 +339,10 @@ class PasswordLoginPayload(BaseModel):
     role: Optional[str] = None
     telemetry: Optional[Dict[str, Any]] = Field(default_factory=dict)
     accepted_terms: bool = True
+    remember_me: Optional[bool] = True
+    trust_device: Optional[bool] = True
+    trust_days: Optional[int] = 30
+    device_token: Optional[str] = None
 
 
 class OtpSendPayload(BaseModel):
@@ -335,6 +354,26 @@ class OtpVerifyPayload(BaseModel):
     mobile_number: str
     otp_code: str
     telemetry: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    portal_role: Optional[str] = None
+    remember_me: Optional[bool] = True
+    trust_device: Optional[bool] = True
+    trust_days: Optional[int] = 30
+    device_token: Optional[str] = None
+
+
+class BiometricVerifyPayload(BaseModel):
+    identifier: Optional[str] = None
+    mobile_number: Optional[str] = None
+    credential_id: Optional[str] = None
+    client_data_json: Optional[str] = None
+    authenticator_data: Optional[str] = None
+    signature: Optional[str] = None
+    telemetry: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    portal_role: Optional[str] = None
+    remember_me: Optional[bool] = True
+    trust_device: Optional[bool] = True
+    trust_days: Optional[int] = 30
+    device_token: Optional[str] = None
 
 
 class TrustDevicePayload(BaseModel):
@@ -342,6 +381,194 @@ class TrustDevicePayload(BaseModel):
     device_fingerprint: str
     device_name: str
     duration_days: Optional[int] = 30
+
+
+async def process_remember_and_trust_device(
+    db: AsyncSession,
+    request: Request,
+    response: Response,
+    user_uuid: uuid.UUID,
+    tenant_id: uuid.UUID,
+    company_id: Optional[uuid.UUID],
+    company_ref_id: Optional[int],
+    tenant_ref_id: Optional[int],
+    remember_me: bool,
+    trust_device: bool,
+    trust_days: int = 30,
+    device_token: Optional[str] = None,
+    device_fingerprint: Optional[str] = None,
+    telemetry: Optional[Dict[str, Any]] = None,
+    portal_role: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Enterprise Trusted Device & Persistent Session Handler.
+    - Resolves device identity from cryptographic device token (SHA-256 hashed in DB) or fingerprint.
+    - Validates existing trust and refreshes last_used_at.
+    - Registers new trusted device when trust_device is enabled (default 30 days).
+    - Sets HttpOnly secure cookie 'p2p_trusted_device_token' and client cookie 'p2p_device_trusted'.
+    - Scopes records strictly to user, tenant, and company.
+    """
+    is_secure = (
+        request.url.scheme == "https"
+        or request.headers.get("x-forwarded-proto") == "https"
+    )
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    user_agent = request.headers.get("user-agent", "")
+    
+    # Parse browser and OS from user agent or telemetry
+    ua_lower = user_agent.lower()
+    if "edg/" in ua_lower:
+        browser_name = "Edge"
+    elif "chrome/" in ua_lower:
+        browser_name = "Chrome"
+    elif "firefox/" in ua_lower:
+        browser_name = "Firefox"
+    elif "safari/" in ua_lower and "chrome/" not in ua_lower:
+        browser_name = "Safari"
+    else:
+        browser_name = (telemetry.get("browser", {}).get("name") if telemetry else None) or "Web Browser"
+
+    if "windows" in ua_lower:
+        os_name = "Windows"
+    elif "macintosh" in ua_lower or "mac os" in ua_lower:
+        os_name = "macOS"
+    elif "android" in ua_lower:
+        os_name = "Android"
+    elif "iphone" in ua_lower or "ipad" in ua_lower:
+        os_name = "iOS"
+    elif "linux" in ua_lower:
+        os_name = "Linux"
+    else:
+        os_name = (telemetry.get("device", {}).get("os") if telemetry else None) or "Unknown OS"
+
+    device_name = f"{browser_name} on {os_name}"
+    fp = device_fingerprint or (telemetry.get("fingerprint", {}).get("hash") if telemetry else None) or "DEV-FP"
+    
+    # Check incoming device token (from cookie, payload, or header)
+    raw_cookie_token = request.cookies.get("p2p_trusted_device_token")
+    header_token = request.headers.get("x-device-token")
+    incoming_token = device_token or raw_cookie_token or header_token
+
+    existing_device = None
+    if incoming_token:
+        token_hash = hashlib.sha256(incoming_token.strip().encode("utf-8")).hexdigest()
+        stmt = select(TrustedDeviceModel).where(
+            TrustedDeviceModel.user_id == user_uuid,
+            TrustedDeviceModel.device_token_hash == token_hash,
+            TrustedDeviceModel.is_active == True
+        )
+        existing_device = (await db.execute(stmt)).scalars().first()
+
+    now_utc = datetime.now(timezone.utc)
+    effective_days = trust_days if trust_days in [30, 90, 365] else 30
+
+    if existing_device:
+        if existing_device.expires_at > now_utc:
+            # Active trusted device recognized!
+            existing_device.last_used_at = now_utc
+            existing_device.ip_address = client_ip[:45]
+            existing_device.browser = browser_name[:100]
+            existing_device.os_name = os_name[:100]
+            if trust_device:
+                existing_device.expires_at = now_utc + timedelta(days=effective_days)
+                existing_device.trust_duration_days = effective_days
+
+            await db.commit()
+
+            # Set/refresh trusted device cookies
+            response.set_cookie(
+                key="p2p_trusted_device_token",
+                value=incoming_token,
+                max_age=effective_days * 24 * 3600,
+                path="/",
+                secure=is_secure,
+                httponly=True,
+                samesite="lax"
+            )
+            response.set_cookie(
+                key="p2p_device_trusted",
+                value="true",
+                max_age=effective_days * 24 * 3600,
+                path="/",
+                secure=is_secure,
+                httponly=False,
+                samesite="lax"
+            )
+
+            return {
+                "is_trusted_device": True,
+                "device_id": str(existing_device.public_id),
+                "device_name": existing_device.device_name,
+                "expires_at": existing_device.expires_at.isoformat(),
+                "trust_duration_days": effective_days,
+                "device_token": incoming_token
+            }
+        else:
+            # Expired
+            existing_device.is_active = False
+            existing_device.record_status = "EXPIRED"
+            await db.commit()
+
+    # If trust_device is requested, register brand new trusted device
+    if trust_device:
+        new_raw_token = secrets.token_urlsafe(32)
+        new_token_hash = hashlib.sha256(new_raw_token.encode("utf-8")).hexdigest()
+        expiry_dt = now_utc + timedelta(days=effective_days)
+
+        new_device = TrustedDeviceModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            company_id=company_id,
+            company_ref_id=company_ref_id,
+            tenant_ref_id=tenant_ref_id,
+            user_id=user_uuid,
+            device_token_hash=new_token_hash,
+            device_fingerprint=fp[:255] if fp else None,
+            device_name=device_name[:150],
+            browser=browser_name[:100],
+            os_name=os_name[:100],
+            ip_address=client_ip[:45],
+            trust_duration_days=effective_days,
+            expires_at=expiry_dt,
+            last_used_at=now_utc,
+            is_active=True,
+            record_status="ACTIVE"
+        )
+        db.add(new_device)
+        await db.commit()
+
+        # Set secure HttpOnly cookie and non-HttpOnly client status cookie
+        response.set_cookie(
+            key="p2p_trusted_device_token",
+            value=new_raw_token,
+            max_age=effective_days * 24 * 3600,
+            path="/",
+            secure=is_secure,
+            httponly=True,
+            samesite="lax"
+        )
+        response.set_cookie(
+            key="p2p_device_trusted",
+            value="true",
+            max_age=effective_days * 24 * 3600,
+            path="/",
+            secure=is_secure,
+            httponly=False,
+            samesite="lax"
+        )
+
+        return {
+            "is_trusted_device": True,
+            "device_id": str(new_device.public_id),
+            "device_name": device_name,
+            "expires_at": expiry_dt.isoformat(),
+            "trust_duration_days": effective_days,
+            "device_token": new_raw_token
+        }
+
+    # If trust_device is False and no device is matched, clear trusted flag
+    response.delete_cookie(key="p2p_device_trusted", path="/")
+    return {"is_trusted_device": False}
 
 
 
@@ -680,12 +907,16 @@ async def login_with_password(
                 except Exception:
                     pass
 
+                rem_session = bool(payload.remember_me) if payload.remember_me is not None else True
+                trust_dev = bool(payload.trust_device) if payload.trust_device is not None else True
+                trust_d = int(payload.trust_days or 30)
+
                 sd_access_token = create_access_token(
                     subject=sd_public_id,
                     tenant_id=sd_tenant_str,
                     company_id=sd_company_str,
                     roles=["SUPER_DISTRIBUTOR"],
-                    expires_delta=timedelta(days=7),
+                    expires_delta=timedelta(days=30) if rem_session else timedelta(hours=24),
                     super_distributor_code=sd_code,
                     super_distributor_id=sd_public_id,
                     super_distributor_ref_id=sd_ref_id,
@@ -711,7 +942,26 @@ async def login_with_password(
                     user_type_ref_id=4,
                     super_distributor_code=sd_code,
                     super_distributor_id=sd_public_id,
-                    super_distributor_ref_id=sd_ref_id
+                    super_distributor_ref_id=sd_ref_id,
+                    remember_me=rem_session
+                )
+
+                sd_trusted_dev = await process_remember_and_trust_device(
+                    db=db,
+                    request=request,
+                    response=response,
+                    user_uuid=uuid.UUID(sd_public_id),
+                    tenant_id=sd_record["tenant_id"],
+                    company_id=sd_record["company_id"],
+                    company_ref_id=sd_comp_ref_id,
+                    tenant_ref_id=sd_ten_ref_id,
+                    remember_me=rem_session,
+                    trust_device=trust_dev,
+                    trust_days=trust_d,
+                    device_token=payload.device_token,
+                    device_fingerprint=fp_hash,
+                    telemetry=payload.telemetry,
+                    portal_role="SD"
                 )
 
                 sd_msg = (
@@ -736,6 +986,9 @@ async def login_with_password(
                         "approve_status": sd_approve_status,
                         "active_status": sd_active_status,
                         "is_approved": sd_approve_status,
+                        "remember_session": rem_session,
+                        "is_trusted_device": sd_trusted_dev.get("is_trusted_device", False),
+                        "trusted_device": sd_trusted_dev,
                         "account_status": sd_record["status"],
                         "user_ref_id": sd_ref_id,
                         "user_type_ref_id": 4,
@@ -894,12 +1147,16 @@ async def login_with_password(
                 except Exception:
                     pass
 
+                rem_session = bool(payload.remember_me) if payload.remember_me is not None else True
+                trust_dev = bool(payload.trust_device) if payload.trust_device is not None else True
+                trust_d = int(payload.trust_days or 30)
+
                 access_token = create_access_token(
                     subject=dist_public_id,
                     tenant_id=tenant_str,
                     company_id=company_str,
                     roles=["DISTRIBUTOR"],
-                    expires_delta=timedelta(days=7),
+                    expires_delta=timedelta(days=30) if rem_session else timedelta(hours=24),
                     distributor_code=dist_code,
                     distributor_id=dist_public_id,
                     distributor_ref_id=dist_ref_id,
@@ -925,7 +1182,26 @@ async def login_with_password(
                     user_type_ref_id=3,
                     distributor_code=dist_code,
                     distributor_id=dist_public_id,
-                    distributor_ref_id=dist_ref_id
+                    distributor_ref_id=dist_ref_id,
+                    remember_me=rem_session
+                )
+
+                dist_trusted_dev = await process_remember_and_trust_device(
+                    db=db,
+                    request=request,
+                    response=response,
+                    user_uuid=uuid.UUID(dist_public_id),
+                    tenant_id=distributor_record["tenant_id"],
+                    company_id=distributor_record["company_id"],
+                    company_ref_id=comp_ref_id,
+                    tenant_ref_id=ten_ref_id,
+                    remember_me=rem_session,
+                    trust_device=trust_dev,
+                    trust_days=trust_d,
+                    device_token=payload.device_token,
+                    device_fingerprint=fp_hash,
+                    telemetry=payload.telemetry,
+                    portal_role="DIST"
                 )
 
             dist_msg = "Distributor authentication successful" if (approve_status and active_status) else "Your distributor account approval/activation is pending. Please contact admin."
@@ -946,6 +1222,9 @@ async def login_with_password(
                     "approve_status": approve_status,
                     "active_status": active_status,
                     "is_approved": approve_status,
+                    "remember_session": rem_session,
+                    "is_trusted_device": dist_trusted_dev.get("is_trusted_device", False),
+                    "trusted_device": dist_trusted_dev,
                     "account_status": distributor_record["status"],
                     "user_ref_id": dist_ref_id,
                     "user_type_ref_id": 3,
@@ -1208,15 +1487,36 @@ async def login_with_password(
             except Exception:
                 pass
 
-        # Generate signed enterprise JWT access token
+        # Multi-Tenant Authority: Resolve company_ref_id, roles and super_admin status
         tenant_str = str(admin_user.tenant_id if (is_admin and admin_user) else (existing_retailer.tenant_id if existing_retailer else (getattr(auth_user, "tenant_id", None) or DEFAULT_TENANT_ID)))
         company_str = str(admin_user.company_id if (is_admin and admin_user and admin_user.company_id) else (existing_retailer.company_id if existing_retailer and existing_retailer.company_id else (getattr(auth_user, "company_id", None) or DEFAULT_COMPANY_ID)))
-        user_roles = ["SUPER_ADMIN", "PLATFORM_ADMIN"] if is_admin else ([auth_user.role] if auth_user and auth_user.role else ["RETAILER"])
         subject_id = str(admin_user.public_id if (is_admin and admin_user) else ret_public_id)
 
         ret_ref_id = getattr(existing_retailer, "retailer_ref_id", None)
-        comp_ref_id = getattr(existing_retailer, "company_ref_id", None) or (getattr(admin_user, "company_ref_id", None) if admin_user else 1)
         ten_ref_id = getattr(existing_retailer, "tenant_ref_id", None) or (getattr(admin_user, "tenant_ref_id", None) if admin_user else 1)
+
+        is_super = False
+        if is_admin and admin_user:
+            admin_comp_ref = getattr(admin_user, "company_ref_id", None)
+            if admin_comp_ref is not None:
+                # User belongs to a specific company -> STRICT COMPANY ADMIN
+                comp_ref_id = int(admin_comp_ref)
+                is_super = False
+                user_roles = ["ADMIN"]
+                auth_role_name = "ADMIN"
+                dash_url = "/admin/dashboard"
+            else:
+                # No company bound: check if platform Super Admin
+                is_super = bool(admin_user.username == "admin" or getattr(admin_user, "user_type", "") == "PLATFORM_ADMIN" or getattr(admin_user, "role", "") == "SUPER_ADMIN")
+                comp_ref_id = None
+                user_roles = ["SUPER_ADMIN", "PLATFORM_ADMIN"] if is_super else ["ADMIN"]
+                auth_role_name = "SUPER_ADMIN" if is_super else "ADMIN"
+                dash_url = "/super-admin/dashboard" if is_super else "/admin/dashboard"
+        else:
+            comp_ref_id = getattr(existing_retailer, "company_ref_id", None) or (getattr(auth_user, "company_ref_id", None) if auth_user else 1)
+            user_roles = [auth_user.role] if auth_user and auth_user.role else ["RETAILER"]
+            auth_role_name = "RETAILER"
+            dash_url = "/retailer/dashboard"
 
         if not ret_ref_id and existing_retailer:
             try:
@@ -1228,13 +1528,17 @@ async def login_with_password(
             except Exception:
                 pass
 
+        rem_session = bool(payload.remember_me) if payload.remember_me is not None else True
+        trust_dev = bool(payload.trust_device) if payload.trust_device is not None else True
+        trust_d = int(payload.trust_days or 30)
+
         try:
             access_token = create_access_token(
                 subject=subject_id,
                 tenant_id=tenant_str,
                 company_id=company_str,
                 roles=user_roles,
-                expires_delta=timedelta(days=7),
+                expires_delta=timedelta(days=30) if rem_session else timedelta(hours=24),
                 retailer_code=ret_code if not is_admin else None,
                 retailer_id=ret_public_id if not is_admin else None,
                 retailer_ref_id=ret_ref_id if (existing_retailer and not is_admin) else None,
@@ -1243,18 +1547,34 @@ async def login_with_password(
                 user_type_ref_id=1 if is_admin else 2,
                 mobile=clean_mobile,
                 approve_status=approve_status,
-                active_status=active_status
+                active_status=active_status,
+                is_super_admin=is_super
             )
         except Exception as e:
             logger.error(f"Error creating access token: {e}", exc_info=True)
             access_token = f"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.{session_id}.auth_token"
 
         if is_admin:
-            admin_full_name = admin_user.full_name if admin_user and admin_user.full_name else "Platform Super Admin"
+            admin_full_name = admin_user.full_name if admin_user and admin_user.full_name else ("Platform Super Admin" if is_super else "Company Admin")
             email = admin_user.email if admin_user and admin_user.email else "admin@pay2pay.com"
-            is_super = bool(getattr(admin_user, "user_type", "") == "PLATFORM_ADMIN" or admin_user.username == "admin" or getattr(admin_user, "role", "") == "SUPER_ADMIN")
-            auth_role_name = "SUPER_ADMIN" if is_super else "ADMIN"
-            dash_url = "/super-admin/dashboard" if is_super else "/admin/dashboard"
+
+            admin_trusted_dev = await process_remember_and_trust_device(
+                db=db,
+                request=request,
+                response=response,
+                user_uuid=uuid.UUID(subject_id),
+                tenant_id=uuid.UUID(tenant_str),
+                company_id=uuid.UUID(company_str) if company_str else None,
+                company_ref_id=comp_ref_id,
+                tenant_ref_id=ten_ref_id,
+                remember_me=rem_session,
+                trust_device=trust_dev,
+                trust_days=trust_d,
+                device_token=payload.device_token,
+                device_fingerprint=fp_hash,
+                telemetry=payload.telemetry,
+                portal_role=auth_role_name
+            )
 
             set_auth_session_cookies(
                 response=response,
@@ -1264,7 +1584,8 @@ async def login_with_password(
                 destination="DASHBOARD",
                 approve_status=True,
                 active_status=True,
-                user_type_ref_id=1
+                user_type_ref_id=1,
+                remember_me=rem_session
             )
             return {
                 "success": True,
@@ -1281,6 +1602,10 @@ async def login_with_password(
                     "approve_status": True,
                     "active_status": True,
                     "destination": "DASHBOARD",
+                    "is_super_admin": is_super,
+                    "remember_session": rem_session,
+                    "is_trusted_device": admin_trusted_dev.get("is_trusted_device", False),
+                    "trusted_device": admin_trusted_dev,
                     "user": {
                         "id": subject_id,
                         "public_id": subject_id,
@@ -1293,11 +1618,12 @@ async def login_with_password(
                         "full_name": admin_full_name,
                         "role": auth_role_name,
                         "roles": [auth_role_name, "PLATFORM_ADMIN"] if is_super else ["ADMIN"],
-                        "user_type": getattr(admin_user, "user_type", "PLATFORM_ADMIN"),
+                        "user_type": "PLATFORM_ADMIN" if is_super else "COMPANY_ADMIN",
                         "tenant_id": tenant_str,
                         "company_id": company_str,
                         "approve_status": True,
-                        "active_status": True
+                        "active_status": True,
+                        "is_super_admin": is_super
                     },
                     "onboarding": {
                         "completed": True,
@@ -1334,6 +1660,24 @@ async def login_with_password(
             redirect_url = "/retailer/account-under-review"
             onboarding_status = "UNDER_REVIEW"
 
+        ret_trusted_dev = await process_remember_and_trust_device(
+            db=db,
+            request=request,
+            response=response,
+            user_uuid=uuid.UUID(ret_public_id),
+            tenant_id=uuid.UUID(tenant_str),
+            company_id=uuid.UUID(company_str) if company_str else None,
+            company_ref_id=comp_ref_id,
+            tenant_ref_id=ten_ref_id,
+            remember_me=rem_session,
+            trust_device=trust_dev,
+            trust_days=trust_d,
+            device_token=payload.device_token,
+            device_fingerprint=fp_hash,
+            telemetry=payload.telemetry,
+            portal_role="RETAILER"
+        )
+
         set_auth_session_cookies(
             response=response,
             request=request,
@@ -1344,7 +1688,8 @@ async def login_with_password(
             active_status=active_status,
             user_type_ref_id=2,
             retailer_code=ret_code,
-            retailer_id=ret_public_id
+            retailer_id=ret_public_id,
+            remember_me=rem_session
         )
 
         return {
@@ -1364,6 +1709,9 @@ async def login_with_password(
                 "active_status": active_status,
                 "is_approved": approve_status,
                 "account_status": ret_status,
+                "remember_session": rem_session,
+                "is_trusted_device": ret_trusted_dev.get("is_trusted_device", False),
+                "trusted_device": ret_trusted_dev,
                 "user_ref_id": ret_ref_id,
                 "user_type_ref_id": 2,
                 "retailer_ref_id": ret_ref_id,
@@ -1680,6 +2028,28 @@ async def verify_login_otp(
             except Exception:
                 pass
 
+        rem_session = getattr(payload, "remember_me", True) if getattr(payload, "remember_me", None) is not None else True
+        trust_dev = getattr(payload, "trust_device", False) or False
+        trust_d = getattr(payload, "trust_days", 30) or 30
+
+        ret_trusted_dev = await process_remember_and_trust_device(
+            db=db,
+            request=request,
+            response=response,
+            user_uuid=uuid.UUID(str(retailer_record.public_id)),
+            tenant_id=uuid.UUID(tenant_str),
+            company_id=uuid.UUID(company_str) if company_str else None,
+            company_ref_id=comp_ref_id,
+            tenant_ref_id=ten_ref_id,
+            remember_me=rem_session,
+            trust_device=trust_dev,
+            trust_days=trust_d,
+            device_token=payload.device_token,
+            device_fingerprint=str(payload.mobile_number),
+            telemetry=getattr(payload, "telemetry", None),
+            portal_role="RETAILER"
+        )
+
         try:
             roles_list = ["RETAILER"]
             clean_mob = re.sub(r"\D", "", str(clean_mobile))[-10:] if clean_mobile else ""
@@ -1701,7 +2071,7 @@ async def verify_login_otp(
                 tenant_id=tenant_str,
                 company_id=company_str,
                 roles=roles_list,
-                expires_delta=timedelta(days=7),
+                expires_delta=timedelta(days=30) if rem_session else timedelta(hours=24),
                 retailer_code=retailer_record.retailer_code,
                 retailer_id=subject_id,
                 retailer_ref_id=ret_ref_id,
@@ -1748,7 +2118,8 @@ async def verify_login_otp(
             active_status=active_status,
             user_type_ref_id=2,
             retailer_code=retailer_code,
-            retailer_id=retailer_id
+            retailer_id=retailer_id,
+            remember_me=rem_session
         )
 
         return {
@@ -1764,6 +2135,9 @@ async def verify_login_otp(
                 "active_status": active_status,
                 "is_approved": approve_status,
                 "account_status": ret_status,
+                "remember_session": rem_session,
+                "is_trusted_device": ret_trusted_dev.get("is_trusted_device", False),
+                "trusted_device": ret_trusted_dev.get("trusted_device"),
                 "user_ref_id": ret_ref_id,
                 "user_type_ref_id": 2,
                 "retailer_ref_id": ret_ref_id,
@@ -1844,7 +2218,7 @@ async def verify_login_otp(
                     tenant_id=str(DEFAULT_TENANT_ID),
                     company_id=str(DEFAULT_COMPANY_ID),
                     roles=["RETAILER"],
-                    expires_delta=timedelta(days=7),
+                    expires_delta=timedelta(days=30) if rem_session else timedelta(hours=24),
                     user_type_ref_id=2
                 )
             except Exception:
@@ -1860,7 +2234,8 @@ async def verify_login_otp(
                 active_status=True,
                 user_type_ref_id=2,
                 retailer_code=None,
-                retailer_id=reg_id
+                retailer_id=reg_id,
+                remember_me=rem_session
             )
 
             return {
@@ -1871,6 +2246,7 @@ async def verify_login_otp(
                     "destination": "DASHBOARD",
                     "account_status": "ACTIVE",
                     "is_approved": True,
+                    "remember_session": rem_session,
                     "registration_id": reg_id,
                     "redirect_url": "/retailer/dashboard",
                     "session_id": session_id,
@@ -2645,17 +3021,357 @@ async def enterprise_logout(request: Request, response: Response, db: AsyncSessi
         "p2p_active_super_distributor_id", "p2p_super_distributor_code", "p2p_super_distributor_ref_id",
         "p2p_session_locked", "p2p_session_locked_at", "p2p_session_last_active",
         "p2p_session_start_time", "p2p_session_id", "p2p_destination",
+        "p2p_remember_session", "pay2pay_remember_session",
         "access_token", "token"
     ]
+    
+    req_host = request.headers.get("host", "").split(":")[0]
+    domains = ["pay2pay.in", ".pay2pay.in", "sms-pay.in", ".sms-pay.in", "near4you.in", ".near4you.in"]
+    if req_host and req_host not in domains:
+        domains.append(req_host)
+        parts = req_host.split(".")
+        if len(parts) >= 2:
+            domains.append("." + ".".join(parts[-2:]))
+
     for c_name in cookie_names:
         response.delete_cookie(key=c_name, path="/")
-        response.delete_cookie(key=c_name, path="/", domain="pay2pay.in")
-        response.delete_cookie(key=c_name, path="/", domain=".pay2pay.in")
+        for d in domains:
+            response.delete_cookie(key=c_name, path="/", domain=d)
 
     return {
         "status": "SUCCESS",
         "message": "Session invalidated and logged out successfully"
     }
+
+
+def resolve_request_user_id(request: Request) -> Optional[uuid.UUID]:
+    """Helper to extract authenticated user UUID from Bearer token or session cookies."""
+    auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+    token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1].strip()
+    if not token:
+        token = (
+            request.cookies.get("p2p_access_token")
+            or request.cookies.get("pay2pay_access_token")
+            or request.cookies.get("p2p_retailer_token")
+            or request.cookies.get("access_token")
+        )
+    if not token:
+        return None
+    try:
+        payload = decode_access_token(token)
+        sub = payload.get("sub") if payload else None
+        return uuid.UUID(sub) if sub else None
+    except Exception:
+        return None
+
+
+@router.post("/biometric/verify")
+async def verify_biometric_login(
+    payload: BiometricVerifyPayload,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Enterprise Biometric / WebAuthn passkey authentication endpoint.
+    Supports Remember Session and Trusted Device registration.
+    """
+    ident = (payload.identifier or payload.mobile_number or "").strip()
+    raw_digits = re.sub(r"\D", "", ident)
+    clean_mobile = raw_digits[-10:] if len(raw_digits) >= 10 else raw_digits
+
+    # Try resolving user either by mobile_number or by incoming device token
+    retailer_record = None
+    if clean_mobile and len(clean_mobile) == 10:
+        mobile_variants = [clean_mobile, f"91{clean_mobile}", f"+91{clean_mobile}"]
+        ret_contact_stmt = (
+            select(RetailerContactModel, RetailerModel)
+            .join(RetailerModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
+            .where(
+                RetailerContactModel.mobile.in_(mobile_variants),
+                RetailerModel.is_deleted == False
+            )
+            .order_by(
+                case((RetailerModel.status == "ACTIVE", 1), else_=2),
+                RetailerModel.is_active.desc(),
+                RetailerModel.id.asc()
+            )
+        )
+        contact_res = (await db.execute(ret_contact_stmt)).first()
+        if contact_res:
+            retailer_record = contact_res[1]
+
+    # If no retailer found by mobile, check if trusted device token resolves a user
+    incoming_device_token = payload.device_token or request.cookies.get("p2p_trusted_device_token")
+    if not retailer_record and incoming_device_token:
+        token_hash = hashlib.sha256(incoming_device_token.strip().encode("utf-8")).hexdigest()
+        dev_stmt = select(TrustedDeviceModel).where(
+            TrustedDeviceModel.device_token_hash == token_hash,
+            TrustedDeviceModel.is_active == True,
+            TrustedDeviceModel.expires_at > datetime.now(timezone.utc)
+        )
+        dev = (await db.execute(dev_stmt)).scalars().first()
+        if dev:
+            ret_stmt = select(RetailerModel).where(RetailerModel.public_id == dev.user_id, RetailerModel.is_deleted == False)
+            retailer_record = (await db.execute(ret_stmt)).scalars().first()
+
+    if not retailer_record:
+        raise HTTPException(
+            status_code=400,
+            detail="Biometric credential not matched with any active account. Please sign in with password or WhatsApp OTP first."
+        )
+
+    ret_status = (retailer_record.status or "PENDING").upper()
+    approve_status = bool(retailer_record.is_active and ret_status in ("ACTIVE", "APPROVED"))
+    active_status = bool(retailer_record.is_active)
+
+    tenant_str = str(retailer_record.tenant_id if retailer_record.tenant_id else DEFAULT_TENANT_ID)
+    company_str = str(retailer_record.company_id if retailer_record.company_id else DEFAULT_COMPANY_ID)
+    subject_id = str(retailer_record.public_id)
+
+    ret_ref_id = getattr(retailer_record, "retailer_ref_id", None)
+    comp_ref_id = getattr(retailer_record, "company_ref_id", None) or 1
+    ten_ref_id = getattr(retailer_record, "tenant_ref_id", None) or 1
+
+    rem_session = getattr(payload, "remember_me", True) if getattr(payload, "remember_me", None) is not None else True
+    trust_dev = getattr(payload, "trust_device", True) or False
+    trust_d = getattr(payload, "trust_days", 30) or 30
+
+    session_id = f"SESS-{uuid.uuid4().hex[:12].upper()}"
+    correlation_id = f"CORR-{uuid.uuid4().hex[:8].upper()}"
+
+    ret_trusted_dev = await process_remember_and_trust_device(
+        db=db,
+        request=request,
+        response=response,
+        user_uuid=uuid.UUID(subject_id),
+        tenant_id=uuid.UUID(tenant_str),
+        company_id=uuid.UUID(company_str) if company_str else None,
+        company_ref_id=comp_ref_id,
+        tenant_ref_id=ten_ref_id,
+        remember_me=rem_session,
+        trust_device=trust_dev,
+        trust_days=trust_d,
+        device_token=payload.device_token,
+        device_fingerprint=str(clean_mobile or subject_id),
+        telemetry=getattr(payload, "telemetry", None),
+        portal_role="RETAILER"
+    )
+
+    access_token = create_access_token(
+        subject=subject_id,
+        tenant_id=tenant_str,
+        company_id=company_str,
+        roles=["RETAILER"],
+        expires_delta=timedelta(days=30) if rem_session else timedelta(hours=24),
+        retailer_code=retailer_record.retailer_code,
+        retailer_id=subject_id,
+        retailer_ref_id=ret_ref_id,
+        company_ref_id=comp_ref_id,
+        tenant_ref_id=ten_ref_id,
+        user_type_ref_id=2,
+        mobile=clean_mobile,
+        approve_status=approve_status,
+        active_status=active_status
+    )
+
+    retailer_code = retailer_record.retailer_code or f"RET-{subject_id[:6].upper()}"
+    full_name = retailer_record.owner_name or retailer_record.store_name or "Retailer Partner"
+    outlet_name = retailer_record.store_name or retailer_record.owner_name or "Retailer Store"
+
+    destination = "DASHBOARD" if (approve_status and active_status) else "ACCOUNT_UNDER_REVIEW"
+    redirect_url = "/retailer/dashboard" if destination == "DASHBOARD" else "/retailer/account-under-review"
+
+    set_auth_session_cookies(
+        response=response,
+        request=request,
+        access_token=access_token,
+        user_role="RETAILER",
+        destination=destination,
+        approve_status=approve_status,
+        active_status=active_status,
+        user_type_ref_id=2,
+        retailer_code=retailer_code,
+        retailer_id=subject_id,
+        remember_me=rem_session
+    )
+
+    return {
+        "success": True,
+        "status": "SUCCESS",
+        "approve_status": approve_status,
+        "active_status": active_status,
+        "message": "Biometric authentication successful",
+        "data": {
+            "flow": "RETAILER_LOGIN",
+            "destination": destination,
+            "approve_status": approve_status,
+            "active_status": active_status,
+            "is_approved": approve_status,
+            "account_status": ret_status,
+            "user_ref_id": ret_ref_id,
+            "user_type_ref_id": 2,
+            "retailer_ref_id": ret_ref_id,
+            "tenant_ref_id": ten_ref_id,
+            "company_ref_id": comp_ref_id,
+            "redirect_url": redirect_url,
+            "session_id": session_id,
+            "correlation_id": correlation_id,
+            "access_token": access_token,
+            "token_type": "Bearer",
+            "remember_session": rem_session,
+            "is_trusted_device": ret_trusted_dev.get("is_trusted_device", False),
+            "trusted_device": ret_trusted_dev.get("trusted_device"),
+            "user": {
+                "id": subject_id,
+                "public_id": subject_id,
+                "user_ref_id": ret_ref_id,
+                "user_type_ref_id": 2,
+                "retailer_ref_id": ret_ref_id,
+                "tenant_ref_id": ten_ref_id,
+                "company_ref_id": comp_ref_id,
+                "mobile_number": clean_mobile,
+                "full_name": full_name,
+                "role": "RETAILER",
+                "outlet_name": outlet_name,
+                "retailer_code": retailer_code,
+                "retailer_id": subject_id,
+                "approve_status": approve_status,
+                "active_status": active_status,
+                "is_approved": approve_status,
+                "status": ret_status
+            }
+        }
+    }
+
+
+@router.get("/trusted-devices")
+async def list_trusted_devices(request: Request, db: AsyncSession = Depends(get_db)):
+    """Lists all active trusted devices for the authenticated user."""
+    user_uuid = resolve_request_user_id(request)
+    if not user_uuid:
+        raise HTTPException(status_code=401, detail="Authentication required to view trusted devices.")
+
+    now_utc = datetime.now(timezone.utc)
+    stmt = (
+        select(TrustedDeviceModel)
+        .where(
+            TrustedDeviceModel.user_id == user_uuid,
+            TrustedDeviceModel.is_active == True,
+            TrustedDeviceModel.expires_at > now_utc
+        )
+        .order_by(TrustedDeviceModel.last_used_at.desc().nullslast(), TrustedDeviceModel.created_date.desc())
+    )
+    devices = (await db.execute(stmt)).scalars().all()
+
+    incoming_token = request.cookies.get("p2p_trusted_device_token") or request.headers.get("x-device-token")
+    incoming_hash = hashlib.sha256(incoming_token.strip().encode("utf-8")).hexdigest() if incoming_token else None
+
+    result = []
+    for d in devices:
+        is_current = bool(incoming_hash and d.device_token_hash == incoming_hash)
+        result.append({
+            "id": str(d.public_id),
+            "device_name": d.device_name,
+            "browser": d.browser,
+            "os_name": d.os_name,
+            "ip_address": d.ip_address,
+            "trust_duration_days": d.trust_duration_days,
+            "created_at": d.created_date.isoformat() if d.created_date else None,
+            "last_used_at": d.last_used_at.isoformat() if d.last_used_at else None,
+            "expires_at": d.expires_at.isoformat() if d.expires_at else None,
+            "is_current_device": is_current
+        })
+
+    return {
+        "success": True,
+        "count": len(result),
+        "devices": result
+    }
+
+
+@router.post("/trusted-devices/{device_id}/revoke")
+async def revoke_trusted_device(
+    device_id: str,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db)
+):
+    """Revokes a specific trusted device for the authenticated user."""
+    user_uuid = resolve_request_user_id(request)
+    if not user_uuid:
+        raise HTTPException(status_code=401, detail="Authentication required to revoke trusted device.")
+
+    try:
+        dev_uuid = uuid.UUID(device_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid device identifier.")
+
+    stmt = select(TrustedDeviceModel).where(
+        TrustedDeviceModel.public_id == dev_uuid,
+        TrustedDeviceModel.user_id == user_uuid,
+        TrustedDeviceModel.is_active == True
+    )
+    device = (await db.execute(stmt)).scalars().first()
+    if not device:
+        raise HTTPException(status_code=404, detail="Trusted device not found or already revoked.")
+
+    now_utc = datetime.now(timezone.utc)
+    device.is_active = False
+    device.revoked_at = now_utc
+    device.record_status = "REVOKED"
+    await db.commit()
+
+    # If this was the current device, clear client cookies
+    incoming_token = request.cookies.get("p2p_trusted_device_token") or request.headers.get("x-device-token")
+    if incoming_token and device.device_token_hash == hashlib.sha256(incoming_token.strip().encode("utf-8")).hexdigest():
+        response.delete_cookie(key="p2p_trusted_device_token", path="/")
+        response.delete_cookie(key="p2p_device_trusted", path="/")
+
+    return {
+        "success": True,
+        "message": f"Device '{device.device_name}' revoked successfully."
+    }
+
+
+@router.post("/trusted-devices/revoke-all")
+async def revoke_all_trusted_devices(
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db)
+):
+    """Revokes all active trusted devices for the authenticated user."""
+    user_uuid = resolve_request_user_id(request)
+    if not user_uuid:
+        raise HTTPException(status_code=401, detail="Authentication required to revoke trusted devices.")
+
+    from sqlalchemy import update
+    now_utc = datetime.now(timezone.utc)
+    res = await db.execute(
+        update(TrustedDeviceModel)
+        .where(
+            TrustedDeviceModel.user_id == user_uuid,
+            TrustedDeviceModel.is_active == True
+        )
+        .values(
+            is_active=False,
+            revoked_at=now_utc,
+            record_status="REVOKED"
+        )
+    )
+    await db.commit()
+
+    response.delete_cookie(key="p2p_trusted_device_token", path="/")
+    response.delete_cookie(key="p2p_device_trusted", path="/")
+
+    return {
+        "success": True,
+        "message": "All trusted devices revoked successfully.",
+        "revoked_count": res.rowcount
+    }
+
 
 
 

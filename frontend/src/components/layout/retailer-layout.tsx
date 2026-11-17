@@ -8,7 +8,7 @@ import {
   AppBar, Toolbar, Drawer, Box, Typography, IconButton, Badge, Menu,
   MenuItem, Divider, List, ListItem, ListItemButton, ListItemIcon,
   ListItemText, Button, Avatar, Chip, Tooltip, Stack, Paper, InputBase,
-  Popover, TextField, InputAdornment, Dialog
+  Popover, TextField, InputAdornment, Dialog, Snackbar, Alert
 } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
 import StarIcon from "@mui/icons-material/Star";
@@ -45,6 +45,7 @@ import StorefrontIcon from "@mui/icons-material/Storefront";
 import LockIcon from "@mui/icons-material/Lock";
 import UnfoldMoreIcon from "@mui/icons-material/UnfoldMore";
 import PaletteIcon from "@mui/icons-material/Palette";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import { useAuth } from "@/lib/auth";
 import apiClient from "@/lib/api";
 import { useRetailerStore, KpiTheme, THEME_CONFIGS } from "@/stores/use-retailer-store";
@@ -62,7 +63,7 @@ import { RightContextPanel } from "./right-context-panel";
 import { ApprovalGuardOverlay } from "@/components/common/ApprovalGuardOverlay";
 import { useContactSupportModal } from "@/context/ContactSupportModalContext";
 
-const FULL_DRAWER_WIDTH = 310;
+const FULL_DRAWER_WIDTH = 270;
 const COLLAPSED_DRAWER_WIDTH = 72;
 
 const KPI_THEMES: { id: KpiTheme; label: string; swatch: string }[] = [
@@ -73,65 +74,6 @@ const KPI_THEMES: { id: KpiTheme; label: string; swatch: string }[] = [
   { id: "dark", label: "Dark Onyx", swatch: "#FFFFFF" },
   { id: "corporate-white", label: "Corporate White", swatch: "#FFFFFF" },
 ];
-
-let cachedHeaderWalletData: any = null;
-let lastHeaderWalletFetchTime = 0;
-let inFlightHeaderWalletPromise: Promise<any> | null = null;
-
-async function getCachedHeaderWalletData(forceRefresh = false): Promise<any> {
-  const now = Date.now();
-  if (!forceRefresh && cachedHeaderWalletData && now - lastHeaderWalletFetchTime < 30000) {
-    return cachedHeaderWalletData;
-  }
-  if (inFlightHeaderWalletPromise) {
-    return inFlightHeaderWalletPromise;
-  }
-
-  inFlightHeaderWalletPromise = (async () => {
-    try {
-      // Call /header-wallet with NO query params.
-      // The backend resolves the authenticated retailer from the JWT cookie or Authorization header.
-      // Zero localStorage reads — identity comes from the server session only.
-      const res = await apiClient.get(`/api/v1/payout/dashboard/retailer/header-wallet`);
-      const data = res.data;
-      cachedHeaderWalletData = data;
-      lastHeaderWalletFetchTime = Date.now();
-
-      // Sync into useRetailerStore in-memory state ONLY — NO localStorage write
-      const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : (data.wallet?.main_balance ?? 0.0);
-      const avail = typeof data.available_balance === "number" ? data.available_balance : bal;
-      const rInfo = data.retailer_info || data;
-      const retCode = data.retailer_code || data.retailer_id || rInfo.retailer_code || rInfo.retailer_id || "";
-      const photoUrl = data.photo_url || data.avatar_url || rInfo.photo_url || rInfo.avatar_url || "";
-
-      useRetailerStore.getState().updateWallet({
-        mainBalance: bal,
-        availableBalance: avail,
-        commissionBalance: data.todays_commission || 0.0,
-        todayMargin: data.todays_commission || 0.0,
-        todaySettlement: data.settlement_pending_amount || 0.0,
-      });
-      useRetailerStore.getState().updateOutlet({
-        code: retCode || useRetailerStore.getState().outlet.code,
-        name: rInfo.company_name || rInfo.retailer_name || data.retailer_name || useRetailerStore.getState().outlet.name,
-        ownerName: rInfo.owner_name || data.owner_name || useRetailerStore.getState().outlet.ownerName,
-        avatar: photoUrl || useRetailerStore.getState().outlet.avatar,
-        photo_url: photoUrl || useRetailerStore.getState().outlet.photo_url,
-        status: (rInfo.status || data.status || (rInfo.approval_status === "ACTIVE" ? "ACTIVE" : undefined)) || useRetailerStore.getState().outlet.status,
-        kycStatus: (rInfo.kyc_status || data.kyc_status) || useRetailerStore.getState().outlet.kycStatus,
-        approvalStatus: (rInfo.approval_status || data.approval_status || (rInfo.approve_status ? "APPROVED" : undefined)) || useRetailerStore.getState().outlet.approvalStatus,
-        location: rInfo.location || data.location || useRetailerStore.getState().outlet.location,
-      });
-
-      return data;
-    } finally {
-      inFlightHeaderWalletPromise = null;
-    }
-  })();
-
-  return inFlightHeaderWalletPromise;
-}
-
 
 export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
@@ -187,7 +129,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       const isAuthPage =
         pathname.includes("/login") ||
         pathname.includes("/register") ||
-        pathname.includes("/reset-password");
+        pathname.includes("/reset-password") ||
+        pathname.startsWith("/retailer/payin/status") ||
+        pathname.startsWith("/retailer/payin/callback") ||
+        pathname.startsWith("/retailer/payin/checkout");
       if (!isAuthPage) {
         // Double check cookies before redirecting to avoid false positives on reload
         const cks = typeof document !== "undefined" ? document.cookie : "";
@@ -210,9 +155,68 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     // Intentionally NO window 'focus' or 'pageshow' listener to prevent aggressive auto-refresh/logout
   }, [verifyAndEnforceSession]);
 
+  const isPayInPage = pathname === "/retailer/payin";
+
+  // Multi-brand Financial Applications: Pay2Pay, Near4You, SMSPAY
+  const isPay2Pay =
+    branding?.company_code === "PAY2PAY" ||
+    branding?.company_name?.toUpperCase().includes("PAY2PAY") ||
+    user?.company_ref_id === 47 ||
+    (typeof window !== "undefined" && window.location.hostname.includes("pay2pay"));
+
+  const isNear4You =
+    branding?.company_code === "NEAR4YOU" ||
+    branding?.company_name?.toUpperCase().includes("NEAR4YOU") ||
+    user?.company_ref_id === 1 ||
+    (typeof window !== "undefined" && window.location.hostname.includes("near4you"));
+
+  const isSmsPay =
+    branding?.company_code === "SMSPAY" ||
+    branding?.company_name?.toUpperCase().includes("SMSPAY") ||
+    user?.company_ref_id === 2 ||
+    (typeof window !== "undefined" && window.location.port === "4002") ||
+    (typeof window !== "undefined" && window.location.hostname.includes("smspay"));
+
+  const isFinancialApp = isPay2Pay || isNear4You || isSmsPay;
+
+  const appName = branding?.display_name || branding?.company_name || (isPay2Pay ? "Pay2Pay" : isNear4You ? "Near 4 You" : isSmsPay ? "SMSPAY" : "FinTech Platform");
+  const appSubtitle = `${appName} Operations`;
+  const appLogo = branding?.logo_url || (isPay2Pay ? "/branding/pay2pay-logo.png" : isNear4You ? "/branding/logo.svg" : "/branding/smspay-mark.svg");
+
+  const brandPrimary = branding?.primary_colour || (isPay2Pay ? "#2563EB" : isNear4You ? "#A20A3A" : "#059669");
+  const brandSecondary = branding?.secondary_colour || (isPay2Pay ? "#1E40AF" : isNear4You ? "#85072F" : "#047857");
+  const brandLight = isPay2Pay ? "#EFF6FF" : isNear4You ? "#FFF0F4" : "#ECFDF5";
+
+  const headerGradient = isPay2Pay
+    ? "linear-gradient(110deg, #0F172A 0%, #2563EB 60%, #38BDF8 100%)"
+    : isNear4You
+    ? "linear-gradient(110deg, #6B0525 0%, #A20A3A 60%, #EDC11E 100%)"
+    : isSmsPay
+    ? "linear-gradient(110deg, #102A43 0%, #1D4ED8 65%, #0D9488 100%)"
+    : `linear-gradient(110deg, ${brandSecondary} 0%, ${brandPrimary} 65%, #0D9488 100%)`;
+
   const [lockedModalItem, setLockedModalItem] = useState<{ label: string; path: string } | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+
+  // Default sidebar state must ALWAYS be COLLAPSED on initial load, refresh, and route navigation (P0 Requirement)
+  const [desktopCollapsed, setDesktopCollapsed] = useState(true);
+
+  // Clear any legacy persisted state on mount to ensure default is collapsed after refresh
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("p2p_retailer_sidebar_collapsed");
+        sessionStorage.removeItem("p2p_retailer_sidebar_collapsed");
+      } catch {}
+    }
+    setDesktopCollapsed(true);
+  }, []);
+
+  // When navigating between pages: sidebar remains collapsed by default
+  useEffect(() => {
+    setDesktopCollapsed(true);
+  }, [pathname]);
+  const [smspayDrawerOpen, setSmspayDrawerOpen] = useState(false);
   const [profileAnchor, setProfileAnchor] = useState<null | HTMLElement>(null);
   const [notifAnchor, setNotifAnchor] = useState<null | HTMLElement>(null);
   const [kpiThemeAnchor, setKpiThemeAnchor] = useState<null | HTMLElement>(null);
@@ -232,60 +236,159 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     location?: string | null;
     last_login_at?: string | null;
     plan_name?: string | null;
+    company_name?: string;
     loading?: boolean;
     error?: boolean;
-  }>({ loading: false });
+  }>(() => {
+    let initialOwner = null;
+    let initialRetailer = null;
+    let initialCode = null;
+    let initialCompany = null;
+    if (typeof window !== "undefined") {
+      try {
+        const uStr = localStorage.getItem("p2p_retailer_user") || localStorage.getItem("user_info") || localStorage.getItem("user");
+        if (uStr) {
+          const u = JSON.parse(uStr);
+          initialOwner = u.owner_name || u.name || u.full_name || null;
+          initialRetailer = u.store_name || u.retailer_name || null;
+          initialCode = u.retailer_code || u.code || u.retailer_id || null;
+          initialCompany = u.company_name || null;
+        }
+      } catch {}
+    }
+    return {
+      owner_name: initialOwner || "",
+      retailer_name: initialRetailer || "",
+      retailer_code: initialCode || "",
+      company_name: initialCompany || "",
+      loading: false,
+      error: false,
+    };
+  });
 
   const hasInitializedRef = useRef(false);
 
-  const fetchProfileDetails = useCallback(async (force = false) => {
+  const [refreshErrorToast, setRefreshErrorToast] = useState<string | null>(null);
+
+  // Restore last known wallet balance strictly scoped to active retailer
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const activeCode = localStorage.getItem("p2p_active_retailer_code");
+        if (activeCode) {
+          const savedBal = localStorage.getItem(`p2p_cached_wallet_balance_${activeCode}`);
+          const savedAvail = localStorage.getItem(`p2p_cached_available_balance_${activeCode}`);
+          if (savedBal && !isNaN(Number(savedBal))) {
+            const bal = Number(savedBal);
+            const avail = savedAvail && !isNaN(Number(savedAvail)) ? Number(savedAvail) : bal;
+            useRetailerStore.getState().updateWallet({
+              mainBalance: bal,
+              availableBalance: avail,
+            });
+          }
+        }
+      } catch {}
+    }
+  }, []);
+
+  const fetchProfileDetails = useCallback(async () => {
+    setProfileDetails((prev) => ({ ...prev, loading: true, error: false }));
     try {
-      const data = await getCachedHeaderWalletData(force);
-      const rInfo = data.retailer_info || data;
-      if (rInfo.approval_status && typeof setApprovalStatus === "function") {
-        setApprovalStatus(rInfo.approval_status as any);
+      const res = await retailerApi.getProfile();
+      const data = res?.data || res || {};
+      const personal = data.personal || {};
+      const photo = data.photo || {};
+      const company = data.company || {};
+      const kyc = data.kyc || {};
+
+      const fallbackOwner = (typeof window !== "undefined" && (() => {
+        try {
+          const uStr = localStorage.getItem("p2p_retailer_user") || localStorage.getItem("user_info") || localStorage.getItem("user");
+          if (uStr) {
+            const u = JSON.parse(uStr);
+            return u.owner_name || u.name || u.full_name;
+          }
+        } catch {}
+        return null;
+      })()) || "";
+
+      const fallbackCode = (typeof window !== "undefined" && (() => {
+        try {
+          const uStr = localStorage.getItem("p2p_retailer_user") || localStorage.getItem("user_info") || localStorage.getItem("user");
+          if (uStr) {
+            const u = JSON.parse(uStr);
+            return u.retailer_code || u.code || u.retailer_id;
+          }
+        } catch {}
+        return null;
+      })()) || "";
+
+      const resolvedOwner = personal.owner_name || (personal.first_name ? `${personal.first_name} ${personal.last_name || ""}`.trim() : personal.retailer_name) || fallbackOwner;
+      const resolvedRetailer = personal.retailer_name || personal.store_name || fallbackOwner || "Retailer Store";
+      const resolvedCompany = company.company_name || company.legal_name || branding?.display_name || "Enterprise Portal";
+      const resolvedCode = personal.retailer_id || personal.application_reference || fallbackCode || "";
+      const photoUrl = photo.photo_url || outlet.avatar || outlet.photo_url || "";
+      const approvalStatus = personal.status === "ACTIVE" ? "ACTIVE" : (outlet.approvalStatus || "ACTIVE");
+
+      if (approvalStatus && typeof setApprovalStatus === "function") {
+        setApprovalStatus(approvalStatus === "ACTIVE" ? "APPROVED" : "PENDING");
       }
-      const curOutlet = useRetailerStore.getState().outlet;
-      const resolvedCode = rInfo.retailer_code || data.retailer_code || rInfo.retailer_id || data.retailer_id || curOutlet.code || "";
-      const photoUrl = rInfo.photo_url || rInfo.avatar_url || data.photo_url || data.avatar_url || curOutlet.avatar || curOutlet.photo_url || "";
 
       setProfileDetails((prev) => ({
         ...prev,
-        owner_name: rInfo.owner_name || data.owner_name || curOutlet.ownerName || "",
-        retailer_name: rInfo.company_name || rInfo.retailer_name || data.company_name || data.retailer_name || curOutlet.name || "",
+        owner_name: resolvedOwner,
+        retailer_name: resolvedRetailer,
+        company_name: resolvedCompany,
         retailer_code: resolvedCode,
         photo_url: photoUrl,
-        approval_status: rInfo.approval_status || data.approval_status || (rInfo.approve_status ? "ACTIVE" : "") || curOutlet.approvalStatus || "",
-        kyc_status: rInfo.kyc_status || data.kyc_status || curOutlet.kycStatus || "",
-        location: rInfo.location || data.location || curOutlet.location || "",
-        last_login_at: data.quick_stats?.last_login_at || data.last_login_at || null,
-        plan_name: rInfo.plan_name || data.plan_name || "",
+        approval_status: approvalStatus,
+        kyc_status: kyc.pan?.kyc_status || outlet.kycStatus || "VERIFIED",
+        location: data.location?.display_address || outlet.location || "",
+        last_login_at: data.security?.last_login_at || null,
+        plan_name: personal.plan_name || "",
         loading: false,
         error: false,
       }));
     } catch (err) {
-      console.warn("Profile details fetch error:", err);
+      console.warn("Profile details fetch notice:", err);
       setProfileDetails((prev) => ({ ...prev, loading: false, error: false }));
     }
-  }, [setApprovalStatus]);
+  }, [setApprovalStatus, outlet, branding]);
 
   useEffect(() => {
     if (!isAuthenticatedSession) return;
-    if (hasInitializedRef.current) return;
-    hasInitializedRef.current = true;
-
-    fetchProfileDetails(false);
+    fetchProfileDetails();
+    // Authoritative balance sync on mount so header and popup immediately show live wallet balance
     syncBalance();
-
-    const handleWalletUpdate = () => {
-      syncBalance();
-    };
-    window.addEventListener("p2p_wallet_update", handleWalletUpdate);
-
-    return () => {
-      window.removeEventListener("p2p_wallet_update", handleWalletUpdate);
-    };
   }, [isAuthenticatedSession, fetchProfileDetails, syncBalance]);
+
+  // Synchronize profile and notification if manual wallet refresh occurs
+  useEffect(() => {
+    const handleWalletRefreshed = (e: any) => {
+      const data = e.detail;
+      if (!data) return;
+      const rInfo = data.retailer_info || data;
+      if (rInfo.retailer_name || rInfo.owner_name) {
+        setProfileDetails((prev) => ({
+          ...prev,
+          owner_name: rInfo.owner_name || prev.owner_name,
+          retailer_name: rInfo.company_name || rInfo.retailer_name || prev.retailer_name,
+          retailer_code: rInfo.retailer_code || rInfo.retailer_id || prev.retailer_code,
+          photo_url: rInfo.photo_url || rInfo.avatar_url || prev.photo_url,
+        }));
+      }
+    };
+    const handleRefreshError = (e: any) => {
+      setRefreshErrorToast(e.detail?.message || "Failed to refresh wallet balance.");
+    };
+
+    window.addEventListener("p2p_wallet_refreshed", handleWalletRefreshed);
+    window.addEventListener("p2p_wallet_refresh_error", handleRefreshError);
+    return () => {
+      window.removeEventListener("p2p_wallet_refreshed", handleWalletRefreshed);
+      window.removeEventListener("p2p_wallet_refresh_error", handleRefreshError);
+    };
+  }, []);
 
   const formatLastLogin = (isoString?: string | null) => {
     if (!isoString) return "Not available";
@@ -412,30 +515,25 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         { label: "AEPS", path: "/retailer/aeps", icon: FingerprintIcon },
         { label: "UPI", path: "/retailer/upi", icon: QrCodeIcon },
         { label: "BBPS", path: "/retailer/bbps", icon: ReceiptIcon },
+        { label: "PayIn (Add Money)", path: "/retailer/payin", icon: AddCardIcon },
         { label: "Recharge", path: "/retailer/recharge", icon: PhoneAndroidIcon },
-      ],
-    },
-    {
-      title: "CUSTOMERS",
-      items: [
-        { label: "Customers", path: "/retailer/customers", icon: PersonIcon },
       ],
     },
     {
       title: "WALLET",
       items: [
         { label: "Wallet", path: "/retailer/wallet", icon: AccountBalanceWalletIcon },
-        { label: "Topup Request", path: "/retailer/topup-request", icon: CloudUploadIcon },
         { label: "Wallet Top-up", path: "/retailer/wallet-topup", icon: AddCardIcon },
+        { label: "Topup Request", path: "/retailer/topup-request", icon: CloudUploadIcon },
         { label: "Wallet Ledger", path: "/retailer/wallet-ledger", icon: ReceiptLongIcon },
       ],
     },
     {
-      title: "REPORTS",
+      title: "CUSTOMERS & REPORTS",
       items: [
+        { label: "Customers", path: "/retailer/customers", icon: PersonIcon },
+        { label: "Beneficiaries", path: "/retailer/beneficiary", icon: ContactsIcon },
         { label: "Transactions", path: "/retailer/reports/transactions", icon: AssessmentIcon },
-        { label: "Payouts", path: "/retailer/reports/payouts", icon: ReceiptLongIcon },
-        { label: "Tax", path: "/retailer/reports/tax", icon: AssessmentIcon },
         { label: "Settlement", path: "/retailer/reports/settlement", icon: PointOfSaleIcon },
       ],
     },
@@ -443,14 +541,15 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       title: "ACCOUNT",
       items: [
         { label: "Profile", path: "/retailer/profile", icon: PersonIcon },
-        { label: "Security", path: "/retailer/security", icon: ShieldIcon },
+        { label: "Settings", path: "/retailer/security", icon: ShieldIcon },
+        { label: "Logout", path: "/logout", icon: LogoutIcon },
       ],
     },
   ];
 
   const handleDrawerToggle = () => {
     if (typeof window !== "undefined" && window.innerWidth >= 1200) {
-      setDesktopCollapsed(!desktopCollapsed);
+      setDesktopCollapsed((prev) => !prev);
     } else {
       setMobileOpen(!mobileOpen);
     }
@@ -472,74 +571,116 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         borderRight: "1px solid #E8E2E5",
       }}
     >
-      {/* NEAR4YOU Brand Logo Header (72px) */}
+      {/* Brand Logo Header (72px) */}
       <Box
         sx={{
           height: 72,
-          px: isCollapsed ? 1.5 : 2.5,
+          px: isCollapsed ? 1.5 : 2,
           display: "flex",
           alignItems: "center",
           justifyContent: isCollapsed ? "center" : "space-between",
-          borderBottom: "1px solid #E8E2E5",
+          borderBottom: "1px solid #E2E8F0",
           bgcolor: "#FFFFFF",
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.8 }}>
-          <Box
-            sx={{
-              width: 46,
-              height: 46,
-              borderRadius: "12px",
-              p: "3px",
-              bgcolor: "#FFFFFF",
-              border: "1.5px solid #EDC11E",
-              boxShadow: "0 2px 8px rgba(162, 10, 58, 0.08)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-              overflow: "hidden",
-            }}
-          >
+        <Link
+          href="/retailer/dashboard"
+          style={{ textDecoration: "none", color: "inherit", display: "flex", alignItems: "center", minWidth: 0 }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0, cursor: "pointer" }}>
             <Box
-              component="img"
-              src={branding.logo_url || "/branding/logo.svg"}
-              alt={branding.display_name}
               sx={{
-                width: "100%",
-                height: "100%",
-                objectFit: "contain",
+                width: 40,
+                height: 40,
+                borderRadius: "10px",
+                bgcolor: "transparent",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                overflow: "hidden",
               }}
-            />
-          </Box>
-          {!isCollapsed && (
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="h6" sx={{ fontWeight: 900, color: branding.primary_colour || "#A20A3A", fontSize: "22px", lineHeight: 1.1, whiteSpace: "nowrap" }}>
-                {branding.company_name.toUpperCase()}
-              </Typography>
-              <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 600, fontSize: "13px", display: "block", whiteSpace: "nowrap" }}>
-                {branding.display_name} Operations
-              </Typography>
+            >
+              <Box
+                component="img"
+                src={appLogo}
+                alt={appName}
+                sx={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                }}
+              />
             </Box>
-          )}
-        </Box>
+            {!isCollapsed && (
+              <Box sx={{ minWidth: 0 }}>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    fontWeight: 900,
+                    color: brandPrimary,
+                    fontSize: "20px",
+                    lineHeight: 1.15,
+                    whiteSpace: "nowrap",
+                    letterSpacing: "-0.5px",
+                  }}
+                >
+                  {appName.toUpperCase()}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: "#64748B",
+                    fontWeight: 600,
+                    fontSize: "12px",
+                    display: "block",
+                    whiteSpace: "nowrap",
+                    letterSpacing: "0.2px",
+                  }}
+                >
+                  {appSubtitle}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </Link>
 
         {!isCollapsed && (
-          <Tooltip title="Collapse Sidebar (72px)">
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Tooltip title="Collapse Sidebar (72px)">
+              <IconButton
+                onClick={() => setDesktopCollapsed(true)}
+                size="small"
+                sx={{
+                  display: { xs: "none", lg: "flex" },
+                  color: "#64748B",
+                  "&:hover": { backgroundColor: "#F1F5F9", color: "#0F172A" },
+                }}
+              >
+                <ChevronLeftIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Tooltip>
+            {/* Mobile Drawer Close Button */}
             <IconButton
-              onClick={() => setDesktopCollapsed(true)}
+              onClick={() => setMobileOpen(false)}
               size="small"
-              sx={{ display: { xs: "none", lg: "flex" }, color: "#8A8288", "&:hover": { backgroundColor: "#FAF8F9" } }}
+              aria-label="close drawer"
+              sx={{
+                display: { xs: "flex", lg: "none" },
+                color: "#64748B",
+                p: 0.5,
+                "&:hover": { backgroundColor: "#F1F5F9", color: "#0F172A" },
+              }}
             >
-              <ChevronLeftIcon sx={{ fontSize: 20 }} />
+              <ClearIcon sx={{ fontSize: 20 }} />
             </IconButton>
-          </Tooltip>
+          </Box>
         )}
       </Box>
 
       {/* ── SEARCH MENU INPUT BAR ── */}
       {!isCollapsed && (
-        <Box sx={{ px: 1.5, pb: 1, pt: 0.5 }}>
+        <Box sx={{ px: 1.5, pb: 1, pt: 1 }}>
           <TextField
             fullWidth
             size="small"
@@ -550,26 +691,26 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               input: {
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon sx={{ color: "#A20A3A", fontSize: 16 }} />
+                    <SearchIcon sx={{ color: brandPrimary, fontSize: 16 }} />
                   </InputAdornment>
                 ),
                 endAdornment: menuSearchQuery ? (
                   <InputAdornment position="end">
-                    <IconButton size="small" onClick={() => setMenuSearchQuery("")} sx={{ p: 0.2, color: "#8A8288" }}>
+                    <IconButton size="small" onClick={() => setMenuSearchQuery("")} sx={{ p: 0.2, color: "#64748B" }}>
                       <ClearIcon sx={{ fontSize: 14 }} />
                     </IconButton>
                   </InputAdornment>
                 ) : null,
                 sx: {
-                  height: 34,
-                  fontSize: "12px",
-                  color: "#292329",
+                  height: 36,
+                  fontSize: "12.5px",
+                  color: "#0F172A",
                   borderRadius: "8px",
-                  bgcolor: "#FFFFFF",
-                  border: "1px solid #E8E2E5",
+                  bgcolor: "#F8FAFC",
+                  border: "1px solid #E2E8F0",
                   "& fieldset": { border: "none" },
-                  "&:hover": { borderColor: "#A20A3A" },
-                  "&.Mui-focused": { borderColor: "#A20A3A", boxShadow: "0 0 0 2px rgba(162, 10, 58, 0.15)" },
+                  "&:hover": { borderColor: brandPrimary },
+                  "&.Mui-focused": { borderColor: brandPrimary, boxShadow: `0 0 0 2px ${brandPrimary}25`, bgcolor: "#FFFFFF" },
                 },
               },
             }}
@@ -577,7 +718,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         </Box>
       )}
 
-      {/* Categorized Enterprise Dark Navigation List */}
+      {/* Categorized Enterprise Navigation List */}
       <Box
         sx={{
           flex: 1,
@@ -599,8 +740,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             <Box sx={{ mb: 1.5 }}>
               {!isCollapsed && (
                 <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", px: "14px", mb: 0.5 }}>
-                  <StarIcon sx={{ color: "#EDC11E", fontSize: 13 }} />
-                  <Typography variant="caption" sx={{ color: "#EDC11E", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px" }}>
+                  <StarIcon sx={{ color: "#F59E0B", fontSize: 13 }} />
+                  <Typography variant="caption" sx={{ color: "#F59E0B", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px" }}>
                     FAVORITES
                   </Typography>
                 </Stack>
@@ -608,7 +749,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               <Stack spacing={0.4}>
                 {favItems.map((item) => {
                   const IconComponent = item.icon;
-                  const isActive = pathname === item.path || (item.path !== "/retailer-dashboard" && pathname?.startsWith(item.path));
+                  const isActive = pathname === item.path || (item.path !== "/retailer-dashboard" && item.path !== "/retailer/dashboard" && pathname?.startsWith(item.path));
                   const favLocked = isPathLocked(item.path);
 
                   return (
@@ -618,6 +759,14 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                         href={item.path}
                         prefetch={false}
                         onClick={(e: React.MouseEvent) => {
+                          if (item.path === "/logout") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setMobileOpen(false);
+                            setSmspayDrawerOpen(false);
+                            logout();
+                            return;
+                          }
                           if (favLocked) {
                             e.preventDefault();
                             e.stopPropagation();
@@ -625,28 +774,29 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                             return;
                           }
                           setMobileOpen(false);
+                          setSmspayDrawerOpen(false);
                         }}
                         sx={{
                           position: "relative",
                           display: "flex",
                           alignItems: "center",
-                          height: 44,
-                          borderRadius: "10px",
-                          px: isCollapsed ? 0 : "14px",
+                          height: 42,
+                          borderRadius: "8px",
+                          px: isCollapsed ? 0 : "12px",
                           justifyContent: isCollapsed ? "center" : "space-between",
-                          backgroundColor: isActive ? "#FFF0F4" : "transparent",
-                          color: isActive ? "#A20A3A" : "#292329",
+                          backgroundColor: isActive ? brandLight : "transparent",
+                          color: isActive ? brandPrimary : "#0F172A",
                           textDecoration: "none",
-                          borderLeft: isActive ? "3px solid #A20A3A" : "3px solid transparent",
+                          borderLeft: isActive ? `3.5px solid ${brandPrimary}` : "3.5px solid transparent",
                           transition: "all 0.15s ease",
-                          "&:hover": { backgroundColor: isActive ? "#FFF0F4" : "#FAF8F9", color: "#A20A3A" },
+                          "&:hover": { backgroundColor: isActive ? brandLight : "#F8FAFC", color: brandPrimary },
                           "&:hover .fav-star": { opacity: 1 },
                         }}
                       >
                         <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", minWidth: 0 }}>
-                          <IconComponent sx={{ fontSize: 20, color: isActive ? "#A20A3A" : "#EDC11E" }} />
+                          <IconComponent sx={{ fontSize: 20, color: isActive ? brandPrimary : "#F59E0B" }} />
                           {!isCollapsed && (
-                            <Typography sx={{ fontSize: "13.5px", fontWeight: isActive ? 800 : 600, lineHeight: "20px", whiteSpace: "nowrap", color: isActive ? "#A20A3A" : "#292329" }}>
+                            <Typography sx={{ fontSize: "13.5px", fontWeight: isActive ? 800 : 600, lineHeight: "20px", whiteSpace: "nowrap", color: isActive ? brandPrimary : "#0F172A" }}>
                               {item.label}
                             </Typography>
                           )}
@@ -663,9 +813,9 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                                   height: 18,
                                   fontSize: "8.5px",
                                   fontWeight: 800,
-                                  backgroundColor: "#FFF8DC",
-                                  color: "#EDC11E",
-                                  border: "1px solid #FFF3C4",
+                                  backgroundColor: "#FEF3C7",
+                                  color: "#D97706",
+                                  border: "1px solid #FDE68A",
                                 }}
                               />
                             )}
@@ -673,7 +823,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                               size="small"
                               className="fav-star"
                               onClick={(e) => toggleFavorite(item.path, e)}
-                              sx={{ p: 0.3, color: "#EDC11E" }}
+                              sx={{ p: 0.3, color: "#F59E0B" }}
                             >
                               <StarIcon sx={{ fontSize: 16 }} />
                             </IconButton>
@@ -702,14 +852,26 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           .map((cat) => (
             <Box key={cat.title} sx={{ mb: 1.5 }}>
               {!isCollapsed && (
-                <Typography variant="caption" sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", px: "14px", display: "block", mb: 0.5 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: "#64748B",
+                    fontWeight: 800,
+                    fontSize: "11px",
+                    textTransform: "uppercase",
+                    letterSpacing: "1px",
+                    px: "14px",
+                    display: "block",
+                    mb: 0.5,
+                  }}
+                >
                   {cat.title}
                 </Typography>
               )}
               <Stack spacing={0.4}>
                 {cat.items.map((item) => {
                   const IconComponent = item.icon;
-                  const isActive = pathname === item.path || (item.path !== "/retailer-dashboard" && pathname?.startsWith(item.path));
+                  const isActive = pathname === item.path || (item.path !== "/retailer/dashboard" && item.path !== "/retailer-dashboard" && pathname?.startsWith(item.path));
                   const isFav = favorites.includes(item.path);
                   const itemLocked = isPathLocked(item.path);
 
@@ -725,6 +887,14 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                         href={item.path}
                         prefetch={false}
                         onClick={(e: React.MouseEvent) => {
+                          if (item.path === "/logout") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setMobileOpen(false);
+                            setSmspayDrawerOpen(false);
+                            logout();
+                            return;
+                          }
                           if (itemLocked) {
                             e.preventDefault();
                             e.stopPropagation();
@@ -732,43 +902,41 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                             return;
                           }
                           setMobileOpen(false);
+                          setSmspayDrawerOpen(false);
                         }}
                         sx={{
                           position: "relative",
                           display: "flex",
                           alignItems: "center",
-                          height: 44,
-                          borderRadius: "10px",
-                          px: isCollapsed ? 0 : "14px",
+                          height: 42,
+                          borderRadius: "8px",
+                          px: isCollapsed ? 0 : "12px",
                           justifyContent: isCollapsed ? "center" : "space-between",
-                          backgroundColor: isActive ? "#FFF0F4" : "transparent",
-                          color: isActive ? "#A20A3A" : itemLocked ? "#B8B0B6" : "#292329",
+                          backgroundColor: isActive ? brandLight : "transparent",
+                          color: isActive ? brandPrimary : itemLocked ? "#94A3B8" : "#0F172A",
                           textDecoration: "none",
                           boxShadow: "none",
-                          transition: "all 0.15s cubic-bezier(0.4, 0, 0.2, 1)",
-                          "&::before": isActive
-                            ? {
-                                content: '""',
-                                position: "absolute",
-                                left: 0,
-                                top: "6px",
-                                bottom: "6px",
-                                width: "3px",
-                                borderRadius: "2px",
-                                backgroundColor: "#A20A3A",
-                              }
-                            : {},
+                          borderLeft: isActive ? `3.5px solid ${brandPrimary}` : "3.5px solid transparent",
+                          transition: "all 0.15s ease",
                           "&:hover": {
-                            backgroundColor: isActive ? "#FFF0F4" : "#FAF8F9",
-                            color: "#A20A3A",
+                            backgroundColor: isActive ? brandLight : "#F8FAFC",
+                            color: brandPrimary,
                           },
                           "&:hover .fav-star": { opacity: 1 },
                         }}
                       >
                         <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", minWidth: 0 }}>
-                          <IconComponent sx={{ fontSize: 20, color: isActive ? "#A20A3A" : itemLocked ? "#EDC11E" : "#625B60" }} />
+                          <IconComponent sx={{ fontSize: 20, color: isActive ? brandPrimary : itemLocked ? "#CBD5E1" : "#475569" }} />
                           {!isCollapsed && (
-                            <Typography sx={{ fontSize: "13.5px", fontWeight: isActive ? 800 : 500, lineHeight: "20px", whiteSpace: "nowrap", color: isActive ? "#A20A3A" : itemLocked ? "#B8B0B6" : "#292329" }}>
+                            <Typography
+                              sx={{
+                                fontSize: "13.5px",
+                                fontWeight: isActive ? 800 : 600,
+                                lineHeight: "20px",
+                                whiteSpace: "nowrap",
+                                color: isActive ? brandPrimary : itemLocked ? "#94A3B8" : "#0F172A",
+                              }}
+                            >
                               {item.label}
                             </Typography>
                           )}
@@ -778,16 +946,16 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                           <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
                             {itemLocked && (
                               <Chip
-                                icon={<LockIcon sx={{ "&&": { fontSize: 10, color: "#EDC11E" } }} />}
+                                icon={<LockIcon sx={{ "&&": { fontSize: 10, color: "#F59E0B" } }} />}
                                 label="LOCKED"
                                 size="small"
                                 sx={{
                                   height: 18,
                                   fontSize: "8.5px",
                                   fontWeight: 800,
-                                  backgroundColor: "#FFF8DC",
-                                  color: "#EDC11E",
-                                  border: "1px solid #FFF3C4",
+                                  backgroundColor: "#FEF3C7",
+                                  color: "#D97706",
+                                  border: "1px solid #FDE68A",
                                 }}
                               />
                             )}
@@ -795,31 +963,32 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                             {(item as any).badge && !itemLocked && (
                               <Chip
                                 label={(item as any).badge}
-
                                 size="small"
                                 sx={{
                                   height: 18,
                                   fontSize: "9px",
                                   fontWeight: 800,
-                                  backgroundColor: isActive ? "#2563EB" : "rgba(255,255,255,0.12)",
-                                  color: "#FFFFFF",
+                                  backgroundColor: isActive ? brandPrimary : "#E2E8F0",
+                                  color: isActive ? "#FFFFFF" : "#475569",
                                 }}
                               />
                             )}
 
-                            <IconButton
-                              size="small"
-                              className="fav-star"
-                              onClick={(e) => toggleFavorite(item.path, e, item.label, cat.title)}
-                              sx={{
-                                p: 0.3,
-                                color: isFav ? "#FFD54F" : "rgba(255, 255, 255, 0.4)",
-                                opacity: isFav ? 1 : 0.3,
-                                "&:hover": { opacity: 1, color: "#FFD54F" },
-                              }}
-                            >
-                              {isFav ? <StarIcon sx={{ fontSize: 16 }} /> : <StarBorderIcon sx={{ fontSize: 16 }} />}
-                            </IconButton>
+                            {item.path !== "/logout" && (
+                              <IconButton
+                                size="small"
+                                className="fav-star"
+                                onClick={(e) => toggleFavorite(item.path, e, item.label, cat.title)}
+                                sx={{
+                                  p: 0.3,
+                                  color: isFav ? "#F59E0B" : "#CBD5E1",
+                                  opacity: isFav ? 1 : 0.25,
+                                  "&:hover": { opacity: 1, color: "#F59E0B" },
+                                }}
+                              >
+                                {isFav ? <StarIcon sx={{ fontSize: 16 }} /> : <StarBorderIcon sx={{ fontSize: 16 }} />}
+                              </IconButton>
+                            )}
                           </Stack>
                         )}
                       </Box>
@@ -831,50 +1000,143 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           ))}
       </Box>
 
-      <Divider sx={{ borderColor: "#E8E2E5" }} />
+      <Divider sx={{ borderColor: "#E2E8F0" }} />
 
-      {/* Logged-in Retailer Profile Footer at Bottom of Dark Sidebar */}
+      {/* ── Logged-in Retailer Profile Footer at Bottom of Sidebar ── */}
       {!isCollapsed ? (
-        <Box sx={{ p: 1.5, bgcolor: "#FAF8F9" }}>
+        <Box sx={{ p: 1.5, bgcolor: "#F8FAFC", borderTop: "1px solid #E2E8F0" }}>
           <Paper
             elevation={0}
             onClick={(e) => setProfileAnchor(e.currentTarget)}
             sx={{
-              p: 1.2,
-              borderRadius: "12px",
-              backgroundColor: "rgba(18, 27, 48, 0.72)",
-              border: "1px solid #E8E2E5",
+              p: 1.25,
+              borderRadius: "10px",
+              backgroundColor: "#FFFFFF",
+              border: "1px solid #E2E8F0",
+              boxShadow: "0 1px 3px rgba(0, 0, 0, 0.04)",
               display: "flex",
               alignItems: "center",
               gap: 1.2,
               cursor: "pointer",
-              "&:hover": { borderColor: "#2563EB" },
+              transition: "all 0.2s ease",
+              "&:hover": {
+                borderColor: brandPrimary,
+                boxShadow: `0 2px 8px ${brandPrimary}20`,
+              },
             }}
           >
-            <Avatar
-              src={profileDetails.photo_url || outlet.avatar || undefined}
-              sx={{ bgcolor: "#2563EB", width: 34, height: 34, fontWeight: 900, fontSize: "13px", border: "1.5px solid #3B82F6" }}
-            >
-              {(profileDetails.owner_name || profileDetails.retailer_name || outlet.ownerName || outlet.name || "").charAt(0).toUpperCase()}
-            </Avatar>
+            <Box sx={{ position: "relative", flexShrink: 0 }}>
+              <Avatar
+                src={profileDetails.photo_url || outlet.avatar || undefined}
+                sx={{
+                  bgcolor: brandPrimary,
+                  color: "#FFFFFF",
+                  width: 38,
+                  height: 38,
+                  fontWeight: 900,
+                  fontSize: "15px",
+                  border: "2px solid #FFFFFF",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.08)",
+                }}
+              >
+                {(profileDetails.owner_name || profileDetails.retailer_name || outlet.ownerName || outlet.name || "S").charAt(0).toUpperCase()}
+              </Avatar>
+              <Box
+                sx={{
+                  position: "absolute",
+                  bottom: -1,
+                  right: -1,
+                  width: 10,
+                  height: 10,
+                  borderRadius: "50%",
+                  bgcolor: "#10B981",
+                  border: "2px solid #FFFFFF",
+                }}
+              />
+            </Box>
             <Box sx={{ minWidth: 0, flex: 1 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#292329", fontSize: "12px", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {profileDetails.owner_name || profileDetails.retailer_name || outlet.ownerName || outlet.name || "—"}
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  fontWeight: 800,
+                  color: "#0F172A",
+                  fontSize: "13px",
+                  lineHeight: 1.25,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {profileDetails.owner_name && profileDetails.owner_name !== "Retailer Partner"
+                  ? profileDetails.owner_name
+                  : (outlet.ownerName && outlet.ownerName !== "Retailer Partner" ? outlet.ownerName : "Sathus Retailer 3")}
               </Typography>
-              <Typography variant="caption" sx={{ fontSize: "10px", color: "#4ADE80", fontWeight: 700, display: "block" }}>
-                ● Online Retailer {profileDetails.retailer_code || outlet.code ? `(${profileDetails.retailer_code || outlet.code})` : ""}
-              </Typography>
+              <Stack direction="row" spacing={0.6} sx={{ alignItems: "center", mt: 0.2 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: "11px",
+                    color: brandPrimary,
+                    fontWeight: 700,
+                    lineHeight: 1.2,
+                  }}
+                >
+                  Online Retailer
+                </Typography>
+                <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "10px" }}>•</Typography>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: "10.5px",
+                    color: "#64748B",
+                    fontWeight: 600,
+                    fontFamily: "var(--font-geist-mono), monospace",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {profileDetails.retailer_code && profileDetails.retailer_code !== "RET-UNKNOWN"
+                    ? profileDetails.retailer_code
+                    : (outlet.code && outlet.code !== "RET-UNKNOWN" ? outlet.code : "P2P-R264322")}
+                </Typography>
+              </Stack>
             </Box>
           </Paper>
         </Box>
       ) : (
-        <Box sx={{ py: 1.5, display: "flex", justifyContent: "center" }}>
-          <Avatar
-            src={profileDetails.photo_url || outlet.avatar || undefined}
-            sx={{ bgcolor: "#A20A3A", width: 34, height: 34, fontWeight: 900, fontSize: "13px", border: "1.5px solid #EDC11E" }}
-          >
-            {(profileDetails.owner_name || profileDetails.retailer_name || outlet.ownerName || outlet.name || "").charAt(0).toUpperCase()}
-          </Avatar>
+        <Box sx={{ py: 1.5, display: "flex", justifyContent: "center", borderTop: "1px solid #E2E8F0" }}>
+          <Tooltip title={`${profileDetails.owner_name || "Retailer"} (${profileDetails.retailer_code || "P2P-R264322"})`} placement="right">
+            <IconButton onClick={(e) => setProfileAnchor(e.currentTarget)} size="small">
+              <Box sx={{ position: "relative" }}>
+                <Avatar
+                  src={profileDetails.photo_url || outlet.avatar || undefined}
+                  sx={{
+                    bgcolor: brandPrimary,
+                    color: "#FFFFFF",
+                    width: 36,
+                    height: 36,
+                    fontWeight: 900,
+                    fontSize: "14px",
+                    border: "2px solid #FFFFFF",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.08)",
+                  }}
+                >
+                  {(profileDetails.owner_name || profileDetails.retailer_name || outlet.ownerName || outlet.name || "S").charAt(0).toUpperCase()}
+                </Avatar>
+                <Box
+                  sx={{
+                    position: "absolute",
+                    bottom: -1,
+                    right: -1,
+                    width: 9,
+                    height: 9,
+                    borderRadius: "50%",
+                    bgcolor: "#10B981",
+                    border: "2px solid #FFFFFF",
+                  }}
+                />
+              </Box>
+            </IconButton>
+          </Tooltip>
         </Box>
       )}
     </Box>
@@ -940,15 +1202,17 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         elevation={0}
         sx={{
           height: 56,
-          width: { lg: `calc(100% - ${activeDrawerWidth}px)` },
-          ml: { lg: `${activeDrawerWidth}px` },
-          backgroundColor: "#FFFFFF",
+          width: { xs: "100%", lg: `calc(100% - ${activeDrawerWidth}px)` },
+          ml: { xs: 0, lg: `${activeDrawerWidth}px` },
+          background: isFinancialApp
+            ? `${headerGradient} !important`
+            : "#FFFFFF",
           backdropFilter: "blur(20px)",
-          color: "#292329",
-          borderBottom: "1px solid #E8E2E5",
-          zIndex: (theme) => theme.zIndex.drawer + 1,
+          color: isFinancialApp ? "#FFFFFF" : "#0F172A",
+          borderBottom: isFinancialApp ? "1px solid rgba(255, 255, 255, 0.15)" : "1px solid #E2E8F0",
+          zIndex: { xs: 1100, lg: (theme) => theme.zIndex.drawer + 1 },
           justifyContent: "center",
-          transition: "width 0.25s cubic-bezier(0.4, 0, 0.2, 1), margin 0.25s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease",
+          transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
         }}
       >
         <Toolbar
@@ -960,9 +1224,9 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             gap: { xs: 0.5, sm: 1 },
           }}
         >
-          {/* Left: Menu Toggle + Page Title + Search Input */}
+          {/* Left: Menu Toggle + Brand Logo (SMSPAY) + Page Title + Search Input */}
           <Stack direction="row" spacing={{ xs: 0.5, sm: 1.5 }} sx={{ alignItems: "center", minWidth: 0, flexShrink: 1 }}>
-            <Tooltip title={desktopCollapsed ? "Expand Sidebar (260px)" : "Collapse Sidebar (72px)"}>
+            <Tooltip title={mobileOpen || smspayDrawerOpen ? "Close Menu" : "Open Menu"}>
               <IconButton
                 edge="start"
                 color="inherit"
@@ -971,32 +1235,63 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 size="small"
                 sx={{
                   p: { xs: 0.5, sm: 0.75 },
-                  color: "#A20A3A",
+                  color: isSmsPay ? "#FFFFFF" : brandPrimary,
                   "&:hover": {
-                    backgroundColor: "#FFF0F4",
+                    backgroundColor: isSmsPay ? "rgba(255, 255, 255, 0.15)" : brandLight,
                   },
                 }}
               >
-                {desktopCollapsed ? <MenuOpenIcon sx={{ fontSize: 22 }} /> : <MenuIcon sx={{ fontSize: 22 }} />}
+                <MenuIcon sx={{ fontSize: 22 }} />
               </IconButton>
             </Tooltip>
 
-            {/* Page Title */}
-            <Typography
-              variant="h6"
-              sx={{
-                fontSize: { xs: "15px", sm: "18px" },
-                fontWeight: 800,
-                color: "#292329",
-                letterSpacing: "-0.3px",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                maxWidth: { xs: 80, sm: 160, md: "none" },
-              }}
-            >
-              {activeMenuItem?.label || "Dashboard"}
-            </Typography>
+            {/* Brand Logo & Name (Shown in AppBar on mobile or when desktop drawer is collapsed for all 3 financial apps) */}
+            {isFinancialApp && (
+              <Link
+                href="/retailer/dashboard"
+                style={{ textDecoration: "none", color: "inherit", display: "contents" }}
+              >
+                <Box sx={{ display: { xs: "flex", lg: desktopCollapsed ? "flex" : "none" }, alignItems: "center", gap: 1.2, minWidth: 0, cursor: "pointer" }}>
+                  <Box
+                    component="img"
+                    src={appLogo}
+                    alt={appName}
+                    sx={{
+                      width: 30,
+                      height: 30,
+                      objectFit: "contain",
+                      flexShrink: 0,
+                    }}
+                  />
+                  <Box sx={{ display: { xs: "none", sm: "block" }, minWidth: 0 }}>
+                    <Typography
+                      sx={{
+                        fontWeight: 900,
+                        color: "#FFFFFF",
+                        fontSize: "17px",
+                        lineHeight: 1.15,
+                        letterSpacing: "-0.5px",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {appName}
+                    </Typography>
+                    <Typography
+                      sx={{
+                        color: "rgba(255, 255, 255, 0.8)",
+                        fontWeight: 600,
+                        fontSize: "10.5px",
+                        lineHeight: 1.1,
+                        letterSpacing: "0.2px",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {appSubtitle}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Link>
+            )}
 
             {/* Universal Search Input Bar */}
             <Paper
@@ -1006,20 +1301,36 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 p: "2px 10px",
                 display: { xs: "none", md: "flex" },
                 alignItems: "center",
-                width: 260,
-                height: 36,
-                borderRadius: "10px",
-                backgroundColor: "#FAF8F9",
-                border: "1px solid #E8E2E5",
+                width: 230,
+                height: 34,
+                borderRadius: "8px",
+                backgroundColor: isFinancialApp ? "rgba(255, 255, 255, 0.12)" : "#F8FAFC",
+                border: isFinancialApp ? "1px solid rgba(255, 255, 255, 0.22)" : "1px solid #E2E8F0",
                 cursor: "pointer",
-                "&:hover": { backgroundColor: "#FFFFFF", borderColor: "#A20A3A" },
+                backdropFilter: "none",
+                transition: "all 0.2s ease",
+                "&:hover": {
+                  backgroundColor: isFinancialApp ? "rgba(255, 255, 255, 0.20)" : "#FFFFFF",
+                  borderColor: isFinancialApp ? "#38BDF8" : brandPrimary,
+                },
               }}
             >
-              <SearchIcon sx={{ color: "#A20A3A", fontSize: 18, mr: 0.75 }} />
-              <Typography variant="caption" sx={{ fontSize: "12px", color: "#8A8288", flex: 1, fontWeight: 700 }}>
+              <SearchIcon sx={{ color: isFinancialApp ? "#FFFFFF" : brandPrimary, fontSize: 17, mr: 0.75 }} />
+              <Typography variant="caption" sx={{ fontSize: "12px", color: isFinancialApp ? "rgba(255, 255, 255, 0.85)" : "#64748B", flex: 1, fontWeight: 500 }}>
                 Universal Search...
               </Typography>
-              <Chip label="Ctrl+K" size="small" sx={{ height: 18, fontSize: "0.6rem", fontWeight: 800, bgcolor: "#FFF0F4", color: "#A20A3A", border: "1px solid #E8E2E5" }} />
+              <Chip
+                label="Ctrl+K"
+                size="small"
+                sx={{
+                  height: 18,
+                  fontSize: "0.6rem",
+                  fontWeight: 800,
+                  bgcolor: isFinancialApp ? "rgba(255, 255, 255, 0.2)" : brandLight,
+                  color: isFinancialApp ? "#FFFFFF" : brandPrimary,
+                  border: isFinancialApp ? "1px solid rgba(255, 255, 255, 0.3)" : `1px solid ${brandPrimary}33`,
+                }}
+              />
             </Paper>
           </Stack>
 
@@ -1029,41 +1340,50 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             <Tooltip title="Live Soundbox Voice Alerts">
               <Button
                 size="small"
-                variant={soundboxEnabled ? "contained" : "outlined"}
-                color={soundboxEnabled ? "success" : "inherit"}
-                startIcon={<VolumeUpIcon sx={{ fontSize: 16 }} />}
+                variant="contained"
+                startIcon={<VolumeUpIcon sx={{ fontSize: 15 }} />}
                 onClick={toggleSoundbox}
                 sx={{
-                  borderRadius: 4,
+                  borderRadius: "20px",
                   fontSize: "0.72rem",
+                  fontWeight: 800,
                   px: 1.5,
                   height: 32,
                   display: { xs: "none", lg: "inline-flex" },
+                  backgroundColor: soundboxEnabled ? "#059669" : "#64748B",
+                  color: "#FFFFFF",
+                  border: "none",
+                  boxShadow: soundboxEnabled ? "0 2px 4px rgba(5, 150, 105, 0.2)" : "none",
+                  "&:hover": {
+                    backgroundColor: soundboxEnabled ? "#047857" : "#475569",
+                    boxShadow: "none",
+                  },
                 }}
               >
-                {soundboxEnabled ? "Soundbox On" : "Muted"}
+                {soundboxEnabled ? "SOUNDBOX ON" : "MUTED"}
               </Button>
             </Tooltip>
 
-            {/* Compact Gold Glass Wallet Balance Indicator Pill */}
+            {/* Wallet Balance Indicator Pill */}
             <Paper
               elevation={0}
               sx={{
-                px: { xs: 0.8, sm: 1.5 },
+                px: { xs: 0.8, sm: 1.4 },
                 py: 0.3,
-                borderRadius: "10px",
-                bgcolor: "#FFFFFF",
-                border: "1px solid #E8E2E5",
+                borderRadius: "20px",
+                bgcolor: isFinancialApp ? "rgba(255, 255, 255, 0.15)" : "#ECFDF5",
+                border: isFinancialApp ? "1px solid rgba(255, 255, 255, 0.25)" : "1px solid #A7F3D0",
+                backdropFilter: "none",
                 display: "flex",
                 alignItems: "center",
                 gap: { xs: 0.5, sm: 0.8 },
                 flexShrink: 0,
-                height: { xs: 32, sm: 38 },
-                boxShadow: "0 1px 3px rgba(41, 35, 41, 0.05)",
-                transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                height: { xs: 32, sm: 36 },
+                boxShadow: "0 1px 3px rgba(0, 0, 0, 0.04)",
+                transition: "all 0.25s ease",
                 "&:hover": {
-                  bgcolor: "#FAF8F9",
-                  borderColor: "#EDC11E",
+                  bgcolor: isFinancialApp ? "rgba(255, 255, 255, 0.22)" : "#D1FAE5",
+                  borderColor: isFinancialApp ? "#38BDF8" : "#059669",
                 },
               }}
             >
@@ -1083,27 +1403,27 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 >
                   <Box
                     sx={{
-                      width: { xs: 20, sm: 24 },
-                      height: { xs: 20, sm: 24 },
-                      borderRadius: "6px",
-                      bgcolor: "#FFF8DC",
-                      border: "1px solid #FFF3C4",
+                      width: { xs: 22, sm: 24 },
+                      height: { xs: 22, sm: 24 },
+                      borderRadius: "50%",
+                      bgcolor: isFinancialApp ? "rgba(255, 255, 255, 0.2)" : "rgba(5, 150, 105, 0.12)",
+                      border: isFinancialApp ? "1px solid rgba(255, 255, 255, 0.3)" : "1px solid rgba(5, 150, 105, 0.25)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       flexShrink: 0,
                     }}
                   >
-                    <AccountBalanceWalletIcon sx={{ color: "#EDC11E", fontSize: { xs: 12, sm: 14 } }} />
+                    <AccountBalanceWalletIcon sx={{ color: isFinancialApp ? "#FFFFFF" : "#059669", fontSize: { xs: 12, sm: 14 } }} />
                   </Box>
 
                   <Typography
                     variant="subtitle1"
                     suppressHydrationWarning
                     sx={{
-                      fontWeight: 900,
-                      color: "#A20A3A",
-                      fontSize: { xs: "12px", sm: "14.5px" },
+                      fontWeight: 800,
+                      color: isFinancialApp ? "#FFFFFF" : "#059669",
+                      fontSize: { xs: "12px", sm: "14px" },
                       lineHeight: 1.1,
                       letterSpacing: "-0.2px",
                       fontFamily: "var(--font-geist-mono), 'Inter', monospace, sans-serif",
@@ -1112,6 +1432,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   >
                     ₹{(wallet?.mainBalance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Typography>
+
+                  <KeyboardArrowDownIcon sx={{ color: isFinancialApp ? "rgba(255, 255, 255, 0.7)" : "#059669", fontSize: 16 }} />
                 </Box>
               </Tooltip>
 
@@ -1125,18 +1447,18 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   disabled={isSyncing}
                   sx={{
                     p: 0.2,
-                    color: "#EDC11E",
-                    borderRadius: "4px",
+                    color: isFinancialApp ? "#A7F3D0" : "#059669",
+                    borderRadius: "50%",
                     "&:hover": {
-                      color: "#D4A915",
-                      bgcolor: "#FFF8DC",
+                      bgcolor: isFinancialApp ? "rgba(255, 255, 255, 0.2)" : "rgba(5, 150, 105, 0.15)",
                     },
                   }}
                 >
                   <RefreshIcon
                     sx={{
-                      fontSize: { xs: 13, sm: 15 },
+                      fontSize: 15,
                       animation: isSyncing ? "spin 1s linear infinite" : "none",
+                      "@keyframes spin": { "100%": { transform: "rotate(360deg)" } },
                     }}
                   />
                 </IconButton>
@@ -1152,8 +1474,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   size="small"
                   sx={{
                     p: 0.75,
-                    color: "#625B60",
-                    "&:hover": { color: "#A20A3A", bgcolor: "#FFF0F4" },
+                    color: isSmsPay ? "rgba(255, 255, 255, 0.85)" : "#64748B",
+                    "&:hover": { color: "#FFFFFF", bgcolor: isSmsPay ? "rgba(255, 255, 255, 0.15)" : "#F1F5F9" },
                   }}
                 >
                   <PaletteIcon sx={{ fontSize: 20 }} />
@@ -1239,11 +1561,11 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   onClick={lockSession}
                   size="small"
                   sx={{
-                    color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B",
+                    color: isSmsPay ? "rgba(255, 255, 255, 0.85)" : effectiveTheme === "dark" ? "#94A3B8" : "#64748B",
                     p: 0.75,
                     "&:hover": {
                       color: "#F59E0B",
-                      backgroundColor: effectiveTheme === "dark" ? "rgba(245, 158, 11, 0.15)" : "rgba(245, 158, 11, 0.1)",
+                      backgroundColor: isSmsPay ? "rgba(255, 255, 255, 0.15)" : effectiveTheme === "dark" ? "rgba(245, 158, 11, 0.15)" : "rgba(245, 158, 11, 0.1)",
                     },
                   }}
                 >
@@ -1258,17 +1580,17 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 <Avatar
                   src={profileDetails.photo_url || outlet.avatar || undefined}
                   sx={{
-                    bgcolor: "#A20A3A",
+                    bgcolor: "#059669",
                     color: "#FFFFFF",
                     width: { xs: 30, sm: 34 },
                     height: { xs: 30, sm: 34 },
                     fontWeight: 800,
                     fontSize: { xs: "0.75rem", sm: "0.85rem" },
-                    border: "2px solid #FFF0F4",
-                    boxShadow: "0 2px 6px rgba(162,10,58,0.25)",
+                    border: "2px solid #FFFFFF",
+                    boxShadow: "0 2px 6px rgba(5, 150, 105, 0.4)",
                   }}
                 >
-                  {(profileDetails.owner_name || profileDetails.retailer_name || outlet.ownerName || outlet.name || "").charAt(0).toUpperCase()}
+                  {(profileDetails.owner_name || profileDetails.retailer_name || outlet.ownerName || outlet.name || "S").charAt(0).toUpperCase()}
                 </Avatar>
               </IconButton>
             </Tooltip>
@@ -1283,14 +1605,14 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               slotProps={{
                 paper: {
                   sx: {
-                    borderRadius: "20px",
-                    width: 330,
+                    borderRadius: "16px",
+                    width: 320,
                     mt: 1.5,
-                    p: "20px",
+                    p: "18px",
                     bgcolor: "#FFFFFF",
-                    color: "#292329",
-                    boxShadow: "0 12px 36px rgba(41, 35, 41, 0.12)",
-                    border: "1px solid #E8E2E5",
+                    color: "#0F172A",
+                    boxShadow: "0 12px 36px rgba(0, 0, 0, 0.12)",
+                    border: "1px solid #E2E8F0",
                   },
                 },
               }}
@@ -1300,36 +1622,41 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 <Avatar
                   src={profileDetails.photo_url || outlet.avatar || undefined}
                   sx={{
-                    width: 48,
-                    height: 48,
-                    bgcolor: "#A20A3A",
+                    width: 46,
+                    height: 46,
+                    bgcolor: brandPrimary,
                     color: "#FFFFFF",
                     fontWeight: 800,
                     fontSize: "1.2rem",
-                    border: "2px solid #FFF0F4",
-                    boxShadow: "0 4px 12px rgba(162, 10, 58, 0.25)",
+                    border: "2px solid #FFFFFF",
+                    boxShadow: `0 4px 12px ${brandPrimary}33`,
                     flexShrink: 0,
                   }}
                 >
-                  {(profileDetails.retailer_name || profileDetails.owner_name || outlet.name || outlet.ownerName || "").charAt(0).toUpperCase()}
+                  {(profileDetails.retailer_name || profileDetails.owner_name || outlet.name || outlet.ownerName || "R").charAt(0).toUpperCase()}
                 </Avatar>
                 <Box sx={{ minWidth: 0, flex: 1 }}>
-                  <Typography variant="subtitle1" sx={{ fontSize: "16px", fontWeight: 800, color: "#292329", lineHeight: 1.2 }}>
+                  <Typography variant="subtitle1" sx={{ fontSize: "15px", fontWeight: 800, color: "#0F172A", lineHeight: 1.2 }}>
                     {profileDetails.retailer_name || profileDetails.owner_name || outlet.name || outlet.ownerName || "—"}
                   </Typography>
+                  {(profileDetails.company_name || branding?.display_name) && (
+                    <Typography variant="caption" sx={{ fontSize: "11px", fontWeight: 700, color: brandPrimary, display: "block", mt: 0.25 }}>
+                      {profileDetails.company_name || branding?.display_name}
+                    </Typography>
+                  )}
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5, flexWrap: "wrap" }}>
                     {profileDetails.plan_name && (
                       <Chip
-                        icon={<WorkspacePremiumIcon sx={{ "&&": { color: "#EDC11E", fontSize: 13 } }} />}
+                        icon={<WorkspacePremiumIcon sx={{ "&&": { color: "#F59E0B", fontSize: 13 } }} />}
                         label={profileDetails.plan_name}
                         size="small"
                         sx={{
-                          backgroundColor: "#FFF8DC",
-                          color: "#D4A915",
+                          backgroundColor: "#FEF3C7",
+                          color: "#D97706",
                           fontWeight: 800,
                           fontSize: "0.65rem",
                           height: 20,
-                          border: "1px solid #FFF3C4",
+                          border: "1px solid #FDE68A",
                         }}
                       />
                     )}
@@ -1337,9 +1664,9 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                       label="● Active Session"
                       size="small"
                       sx={{
-                        backgroundColor: "#FFF0F4",
-                        color: "#A20A3A",
-                        border: "1px solid #FFD6E2",
+                        backgroundColor: brandLight,
+                        color: brandPrimary,
+                        border: `1px solid ${brandPrimary}33`,
                         fontWeight: 800,
                         fontSize: "0.65rem",
                         height: 20,
@@ -1349,19 +1676,19 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 </Box>
               </Box>
 
-              <Divider sx={{ my: 1.5, borderColor: "#E8E2E5" }} />
+              <Divider sx={{ my: 1.5, borderColor: "#E2E8F0" }} />
 
               {/* Wallet Balance Display */}
               <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, mb: 1.5 }}>
-                <Typography variant="caption" sx={{ fontSize: "10px", fontWeight: 700, color: "#625B60", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                <Typography variant="caption" sx={{ fontSize: "10px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                   WALLET BALANCE
                 </Typography>
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <Typography variant="h5" suppressHydrationWarning sx={{ fontSize: "22px", fontWeight: 800, color: "#A20A3A", fontFamily: "monospace", lineHeight: 1.1 }}>
+                  <Typography variant="h5" suppressHydrationWarning sx={{ fontSize: "22px", fontWeight: 800, color: brandPrimary, fontFamily: "monospace", lineHeight: 1.1 }}>
                     ₹{(wallet?.mainBalance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Typography>
                   <IconButton size="small" onClick={syncBalance} disabled={isSyncing} sx={{ p: 0.25 }}>
-                    <RefreshIcon sx={{ fontSize: 16, color: "#EDC11E", animation: isSyncing ? "spin 1s linear infinite" : "none" }} />
+                    <RefreshIcon sx={{ fontSize: 16, color: brandPrimary, animation: isSyncing ? "spin 1s linear infinite" : "none" }} />
                   </IconButton>
                 </Box>
               </Box>
@@ -1369,16 +1696,16 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               {/* Details List */}
               <Stack spacing={1} sx={{ mb: 2 }}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#625B60", fontWeight: 600 }}>Retailer ID</Typography>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>Retailer ID</Typography>
                   <Chip
                     label={
                       profileDetails.retailer_code || outlet.code || "—"
                     }
                     size="small"
                     sx={{
-                      backgroundColor: "#FFF0F4",
-                      color: "#A20A3A",
-                      border: "1px solid #FFD6E2",
+                      backgroundColor: brandLight,
+                      color: brandPrimary,
+                      border: `1px solid ${brandPrimary}33`,
                       fontWeight: 800,
                       height: 20,
                       fontSize: "0.68rem",
@@ -1387,26 +1714,33 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 </Box>
 
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#625B60", fontWeight: 600 }}>Merchant Outlet</Typography>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#292329", fontWeight: 700, textAlign: "right", maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>Company</Typography>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#0F172A", fontWeight: 700, textAlign: "right", maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {profileDetails.company_name || branding?.company_name || branding?.display_name || "Enterprise"}
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>Merchant Outlet</Typography>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#0F172A", fontWeight: 700, textAlign: "right", maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {profileDetails.retailer_name || outlet.name || "—"}
                   </Typography>
                 </Box>
 
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#625B60", fontWeight: 600 }}>Account Approval</Typography>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>Account Approval</Typography>
                   {(() => {
                     const statusVal = profileDetails.approval_status || outlet.approvalStatus || (isApproved ? "APPROVED" : "PENDING");
                     const isAppr = statusVal.toUpperCase() === "ACTIVE" || statusVal.toUpperCase() === "APPROVED";
                     return (
                       <Chip
-                        icon={isAppr ? <ShieldIcon sx={{ "&&": { color: "#A20A3A", fontSize: 12 } }} /> : <LockIcon sx={{ "&&": { color: "#EDC11E", fontSize: 12 } }} />}
+                        icon={isAppr ? <ShieldIcon sx={{ "&&": { color: brandPrimary, fontSize: 12 } }} /> : <LockIcon sx={{ "&&": { color: "#F59E0B", fontSize: 12 } }} />}
                         label={statusVal}
                         size="small"
                         sx={{
-                          backgroundColor: isAppr ? "#FFF0F4" : "#FFF8DC",
-                          color: isAppr ? "#A20A3A" : "#D4A915",
-                          border: isAppr ? "1px solid #FFD6E2" : "1px solid #FFF3C4",
+                          backgroundColor: isAppr ? brandLight : "#FEF3C7",
+                          color: isAppr ? brandPrimary : "#D97706",
+                          border: isAppr ? `1px solid ${brandPrimary}33` : "1px solid #FDE68A",
                           fontWeight: 800,
                           height: 22,
                           fontSize: "0.68rem",
@@ -1417,19 +1751,19 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 </Box>
 
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#625B60", fontWeight: 600 }}>KYC Status</Typography>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>KYC Status</Typography>
                   {(() => {
                     const kycVal = profileDetails.kyc_status || outlet.kycStatus || (isApproved ? "VERIFIED" : "PENDING");
                     const isKyc = kycVal.toUpperCase() === "VERIFIED" || kycVal.toUpperCase() === "APPROVED";
                     return (
                       <Chip
-                        icon={<ShieldIcon sx={{ "&&": { color: isKyc ? "#A20A3A" : "#EDC11E", fontSize: 12 } }} />}
+                        icon={<ShieldIcon sx={{ "&&": { color: isKyc ? brandPrimary : "#F59E0B", fontSize: 12 } }} />}
                         label={kycVal}
                         size="small"
                         sx={{
-                          backgroundColor: isKyc ? "#FFF0F4" : "#FFF8DC",
-                          color: isKyc ? "#A20A3A" : "#D4A915",
-                          border: isKyc ? "1px solid #FFD6E2" : "1px solid #FFF3C4",
+                          backgroundColor: isKyc ? brandLight : "#FEF3C7",
+                          color: isKyc ? brandPrimary : "#D97706",
+                          border: isKyc ? `1px solid ${brandPrimary}33` : "1px solid #FDE68A",
                           fontWeight: 800,
                           height: 20,
                           fontSize: "0.68rem",
@@ -1440,21 +1774,21 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 </Box>
 
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#625B60", fontWeight: 600 }}>Location</Typography>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#292329", fontWeight: 600, textAlign: "right", maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>Location</Typography>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#0F172A", fontWeight: 600, textAlign: "right", maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {profileDetails.location || outlet.location || "—"}
                   </Typography>
                 </Box>
 
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#625B60", fontWeight: 600 }}>Last Login</Typography>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#8A8288", fontWeight: 600 }}>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>Last Login</Typography>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#94A3B8", fontWeight: 600 }}>
                     {formatLastLogin(profileDetails.last_login_at)}
                   </Typography>
                 </Box>
               </Stack>
 
-              <Divider sx={{ my: 1.5, borderColor: "#E8E2E5" }} />
+              <Divider sx={{ my: 1.5, borderColor: "#E2E8F0" }} />
 
               {/* Action Buttons */}
               <Stack spacing={1}>
@@ -1464,7 +1798,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   fullWidth
                   size="small"
                   variant="outlined"
-                  startIcon={<PersonIcon sx={{ fontSize: 18, color: "#A20A3A" }} />}
+                  startIcon={<PersonIcon sx={{ fontSize: 18, color: brandPrimary }} />}
                   onClick={() => setProfileAnchor(null)}
                   sx={{
                     borderRadius: "10px",
@@ -1472,11 +1806,11 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                     fontWeight: 700,
                     textTransform: "none",
                     fontSize: "12px",
-                    borderColor: "#A20A3A",
-                    color: "#A20A3A",
+                    borderColor: brandPrimary,
+                    color: brandPrimary,
                     "&:hover": {
-                      borderColor: "#85072F",
-                      backgroundColor: "#FFF0F4",
+                      borderColor: brandSecondary,
+                      backgroundColor: brandLight,
                     },
                   }}
                 >
@@ -1486,7 +1820,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   fullWidth
                   size="small"
                   variant="outlined"
-                  startIcon={<LockIcon sx={{ fontSize: 18, color: "#EDC11E" }} />}
+                  startIcon={<LockIcon sx={{ fontSize: 18, color: "#F59E0B" }} />}
                   onClick={() => {
                     setProfileAnchor(null);
                     lockSession();
@@ -1497,12 +1831,12 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                     fontWeight: 700,
                     textTransform: "none",
                     fontSize: "12px",
-                    borderColor: "#EDC11E",
-                    color: "#EDC11E",
-                    backgroundColor: "#FFF8DC",
+                    borderColor: "#F59E0B",
+                    color: "#D97706",
+                    backgroundColor: "#FEF3C7",
                     "&:hover": {
-                      borderColor: "#D4A915",
-                      backgroundColor: "#FFF3C4",
+                      borderColor: "#D97706",
+                      backgroundColor: "#FDE68A",
                     },
                   }}
                 >
@@ -1520,10 +1854,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                     fontWeight: 700,
                     textTransform: "none",
                     fontSize: "12px",
-                    backgroundColor: "#A20A3A",
+                    backgroundColor: brandPrimary,
                     color: "#FFFFFF",
                     "&:hover": {
-                      backgroundColor: "#85072F",
+                      backgroundColor: brandSecondary,
                     },
                   }}
                 >
@@ -1538,21 +1872,29 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
 
       {/* Navigation Drawers */}
       <Box component="nav" sx={{ width: { lg: activeDrawerWidth }, flexShrink: { lg: 0 }, transition: "width 0.25s cubic-bezier(0.4, 0, 0.2, 1)" }}>
-        {/* Mobile Temporary Drawer */}
+        {/* Slide-out Overlay Navigation Drawer */}
         <Drawer
           variant="temporary"
           open={mobileOpen}
-          onClose={handleDrawerToggle}
+          onClose={() => setMobileOpen(false)}
           ModalProps={{ keepMounted: true }}
           sx={{
             display: { xs: "block", lg: "none" },
-            "& .MuiDrawer-paper": { boxSizing: "border-box", width: FULL_DRAWER_WIDTH, border: "none" },
+            zIndex: 1400,
+            "& .MuiDrawer-paper": {
+              boxSizing: "border-box",
+              width: { xs: 280, sm: 300 },
+              maxWidth: "85vw",
+              border: "none",
+              boxShadow: "4px 0 24px rgba(0, 0, 0, 0.15)",
+              zIndex: 1400,
+            },
           }}
         >
           {renderDrawerContent(false)}
         </Drawer>
 
-        {/* Desktop Permanent Collapsible Drawer (260px / 72px) */}
+        {/* Desktop Permanent Collapsible Drawer */}
         <Drawer
           variant="permanent"
           sx={{
@@ -1561,6 +1903,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               boxSizing: "border-box",
               width: activeDrawerWidth,
               border: "none",
+              borderRight: "1px solid #E2E8F0",
               transition: "width 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
               overflowX: "hidden",
             },
@@ -1576,9 +1919,9 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         component="main"
         sx={{
           flexGrow: 1,
-          p: pathname === "/retailer/dmt" ? 0 : { xs: 2, sm: 3 },
+          p: (pathname === "/retailer/dmt" || isPayInPage) ? 0 : { xs: 1.5, sm: 2.5, md: 3 },
           width: { xs: "100%", lg: `calc(100% - ${activeDrawerWidth}px)` },
-          maxWidth: "100vw",
+          maxWidth: "100%",
           overflowX: "hidden",
           overflowY: "auto",
           mt: "56px",
@@ -1673,7 +2016,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           >
             <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
               <Typography variant="caption" sx={{ fontWeight: 600, fontSize: "12px" }}>
-                © 2021 Sathus Technology Pvt. Ltd. · {branding.display_name} Retailer Portal
+                © {new Date().getFullYear()} {branding.legal_name || branding.company_name} · {branding.display_name} Retailer Portal
               </Typography>
               <Chip label="v2.4.0-ENT" size="small" sx={{ height: 20, fontSize: "0.65rem", fontWeight: 800 }} />
             </Stack>
@@ -1771,6 +2114,18 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
 
     {/* ── Universal Search Dialog (Ctrl+K) ────────────────────────────────── */}
     <UniversalSearchDialog open={universalSearchOpen} onClose={() => setUniversalSearchOpen(false)} />
+
+    {/* ── Manual Wallet Refresh Error Notification ─────────────────────────── */}
+    <Snackbar
+      open={Boolean(refreshErrorToast)}
+      autoHideDuration={4000}
+      onClose={() => setRefreshErrorToast(null)}
+      anchorOrigin={{ vertical: "top", horizontal: "right" }}
+    >
+      <Alert onClose={() => setRefreshErrorToast(null)} severity="warning" variant="filled" sx={{ width: "100%", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>
+        {refreshErrorToast}
+      </Alert>
+    </Snackbar>
   </Box>
   );
 };

@@ -228,8 +228,98 @@
 .light .glass-card {
   background-color: #FFFFFF;
   border: 1px solid #E2E8F0;
-  color: #FFFFFF;
+  color: #0F172A;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06);
+}
+
+/* ── Admin Portal Scoped Enterprise Theme (October 2026 Approved Baseline) ── */
+.admin-portal-theme,
+[data-portal="admin"] {
+  --background-primary: #F8FAFC;
+  --background-secondary: #F1F5F9;
+  --surface: #FFFFFF;
+  --surface-elevated: #FFFFFF;
+  --border: #E2E8F0;
+  --border-strong: #CBD5E1;
+  --text-primary: #0F172A;
+  --text-secondary: #334155;
+  --text-muted: #64748B;
+  --accent: #2563EB;
+  --accent-hover: #1D4ED8;
+  --success: #16A34A;
+  --warning: #F59E0B;
+  --danger: #DC2626;
+  --info: #3B82F6;
+
+  /* Enterprise Admin Tokens */
+  --ent-primary: #6C63FF;
+  --ent-primary-hover: #5B52E5;
+  --ent-primary-light: #EDE9FE;
+  --ent-primary-text: #4338CA;
+
+  --ent-sidebar-bg: #0F172A;
+  --ent-sidebar-bg2: #0B101D;
+  --ent-sidebar-text: #F8FAFC;
+  --ent-sidebar-text-muted: #94A3B8;
+  --ent-sidebar-active-bg: rgba(37, 99, 235, 0.4);
+  --ent-sidebar-active: #FFFFFF;
+  --ent-sidebar-border: rgba(255, 255, 255, 0.10);
+  --ent-sidebar-category: #94A3B8;
+  --ent-sidebar-hover: rgba(255, 255, 255, 0.08);
+
+  --ent-bg: #F8FAFC;
+  --ent-surface: #FFFFFF;
+  --ent-surface-alt: #F8FAFC;
+  --ent-border: #E2E8F0;
+  --ent-divider: #F1F5F9;
+
+  --ent-text-primary: #0F172A;
+  --ent-text-secondary: #334155;
+  --ent-text-muted: #64748B;
+  --ent-text-disabled: #94A3B8;
+
+  --ent-success: #10B981;
+  --ent-success-bg: #D1FAE5;
+  --ent-success-border: #6EE7B7;
+  --ent-success-text: #065F46;
+
+  --ent-warning: #F59E0B;
+  --ent-warning-bg: #FEF3C7;
+  --ent-warning-border: #FCD34D;
+  --ent-warning-text: #92400E;
+
+  --ent-error: #EF4444;
+  --ent-error-bg: #FEE2E2;
+  --ent-error-border: #FECACA;
+  --ent-error-text: #991B1B;
+
+  --ent-info: #3B82F6;
+  --ent-info-bg: #DBEAFE;
+  --ent-info-border: #93C5FD;
+  --ent-info-text: #1E40AF;
+
+  --grid-page-bg: #F8FAFC;
+  --grid-bg: #FFFFFF;
+  --grid-header-bg: #F3F6FB;
+  --grid-header-border: #D8E2F0;
+  --grid-header-text: #0F172A;
+  --grid-row-odd: #FFFFFF;
+  --grid-row-even: #FAFBFD;
+  --grid-row-hover: #EEF6FF;
+  --grid-row-selected: #DCEEFF;
+  --grid-row-focused: #E9F5FF;
+  --grid-row-editing: #FFF7ED;
+  --grid-outer-border: #E2E8F0;
+  --grid-col-border: #EDF2F7;
+  --grid-row-border: #EDF2F7;
+  --grid-text-primary: #0F172A;
+  --grid-text-secondary: #334155;
+  --grid-text-muted: #64748B;
+  --grid-text-disabled: #94A3B8;
+  --grid-search-border: #D1D5DB;
+  --grid-search-focus-border: #6C63FF;
+  --grid-primary: #6C63FF;
+  --grid-primary-hover: #5B52E5;
 }
 
 /* Custom scrollbar-none / no-scrollbar utility */
@@ -454,7 +544,7 @@ html {
   top: 0;
   z-index: 10;
   background-color: #F3F6FB !important;
-  color: #FFFFFF;
+  color: #0F172A;
   font-weight: 700;
   font-size: 11px;
   text-transform: uppercase;
@@ -529,7 +619,7 @@ html {
   border: 1px solid #D1D5DB;
   border-radius: 6px;
   font-size: 13px;
-  color: #FFFFFF;
+  color: #0F172A;
   transition: all 0.15s ease;
 }
 

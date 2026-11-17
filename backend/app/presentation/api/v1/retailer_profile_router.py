@@ -18,10 +18,11 @@ from app.infrastructure.adapters.whatsapp_service import whatsapp_service
 
 from app.core.database import get_db
 from app.core.security import hash_password, verify_password
+from sqlalchemy.orm import selectinload
 from app.infrastructure.db.models import (
     RetailerModel, RetailerContactModel, RetailerAddressModel,
     RetailerBankModel, RetailerKycModel, DistributorModel,
-    AdminUserModel, AuditLogModel
+    AdminUserModel, AuditLogModel, CompanyModel, CompanyContactModel, CompanyAddressModel
 )
 from app.infrastructure.db.auth_models import AuthUserModel, LoginHistoryModel
 from app.infrastructure.db.customer_models import CustomerModel
@@ -233,9 +234,37 @@ def validate_mpin_rules(pin: str, confirm_pin: str):
 
 # ── CONTEXT RESOLUTION HELPER ──
 
-async def resolve_retailer_context(request: Request, retailer_id: Optional[str], db: AsyncSession):
+class RetailerProfileContext:
+    def __init__(
+        self,
+        target_ident: Optional[str],
+        clean_mobile: str,
+        r_uuid: Optional[uuid.UUID],
+        session_user_id: Optional[str],
+        session_email: Optional[str],
+        session_company_ref_id: Optional[int] = None,
+        session_tenant_ref_id: Optional[int] = None,
+        ret_model: Optional[Any] = None,
+        is_admin: bool = False
+    ):
+        self.target_ident = target_ident
+        self.clean_mobile = clean_mobile
+        self.r_uuid = r_uuid
+        self.session_user_id = session_user_id
+        self.session_email = session_email
+        self.session_company_ref_id = session_company_ref_id
+        self.session_tenant_ref_id = session_tenant_ref_id
+        self.ret_model = ret_model
+        self.is_admin = is_admin
+
+    def __iter__(self):
+        return iter((self.target_ident, self.clean_mobile, self.r_uuid, self.session_user_id, self.session_email))
+
+
+async def resolve_retailer_context(request: Request, retailer_id: Optional[str], db: AsyncSession) -> RetailerProfileContext:
     """
     Authorizes and extracts the verified retailer context strictly from validated session/token.
+    Enforces strict company_ref_id and tenant_ref_id data isolation.
     """
     cookies = request.cookies if request else {}
     auth_header = request.headers.get("authorization", "") if request else ""
@@ -270,17 +299,25 @@ async def resolve_retailer_context(request: Request, retailer_id: Optional[str],
     mobile = payload.get("mobile") or payload.get("phone")
     clean_mobile = str(mobile)[-10:] if mobile else ""
     session_email = email
-    target_ident = payload.get("retailer_id") or payload.get("registration_id")
+    target_ident = payload.get("retailer_id") or payload.get("retailer_code") or payload.get("registration_id")
     session_user_id = sub
+    session_company_ref_id = payload.get("company_ref_id")
+    session_tenant_ref_id = payload.get("tenant_ref_id")
+    roles = payload.get("roles") or []
+    is_admin = any(r in ["ADMIN", "SUPER_ADMIN", "OPS_ADMIN"] for r in roles)
 
     if sub:
         # 1. Check auth_users table
-        u_res = await db.execute(text("SELECT mobile_number, email, full_name FROM auth_users WHERE user_id::text = :sub OR public_id::text = :sub OR email = :sub"), {"sub": str(sub)})
+        u_res = await db.execute(text("SELECT mobile_number, email, full_name, company_ref_id, tenant_ref_id FROM auth_users WHERE user_id::text = :sub OR public_id::text = :sub OR email = :sub"), {"sub": str(sub)})
         u_row = u_res.mappings().first()
         if u_row:
             if u_row.get("mobile_number"):
                 clean_mobile = str(u_row["mobile_number"])[-10:]
             session_email = u_row.get("email") or session_email
+            if u_row.get("company_ref_id") is not None and session_company_ref_id is None:
+                session_company_ref_id = u_row["company_ref_id"]
+            if u_row.get("tenant_ref_id") is not None and session_tenant_ref_id is None:
+                session_tenant_ref_id = u_row["tenant_ref_id"]
 
         # 2. Check admin_user table
         a_res = await db.execute(text("SELECT phone, email, full_name FROM admin_user WHERE public_id::text = :sub OR id::text = :sub OR email = :sub"), {"sub": str(sub)})
@@ -294,8 +331,10 @@ async def resolve_retailer_context(request: Request, retailer_id: Optional[str],
         v_res = await db.execute(text("SELECT registration_id, mobile_number, email FROM retailer_verifications WHERE public_id::text = :sub OR retailer_id = :sub OR registration_id = :sub"), {"sub": str(sub)})
         v_row = v_res.mappings().first()
         if v_row:
-            target_ident = v_row["registration_id"]
-            clean_mobile = str(v_row["mobile_number"])[-10:]
+            if not target_ident:
+                target_ident = v_row["registration_id"]
+            if not clean_mobile and v_row.get("mobile_number"):
+                clean_mobile = str(v_row["mobile_number"])[-10:]
             session_email = v_row.get("email") or session_email
 
         # 4. Check retailer_contact
@@ -306,13 +345,67 @@ async def resolve_retailer_context(request: Request, retailer_id: Optional[str],
                 clean_mobile = "".join(filter(str.isdigit, str(c_row["mobile"])))[-10:]
                 session_email = c_row.get("email") or session_email
 
-        # 5. Check registration_drafts
-        if not clean_mobile:
-            d_res = await db.execute(text("SELECT mobile_number, email FROM public.registration_drafts WHERE registration_id = :sub"), {"sub": str(sub)})
-            d_row = d_res.mappings().first()
-            if d_row and d_row.get("mobile_number"):
-                clean_mobile = "".join(filter(str.isdigit, str(d_row["mobile_number"])))[-10:]
-                session_email = d_row.get("email") or session_email
+    # Direct check on RetailerModel by sub or retailer_code
+    ret_model = None
+    sub_uuid = None
+    try:
+        sub_uuid = uuid.UUID(str(sub))
+    except Exception:
+        pass
+
+    if sub_uuid:
+        ret_stmt = select(RetailerModel).where(RetailerModel.public_id == sub_uuid, RetailerModel.is_deleted == False)
+        ret_model = (await db.execute(ret_stmt)).scalars().first()
+        if ret_model:
+            target_ident = ret_model.retailer_code or str(ret_model.public_id)
+            if ret_model.company_ref_id is not None:
+                session_company_ref_id = ret_model.company_ref_id
+            if ret_model.tenant_ref_id is not None:
+                session_tenant_ref_id = ret_model.tenant_ref_id
+
+    # Parameter tampering / cross-tenant isolation enforcement
+    if retailer_id and str(retailer_id).strip():
+        req_id = str(retailer_id).strip()
+        if not is_admin:
+            allowed_tokens = {
+                str(sub).lower(),
+                str(target_ident or "").lower(),
+                str(clean_mobile).lower(),
+                str(payload.get("retailer_code") or "").lower(),
+                str(payload.get("retailer_id") or "").lower(),
+                str(payload.get("retailer_ref_id") or "").lower()
+            }
+            if req_id.lower() not in allowed_tokens:
+                logger.warning(f"Security Alert: Cross-retailer unauthorized parameter access attempted by user {sub}: requested {req_id}")
+                raise HTTPException(
+                    status_code=403,
+                    detail="Access denied: Company and retailer data isolation violation (COMPANY_IDENTITY_MISMATCH)."
+                )
+        else:
+            target_ident = req_id
+
+    # If ret_model not yet resolved, query by target_ident
+    if not ret_model and target_ident:
+        r_uuid_cand = None
+        try:
+            r_uuid_cand = uuid.UUID(str(target_ident))
+        except Exception:
+            pass
+        conds = [RetailerModel.retailer_code == str(target_ident)]
+        if r_uuid_cand:
+            conds.append(RetailerModel.public_id == r_uuid_cand)
+        ret_q = select(RetailerModel).where(or_(*conds), RetailerModel.is_deleted == False)
+        if session_company_ref_id and not is_admin:
+            ret_q = ret_q.where(RetailerModel.company_ref_id == session_company_ref_id)
+        ret_model = (await db.execute(ret_q)).scalars().first()
+
+    # Enforce company reference ID matching on resolved entity
+    if ret_model and session_company_ref_id and not is_admin:
+        if ret_model.company_ref_id and ret_model.company_ref_id != session_company_ref_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied: Retailer does not belong to authorized company (COMPANY_IDENTITY_MISMATCH)."
+            )
 
     if not target_ident and not clean_mobile:
         target_ident = str(sub)
@@ -323,45 +416,24 @@ async def resolve_retailer_context(request: Request, retailer_id: Optional[str],
         if rc_row and rc_row.get("mobile"):
             clean_mobile = "".join(filter(str.isdigit, str(rc_row["mobile"])))[-10:]
 
-    # Map target_ident or clean_mobile to exact registration_id if not already REG-*
-    if target_ident or clean_mobile:
-        r_uuid_cand = None
+    r_uuid = getattr(ret_model, "public_id", None)
+    if not r_uuid and target_ident:
         try:
-            if target_ident:
-                r_uuid_cand = uuid.UUID(str(target_ident))
-        except Exception:
-            r_uuid_cand = None
-
-        v_conds = []
-        if r_uuid_cand:
-            v_conds.append(RetailerVerificationModel.public_id == r_uuid_cand)
-        if target_ident:
-            v_conds.append(RetailerVerificationModel.retailer_id == str(target_ident))
-            v_conds.append(RetailerVerificationModel.registration_id == str(target_ident))
-        if clean_mobile and len(clean_mobile) == 10:
-            v_conds.append(RetailerVerificationModel.mobile_number == clean_mobile)
-            v_conds.append(RetailerVerificationModel.mobile_number == f"+91{clean_mobile}")
-            v_conds.append(RetailerVerificationModel.mobile_number == f"91{clean_mobile}")
-            v_conds.append(RetailerVerificationModel.mobile_number.like(f"%{clean_mobile}"))
-
-        if v_conds:
-            try:
-                v_row = (await db.execute(select(RetailerVerificationModel).where(or_(*v_conds)).order_by(desc(RetailerVerificationModel.created_date)))).scalars().first()
-                if v_row:
-                    target_ident = v_row.registration_id
-                    clean_mobile = str(v_row.mobile_number)[-10:]
-                    session_email = v_row.email or session_email
-            except Exception as e:
-                logger.warning(f"Retailer verification resolve notice: {e}")
-
-    r_uuid = None
-    try:
-        if target_ident:
             r_uuid = uuid.UUID(str(target_ident))
-    except Exception:
-        r_uuid = None
+        except Exception:
+            r_uuid = None
 
-    return target_ident, clean_mobile, r_uuid, session_user_id, session_email
+    return RetailerProfileContext(
+        target_ident=target_ident,
+        clean_mobile=clean_mobile,
+        r_uuid=r_uuid,
+        session_user_id=session_user_id,
+        session_email=session_email,
+        session_company_ref_id=session_company_ref_id,
+        session_tenant_ref_id=session_tenant_ref_id,
+        ret_model=ret_model,
+        is_admin=is_admin
+    )
 
 
 # ── GET COMPLETE PROFILE ──
@@ -376,7 +448,10 @@ async def get_retailer_profile(
     Authoritative profile aggregator loading exclusively from PostgreSQL and dynamic relations.
     Never returns hardcoded or fake data.
     """
-    target_ident, clean_mobile, r_uuid, session_user_id, session_email = await resolve_retailer_context(request, retailer_id, db)
+    ctx = await resolve_retailer_context(request, retailer_id, db)
+    target_ident, clean_mobile, r_uuid, session_user_id, session_email = ctx
+    session_company_ref_id = ctx.session_company_ref_id
+    ret_model = ctx.ret_model
 
     # 1. Query Verification table
     verif = None
@@ -396,19 +471,21 @@ async def get_retailer_profile(
         except Exception as e:
             logger.warning(f"Verification query error: {e}")
 
-    # 2. Query RetailerModel
-    ret_model = None
-    try:
-        ret_conds = []
-        if r_uuid:
-            ret_conds.append(RetailerModel.public_id == r_uuid)
-        if target_ident:
-            ret_conds.append(RetailerModel.retailer_code == str(target_ident))
-        if ret_conds:
-            ret_stmt = select(RetailerModel).where(or_(*ret_conds))
-            ret_model = (await db.execute(ret_stmt)).scalars().first()
-    except Exception as e:
-        logger.warning(f"RetailerModel query error: {e}")
+    # 2. Query RetailerModel if not already resolved from context
+    if not ret_model:
+        try:
+            ret_conds = []
+            if r_uuid:
+                ret_conds.append(RetailerModel.public_id == r_uuid)
+            if target_ident:
+                ret_conds.append(RetailerModel.retailer_code == str(target_ident))
+            if ret_conds:
+                ret_stmt = select(RetailerModel).where(or_(*ret_conds), RetailerModel.is_deleted == False)
+                if session_company_ref_id and not ctx.is_admin:
+                    ret_stmt = ret_stmt.where(RetailerModel.company_ref_id == session_company_ref_id)
+                ret_model = (await db.execute(ret_stmt)).scalars().first()
+        except Exception as e:
+            logger.warning(f"RetailerModel query error: {e}")
 
     # 3. Query Draft table (prioritize draft matching active verification registration_id)
     draft = None
@@ -534,8 +611,13 @@ async def get_retailer_profile(
     status_val = (verif.retailer_status or verif.account_status or "ACTIVE") if verif else ((ret_model.status or "ACTIVE") if ret_model else (draft.status if draft else "ACTIVE"))
     registered_date = get_iso_date(verif) or get_iso_date(draft)
 
+    store_name_val = ret_model.store_name if (ret_model and ret_model.store_name) else (verif.shop_name if (verif and verif.shop_name) else (draft_data.get("shop_name") or full_name))
+    owner_name_val = ret_model.owner_name if (ret_model and ret_model.owner_name) else full_name
+
     personal_data = {
-        "retailer_name": full_name,
+        "retailer_name": store_name_val,
+        "store_name": store_name_val,
+        "owner_name": owner_name_val,
         "first_name": first_name,
         "middle_name": middle_name,
         "last_name": last_name,
@@ -933,23 +1015,53 @@ async def get_retailer_profile(
             "last_updated": None
         }
 
-    # 14. Build Dynamic COMPANY Contact & Support Info
-    company_data = {
-        "company_name": "SUPER REX PRODUCTS PRIVATE LIMITED",
-        "brand_name": "Pay2Pay Enterprise Network",
-        "cin": "U72900TN2024PTC168920",
-        "gstin": "33AAACP1234F1Z5",
-        "support_email": "support@pay2pay.in",
-        "support_phone": "1800 292 982",
-        "direct_phone": "+91 44 4892 9820",
-        "whatsapp_number": "+91 70139 14767",
-        "grievance_email": "grievance@pay2pay.in",
-        "nodal_officer": "Grievance Redressal Officer, Pay2Pay",
-        "support_hours": "Monday - Saturday | 09:00 AM - 07:00 PM IST",
-        "headquarters": "Shop No: 7, 1st Floor, Chittaramma Temple Complex, Moosapet, Hyderabad, Telangana - 500018, India",
-        "helpdesk_url": "https://pay2pay.in/support",
-        "website_url": "https://pay2pay.in"
-    }
+    # 14. Build Dynamic COMPANY Contact & Support Info from authoritative CompanyModel
+    resolved_comp_ref = (ret_model.company_ref_id if ret_model else None) or session_company_ref_id or 1
+    c_stmt = (
+        select(CompanyModel)
+        .where(CompanyModel.company_ref_id == resolved_comp_ref)
+        .options(selectinload(CompanyModel.contacts), selectinload(CompanyModel.addresses))
+    )
+    comp = (await db.execute(c_stmt)).scalars().first()
+
+    if comp:
+        prim_contact = comp.contacts[0] if comp.contacts else None
+        prim_addr = comp.addresses[0] if comp.addresses else None
+        company_data = {
+            "company_name": comp.company_name or comp.legal_name or "Enterprise Network",
+            "brand_name": comp.display_name or comp.company_name or "Enterprise Network",
+            "legal_name": comp.legal_name or comp.company_name,
+            "cin": comp.cin_number or "—",
+            "gstin": comp.gst_number or "—",
+            "support_email": (prim_contact.support_email if prim_contact else None) or (prim_contact.email if prim_contact else None) or f"support@{comp.website.replace('https://', '').replace('http://', '').strip('/') if comp.website else 'smspay.store'}",
+            "support_phone": (prim_contact.support_phone if prim_contact else None) or (prim_contact.mobile if prim_contact else None) or "1800 292 982",
+            "direct_phone": (prim_contact.mobile if prim_contact else None) or "+91 44 4892 9820",
+            "whatsapp_number": (prim_contact.mobile if prim_contact else None) or "+91 70139 14767",
+            "grievance_email": (prim_contact.email if prim_contact else None) or f"grievance@{comp.website.replace('https://', '').replace('http://', '').strip('/') if comp.website else 'smspay.store'}",
+            "nodal_officer": f"Grievance Redressal Officer, {comp.company_name or 'Enterprise Network'}",
+            "support_hours": "Monday - Saturday | 09:00 AM - 07:00 PM IST",
+            "headquarters": f"{prim_addr.address}, {prim_addr.city}, {prim_addr.state} - {prim_addr.pincode}" if prim_addr else "Corporate Headquarters",
+            "helpdesk_url": comp.website or "https://smspay.store/support",
+            "website_url": comp.website or "https://smspay.store"
+        }
+    else:
+        company_data = {
+            "company_name": "Enterprise Network",
+            "brand_name": "Enterprise Network",
+            "legal_name": "Enterprise Network",
+            "cin": "—",
+            "gstin": "—",
+            "support_email": "support@smspay.store",
+            "support_phone": "1800 292 982",
+            "direct_phone": "—",
+            "whatsapp_number": "—",
+            "grievance_email": "grievance@smspay.store",
+            "nodal_officer": "Grievance Redressal Officer",
+            "support_hours": "Monday - Saturday | 09:00 AM - 07:00 PM IST",
+            "headquarters": "Corporate Headquarters",
+            "helpdesk_url": "https://smspay.store/support",
+            "website_url": "https://smspay.store"
+        }
 
     return {
         "success": True,
@@ -977,7 +1089,10 @@ async def update_contact(
     retailer_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
-    target_ident, clean_mobile, r_uuid, session_user_id, session_email = await resolve_retailer_context(request, retailer_id, db)
+    ctx = await resolve_retailer_context(request, retailer_id, db)
+    target_ident, clean_mobile, r_uuid, session_user_id, session_email = ctx
+    session_company_ref_id = ctx.session_company_ref_id
+    ret_model = ctx.ret_model
 
     # 1. Prioritize active verification registration_id
     draft = None
@@ -1059,7 +1174,10 @@ async def send_email_update_otp(
     retailer_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
-    target_ident, clean_mobile, r_uuid, session_user_id, session_email = await resolve_retailer_context(request, retailer_id, db)
+    ctx = await resolve_retailer_context(request, retailer_id, db)
+    target_ident, clean_mobile, r_uuid, session_user_id, session_email = ctx
+    session_company_ref_id = ctx.session_company_ref_id
+    ret_model = ctx.ret_model
     
     new_email = str(req.new_email).lower().strip()
     
@@ -1155,7 +1273,10 @@ async def verify_email_update_otp(
     retailer_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
-    target_ident, clean_mobile, r_uuid, session_user_id, session_email = await resolve_retailer_context(request, retailer_id, db)
+    ctx = await resolve_retailer_context(request, retailer_id, db)
+    target_ident, clean_mobile, r_uuid, session_user_id, session_email = ctx
+    session_company_ref_id = ctx.session_company_ref_id
+    ret_model = ctx.ret_model
 
     new_email = str(req.new_email).lower().strip()
     entered_otp = str(req.otp_code).strip()
@@ -1327,7 +1448,10 @@ async def update_address(
     retailer_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
-    target_ident, clean_mobile, r_uuid, session_user_id, session_email = await resolve_retailer_context(request, retailer_id, db)
+    ctx = await resolve_retailer_context(request, retailer_id, db)
+    target_ident, clean_mobile, r_uuid, session_user_id, session_email = ctx
+    session_company_ref_id = ctx.session_company_ref_id
+    ret_model = ctx.ret_model
 
     draft = None
     if target_ident or clean_mobile:
@@ -1411,7 +1535,10 @@ async def upload_photo(
     if len(file_bytes) > 5 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Photo size exceeds 5 MB limit.")
 
-    target_ident, clean_mobile, r_uuid, session_user_id, session_email = await resolve_retailer_context(request, retailer_id, db)
+    ctx = await resolve_retailer_context(request, retailer_id, db)
+    target_ident, clean_mobile, r_uuid, session_user_id, session_email = ctx
+    session_company_ref_id = ctx.session_company_ref_id
+    ret_model = ctx.ret_model
 
     # Upload to Backblaze B2
     file_url = ""
@@ -1505,7 +1632,10 @@ async def get_photo_image(
     from pathlib import Path
     import re
 
-    target_ident, clean_mobile, r_uuid, session_user_id, session_email = await resolve_retailer_context(request, retailer_id, db)
+    ctx = await resolve_retailer_context(request, retailer_id, db)
+    target_ident, clean_mobile, r_uuid, session_user_id, session_email = ctx
+    session_company_ref_id = ctx.session_company_ref_id
+    ret_model = ctx.ret_model
     reg_id = str(target_ident) if target_ident else None
 
     # Resolve registration_id if target_ident was a mobile or retailer code
@@ -1602,7 +1732,10 @@ async def send_security_whatsapp_otp(
     if action_type not in ("PASSWORD", "MPIN"):
         raise HTTPException(status_code=400, detail="Invalid action type. Expected PASSWORD or MPIN.")
 
-    target_ident, clean_mobile, r_uuid, session_user_id, session_email = await resolve_retailer_context(request, retailer_id, db)
+    ctx = await resolve_retailer_context(request, retailer_id, db)
+    target_ident, clean_mobile, r_uuid, session_user_id, session_email = ctx
+    session_company_ref_id = ctx.session_company_ref_id
+    ret_model = ctx.ret_model
 
     if not clean_mobile and session_user_id:
         try:
@@ -1685,7 +1818,10 @@ async def change_password(
     if not req.otp_code or not req.otp_code.strip():
         raise HTTPException(status_code=400, detail="WhatsApp authorization OTP is required. Changes were NOT saved.")
 
-    target_ident, clean_mobile, r_uuid, session_user_id, session_email = await resolve_retailer_context(request, retailer_id, db)
+    ctx = await resolve_retailer_context(request, retailer_id, db)
+    target_ident, clean_mobile, r_uuid, session_user_id, session_email = ctx
+    session_company_ref_id = ctx.session_company_ref_id
+    ret_model = ctx.ret_model
 
     mobile_variants = []
     if clean_mobile:
@@ -1898,7 +2034,10 @@ async def change_mpin(
     if not req.otp_code or not req.otp_code.strip():
         raise HTTPException(status_code=400, detail="WhatsApp authorization OTP is required. Changes were NOT saved.")
 
-    target_ident, clean_mobile, r_uuid, session_user_id, session_email = await resolve_retailer_context(request, retailer_id, db)
+    ctx = await resolve_retailer_context(request, retailer_id, db)
+    target_ident, clean_mobile, r_uuid, session_user_id, session_email = ctx
+    session_company_ref_id = ctx.session_company_ref_id
+    ret_model = ctx.ret_model
 
     mobile_variants = []
     if clean_mobile:

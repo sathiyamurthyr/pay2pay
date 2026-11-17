@@ -72,19 +72,26 @@ class WalletLedgerAuditService:
         ]
 
     @staticmethod
+    @classmethod
     async def get_entities_by_user_type(
+        cls,
         db: AsyncSession,
-        user_type: Optional[str] = None
+        user_type: Optional[str] = None,
+        company_ref_id: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
         Dynamically returns list of entities (SDs, Distributors, Retailers)
-        filtered by user type for cascading dropdowns.
+        filtered by user type and company boundary for cascading dropdowns.
         """
         ut = (user_type or "ALL").upper().strip()
         entities: List[Dict[str, Any]] = []
+        comp_filter_sd = "AND sd.company_ref_id = :comp_ref" if company_ref_id is not None else ""
+        comp_filter_dist = "AND company_ref_id = :comp_ref" if company_ref_id is not None else ""
+        comp_filter_ret = "AND r.company_ref_id = :comp_ref" if company_ref_id is not None else ""
+        params = {"comp_ref": company_ref_id} if company_ref_id is not None else {}
 
         if ut in ("ALL", "SD", "SUPER_DISTRIBUTOR", "SUPER DISTRIBUTOR"):
-            sql_sd = """
+            sql_sd = f"""
             WITH ranked_sd AS (
                 SELECT 
                     sd.super_distributor_ref_id AS id,
@@ -100,13 +107,14 @@ class WalletLedgerAuditService:
                     ) as rn
                 FROM public.super_distributor sd
                 WHERE sd.is_deleted IS NOT TRUE AND (sd.is_active IS NULL OR sd.is_active IS TRUE)
+                {comp_filter_sd}
             )
             SELECT id, code, name, owner_name, mobile, user_type, user_type_ref_id
             FROM ranked_sd
             WHERE rn = 1
             ORDER BY name ASC;
             """
-            res = await db.execute(text(sql_sd))
+            res = await db.execute(text(sql_sd), params)
             for r in res.fetchall():
                 entities.append({
                     "id": r[0],
@@ -120,7 +128,7 @@ class WalletLedgerAuditService:
                 })
 
         if ut in ("ALL", "DISTRIBUTOR", "DIST"):
-            sql_dist = """
+            sql_dist = f"""
             SELECT 
                 distributor_ref_id AS id,
                 distributor_code AS code,
@@ -131,9 +139,10 @@ class WalletLedgerAuditService:
                 3 AS user_type_ref_id
             FROM public.distributor
             WHERE is_deleted IS NOT TRUE AND (is_active IS NULL OR is_active IS TRUE)
+            {comp_filter_dist}
             ORDER BY business_name ASC;
             """
-            res = await db.execute(text(sql_dist))
+            res = await db.execute(text(sql_dist), params)
             for r in res.fetchall():
                 entities.append({
                     "id": r[0],
@@ -147,7 +156,7 @@ class WalletLedgerAuditService:
                 })
 
         if ut in ("ALL", "RETAILER", "RET"):
-            sql_ret = """
+            sql_ret = f"""
             WITH ranked_ret AS (
                 SELECT 
                     r.retailer_ref_id AS id,
@@ -175,13 +184,14 @@ class WalletLedgerAuditService:
                 WHERE r.is_deleted IS NOT TRUE 
                   AND (r.is_active IS NULL OR r.is_active IS TRUE)
                   AND (r.status IS NULL OR r.status != 'REJECTED')
+                  {comp_filter_ret}
             )
             SELECT id, code, name, owner_name, mobile, user_type, user_type_ref_id
             FROM ranked_ret
             WHERE rn = 1
             ORDER BY name ASC;
             """
-            res = await db.execute(text(sql_ret))
+            res = await db.execute(text(sql_ret), params)
             for r in res.fetchall():
                 entities.append({
                     "id": r[0],

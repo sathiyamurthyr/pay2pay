@@ -6,6 +6,8 @@ import { useRouter, usePathname } from "next/navigation";
 import { RetailerLayout } from "@/components/layout/retailer-layout";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Navbar } from "@/components/layout/navbar";
+import "@/app/admin.css";
+import "@/app/(dashboard)/retailer/payin/payin.css";
 
 const DEV_BYPASS = false;
 
@@ -22,6 +24,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Authentication & Approval check
   useEffect(() => {
     if (DEV_BYPASS || !mounted || authLoading) return;
+
+    // Allow public payin receipt & status routes to render without login
+    if (
+      pathname?.startsWith("/retailer/payin/status") ||
+      pathname?.startsWith("/retailer/payin/callback") ||
+      pathname?.startsWith("/retailer/payin/checkout")
+    ) {
+      return;
+    }
+
     if (!user) {
       // Check if session token exists in cookie or localStorage before kicking user out
       if (typeof document !== "undefined") {
@@ -112,16 +124,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (isAdminOrSuperAdminRoute || (isSuperAdminOrAdminUser && !pathname?.startsWith("/retailer"))) {
     return (
-      <div className="flex h-screen bg-white text-[#0F172A] overflow-hidden">
-        <Sidebar />
+      <div className="admin-portal-theme flex h-screen bg-[#F8FAFC] text-[#0F172A] overflow-hidden" data-portal="admin">
+        <Sidebar alwaysExpanded={true} />
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <Navbar />
-          <main className="flex-1 overflow-y-auto p-2 sm:p-3 bg-white">
+          <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-[#F8FAFC]">
             {children}
           </main>
         </div>
       </div>
     );
+  }
+
+  if (
+    (pathname?.startsWith("/retailer/payin/status") ||
+      pathname?.startsWith("/retailer/payin/callback") ||
+      pathname?.startsWith("/retailer/payin/checkout")) &&
+    !user
+  ) {
+    return <main className="min-h-screen bg-[#0F172A] text-slate-100">{children}</main>;
   }
 
   return <RetailerLayout>{children}</RetailerLayout>;

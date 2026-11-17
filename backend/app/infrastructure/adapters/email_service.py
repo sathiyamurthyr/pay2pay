@@ -12,6 +12,7 @@ from email.mime.application import MIMEApplication
 from typing import Dict, Any, Optional
 
 from app.core.config import settings
+from app.infrastructure.adapters.global_notification_platform_client import global_notification_platform_client
 
 logger = logging.getLogger("email_service")
 
@@ -113,8 +114,8 @@ class EmailService:
         smtp_port = self.smtp_port if self.smtp_port is not None else getattr(settings, "SMTP_PORT", 587)
         smtp_username = self.smtp_username if self.smtp_username is not None else getattr(settings, "SMTP_USERNAME", "")
         smtp_password = self.smtp_password if self.smtp_password is not None else getattr(settings, "SMTP_PASSWORD", "")
-        from_email = self.from_email or getattr(settings, "SMTP_FROM_EMAIL", "") or smtp_username
-        from_name = self.from_name or getattr(settings, "SMTP_FROM_NAME", "Pay2Pay Enterprise")
+        from_email = self.from_email if self.from_email is not None else (getattr(settings, "SMTP_FROM_EMAIL", "") or smtp_username)
+        from_name = self.from_name if self.from_name is not None else getattr(settings, "SMTP_FROM_NAME", "Pay2Pay Enterprise")
 
         if smtp_password:
             # Gmail App passwords may contain spaces for readability - strip them for SMTP auth
@@ -185,8 +186,32 @@ class EmailService:
                     "detail": str(ex465)
                 }
 
-    async def send_otp(self, recipient_email: str, otp_code: str) -> Dict[str, Any]:
-        """Async wrapper for dispatching email OTP."""
+    async def send_otp(
+        self,
+        recipient_email: str,
+        otp_code: str,
+        recipient_name: Optional[str] = None,
+        company_context: Optional[Any] = None
+    ) -> Dict[str, Any]:
+        """
+        Async dispatch for Email OTP.
+        Attempts Sathus Notification Platform (multi-project dynamic branding & DKIM) first,
+        with non-blocking fallback to local SMTP.
+        """
+        if getattr(global_notification_platform_client, "enabled", True):
+            try:
+                res = await global_notification_platform_client.send_auth_otp_email(
+                    recipient_email=recipient_email,
+                    recipient_name=recipient_name or "Retailer",
+                    otp_code=otp_code,
+                    company_context=company_context or recipient_email
+                )
+                if res.get("status") == "SUCCESS" and res.get("delivered"):
+                    logger.info(f"[EMAIL SERVICE] OTP successfully delivered via Sathus Notification Platform for {recipient_email} (Project: {res.get('project_code')})")
+                    return res
+            except Exception as ex:
+                logger.warning(f"[EMAIL SERVICE] Sathus Notification Platform dispatch failed for OTP to {recipient_email}: {ex}. Falling back to direct SMTP.")
+
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -350,8 +375,31 @@ class EmailService:
                     "detail": str(ex465)
                 }
 
-    async def send_password_reset_email(self, recipient_email: str, reset_link: str) -> Dict[str, Any]:
-        """Async wrapper for dispatching enterprise password reset email."""
+    async def send_password_reset_email(
+        self,
+        recipient_email: str,
+        reset_link: str,
+        recipient_name: Optional[str] = None,
+        company_context: Optional[Any] = None
+    ) -> Dict[str, Any]:
+        """
+        Async dispatch for Enterprise Password Reset email.
+        Attempts Sathus Notification Platform first with non-blocking fallback to direct SMTP.
+        """
+        if getattr(global_notification_platform_client, "enabled", True):
+            try:
+                res = await global_notification_platform_client.send_password_reset_email(
+                    recipient_email=recipient_email,
+                    recipient_name=recipient_name or "Retailer",
+                    reset_link=reset_link,
+                    company_context=company_context or recipient_email
+                )
+                if res.get("status") == "SUCCESS" and res.get("delivered"):
+                    logger.info(f"[EMAIL SERVICE] Password reset email delivered via Sathus Notification Platform for {recipient_email} (Project: {res.get('project_code')})")
+                    return res
+            except Exception as ex:
+                logger.warning(f"[EMAIL SERVICE] Sathus Notification Platform dispatch failed for password reset to {recipient_email}: {ex}. Falling back to direct SMTP.")
+
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -530,8 +578,8 @@ class EmailService:
         smtp_port = self.smtp_port if self.smtp_port is not None else getattr(settings, "SMTP_PORT", 587)
         smtp_username = self.smtp_username if self.smtp_username is not None else getattr(settings, "SMTP_USERNAME", "")
         smtp_password = self.smtp_password if self.smtp_password is not None else getattr(settings, "SMTP_PASSWORD", "")
-        from_email = self.from_email or getattr(settings, "SMTP_FROM_EMAIL", "") or smtp_username
-        from_name = self.from_name or getattr(settings, "SMTP_FROM_NAME", "Pay2Pay Enterprise")
+        from_email = self.from_email if self.from_email is not None else (getattr(settings, "SMTP_FROM_EMAIL", "") or smtp_username)
+        from_name = self.from_name if self.from_name is not None else getattr(settings, "SMTP_FROM_NAME", "Pay2Pay Enterprise")
 
         if smtp_password:
             smtp_password = smtp_password.strip()
@@ -846,9 +894,35 @@ SUPER REX PRODUCTS PRIVATE LIMITED
         is_admin: bool = False,
         password_hint: Optional[str] = None,
         password_formula: Optional[str] = None,
-        password_example: Optional[str] = None
+        password_example: Optional[str] = None,
+        company_context: Optional[Any] = None
     ) -> Dict[str, Any]:
-        """Async wrapper for dispatching daily account statement email."""
+        """
+        Async dispatch for daily account statement email with password-protected PDF.
+        Attempts Sathus Notification Platform (mail.sathus.in, DKIM, base64 PDF attachment) first,
+        with non-blocking fallback to local direct SMTP.
+        """
+        if getattr(global_notification_platform_client, "enabled", True):
+            try:
+                res = await global_notification_platform_client.send_statement_email(
+                    recipient_email=recipient_email,
+                    recipient_name=recipient_name,
+                    statement_date=statement_date_str,
+                    opening_balance=opening_balance,
+                    total_credit=total_credit,
+                    total_debit=total_debit,
+                    closing_balance=closing_balance,
+                    pdf_bytes=pdf_bytes,
+                    filename=filename,
+                    password_hint=password_hint,
+                    company_context=company_context or recipient_email
+                )
+                if res.get("status") == "SUCCESS" and res.get("delivered"):
+                    logger.info(f"[EMAIL SERVICE] Statement email successfully delivered via Sathus Notification Platform for {recipient_email} (Project: {res.get('project_code')})")
+                    return res
+            except Exception as ex:
+                logger.warning(f"[EMAIL SERVICE] Sathus Notification Platform statement dispatch failed for {recipient_email}: {ex}. Falling back to direct SMTP.")
+
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:

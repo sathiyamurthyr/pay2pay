@@ -3,6 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import React, { useState, useMemo, useEffect, useRef, Suspense } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -13,6 +14,7 @@ import {
   Clock,
   ChevronDown,
   ArrowUpRight,
+  ArrowLeft,
   Eye,
   Unlock,
   Lock,
@@ -304,71 +306,29 @@ function CustomersContent() {
   return (
     <div className="min-h-screen bg-[#FFFFFF] text-[#292329] font-sans pb-32 transition-colors">
       
-      {/* ─────────────────────────────────────────────────────────────────────
-          1. TOP LUXURY GLASS APP BAR
-      ───────────────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-30 bg-[#FFFFFF]/90 backdrop-blur-xl border-b border-amber-400/20 shadow-[0_8px_32px_rgba(0,0,0,0.6)]">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
-          
-          {/* Left: Hamburger & Title */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.push("/retailer-dashboard")}
-              aria-label="Open Navigation Menu"
-              className="p-2 rounded-xl text-amber-300 bg-amber-400/10 border border-amber-400/30 hover:bg-amber-400/20 transition-colors focus:ring-2 focus:ring-amber-400 focus:outline-none min-h-[44px] min-w-[44px] flex items-center justify-center"
-            >
-              <Menu className="w-5 h-5 stroke-[2.5]" />
-            </button>
-
-            <div className="flex items-center gap-2">
-              <h1 className="text-base sm:text-xl font-black tracking-tight bg-gradient-to-r from-[#FEF08A] via-[#FBBF24] to-[#F59E0B] bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(245,158,11,0.3)]">
-                Customers
-              </h1>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400/15 text-amber-300 border border-amber-400/30 hidden sm:inline-block">
-                Directory
-              </span>
+      {/* ── LEGITIMATE PAGE TOOLBAR (P0 Header Duplication Fix) ── */}
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-4 pb-2 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/retailer/dashboard"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-xs"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Back to Dashboard</span>
+          </Link>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-200/50">
+              <Users className="w-4 h-4 text-blue-600" />
             </div>
-          </div>
-
-          {/* Right: Wallet Balance Pill, Refresh, Notifications, Profile */}
-          <div className="flex items-center gap-2.5">
-            {/* Gold Wallet Pill */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-400/10 border border-amber-400/30 shadow-[0_0_12px_rgba(251,191,36,0.15)] font-mono font-black text-xs sm:text-sm text-amber-300">
-              <span className="text-amber-400 text-xs">₹</span>
-              <span className="bg-gradient-to-r from-[#FEF08A] to-[#FBBF24] bg-clip-text text-transparent">
-                49,357.52
-              </span>
-            </div>
-
-            <button
-              onClick={handleRefresh}
-              aria-label="Refresh Balances"
-              className={`p-2 rounded-xl text-amber-300 bg-white/5 border border-white/10 hover:bg-amber-400/15 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center ${
-                isLoading ? "animate-spin" : ""
-              }`}
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
-
-            <button
-              aria-label="View Notifications"
-              onClick={() => router.push("/retailer/notifications")}
-              className="relative p-2 rounded-xl text-amber-300 bg-white/5 border border-white/10 hover:bg-amber-400/15 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-            >
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-slate-900" />
-            </button>
-
-            <button
-              aria-label="View Profile"
-              onClick={() => router.push("/retailer/profile")}
-              className="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-400 text-slate-950 font-black text-xs flex items-center justify-center shadow-lg border border-amber-300/40 hover:scale-105 transition-transform"
-            >
-              S
-            </button>
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
+              Customers
+            </h1>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
+              Directory
+            </span>
           </div>
         </div>
-      </header>
+      </div>
 
       <main className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-5 space-y-5">
         

@@ -149,16 +149,6 @@ export default function NewCustomerWorkspacePage() {
     });
   }, []);
 
-  useEffect(() => {
-    const checkFreshWallet = async () => {
-      try {
-        if (typeof refreshBalances === "function") await refreshBalances();
-        else if (typeof syncBalance === "function") await syncBalance();
-      } catch {}
-    };
-    checkFreshWallet();
-  }, [refreshBalances, syncBalance]);
-
   const handleRefreshClick = async () => {
     setIsRefreshing(true);
     try {

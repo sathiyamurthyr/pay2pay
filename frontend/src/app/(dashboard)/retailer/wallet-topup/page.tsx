@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import WalletPage from "@/app/(dashboard)/retailer/wallet/page";
+import RetailerWalletTopupView from "@/modules/retailer/RetailerWalletTopupView";
 
 export default function RetailerWalletTopupPage() {
-  return <WalletPage />;
+  return <RetailerWalletTopupView />;
 }

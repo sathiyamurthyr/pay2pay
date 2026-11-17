@@ -49,6 +49,8 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import { getApiBaseUrl } from "@/lib/api-config";
 import { CompanyHeader } from "@/components/common/CompanyHeader";
 import { useCompanyBranding } from "@/hooks/useCompanyBranding";
+import { useAuth } from "@/lib/auth";
+import { maskGatewayName } from "@/lib/gateway-config";
 
 export interface DynamicTransactionDetailsPayload {
   company?: {
@@ -169,6 +171,7 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
   initialData,
   onToast,
 }) => {
+  const { isAdmin } = useAuth();
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [details, setDetails] = useState<DynamicTransactionDetailsPayload | null>(null);
@@ -802,25 +805,29 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
               <Paper sx={{ p: 2.5, borderRadius: "16px", bgcolor: "#FAF8F9", border: "1px solid #E8E2E5" }}>
                 <Typography variant="subtitle2" sx={{ color: "#A20A3A", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
                   <HubIcon sx={{ fontSize: 18 }} />
-                  G. Vendor / Switch Information (Authorized Role Only)
+                  {isAdmin ? "G. Vendor / Switch Information (Authorized Role Only)" : "G. Payment Gateway Details"}
                 </Typography>
                 <Grid container spacing={2}>
                   <Grid item xs={12} sm={6}>
-                    <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>Vendor Name</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 700, color: "#292329" }}>{vendor.name}</Typography>
+                    <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>Gateway / Vendor</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700, color: "#292329" }}>
+                      {isAdmin ? vendor.name : maskGatewayName(vendor.name)}
+                    </Typography>
                   </Grid>
                   <Grid item xs={12} sm={6}>
-                    <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>API Status</Typography>
+                    <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>Status</Typography>
                     <Typography variant="body2" sx={{ fontWeight: 800, color: vendor.api_status === "SUCCESS" ? "#10B981" : "#EF4444" }}>
                       {vendor.api_status}
                     </Typography>
                   </Grid>
-                  <Grid item xs={12}>
-                    <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>API Response / Status Message</Typography>
-                    <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#292329", fontSize: "13px", mt: 0.5, bgcolor: "#FFFFFF", border: "1px solid #E8E2E5", p: 1.5, borderRadius: "8px" }}>
-                      {vendor.api_response}
-                    </Typography>
-                  </Grid>
+                  {isAdmin && (
+                    <Grid item xs={12}>
+                      <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>API Response / Status Message</Typography>
+                      <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#292329", fontSize: "13px", mt: 0.5, bgcolor: "#FFFFFF", border: "1px solid #E8E2E5", p: 1.5, borderRadius: "8px" }}>
+                        {vendor.api_response}
+                      </Typography>
+                    </Grid>
+                  )}
                 </Grid>
               </Paper>
             )}
@@ -846,7 +853,9 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
               <Grid container spacing={2}>
                 <Grid item xs={6} sm={3}>
                   <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>Gateway / Switch</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: "#292329" }}>{processing?.gateway || "NEAR4YOU SWITCH"}</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: "#292329" }}>
+                    {isAdmin ? (processing?.gateway || "SWITCH") : maskGatewayName(processing?.gateway)}
+                  </Typography>
                 </Grid>
                 <Grid item xs={6} sm={3}>
                   <Typography variant="caption" sx={{ color: "#625B60", fontWeight: 700, textTransform: "uppercase" }}>Channel</Typography>

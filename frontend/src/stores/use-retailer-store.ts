@@ -111,9 +111,37 @@ interface RetailerStoreState {
   setApprovalStatus: (status: "APPROVED" | "PENDING" | "REJECTED" | "UNDER_REVIEW") => void;
 }
 
-// Wallet balance is NOT persisted to localStorage.
-// It is always synced live from the API via syncBalance() or WalletSyncProvider.
-// This prevents stale cached balances from misleading users or transaction logic.
+// Wallet balance is maintained in-memory and cached in sessionStorage across page navigation.
+// Balance refresh is strictly MANUAL ONLY (no automatic polling, interval, or navigation triggers).
+// This prevents excessive API traffic and prevents resetting balance to 0 on failure.
+
+const getInitialWalletState = (): WalletState => {
+  let main = 0.00;
+  let avail = 0.00;
+  let comm = 0.00;
+  let margin = 0.00;
+  let settlement = 0.00;
+  if (typeof window !== "undefined") {
+    try {
+      const savedBal = localStorage.getItem("p2p_cached_wallet_balance") || sessionStorage.getItem("p2p_cached_wallet_balance");
+      const savedAvail = localStorage.getItem("p2p_cached_available_balance") || sessionStorage.getItem("p2p_cached_available_balance");
+      if (savedBal && !isNaN(Number(savedBal))) {
+        main = Number(savedBal);
+      }
+      if (savedAvail && !isNaN(Number(savedAvail))) {
+        avail = Number(savedAvail);
+      }
+    } catch {}
+  }
+  return {
+    mainBalance: main,
+    availableBalance: avail,
+    commissionBalance: comm,
+    todayMargin: margin,
+    todayTxnCount: 0,
+    todaySettlement: settlement,
+  };
+};
 
 const getInitialApprovalStatus = (): "APPROVED" | "PENDING" | "REJECTED" | "UNDER_REVIEW" => {
   if (typeof window !== "undefined") {
@@ -162,14 +190,7 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
   const initApproval = getInitialApprovalStatus();
   return {
     outlet: getInitialOutlet(),
-    wallet: {
-      mainBalance: 0.00, // Always starts at 0; syncBalance() or WalletSyncProvider populates live value
-      availableBalance: 0.00,
-      commissionBalance: 0.00,
-      todayMargin: 0.00,
-      todayTxnCount: 0,
-      todaySettlement: 0.00,
-    },
+    wallet: getInitialWalletState(),
     isSyncing: false,
     unreadNotifications: 0,
     soundboxEnabled: true,
@@ -209,6 +230,10 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
     },
 
     syncBalance: async () => {
+      // Concurrency lock: ignore rapid clicks while a sync request is already in progress
+      if (get().isSyncing) {
+        return;
+      }
       set({ isSyncing: true });
       try {
         // Call /header-wallet with NO params — backend resolves the authenticated retailer
@@ -223,15 +248,28 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
             ? walletObj.main_balance
             : typeof walletObj.wallet_balance === "number"
             ? walletObj.wallet_balance
-            : 0.00;
+            : get().wallet.mainBalance;
         const avail =
           typeof rawData.available_balance === "number"
             ? rawData.available_balance
             : bal;
 
-        // In-memory only — NO localStorage write
         const rInfo = rawData.retailer_info || rawData;
         const retCode = rawData.retailer_code || rawData.retailer_id || rInfo.retailer_code || rInfo.retailer_id || "";
+
+        // In-memory update & persistent cache backup strictly scoped to retailer_code
+        if (typeof window !== "undefined") {
+          try {
+            if (retCode) {
+              localStorage.setItem(`p2p_cached_wallet_balance_${retCode}`, String(bal));
+              localStorage.setItem(`p2p_cached_available_balance_${retCode}`, String(avail));
+              localStorage.setItem("p2p_active_retailer_code", retCode);
+              sessionStorage.setItem(`p2p_cached_wallet_balance_${retCode}`, String(bal));
+              sessionStorage.setItem(`p2p_cached_available_balance_${retCode}`, String(avail));
+            }
+            sessionStorage.setItem("p2p_header_wallet_cache", JSON.stringify(rawData));
+          } catch {}
+        }
         const photoUrl = rawData.photo_url || rawData.avatar_url || rInfo.photo_url || rInfo.avatar_url || "";
         const storeName = rawData.company_name || rawData.retailer_name || rInfo.company_name || rInfo.retailer_name || "";
         const ownerName = rawData.owner_name || rInfo.owner_name || "";
@@ -262,8 +300,18 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
             status: (status as any) || state.outlet.status,
           },
         }));
-      } catch (err) {
+
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("p2p_wallet_refreshed", { detail: rawData }));
+        }
+      } catch (err: any) {
         console.warn("syncBalance fetch error:", err);
+        // Error handling requirement: Do NOT clear or reset balance. Keep the last known balance.
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("p2p_wallet_refresh_error", {
+            detail: { message: "Unable to refresh wallet balance. Please check your network." }
+          }));
+        }
       } finally {
         set({ isSyncing: false });
       }

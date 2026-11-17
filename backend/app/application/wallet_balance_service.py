@@ -50,6 +50,7 @@ class WalletAdjustmentDTO(BaseModel):
     ref_id: Optional[str] = Field(None, description="External reference number or UTR")
     table_ref_id: Optional[str] = Field(None, description="UUID of source record (e.g. topup_request_id)")
     
+    company_ref_id: Optional[int] = Field(None, description="Target company reference ID for multi-tenant isolation")
     narration: Optional[str] = Field(None, description="Audit narration / remarks for line item")
     admin_notes: Optional[str] = Field(None, description="Internal admin remarks")
     actor_id: Optional[str] = Field(None, description="UUID of admin or actor performing adjustment")
@@ -417,21 +418,33 @@ class WalletBalanceAdjustmentService:
             if ret:
                 return ret
 
-        # 3. By user_ref_id / retailer_ref_id
+        # 3. By authoritative retailer_ref_id (prioritized over legacy id)
         if dto.user_ref_id:
             try:
                 ref_int = int(dto.user_ref_id)
+                # First check exact retailer_ref_id (optionally scoped to company)
                 stmt = select(RetailerModel).where(
-                    or_(
-                        RetailerModel.retailer_ref_id == ref_int,
-                        RetailerModel.id == ref_int
-                    ),
+                    RetailerModel.retailer_ref_id == ref_int,
                     RetailerModel.is_deleted == False
-                ).order_by(RetailerModel.id.asc())
+                )
+                if getattr(dto, "company_ref_id", None):
+                    stmt = stmt.where(RetailerModel.company_ref_id == dto.company_ref_id)
                 res = await db.execute(stmt)
                 ret = res.scalars().first()
                 if ret:
                     return ret
+
+                # Fallback to legacy id only if retailer_ref_id did not match
+                stmt_legacy = select(RetailerModel).where(
+                    RetailerModel.id == ref_int,
+                    RetailerModel.is_deleted == False
+                )
+                if getattr(dto, "company_ref_id", None):
+                    stmt_legacy = stmt_legacy.where(RetailerModel.company_ref_id == dto.company_ref_id)
+                res_legacy = await db.execute(stmt_legacy)
+                ret_legacy = res_legacy.scalars().first()
+                if ret_legacy:
+                    return ret_legacy
             except (ValueError, TypeError):
                 pass
 

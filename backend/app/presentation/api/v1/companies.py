@@ -10,7 +10,7 @@ from app.application.dtos import (
     PaginatedResponse, APIResponse
 )
 from app.application.services import CompanyManagementService
-from app.application.dependencies import get_current_user, require_permission
+from app.application.dependencies import get_current_user, require_permission, CompanyContext, get_company_context
 from app.infrastructure.db.models import AdminUserModel
 
 router = APIRouter(prefix="/companies", tags=["Company Management (EPIC-002)"])
@@ -38,15 +38,17 @@ async def list_companies(
     company_type: Optional[str] = Query(None, description="Filter by company type"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    current_user: AdminUserModel = Depends(get_current_user),
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db),
     _: bool = require_permission("read:company")
 ):
     """
     Enterprise Grid query with search, multi-field filtering, and server-side pagination.
+    Strictly isolated by Company Ref ID for Company Admins.
     """
+    comp_ref = ctx.company_ref_id if not ctx.is_super_admin else None
     companies, total = await CompanyManagementService.list_companies(
-        db, search=search, status=status, company_type=company_type, page=page, page_size=page_size
+        db, search=search, status=status, company_type=company_type, page=page, page_size=page_size, company_ref_id=comp_ref
     )
     items = [
         {
@@ -91,13 +93,15 @@ async def get_company_dashboard_metrics(
 async def get_company_details(
     company_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: AdminUserModel = Depends(get_current_user),
+    ctx: CompanyContext = Depends(get_company_context),
     _: bool = require_permission("read:company")
 ):
     """
     Get full company details including Banking, Contact, Address, Subscription, Settings, Branding, Documents, Status History.
+    Strictly restricted to own company for Company Admins.
     """
-    return await CompanyManagementService.get_company_details(db, company_id)
+    comp_ref = ctx.company_ref_id if not ctx.is_super_admin else None
+    return await CompanyManagementService.get_company_details(db, company_id, company_ref_id=comp_ref)
 
 
 @router.post("/{company_id}/approve", response_model=CompanyDetailsResponse)

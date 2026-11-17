@@ -726,7 +726,8 @@ class DailyAccountStatementService:
                             is_admin=False,
                             password_hint=pwd_info["hint"],
                             password_formula=pwd_info["formula"],
-                            password_example=pwd_info["example"]
+                            password_example=pwd_info["example"],
+                            company_context=d.get("company_code") or d.get("company_id") or recipient_email
                         )
                         if email_res.get("delivered"):
                             email_status = "SENT"
@@ -916,7 +917,8 @@ class DailyAccountStatementService:
                             is_admin=True,
                             password_hint=pwd_info["hint"],
                             password_formula=pwd_info["formula"],
-                            password_example=pwd_info["example"]
+                            password_example=pwd_info["example"],
+                            company_context=d.get("company_code") or d.get("company_id") or admin_email
                         )
                         if email_res.get("delivered"):
                             email_status = "SENT"
@@ -927,6 +929,9 @@ class DailyAccountStatementService:
                         if not email_res.get("delivered") and email_res.get("status") != "SIMULATED":
                             error_message = email_res.get("detail") or "Failed to deliver admin email."
                     except Exception as ex:
+                        email_status = "FAILED"
+                        error_message = str(ex)
+                        logger.error(f"Email dispatch error for Admin {admin_email}: {ex}")
                         email_status = "FAILED"
                         error_message = str(ex)
                         logger.error(f"Email dispatch error for Admin {admin_email}: {ex}")
@@ -1217,7 +1222,8 @@ class DailyAccountStatementService:
                 is_admin=d.get("statement_type") == "ADMIN",
                 password_hint=pwd_info["hint"],
                 password_formula=pwd_info["formula"],
-                password_example=pwd_info["example"]
+                password_example=pwd_info["example"],
+                company_context=d.get("company_code") or d.get("company_id") or recipient_email
             )
 
             new_status = "SENT" if email_res.get("delivered") else "FAILED"

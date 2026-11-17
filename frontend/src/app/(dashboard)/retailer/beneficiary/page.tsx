@@ -3,6 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRetailerStore } from "@/stores/use-retailer-store";
 import {
@@ -747,114 +748,44 @@ function BeneficiaryWorkspaceContent() {
   return (
     <div className="min-h-screen bg-[#FFFFFF] text-[#292329] font-sans pb-36 transition-colors">
 
-      {/* ─────────────────────────────────────────────────────────────────────
-          1. STICKY TOP APP BAR (Near4You Enterprise Luxury Glassmorphism)
-      ───────────────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 bg-[#FFFFFF]/90 backdrop-blur-2xl border-b border-amber-500/20 shadow-2xl">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
-          
-          {/* Left: Hamburger & Gold Dashboard Title */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.push("/retailer/dashboard")}
-              aria-label="Open Navigation Menu"
-              className="p-2 rounded-xl text-amber-400 hover:bg-amber-500/10 transition-colors focus:outline-none min-h-[44px] min-w-[44px] flex items-center justify-center border border-amber-500/20"
-            >
-              <Menu className="w-5 h-5 text-amber-400 stroke-[2.5]" />
-            </button>
-
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg sm:text-xl font-black tracking-tight bg-gradient-to-r from-amber-200 via-amber-400 to-amber-500 bg-clip-text text-transparent">
-                Dashboard
-              </h1>
-            </div>
-          </div>
-
-          {/* Right: Wallet Balance Pill, Refresh, Alerts, Profile */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Wallet Balance Glass Pill */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 backdrop-blur-md shadow-[0_0_15px_rgba(245,158,11,0.1)]">
-              <Wallet className="w-4 h-4 text-amber-400" />
-              <span className="text-xs sm:text-sm font-black bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-400 bg-clip-text text-transparent">
-                ₹{walletBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-
-            {/* Refresh Button */}
-            <button
-              onClick={handleRefresh}
-              aria-label="Refresh Data"
-              disabled={isRefreshing}
-              className="p-2 rounded-xl text-[#292329] hover:text-amber-400 hover:bg-amber-500/10 transition-all min-h-[40px] min-w-[40px] flex items-center justify-center border border-[#E8E2E5]"
-            >
-              <RotateCw className={`w-4 h-4 ${isRefreshing ? "animate-spin text-amber-400" : ""}`} />
-            </button>
-
-            {/* Alerts Bell Button */}
-            <button
-              onClick={() => router.push("/retailer/notifications")}
-              aria-label="View Notifications"
-              className="p-2 rounded-xl text-[#292329] hover:text-amber-400 hover:bg-amber-500/10 transition-all min-h-[40px] min-w-[40px] flex items-center justify-center border border-[#E8E2E5] relative"
-            >
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.8)]" />
-            </button>
-
-            {/* Profile Avatar */}
-            <div
-              onClick={() => router.push("/retailer/profile")}
-              className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 p-[2px] cursor-pointer shadow-md shadow-amber-500/20 shrink-0"
-            >
-              <div className="w-full h-full rounded-full bg-[#FFFFFF] flex items-center justify-center font-black text-xs text-amber-300">
-                {(activeCustomerName || "S").charAt(0).toUpperCase()}
-              </div>
-            </div>
+      {/* ── LEGITIMATE PAGE TOOLBAR (P0 Header Duplication Fix) ── */}
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-4 pb-2 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/retailer/dashboard"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-xs"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Back to Dashboard</span>
+          </Link>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
+              Beneficiaries
+            </h1>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 hidden sm:inline-block">
+              Bank-Grade Beneficiary Management
+            </span>
           </div>
         </div>
-      </header>
 
-      {/* ─────────────────────────────────────────────────────────────────────
-          2. COMPACT ADD BENEFICIARY NAVIGATION BAR
-      ───────────────────────────────────────────────────────────────────── */}
-      <div className="bg-[#FFFFFF]/80 backdrop-blur-xl border-b border-amber-500/15 sticky top-16 z-30 shadow-md">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-13 flex items-center justify-between gap-3 py-2">
-          
-          {/* Back Arrow & Add Beneficiary Title */}
-          <div className="flex items-center gap-2.5">
-            <button
-              onClick={handleCancel}
-              aria-label="Back"
-              className="p-1.5 rounded-xl text-[#292329] hover:text-amber-400 hover:bg-amber-500/10 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center border border-[#E8E2E5]"
-            >
-              <ArrowLeft className="w-5 h-5 stroke-[2.5]" />
-            </button>
+        {/* Draft badge & Close X button */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={saveDraft}
+            className="min-h-[36px] px-3 py-1.5 rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs"
+          >
+            <Save className="w-3.5 h-3.5 text-slate-600" />
+            <span>Draft</span>
+            <span className="text-[10px] text-slate-500 font-medium hidden sm:inline">• {lastSaved}</span>
+          </button>
 
-            <div className="flex items-center gap-2">
-              <h2 className="text-base sm:text-lg font-black tracking-tight bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 bg-clip-text text-transparent">
-                Add Beneficiary
-              </h2>
-            </div>
-          </div>
-
-          {/* Draft badge & Close X button */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={saveDraft}
-              className="min-h-[38px] px-3 py-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 font-black text-xs flex items-center gap-1.5 transition-all shadow-[0_0_10px_rgba(245,158,11,0.1)]"
-            >
-              <Save className="w-3.5 h-3.5 text-amber-400" />
-              <span>Draft</span>
-              <span className="text-[10px] text-amber-400/70 font-medium hidden sm:inline">• {lastSaved}</span>
-            </button>
-
-            <button
-              onClick={handleCancel}
-              aria-label="Close"
-              className="p-1.5 rounded-xl text-[#625B60] hover:text-rose-400 hover:bg-rose-500/10 transition-colors min-h-[38px] min-w-[38px] flex items-center justify-center border border-[#E8E2E5]"
-            >
-              <CloseIcon fontSize="small" />
-            </button>
-          </div>
+          <button
+            onClick={handleCancel}
+            aria-label="Close"
+            className="p-1.5 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center border border-slate-200"
+          >
+            <CloseIcon fontSize="small" />
+          </button>
         </div>
       </div>
 

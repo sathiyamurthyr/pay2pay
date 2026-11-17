@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import decode_access_token
+from app.application.dependencies import get_optional_company_context, CompanyContext
 
 router = APIRouter(prefix="/companies", tags=["Company Branding & Multi-Company"])
 
@@ -66,11 +67,23 @@ async def resolve_company_ref_by_domain(db: AsyncSession, domain_str: str) -> Op
     clean_dom = extract_clean_domain(domain_str)
     if not clean_dom:
         return None
-    dom_part = clean_dom
-    for sub in ["login.", "admin.", "superadmin.", "super-admin.", "sales.", "receipt.", "www."]:
-        if dom_part.startswith(sub):
-            dom_part = dom_part[len(sub):]
-    code_guess = dom_part.split(".")[0].upper()
+    
+    # Canonical brand identity mappings
+    if "pay2pay" in clean_dom:
+        dom_part = "pay2pay.in"
+        code_guess = "PAY2PAY"
+    elif "near4you" in clean_dom:
+        dom_part = "near4you.store"
+        code_guess = "NEAR4YOU"
+    elif "smspay" in clean_dom:
+        dom_part = "smspay.store"
+        code_guess = "SMSPAY"
+    else:
+        dom_part = clean_dom
+        for sub in ["login.", "admin.", "retailer.", "superadmin.", "super-admin.", "sales.", "receipt.", "www.", "api.", "app."]:
+            if dom_part.startswith(sub):
+                dom_part = dom_part[len(sub):]
+        code_guess = dom_part.split(".")[0].upper()
 
     stmt = text("""
         SELECT c.company_ref_id
@@ -89,7 +102,7 @@ async def resolve_company_ref_by_domain(db: AsyncSession, domain_str: str) -> Op
     res = await db.execute(stmt, {
         "part": f"%{dom_part}%",
         "exact": f"%{clean_dom}%",
-        "code": code_guess
+        "code": f"%{code_guess}%"
     })
     row = res.fetchone()
     if row:
@@ -101,6 +114,7 @@ async def resolve_company_ref_by_domain(db: AsyncSession, domain_str: str) -> Op
 async def get_authenticated_company_branding(
     request: Request,
     domain: Optional[str] = None,
+    company: Optional[str] = None,
     company_ref_id_param: Optional[int] = None,
     db: AsyncSession = Depends(get_db)
 ):
@@ -117,37 +131,69 @@ async def get_authenticated_company_branding(
     company_id_uuid = None
     retailer_ref_id = None
 
-    # 1. Extract and decode JWT Bearer token if present
-    auth_header = request.headers.get("Authorization", "")
-    token = auth_header.replace("Bearer ", "").strip() if "Bearer " in auth_header else None
-    
-    if not token:
-        # Check cookies
-        token = (
-            request.cookies.get("pay2pay_access_token")
-            or request.cookies.get("p2p_access_token")
-            or request.cookies.get("access_token")
-            or request.cookies.get("token")
-        )
+    # 1. Resolve by explicit domain/company query parameter or hostname first (Domain-driven dynamic branding)
+    target_domain = company or domain or request.query_params.get("company") or request.query_params.get("domain")
+    if not target_domain:
+        host_header = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+        clean_h = extract_clean_domain(host_header)
+        if clean_h and clean_h not in ["localhost", "127.0.0.1", "0.0.0.0"]:
+            target_domain = clean_h
 
-    if token:
-        payload = decode_access_token(token)
-        if payload:
-            tenant_ref_id = payload.get("tenant_ref_id")
-            company_ref_id = company_ref_id or payload.get("company_ref_id")
-            retailer_ref_id = payload.get("retailer_ref_id")
-            if payload.get("tenant_id"):
-                try:
-                    tenant_id_uuid = uuid.UUID(str(payload.get("tenant_id")))
-                except Exception:
-                    pass
-            if payload.get("company_id"):
-                try:
-                    company_id_uuid = uuid.UUID(str(payload.get("company_id")))
-                except Exception:
-                    pass
+    domain_was_specified = bool(target_domain and target_domain.lower() not in ["localhost", "127.0.0.1", "0.0.0.0"])
 
-    # 2. If retailer_ref_id is present, resolve company from retailer table
+    if domain_was_specified:
+        resolved_ref = await resolve_company_ref_by_domain(db, target_domain)
+        if resolved_ref:
+            company_ref_id = resolved_ref
+        else:
+            # Unmapped domain: Fail closed! Never return default company as fallback
+            corr_id = str(uuid.uuid4())
+            logger.warning(f"Domain resolution failure for target_domain='{target_domain}', correlation_id='{corr_id}'")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "code": "UNMAPPED_DOMAIN",
+                    "message": f"Domain '{target_domain}' is not mapped to any registered company identity.",
+                    "domain": target_domain,
+                    "correlation_id": corr_id
+                }
+            )
+
+    # 2. If not resolved by domain, extract and decode JWT Bearer token / cookies
+    if not company_ref_id and not company_id_uuid:
+        auth_header = request.headers.get("Authorization", "")
+        token = auth_header.replace("Bearer ", "").strip() if "Bearer " in auth_header else None
+        
+        if not token:
+            # Check cookies
+            token = (
+                request.cookies.get("p2p_admin_token")
+                or request.cookies.get("p2p_super_admin_token")
+                or request.cookies.get("p2p_retailer_token")
+                or request.cookies.get("pay2pay_access_token")
+                or request.cookies.get("p2p_access_token")
+                or request.cookies.get("access_token")
+                or request.cookies.get("token")
+            )
+
+        if token:
+            payload = decode_access_token(token)
+            if payload:
+                tenant_ref_id = payload.get("tenant_ref_id")
+                company_ref_id = payload.get("company_ref_id")
+                retailer_ref_id = payload.get("retailer_ref_id")
+                if payload.get("tenant_id"):
+                    try:
+                        tenant_id_uuid = uuid.UUID(str(payload.get("tenant_id")))
+                    except Exception:
+                        pass
+                if payload.get("company_id"):
+                    try:
+                        company_id_uuid = uuid.UUID(str(payload.get("company_id")))
+                    except Exception:
+                        pass
+
+    # 3. If retailer_ref_id is present and still unresolved, resolve company from retailer table
     if (not company_ref_id and not company_id_uuid) and retailer_ref_id:
         ret_res = await db.execute(text("""
             SELECT company_id, company_ref_id, tenant_id, tenant_ref_id 
@@ -163,16 +209,23 @@ async def get_authenticated_company_branding(
             company_id_uuid = company_id_uuid or r_dict.get("company_id")
             tenant_id_uuid = tenant_id_uuid or r_dict.get("tenant_id")
 
-    # 3. If unauthenticated or no company_ref_id resolved, resolve by domain/hostname
-    if not company_ref_id and not company_id_uuid:
-        target_domain = domain or request.query_params.get("host")
-        if not target_domain:
-            target_domain = request.headers.get("x-forwarded-host") or request.headers.get("host")
-        
-        if target_domain:
-            resolved_ref = await resolve_company_ref_by_domain(db, target_domain)
-            if resolved_ref:
-                company_ref_id = resolved_ref
+    # If neither domain nor company context could be resolved, fail closed
+    if not company_ref_id and not company_id_uuid and not tenant_ref_id and not tenant_id_uuid:
+        # Check if running on localhost / 127.0.0.1 for local dev fallback only
+        host_hdr = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+        clean_host = extract_clean_domain(host_hdr)
+        if clean_host in ["localhost", "127.0.0.1", "0.0.0.0"]:
+            company_ref_id = 47 # Pay2Pay default for local development on generic localhost
+        else:
+            corr_id = str(uuid.uuid4())
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "code": "COMPANY_NOT_FOUND",
+                    "message": "Unable to identify your company account.",
+                    "correlation_id": corr_id
+                }
+            )
 
     # 4. Query company joined with company_branding and company_configuration (domains)
     query_sql = """
@@ -183,13 +236,13 @@ async def get_authenticated_company_branding(
             c.tenant_ref_id,
             c.company_code,
             c.website,
-            COALESCE(c.display_name, c.company_name, c.legal_name, 'Near4You') AS company_name,
-            COALESCE(c.legal_name, c.company_name, 'Near4You Enterprise Technologies Pvt. Ltd.') AS legal_name,
-            COALESCE(c.display_name, c.company_name, 'Near 4 You') AS display_name,
+            c.company_name,
+            c.legal_name,
+            c.display_name,
             COALESCE(cb.logo_url, c.logo_path, '/branding/logo.svg') AS logo_url,
             COALESCE(cb.favicon_url, '/branding/favicon.png') AS favicon_url,
-            COALESCE(cb.primary_colour, '#A20A3A') AS primary_colour,
-            COALESCE(cb.secondary_colour, '#EDC11E') AS secondary_colour,
+            COALESCE(cb.primary_colour, '#2563EB') AS primary_colour,
+            COALESCE(cb.secondary_colour, '#1E40AF') AS secondary_colour,
             cc.config_value AS configured_domains
         FROM public.company c
         LEFT JOIN public.company_branding cb ON (cb.company_ref_id = c.company_ref_id OR cb.company_id = c.public_id)
@@ -220,23 +273,15 @@ async def get_authenticated_company_branding(
     row = res.fetchone()
 
     if not row:
-        return {
-            "success": True,
-            "data": {
-                "company_id": None,
-                "company_ref_id": 1,
-                "tenant_ref_id": 1,
-                "company_code": "NEAR4YOU",
-                "company_name": "Near4You",
-                "legal_name": "Near4You Enterprise Technologies Pvt. Ltd.",
-                "display_name": "Near 4 You",
-                "logo_url": "/branding/logo.svg",
-                "favicon_url": "/branding/favicon.png",
-                "primary_colour": "#A20A3A",
-                "secondary_colour": "#EDC11E",
-                "domains": ["near4you.store", "login.near4you.store"]
+        corr_id = str(uuid.uuid4())
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "COMPANY_NOT_FOUND",
+                "message": "Unable to identify your company account.",
+                "correlation_id": corr_id
             }
-        }
+        )
 
     d = dict(row._mapping)
     domains_list = []
@@ -329,10 +374,17 @@ async def resolve_by_domain(
 @router.get("")
 @router.get("/list")
 async def list_companies(
+    ctx: Optional[CompanyContext] = Depends(get_optional_company_context),
     db: AsyncSession = Depends(get_db)
 ):
-    """Lists all active registered companies on the platform."""
-    res = await db.execute(text("""
+    """Lists registered companies, strictly filtered to authenticated company for non-super-admins."""
+    where_clause = "WHERE c.is_deleted = false"
+    params: Dict[str, Any] = {}
+    if ctx and not ctx.is_super_admin:
+        where_clause += " AND c.company_ref_id = :comp_ref"
+        params["comp_ref"] = ctx.company_ref_id
+
+    res = await db.execute(text(f"""
         SELECT 
             c.id, c.public_id, c.company_ref_id, c.tenant_ref_id,
             c.company_code, c.company_name, c.legal_name, c.display_name, c.short_name,
@@ -345,9 +397,9 @@ async def list_companies(
         FROM public.company c
         LEFT JOIN public.company_branding cb ON cb.company_ref_id = c.company_ref_id
         LEFT JOIN public.company_configuration cc ON (cc.company_ref_id = c.company_ref_id AND cc.config_key = 'domains')
-        WHERE c.is_deleted = false
+        {where_clause}
         ORDER BY c.company_ref_id ASC;
-    """))
+    """), params)
     companies = []
     for row in res.fetchall():
         d = dict(row._mapping)
@@ -383,12 +435,19 @@ async def list_companies(
 @router.post("")
 async def create_company(
     req: CompanyRegisterRequest,
+    ctx: Optional[CompanyContext] = Depends(get_optional_company_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Super Admin endpoint to onboard a future company dynamically without code changes.
     Enforces uniqueness, provisions company, company_branding, and company_configuration records.
+    Restricted strictly to Platform Super Admin.
     """
+    if ctx and not ctx.is_super_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: Only Platform Super Admin can register new companies."
+        )
     code_upper = req.company_code.strip().upper()
     existing = await db.execute(text("SELECT id FROM public.company WHERE company_code = :code;"), {"code": code_upper})
     if existing.fetchone():
@@ -483,9 +542,12 @@ async def create_company(
 async def update_company_branding(
     company_ref_id: int,
     req: CompanyBrandingUpdateRequest,
+    ctx: Optional[CompanyContext] = Depends(get_optional_company_context),
     db: AsyncSession = Depends(get_db)
 ):
-    """Super Admin endpoint to customize brand colors, logos, and names dynamically."""
+    """Super Admin or Company Admin endpoint to customize brand colors, logos, and names dynamically."""
+    if ctx:
+        ctx.validate_access(company_ref_id)
     now = datetime.now(timezone.utc)
     if req.display_name or req.legal_name:
         await db.execute(text("""
@@ -524,9 +586,12 @@ async def update_company_branding(
 async def update_company_domains(
     company_ref_id: int,
     req: CompanyDomainsUpdateRequest,
+    ctx: Optional[CompanyContext] = Depends(get_optional_company_context),
     db: AsyncSession = Depends(get_db)
 ):
-    """Super Admin endpoint to configure assigned domains/hostnames."""
+    """Super Admin or Company Admin endpoint to configure assigned domains/hostnames."""
+    if ctx:
+        ctx.validate_access(company_ref_id)
     now = datetime.now(timezone.utc)
     clean_domains = [extract_clean_domain(d) for d in req.domains if extract_clean_domain(d)]
     domains_json = json.dumps(clean_domains)

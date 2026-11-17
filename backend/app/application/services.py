@@ -238,6 +238,12 @@ class AuthService:
                     })
                     r_name = ret_obj.owner_name if (ret_obj and ret_obj.owner_name) else auth_user.full_name
 
+                ret_comp_ref = getattr(ret_obj, "company_ref_id", None) or getattr(auth_user, "company_ref_id", None) or 1
+                extra_claims.update({
+                    "company_ref_id": ret_comp_ref,
+                    "is_super_admin": False
+                })
+
                 access_token = create_access_token(
                     subject=str(auth_user.user_id),
                     tenant_id=str(auth_user.tenant_id or "547aa7bb-a790-4fe2-bd5b-27214ed176c8"),
@@ -261,6 +267,8 @@ class AuthService:
                         "id": str(auth_user.user_id),
                         "user_ref_id": user_ref_id,
                         "user_type_ref_id": user_type_ref_id,
+                        "company_ref_id": ret_comp_ref,
+                        "is_super_admin": False,
                         "email": auth_user.email or f"{clean_mob}@pay2pay.in",
                         "full_name": r_name,
                         "mobile_number": clean_mob,
@@ -300,11 +308,29 @@ class AuthService:
             roles.append(user.user_type)
         company_id_str = str(user.company_id) if user.company_id else None
 
+        # Authoritative Multi-Tenant Company & Super Admin Resolution
+        user_comp_ref = getattr(user, "company_ref_id", None)
+        is_super = bool(user_comp_ref is None and (user.username == "admin" or getattr(user, "user_type", "") == "PLATFORM_ADMIN" or "SUPER_ADMIN" in roles))
+        comp_ref_id = int(user_comp_ref) if user_comp_ref is not None else None
+
+        if comp_ref_id is not None:
+            # Company Admin: strictly bound to authenticated company, no cross-company super admin privileges
+            roles = ["ADMIN"]
+            auth_role_name = "ADMIN"
+        elif is_super:
+            roles = ["SUPER_ADMIN", "ADMIN"]
+            auth_role_name = "SUPER_ADMIN"
+        else:
+            roles = ["ADMIN"]
+            auth_role_name = "ADMIN"
+
         access_token = create_access_token(
             subject=str(user.public_id),
             tenant_id=str(user.tenant_id),
             company_id=company_id_str,
-            roles=roles
+            roles=roles,
+            company_ref_id=comp_ref_id,
+            is_super_admin=is_super
         )
         refresh_token = create_refresh_token(
             subject=str(user.public_id),
@@ -356,6 +382,8 @@ class AuthService:
             tenant_id=str(user.tenant_id),
             company_id=company_id_str,
             roles=roles,
+            company_ref_id=comp_ref_id,
+            is_super_admin=is_super,
             jti=jti
         )
 
@@ -370,10 +398,14 @@ class AuthService:
                 "id": str(user.public_id),
                 "user_ref_id": admin_ref,
                 "user_type_ref_id": 1,
+                "company_ref_id": comp_ref_id,
+                "is_super_admin": is_super,
+                "company_id": company_id_str,
                 "email": user.email,
                 "full_name": user.full_name,
                 "tenant_id": str(user.tenant_id),
-                "roles": roles
+                "roles": roles,
+                "role": auth_role_name
             }
         )
 
@@ -800,76 +832,132 @@ class RolePermissionService:
 
 class DashboardService:
     @staticmethod
-    async def get_dashboard_metrics(db: AsyncSession, tenant_id: uuid.UUID) -> Dict[str, Any]:
-        # Live Database Aggregations - NO Hardcoding
+    async def get_dashboard_metrics(db: AsyncSession, tenant_id: uuid.UUID, company_ref_id: Optional[int] = None) -> Dict[str, Any]:
+        # Live Database Aggregations - Parameterized by multi-tenant Company Ref ID
+        comp_params = {"comp_ref": company_ref_id} if company_ref_id is not None else {}
         try:
-            r_comp = await db.execute(text("SELECT count(*) FROM public.company WHERE is_deleted = false;"))
-            total_companies = int(r_comp.scalar() or 0)
+            if company_ref_id is not None:
+                total_companies = 1
+            else:
+                r_comp = await db.execute(text("SELECT count(*) FROM public.company WHERE is_deleted = false;"))
+                total_companies = int(r_comp.scalar() or 0)
         except Exception:
             total_companies = 1
 
         try:
-            r_ret = await db.execute(text("SELECT count(*) FROM public.retailer WHERE status = 'ACTIVE' AND is_deleted = false;"))
+            if company_ref_id is not None:
+                r_ret = await db.execute(text("SELECT count(*) FROM public.retailer WHERE company_ref_id = :comp_ref AND status = 'ACTIVE' AND is_deleted = false;"), comp_params)
+            else:
+                r_ret = await db.execute(text("SELECT count(*) FROM public.retailer WHERE status = 'ACTIVE' AND is_deleted = false;"))
             active_retailers = int(r_ret.scalar() or 0)
         except Exception:
             active_retailers = 0
 
         try:
-            r_mach = await db.execute(text("SELECT count(*) FROM public.swipe_machine WHERE is_deleted = false;"))
+            if company_ref_id is not None:
+                r_mach = await db.execute(text("SELECT count(*) FROM public.swipe_machine WHERE company_ref_id = :comp_ref AND is_deleted = false;"), comp_params)
+            else:
+                r_mach = await db.execute(text("SELECT count(*) FROM public.swipe_machine WHERE is_deleted = false;"))
             total_machines = int(r_mach.scalar() or 0)
         except Exception:
             total_machines = 0
 
         try:
-            r_settle = await db.execute(text("""
-                SELECT COALESCE(SUM(t.amount), 0.0) 
-                FROM public.transactions t 
-                JOIN public.payout_transaction pt ON pt.transaction_number = t.txn_id 
-                WHERE pt.status = 'SUCCESS' AND pt.created_date >= CURRENT_DATE;
-            """))
+            if company_ref_id is not None:
+                r_settle = await db.execute(text("""
+                    SELECT COALESCE(SUM(t.amount), 0.0) 
+                    FROM public.transactions t 
+                    JOIN public.payout_transaction pt ON pt.transaction_number = t.txn_id 
+                    WHERE pt.company_ref_id = :comp_ref AND pt.status = 'SUCCESS' AND pt.created_date >= CURRENT_DATE;
+                """), comp_params)
+            else:
+                r_settle = await db.execute(text("""
+                    SELECT COALESCE(SUM(t.amount), 0.0) 
+                    FROM public.transactions t 
+                    JOIN public.payout_transaction pt ON pt.transaction_number = t.txn_id 
+                    WHERE pt.status = 'SUCCESS' AND pt.created_date >= CURRENT_DATE;
+                """))
             todays_settlement = float(r_settle.scalar() or 0.0)
         except Exception:
             todays_settlement = 0.0
 
         try:
-            r_liab = await db.execute(text("SELECT COALESCE(SUM(wallet_balance), 0.0) FROM public.retailer_wallet WHERE is_active = true;"))
+            if company_ref_id is not None:
+                r_liab = await db.execute(text("""
+                    SELECT COALESCE(SUM(rw.wallet_balance), 0.0) 
+                    FROM public.retailer_wallet rw
+                    JOIN public.retailer r ON rw.retailer_id = r.public_id
+                    WHERE r.company_ref_id = :comp_ref AND rw.is_active = true;
+                """), comp_params)
+            else:
+                r_liab = await db.execute(text("SELECT COALESCE(SUM(wallet_balance), 0.0) FROM public.retailer_wallet WHERE is_active = true;"))
             wallet_liability = float(r_liab.scalar() or 0.0)
         except Exception:
             wallet_liability = 0.0
 
         try:
-            r_pending = await db.execute(text("""
-                SELECT COALESCE(SUM(t.amount), 0.0) 
-                FROM public.transactions t 
-                JOIN public.payout_transaction pt ON pt.transaction_number = t.txn_id 
-                WHERE pt.status IN ('PENDING', 'PROCESSING', 'INITIATED');
-            """))
+            if company_ref_id is not None:
+                r_pending = await db.execute(text("""
+                    SELECT COALESCE(SUM(t.amount), 0.0) 
+                    FROM public.transactions t 
+                    JOIN public.payout_transaction pt ON pt.transaction_number = t.txn_id 
+                    WHERE pt.company_ref_id = :comp_ref AND pt.status IN ('PENDING', 'PROCESSING', 'INITIATED');
+                """), comp_params)
+            else:
+                r_pending = await db.execute(text("""
+                    SELECT COALESCE(SUM(t.amount), 0.0) 
+                    FROM public.transactions t 
+                    JOIN public.payout_transaction pt ON pt.transaction_number = t.txn_id 
+                    WHERE pt.status IN ('PENDING', 'PROCESSING', 'INITIATED');
+                """))
             pending_payouts = float(r_pending.scalar() or 0.0)
         except Exception:
             pending_payouts = 0.0
 
         try:
-            r_profit = await db.execute(text("""
-                SELECT COALESCE(SUM(tax + charges), 0.0)
-                FROM public.view_admin_payout_reports
-                WHERE created_date >= CURRENT_DATE;
-            """))
+            if company_ref_id is not None:
+                r_profit = await db.execute(text("""
+                    SELECT COALESCE(SUM(tax + charges), 0.0)
+                    FROM public.view_admin_payout_reports
+                    WHERE company_ref_id = :comp_ref AND created_date >= CURRENT_DATE;
+                """), comp_params)
+            else:
+                r_profit = await db.execute(text("""
+                    SELECT COALESCE(SUM(tax + charges), 0.0)
+                    FROM public.view_admin_payout_reports
+                    WHERE created_date >= CURRENT_DATE;
+                """))
             todays_profit = float(r_profit.scalar() or 0.0)
         except Exception:
             todays_profit = 0.0
 
         try:
-            r_failed = await db.execute(text("""
-                SELECT count(*) 
-                FROM public.payout_transaction pt 
-                WHERE pt.status IN ('FAILED', 'REJECTED', 'REVERSED') AND pt.created_date >= CURRENT_DATE;
-            """))
+            if company_ref_id is not None:
+                r_failed = await db.execute(text("""
+                    SELECT count(*) 
+                    FROM public.payout_transaction pt 
+                    WHERE pt.company_ref_id = :comp_ref AND pt.status IN ('FAILED', 'REJECTED', 'REVERSED') AND pt.created_date >= CURRENT_DATE;
+                """), comp_params)
+            else:
+                r_failed = await db.execute(text("""
+                    SELECT count(*) 
+                    FROM public.payout_transaction pt 
+                    WHERE pt.status IN ('FAILED', 'REJECTED', 'REVERSED') AND pt.created_date >= CURRENT_DATE;
+                """))
             failed_settlement = int(r_failed.scalar() or 0)
         except Exception:
             failed_settlement = 0
 
         try:
-            r_appr = await db.execute(text("SELECT count(*) FROM public.topup_requests WHERE status = 'PENDING';"))
+            if company_ref_id is not None:
+                r_appr = await db.execute(text("""
+                    SELECT count(*) 
+                    FROM public.topup_requests tr
+                    JOIN public.retailer r ON tr.retailer_id = r.public_id
+                    WHERE r.company_ref_id = :comp_ref AND tr.status = 'PENDING';
+                """), comp_params)
+            else:
+                r_appr = await db.execute(text("SELECT count(*) FROM public.topup_requests WHERE status = 'PENDING';"))
             pending_approvals = int(r_appr.scalar() or 0)
         except Exception:
             pending_approvals = 0
@@ -1371,9 +1459,12 @@ class CompanyManagementService:
         status: Optional[str] = None,
         company_type: Optional[str] = None,
         page: int = 1,
-        page_size: int = 20
+        page_size: int = 20,
+        company_ref_id: Optional[int] = None
     ) -> Tuple[List[CompanyModel], int]:
         stmt = select(CompanyModel).where(CompanyModel.is_deleted == False)
+        if company_ref_id is not None:
+            stmt = stmt.where(CompanyModel.company_ref_id == company_ref_id)
         if tenant_id:
             stmt = stmt.where(CompanyModel.tenant_id == tenant_id)
         if status:
@@ -1400,7 +1491,7 @@ class CompanyManagementService:
         return res.scalars().all(), total
 
     @staticmethod
-    async def get_company_details(db: AsyncSession, company_id: uuid.UUID) -> CompanyDetailsResponse:
+    async def get_company_details(db: AsyncSession, company_id: uuid.UUID, company_ref_id: Optional[int] = None) -> CompanyDetailsResponse:
         stmt = (
             select(CompanyModel)
             .options(
@@ -1419,6 +1510,9 @@ class CompanyManagementService:
         company = (await db.execute(stmt)).scalar_one_or_none()
         if not company:
             raise NotFoundException("Company not found")
+
+        if company_ref_id is not None and getattr(company, "company_ref_id", None) != company_ref_id:
+            raise ForbiddenException("Cross-tenant access prohibited: Cannot access details of another company")
 
         contact_dict = None
         if company.contacts:
@@ -2977,11 +3071,14 @@ class RetailerManagementService:
         status: Optional[str] = None,
         distributor_id: Optional[uuid.UUID] = None,
         page: int = 1,
-        page_size: int = 20
+        page_size: int = 20,
+        company_ref_id: Optional[int] = None
     ) -> Tuple[List[RetailerModel], int]:
         stmt = select(RetailerModel).where(
             RetailerModel.is_deleted == False
         )
+        if company_ref_id is not None:
+            stmt = stmt.where(RetailerModel.company_ref_id == company_ref_id)
         if status:
             stmt = stmt.where(RetailerModel.status == status.upper())
         if distributor_id:
@@ -3005,7 +3102,12 @@ class RetailerManagementService:
         return res.scalars().all(), total
 
     @staticmethod
-    async def get_retailer_details(db: AsyncSession, tenant_id: uuid.UUID, retailer_id: uuid.UUID) -> RetailerDetailsResponse:
+    async def get_retailer_details(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        retailer_id: uuid.UUID,
+        company_ref_id: Optional[int] = None
+    ) -> RetailerDetailsResponse:
         from app.infrastructure.db.verification_models import RetailerVerificationModel, VerificationDocumentModel
         from app.infrastructure.db.registration_models import (
             RegistrationPanModel, RegistrationGstModel, RegistrationAadhaarModel,
@@ -3028,6 +3130,9 @@ class RetailerManagementService:
         r = (await db.execute(stmt)).scalar_one_or_none()
         if not r:
             raise NotFoundException("Retailer profile not found.")
+
+        if company_ref_id is not None and getattr(r, "company_ref_id", None) != company_ref_id:
+            raise ForbiddenException("Cross-tenant access prohibited: Cannot access details of another company's retailer")
 
         retailer_dto = RetailerResponse(
             public_id=r.public_id,

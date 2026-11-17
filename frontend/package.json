@@ -7,6 +7,10 @@
     "dev:direct": "node node_modules/next/dist/bin/next dev -p 3000",
     "build": "next build",
     "start": "next start -H 0.0.0.0 -p 3000",
+    "start:retailer": "next start -H 0.0.0.0 -p 4001",
+    "start:admin": "next start -H 0.0.0.0 -p 4002",
+    "start:super-admin": "next start -H 0.0.0.0 -p 4003",
+    "start:portals": "node scripts/multi-portal.mjs",
     "lint": "eslint",
     "test:e2e": "playwright test"
   },
