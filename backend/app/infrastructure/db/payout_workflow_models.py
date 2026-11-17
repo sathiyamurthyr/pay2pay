@@ -98,7 +98,7 @@ class PayoutWorkflowTransactionModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "payout_workflow_transactions"
     __table_args__ = {'extend_existing': True}
 
-    payout_workflow_transactions_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, Identity(always=True))
+    payout_workflow_transactions_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, Identity(always=True), nullable=False)
     tenant_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     company_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     retailer_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)

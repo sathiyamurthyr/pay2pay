@@ -62,6 +62,8 @@ class TrustedDeviceModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "trusted_devices"
     __table_args__ = {"extend_existing": True}
 
+    tenant_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    company_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     device_fingerprint: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
     device_token_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
@@ -105,6 +107,10 @@ class DeviceFingerprintModel(BaseEntity, EnterpriseBaseMixin):
     screen_geometry: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     timezone: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     language: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    ip_address: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    os: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    browser: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    risk_score: Mapped[Optional[int]] = mapped_column(Integer, default=5, nullable=True)
 
 
 class DeviceSessionModel(BaseEntity, EnterpriseBaseMixin):
