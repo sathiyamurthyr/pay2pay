@@ -122,6 +122,9 @@ export function middleware(request: NextRequest) {
       "p2p_active_distributor_id", "p2p_distributor_code", "p2p_distributor_ref_id",
       "p2p_active_super_distributor_id", "p2p_super_distributor_code", "p2p_super_distributor_ref_id",
       "p2p_session_locked", "p2p_session_locked_at", "p2p_session_last_active", "p2p_session_start_time", "p2p_session_id",
+      "p2p_remember_session", "pay2pay_remember_session",
+      "p2p_device_trusted", "pay2pay_device_trusted",
+      "p2p_trusted_device_token", "pay2pay_trusted_device_token",
       "token", "access_token"
     ];
     allCookieNames.forEach((name) => {
@@ -319,6 +322,9 @@ export function middleware(request: NextRequest) {
       "p2p_active_distributor_id", "p2p_distributor_code", "p2p_distributor_ref_id",
       "p2p_active_super_distributor_id", "p2p_super_distributor_code", "p2p_super_distributor_ref_id",
       "p2p_session_locked", "p2p_session_locked_at", "p2p_session_last_active", "p2p_session_start_time", "p2p_session_id",
+      "p2p_remember_session", "pay2pay_remember_session",
+      "p2p_device_trusted", "pay2pay_device_trusted",
+      "p2p_trusted_device_token", "pay2pay_trusted_device_token",
       "token", "access_token"
     ];
     allCookieNames.forEach((name) => {

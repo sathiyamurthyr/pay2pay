@@ -98,6 +98,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         cookieToken = tokenCookie ? tokenCookie.split("=")[1]?.trim() || null : null;
       }
 
+      const remCookie = cookies.find((row) => row.startsWith("p2p_remember_session="));
+      const remVal = remCookie ? remCookie.split("=")[1]?.trim() : (typeof window !== "undefined" ? localStorage.getItem("p2p_remember_session") : null);
+      const isRememberSession = remVal !== "false";
+
+      // If Remember Session was false and the session cookie expired on browser close (cookieToken is missing):
+      // Terminate the session and do not restore from localStorage.
+      if (!isRememberSession && !cookieToken) {
+        if (typeof localStorage !== "undefined") {
+          localStorage.removeItem("p2p_access_token");
+          localStorage.removeItem("pay2pay_access_token");
+          localStorage.removeItem("pay2pay_auth_token");
+          localStorage.removeItem("p2p_retailer_token");
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("token");
+        }
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
       const lsToken =
         typeof window !== "undefined"
           ? (portTokenKey ? localStorage.getItem(portTokenKey) : null) ||
@@ -119,14 +139,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      // Synchronize cookies if missing to prevent middleware redirects
+      // Synchronize cookies adhering to remember_session duration
       const now = Date.now();
+      const cookieDuration = isRememberSession ? "; max-age=2592000" : "";
       if (tokenValue) {
-        document.cookie = `p2p_access_token=${tokenValue}; path=/; max-age=2592000; SameSite=Lax`;
-        document.cookie = `pay2pay_access_token=${tokenValue}; path=/; max-age=2592000; SameSite=Lax`;
-        document.cookie = `access_token=${tokenValue}; path=/; max-age=2592000; SameSite=Lax`;
-        document.cookie = `p2p_account_access=ALLOWED; path=/; max-age=2592000; SameSite=Lax`;
-        document.cookie = `p2p_destination=DASHBOARD; path=/; max-age=2592000; SameSite=Lax`;
+        document.cookie = `p2p_access_token=${tokenValue}; path=/; SameSite=Lax${cookieDuration}`;
+        document.cookie = `pay2pay_access_token=${tokenValue}; path=/; SameSite=Lax${cookieDuration}`;
+        document.cookie = `access_token=${tokenValue}; path=/; SameSite=Lax${cookieDuration}`;
+        document.cookie = `p2p_account_access=ALLOWED; path=/; SameSite=Lax${cookieDuration}`;
+        document.cookie = `p2p_destination=DASHBOARD; path=/; SameSite=Lax${cookieDuration}`;
+        document.cookie = `p2p_remember_session=${isRememberSession ? "true" : "false"}; path=/; SameSite=Lax${cookieDuration}`;
       }
 
       // Read user_type_ref_id from cookie or localStorage
@@ -165,13 +187,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (typeof window !== "undefined") {
         if (!portRole) {
-          document.cookie = `p2p_user_role=${storedRole}; path=/; max-age=2592000; SameSite=Lax`;
-          document.cookie = `pay2pay_user_role=${storedRole}; path=/; max-age=2592000; SameSite=Lax`;
+          document.cookie = `p2p_user_role=${storedRole}; path=/; SameSite=Lax${cookieDuration}`;
+          document.cookie = `pay2pay_user_role=${storedRole}; path=/; SameSite=Lax${cookieDuration}`;
         }
         if (storedUserType) {
           if (!portRole) {
-            document.cookie = `p2p_user_type_ref_id=${storedUserType}; path=/; max-age=2592000; SameSite=Lax`;
-            document.cookie = `pay2pay_user_type_ref_id=${storedUserType}; path=/; max-age=2592000; SameSite=Lax`;
+            document.cookie = `p2p_user_type_ref_id=${storedUserType}; path=/; SameSite=Lax${cookieDuration}`;
+            document.cookie = `pay2pay_user_type_ref_id=${storedUserType}; path=/; SameSite=Lax${cookieDuration}`;
           }
           localStorage.setItem("p2p_user_type_ref_id", storedUserType);
           localStorage.setItem("pay2pay_user_type_ref_id", storedUserType);
@@ -388,6 +410,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         "p2p_super_distributor_ref_id",
         "p2p_session_locked",
         "p2p_session_id",
+        "p2p_remember_session",
+        "pay2pay_remember_session",
+        "p2p_device_trusted",
+        "pay2pay_device_trusted",
         "token",
         "access_token"
       ];
@@ -406,10 +432,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
     }
 
-    // D. Clear all client storage
+    // D. Clear all client storage while retaining trusted device token across logins
     if (typeof localStorage !== "undefined") {
       try {
+        const savedDeviceToken = localStorage.getItem("p2p_device_token");
         localStorage.clear();
+        if (savedDeviceToken) {
+          localStorage.setItem("p2p_device_token", savedDeviceToken);
+        }
       } catch {}
     }
 

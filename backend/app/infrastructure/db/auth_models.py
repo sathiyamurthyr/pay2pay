@@ -63,10 +63,16 @@ class TrustedDeviceModel(BaseEntity, EnterpriseBaseMixin):
     __table_args__ = {"extend_existing": True}
 
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
-    device_fingerprint: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    device_fingerprint: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    device_token_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
     device_name: Mapped[str] = mapped_column(String(150), nullable=False)
+    browser: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    os_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
     trust_duration_days: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
 

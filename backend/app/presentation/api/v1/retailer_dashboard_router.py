@@ -653,40 +653,92 @@ async def get_financial_kpis(
     pub_id = ctx.get("public_id")
     t_uuid = ctx.get("tenant_id")
     c_uuid = ctx.get("company_id")
+    ret_ref = ctx.get("retailer_ref_id") or ctx.get("user_ref_id")
+    comp_ref = ctx.get("company_ref_id")
 
-    now_utc = datetime.now(timezone.utc)
-    start_of_today = datetime(now_utc.year, now_utc.month, now_utc.day, 0, 0, 0, tzinfo=timezone.utc)
-    end_of_today = datetime(now_utc.year, now_utc.month, now_utc.day, 23, 59, 59, tzinfo=timezone.utc)
+    # Authoritative business timezone: Indian Standard Time (UTC+5:30)
+    ist_tz = timezone(timedelta(hours=5, minutes=30))
+    now_ist = datetime.now(ist_tz)
+    start_of_today_ist = datetime(now_ist.year, now_ist.month, now_ist.day, 0, 0, 0, tzinfo=ist_tz)
+    end_of_today_ist = datetime(now_ist.year, now_ist.month, now_ist.day, 23, 59, 59, 999999, tzinfo=ist_tz)
+    start_utc = start_of_today_ist.astimezone(timezone.utc)
+    end_utc = end_of_today_ist.astimezone(timezone.utc)
 
-    base_filter = []
-    if t_uuid:
-        base_filter.append(EnterprisePayoutTransactionModel.tenant_id == t_uuid)
-    if pub_id:
-        base_filter.append(EnterprisePayoutTransactionModel.retailer_id == pub_id)
-    if c_uuid:
-        base_filter.append(EnterprisePayoutTransactionModel.company_id == c_uuid)
-
-    today_filter = base_filter + [
-        EnterprisePayoutTransactionModel.initiated_at >= start_of_today,
-        EnterprisePayoutTransactionModel.initiated_at <= end_of_today
-    ]
-
-    today_res = None
+    # 1. Authoritative PayIn Today Aggregation from payin_transactions
+    payin_amount = 0.0
+    payin_gst = 0.0
     try:
-        today_stmt = select(
-            func.coalesce(func.sum(func.cast(EnterprisePayoutTransactionModel.status == PayoutTransactionStatus.SUCCESS, Integer) * EnterprisePayoutTransactionModel.amount), 0.0).label("transfer_amount"),
-            func.coalesce(func.sum(func.cast(EnterprisePayoutTransactionModel.status == PayoutTransactionStatus.SUCCESS, Integer) * EnterprisePayoutTransactionModel.net_debit), 0.0).label("wallet_debit"),
-            func.coalesce(func.sum(func.cast(EnterprisePayoutTransactionModel.status == PayoutTransactionStatus.SUCCESS, Integer) * EnterprisePayoutTransactionModel.commission), 0.0).label("commission"),
-            func.coalesce(func.sum(func.cast(EnterprisePayoutTransactionModel.status == PayoutTransactionStatus.SUCCESS, Integer) * EnterprisePayoutTransactionModel.gst_amount), 0.0).label("gst"),
-            func.coalesce(func.sum(func.cast(EnterprisePayoutTransactionModel.status == PayoutTransactionStatus.SUCCESS, Integer) * EnterprisePayoutTransactionModel.tds_amount), 0.0).label("tds"),
-        )
-        if today_filter:
-            today_stmt = today_stmt.where(and_(*today_filter))
-        today_res = (await db.execute(today_stmt)).fetchone()
-    except Exception as e:
-        logger.warning(f"Financial KPI lookup notice: {e}")
+        from app.infrastructure.db.payin_models import PayinTransactionModel
+        payin_conds = [
+            func.upper(PayinTransactionModel.txn_status).in_(["SUCCESS", "SETTLED", "COMPLETED"]),
+            PayinTransactionModel.created_at >= start_utc,
+            PayinTransactionModel.created_at <= end_utc
+        ]
+        if comp_ref:
+            try:
+                payin_conds.append(PayinTransactionModel.company_ref_id == int(comp_ref))
+            except (ValueError, TypeError):
+                pass
+        if ret_ref:
+            try:
+                payin_conds.append(PayinTransactionModel.retailer_ref_id == int(ret_ref))
+            except (ValueError, TypeError):
+                pass
 
-    # Settlements
+        payin_stmt = select(
+            func.coalesce(func.sum(PayinTransactionModel.txn_amount), 0.0).label("total_payin_amount"),
+            func.coalesce(func.sum(PayinTransactionModel.tax_amount), 0.0).label("total_payin_gst")
+        ).where(and_(*payin_conds))
+        p_res = (await db.execute(payin_stmt)).fetchone()
+        if p_res:
+            payin_amount = float(p_res.total_payin_amount or 0.0)
+            payin_gst = float(p_res.total_payin_gst or 0.0)
+    except Exception as e:
+        logger.warning(f"PayIn financial KPI aggregation notice: {e}")
+
+    # 2. Authoritative PayOut Today Aggregation from enterprise_payout_transactions
+    payout_amount = 0.0
+    payout_charges = 0.0
+    payout_wallet_debit = 0.0
+    payout_commission = 0.0
+    payout_gst = 0.0
+    payout_tds = 0.0
+    try:
+        payout_time_filter = or_(
+            and_(EnterprisePayoutTransactionModel.initiated_at >= start_utc, EnterprisePayoutTransactionModel.initiated_at <= end_utc),
+            and_(EnterprisePayoutTransactionModel.created_date >= start_utc, EnterprisePayoutTransactionModel.created_date <= end_utc)
+        )
+        payout_conds = [
+            EnterprisePayoutTransactionModel.status == PayoutTransactionStatus.SUCCESS,
+            payout_time_filter
+        ]
+        if c_uuid:
+            payout_conds.append(EnterprisePayoutTransactionModel.company_id == c_uuid)
+        if pub_id:
+            payout_conds.append(EnterprisePayoutTransactionModel.retailer_id == pub_id)
+        if t_uuid:
+            payout_conds.append(EnterprisePayoutTransactionModel.tenant_id == t_uuid)
+
+        payout_stmt = select(
+            func.coalesce(func.sum(EnterprisePayoutTransactionModel.amount), 0.0).label("transfer_amount"),
+            func.coalesce(func.sum(EnterprisePayoutTransactionModel.charges), 0.0).label("total_charges"),
+            func.coalesce(func.sum(EnterprisePayoutTransactionModel.net_debit), 0.0).label("wallet_debit"),
+            func.coalesce(func.sum(EnterprisePayoutTransactionModel.commission), 0.0).label("commission"),
+            func.coalesce(func.sum(EnterprisePayoutTransactionModel.gst_amount), 0.0).label("gst"),
+            func.coalesce(func.sum(EnterprisePayoutTransactionModel.tds_amount), 0.0).label("tds"),
+        ).where(and_(*payout_conds))
+        payout_res = (await db.execute(payout_stmt)).fetchone()
+        if payout_res:
+            payout_amount = float(payout_res.transfer_amount or 0.0)
+            payout_charges = float(payout_res.total_charges or 0.0)
+            payout_wallet_debit = float(payout_res.wallet_debit or 0.0)
+            payout_commission = float(payout_res.commission or 0.0)
+            payout_gst = float(payout_res.gst or 0.0)
+            payout_tds = float(payout_res.tds or 0.0)
+    except Exception as e:
+        logger.warning(f"PayOut financial KPI aggregation notice: {e}")
+
+    # 3. Swipe Machine Settlements
     settle_res = None
     try:
         settle_stmt = select(
@@ -709,20 +761,46 @@ async def get_financial_kpis(
         except Exception:
             pass
 
+    combined_gst = round(payout_gst + payin_gst, 2)
+    reporting_date_str = now_ist.strftime("%d %b %Y")
+
     return {
-        "todays_transfer": round(float(today_res.transfer_amount), 2) if today_res else 0.0,
-        "todays_transfer_amount": round(float(today_res.transfer_amount), 2) if today_res else 0.0,
-        "todays_wallet_debit": round(float(today_res.wallet_debit), 2) if today_res else 0.0,
-        "todays_commission": round(float(today_res.commission), 2) if today_res else 0.0,
-        "todays_commission_earned": round(float(today_res.commission), 2) if today_res else 0.0,
-        "todays_gst": round(float(today_res.gst), 2) if today_res else 0.0,
-        "todays_gst_deducted": round(float(today_res.gst), 2) if today_res else 0.0,
-        "todays_tds": round(float(today_res.tds), 2) if today_res else 0.0,
-        "todays_tds_deducted": round(float(today_res.tds), 2) if today_res else 0.0,
-        "settlement_pending_amount": round(float(settle_res.pending_amount), 2) if settle_res else 0.0,
-        "settlement_completed_amount": round(float(settle_res.completed_amount), 2) if settle_res else 0.0,
-        "pending_swipe_settlements": round(float(settle_res.pending_amount), 2) if settle_res else 0.0,
-        "completed_swipe_settlements": round(float(settle_res.completed_amount), 2) if settle_res else 0.0,
+        # PayIn Today Card
+        "payin_today": {
+            "amount": round(payin_amount, 2),
+            "gst": round(payin_gst, 2),
+            "reporting_date": reporting_date_str,
+        },
+        "total_payin_today": round(payin_amount, 2),
+        "total_payin_gst_today": round(payin_gst, 2),
+
+        # PayOut Today Card
+        "payout_today": {
+            "amount": round(payout_amount, 2),
+            "charges": round(payout_charges, 2),
+            "reporting_date": reporting_date_str,
+        },
+        "total_payout_today": round(payout_amount, 2),
+        "total_payout_charges_today": round(payout_charges, 2),
+
+        # Commission & GST Today
+        "commission_today": round(payout_commission, 2),
+        "gst_today": combined_gst,
+
+        # Backward Compatible Fields
+        "todays_transfer": round(payout_amount, 2),
+        "todays_transfer_amount": round(payout_amount, 2),
+        "todays_wallet_debit": round(payout_wallet_debit, 2),
+        "todays_commission": round(payout_commission, 2),
+        "todays_commission_earned": round(payout_commission, 2),
+        "todays_gst": combined_gst,
+        "todays_gst_deducted": round(payout_gst, 2),
+        "todays_tds": round(payout_tds, 2),
+        "todays_tds_deducted": round(payout_tds, 2),
+        "settlement_pending_amount": round(float(settle_res.pending_amount if settle_res else 0.0), 2),
+        "settlement_completed_amount": round(float(settle_res.completed_amount if settle_res else 0.0), 2),
+        "pending_swipe_settlements": round(float(settle_res.pending_amount if settle_res else 0.0), 2),
+        "completed_swipe_settlements": round(float(settle_res.completed_amount if settle_res else 0.0), 2),
         "wallet_balance": round(float(wal_val), 2),
         "main_balance": round(float(wal_val), 2)
     }

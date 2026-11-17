@@ -103,6 +103,22 @@ interface FinancialKPIData {
   settlement_pending_amount: number;
   settlement_completed_amount: number;
   wallet_balance: number;
+  payin_today?: {
+    amount: number;
+    gst: number;
+    reporting_date?: string;
+  };
+  payout_today?: {
+    amount: number;
+    charges: number;
+    reporting_date?: string;
+  };
+  total_payin_today?: number;
+  total_payin_gst_today?: number;
+  total_payout_today?: number;
+  total_payout_charges_today?: number;
+  commission_today?: number;
+  gst_today?: number;
 }
 
 interface OperationsKPIData {
@@ -1326,17 +1342,18 @@ export const RetailerDashboardView: React.FC = () => {
         </Paper>
       )}
 
-      {/* SECTION B & C: PROMINENT WALLET SUMMARY & QUICK ACTIONS */}
+      {/* SECTION B: FINANCIAL SUMMARY (PAYIN TODAY, PAYOUT TODAY, COMMISSION & GST) */}
       <Grid container spacing={2.5} sx={{ mb: 3, alignItems: "stretch" }}>
-        {/* SECTION B: PROMINENT WALLET SUMMARY CARD */}
-        <Grid size={{ xs: 12, lg: 5 }} sx={{ display: "flex" }}>
+        {/* 1. PAYIN TODAY */}
+        <Grid size={{ xs: 12, md: 6, lg: 4.5 }} sx={{ display: "flex" }}>
           <Paper
             elevation={0}
             sx={{
-              p: { xs: 2.5, sm: 3 },
+              p: { xs: 2.2, sm: 2.5 },
               borderRadius: "20px",
-              background: walletGradient,
-              color: "#FFFFFF",
+              backgroundColor: "#FFFFFF",
+              border: "1px solid #E2E8F0",
+              boxShadow: "0 2px 10px rgba(0,0,0,0.02)",
               position: "relative",
               overflow: "hidden",
               width: "100%",
@@ -1344,158 +1361,366 @@ export const RetailerDashboardView: React.FC = () => {
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
-              boxShadow: "0 8px 28px rgba(0, 0, 0, 0.16)",
+              transition: "all 0.2s ease",
+              "&:hover": { borderColor: "#059669", boxShadow: "0 8px 24px rgba(5,150,105,0.12)" },
             }}
           >
-            {/* Subtle decorative glow */}
-            <Box
-              sx={{
-                position: "absolute",
-                top: -30,
-                right: -30,
-                width: 150,
-                height: 150,
-                borderRadius: "50%",
-                background: `radial-gradient(circle, ${brandSecondary}44 0%, transparent 70%)`,
-                pointerEvents: "none",
-              }}
-            />
-            <Box
-              sx={{
-                position: "absolute",
-                bottom: -40,
-                left: -20,
-                width: 130,
-                height: 130,
-                borderRadius: "50%",
-                background: "radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0) 70%)",
-                pointerEvents: "none",
-              }}
-            />
-
             <Box sx={{ position: "relative", zIndex: 1 }}>
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
-                <Box>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.95)", fontSize: "13px", fontWeight: 800, letterSpacing: "0.6px", textTransform: "uppercase" }}>
-                    Available Wallet Balance
-                  </Typography>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.85)", fontSize: "12px", mt: 0.3, fontWeight: 600 }}>
-                    {brandName} Settlement & Liquidity Ledger
-                  </Typography>
+              {/* Header Row */}
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1.5 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                  <Box
+                    sx={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: "14px",
+                      bgcolor: "#ECFDF5",
+                      color: "#059669",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      boxShadow: "0 2px 6px rgba(5, 150, 105, 0.12)",
+                    }}
+                  >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="5" width="20" height="14" rx="3" />
+                      <line x1="2" y1="10" x2="22" y2="10" />
+                      <path d="M10 16l-3-3 3-3" />
+                      <path d="M7 13h7" />
+                    </svg>
+                  </Box>
+                  <Box>
+                    <Typography sx={{ fontWeight: 800, color: "#0F172A", fontSize: "17px", letterSpacing: "-0.2px" }}>
+                      PayIn Today
+                    </Typography>
+                    <Typography sx={{ color: "#64748B", fontSize: "12px", fontWeight: 500 }}>
+                      Total Collection Amount
+                    </Typography>
+                  </Box>
                 </Box>
+                <Chip
+                  label="PayIn"
+                  size="small"
+                  sx={{
+                    bgcolor: "#DCFCE7",
+                    color: "#15803D",
+                    fontWeight: 800,
+                    fontSize: "12px",
+                    height: 24,
+                    borderRadius: "9999px",
+                    border: "1px solid #BBF7D0",
+                  }}
+                />
+              </Box>
+
+              {/* Main Big Amount */}
+              {loading && !hasLoaded ? (
+                <Skeleton variant="text" width={200} height={56} sx={{ my: 1.5 }} />
+              ) : (
+                <Typography
+                  sx={{
+                    fontWeight: 900,
+                    color: "#059669",
+                    fontSize: { xs: "28px", sm: "32px", md: "34px" },
+                    lineHeight: 1.1,
+                    letterSpacing: "-0.8px",
+                    my: 1.8,
+                  }}
+                >
+                  ₹{formatAmount(finKpis?.payin_today?.amount ?? finKpis?.total_payin_today ?? 0)}
+                </Typography>
+              )}
+            </Box>
+
+            {/* Footer Bar: Total GST */}
+            <Box
+              sx={{
+                position: "relative",
+                zIndex: 1,
+                pt: 1.5,
+                mt: 1,
+                borderTop: "1px solid #F1F5F9",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <Box
                   sx={{
-                    p: 1.1,
-                    borderRadius: "12px",
-                    bgcolor: "rgba(255, 255, 255, 0.15)",
-                    backdropFilter: "blur(8px)",
+                    width: 24,
+                    height: 24,
+                    borderRadius: "6px",
+                    bgcolor: "#DCFCE7",
+                    color: "#059669",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                   }}
                 >
-                  <AccountBalanceWalletIcon sx={{ fontSize: 24, color: "#FFFFFF" }} />
+                  <PercentIcon sx={{ fontSize: 14 }} />
                 </Box>
-              </Box>
-
-              {loading && !hasLoaded ? (
-                <Skeleton variant="text" width={220} height={60} sx={{ bgcolor: "rgba(255, 255, 255, 0.2)" }} />
-              ) : (
-                <Typography
-                  variant="h2"
-                  sx={{
-                    color: "#FFFFFF",
-                    fontWeight: 900,
-                    fontSize: { xs: "34px", sm: "40px", md: "44px" },
-                    lineHeight: 1.05,
-                    letterSpacing: "-0.8px",
-                    my: 1.5,
-                    textShadow: "0 2px 8px rgba(0,0,0,0.25)",
-                  }}
-                >
-                  ₹{formatAmount(headerWallet?.available_balance ?? wallet.availableBalance ?? wallet.mainBalance)}
-                </Typography>
-              )}
-
-              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mt: 1.5, flexWrap: "wrap" }}>
-                <Typography sx={{ color: "rgba(255, 255, 255, 0.95)", fontSize: "13px" }}>
-                  Reserved: <strong>₹{formatAmount(headerWallet?.blocked_balance)}</strong>
-                </Typography>
-                <Box sx={{ width: 4, height: 4, borderRadius: "50%", bgcolor: "rgba(255, 255, 255, 0.6)", display: { xs: "none", sm: "block" } }} />
-                <Typography sx={{ color: "rgba(255, 255, 255, 0.95)", fontSize: "13px" }}>
-                  Today's Debit: <strong>-₹{formatAmount(headerWallet?.todays_debit)}</strong>
+                <Typography sx={{ color: "#475569", fontSize: "13px", fontWeight: 600 }}>
+                  Total GST
                 </Typography>
               </Box>
+              <Typography sx={{ color: "#0F172A", fontSize: "14px", fontWeight: 800 }}>
+                ₹{formatAmount(finKpis?.payin_today?.gst ?? finKpis?.total_payin_gst_today ?? 0)}
+              </Typography>
             </Box>
 
-            {/* Buttons & Realtime status */}
-            <Box sx={{ position: "relative", zIndex: 1, mt: 3, pt: 2.2, borderTop: "1px solid rgba(255, 255, 255, 0.20)" }}>
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1.5 }}>
-                <Stack direction="row" spacing={1.5}>
-                  <Button
-                    variant="contained"
-                    size="medium"
-                    startIcon={<AddCircleIcon sx={{ fontSize: 18 }} />}
-                    onClick={() => {
-                      if (!isApproved) {
-                        setDashboardLockedModal({ label: "Wallet Top-Up" });
-                        return;
-                      }
-                      router.push("/retailer/wallet-topup");
-                    }}
-                    sx={{
-                      py: 1,
-                      px: 3,
-                      fontSize: "13px",
-                      fontWeight: 800,
-                      borderRadius: "9999px",
-                      backgroundColor: "#FFFFFF",
-                      color: brandPrimary,
-                      boxShadow: "0 4px 14px rgba(0,0,0,0.18)",
-                      "&:hover": {
-                        backgroundColor: "#FFFFFF",
-                        filter: "brightness(0.95)",
-                        boxShadow: "0 6px 18px rgba(0,0,0,0.28)",
-                      },
-                      textTransform: "none",
-                    }}
-                  >
-                    ＋ Top Up
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    size="medium"
-                    startIcon={<HistoryIcon sx={{ fontSize: 18 }} />}
-                    onClick={() => router.push("/retailer/dmt/ledger")}
-                    sx={{
-                      py: 1,
-                      px: 3,
-                      fontSize: "13px",
-                      fontWeight: 700,
-                      borderRadius: "9999px",
-                      borderColor: "rgba(255, 255, 255, 0.85)",
-                      color: "#FFFFFF",
-                      backgroundColor: "rgba(255, 255, 255, 0.12)",
-                      "&:hover": {
-                        borderColor: "#FFFFFF",
-                        backgroundColor: "rgba(255, 255, 255, 0.24)",
-                      },
-                      textTransform: "none",
-                    }}
-                  >
-                    Passbook
-                  </Button>
-                </Stack>
-                <Typography sx={{ color: "rgba(255, 255, 255, 0.85)", fontSize: "12px", fontWeight: 600 }}>
-                  ● Realtime sync
-                </Typography>
-              </Box>
-            </Box>
+            {/* Green Decorative Swoosh */}
+            <DualCurveSwoosh primaryColor="#059669" secondaryColor="#34D399" />
           </Paper>
         </Grid>
 
-        {/* SECTION C: QUICK ACTIONS (6 SERVICE SHORTCUTS) */}
-        <Grid size={{ xs: 12, lg: 7 }} sx={{ display: "flex" }}>
+        {/* 2. PAYOUT TODAY */}
+        <Grid size={{ xs: 12, md: 6, lg: 4.5 }} sx={{ display: "flex" }}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: { xs: 2.2, sm: 2.5 },
+              borderRadius: "20px",
+              backgroundColor: "#FFFFFF",
+              border: "1px solid #E2E8F0",
+              boxShadow: "0 2px 10px rgba(0,0,0,0.02)",
+              position: "relative",
+              overflow: "hidden",
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              transition: "all 0.2s ease",
+              "&:hover": { borderColor: "#0284C7", boxShadow: "0 8px 24px rgba(2,132,199,0.12)" },
+            }}
+          >
+            <Box sx={{ position: "relative", zIndex: 1 }}>
+              {/* Header Row */}
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1.5 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                  <Box
+                    sx={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: "14px",
+                      bgcolor: "#F0F9FF",
+                      color: "#0284C7",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      boxShadow: "0 2px 6px rgba(2, 132, 199, 0.12)",
+                    }}
+                  >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="5" width="20" height="14" rx="3" />
+                      <line x1="2" y1="10" x2="22" y2="10" />
+                      <path d="M14 16l3-3-3-3" />
+                      <path d="M17 13H10" />
+                    </svg>
+                  </Box>
+                  <Box>
+                    <Typography sx={{ fontWeight: 800, color: "#0F172A", fontSize: "17px", letterSpacing: "-0.2px" }}>
+                      PayOut Today
+                    </Typography>
+                    <Typography sx={{ color: "#64748B", fontSize: "12px", fontWeight: 500 }}>
+                      Total Payout Amount
+                    </Typography>
+                  </Box>
+                </Box>
+                <Chip
+                  label="PayOut"
+                  size="small"
+                  sx={{
+                    bgcolor: "#E0F2FE",
+                    color: "#0369A1",
+                    fontWeight: 800,
+                    fontSize: "12px",
+                    height: 24,
+                    borderRadius: "9999px",
+                    border: "1px solid #BAE6FD",
+                  }}
+                />
+              </Box>
+
+              {/* Main Big Amount */}
+              {loading && !hasLoaded ? (
+                <Skeleton variant="text" width={200} height={56} sx={{ my: 1.5 }} />
+              ) : (
+                <Typography
+                  sx={{
+                    fontWeight: 900,
+                    color: "#0284C7",
+                    fontSize: { xs: "28px", sm: "32px", md: "34px" },
+                    lineHeight: 1.1,
+                    letterSpacing: "-0.8px",
+                    my: 1.8,
+                  }}
+                >
+                  ₹{formatAmount(finKpis?.payout_today?.amount ?? finKpis?.total_payout_today ?? finKpis?.todays_transfer ?? 0)}
+                </Typography>
+              )}
+            </Box>
+
+            {/* Footer Bar: Total Charges */}
+            <Box
+              sx={{
+                position: "relative",
+                zIndex: 1,
+                pt: 1.5,
+                mt: 1,
+                borderTop: "1px solid #F1F5F9",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Box
+                  sx={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: "6px",
+                    bgcolor: "#E0F2FE",
+                    color: "#0284C7",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <ellipse cx="12" cy="5" rx="9" ry="3" />
+                    <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+                    <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+                  </svg>
+                </Box>
+                <Typography sx={{ color: "#475569", fontSize: "13px", fontWeight: 600 }}>
+                  Total Charges
+                </Typography>
+              </Box>
+              <Typography sx={{ color: "#0F172A", fontSize: "14px", fontWeight: 800 }}>
+                ₹{formatAmount(finKpis?.payout_today?.charges ?? finKpis?.total_payout_charges_today ?? 0)}
+              </Typography>
+            </Box>
+
+            {/* Blue Decorative Swoosh */}
+            <DualCurveSwoosh primaryColor="#0284C7" secondaryColor="#38BDF8" />
+          </Paper>
+        </Grid>
+
+        {/* 3. STACKED COMMISSION TODAY & GST TODAY */}
+        <Grid size={{ xs: 12, lg: 3 }} sx={{ display: "flex" }}>
+          <Stack spacing={2} sx={{ width: "100%", height: "100%", justifyContent: "space-between" }}>
+            {/* Commission Today */}
+            <Paper
+              elevation={0}
+              sx={{
+                p: { xs: 2, sm: 2.2 },
+                borderRadius: "18px",
+                backgroundColor: "#FFFFFF",
+                border: "1px solid #E2E8F0",
+                boxShadow: "0 2px 10px rgba(0,0,0,0.02)",
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                gap: 2,
+                transition: "all 0.2s ease",
+                "&:hover": { borderColor: "#F59E0B", boxShadow: "0 4px 16px rgba(245,158,11,0.12)" },
+              }}
+            >
+              <Box
+                sx={{
+                  width: 46,
+                  height: 46,
+                  borderRadius: "14px",
+                  bgcolor: "#FEF3C7",
+                  color: "#D97706",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="8" cy="8" r="6" />
+                  <path d="M18 9h1a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-1" />
+                  <path d="M12 18h6a2 2 0 0 0 2-2v-1" />
+                  <path d="M4 14v2a2 2 0 0 0 2 2h4" />
+                </svg>
+              </Box>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography sx={{ color: "#64748B", fontSize: "13px", fontWeight: 700 }}>
+                  Commission Today
+                </Typography>
+                {loading && !hasLoaded ? (
+                  <Skeleton variant="text" width={110} height={36} />
+                ) : (
+                  <Typography sx={{ fontWeight: 900, color: "#0F172A", fontSize: { xs: "20px", sm: "22px" }, letterSpacing: "-0.4px", lineHeight: 1.2, mt: 0.2 }}>
+                    ₹{formatAmount(finKpis?.commission_today ?? finKpis?.todays_commission ?? 0)}
+                  </Typography>
+                )}
+              </Box>
+            </Paper>
+
+            {/* GST Today */}
+            <Paper
+              elevation={0}
+              sx={{
+                p: { xs: 2, sm: 2.2 },
+                borderRadius: "18px",
+                backgroundColor: "#FFFFFF",
+                border: "1px solid #E2E8F0",
+                boxShadow: "0 2px 10px rgba(0,0,0,0.02)",
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                gap: 2,
+                transition: "all 0.2s ease",
+                "&:hover": { borderColor: "#8B5CF6", boxShadow: "0 4px 16px rgba(139,92,246,0.12)" },
+              }}
+            >
+              <Box
+                sx={{
+                  width: 46,
+                  height: 46,
+                  borderRadius: "14px",
+                  bgcolor: "#EDE9FE",
+                  color: "#7C3AED",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <polyline points="10 9 9 9 8 9" />
+                </svg>
+              </Box>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography sx={{ color: "#64748B", fontSize: "13px", fontWeight: 700 }}>
+                  GST Today
+                </Typography>
+                {loading && !hasLoaded ? (
+                  <Skeleton variant="text" width={110} height={36} />
+                ) : (
+                  <Typography sx={{ fontWeight: 900, color: "#0F172A", fontSize: { xs: "20px", sm: "22px" }, letterSpacing: "-0.4px", lineHeight: 1.2, mt: 0.2 }}>
+                    ₹{formatAmount(finKpis?.gst_today ?? finKpis?.todays_gst ?? 0)}
+                  </Typography>
+                )}
+              </Box>
+            </Paper>
+          </Stack>
+        </Grid>
+      </Grid>
+
+      {/* SECTION C: QUICK ACTIONS & WALLET MANAGEMENT */}
+      <Grid container spacing={2.5} sx={{ mb: 3, alignItems: "stretch" }}>
+        {/* QUICK ACTIONS (6 SERVICE SHORTCUTS) */}
+        <Grid size={{ xs: 12, lg: 8 }} sx={{ display: "flex" }}>
           <Paper
             elevation={0}
             sx={{
@@ -1594,6 +1819,110 @@ export const RetailerDashboardView: React.FC = () => {
                 </Grid>
               ))}
             </Grid>
+          </Paper>
+        </Grid>
+
+        {/* WALLET ACTIONS CARD */}
+        <Grid size={{ xs: 12, lg: 4 }} sx={{ display: "flex" }}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: { xs: 2.5, sm: 3 },
+              borderRadius: "20px",
+              background: "linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 50%, #F0FDF4 100%)",
+              border: "1px solid #A7F3D0",
+              boxShadow: "0 2px 10px rgba(5,150,105,0.06)",
+              width: "100%",
+              height: "100%",
+              position: "relative",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+            }}
+          >
+            {/* Top row with Wallet Graphic */}
+            <Box sx={{ position: "relative", zIndex: 1 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+                <Box
+                  sx={{
+                    width: 56,
+                    height: 42,
+                    borderRadius: "10px",
+                    bgcolor: "#059669",
+                    color: "#FFFFFF",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 4px 12px rgba(5,150,105,0.25)",
+                    position: "relative",
+                    overflow: "hidden",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Box sx={{ position: "absolute", top: 4, left: 6, width: 8, height: 6, bgcolor: "#34D399", borderRadius: "2px" }} />
+                  <Box sx={{ position: "absolute", right: 6, width: 14, height: 10, bgcolor: "#10B981", borderRadius: "3px", border: "1.5px solid #FFFFFF" }} />
+                </Box>
+                <Typography sx={{ color: "#065F46", fontSize: "14px", fontWeight: 700, lineHeight: 1.4 }}>
+                  Manage your wallet, view transactions and download statements.
+                </Typography>
+              </Box>
+            </Box>
+
+            {/* Bottom Actions Row */}
+            <Box sx={{ position: "relative", zIndex: 1, mt: { xs: 2, sm: 3 } }}>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                <Button
+                  variant="contained"
+                  size="medium"
+                  startIcon={<ReceiptLongIcon sx={{ fontSize: 18 }} />}
+                  onClick={() => router.push("/retailer/dmt/ledger")}
+                  sx={{
+                    py: 1.1,
+                    px: 2.5,
+                    fontSize: "13px",
+                    fontWeight: 800,
+                    borderRadius: "9999px",
+                    backgroundColor: "#059669",
+                    color: "#FFFFFF",
+                    boxShadow: "0 4px 14px rgba(5,150,105,0.25)",
+                    "&:hover": {
+                      backgroundColor: "#047857",
+                      boxShadow: "0 6px 18px rgba(5,150,105,0.35)",
+                    },
+                    textTransform: "none",
+                  }}
+                >
+                  View Passbook
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="medium"
+                  startIcon={<HistoryIcon sx={{ fontSize: 18 }} />}
+                  onClick={() => router.push("/retailer/transactions")}
+                  sx={{
+                    py: 1.1,
+                    px: 2.5,
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    borderRadius: "9999px",
+                    borderColor: "#059669",
+                    color: "#059669",
+                    backgroundColor: "rgba(255, 255, 255, 0.7)",
+                    "&:hover": {
+                      borderColor: "#047857",
+                      backgroundColor: "#ECFDF5",
+                    },
+                    textTransform: "none",
+                  }}
+                >
+                  Wallet History
+                </Button>
+              </Stack>
+            </Box>
+
+            {/* Subtle corner wave */}
+            <DualCurveSwoosh primaryColor="#059669" secondaryColor="#6EE7B7" />
           </Paper>
         </Grid>
       </Grid>

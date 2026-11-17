@@ -392,10 +392,13 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     destination?: string,
     approveStatus?: boolean,
     activeStatus?: boolean,
-    statusMessage?: string
+    statusMessage?: string,
+    rememberSession?: boolean
   ) => {
     // 1. Authoritative check:
     const isBothTrue = approveStatus === true && activeStatus === true;
+    const isRemember = rememberSession !== undefined ? rememberSession : rememberMe;
+    const cookieDuration = isRemember ? "; max-age=2592000" : "";
 
     // Resolve authoritative user_type_ref_id & role from server payload
     let userTypeRefId = userData?.user_type_ref_id;
@@ -417,7 +420,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       authoritativeRole = portalRole === "SUPER_DISTRIBUTOR" ? "SD" : portalRole === "DISTRIBUTOR" ? "DIST" : portalRole;
     }
 
-    // 2. Synchronously persist credentials & session in Cookies and LocalStorage
+    // 2. Synchronously persist credentials & session in Cookies and Storage
     if (typeof window !== "undefined") {
       const validToken =
         token ||
@@ -440,43 +443,44 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         normalizedUser.roles = [normalizedUser.role || authoritativeRole];
       }
 
-      // Cookies with SameSite=Lax and 30-day expiry
-      document.cookie = `p2p_user_role=${authoritativeRole}; path=/; max-age=2592000; SameSite=Lax`;
-      document.cookie = `pay2pay_user_role=${authoritativeRole}; path=/; max-age=2592000; SameSite=Lax`;
+      // Cookies with SameSite=Lax and persistent duration only if Remember Session is active
+      document.cookie = `p2p_user_role=${authoritativeRole}; path=/; SameSite=Lax${cookieDuration}`;
+      document.cookie = `pay2pay_user_role=${authoritativeRole}; path=/; SameSite=Lax${cookieDuration}`;
       if (userTypeRefId) {
-        document.cookie = `p2p_user_type_ref_id=${userTypeRefId}; path=/; max-age=2592000; SameSite=Lax`;
-        document.cookie = `pay2pay_user_type_ref_id=${userTypeRefId}; path=/; max-age=2592000; SameSite=Lax`;
+        document.cookie = `p2p_user_type_ref_id=${userTypeRefId}; path=/; SameSite=Lax${cookieDuration}`;
+        document.cookie = `pay2pay_user_type_ref_id=${userTypeRefId}; path=/; SameSite=Lax${cookieDuration}`;
       }
-      document.cookie = `p2p_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
-      document.cookie = `pay2pay_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
-      document.cookie = `pay2pay_auth_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
-      document.cookie = `access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
-      document.cookie = `token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
-      document.cookie = `p2p_destination=${isBothTrue ? "DASHBOARD" : "ACCOUNT_UNDER_REVIEW"}; path=/; max-age=2592000; SameSite=Lax`;
-      document.cookie = `p2p_account_access=${isBothTrue ? "ALLOWED" : "RESTRICTED"}; path=/; max-age=2592000; SameSite=Lax`;
-      document.cookie = `p2p_retailer_approval_status=APPROVED; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `p2p_access_token=${validToken}; path=/; SameSite=Lax${cookieDuration}`;
+      document.cookie = `pay2pay_access_token=${validToken}; path=/; SameSite=Lax${cookieDuration}`;
+      document.cookie = `pay2pay_auth_token=${validToken}; path=/; SameSite=Lax${cookieDuration}`;
+      document.cookie = `access_token=${validToken}; path=/; SameSite=Lax${cookieDuration}`;
+      document.cookie = `token=${validToken}; path=/; SameSite=Lax${cookieDuration}`;
+      document.cookie = `p2p_destination=${isBothTrue ? "DASHBOARD" : "ACCOUNT_UNDER_REVIEW"}; path=/; SameSite=Lax${cookieDuration}`;
+      document.cookie = `p2p_account_access=${isBothTrue ? "ALLOWED" : "RESTRICTED"}; path=/; SameSite=Lax${cookieDuration}`;
+      document.cookie = `p2p_retailer_approval_status=APPROVED; path=/; SameSite=Lax${cookieDuration}`;
+      document.cookie = `p2p_remember_session=${isRemember ? "true" : "false"}; path=/; SameSite=Lax${cookieDuration}`;
 
       // Role and Port-specific scoped session tokens for multi-portal isolation
       const currentPort = typeof window !== "undefined" ? window.location.port : "";
       if (authoritativeRole === "RETAILER" || currentPort === "4001") {
-        document.cookie = `p2p_retailer_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
-        document.cookie = `p2p_user_role_4001=RETAILER; path=/; max-age=2592000; SameSite=Lax`;
+        document.cookie = `p2p_retailer_token=${validToken}; path=/; SameSite=Lax${cookieDuration}`;
+        document.cookie = `p2p_user_role_4001=RETAILER; path=/; SameSite=Lax${cookieDuration}`;
         try {
           localStorage.setItem("p2p_retailer_token", validToken);
           localStorage.setItem("p2p_retailer_user", JSON.stringify(normalizedUser));
         } catch {}
       }
       if (authoritativeRole === "ADMIN" || currentPort === "4002") {
-        document.cookie = `p2p_admin_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
-        document.cookie = `p2p_user_role_4002=ADMIN; path=/; max-age=2592000; SameSite=Lax`;
+        document.cookie = `p2p_admin_token=${validToken}; path=/; SameSite=Lax${cookieDuration}`;
+        document.cookie = `p2p_user_role_4002=ADMIN; path=/; SameSite=Lax${cookieDuration}`;
         try {
           localStorage.setItem("p2p_admin_token", validToken);
           localStorage.setItem("p2p_admin_user", JSON.stringify(normalizedUser));
         } catch {}
       }
       if (authoritativeRole === "SUPER_ADMIN" || currentPort === "4003") {
-        document.cookie = `p2p_super_admin_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
-        document.cookie = `p2p_user_role_4003=SUPER_ADMIN; path=/; max-age=2592000; SameSite=Lax`;
+        document.cookie = `p2p_super_admin_token=${validToken}; path=/; SameSite=Lax${cookieDuration}`;
+        document.cookie = `p2p_user_role_4003=SUPER_ADMIN; path=/; SameSite=Lax${cookieDuration}`;
         try {
           localStorage.setItem("p2p_super_admin_token", validToken);
           localStorage.setItem("p2p_super_admin_user", JSON.stringify(normalizedUser));
@@ -490,13 +494,14 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         rCode = normalizedUser.retailer_id || normalizedUser.public_id || normalizedUser.id || "";
       }
       if (rCode) {
-        document.cookie = `p2p_active_retailer_id=${rCode}; path=/; max-age=2592000; SameSite=Lax`;
-        document.cookie = `p2p_retailer_code=${rCode}; path=/; max-age=2592000; SameSite=Lax`;
+        document.cookie = `p2p_active_retailer_id=${rCode}; path=/; SameSite=Lax${cookieDuration}`;
+        document.cookie = `p2p_retailer_code=${rCode}; path=/; SameSite=Lax${cookieDuration}`;
       }
 
-      // Synchronously persist session state in localStorage to prevent reload logout
+      // Persist session state in localStorage and sessionStorage
       try {
         const now = Date.now();
+        localStorage.setItem("p2p_remember_session", isRemember ? "true" : "false");
         localStorage.setItem("pay2pay_user_role", authoritativeRole);
         localStorage.setItem("p2p_user_role", authoritativeRole);
         if (userTypeRefId) {
@@ -520,6 +525,11 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           localStorage.setItem("p2p_active_retailer_id", rCode);
           localStorage.setItem("p2p_retailer_code", rCode);
         }
+
+        // Also save in sessionStorage
+        sessionStorage.setItem("p2p_access_token", validToken);
+        sessionStorage.setItem("pay2pay_access_token", validToken);
+        sessionStorage.setItem("pay2pay_user_data", JSON.stringify(normalizedUser));
       } catch {
         // Safe fallback
       }
@@ -587,6 +597,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     setSuccessMsg("");
 
     try {
+      const existingDeviceToken = typeof window !== "undefined" ? localStorage.getItem("p2p_device_token") || undefined : undefined;
       const res = await fetch(`${API_BASE}/auth/enterprise/login-password`, {
         method: "POST",
         credentials: "include",
@@ -596,7 +607,11 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           password,
           captcha_code: captchaInput,
           telemetry,
-          portal_role: portalRole || "COMMON"
+          portal_role: portalRole || "COMMON",
+          remember_me: rememberMe,
+          trust_device: trustDevice,
+          trust_days: trustDays,
+          device_token: existingDeviceToken
         })
       });
 
@@ -613,6 +628,13 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         const activeStatus = data.active_status !== undefined ? data.active_status : data.data?.active_status;
         const destination = data.data?.destination || (approveStatus && activeStatus ? "DASHBOARD" : "ACCOUNT_UNDER_REVIEW");
         const redirectUrl = data.data?.redirect_url || (destination === "DASHBOARD" ? "/retailer/dashboard" : "/retailer/account-under-review");
+
+        if (data.data?.trusted_device?.device_token) {
+          try {
+            localStorage.setItem("p2p_device_token", data.data.trusted_device.device_token);
+          } catch {}
+        }
+
         await handleAuthSuccessRedirect(
           data.data?.access_token,
           data.data?.user,
@@ -620,7 +642,8 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           destination,
           approveStatus,
           activeStatus,
-          data.message
+          data.message,
+          data.data?.remember_session ?? rememberMe
         );
       } else {
         const errText = (data.detail && data.detail !== "Not Found")
@@ -687,11 +710,21 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     setSuccessMsg("");
 
     try {
+      const existingDeviceToken = typeof window !== "undefined" ? localStorage.getItem("p2p_device_token") || undefined : undefined;
       const res = await fetch(`${API_BASE}/auth/enterprise/login-otp/verify`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mobile_number: mobileNumber.trim(), otp_code: fullOtp, telemetry })
+        body: JSON.stringify({
+          mobile_number: mobileNumber.trim(),
+          otp_code: fullOtp,
+          telemetry,
+          portal_role: portalRole || "COMMON",
+          remember_me: rememberMe,
+          trust_device: trustDevice,
+          trust_days: trustDays,
+          device_token: existingDeviceToken
+        })
       });
       const data = await res.json().catch(() => ({}));
       setLoading(false);
@@ -705,6 +738,12 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         const destination = data.data?.destination || (approveStatus && activeStatus ? "DASHBOARD" : "ACCOUNT_UNDER_REVIEW");
         const isNewOnboarding = flow === "NEW_ONBOARDING" || flow === "RESUME_ONBOARDING" || destination === "ONBOARDING";
         const redirectUrl = data.data?.redirect_url || (destination === "APPLICATION_REJECTED" ? "/application-rejected" : isNewOnboarding ? "/register" : approveStatus && activeStatus ? "/retailer/dashboard" : "/retailer/account-under-review");
+
+        if (data.data?.trusted_device?.device_token) {
+          try {
+            localStorage.setItem("p2p_device_token", data.data.trusted_device.device_token);
+          } catch {}
+        }
 
         if (isNewOnboarding) {
           setSuccessMsg("✓ Mobile verified successfully. Taking you to onboarding...");
@@ -725,7 +764,8 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           destination,
           approveStatus,
           activeStatus,
-          data.message
+          data.message,
+          data.data?.remember_session ?? rememberMe
         );
       } else {
         const errText = (data.detail && data.detail !== "Not Found") ? data.detail : (data.message || "Invalid OTP code. Please check the OTP and try again.");
@@ -734,6 +774,70 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     } catch {
       setLoading(false);
       triggerError("Failed to verify OTP code. Please enter the correct 6-digit WhatsApp OTP.");
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    if (!acceptedConsent) {
+      triggerError("Security Consent acceptance is mandatory.");
+      return;
+    }
+    setLoading(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+    const existingDeviceToken = typeof window !== "undefined" ? localStorage.getItem("p2p_device_token") || undefined : undefined;
+
+    try {
+      const res = await fetch(`${API_BASE}/auth/enterprise/biometric/verify`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mobile_number: mobileNumber.trim() || undefined,
+          portal_role: portalRole || "COMMON",
+          remember_me: rememberMe,
+          trust_device: trustDevice,
+          trust_days: trustDays,
+          device_token: existingDeviceToken,
+          telemetry
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      setLoading(false);
+
+      if (res.ok && (data.status === "SUCCESS" || data.success === true)) {
+        setShowConfetti(true);
+        soundSystem.playLoginSuccess();
+        const approveStatus = data.approve_status !== undefined ? data.approve_status : data.data?.approve_status;
+        const activeStatus = data.active_status !== undefined ? data.active_status : data.data?.active_status;
+        const destination = data.data?.destination || (approveStatus && activeStatus ? "DASHBOARD" : "ACCOUNT_UNDER_REVIEW");
+        const redirectUrl = data.data?.redirect_url || (destination === "DASHBOARD" ? "/retailer/dashboard" : "/retailer/account-under-review");
+
+        if (data.data?.trusted_device?.device_token) {
+          try {
+            localStorage.setItem("p2p_device_token", data.data.trusted_device.device_token);
+          } catch {}
+        }
+
+        setSuccessMsg("✓ Biometric authentication successful. Signing you in...");
+        setErrorMsg("");
+        await handleAuthSuccessRedirect(
+          data.data?.access_token,
+          data.data?.user,
+          redirectUrl,
+          destination,
+          approveStatus,
+          activeStatus,
+          data.message,
+          data.data?.remember_session ?? rememberMe
+        );
+      } else {
+        const errText = (data.detail && data.detail !== "Not Found") ? data.detail : (data.message || "Biometric authentication failed. Please sign in with password or OTP.");
+        triggerError(errText);
+      }
+    } catch {
+      setLoading(false);
+      triggerError("Unable to connect to biometric authentication service.");
     }
   };
 
@@ -1233,6 +1337,48 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                     </div>
                   </div>
 
+                  {/* Remember Session & Trust Device */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-left">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={rememberMe}
+                        onChange={(e) => setRememberMe(e.target.checked)}
+                        className="w-4 h-4 rounded cursor-pointer"
+                        style={{ accentColor: brandPrimary }}
+                      />
+                      <span className="text-xs font-semibold text-[#292329]">
+                        {t.rememberSession}
+                      </span>
+                    </label>
+
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={trustDevice}
+                          onChange={(e) => setTrustDevice(e.target.checked)}
+                          className="w-4 h-4 rounded cursor-pointer"
+                          style={{ accentColor: brandPrimary }}
+                        />
+                        <span className="text-xs font-semibold text-[#292329]">
+                          {t.trustDevice}
+                        </span>
+                      </label>
+                      {trustDevice && (
+                        <select
+                          value={trustDays}
+                          onChange={(e) => setTrustDays(Number(e.target.value))}
+                          className="text-xs font-bold rounded-lg px-2 py-1 outline-none border bg-white border-[#E8E2E5] text-[#292329] shadow-xs"
+                        >
+                          <option value={30}>{t.days30}</option>
+                          <option value={90}>{t.days90}</option>
+                          <option value={365}>{t.forever}</option>
+                        </select>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Security consent for OTP tab */}
                   <div
                     className="rounded-xl border p-3"
@@ -1306,24 +1452,108 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                   {t.webauthnDesc}
                 </p>
               </div>
+
+              {/* Mobile Number for Biometric Account Lookup */}
+              <div className="text-left space-y-1.5 max-w-sm mx-auto">
+                <label className="block text-xs font-bold text-[#292329]">
+                  {t.mobileNumber} <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={mobileNumber}
+                    onChange={(e) => handleMobileChange(e.target.value)}
+                    placeholder="Enter 10-digit mobile number"
+                    className="w-full py-2.5 px-3 rounded-xl border border-[#E8E2E5] text-sm font-semibold outline-none focus:border-blue-600 bg-white text-[#292329]"
+                  />
+                </div>
+              </div>
+
+              {/* Remember Session & Trust Device */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-left max-w-sm mx-auto">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="w-4 h-4 rounded cursor-pointer"
+                    style={{ accentColor: brandPrimary }}
+                  />
+                  <span className="text-xs font-semibold text-[#292329]">
+                    {t.rememberSession}
+                  </span>
+                </label>
+
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={trustDevice}
+                      onChange={(e) => setTrustDevice(e.target.checked)}
+                      className="w-4 h-4 rounded cursor-pointer"
+                      style={{ accentColor: brandPrimary }}
+                    />
+                    <span className="text-xs font-semibold text-[#292329]">
+                      {t.trustDevice}
+                    </span>
+                  </label>
+                  {trustDevice && (
+                    <select
+                      value={trustDays}
+                      onChange={(e) => setTrustDays(Number(e.target.value))}
+                      className="text-xs font-bold rounded-lg px-2 py-1 outline-none border bg-white border-[#E8E2E5] text-[#292329] shadow-xs"
+                    >
+                      <option value={30}>{t.days30}</option>
+                      <option value={90}>{t.days90}</option>
+                      <option value={365}>{t.forever}</option>
+                    </select>
+                  )}
+                </div>
+              </div>
+
+              {/* Security Consent */}
+              <div
+                className="rounded-xl border p-3 max-w-sm mx-auto text-left"
+                style={{
+                  borderColor: `${brandPrimary}25`,
+                  backgroundColor: `${brandPrimary}0A`,
+                }}
+              >
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={acceptedConsent}
+                    onChange={(e) => setAcceptedConsent(e.target.checked)}
+                    className="w-4 h-4 mt-0.5 rounded cursor-pointer shrink-0"
+                    style={{ accentColor: brandPrimary }}
+                  />
+                  <span className="text-xs font-medium leading-relaxed text-[#625B60]">
+                    {t.securityConsent}
+                  </span>
+                </label>
+              </div>
+
               <motion.button
                 variants={buttonMotionVariants}
                 whileHover="hover"
                 whileTap="tap"
                 type="button"
-                onClick={() => {
-                  setShowConfetti(true);
-                  setSuccessMsg("✓ Biometric Authenticated. Redirecting...");
-                  setTimeout(() => handleAuthSuccessRedirect(), 800);
-                }}
+                disabled={loading}
+                onClick={handleBiometricLogin}
                 className="px-6 py-3 rounded-xl text-white text-sm font-bold inline-flex items-center gap-2 shadow-md cursor-pointer"
                 style={{
                   background: `linear-gradient(to right, ${brandPrimary}, ${brandSecondary})`,
                   boxShadow: `0 4px 14px ${brandPrimary}35`,
                 }}
               >
-                <Fingerprint className="w-4 h-4" />
-                <span>{t.authPasskey}</span>
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <Fingerprint className="w-4 h-4" />
+                    <span>{t.authPasskey}</span>
+                  </>
+                )}
               </motion.button>
             </div>
           )}
