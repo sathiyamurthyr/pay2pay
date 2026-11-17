@@ -8,6 +8,7 @@ from app.presentation.api.v1 import (
     auth, tenants, companies, users, roles, permissions, audit, settings as sys_settings, profile, dashboard, organization, retailers, machines, settlements, developer, compliance, financial_config, settlement_intake, settlement_processing, wallet_ledger, payouts, reporting, operations, crm, fraud, finance_accounting, bpm, eip, notifications, customer, beneficiary, policy, dmt, aeps, audio, secrets, upload, verification, retailer_services, payout_workflow, ekyc, epic014_beneficiary_router, customer_mpin
 )
 import app.infrastructure.db.models  # Register all models with Base.metadata
+import app.infrastructure.db.auth_models
 import app.infrastructure.db.payout_workflow_models
 import app.infrastructure.db.ekyc_models
 import app.infrastructure.db.epic014_models
