@@ -624,11 +624,16 @@ async def login_with_password(
     referer_header = request.headers.get("referer", "").lower()
     host_header = request.headers.get("host", "").lower()
     is_admin_portal = (
-        req_portal == "ADMIN"
+        req_portal in ("ADMIN", "SUPER_ADMIN", "PLATFORM_ADMIN")
         or "admin." in origin_header
         or "admin." in referer_header
-        or "/admin" in referer_header
+        or "/admin/" in referer_header
+        or referer_header.endswith("/admin")
+        or "/super-admin" in referer_header
         or "admin." in host_header
+        or "super-admin." in host_header
+        or ":4002" in host_header
+        or ":4003" in host_header
     )
     has_letters = bool(re.search(r"[a-zA-Z]", raw_input))
 
@@ -742,20 +747,13 @@ async def login_with_password(
 
     auth_role = (getattr(auth_user, "role", "") or "").strip().upper() if auth_user else ""
 
-    is_common_portal = (
-        req_portal in ("", "COMMON", "ALL", "UNIFIED", None)
-        or "login." in host_header
-        or "login." in referer_header
-        or "login." in origin_header
-        or "/login" in referer_header
-    )
-
     # ── SUPER DISTRIBUTOR (MASTER DISTRIBUTOR) PORTAL DETECTION ──────────────
     is_super_distributor_portal = (
         req_portal in ("SUPER_DISTRIBUTOR", "MASTER_DISTRIBUTOR", "SD", "MSD")
         or "sd." in origin_header
         or "sd." in referer_header
         or "/sd/" in referer_header
+        or referer_header.endswith("/sd")
         or "sd." in host_header
         or "super-distributor." in origin_header
         or "super-distributor." in referer_header
@@ -767,8 +765,24 @@ async def login_with_password(
         req_portal in ("DIST", "DISTRIBUTOR")
         or "dist." in origin_header
         or "dist." in referer_header
-        or "/dist" in referer_header
+        or "/dist/" in referer_header
+        or referer_header.endswith("/dist")
         or "dist." in host_header
+        or "distributor." in origin_header
+        or "distributor." in host_header
+    )
+
+    is_admin_portal = (
+        req_portal in ("ADMIN", "SUPER_ADMIN", "PLATFORM_ADMIN")
+        or "admin." in origin_header
+        or "admin." in referer_header
+        or "/admin/" in referer_header
+        or referer_header.endswith("/admin")
+        or "/super-admin" in referer_header
+        or "admin." in host_header
+        or "super-admin." in host_header
+        or ":4002" in host_header
+        or ":4003" in host_header
     )
 
     is_retailer_portal = (
@@ -777,14 +791,25 @@ async def login_with_password(
         or "retailer." in referer_header
         or "/retailer" in referer_header
         or "retailer." in host_header
+        or ":4001" in host_header
+        or ":3060" in host_header
+        or ("smspay.store" in host_header and not is_admin_portal and not is_distributor_portal and not is_super_distributor_portal)
+        or ("near4you.store" in host_header and not is_admin_portal and not is_distributor_portal and not is_super_distributor_portal)
     )
 
-    # Common portal resets any referrer-based bias so routing is 100% dynamic
-    if is_common_portal:
-        is_super_distributor_portal = False
-        is_distributor_portal = False
-        is_retailer_portal = False
-        is_admin_portal = False
+    is_common_portal = (
+        not is_admin_portal
+        and not is_super_distributor_portal
+        and not is_distributor_portal
+        and not is_retailer_portal
+        and (
+            req_portal in ("", "COMMON", "ALL", "UNIFIED", None)
+            or "login." in host_header
+            or "login." in referer_header
+            or "login." in origin_header
+            or referer_header.rstrip("/").endswith("/login")
+        )
+    )
 
     is_sd_auth_user = bool(auth_role in ("SUPER_DISTRIBUTOR", "SD", "MASTER_DISTRIBUTOR"))
     is_dist_auth_user = bool(auth_role in ("DISTRIBUTOR", "DIST"))
@@ -1306,19 +1331,18 @@ async def login_with_password(
     is_admin = False
     is_valid_pass = False
 
-    # A. Check Admin Password Match strictly against database hash (for admin portal logins)
-    if admin_user is not None:
-        if admin_user.hashed_password:
-            try:
-                if dynamic_verify_password(payload.password, admin_user.hashed_password):
-                    is_valid_pass = True
-                    is_admin = True
-                    is_retailer_portal = False
-            except Exception:
-                pass
+    # A. Check Admin Password Match strictly against database hash ONLY when on Admin Portal
+    if is_admin_portal and admin_user is not None and admin_user.hashed_password:
+        try:
+            if dynamic_verify_password(payload.password, admin_user.hashed_password):
+                is_valid_pass = True
+                is_admin = True
+                is_retailer_portal = False
+        except Exception:
+            pass
 
-    # B. Retailer Portal / Retailer Authentication
-    if not is_admin:
+    # B. Retailer Authentication (Prioritized for Retailer Portal, Retailer Users, and Common Portal)
+    if not is_valid_pass:
         # 1. Link or migrate credentials from registration draft if auth_user record is missing
         if not auth_user:
             if existing_retailer:
@@ -1355,80 +1379,69 @@ async def login_with_password(
                 except Exception as e:
                     logger.warning(f"Draft password migration check: {e}")
 
-        # 2. Check if retailer account exists in retailer or auth_users
-        if not existing_retailer and not auth_user:
-            # Cross-check admin_user credentials as dynamic fallback
-            if admin_user and admin_user.hashed_password:
-                try:
-                    if dynamic_verify_password(payload.password, admin_user.hashed_password):
-                        is_valid_pass = True
-                        is_admin = True
-                except Exception:
-                    pass
-
-            if not is_valid_pass:
-                try:
-                    failed_attempt = await EnterpriseAuthService.record_failed_attempt(
-                        db=db,
-                        mobile_number=clean_mobile,
-                        ip_address=request.client.host if request.client else "127.0.0.1"
-                    )
-                    if failed_attempt.get("is_locked", False):
-                        raise HTTPException(
-                            status_code=429,
-                            detail="Invalid mobile number or password. 5 consecutive failed login attempts reached! Account locked for 30 minutes."
-                        )
-                except HTTPException:
-                    raise
-                except Exception:
-                    pass
-
-                raise HTTPException(
-                    status_code=401,
-                    detail="Invalid mobile number or password. Please verify your credentials and try again."
-                )
-
-        # 3. If password_hash is missing, NULL, empty, or an old default -> PASSWORD_SETUP_REQUIRED
+        # 2. Strict password verification against Retailer's stored password hash
         stored_hash = auth_user.password_hash if (auth_user and auth_user.password_hash) else None
-        if not is_valid_pass:
-            if not stored_hash or is_insecure_or_missing_hash(stored_hash):
-                if admin_user and admin_user.hashed_password and dynamic_verify_password(payload.password, admin_user.hashed_password):
-                    is_valid_pass = True
-                    is_admin = True
-                else:
-                    return {
-                        "status": "PASSWORD_SETUP_REQUIRED",
-                        "code": "PASSWORD_SETUP_REQUIRED",
-                        "success": False,
-                        "message": "Your account requires a password setup before you can continue.",
-                        "redirect_url": f"/forgot-password?setup=true&mobile={clean_mobile}",
-                        "data": {
-                            "status": "PASSWORD_SETUP_REQUIRED",
-                            "code": "PASSWORD_SETUP_REQUIRED",
-                            "message": "Your account requires a password setup before you can continue.",
-                            "redirect_url": f"/forgot-password?setup=true&mobile={clean_mobile}"
-                        }
-                    }
-
-        # 4. Strict password verification against stored password hash
-        if not is_valid_pass and stored_hash:
+        if stored_hash and not is_insecure_or_missing_hash(stored_hash):
             try:
                 if dynamic_verify_password(payload.password, stored_hash):
                     is_valid_pass = True
+                    is_admin = False
+                    is_retailer_portal = True
                 else:
                     is_valid_pass = False
             except Exception:
                 is_valid_pass = False
 
-        # 5. Dual-role fallback check: If user has an admin record and its hash matches
-        if not is_valid_pass and admin_user and admin_user.hashed_password:
-            try:
-                if dynamic_verify_password(payload.password, admin_user.hashed_password):
-                    is_valid_pass = True
-                    if not is_retailer_portal:
+        # 3. If password_hash is missing, NULL, empty, or an old default -> PASSWORD_SETUP_REQUIRED
+        if not is_valid_pass and (existing_retailer or auth_user):
+            if not stored_hash or is_insecure_or_missing_hash(stored_hash):
+                return {
+                    "status": "PASSWORD_SETUP_REQUIRED",
+                    "code": "PASSWORD_SETUP_REQUIRED",
+                    "success": False,
+                    "message": "Your account requires a password setup before you can continue.",
+                    "redirect_url": f"/forgot-password?setup=true&mobile={clean_mobile}",
+                    "data": {
+                        "status": "PASSWORD_SETUP_REQUIRED",
+                        "code": "PASSWORD_SETUP_REQUIRED",
+                        "message": "Your account requires a password setup before you can continue.",
+                        "redirect_url": f"/forgot-password?setup=true&mobile={clean_mobile}"
+                    }
+                }
+
+        # 4. Fallback for Admin credentials ONLY when NOT on retailer portal and user is NOT a retailer
+        if not is_valid_pass and not is_retailer_portal and not existing_retailer:
+            if admin_user and admin_user.hashed_password:
+                try:
+                    if dynamic_verify_password(payload.password, admin_user.hashed_password):
+                        is_valid_pass = True
                         is_admin = True
+                        is_retailer_portal = False
+                except Exception:
+                    pass
+
+        # 5. Fail-closed: record failed attempt and raise 401
+        if not is_valid_pass:
+            try:
+                failed_attempt = await EnterpriseAuthService.record_failed_attempt(
+                    db=db,
+                    mobile_number=clean_mobile,
+                    ip_address=request.client.host if request.client else "127.0.0.1"
+                )
+                if failed_attempt.get("is_locked", False):
+                    raise HTTPException(
+                        status_code=429,
+                        detail="Invalid mobile number or password. 5 consecutive failed login attempts reached! Account locked for 30 minutes."
+                    )
+            except HTTPException:
+                raise
             except Exception:
                 pass
+
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid mobile number or password. Please verify your credentials and try again."
+            )
 
     if is_valid_pass:
         try:
