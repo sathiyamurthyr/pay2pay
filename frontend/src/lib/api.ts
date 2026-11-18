@@ -5,6 +5,7 @@ const API_BASE_URL = getApiBaseUrl();
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
@@ -85,12 +86,12 @@ apiClient.interceptors.request.use(
           if (uRef) config.headers["x-user-ref-id"] = String(uRef);
           if (uType) config.headers["x-user-type-ref-id"] = String(uType);
           // Inject retailer identity headers for cross-subdomain resolution
-          const rCode = u.retailer_code || u.code || "";
-          const rId = u.public_id || u.retailer_id || u.id || "";
-          if (rCode && !config.headers["x-retailer-code"]) {
+          const rCode = (u.retailer_code || u.code || "").trim();
+          const rId = (u.public_id || u.retailer_id || u.id || "").trim();
+          if (rCode && rCode !== "authenticated_session" && !config.headers["x-retailer-code"]) {
             config.headers["x-retailer-code"] = rCode;
           }
-          if (rId && !config.headers["x-retailer-id"]) {
+          if (rId && rId !== "authenticated_session" && !config.headers["x-retailer-id"]) {
             config.headers["x-retailer-id"] = rId;
           }
           // Inject mobile for backend Strategy 7 fallback

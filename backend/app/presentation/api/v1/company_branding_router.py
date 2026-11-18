@@ -88,7 +88,7 @@ async def resolve_company_ref_by_domain(db: AsyncSession, domain_str: str) -> Op
     stmt = text("""
         SELECT c.company_ref_id
         FROM public.company c
-        LEFT JOIN public.company_configuration cc ON (cc.company_ref_id = c.company_ref_id AND cc.config_key = 'domains')
+        LEFT JOIN public.company_configuration cc ON (cc.company_id = c.public_id AND cc.config_key = 'domains')
         WHERE c.is_active = true AND c.is_deleted = false
           AND (
               c.website ILIKE :part
@@ -239,14 +239,14 @@ async def get_authenticated_company_branding(
             c.company_name,
             c.legal_name,
             c.display_name,
-            COALESCE(cb.logo_url, c.logo_path, '/branding/logo.svg') AS logo_url,
+            COALESCE(cb.logo_url, '/branding/logo.svg') AS logo_url,
             COALESCE(cb.favicon_url, '/branding/favicon.png') AS favicon_url,
             COALESCE(cb.primary_colour, '#2563EB') AS primary_colour,
             COALESCE(cb.secondary_colour, '#1E40AF') AS secondary_colour,
             cc.config_value AS configured_domains
         FROM public.company c
-        LEFT JOIN public.company_branding cb ON (cb.company_ref_id = c.company_ref_id OR cb.company_id = c.public_id)
-        LEFT JOIN public.company_configuration cc ON (cc.company_ref_id = c.company_ref_id AND cc.config_key = 'domains')
+        LEFT JOIN public.company_branding cb ON (cb.company_id = c.public_id)
+        LEFT JOIN public.company_configuration cc ON (cc.company_id = c.public_id AND cc.config_key = 'domains')
         WHERE c.is_active = true AND c.is_deleted = false
     """
     params: Dict[str, Any] = {}
@@ -291,20 +291,52 @@ async def get_authenticated_company_branding(
         except Exception:
             domains_list = []
 
+    resolved_code = d.get("company_code") or "NEAR4YOU"
+    resolved_display = d.get("display_name") or d.get("company_name")
+    resolved_name = d.get("company_name") or "Near4You"
+    resolved_logo = d.get("logo_url") or "/branding/logo.svg"
+    resolved_primary = d.get("primary_colour") or "#2563EB"
+    resolved_secondary = d.get("secondary_colour") or "#1E40AF"
+
+    # Multi-tenant brand resolution for shared SUPERREX company (company_ref_id=2)
+    brand_hint = (company or "").upper().strip()
+    host_hint = (domain or clean_host or "").lower()
+    if resolved_code == "SUPERREX" or d.get("company_ref_id") == 2:
+        if brand_hint == "SMSPAY" or "smspay" in host_hint:
+            resolved_code = "SMSPAY"
+            resolved_display = "SMSPAY"
+            resolved_name = "SMSPAY Operations"
+            resolved_logo = "/branding/smspay-logo.png"
+            resolved_primary = "#059669"
+            resolved_secondary = "#10B981"
+        elif brand_hint == "PAY2PAY" or "pay2pay" in host_hint:
+            resolved_code = "PAY2PAY"
+            resolved_display = "Pay2Pay"
+            resolved_name = "Pay2Pay FinTech Platform"
+            resolved_logo = "/branding/pay2pay-logo.png"
+            resolved_primary = "#A20A3A"
+            resolved_secondary = "#EDC11E"
+        elif brand_hint == "NEAR4YOU" or "near4you" in host_hint:
+            resolved_code = "NEAR4YOU"
+            resolved_display = "Near4You"
+            resolved_name = "Near4You Retailer Platform"
+            resolved_primary = "#2563EB"
+            resolved_secondary = "#1E40AF"
+
     return {
         "success": True,
         "data": {
             "company_id": str(d.get("company_id")) if d.get("company_id") else None,
             "company_ref_id": d.get("company_ref_id"),
             "tenant_ref_id": d.get("tenant_ref_id"),
-            "company_code": d.get("company_code") or "NEAR4YOU",
-            "company_name": d.get("company_name") or "Near4You",
+            "company_code": resolved_code,
+            "company_name": resolved_name,
             "legal_name": d.get("legal_name") or "Near4You Enterprise Technologies Pvt. Ltd.",
-            "display_name": d.get("display_name") or d.get("company_name"),
-            "logo_url": d.get("logo_url") or "/branding/logo.svg",
+            "display_name": resolved_display,
+            "logo_url": resolved_logo,
             "favicon_url": d.get("favicon_url") or "/branding/favicon.png",
-            "primary_colour": d.get("primary_colour") or "#A20A3A",
-            "secondary_colour": d.get("secondary_colour") or "#EDC11E",
+            "primary_colour": resolved_primary,
+            "secondary_colour": resolved_secondary,
             "website": d.get("website"),
             "domains": domains_list
         }
@@ -328,14 +360,14 @@ async def resolve_by_domain(
             c.company_code, c.website,
             COALESCE(c.display_name, c.company_name) AS display_name,
             c.company_name, c.legal_name,
-            COALESCE(cb.logo_url, c.logo_path, '/branding/logo.svg') AS logo_url,
+            COALESCE(cb.logo_url, '/branding/logo.svg') AS logo_url,
             COALESCE(cb.favicon_url, '/branding/favicon.png') AS favicon_url,
             COALESCE(cb.primary_colour, '#A20A3A') AS primary_colour,
             COALESCE(cb.secondary_colour, '#EDC11E') AS secondary_colour,
             cc.config_value AS configured_domains
         FROM public.company c
-        LEFT JOIN public.company_branding cb ON cb.company_ref_id = c.company_ref_id
-        LEFT JOIN public.company_configuration cc ON (cc.company_ref_id = c.company_ref_id AND cc.config_key = 'domains')
+        LEFT JOIN public.company_branding cb ON (cb.company_id = c.public_id)
+        LEFT JOIN public.company_configuration cc ON (cc.company_id = c.public_id AND cc.config_key = 'domains')
         WHERE c.company_ref_id = :comp_ref
         LIMIT 1;
     """), {"comp_ref": resolved_ref})
@@ -351,20 +383,51 @@ async def resolve_by_domain(
         except Exception:
             pass
 
+    resolved_code = d.get("company_code") or "NEAR4YOU"
+    resolved_display = d.get("display_name") or d.get("company_name")
+    resolved_name = d.get("company_name") or "Near4You"
+    resolved_logo = d.get("logo_url") or "/branding/logo.svg"
+    resolved_primary = d.get("primary_colour") or "#2563EB"
+    resolved_secondary = d.get("secondary_colour") or "#1E40AF"
+
+    # Multi-tenant brand resolution for shared SUPERREX company (company_ref_id=2)
+    host_hint = (domain or "").lower()
+    if resolved_code == "SUPERREX" or d.get("company_ref_id") == 2:
+        if "smspay" in host_hint:
+            resolved_code = "SMSPAY"
+            resolved_display = "SMSPAY"
+            resolved_name = "SMSPAY Operations"
+            resolved_logo = "/branding/smspay-logo.png"
+            resolved_primary = "#059669"
+            resolved_secondary = "#10B981"
+        elif "pay2pay" in host_hint:
+            resolved_code = "PAY2PAY"
+            resolved_display = "Pay2Pay"
+            resolved_name = "Pay2Pay FinTech Platform"
+            resolved_logo = "/branding/pay2pay-logo.png"
+            resolved_primary = "#A20A3A"
+            resolved_secondary = "#EDC11E"
+        elif "near4you" in host_hint:
+            resolved_code = "NEAR4YOU"
+            resolved_display = "Near4You"
+            resolved_name = "Near4You Retailer Platform"
+            resolved_primary = "#2563EB"
+            resolved_secondary = "#1E40AF"
+
     return {
         "success": True,
         "data": {
             "company_id": str(d.get("company_id")),
             "company_ref_id": d.get("company_ref_id"),
             "tenant_ref_id": d.get("tenant_ref_id"),
-            "company_code": d.get("company_code"),
-            "company_name": d.get("company_name"),
-            "display_name": d.get("display_name"),
+            "company_code": resolved_code,
+            "company_name": resolved_name,
+            "display_name": resolved_display,
             "legal_name": d.get("legal_name"),
-            "logo_url": d.get("logo_url"),
+            "logo_url": resolved_logo,
             "favicon_url": d.get("favicon_url"),
-            "primary_colour": d.get("primary_colour"),
-            "secondary_colour": d.get("secondary_colour"),
+            "primary_colour": resolved_primary,
+            "secondary_colour": resolved_secondary,
             "website": d.get("website"),
             "domains": domains_list
         }
@@ -389,14 +452,14 @@ async def list_companies(
             c.id, c.public_id, c.company_ref_id, c.tenant_ref_id,
             c.company_code, c.company_name, c.legal_name, c.display_name, c.short_name,
             c.website, c.status, c.is_active, c.created_date,
-            COALESCE(cb.logo_url, c.logo_path, '/branding/logo.svg') AS logo_url,
+            COALESCE(cb.logo_url, '/branding/logo.svg') AS logo_url,
             COALESCE(cb.favicon_url, '/branding/favicon.png') AS favicon_url,
             COALESCE(cb.primary_colour, '#A20A3A') AS primary_colour,
             COALESCE(cb.secondary_colour, '#EDC11E') AS secondary_colour,
             cc.config_value AS configured_domains
         FROM public.company c
-        LEFT JOIN public.company_branding cb ON cb.company_ref_id = c.company_ref_id
-        LEFT JOIN public.company_configuration cc ON (cc.company_ref_id = c.company_ref_id AND cc.config_key = 'domains')
+        LEFT JOIN public.company_branding cb ON (cb.company_id = c.public_id)
+        LEFT JOIN public.company_configuration cc ON (cc.company_id = c.public_id AND cc.config_key = 'domains')
         {where_clause}
         ORDER BY c.company_ref_id ASC;
     """), params)

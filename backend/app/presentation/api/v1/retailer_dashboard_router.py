@@ -133,11 +133,23 @@ async def resolve_retailer_context(
                 if adm_chk and adm_chk.phone:
                     clean_mobile = re.sub(r"\D", "", str(adm_chk.phone))[-10:]
         elif target_ident and target_ident != "RET-PENDING":
+            ref_id_int = None
+            digits = re.sub(r"\D", "", str(target_ident))
+            if digits:
+                try:
+                    ref_id_int = int(digits)
+                except ValueError:
+                    pass
+
+            conds = [
+                RetailerModel.retailer_code == target_ident,
+                RetailerModel.retailer_code.ilike(f"%{target_ident}%")
+            ]
+            if ref_id_int:
+                conds.append(RetailerModel.retailer_ref_id == ref_id_int)
+
             ret_stmt = select(RetailerModel).where(
-                or_(
-                    RetailerModel.retailer_code == target_ident,
-                    RetailerModel.retailer_code.ilike(f"%{target_ident}%")
-                ),
+                or_(*conds),
                 RetailerModel.is_deleted == False
             )
             if session_comp_ref and not is_admin:
@@ -174,26 +186,27 @@ async def resolve_retailer_context(
                     detail="Access denied: Retailer entity belongs to another company (COMPANY_IDENTITY_MISMATCH)."
                 )
 
-        # 3. Search RetailerVerificationModel if not found in RetailerModel
+        # 3. Search RegistrationDraftModel if not found in RetailerModel
         if not ret_model:
-            verif_conds = []
+            draft_conds = []
             if r_uuid:
-                verif_conds.append(RetailerVerificationModel.public_id == r_uuid)
+                draft_conds.append(RegistrationDraftModel.public_id == r_uuid)
             if target_ident and target_ident != "RET-PENDING":
-                verif_conds.append(RetailerVerificationModel.retailer_id == target_ident)
-                verif_conds.append(RetailerVerificationModel.registration_id == target_ident)
+                draft_conds.append(RegistrationDraftModel.registration_id == target_ident)
             if clean_mobile:
-                verif_conds.append(RetailerVerificationModel.mobile_number == clean_mobile)
-                verif_conds.append(RetailerVerificationModel.mobile_number == f"+91{clean_mobile}")
-                verif_conds.append(RetailerVerificationModel.mobile_number == f"91{clean_mobile}")
-                verif_conds.append(RetailerVerificationModel.mobile_number.like(f"%{clean_mobile}%"))
+                draft_conds.append(RegistrationDraftModel.mobile_number == clean_mobile)
+                draft_conds.append(RegistrationDraftModel.mobile_number == f"+91{clean_mobile}")
+                draft_conds.append(RegistrationDraftModel.mobile_number == f"91{clean_mobile}")
+                draft_conds.append(RegistrationDraftModel.mobile_number.like(f"%{clean_mobile}%"))
 
-            if verif_conds:
+            if draft_conds:
                 try:
-                    verif_stmt = select(RetailerVerificationModel).where(or_(*verif_conds)).order_by(desc(RetailerVerificationModel.submitted_at))
-                    verif = (await db.execute(verif_stmt)).scalars().first()
-                except Exception:
-                    pass
+                    draft_stmt = select(RegistrationDraftModel).where(or_(*draft_conds)).order_by(desc(RegistrationDraftModel.updated_date))
+                    draft_rec = (await db.execute(draft_stmt)).scalars().first()
+                    if draft_rec:
+                        verif = draft_rec
+                except Exception as e_d:
+                    logger.debug(f"RegistrationDraftModel lookup skipped: {e_d}")
 
         # 4. If still not resolved and no target identifier, do not silently bind to RET-10928
         pass

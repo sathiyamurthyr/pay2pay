@@ -238,8 +238,18 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
       try {
         // Call /header-wallet with NO params — backend resolves the authenticated retailer
         // from the JWT cookie (p2p_access_token). Zero localStorage reads.
-        const res = await apiClient.get("/api/v1/payout/dashboard/retailer/header-wallet");
-        const rawData = res.data;
+        let rawData: any = null;
+        try {
+          const res = await apiClient.get("/api/v1/payout/dashboard/retailer/header-wallet");
+          rawData = res.data;
+        } catch (e1) {
+          try {
+            const res2 = await apiClient.get("/api/v1/dashboard/retailer/header-wallet");
+            rawData = res2.data;
+          } catch (e2) {
+            throw e1;
+          }
+        }
         const walletObj = rawData.wallet || rawData;
         const bal =
           typeof rawData.wallet_balance === "number"

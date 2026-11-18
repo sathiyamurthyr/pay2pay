@@ -95,6 +95,7 @@ async def get_user_favorite_menus(
                 "favorites": sp_data.get("favorites", []),
             }
     except Exception as sp_err:
+        await db.rollback()
         print(f"[FAVORITES ROUTER WARNING] SP execution notice: {sp_err}. Falling back to ORM.")
 
     # 2. Resilient Fallback: SQLAlchemy ORM Query
@@ -192,6 +193,7 @@ async def save_user_favorite_menu(
                 "favorites": sp_data.get("data", {}).get("favorites", []),
             }
     except Exception as sp_err:
+        await db.rollback()
         print(f"[FAVORITES ROUTER WARNING] Save SP notice: {sp_err}. Falling back to ORM.")
         await db.rollback()
 

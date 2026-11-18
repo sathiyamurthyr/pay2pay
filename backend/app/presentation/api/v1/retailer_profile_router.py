@@ -327,15 +327,19 @@ async def resolve_retailer_context(request: Request, retailer_id: Optional[str],
                 clean_mobile = str(a_row["phone"])[-10:]
             session_email = a_row.get("email") or session_email
 
-        # 3. Check retailer_verifications
-        v_res = await db.execute(text("SELECT registration_id, mobile_number, email FROM retailer_verifications WHERE public_id::text = :sub OR retailer_id = :sub OR registration_id = :sub"), {"sub": str(sub)})
-        v_row = v_res.mappings().first()
-        if v_row:
-            if not target_ident:
-                target_ident = v_row["registration_id"]
-            if not clean_mobile and v_row.get("mobile_number"):
-                clean_mobile = str(v_row["mobile_number"])[-10:]
-            session_email = v_row.get("email") or session_email
+        # 3. Check registration drafts (retailer_verifications table is not in finance_prod)
+        try:
+            d_res = await db.execute(text("SELECT registration_id, mobile_number, email FROM registration_drafts WHERE public_id::text = :sub OR registration_id = :sub LIMIT 1"), {"sub": str(sub)})
+            d_row = d_res.mappings().first()
+            if d_row:
+                if not target_ident:
+                    target_ident = d_row.get("registration_id")
+                if not clean_mobile and d_row.get("mobile_number"):
+                    clean_mobile = str(d_row["mobile_number"])[-10:]
+                session_email = d_row.get("email") or session_email
+        except Exception as e_d:
+            logger.debug(f"registration_drafts check skipped: {e_d}")
+            await db.rollback()
 
         # 4. Check retailer_contact
         if not clean_mobile:
@@ -453,23 +457,8 @@ async def get_retailer_profile(
     session_company_ref_id = ctx.session_company_ref_id
     ret_model = ctx.ret_model
 
-    # 1. Query Verification table
+    # 1. Verification record (schema in finance_prod uses registration_drafts & retailer_kyc)
     verif = None
-    verif_conds = []
-    if r_uuid:
-        verif_conds.append(RetailerVerificationModel.public_id == r_uuid)
-    if target_ident:
-        verif_conds.append(RetailerVerificationModel.retailer_id == str(target_ident))
-        verif_conds.append(RetailerVerificationModel.registration_id == str(target_ident))
-    if clean_mobile and len(clean_mobile) == 10:
-        verif_conds.append(RetailerVerificationModel.mobile_number.like(f"%{clean_mobile}"))
-
-    if verif_conds:
-        try:
-            verif_stmt = select(RetailerVerificationModel).where(or_(*verif_conds)).order_by(desc(RetailerVerificationModel.created_date))
-            verif = (await db.execute(verif_stmt)).scalars().first()
-        except Exception as e:
-            logger.warning(f"Verification query error: {e}")
 
     # 2. Query RetailerModel if not already resolved from context
     if not ret_model:
@@ -1394,6 +1383,7 @@ async def verify_email_update_otp(
         elif clean_mobile:
             await db.execute(update(RetailerVerificationModel).where(RetailerVerificationModel.mobile_number.like(f"%{clean_mobile}")).values(email=new_email))
     except Exception as e_verif:
+        await db.rollback()
         logger.warning(f"Could not update retailer_verifications email: {e_verif}")
 
     # (c) Update registration_drafts
