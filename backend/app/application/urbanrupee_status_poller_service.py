@@ -50,7 +50,8 @@ class UrbanRupeeStatusPollerService:
                 if prov == "URBANRUPEE":
                     return True
         except Exception as e:
-            logger.warning(f"[URBANRUPEE POLLER] Failed to check payout_routing_policies: {e}")
+            await db.rollback()
+            logger.debug(f"[URBANRUPEE POLLER] payout_routing_policies not configured: {e}")
 
         # 2. Check Gateway Configs table
         try:
@@ -68,7 +69,8 @@ class UrbanRupeeStatusPollerService:
                 if is_active and st == "ACTIVE" and priority == 1:
                     return True
         except Exception as e:
-            logger.warning(f"[URBANRUPEE POLLER] Failed to check payout_gateway_configs: {e}")
+            await db.rollback()
+            logger.debug(f"[URBANRUPEE POLLER] payout_gateway_configs not configured: {e}")
 
         return False
 

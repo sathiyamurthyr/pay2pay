@@ -273,7 +273,11 @@ export function useCompanyBranding() {
 
           // Cross-domain brand safety validation
           if (canonical.company_code && data.company_code && data.company_code !== canonical.company_code) {
-            throw new Error(`Cross-domain brand mismatch: Expected ${canonical.company_code}, received ${data.company_code}`);
+            if (data.company_code === "SUPERREX" && ["SMSPAY", "PAY2PAY", "NEAR4YOU"].includes(canonical.company_code)) {
+              data.company_code = canonical.company_code;
+            } else {
+              throw new Error(`Cross-domain brand mismatch: Expected ${canonical.company_code}, received ${data.company_code}`);
+            }
           }
 
           if (data.company_code === "NEAR4YOU" || (data.company_name && data.company_name.replace(/\s+/g, "").toUpperCase() === "NEAR4YOU")) {

@@ -330,8 +330,9 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       const photoUrl = photo.photo_url || outlet.avatar || outlet.photo_url || "";
       const approvalStatus = personal.status === "ACTIVE" ? "ACTIVE" : (outlet.approvalStatus || "ACTIVE");
 
-      if (approvalStatus && typeof setApprovalStatus === "function") {
-        setApprovalStatus(approvalStatus === "ACTIVE" ? "APPROVED" : "PENDING");
+      const targetStatus = approvalStatus === "ACTIVE" ? "APPROVED" : "PENDING";
+      if (outlet.approvalStatus !== targetStatus && typeof setApprovalStatus === "function") {
+        setApprovalStatus(targetStatus);
       }
 
       setProfileDetails((prev) => ({
@@ -353,7 +354,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       console.warn("Profile details fetch notice:", err);
       setProfileDetails((prev) => ({ ...prev, loading: false, error: false }));
     }
-  }, [setApprovalStatus, outlet, branding]);
+  }, [setApprovalStatus, outlet.avatar, outlet.photo_url, outlet.approvalStatus, outlet.kycStatus, outlet.location, branding?.display_name]);
 
   useEffect(() => {
     if (!isAuthenticatedSession) return;
@@ -773,6 +774,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                             setLockedModalItem({ label: item.label, path: item.path });
                             return;
                           }
+                          router.push(item.path);
                           setMobileOpen(false);
                           setSmspayDrawerOpen(false);
                         }}
@@ -780,6 +782,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                           position: "relative",
                           display: "flex",
                           alignItems: "center",
+                          cursor: "pointer",
                           height: 42,
                           borderRadius: "8px",
                           px: isCollapsed ? 0 : "12px",
@@ -901,6 +904,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                             setLockedModalItem({ label: item.label, path: item.path });
                             return;
                           }
+                          router.push(item.path);
                           setMobileOpen(false);
                           setSmspayDrawerOpen(false);
                         }}
@@ -908,6 +912,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                           position: "relative",
                           display: "flex",
                           alignItems: "center",
+                          cursor: "pointer",
                           height: 42,
                           borderRadius: "8px",
                           px: isCollapsed ? 0 : "12px",
@@ -1799,7 +1804,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   size="small"
                   variant="outlined"
                   startIcon={<PersonIcon sx={{ fontSize: 18, color: brandPrimary }} />}
-                  onClick={() => setProfileAnchor(null)}
+                  onClick={() => {
+                    setProfileAnchor(null);
+                    router.push("/retailer/profile");
+                  }}
                   sx={{
                     borderRadius: "10px",
                     height: 36,
