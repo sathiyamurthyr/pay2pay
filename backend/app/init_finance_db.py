@@ -271,8 +271,8 @@ async def init_finance_database():
                 email, username, hashed_password, full_name, phone, user_type, status,
                 mfa_enabled, record_status, is_active, is_deleted, date_key, time_key, created_date, created_by, version_no
             ) VALUES 
-            (:adm_id, 1, 1, 1, :t1_id, :c1_id, 'admin@pay2pay.in', 'admin', :pw_hash, 'Platform Super Admin', '9025232475', 'SUPER_ADMIN', 'ACTIVE', false, 'ACTIVE', true, false, :dkey, :tkey, :now, 'SYSTEM', 1),
-            (gen_random_uuid(), 2, 39, 2, :t2_id, :c2_id, 'admin@smspay.store', '9025232475', :pw_hash, 'SMSPay Company Admin', '9025232475', 'PLATFORM_ADMIN', 'ACTIVE', false, 'ACTIVE', true, false, :dkey, :tkey, :now, 'SYSTEM', 1)
+            (:adm_id, 1, 1, 1, :t1_id, :c1_id, 'admin@pay2pay.in', 'admin', :pw_hash, 'Platform Super Admin', '9999999999', 'SUPER_ADMIN', 'ACTIVE', false, 'ACTIVE', true, false, :dkey, :tkey, :now, 'SYSTEM', 1),
+            (gen_random_uuid(), 2, 39, 2, :t2_id, :c2_id, 'admin@smspay.store', 'admin_smspay', :pw_hash, 'SMSPay Company Admin', '9999999998', 'PLATFORM_ADMIN', 'ACTIVE', false, 'ACTIVE', true, false, :dkey, :tkey, :now, 'SYSTEM', 1)
             ON CONFLICT DO NOTHING;
         """), {
             "adm_id": admin_uuid, "t1_id": tenant_sathus_id, "c1_id": comp_sathus_id,
