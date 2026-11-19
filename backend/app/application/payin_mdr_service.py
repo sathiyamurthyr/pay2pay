@@ -99,6 +99,31 @@ class PayInMdrService:
         - Base rule (company + vendor): 100
         """
         now = datetime.now(timezone.utc)
+
+        # Validate card network configuration when specified
+        if card_network and card_network.strip():
+            net_clean = card_network.strip().upper()
+            chk_stmt = text("""
+                SELECT is_enabled, mdr_pct
+                FROM public.payin_mdr_cfg
+                WHERE company_ref_id = :c_ref
+                  AND payin_vendor_ref_id = :v_ref
+                  AND card_network = :c_net
+                  AND effective_from <= :now_dt
+                  AND (effective_to IS NULL OR effective_to >= :now_dt)
+                ORDER BY priority DESC, payin_mdr_cfg_ref_id DESC
+                LIMIT 1;
+            """)
+            chk_res = await db.execute(chk_stmt, {
+                "c_ref": company_ref_id,
+                "v_ref": vendor_ref_id,
+                "c_net": net_clean,
+                "now_dt": now
+            })
+            chk_row = chk_res.mappings().first()
+            if not chk_row or not chk_row["is_enabled"]:
+                raise DomainException(f"Card scheme '{net_clean}' is disabled or not configured for this payment gateway.")
+
         stmt = text("""
             SELECT 
                 payin_mdr_cfg_ref_id,

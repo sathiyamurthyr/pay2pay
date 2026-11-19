@@ -174,12 +174,9 @@ export default function NotificationsPage() {
     [getResolvedUserId, getAuthHeaders]
   );
 
+  // Load live notifications once on mount (no automatic polling loops)
   useEffect(() => {
     fetchLiveNotifications();
-    const interval = setInterval(() => {
-      fetchLiveNotifications(true);
-    }, 30000);
-    return () => clearInterval(interval);
   }, [fetchLiveNotifications]);
 
   const handleMarkAllRead = async () => {

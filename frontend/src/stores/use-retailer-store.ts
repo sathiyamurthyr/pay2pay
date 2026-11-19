@@ -102,7 +102,7 @@ interface RetailerStoreState {
   updateWallet: (part: Partial<WalletState>) => void;
   setWalletBalance: (balance: number) => void;
   debitWallet: (amount: number) => number;
-  syncBalance: () => Promise<void>;
+  syncBalance: (force?: boolean) => Promise<void>;
   refreshBalances: () => Promise<void>;
   toggleSoundbox: () => void;
   setUnreadNotifications: (count: number) => void;
@@ -229,10 +229,20 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
       return newBal;
     },
 
-    syncBalance: async () => {
+    syncBalance: async (force = false) => {
       // Concurrency lock: ignore rapid clicks while a sync request is already in progress
       if (get().isSyncing) {
         return;
+      }
+      // Anti auto-calling throttle: skip automatic sync if already synced within the last 15 seconds
+      if (!force && typeof window !== "undefined") {
+        const lastSync = Number(sessionStorage.getItem("p2p_last_wallet_sync_time") || "0");
+        if (Date.now() - lastSync < 15000) {
+          return;
+        }
+      }
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("p2p_last_wallet_sync_time", String(Date.now()));
       }
       set({ isSyncing: true });
       try {
@@ -328,7 +338,7 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
     },
     refreshBalances: async () => {
       try {
-        await get().syncBalance();
+        await get().syncBalance(true);
       } catch (err) {
         console.warn("refreshBalances error:", err);
       }

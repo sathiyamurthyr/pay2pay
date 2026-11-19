@@ -5,7 +5,7 @@ import {
   Box, Paper, Typography, Table, TableBody, TableCell, TableHead,
   TableRow, Switch, Button, Alert, CircularProgress, Chip, Grid,
   Card, CardContent, TextField, InputAdornment, FormControl,
-  InputLabel, Select, MenuItem, Tooltip, Snackbar
+  InputLabel, Select, MenuItem, Tooltip, Snackbar, Stack
 } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -163,15 +163,29 @@ export default function AdminPayinCardTypesPage() {
             </Typography>
           </Box>
         </Box>
-        <Button
-          variant="outlined"
-          startIcon={loading ? <CircularProgress size={16} /> : <RefreshIcon />}
-          onClick={fetchCards}
-          disabled={loading}
-          sx={{ textTransform: "none" }}
-        >
-          Refresh
-        </Button>
+        <div className="flex items-center space-x-3">
+          <Button
+            component={Link}
+            href="/admin/payin/mdr"
+            variant="contained"
+            color="primary"
+            size="small"
+            startIcon={<CreditCardIcon />}
+            sx={{ textTransform: "none", fontWeight: 600 }}
+          >
+            Configure Gateway MDR Rates
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={loading ? <CircularProgress size={16} /> : <RefreshIcon />}
+            onClick={fetchCards}
+            disabled={loading}
+            sx={{ textTransform: "none" }}
+          >
+            Refresh
+          </Button>
+        </div>
       </Box>
 
       {/* Error Feedback */}

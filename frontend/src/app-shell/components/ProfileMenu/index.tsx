@@ -32,19 +32,20 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
       setDynamicPhoto(photoUrl);
       return;
     }
-    // Automatically load verified photo URL from profile API
-    const loadProfilePhoto = async () => {
+    // Check in-memory cached session info without triggering any network calls
+    if (typeof window !== "undefined") {
       try {
-        const res = await retailerApi.getProfile();
-        const pUrl = res?.data?.photo?.photo_url;
-        if (pUrl) {
-          setDynamicPhoto(pUrl);
+        const cached = sessionStorage.getItem("p2p_header_wallet_cache");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          const p = parsed.photo_url || parsed.avatar_url || parsed.retailer_info?.photo_url || parsed.retailer_info?.avatar_url;
+          if (p) {
+            setDynamicPhoto(p);
+            return;
+          }
         }
-      } catch {
-        // Fallback to name avatar
-      }
-    };
-    loadProfilePhoto();
+      } catch {}
+    }
   }, [photoUrl]);
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {

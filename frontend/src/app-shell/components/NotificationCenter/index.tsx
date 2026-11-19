@@ -43,6 +43,7 @@ export const NotificationCenter: React.FC<{
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const prevUnreadRef = useRef<number>(0);
+  const hasFetchedInitialRef = useRef<boolean>(false);
 
   const getResolvedUserId = useCallback(() => {
     if (userId) return userId;
@@ -146,13 +147,12 @@ export const NotificationCenter: React.FC<{
     [getResolvedUserId, getAuthHeaders, tenantId]
   );
 
-  // Load initial notification status on mount & set up background live polling
+  // Load initial notification status strictly ONCE on mount (no automatic polling loops)
   useEffect(() => {
-    fetchNotifications();
-
-    const intervalId = setInterval(() => {
+    if (!hasFetchedInitialRef.current) {
+      hasFetchedInitialRef.current = true;
       fetchNotifications();
-    }, refreshIntervalMs);
+    }
 
     const handleCustomRefresh = () => {
       fetchNotifications(true);
@@ -160,17 +160,14 @@ export const NotificationCenter: React.FC<{
 
     if (typeof window !== "undefined") {
       window.addEventListener("pay2pay:notification_refresh", handleCustomRefresh);
-      window.addEventListener("p2p:wallet_update", handleCustomRefresh);
     }
 
     return () => {
-      clearInterval(intervalId);
       if (typeof window !== "undefined") {
         window.removeEventListener("pay2pay:notification_refresh", handleCustomRefresh);
-        window.removeEventListener("p2p:wallet_update", handleCustomRefresh);
       }
     };
-  }, [fetchNotifications, refreshIntervalMs]);
+  }, [fetchNotifications]);
 
   const handleOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);

@@ -139,6 +139,7 @@ class CardSchemeMdrItem(BaseModel):
     mdr_display: str
     mdr_treatment: Optional[str] = None
     is_configured: bool = False
+    is_active: bool = True
     brand_color: str
     icon_text: str
     rule_ref_id: Optional[int] = None

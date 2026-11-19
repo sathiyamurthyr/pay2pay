@@ -95,16 +95,20 @@ export function middleware(request: NextRequest) {
   const portMatch = host.match(/:(\d+)$/);
   const incomingPort = portMatch ? portMatch[1] : request.nextUrl.port || "";
 
-  // ── Dedicated Port Portal Enforcement ──
-  // Port 4001: Retailer Portal
-  // Port 4002: Admin Portal
-  // Port 4003: Super Admin Portal
+  // ── Dedicated Port and Subdomain Portal Enforcement ──
+  // Port 4001 or retailer.*: Retailer Portal
+  // Port 4002 or admin.*: Admin Portal
+  // Port 4003 or super-admin.* / superadmin.*: Super Admin Portal
+  const isAdminHost = incomingPort === "4002" || host.startsWith("admin.") || host.includes("admin.smspay.store") || host.includes("admin.near4you.store") || host.includes("admin.pay2pay.in");
+  const isSuperAdminHost = incomingPort === "4003" || host.startsWith("super-admin.") || host.startsWith("superadmin.");
+  const isRetailerHost = incomingPort === "4001" || host.startsWith("retailer.");
+
   let forcedPortal: PortalConfig | null = null;
-  if (incomingPort === "4001") {
+  if (isRetailerHost) {
     forcedPortal = PORTAL_CONFIGS.RETAILER;
-  } else if (incomingPort === "4002") {
+  } else if (isAdminHost) {
     forcedPortal = PORTAL_CONFIGS.ADMIN;
-  } else if (incomingPort === "4003") {
+  } else if (isSuperAdminHost) {
     forcedPortal = PORTAL_CONFIGS.SUPER_ADMIN;
   }
 
@@ -140,7 +144,7 @@ export function middleware(request: NextRequest) {
   let isAuthenticated = false;
 
   if (forcedPortal) {
-    if (incomingPort === "4001") {
+    if (isRetailerHost) {
       // Retailer portal preference
       token = request.cookies.get("p2p_retailer_token")?.value;
       if (!token) {
@@ -161,7 +165,7 @@ export function middleware(request: NextRequest) {
       }
       resolvedRole = "RETAILER";
       isAuthenticated = Boolean(token && token.trim().length > 10);
-    } else if (incomingPort === "4002") {
+    } else if (isAdminHost) {
       // Admin portal preference
       token = request.cookies.get("p2p_admin_token")?.value;
       if (!token) {
@@ -183,7 +187,7 @@ export function middleware(request: NextRequest) {
       const cRole = normalizeUserRole(Array.isArray(claims?.roles) ? claims.roles[0] : claims?.role);
       resolvedRole = cRole === "SUPER_ADMIN" ? "SUPER_ADMIN" : "ADMIN";
       isAuthenticated = Boolean(token && token.trim().length > 10);
-    } else if (incomingPort === "4003") {
+    } else if (isSuperAdminHost) {
       // Super Admin portal preference
       token = request.cookies.get("p2p_super_admin_token")?.value;
       if (!token) {
@@ -391,20 +395,20 @@ export function middleware(request: NextRequest) {
   const targetPrefix = allPrefixes.find((prefix) => pathname.startsWith(prefix));
 
   if (forcedPortal) {
-    // Port 4001: Retailer only
-    if (incomingPort === "4001" && targetPrefix && targetPrefix !== "/retailer") {
+    // Retailer only (Port 4001 or retailer host)
+    if (isRetailerHost && targetPrefix && targetPrefix !== "/retailer") {
       return applySecurityHeaders(
         NextResponse.redirect(new URL(PORTAL_CONFIGS.RETAILER.dashboard, request.url))
       );
     }
-    // Port 4002: Admin only
-    if (incomingPort === "4002" && targetPrefix && targetPrefix !== "/admin") {
+    // Admin only (Port 4002 or admin host)
+    if (isAdminHost && targetPrefix && targetPrefix !== "/admin") {
       return applySecurityHeaders(
         NextResponse.redirect(new URL(PORTAL_CONFIGS.ADMIN.dashboard, request.url))
       );
     }
-    // Port 4003: Super Admin (can access /super-admin and /admin)
-    if (incomingPort === "4003" && targetPrefix && targetPrefix !== "/super-admin" && targetPrefix !== "/admin") {
+    // Super Admin (can access /super-admin and /admin)
+    if (isSuperAdminHost && targetPrefix && targetPrefix !== "/super-admin" && targetPrefix !== "/admin") {
       return applySecurityHeaders(
         NextResponse.redirect(new URL(PORTAL_CONFIGS.SUPER_ADMIN.dashboard, request.url))
       );

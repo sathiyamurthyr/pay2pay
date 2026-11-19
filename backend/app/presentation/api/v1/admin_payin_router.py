@@ -53,6 +53,30 @@ class CreateMdrRuleRequest(BaseModel):
     priority: int = Field(100, ge=1)
 
 
+class UpdateCompanyCardMdrRequest(BaseModel):
+    company_ref_id: int
+    payin_vendor_ref_id: Optional[int] = None
+    gateway_code: Optional[str] = None
+    card_network: str
+    mdr_percent: float = Field(..., ge=0, le=50.0, description="MDR percentage, e.g. 2.62 for 2.62%")
+    is_enabled: bool = True
+    mdr_treatment: Optional[str] = "COLLECT_ADDITIONALLY"
+
+
+class BatchCardMdrItem(BaseModel):
+    card_network: str
+    mdr_percent: float = Field(..., ge=0, le=50.0)
+    is_enabled: bool = True
+    mdr_treatment: Optional[str] = "COLLECT_ADDITIONALLY"
+
+
+class BatchUpdateCompanyCardMdrRequest(BaseModel):
+    company_ref_id: int
+    payin_vendor_ref_id: Optional[int] = None
+    gateway_code: Optional[str] = None
+    items: List[BatchCardMdrItem]
+
+
 class UpdateCompanyLimitsRequest(BaseModel):
     payin_enabled: Optional[bool] = None
     min_amount: Optional[float] = None
@@ -985,6 +1009,455 @@ async def create_mdr_rule(
     await db.commit()
     await db.refresh(rule)
     return {"success": True, "payin_mdr_cfg_ref_id": rule.payin_mdr_cfg_ref_id}
+
+
+@router.get("/company-card-mdr")
+async def get_company_card_mdr(
+    company_ref_id: Optional[int] = Query(None),
+    payin_vendor_ref_id: Optional[int] = Query(None),
+    gateway_code: Optional[str] = Query(None),
+    _admin: AdminUserModel = Depends(require_admin_guard),
+    ctx: CompanyContext = Depends(get_company_context),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Retrieves the 5 standard card schemes and their Admin-configured MDR rates
+    for the selected company and vendor/gateway.
+    Enforces strict company-level tenant isolation.
+    """
+    target_comp = company_ref_id or ctx.company_ref_id or 2
+    if not ctx.is_super_admin:
+        ctx.validate_access(target_comp)
+        target_comp = ctx.company_ref_id or 2
+
+    # Resolve company name
+    c_stmt = text("SELECT company_name, company_code FROM public.company WHERE company_ref_id = :cid")
+    c_res = await db.execute(c_stmt, {"cid": target_comp})
+    c_row = c_res.fetchone()
+    company_name = c_row[0] if c_row else f"Company {target_comp}"
+
+    # Resolve vendor / gateway
+    effective_vendor_ref_id = payin_vendor_ref_id
+    effective_gateway_code = gateway_code
+
+    if not effective_vendor_ref_id and effective_gateway_code:
+        gw_stmt = text("""
+            SELECT cv.payin_vendor_ref_id, cv.gateway_code, cv.retailer_display_name, v.vendor_name, v.vendor_code
+            FROM public.payin_company_vendors cv
+            JOIN public.payin_vendors v ON cv.payin_vendor_ref_id = v.payin_vendor_ref_id
+            WHERE cv.company_ref_id = :cid AND cv.gateway_code = :gcode
+            LIMIT 1;
+        """)
+        gw_res = await db.execute(gw_stmt, {"cid": target_comp, "gcode": effective_gateway_code.strip().upper()})
+        gw_row = gw_res.mappings().first()
+        if gw_row:
+            effective_vendor_ref_id = gw_row["payin_vendor_ref_id"]
+
+    if not effective_vendor_ref_id:
+        def_stmt = text("""
+            SELECT cv.payin_vendor_ref_id, cv.gateway_code, cv.retailer_display_name, v.vendor_name, v.vendor_code
+            FROM public.payin_company_vendors cv
+            JOIN public.payin_vendors v ON cv.payin_vendor_ref_id = v.payin_vendor_ref_id
+            WHERE cv.company_ref_id = :cid AND cv.is_enabled = TRUE
+            ORDER BY cv.is_default DESC, cv.display_order ASC
+            LIMIT 1;
+        """)
+        def_res = await db.execute(def_stmt, {"cid": target_comp})
+        def_row = def_res.mappings().first()
+        if def_row:
+            effective_vendor_ref_id = def_row["payin_vendor_ref_id"]
+            effective_gateway_code = def_row["gateway_code"]
+        else:
+            effective_vendor_ref_id = 1
+            effective_gateway_code = "G-1"
+
+    # Fetch gateway details
+    gw_info_stmt = text("""
+        SELECT cv.gateway_code, cv.retailer_display_name, v.vendor_name, v.vendor_code, cv.is_enabled, cv.status
+        FROM public.payin_company_vendors cv
+        JOIN public.payin_vendors v ON cv.payin_vendor_ref_id = v.payin_vendor_ref_id
+        WHERE cv.company_ref_id = :cid AND cv.payin_vendor_ref_id = :vid
+        LIMIT 1;
+    """)
+    gw_info_res = await db.execute(gw_info_stmt, {"cid": target_comp, "vid": effective_vendor_ref_id})
+    gw_info = gw_info_res.mappings().first()
+    g_code = gw_info["gateway_code"] if gw_info else (effective_gateway_code or "G-1")
+    g_name = gw_info["retailer_display_name"] if gw_info else f"Gateway {g_code}"
+    v_name = gw_info["vendor_name"] if gw_info else "Provider"
+    v_code = gw_info["vendor_code"] if gw_info else "PROVIDER"
+
+    # 5 standard schemes definition
+    standard_schemes = [
+        {"id": "visa", "name": "Visa", "category": "Consumer Debit / Credit", "card_network": "VISA", "brand_color": "#1A1F71", "icon_text": "VISA"},
+        {"id": "mastercard", "name": "MasterCard", "category": "Consumer Debit / Credit", "card_network": "MASTERCARD", "brand_color": "#EB001B", "icon_text": "MC"},
+        {"id": "rupay", "name": "RuPay", "category": "Domestic NPCI Network", "card_network": "RUPAY", "brand_color": "#097939", "icon_text": "RUPAY"},
+        {"id": "amex_diners", "name": "AMEX / Diners", "category": "Premium Card Schemes", "card_network": "AMEX", "brand_color": "#006FCF", "icon_text": "AMEX"},
+        {"id": "business_corporate", "name": "Business / Corporate", "category": "Commercial & Purchasing", "card_network": "CORP", "brand_color": "#475569", "icon_text": "CORP"}
+    ]
+
+    # Query existing rules from payin_mdr_cfg
+    rules_stmt = text("""
+        SELECT 
+            payin_mdr_cfg_ref_id,
+            payin_card_type_ref_id,
+            card_network,
+            mdr_pct,
+            mdr_fixed,
+            tax_pct,
+            min_mdr,
+            max_mdr,
+            mdr_treatment,
+            is_enabled,
+            updated_by,
+            updated_at
+        FROM public.payin_mdr_cfg
+        WHERE company_ref_id = :cid
+          AND payin_vendor_ref_id = :vid;
+    """)
+    rules_res = await db.execute(rules_stmt, {"cid": target_comp, "vid": effective_vendor_ref_id})
+    existing_rules_map = {r["card_network"].upper(): dict(r) for r in rules_res.mappings().all() if r["card_network"]}
+
+    items = []
+    for s in standard_schemes:
+        net = s["card_network"]
+        rule = existing_rules_map.get(net)
+        if rule:
+            pct = float(rule["mdr_pct"]) * 100.0
+            items.append({
+                "id": s["id"],
+                "name": s["name"],
+                "category": s["category"],
+                "card_network": net,
+                "mdr_percent": round(pct, 2),
+                "mdr_display": f"{pct:.2f}%",
+                "is_enabled": bool(rule["is_enabled"]),
+                "is_configured": True,
+                "mdr_treatment": rule.get("mdr_treatment") or "COLLECT_ADDITIONALLY",
+                "brand_color": s["brand_color"],
+                "icon_text": s["icon_text"],
+                "rule_ref_id": rule.get("payin_mdr_cfg_ref_id"),
+                "updated_by": rule.get("updated_by"),
+                "updated_at": rule.get("updated_at").isoformat() if rule.get("updated_at") else None
+            })
+        else:
+            items.append({
+                "id": s["id"],
+                "name": s["name"],
+                "category": s["category"],
+                "card_network": net,
+                "mdr_percent": None,
+                "mdr_display": "Not Configured",
+                "is_enabled": False,
+                "is_configured": False,
+                "mdr_treatment": "COLLECT_ADDITIONALLY",
+                "brand_color": s["brand_color"],
+                "icon_text": s["icon_text"],
+                "rule_ref_id": None,
+                "updated_by": None,
+                "updated_at": None
+            })
+
+    return {
+        "success": True,
+        "company_ref_id": target_comp,
+        "company_name": company_name,
+        "payin_vendor_ref_id": effective_vendor_ref_id,
+        "gateway_code": g_code,
+        "gateway_name": g_name,
+        "internal_vendor_name": v_name,
+        "internal_vendor_code": v_code,
+        "card_schemes": items
+    }
+
+
+@router.post("/company-card-mdr")
+async def update_company_card_mdr(
+    req: UpdateCompanyCardMdrRequest,
+    _admin: AdminUserModel = Depends(require_admin_guard),
+    ctx: CompanyContext = Depends(get_company_context),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Updates or inserts MDR percentage and active status for a specific
+    company, payment vendor/gateway, and card scheme.
+    Strictly isolated by Company Ref ID and records full audit log.
+    """
+    target_comp = req.company_ref_id
+    if not ctx.is_super_admin:
+        ctx.validate_access(target_comp)
+        target_comp = ctx.company_ref_id
+
+    vendor_ref_id = req.payin_vendor_ref_id
+    if not vendor_ref_id and req.gateway_code:
+        gw_stmt = text("""
+            SELECT payin_vendor_ref_id FROM public.payin_company_vendors
+            WHERE company_ref_id = :cid AND gateway_code = :gcode
+            LIMIT 1;
+        """)
+        gw_res = await db.execute(gw_stmt, {"cid": target_comp, "gcode": req.gateway_code.strip().upper()})
+        vendor_ref_id = gw_res.scalar()
+
+    if not vendor_ref_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Valid payin_vendor_ref_id or gateway_code is required."
+        )
+
+    net = req.card_network.strip().upper()
+    valid_networks = {"VISA", "MASTERCARD", "RUPAY", "AMEX", "CORP"}
+    if net not in valid_networks:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid card network '{req.card_network}'. Supported networks: {', '.join(sorted(valid_networks))}."
+        )
+
+    if req.mdr_percent < 0 or req.mdr_percent > 50.0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid MDR percentage {req.mdr_percent}. Must be between 0.00% and 50.00%."
+        )
+
+    ct_stmt = text("SELECT payin_card_type_ref_id FROM public.payin_card_types WHERE card_network = :net LIMIT 1;")
+    ct_res = await db.execute(ct_stmt, {"net": net})
+    card_type_ref_id = ct_res.scalar()
+
+    now_utc = datetime.now(timezone.utc)
+    user_email = ctx.user_email or "ADMIN"
+
+    find_stmt = text("""
+        SELECT payin_mdr_cfg_ref_id, mdr_pct, is_enabled, mdr_treatment
+        FROM public.payin_mdr_cfg
+        WHERE company_ref_id = :cid
+          AND payin_vendor_ref_id = :vid
+          AND card_network = :net
+        ORDER BY priority DESC, payin_mdr_cfg_ref_id DESC
+        LIMIT 1;
+    """)
+    find_res = await db.execute(find_stmt, {"cid": target_comp, "vid": vendor_ref_id, "net": net})
+    existing = find_res.mappings().first()
+
+    new_pct_decimal = round(float(req.mdr_percent) / 100.0, 6)
+
+    if existing:
+        rule_id = existing["payin_mdr_cfg_ref_id"]
+        old_val = {
+            "mdr_percent": float(existing["mdr_pct"]) * 100.0,
+            "is_enabled": existing["is_enabled"],
+            "card_network": net
+        }
+        update_stmt = text("""
+            UPDATE public.payin_mdr_cfg
+            SET mdr_pct = :pct,
+                is_enabled = :en,
+                updated_by = :uby,
+                updated_at = :uat
+            WHERE payin_mdr_cfg_ref_id = :rid;
+        """)
+        await db.execute(update_stmt, {
+            "pct": new_pct_decimal,
+            "en": req.is_enabled,
+            "uby": user_email,
+            "uat": now_utc,
+            "rid": rule_id
+        })
+    else:
+        old_val = None
+        ins_stmt = text("""
+            INSERT INTO public.payin_mdr_cfg (
+                company_ref_id, payin_vendor_ref_id, payin_card_type_ref_id, card_network,
+                mdr_pct, mdr_fixed, tax_pct, min_mdr, max_mdr, mdr_treatment,
+                priority, is_enabled, effective_from, created_by, updated_by, created_at, updated_at
+            ) VALUES (
+                :cid, :vid, :ctid, :net,
+                :pct, 0.0, 0.18, 0.0, 5000.0, :treat,
+                100, :en, :now, :uby, :uby, :now, :now
+            ) RETURNING payin_mdr_cfg_ref_id;
+        """)
+        ins_res = await db.execute(ins_stmt, {
+            "cid": target_comp,
+            "vid": vendor_ref_id,
+            "ctid": card_type_ref_id,
+            "net": net,
+            "pct": new_pct_decimal,
+            "treat": req.mdr_treatment or "COLLECT_ADDITIONALLY",
+            "en": req.is_enabled,
+            "now": now_utc,
+            "uby": user_email
+        })
+        rule_id = ins_res.scalar()
+
+    new_val = {
+        "mdr_percent": req.mdr_percent,
+        "is_enabled": req.is_enabled,
+        "card_network": net
+    }
+
+    db.add(PayinAuditLogModel(
+        company_ref_id=target_comp,
+        action_type="UPDATE_COMPANY_CARD_MDR",
+        entity_type="payin_mdr_cfg",
+        entity_ref_id=rule_id,
+        old_value=old_val,
+        new_value=new_val,
+        created_at=now_utc
+    ))
+
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": f"MDR for {net} updated to {req.mdr_percent:.2f}% ({'Active' if req.is_enabled else 'Disabled'}).",
+        "rule": {
+            "rule_ref_id": rule_id,
+            "company_ref_id": target_comp,
+            "payin_vendor_ref_id": vendor_ref_id,
+            "card_network": net,
+            "mdr_percent": req.mdr_percent,
+            "mdr_display": f"{req.mdr_percent:.2f}%",
+            "is_enabled": req.is_enabled
+        }
+    }
+
+
+@router.post("/company-card-mdr/batch")
+async def batch_update_company_card_mdr(
+    req: BatchUpdateCompanyCardMdrRequest,
+    _admin: AdminUserModel = Depends(require_admin_guard),
+    ctx: CompanyContext = Depends(get_company_context),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Batch updates multiple card schemes MDR rates and enabled status
+    for the selected company and vendor/gateway.
+    """
+    target_comp = req.company_ref_id
+    if not ctx.is_super_admin:
+        ctx.validate_access(target_comp)
+        target_comp = ctx.company_ref_id
+
+    vendor_ref_id = req.payin_vendor_ref_id
+    if not vendor_ref_id and req.gateway_code:
+        gw_stmt = text("""
+            SELECT payin_vendor_ref_id FROM public.payin_company_vendors
+            WHERE company_ref_id = :cid AND gateway_code = :gcode
+            LIMIT 1;
+        """)
+        gw_res = await db.execute(gw_stmt, {"cid": target_comp, "gcode": req.gateway_code.strip().upper()})
+        vendor_ref_id = gw_res.scalar()
+
+    if not vendor_ref_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Valid payin_vendor_ref_id or gateway_code is required."
+        )
+
+    now_utc = datetime.now(timezone.utc)
+    user_email = ctx.user_email or "ADMIN"
+    results = []
+
+    for item in req.items:
+        net = item.card_network.strip().upper()
+        if item.mdr_percent < 0 or item.mdr_percent > 50.0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid MDR percentage {item.mdr_percent} for {net}."
+            )
+
+        ct_stmt = text("SELECT payin_card_type_ref_id FROM public.payin_card_types WHERE card_network = :net LIMIT 1;")
+        ct_res = await db.execute(ct_stmt, {"net": net})
+        card_type_ref_id = ct_res.scalar()
+
+        find_stmt = text("""
+            SELECT payin_mdr_cfg_ref_id, mdr_pct, is_enabled
+            FROM public.payin_mdr_cfg
+            WHERE company_ref_id = :cid
+              AND payin_vendor_ref_id = :vid
+              AND card_network = :net
+            ORDER BY priority DESC, payin_mdr_cfg_ref_id DESC
+            LIMIT 1;
+        """)
+        find_res = await db.execute(find_stmt, {"cid": target_comp, "vid": vendor_ref_id, "net": net})
+        existing = find_res.mappings().first()
+
+        new_pct_decimal = round(float(item.mdr_percent) / 100.0, 6)
+
+        if existing:
+            rule_id = existing["payin_mdr_cfg_ref_id"]
+            old_val = {
+                "mdr_percent": float(existing["mdr_pct"]) * 100.0,
+                "is_enabled": existing["is_enabled"],
+                "card_network": net
+            }
+            update_stmt = text("""
+                UPDATE public.payin_mdr_cfg
+                SET mdr_pct = :pct,
+                    is_enabled = :en,
+                    updated_by = :uby,
+                    updated_at = :uat
+                WHERE payin_mdr_cfg_ref_id = :rid;
+            """)
+            await db.execute(update_stmt, {
+                "pct": new_pct_decimal,
+                "en": item.is_enabled,
+                "uby": user_email,
+                "uat": now_utc,
+                "rid": rule_id
+            })
+        else:
+            old_val = None
+            ins_stmt = text("""
+                INSERT INTO public.payin_mdr_cfg (
+                    company_ref_id, payin_vendor_ref_id, payin_card_type_ref_id, card_network,
+                    mdr_pct, mdr_fixed, tax_pct, min_mdr, max_mdr, mdr_treatment,
+                    priority, is_enabled, effective_from, created_by, updated_by, created_at, updated_at
+                ) VALUES (
+                    :cid, :vid, :ctid, :net,
+                    :pct, 0.0, 0.18, 0.0, 5000.0, :treat,
+                    100, :en, :now, :uby, :uby, :now, :now
+                ) RETURNING payin_mdr_cfg_ref_id;
+            """)
+            ins_res = await db.execute(ins_stmt, {
+                "cid": target_comp,
+                "vid": vendor_ref_id,
+                "ctid": card_type_ref_id,
+                "net": net,
+                "pct": new_pct_decimal,
+                "treat": item.mdr_treatment or "COLLECT_ADDITIONALLY",
+                "en": item.is_enabled,
+                "now": now_utc,
+                "uby": user_email
+            })
+            rule_id = ins_res.scalar()
+
+        new_val = {
+            "mdr_percent": item.mdr_percent,
+            "is_enabled": item.is_enabled,
+            "card_network": net
+        }
+
+        db.add(PayinAuditLogModel(
+            company_ref_id=target_comp,
+            action_type="UPDATE_COMPANY_CARD_MDR_BATCH",
+            entity_type="payin_mdr_cfg",
+            entity_ref_id=rule_id,
+            old_value=old_val,
+            new_value=new_val,
+            created_at=now_utc
+        ))
+
+        results.append({
+            "card_network": net,
+            "mdr_percent": item.mdr_percent,
+            "is_enabled": item.is_enabled,
+            "rule_ref_id": rule_id
+        })
+
+    await db.commit()
+    return {
+        "success": True,
+        "message": f"Successfully updated {len(results)} card schemes for Company #{target_comp}.",
+        "updated_schemes": results
+    }
 
 
 @router.get("/transactions")
