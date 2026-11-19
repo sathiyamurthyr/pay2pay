@@ -581,6 +581,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       items: [
         { label: "Customers", path: "/retailer/customers", icon: PersonIcon },
         { label: "Beneficiaries", path: "/retailer/beneficiary", icon: ContactsIcon },
+        { label: "PayIn Report", path: "/retailer/reports/payin-transactions", icon: AssessmentIcon },
+        { label: "Payout Report", path: "/retailer/reports/payout-transactions", icon: ReceiptLongIcon },
         { label: "Transactions", path: "/retailer/reports/transactions", icon: AssessmentIcon },
         { label: "Settlement", path: "/retailer/reports/settlement", icon: PointOfSaleIcon },
       ],
