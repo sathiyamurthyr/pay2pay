@@ -61,8 +61,8 @@ class PayInService:
     async def generate_payin_tid(
         cls,
         db: AsyncSession,
-        tenant_id: uuid.UUID,
-        company_ref_id: Optional[int],
+        tenant_id: Optional[uuid.UUID] = None,
+        company_ref_id: Optional[int] = None,
         vendor_code: str = "BANKME"
     ) -> str:
         """
@@ -70,20 +70,9 @@ class PayInService:
         Uses vendor prefix dynamically (e.g. 'B' for BankMe, 'P' for Pay2Pay).
         Format: <VENDOR_FIRST_CHAR>PAY<DDMMYYHHMI><5_DIGIT_UNIQUE_NUMBER>
         """
+        import secrets
         v_code = vendor_code or ("BANKME" if (company_ref_id is not None and int(company_ref_id) == SMSPAY_COMPANY_REF_ID) else "PAY2PAY")
-        ref_vcode = "PAY2PAY" if v_code == "EXISTING" else v_code
         
-        try:
-            tid = await TransactionReferenceService.generate_unique_reference(
-                db=db,
-                tenant_id=tenant_id,
-                vendor_code=ref_vcode
-            )
-            if tid:
-                return tid
-        except Exception as ex:
-            logger.warning("TransactionReferenceService error (%s). Using fallback standard format.", ex)
-
         now_dt = datetime.now(timezone.utc).strftime("%d%m%y%H%M")
         if v_code == "EXISTING":
             v_prefix = "P"
@@ -91,15 +80,17 @@ class PayInService:
             v_prefix = v_code[0].upper()
         else:
             v_prefix = "P"
-        import random
-        rand_num = random.randint(10000, 99999)
-        candidate = f"{v_prefix}PAY{now_dt}{rand_num}"
 
-        stmt = select(PayinTransactionModel).where(PayinTransactionModel.tid == candidate)
-        res = await db.execute(stmt)
-        if res.scalars().first():
-            candidate = f"{v_prefix}PAY{now_dt}{random.randint(10000, 99999)}"
-        return candidate
+        for _ in range(5):
+            rand_num = secrets.randbelow(90000) + 10000
+            candidate = f"{v_prefix}PAY{now_dt}{rand_num}"
+
+            stmt = select(PayinTransactionModel.payin_transactions_ref_id).where(PayinTransactionModel.tid == candidate)
+            res = await db.execute(stmt)
+            if not res.scalar():
+                return candidate
+
+        return f"{v_prefix}PAY{now_dt}{secrets.randbelow(90000) + 10000}"
 
     @classmethod
     async def calculate_preview(
@@ -213,13 +204,22 @@ class PayInService:
             )
 
         company_ref_id = int(company_ref_id)
-        if retailer_ref_id is None:
-            # Default or fallback to first retailer for this company
+        valid_retailer = None
+        if retailer_ref_id is not None:
+            chk_stmt = select(RetailerModel.retailer_ref_id).where(
+                RetailerModel.retailer_ref_id == retailer_ref_id,
+                RetailerModel.company_ref_id == company_ref_id
+            )
+            valid_retailer = (await db.execute(chk_stmt)).scalar()
+
+        if not valid_retailer:
+            # Fallback to the first retailer for this company
             r_stmt = select(RetailerModel.retailer_ref_id).where(
                 RetailerModel.company_ref_id == company_ref_id
-            ).limit(1)
-            r_res = await db.execute(r_stmt)
-            retailer_ref_id = r_res.scalar() or 1
+            ).order_by(RetailerModel.retailer_ref_id.asc()).limit(1)
+            valid_retailer = (await db.execute(r_stmt)).scalar()
+
+        retailer_ref_id = valid_retailer
 
         # 2. Check for duplicate reference ID / Idempotency
         idempotency_key = f"{company_ref_id}:{request_dto.reference_id}"
