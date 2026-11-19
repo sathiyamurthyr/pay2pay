@@ -145,7 +145,14 @@ class PayInMdrService:
                     CASE WHEN card_network IS NOT NULL AND card_network = :c_net THEN 32 ELSE 0 END +
                     CASE WHEN payin_card_type_ref_id IS NOT NULL AND payin_card_type_ref_id = :c_type THEN 16 ELSE 0 END +
                     CASE WHEN payin_payment_mode_ref_id IS NOT NULL AND payin_payment_mode_ref_id = :p_mode THEN 8 ELSE 0 END +
-                    CASE WHEN payin_service_type_ref_id IS NOT NULL AND payin_service_type_ref_id = :s_type THEN 4 ELSE 0 END
+                    CASE WHEN payin_service_type_ref_id IS NOT NULL AND payin_service_type_ref_id = :s_type THEN 4 ELSE 0 END +
+                    CASE 
+                        WHEN :c_net IS NULL AND card_network IS NULL THEN 20
+                        WHEN :c_net IS NULL AND card_network = 'VISA' THEN 15
+                        WHEN :c_net IS NULL AND card_network = 'MASTERCARD' THEN 14
+                        WHEN :c_net IS NULL AND card_network = 'RUPAY' THEN 10
+                        ELSE 0 
+                    END
                 ) AS composite_score
             FROM public.payin_mdr_cfg
             WHERE company_ref_id = :c_ref
@@ -153,10 +160,10 @@ class PayInMdrService:
               AND is_enabled = TRUE
               AND effective_from <= :now_dt
               AND (effective_to IS NULL OR effective_to >= :now_dt)
-              AND (payin_service_type_ref_id IS NULL OR payin_service_type_ref_id = :s_type)
-              AND (payin_payment_mode_ref_id IS NULL OR payin_payment_mode_ref_id = :p_mode)
-              AND (payin_card_type_ref_id IS NULL OR payin_card_type_ref_id = :c_type)
-              AND (card_network IS NULL OR card_network = :c_net)
+              AND (:s_type IS NULL OR payin_service_type_ref_id IS NULL OR payin_service_type_ref_id = :s_type)
+              AND (:p_mode IS NULL OR payin_payment_mode_ref_id IS NULL OR payin_payment_mode_ref_id = :p_mode)
+              AND (:c_type IS NULL OR payin_card_type_ref_id IS NULL OR payin_card_type_ref_id = :c_type)
+              AND (:c_net IS NULL OR card_network IS NULL OR card_network = :c_net)
             ORDER BY composite_score DESC, payin_mdr_cfg_ref_id DESC
             LIMIT 1;
         """)
@@ -237,6 +244,27 @@ class PayInMdrService:
                 "tax_pct": Decimal("0.1800") if fb_row.get("gst_applicable", True) else Decimal("0.0000"),
                 "min_mdr": Decimal(str(fb_row.get("minimum_charge") or "0.00")),
                 "max_mdr": Decimal(str(fb_row.get("maximum_charge") or "5000.00")),
+                "mdr_treatment": effective_treatment,
+                "customer_payable_policy": policy_code,
+                "policy_display_name": policy_name,
+                "priority": 0
+            }
+
+        # Fallback to company default configuration if PayIn is enabled for this company
+        comp_chk = await db.execute(
+            text("SELECT payin_enabled, customer_payable_policy FROM public.payin_company_cfg WHERE company_ref_id = :c_ref LIMIT 1;"),
+            {"c_ref": company_ref_id}
+        )
+        comp_cfg_row = comp_chk.mappings().first()
+        if comp_cfg_row and comp_cfg_row.get("payin_enabled"):
+            default_rate = Decimal("0.0262") if company_ref_id == 2 else Decimal("0.0250")
+            return {
+                "rule_ref_id": None,
+                "mdr_pct": default_rate,
+                "mdr_fixed": Decimal("0.00"),
+                "tax_pct": Decimal("0.1800"),
+                "min_mdr": Decimal("0.00"),
+                "max_mdr": Decimal("5000.00"),
                 "mdr_treatment": effective_treatment,
                 "customer_payable_policy": policy_code,
                 "policy_display_name": policy_name,

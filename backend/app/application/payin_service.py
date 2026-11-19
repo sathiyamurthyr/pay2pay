@@ -151,6 +151,13 @@ class PayInService:
             )
             c_res = await db.execute(c_stmt)
             c_type_id = c_res.scalar()
+        elif preview_req.card_network:
+            c_stmt2 = select(PayinCardTypeModel.payin_card_type_ref_id).where(
+                PayinCardTypeModel.card_network == preview_req.card_network.strip().upper(),
+                PayinCardTypeModel.is_enabled == True
+            )
+            c_res2 = await db.execute(c_stmt2)
+            c_type_id = c_res2.scalar()
 
         # 5. Resolve MDR Rule and Calculate Charges
         mdr_cfg = await PayInMdrService.resolve_mdr_rule(
@@ -266,6 +273,12 @@ class PayInService:
                 PayinCardTypeModel.is_enabled == True
             )
             c_type = (await db.execute(c_stmt)).scalars().first()
+        elif request_dto.card_network:
+            c_stmt2 = select(PayinCardTypeModel).where(
+                PayinCardTypeModel.card_network == request_dto.card_network.strip().upper(),
+                PayinCardTypeModel.is_enabled == True
+            )
+            c_type = (await db.execute(c_stmt2)).scalars().first()
 
         # 5. Generate Authoritative TID FIRST before provider transaction
         tid = await cls.generate_payin_tid(
