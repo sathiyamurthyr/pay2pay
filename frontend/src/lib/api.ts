@@ -20,13 +20,27 @@ apiClient.interceptors.request.use(
     if (typeof window !== "undefined") {
       const port = window.location.port;
       const path = window.location.pathname;
+      const host = window.location.hostname || "";
+      const isAdminDomain =
+        port === "4002" ||
+        host.startsWith("admin.") ||
+        host.includes("admin.smspay.store") ||
+        host.includes("admin.near4you.store") ||
+        host.includes("admin.pay2pay.in");
 
       let portTokenKey: string | null = null;
       let portUserKey: string | null = null;
       if (port === "4001" || path.startsWith("/retailer")) {
         portTokenKey = "p2p_retailer_token";
         portUserKey = "p2p_retailer_user";
-      } else if (port === "4002" || path.startsWith("/admin")) {
+      } else if (
+        isAdminDomain ||
+        path.startsWith("/admin") ||
+        path.startsWith("/announcements") ||
+        path.startsWith("/wallet-ledger") ||
+        path.startsWith("/operations") ||
+        path.startsWith("/machines")
+      ) {
         portTokenKey = "p2p_admin_token";
         portUserKey = "p2p_admin_user";
       } else if (port === "4003" || path.startsWith("/super-admin")) {

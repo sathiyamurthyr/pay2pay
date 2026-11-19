@@ -200,7 +200,7 @@ export function middleware(request: NextRequest) {
           const claims = getJwtClaims(candidate);
           const cRole = normalizeUserRole(Array.isArray(claims?.roles) ? claims.roles[0] : claims?.role);
           const cType = Number(claims?.user_type_ref_id);
-          if (cRole === "SUPER_ADMIN" || (cType === 1 && cRole === "SUPER_ADMIN")) {
+          if (cRole === "SUPER_ADMIN" || cType === 1) {
             token = candidate;
           }
         }
@@ -396,7 +396,7 @@ export function middleware(request: NextRequest) {
 
   if (forcedPortal) {
     // Retailer only (Port 4001 or retailer host)
-    if (isRetailerHost && targetPrefix && targetPrefix !== "/retailer") {
+    if (isRetailerHost && (targetPrefix !== "/retailer" || pathname.startsWith("/announcements") || pathname.startsWith("/admin"))) {
       return applySecurityHeaders(
         NextResponse.redirect(new URL(PORTAL_CONFIGS.RETAILER.dashboard, request.url))
       );
@@ -414,6 +414,12 @@ export function middleware(request: NextRequest) {
       );
     }
   } else {
+    // Non-admin retailer accessing admin announcements
+    if (resolvedRole === "RETAILER" && (pathname.startsWith("/announcements") || pathname.startsWith("/admin"))) {
+      return applySecurityHeaders(
+        NextResponse.redirect(new URL(PORTAL_CONFIGS.RETAILER.dashboard, request.url))
+      );
+    }
     // Standard role prefix boundary check
     if (targetPrefix && targetPrefix !== portalConfig.prefix) {
       if (resolvedRole === "SUPER_ADMIN" && targetPrefix === "/admin") {
