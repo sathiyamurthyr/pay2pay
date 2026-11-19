@@ -838,7 +838,13 @@ export default function RetailerPayinPage() {
       if (newTab) {
         newTab.close();
       }
-      alert(err.response?.data?.detail || "Failed to initiate PayIn session. Please retry.");
+      const detail = err.response?.data?.detail;
+      const errorMsg = typeof detail === "string"
+        ? detail
+        : Array.isArray(detail)
+          ? detail.map((d: any) => d.msg || JSON.stringify(d)).join(", ")
+          : err.response?.data?.message || err.message || "Failed to initiate PayIn session. Please retry.";
+      alert(errorMsg);
     } finally {
       setIsInitiating(false);
     }
