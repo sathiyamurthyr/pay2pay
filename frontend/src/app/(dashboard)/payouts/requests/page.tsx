@@ -182,42 +182,42 @@ export default function PayoutRequestsPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-[#E2E8F0] bg-white overflow-hidden shadow-sm">
+      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-[#FFFFFF]">
-            <thead className="bg-[#F8FAFC] uppercase font-mono text-xs text-[#FAF8F9] border-b border-[#E2E8F0]">
+          <table className="w-full text-left text-sm text-slate-800">
+            <thead className="bg-slate-50 uppercase font-mono text-xs font-bold text-slate-700 border-b border-slate-200">
               <tr>
-                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Payout #</th>
-                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Gross Amount</th>
-                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Net Payout</th>
-                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">UTR Number</th>
-                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Requested By</th>
-                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Status</th>
-                <th className="px-5 py-4 font-extrabold text-right text-[#FAF8F9]">Actions</th>
+                <th className="px-5 py-4 font-bold text-slate-700">Payout #</th>
+                <th className="px-5 py-4 font-bold text-slate-700">Gross Amount</th>
+                <th className="px-5 py-4 font-bold text-slate-700">Net Payout</th>
+                <th className="px-5 py-4 font-bold text-slate-700">UTR Number</th>
+                <th className="px-5 py-4 font-bold text-slate-700">Requested By</th>
+                <th className="px-5 py-4 font-bold text-slate-700">Status</th>
+                <th className="px-5 py-4 font-bold text-right text-slate-700">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E2E8F0]">
+            <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={7} className="px-5 py-12 text-center text-[#64748B] font-medium">Loading Payout Requests...</td></tr>
+                <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-500 font-medium">Loading Payout Requests...</td></tr>
               ) : payouts.length === 0 ? (
-                <tr><td colSpan={7} className="px-5 py-12 text-center text-[#64748B] font-medium">No outbound payout requests created yet.</td></tr>
+                <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-500 font-medium">No outbound payout requests created yet.</td></tr>
               ) : (
                 payouts.map((p) => (
-                  <tr key={p.public_id} className="hover:bg-[#F8FAFC] transition-colors">
+                  <tr key={p.public_id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-5 py-4 font-mono text-xs text-[#2563EB] font-extrabold">{p.payout_number}</td>
-                    <td className="px-5 py-4 font-mono text-xs text-[#FFFFFF] font-bold">₹{p.amount.toLocaleString("en-IN")}</td>
+                    <td className="px-5 py-4 font-mono text-xs text-slate-900 font-bold">₹{p.amount.toLocaleString("en-IN")}</td>
                     <td className="px-5 py-4 font-mono text-xs font-extrabold text-[#15803D]">₹{p.net_amount.toLocaleString("en-IN")}</td>
-                    <td className="px-5 py-4 font-mono text-xs text-[#475569] font-medium">{p.utr_number || "-"}</td>
-                    <td className="px-5 py-4 text-xs font-mono text-[#334155] font-semibold">{p.requested_by}</td>
+                    <td className="px-5 py-4 font-mono text-xs text-slate-600 font-medium">{p.utr_number || "-"}</td>
+                    <td className="px-5 py-4 text-xs font-mono text-slate-700 font-semibold">{p.requested_by}</td>
                     <td className="px-5 py-4">
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold border ${
                         p.status === "SUCCESS"
-                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                           : p.status === "APPROVED"
-                          ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                          ? "bg-blue-50 text-blue-700 border-blue-200"
                           : p.status === "PENDING_APPROVAL"
-                          ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                          : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                          ? "bg-amber-50 text-amber-700 border-amber-200"
+                          : "bg-rose-50 text-rose-700 border-rose-200"
                       }`}>
                         {p.status}
                       </span>

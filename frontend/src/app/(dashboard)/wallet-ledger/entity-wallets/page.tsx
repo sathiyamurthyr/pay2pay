@@ -90,9 +90,9 @@ function SearchableEntityPicker({
       <button
         type="button"
         onClick={() => setOpen((p) => !p)}
-        className="w-full flex items-center justify-between rounded-2xl border border-[#CBD5E1] bg-white px-4 py-3 text-xs font-bold text-[#FFFFFF] hover:border-[#2563EB] focus:outline-none transition-all shadow-2xs cursor-pointer"
+        className="w-full flex items-center justify-between rounded-2xl border border-[#CBD5E1] bg-white px-4 py-3 text-xs font-bold text-slate-900 hover:border-[#2563EB] focus:outline-none transition-all shadow-2xs cursor-pointer"
       >
-        <span className={selected ? "text-[#FFFFFF] font-extrabold" : "text-[#94A3B8]"}>
+        <span className={selected ? "text-slate-900 font-extrabold" : "text-[#94A3B8]"}>
           {selected ? `${selected.name} (${selected.code})` : "Click to choose entity user from list..."}
         </span>
         <ChevronDown className={`w-4 h-4 text-[#64748B] flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
@@ -109,7 +109,7 @@ function SearchableEntityPicker({
                 placeholder="Search entity by name, code, phone..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="w-full bg-transparent text-xs font-semibold text-[#FFFFFF] focus:outline-none placeholder-[#94A3B8]"
+                className="w-full bg-transparent text-xs font-semibold text-slate-900 focus:outline-none placeholder-[#94A3B8]"
               />
               {query && (
                 <button type="button" onClick={() => setQuery("")}>
@@ -132,11 +132,11 @@ function SearchableEntityPicker({
                     setQuery("");
                   }}
                   className={`flex items-center justify-between px-4 py-3 text-xs cursor-pointer hover:bg-[#EFF6FF] transition-colors ${
-                    selected?.id === item.id ? "bg-[#EFF6FF] font-extrabold text-[#2563EB]" : "text-[#FFFFFF]"
+                    selected?.id === item.id ? "bg-[#EFF6FF] font-extrabold text-[#2563EB]" : "text-slate-900"
                   }`}
                 >
                   <div>
-                    <p className="font-bold text-xs text-[#FFFFFF]">{item.name}</p>
+                    <p className="font-bold text-xs text-slate-900">{item.name}</p>
                     <p className="font-mono text-[10px] font-bold text-[#2563EB]">{item.code} · {item.phone}</p>
                   </div>
                   <div className="text-right">
@@ -415,7 +415,7 @@ Generated: ${new Date().toLocaleString("en-IN")}`;
       {/* Title & Action Buttons Bar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#FFFFFF] flex items-center gap-3">
+          <h1 className="text-2xl font-extrabold text-slate-900 flex items-center gap-3">
             <Layers className="h-7 w-7 text-[#2563EB]" />
             Entity Type Wallet Balances
           </h1>
@@ -583,7 +583,7 @@ Generated: ${new Date().toLocaleString("en-IN")}`;
               <div className="space-y-2">
                 {/* Title & Badges Row */}
                 <div className="flex items-center gap-2.5 flex-wrap">
-                  <h2 className="text-xl font-extrabold text-[#FFFFFF] tracking-tight">{selectedEntity.name}</h2>
+                  <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">{selectedEntity.name}</h2>
                   
                   {/* Entity Code */}
                   <button
@@ -951,7 +951,7 @@ Generated: ${new Date().toLocaleString("en-IN")}`;
 
       {/* ── WALLET-SPECIFIC FREEZE (LOCK) REASON CONFIRMATION MODAL ───────── */}
       {showFreezeModal && (
-        <div className="fixed inset-0 z-[99999] bg-[#FFFFFF]/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[99999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-200 space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-3">
@@ -959,11 +959,11 @@ Generated: ${new Date().toLocaleString("en-IN")}`;
                   <Lock className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base text-[#FFFFFF]">Freeze / Lock Specific Wallet</h3>
+                  <h3 className="font-extrabold text-base text-slate-900">Freeze / Lock Specific Wallet</h3>
                   <p className="text-xs text-[#64748B] font-medium">{selectedEntity?.name} ({selectedEntity?.code})</p>
                 </div>
               </div>
-              <button type="button" onClick={() => setShowFreezeModal(false)} className="text-[#94A3B8] hover:text-[#FFFFFF]">
+              <button type="button" onClick={() => setShowFreezeModal(false)} className="text-[#94A3B8] hover:text-slate-900">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -971,13 +971,13 @@ Generated: ${new Date().toLocaleString("en-IN")}`;
             <div className="space-y-4">
               {/* Target Wallet Type Selector Dropdown */}
               <div>
-                <label className="text-xs font-extrabold text-[#FFFFFF] block mb-1">
+                <label className="text-xs font-extrabold text-slate-900 block mb-1">
                   Choose Wallet to Freeze / Lock:
                 </label>
                 <select
                   value={targetWalletToFreeze}
                   onChange={(e) => setTargetWalletToFreeze(e.target.value)}
-                  className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl px-3 py-2.5 text-xs font-bold text-[#FFFFFF] focus:outline-none focus:border-[#DC2626]"
+                  className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl px-3 py-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#DC2626]"
                 >
                   <option value="ALL">🔒 All Wallets (Global Entity Lock)</option>
                   <option value="MAIN">🟢 Main Settlement Wallet Only</option>
@@ -988,13 +988,13 @@ Generated: ${new Date().toLocaleString("en-IN")}`;
 
               {/* Compliance Reason Selector Dropdown */}
               <div>
-                <label className="text-xs font-extrabold text-[#FFFFFF] block mb-1">
+                <label className="text-xs font-extrabold text-slate-900 block mb-1">
                   Select Compliance Lock Reason:
                 </label>
                 <select
                   value={freezeReason}
                   onChange={(e) => setFreezeReason(e.target.value)}
-                  className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl px-3 py-2.5 text-xs font-bold text-[#FFFFFF] focus:outline-none focus:border-[#DC2626]"
+                  className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl px-3 py-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#DC2626]"
                 >
                   <option value="Compliance Audit Lock">Compliance Audit Lock</option>
                   <option value="Suspicious Transaction Alert">Suspicious Transaction Alert</option>

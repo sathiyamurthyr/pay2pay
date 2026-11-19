@@ -76,7 +76,7 @@ export default function TrialBalancePage() {
       </div>
 
       {/* Trial Balance Table */}
-      <div className="rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 backdrop-blur-xl overflow-hidden shadow-2xl">
+      <div className="rounded-xl border border-[#E8E2E5] bg-black/60 backdrop-blur-xl overflow-hidden shadow-2xl">
         <div className="p-4 border-b border-[#E8E2E5] flex items-center justify-between bg-[#FFFFFF]/40">
           <span className="font-bold text-[#292329]">Accounting Period: {tbData?.period_name || "July 2026"}</span>
           {tbData?.is_balanced ? (
@@ -91,7 +91,7 @@ export default function TrialBalancePage() {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-[#292329]">
-            <thead className="bg-[#FFFFFF]/80 uppercase font-mono text-xs text-[#625B60] border-b border-[#E8E2E5]">
+            <thead className="bg-black/60 uppercase font-mono text-xs text-[#625B60] border-b border-[#E8E2E5]">
               <tr>
                 <th className="px-5 py-4">Account Code</th>
                 <th className="px-5 py-4">General Ledger Account Name</th>
@@ -126,7 +126,7 @@ export default function TrialBalancePage() {
 
       {/* Manual Journal Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FFFFFF]/80 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-md rounded-xl border border-[#E8E2E5] bg-[#FAF8F9] p-6 shadow-2xl space-y-6">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-bold text-[#292329] flex items-center gap-2">

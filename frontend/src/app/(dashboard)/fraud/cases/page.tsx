@@ -67,10 +67,10 @@ export default function FraudCasesPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-[#E8E2E5] bg-[#FAF8F9]/60 backdrop-blur-xl overflow-hidden shadow-2xl">
+      <div className="rounded-xl border border-[#E8E2E5] bg-black/60 backdrop-blur-xl overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-[#292329]">
-            <thead className="bg-[#FFFFFF]/80 uppercase font-mono text-xs text-[#625B60] border-b border-[#E8E2E5]">
+            <thead className="bg-black/60 uppercase font-mono text-xs text-[#625B60] border-b border-[#E8E2E5]">
               <tr>
                 <th className="px-5 py-4">Case #</th>
                 <th className="px-5 py-4">Subject</th>
@@ -119,7 +119,7 @@ export default function FraudCasesPage() {
 
       {/* Decision Modal */}
       {selectedCase && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FFFFFF]/80 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-lg rounded-xl border border-[#E8E2E5] bg-[#FAF8F9] p-6 shadow-2xl space-y-6">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-bold text-[#292329] flex items-center gap-2">

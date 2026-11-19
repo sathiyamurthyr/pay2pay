@@ -52,27 +52,27 @@ export default function TasksPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-[#E2E8F0] bg-white overflow-hidden shadow-sm">
+      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-[#FFFFFF]">
-            <thead className="bg-[#F8FAFC] uppercase text-xs font-bold text-[#FAF8F9] border-b border-[#E2E8F0]">
+          <table className="w-full text-left text-sm text-slate-800">
+            <thead className="bg-slate-50 uppercase text-xs font-bold text-slate-700 border-b border-slate-200">
               <tr>
-                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Task #</th>
-                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Task Title</th>
-                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Priority</th>
-                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Assigned To</th>
-                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Status</th>
-                <th className="px-5 py-4 font-mono font-extrabold text-right text-[#FAF8F9]">Actions</th>
+                <th className="px-5 py-4 font-bold text-slate-700">Task #</th>
+                <th className="px-5 py-4 font-bold text-slate-700">Task Title</th>
+                <th className="px-5 py-4 font-bold text-slate-700">Priority</th>
+                <th className="px-5 py-4 font-bold text-slate-700">Assigned To</th>
+                <th className="px-5 py-4 font-bold text-slate-700">Status</th>
+                <th className="px-5 py-4 font-mono font-bold text-right text-slate-700">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E2E8F0] font-mono text-xs">
+            <tbody className="divide-y divide-slate-100 font-mono text-xs">
               {loading ? (
-                <tr><td colSpan={6} className="px-5 py-12 text-center text-[#64748B] font-medium">Loading Operational Tasks...</td></tr>
+                <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-500 font-medium">Loading Operational Tasks...</td></tr>
               ) : (
                 tasks.map((t) => (
-                  <tr key={t.public_id} className="hover:bg-[#F8FAFC] transition-colors">
-                    <td className="px-5 py-4 text-[#2563EB] font-extrabold">{t.task_number}</td>
-                    <td className="px-5 py-4 font-sans text-xs font-bold text-[#FFFFFF]">{t.title}</td>
+                  <tr key={t.public_id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-5 py-4 text-blue-600 font-bold">{t.task_number}</td>
+                    <td className="px-5 py-4 font-sans text-xs font-bold text-slate-900">{t.title}</td>
                     <td className="px-5 py-4 text-[#DC2626] font-bold">{t.priority}</td>
                     <td className="px-5 py-4 text-[#475569] font-medium">{t.assigned_to || "Unassigned"}</td>
                     <td className="px-5 py-4">

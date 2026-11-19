@@ -85,10 +85,10 @@ export default function AepsDevicesPage() {
       </div>
 
       {/* Directory Table */}
-      <div className="bg-white rounded-xl border border-[#E5E7EB] overflow-hidden shadow-2xs">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-[#FFFFFF]">
-            <thead className="bg-[#F8FAFC] text-[#FAF8F9] text-xs uppercase font-extrabold tracking-wider border-b border-[#E5E7EB]">
+          <table className="w-full text-left text-sm text-slate-800">
+            <thead className="bg-slate-50 text-slate-700 text-xs uppercase font-bold tracking-wider border-b border-slate-200">
               <tr>
                 <th className="px-6 py-4">Serial Number</th>
                 <th className="px-6 py-4">Vendor &amp; Model</th>
@@ -97,26 +97,26 @@ export default function AepsDevicesPage() {
                 <th className="px-6 py-4">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E5E7EB]">
+            <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-[#6B7280]">
+                  <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
                     Loading biometric devices...
                   </td>
                 </tr>
               ) : devices.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-[#6B7280]">
+                  <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
                     No biometric scanners registered.
                   </td>
                 </tr>
               ) : (
                 devices.map((d) => (
-                  <tr key={d.public_id} className="hover:bg-[#EFF6FF] transition-colors">
-                    <td className="px-6 py-4 font-mono text-[#FAF8F9] font-bold">{d.device_serial_number}</td>
+                  <tr key={d.public_id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-6 py-4 font-mono text-slate-900 font-bold">{d.device_serial_number}</td>
                     <td className="px-6 py-4">
-                      <p className="text-[#FAF8F9] font-bold">{d.vendor_name}</p>
-                      <p className="text-xs text-[#6B7280]">{d.model_name}</p>
+                      <p className="text-slate-900 font-bold">{d.vendor_name}</p>
+                      <p className="text-xs text-slate-500">{d.model_name}</p>
                     </td>
                     <td className="px-6 py-4 font-mono text-xs text-[#2563EB] font-bold">v{d.rd_service_version}</td>
                     <td className="px-6 py-4 font-mono text-xs text-[#374151]">v{d.firmware_version}</td>
@@ -135,11 +135,11 @@ export default function AepsDevicesPage() {
 
       {/* Creation Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-[#FAF8F9]/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 w-full max-w-lg space-y-4 shadow-xl text-[#FAF8F9]">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 w-full max-w-lg space-y-4 shadow-xl text-slate-900">
             <div className="flex justify-between items-center border-b border-[#E5E7EB] pb-3">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Cpu className="w-5 h-5 text-purple-400" /> Register Scanner Device
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Cpu className="w-5 h-5 text-purple-600" /> Register Scanner Device
               </h3>
               <button onClick={() => setShowModal(false)} className="text-[#625B60] hover:text-[#292329]">
                 <X className="w-5 h-5" />
@@ -155,7 +155,7 @@ export default function AepsDevicesPage() {
                   placeholder="e.g. MANTRA-MFS100-9988"
                   value={form.device_serial_number}
                   onChange={(e) => setForm({ ...form, device_serial_number: e.target.value })}
-                  className="w-full px-3 py-2 bg-[#F5F2F4] border border-[#E8E2E5] rounded-lg text-sm text-white font-mono focus:outline-none focus:border-purple-500"
+                  className="w-full px-3 py-2 bg-[#F5F2F4] border border-[#E8E2E5] rounded-lg text-sm text-slate-900 font-mono focus:outline-none focus:border-purple-500"
                 />
               </div>
 
@@ -165,7 +165,7 @@ export default function AepsDevicesPage() {
                   <select
                     value={form.vendor_name}
                     onChange={(e) => setForm({ ...form, vendor_name: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#F5F2F4] border border-[#E8E2E5] rounded-lg text-sm text-white focus:outline-none focus:border-purple-500"
+                    className="w-full px-3 py-2 bg-[#F5F2F4] border border-[#E8E2E5] rounded-lg text-sm text-slate-900 focus:outline-none focus:border-purple-500"
                   >
                     <option value="MANTRA">MANTRA</option>
                     <option value="MORPHO">MORPHO</option>
@@ -180,7 +180,7 @@ export default function AepsDevicesPage() {
                     required
                     value={form.model_name}
                     onChange={(e) => setForm({ ...form, model_name: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#F5F2F4] border border-[#E8E2E5] rounded-lg text-sm text-white focus:outline-none focus:border-purple-500"
+                    className="w-full px-3 py-2 bg-[#F5F2F4] border border-[#E8E2E5] rounded-lg text-sm text-slate-900 focus:outline-none focus:border-purple-500"
                   />
                 </div>
               </div>

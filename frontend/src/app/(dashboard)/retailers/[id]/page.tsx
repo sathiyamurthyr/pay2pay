@@ -232,13 +232,13 @@ export default function RetailerDetailsPage() {
         <div className="flex items-center gap-4">
           <Link
             href="/retailers"
-            className="flex items-center justify-center w-10 h-10 rounded-xl border border-[#E2E8F0] bg-white text-[#475569] hover:bg-[#F8FAFC] hover:text-[#FFFFFF] transition-all"
+            className="flex items-center justify-center w-10 h-10 rounded-xl border border-[#E2E8F0] bg-white text-[#475569] hover:bg-[#F8FAFC] hover:text-slate-900 transition-all"
           >
             <ChevronLeft className="w-5 h-5" />
           </Link>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight flex items-center gap-2">
+              <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
                 <Store className="w-7 h-7 text-[#2563EB]" /> {retailer.store_name}
               </h1>
 
@@ -311,7 +311,7 @@ export default function RetailerDetailsPage() {
           <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-3">
             <div className="flex items-center gap-2">
               <Store className="w-5 h-5 text-[#2563EB]" />
-              <h2 className="text-sm font-extrabold text-[#FFFFFF] uppercase tracking-wider">
+              <h2 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
                 1. Store Identity & Hierarchy Mapping
               </h2>
             </div>
@@ -333,17 +333,17 @@ export default function RetailerDetailsPage() {
 
             <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1.5">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Business Category</span>
-              <div className="text-sm font-bold text-[#FFFFFF]">{retailer.business_category}</div>
+              <div className="text-sm font-bold text-slate-900">{retailer.business_category}</div>
             </div>
 
             <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1.5">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Store Type</span>
-              <div className="text-sm font-bold text-[#FFFFFF]">{retailer.store_type}</div>
+              <div className="text-sm font-bold text-slate-900">{retailer.store_type}</div>
             </div>
 
             <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1.5">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Registration Date</span>
-              <div className="text-sm font-bold text-[#FFFFFF]">{new Date(retailer.created_date).toLocaleDateString()}</div>
+              <div className="text-sm font-bold text-slate-900">{new Date(retailer.created_date).toLocaleDateString()}</div>
             </div>
           </div>
         </div>
@@ -353,7 +353,7 @@ export default function RetailerDetailsPage() {
           <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-3">
             <div className="flex items-center gap-2">
               <UserCheck className="w-5 h-5 text-[#16A34A]" />
-              <h2 className="text-sm font-extrabold text-[#FFFFFF] uppercase tracking-wider">
+              <h2 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
                 2. Owner Contact & Physical Outlet Address
               </h2>
             </div>
@@ -362,13 +362,13 @@ export default function RetailerDetailsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
             <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1.5">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Owner Full Name</span>
-              <div className="text-sm font-bold text-[#FFFFFF]">{retailer.owner_name}</div>
+              <div className="text-sm font-bold text-slate-900">{retailer.owner_name}</div>
             </div>
 
             <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1.5">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Mobile Number</span>
               <div className="flex items-center justify-between">
-                <span className="font-mono text-sm font-bold text-[#FFFFFF]">{mobileVal}</span>
+                <span className="font-mono text-sm font-bold text-slate-900">{mobileVal}</span>
                 <button
                   onClick={() => copyToClipboard(mobileVal, "mobile")}
                   className="p-1 text-[#64748B] hover:text-[#2563EB]"
@@ -381,7 +381,7 @@ export default function RetailerDetailsPage() {
             <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1.5">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Corporate Email</span>
               <div className="flex items-center justify-between truncate">
-                <span className="font-bold text-[#FFFFFF] truncate">{emailVal}</span>
+                <span className="font-bold text-slate-900 truncate">{emailVal}</span>
                 <button
                   onClick={() => copyToClipboard(emailVal, "email")}
                   className="p-1 text-[#64748B] hover:text-[#2563EB] shrink-0"
@@ -396,7 +396,7 @@ export default function RetailerDetailsPage() {
             <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5 text-[#2563EB]" /> Physical Outlet Address
             </span>
-            <div className="font-bold text-[#FFFFFF]">
+            <div className="font-bold text-slate-900">
               {primaryAddress
                 ? [primaryAddress.address, primaryAddress.city, primaryAddress.state ? `${primaryAddress.state} - ${primaryAddress.pincode || ""}` : primaryAddress.pincode].filter(Boolean).join(", ")
                 : retailer.address
@@ -411,7 +411,7 @@ export default function RetailerDetailsPage() {
           <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-3">
             <div className="flex items-center gap-2">
               <CreditCard className="w-5 h-5 text-[#F59E0B]" />
-              <h2 className="text-sm font-extrabold text-[#FFFFFF] uppercase tracking-wider">
+              <h2 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
                 3. Settlement Banking & Payout Details
               </h2>
             </div>
@@ -420,12 +420,12 @@ export default function RetailerDetailsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs">
             <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1.5">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Bank Name</span>
-              <div className="font-bold text-[#FFFFFF]">{bankNameVal}</div>
+              <div className="font-bold text-slate-900">{bankNameVal}</div>
             </div>
 
             <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1.5">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Account Holder</span>
-              <div className="font-bold text-[#FFFFFF]">{primaryBank?.account_holder || retailer.owner_name}</div>
+              <div className="font-bold text-slate-900">{primaryBank?.account_holder || retailer.owner_name}</div>
             </div>
 
             <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1.5">
@@ -444,7 +444,7 @@ export default function RetailerDetailsPage() {
             <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1.5">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">IFSC Code</span>
               <div className="flex items-center justify-between">
-                <span className="font-mono text-sm font-bold text-[#FFFFFF]">{ifscVal}</span>
+                <span className="font-mono text-sm font-bold text-slate-900">{ifscVal}</span>
                 <button
                   onClick={() => copyToClipboard(ifscVal, "ifsc")}
                   className="p-1 text-[#64748B] hover:text-[#2563EB]"
@@ -471,7 +471,7 @@ export default function RetailerDetailsPage() {
             <div className="p-4 rounded-xl bg-white border border-[#93C5FD] space-y-1.5">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">PAN Number</span>
               <div className="flex items-center justify-between">
-                <span className="font-mono text-base font-extrabold text-[#FFFFFF]">{panVal}</span>
+                <span className="font-mono text-base font-extrabold text-slate-900">{panVal}</span>
                 <button
                   onClick={() => copyToClipboard(panVal, "pan_number")}
                   className="p-1 text-[#64748B] hover:text-[#2563EB]"
@@ -484,7 +484,7 @@ export default function RetailerDetailsPage() {
             <div className="p-4 rounded-xl bg-white border border-[#93C5FD] space-y-1.5">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">GST Number</span>
               <div className="flex items-center justify-between">
-                <span className="font-mono text-base font-extrabold text-[#FFFFFF]">{gstVal || "Not Provided"}</span>
+                <span className="font-mono text-base font-extrabold text-slate-900">{gstVal || "Not Provided"}</span>
                 {gstVal && (
                   <button
                     onClick={() => copyToClipboard(gstVal, "gst_number")}
@@ -523,7 +523,7 @@ export default function RetailerDetailsPage() {
                     {/* Header */}
                     <div className="p-3 bg-gradient-to-r from-[#F8FAFC] to-[#EFF6FF] border-b border-[#E2E8F0] flex items-center justify-between">
                       <div className="truncate">
-                        <h4 className="text-xs font-black text-[#FFFFFF] truncate leading-tight">{doc.label}</h4>
+                        <h4 className="text-xs font-black text-slate-900 truncate leading-tight">{doc.label}</h4>
                         <p className="text-[10px] font-bold text-[#64748B] truncate">{doc.category}</p>
                       </div>
                       <span
@@ -623,7 +623,7 @@ export default function RetailerDetailsPage() {
                         <>
                           <button
                             onClick={() => copyToClipboard(doc.url, doc.id)}
-                            className="px-2 py-1.5 rounded-lg border border-[#CBD5E1] bg-white text-[#475569] hover:text-[#FFFFFF] text-[10px] font-bold flex items-center gap-1 hover:bg-[#F1F5F9] transition-all cursor-pointer"
+                            className="px-2 py-1.5 rounded-lg border border-[#CBD5E1] bg-white text-[#475569] hover:text-slate-900 text-[10px] font-bold flex items-center gap-1 hover:bg-[#F1F5F9] transition-all cursor-pointer"
                             title="Copy URL"
                           >
                             {copiedField === doc.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
@@ -658,7 +658,7 @@ export default function RetailerDetailsPage() {
           <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-3">
             <div className="flex items-center gap-2">
               <Wallet className="w-5 h-5 text-[#16A34A]" />
-              <h2 className="text-sm font-extrabold text-[#FFFFFF] uppercase tracking-wider">
+              <h2 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
                 5. Wallet Balances & Operating Limits
               </h2>
             </div>
@@ -674,14 +674,14 @@ export default function RetailerDetailsPage() {
 
             <div className="p-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] space-y-1">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Daily Transaction Limit</span>
-              <div className="font-mono text-lg font-bold text-[#FFFFFF]">
+              <div className="font-mono text-lg font-bold text-slate-900">
                 ₹{wallet?.daily_limit ? wallet.daily_limit.toLocaleString("en-IN") : "5,00,000"}
               </div>
             </div>
 
             <div className="p-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] space-y-1">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Single Transaction Limit</span>
-              <div className="font-mono text-lg font-bold text-[#FFFFFF]">
+              <div className="font-mono text-lg font-bold text-slate-900">
                 ₹{wallet?.single_limit ? wallet.single_limit.toLocaleString("en-IN") : "5,00,000"}
               </div>
             </div>
@@ -693,7 +693,7 @@ export default function RetailerDetailsPage() {
           <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-3">
             <div className="flex items-center gap-2">
               <History className="w-5 h-5 text-[#64748B]" />
-              <h2 className="text-sm font-extrabold text-[#FFFFFF] uppercase tracking-wider">
+              <h2 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
                 6. Status Audit History
               </h2>
             </div>
@@ -714,7 +714,7 @@ export default function RetailerDetailsPage() {
                 </div>
               ))
             ) : (
-              <div className="p-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-xs font-bold text-[#FFFFFF]">
+              <div className="p-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-xs font-bold text-slate-900">
                 No previous status changes recorded. Profile active.
               </div>
             )}
