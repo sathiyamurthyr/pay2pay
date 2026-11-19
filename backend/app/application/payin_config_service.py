@@ -216,12 +216,14 @@ class PayInConfigService:
         cls,
         db: AsyncSession,
         company_ref_id: int,
-        vendor_code: Optional[str] = None
+        vendor_code: Optional[str] = None,
+        active_only: bool = True
     ) -> List[CardSchemeMdrItem]:
         """
-        Retrieves the 5 standard card categories and their Admin-configured MDR rates
+        Retrieves standard card schemes and their Admin-configured MDR rates
         for the authenticated company and selected vendor/gateway.
         Strict company isolation is enforced.
+        If active_only=True, returns ONLY active, enabled card types with valid configuration.
         """
         vendor = await cls.resolve_company_vendor(
             db=db,
@@ -284,7 +286,6 @@ class PayInConfigService:
                 WHERE company_ref_id = :c_ref
                   AND payin_vendor_ref_id = :v_ref
                   AND card_network = :c_net
-                  AND is_enabled = TRUE
                   AND effective_from <= :now_dt
                   AND (effective_to IS NULL OR effective_to >= :now_dt)
                 ORDER BY priority DESC, payin_mdr_cfg_ref_id DESC
@@ -299,6 +300,10 @@ class PayInConfigService:
             row = res.mappings().first()
 
             if row:
+                is_active = bool(row["is_enabled"])
+                if active_only and not is_active:
+                    continue
+
                 pct = float(row["mdr_pct"])
                 display_pct = f"{pct * 100:.2f}%" if pct > 0 else "0.00%"
                 results.append(CardSchemeMdrItem(
@@ -310,11 +315,15 @@ class PayInConfigService:
                     mdr_display=display_pct,
                     mdr_treatment=str(row["mdr_treatment"] or "COLLECT_ADDITIONALLY"),
                     is_configured=True,
+                    is_active=is_active,
                     brand_color=sm["brand_color"],
                     icon_text=sm["icon_text"],
                     rule_ref_id=row["payin_mdr_cfg_ref_id"]
                 ))
             else:
+                if active_only:
+                    continue
+
                 results.append(CardSchemeMdrItem(
                     id=sm["id"],
                     name=sm["name"],
@@ -324,6 +333,7 @@ class PayInConfigService:
                     mdr_display="Not Configured",
                     mdr_treatment=None,
                     is_configured=False,
+                    is_active=False,
                     brand_color=sm["brand_color"],
                     icon_text=sm["icon_text"],
                     rule_ref_id=None

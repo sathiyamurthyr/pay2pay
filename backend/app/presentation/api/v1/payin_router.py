@@ -144,20 +144,22 @@ async def get_payin_gateways(
 async def get_payin_card_schemes(
     request: Request,
     vendor_code: Optional[str] = Query(None, description="Optional vendor override"),
+    active_only: bool = Query(True, description="Filter only active card schemes"),
     payload: Dict[str, Any] = Depends(get_current_token_payload),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Retrieves the 5 standard card schemes and their Admin-configured MDR rates
+    Retrieves the standard card schemes and their Admin-configured MDR rates
     strictly isolated by the authenticated retailer's Company Ref ID.
-    Used for display and informational purposes only.
+    Returns only active, enabled card types when active_only=True.
     """
     auth_ctx = extract_auth_context(payload, request)
     c_ref = auth_ctx.get("company_ref_id") or SMSPAY_COMPANY_REF_ID
     return await PayInConfigService.get_card_schemes_mdr(
         db=db,
         company_ref_id=c_ref,
-        vendor_code=vendor_code
+        vendor_code=vendor_code,
+        active_only=active_only
     )
 
 

@@ -58,9 +58,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           return;
         }
       }
+      const isAdminDomain = typeof window !== "undefined" && (
+        window.location.hostname.startsWith("admin.") ||
+        window.location.hostname.includes("admin.smspay.store") ||
+        window.location.hostname.includes("admin.near4you.store") ||
+        window.location.hostname.includes("admin.pay2pay.in") ||
+        window.location.port === "4002"
+      );
       const loginTarget = pathname?.startsWith("/super-admin")
         ? "/super-admin/login"
-        : pathname?.startsWith("/admin")
+        : (pathname?.startsWith("/admin") || isAdminDomain)
         ? "/admin/login"
         : "/login";
       router.replace(loginTarget);
@@ -110,9 +117,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [user, authLoading, router, mounted, pathname]);
 
+  const isAdminDomain = typeof window !== "undefined" && (
+    window.location.hostname.startsWith("admin.") ||
+    window.location.hostname.includes("admin.smspay.store") ||
+    window.location.hostname.includes("admin.near4you.store") ||
+    window.location.hostname.includes("admin.pay2pay.in") ||
+    window.location.port === "4002"
+  );
+
   const isAdminOrSuperAdminRoute = Boolean(
+    isAdminDomain ||
     pathname?.startsWith("/super-admin") ||
     pathname?.startsWith("/admin") ||
+    pathname?.startsWith("/wallet-ledger") ||
+    pathname?.startsWith("/announcements") ||
+    pathname?.startsWith("/operations") ||
+    pathname?.startsWith("/machines") ||
+    pathname?.startsWith("/users") ||
+    pathname?.startsWith("/fraud") ||
+    pathname?.startsWith("/compliance") ||
+    pathname?.startsWith("/policies") ||
+    pathname?.startsWith("/developer") ||
+    pathname?.startsWith("/reporting") ||
     pathname === "/dashboard"
   );
 

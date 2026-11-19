@@ -2054,7 +2054,7 @@ export const RetailerDashboardView: React.FC = () => {
                   <Skeleton variant="text" width={130} height={48} />
                 ) : (
                   <Typography variant="h3" sx={{ fontWeight: 900, color: "#0F172A", fontSize: { xs: "28px", sm: "30px", md: "32px" }, letterSpacing: "-0.5px", mt: 0.5, zIndex: 1 }}>
-                    ₹{formatAmount(finKpis?.todays_transfer ?? headerWallet?.todays_debit)}
+                    ₹{formatAmount(finKpis?.todays_transfer ?? headerWallet?.todays_transfer ?? ((headerWallet?.todays_debit ?? 0) + (headerWallet?.todays_credit ?? 0)))}
                   </Typography>
                 )}
                 <DualCurveSwoosh primaryColor={brandPrimary} secondaryColor={brandSecondary} />
@@ -2110,7 +2110,7 @@ export const RetailerDashboardView: React.FC = () => {
                   <Skeleton variant="text" width={110} height={48} />
                 ) : (
                   <Typography variant="h3" sx={{ fontWeight: 900, color: "#16A34A", fontSize: { xs: "28px", sm: "30px", md: "32px" }, letterSpacing: "-0.5px", mt: 0.5, zIndex: 1 }}>
-                    +₹{formatAmount(headerWallet?.todays_commission ?? finKpis?.todays_commission)}
+                    +₹{formatAmount(finKpis?.todays_commission ?? headerWallet?.todays_commission ?? 0)}
                   </Typography>
                 )}
                 <DualCurveSwoosh primaryColor={brandPrimary} secondaryColor={brandSecondary} />

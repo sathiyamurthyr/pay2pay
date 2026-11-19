@@ -174,9 +174,9 @@ export default function DynamicMasterDashboardPage() {
   // Active Tab
   const [activeTab, setActiveTab] = useState<"overview" | "pos" | "pending" | "hierarchy" | "merchant">("overview");
 
-  // Auto-refresh states
-  const [refreshIntervalSec, setRefreshIntervalSec] = useState<number>(30);
-  const [countdown, setCountdown] = useState<number>(30);
+  // Auto-refresh states (default 0 = disabled auto-calling)
+  const [refreshIntervalSec, setRefreshIntervalSec] = useState<number>(0);
+  const [countdown, setCountdown] = useState<number>(0);
   const [lastSynced, setLastSynced] = useState<Date>(new Date());
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
@@ -285,9 +285,9 @@ export default function DynamicMasterDashboardPage() {
     loadMasterData();
   }, [loadMasterData]);
 
-  // Auto-refresh countdown timer
+  // Auto-refresh countdown timer (disabled by default when refreshIntervalSec <= 0)
   useEffect(() => {
-    if (refreshIntervalSec === 0) return;
+    if (refreshIntervalSec <= 0) return;
     const interval = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {

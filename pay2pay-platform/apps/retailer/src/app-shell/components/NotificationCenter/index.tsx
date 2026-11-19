@@ -31,36 +31,6 @@ export interface NotificationItem {
   created_at: string;
 }
 
-export const getStatusChipColor = (status?: string) => {
-  const s = String(status || "INFO").toUpperCase();
-  if (s === "SUCCESS") {
-    return {
-      bg: "rgba(34, 197, 94, 0.12)",
-      text: "#4ADE80",
-      border: "1px solid rgba(34, 197, 94, 0.3)",
-    };
-  }
-  if (s === "FAILED" || s === "REVERSED") {
-    return {
-      bg: "rgba(239, 68, 68, 0.12)",
-      text: "#F87171",
-      border: "1px solid rgba(239, 68, 68, 0.3)",
-    };
-  }
-  if (s === "PENDING" || s === "PROCESSING") {
-    return {
-      bg: "rgba(245, 158, 11, 0.12)",
-      text: "#FBBF24",
-      border: "1px solid rgba(245, 158, 11, 0.3)",
-    };
-  }
-  return {
-    bg: "rgba(59, 130, 246, 0.12)",
-    text: "#60A5FA",
-    border: "1px solid rgba(59, 130, 246, 0.25)",
-  };
-};
-
 export const NotificationCenter: React.FC<{
   userId?: string;
   tenantId?: string;
@@ -73,25 +43,42 @@ export const NotificationCenter: React.FC<{
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const prevUnreadRef = useRef<number>(0);
+  const hasFetchedInitialRef = useRef<boolean>(false);
 
   const getResolvedUserId = useCallback(() => {
-    return userId || "";
+    if (userId) return userId;
+    if (typeof window !== "undefined") {
+      try {
+        const uStr =
+          localStorage.getItem("user_info") ||
+          localStorage.getItem("user") ||
+          localStorage.getItem("pay2pay_user_data");
+        if (uStr) {
+          const u = JSON.parse(uStr);
+          if (u.id || u.public_id || u.retailer_id) return u.id || u.public_id || u.retailer_id;
+        }
+      } catch {}
+      return (
+        localStorage.getItem("p2p_active_retailer_id") ||
+        localStorage.getItem("p2p_retailer_code") ||
+        localStorage.getItem("p2p_user_id") ||
+        ""
+      );
+    }
+    return "";
   }, [userId]);
 
   const getAuthHeaders = useCallback(() => {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (typeof document !== "undefined") {
-      const cookies = document.cookie ? document.cookie.split("; ") : [];
-      const tokenCookie = cookies.find((row) =>
-        row.startsWith("p2p_access_token=") ||
-        row.startsWith("pay2pay_access_token=") ||
-        row.startsWith("pay2pay_auth_token=")
-      );
-      if (tokenCookie) {
-        const token = tokenCookie.split("=")[1]?.trim();
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`;
-        }
+    if (typeof window !== "undefined") {
+      const token =
+        localStorage.getItem("p2p_access_token") ||
+        localStorage.getItem("pay2pay_access_token") ||
+        localStorage.getItem("pay2pay_auth_token") ||
+        localStorage.getItem("access_token") ||
+        "";
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
       }
     }
     return headers;
@@ -113,7 +100,6 @@ export const NotificationCenter: React.FC<{
         const res = await fetch(`/api/v1/notifications/recent?${queryParams.toString()}`, {
           method: "GET",
           headers: getAuthHeaders(),
-          credentials: "include",
         });
 
         if (!res.ok) {
@@ -161,9 +147,12 @@ export const NotificationCenter: React.FC<{
     [getResolvedUserId, getAuthHeaders, tenantId]
   );
 
-  // Load initial notification status on mount (no auto-polling; refreshes on user click or action event)
+  // Load initial notification status strictly ONCE on mount (no automatic polling loops)
   useEffect(() => {
-    fetchNotifications();
+    if (!hasFetchedInitialRef.current) {
+      hasFetchedInitialRef.current = true;
+      fetchNotifications();
+    }
 
     const handleCustomRefresh = () => {
       fetchNotifications(true);
@@ -171,13 +160,11 @@ export const NotificationCenter: React.FC<{
 
     if (typeof window !== "undefined") {
       window.addEventListener("pay2pay:notification_refresh", handleCustomRefresh);
-      window.addEventListener("p2p:wallet_update", handleCustomRefresh);
     }
 
     return () => {
       if (typeof window !== "undefined") {
         window.removeEventListener("pay2pay:notification_refresh", handleCustomRefresh);
-        window.removeEventListener("p2p:wallet_update", handleCustomRefresh);
       }
     };
   }, [fetchNotifications]);
@@ -242,6 +229,36 @@ export const NotificationCenter: React.FC<{
     }
   };
 
+  const getStatusChipColor = (status?: string) => {
+    const s = String(status || "INFO").toUpperCase();
+    if (s === "SUCCESS") {
+      return {
+        bg: "rgba(34, 197, 94, 0.12)",
+        text: "#4ADE80",
+        border: "1px solid rgba(34, 197, 94, 0.3)",
+      };
+    }
+    if (s === "FAILED" || s === "REVERSED") {
+      return {
+        bg: "rgba(239, 68, 68, 0.12)",
+        text: "#F87171",
+        border: "1px solid rgba(239, 68, 68, 0.3)",
+      };
+    }
+    if (s === "PENDING" || s === "PROCESSING") {
+      return {
+        bg: "rgba(245, 158, 11, 0.12)",
+        text: "#FBBF24",
+        border: "1px solid rgba(245, 158, 11, 0.3)",
+      };
+    }
+    return {
+      bg: "rgba(59, 130, 246, 0.12)",
+      text: "#60A5FA",
+      border: "1px solid rgba(59, 130, 246, 0.25)",
+    };
+  };
+
   const getNotificationIcon = (item: NotificationItem) => {
     if (!item.is_read) {
       return (
@@ -250,7 +267,7 @@ export const NotificationCenter: React.FC<{
             width: 10,
             height: 10,
             borderRadius: "50%",
-            bgcolor: "#FBBF24",
+            bgcolor: "#A20A3A",
             boxShadow: "0 0 10px #FBBF24, 0 0 20px rgba(251,191,36,0.4)",
             flexShrink: 0,
             mt: "3px",
@@ -305,7 +322,7 @@ export const NotificationCenter: React.FC<{
         sx={{
           color: unreadCount > 0 ? "#FBBF24" : (notifications.length > 0 ? "#FDE047" : "#94A3B8"),
           transition: "all 0.2s ease-in-out",
-          "&:hover": { color: "#F8FAFC", backgroundColor: "rgba(255, 255, 255, 0.08)" },
+          "&:hover": { color: "#292329", backgroundColor: "rgba(255, 255, 255, 0.08)" },
         }}
       >
         <Badge
@@ -313,7 +330,7 @@ export const NotificationCenter: React.FC<{
           sx={{
             "& .MuiBadge-badge": {
               backgroundColor: unreadCount > 0 ? "#EF4444" : "rgba(245, 158, 11, 0.95)",
-              color: unreadCount > 0 ? "#FFFFFF" : "#0A0F1D",
+              color: unreadCount > 0 ? "#FFFFFF" : "#FFFFFF",
               fontWeight: 900,
               fontSize: "10.5px",
               boxShadow: unreadCount > 0 ? "0 0 8px rgba(239, 68, 68, 0.6)" : "0 0 8px rgba(245, 158, 11, 0.4)",
@@ -342,7 +359,7 @@ export const NotificationCenter: React.FC<{
               background: "linear-gradient(160deg, rgba(9,11,24,0.98) 0%, rgba(12,17,35,0.97) 100%)",
               backdropFilter: "blur(28px) saturate(180%)",
               WebkitBackdropFilter: "blur(28px) saturate(180%)",
-              color: "#F8FAFC",
+              color: "#292329",
               border: "1px solid rgba(251, 191, 36, 0.16)",
               boxShadow:
                 "0 32px 64px -16px rgba(0,0,0,0.95), 0 0 0 1px rgba(255,255,255,0.04), 0 0 40px rgba(251,191,36,0.05)",
@@ -365,7 +382,7 @@ export const NotificationCenter: React.FC<{
             alignItems: "center",
             justifyContent: "space-between",
             borderBottom: "1px solid rgba(255, 255, 255, 0.07)",
-            background: "linear-gradient(180deg, rgba(30,41,59,0.55) 0%, rgba(15,23,42,0.35) 100%)",
+            background: "linear-gradient(180deg, rgba(30,41,59,0.55) 0%, #FFFFFF 100%)",
             flexShrink: 0,
           }}
         >
@@ -446,7 +463,7 @@ export const NotificationCenter: React.FC<{
                 padding: "5px",
                 borderRadius: "8px",
                 border: "1px solid rgba(255,255,255,0.07)",
-                "&:hover": { color: "#F8FAFC", bgcolor: "rgba(255,255,255,0.08)" },
+                "&:hover": { color: "#292329", bgcolor: "rgba(255,255,255,0.08)" },
               }}
             >
               <RefreshIcon
@@ -484,8 +501,8 @@ export const NotificationCenter: React.FC<{
         >
           {loading && notifications.length === 0 ? (
             <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", py: 6, gap: 1.5 }}>
-              <CircularProgress size={26} thickness={3} sx={{ color: "#FBBF24" }} />
-              <Typography variant="caption" sx={{ color: "#64748B", fontSize: "11px" }}>
+              <CircularProgress size={26} thickness={3} sx={{ color: "#A20A3A" }} />
+              <Typography variant="caption" sx={{ color: "#625B60", fontSize: "11px" }}>
                 Loading notifications…
               </Typography>
             </Box>
@@ -498,8 +515,8 @@ export const NotificationCenter: React.FC<{
               }}>
                 <ErrorIcon sx={{ color: "#EF4444", fontSize: 24 }} />
               </Box>
-              <Typography variant="body2" sx={{ color: "#CBD5E1", fontWeight: 600, mb: 0.5 }}>Unable to load alerts</Typography>
-              <Typography variant="caption" sx={{ color: "#64748B", display: "block", mb: 2 }}>{error}</Typography>
+              <Typography variant="body2" sx={{ color: "#625B60", fontWeight: 600, mb: 0.5 }}>Unable to load alerts</Typography>
+              <Typography variant="caption" sx={{ color: "#625B60", display: "block", mb: 2 }}>{error}</Typography>
               <Button
                 size="small"
                 onClick={() => fetchNotifications(true)}
@@ -516,16 +533,16 @@ export const NotificationCenter: React.FC<{
             <Box sx={{ py: 6, px: 3, textAlign: "center" }}>
               <Box sx={{
                 width: 52, height: 52, borderRadius: "16px",
-                background: "linear-gradient(135deg, rgba(30,41,59,0.8) 0%, rgba(15,23,42,0.8) 100%)",
-                border: "1px solid rgba(255,255,255,0.08)",
+                background: "linear-gradient(135deg, rgba(30,41,59,0.8) 0%, #FFFFFF 100%)",
+                border: "1px solid #E8E2E5",
                 display: "flex", alignItems: "center", justifyContent: "center", mx: "auto", mb: 2,
               }}>
                 <NotificationsIcon sx={{ color: "#475569", fontSize: 24 }} />
               </Box>
-              <Typography variant="body2" sx={{ fontWeight: 700, color: "#E2E8F0", mb: 0.75, fontSize: "13px" }}>
+              <Typography variant="body2" sx={{ fontWeight: 700, color: "#292329", mb: 0.75, fontSize: "13px" }}>
                 No recent notifications
               </Typography>
-              <Typography variant="caption" sx={{ color: "#64748B", display: "block", lineHeight: 1.6, maxWidth: 240, mx: "auto" }}>
+              <Typography variant="caption" sx={{ color: "#625B60", display: "block", lineHeight: 1.6, maxWidth: 240, mx: "auto" }}>
                 Live transaction &amp; wallet updates will appear here automatically.
               </Typography>
             </Box>
@@ -595,7 +612,7 @@ export const NotificationCenter: React.FC<{
                     <Typography
                       variant="body2"
                       sx={{
-                        color: "#94A3B8",
+                        color: "#625B60",
                         fontSize: "11.5px",
                         display: "block",
                         lineHeight: 1.55,
@@ -652,7 +669,7 @@ export const NotificationCenter: React.FC<{
                         <Typography
                           variant="caption"
                           sx={{
-                            color: "#94A3B8",
+                            color: "#625B60",
                             fontSize: "10.5px",
                             bgcolor: "rgba(255, 255, 255, 0.05)",
                             border: "1px solid rgba(255, 255, 255, 0.09)",
@@ -682,7 +699,7 @@ export const NotificationCenter: React.FC<{
             px: 2,
             py: 1.25,
             borderTop: "1px solid rgba(255, 255, 255, 0.07)",
-            background: "linear-gradient(0deg, rgba(9,11,24,0.98) 0%, rgba(15,23,42,0.5) 100%)",
+            background: "linear-gradient(0deg, rgba(9,11,24,0.98) 0%, #FFFFFF 100%)",
             flexShrink: 0,
           }}
         >
@@ -694,7 +711,7 @@ export const NotificationCenter: React.FC<{
               window.location.href = "/retailer/notifications";
             }}
             sx={{
-              color: "#FBBF24",
+              color: "#A20A3A",
               fontWeight: 700,
               fontSize: "12px",
               textTransform: "none",

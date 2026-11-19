@@ -116,73 +116,11 @@ interface CardSchemeItem {
   mdr_display: string;
   mdr_treatment?: string | null;
   is_configured: boolean;
+  is_active?: boolean;
   brand_color: string;
   icon_text: string;
   rule_ref_id?: number | null;
 }
-
-const DEFAULT_CARD_SCHEMES: CardSchemeItem[] = [
-  {
-    id: "visa",
-    name: "Visa",
-    category: "Consumer Debit / Credit",
-    card_network: "VISA",
-    mdr_percent: 2.62,
-    mdr_display: "2.62%",
-    mdr_treatment: "COLLECT_ADDITIONALLY",
-    is_configured: true,
-    brand_color: "#1A1F71",
-    icon_text: "VISA"
-  },
-  {
-    id: "mastercard",
-    name: "MasterCard",
-    category: "Consumer Debit / Credit",
-    card_network: "MASTERCARD",
-    mdr_percent: 2.62,
-    mdr_display: "2.62%",
-    mdr_treatment: "COLLECT_ADDITIONALLY",
-    is_configured: true,
-    brand_color: "#EB001B",
-    icon_text: "MC"
-  },
-  {
-    id: "rupay",
-    name: "RuPay",
-    category: "Domestic NPCI Network",
-    card_network: "RUPAY",
-    mdr_percent: 1.80,
-    mdr_display: "1.80%",
-    mdr_treatment: "DEDUCT_FROM_TOPUP",
-    is_configured: true,
-    brand_color: "#097939",
-    icon_text: "RUPAY"
-  },
-  {
-    id: "amex_diners",
-    name: "AMEX / Diners",
-    category: "Premium Card Schemes",
-    card_network: "AMEX",
-    mdr_percent: 3.10,
-    mdr_display: "3.10%",
-    mdr_treatment: "COLLECT_ADDITIONALLY",
-    is_configured: true,
-    brand_color: "#006FCF",
-    icon_text: "AMEX"
-  },
-  {
-    id: "business_corporate",
-    name: "Business / Corporate",
-    category: "Commercial & Purchasing",
-    card_network: "CORP",
-    mdr_percent: 3.40,
-    mdr_display: "3.40%",
-    mdr_treatment: "COLLECT_ADDITIONALLY",
-    is_configured: true,
-    brand_color: "#475569",
-    icon_text: "CORP"
-  }
-];
 
 // ─── DYNAMIC MDR PREVIEW FROM BACKEND ───
 interface MdrPreviewData {
@@ -267,7 +205,7 @@ export default function RetailerPayinPage() {
   }, [gateways, selectedGatewayId]);
 
   // Supported Card Schemes with Admin-Configured MDR (Display Only)
-  const [cardSchemes, setCardSchemes] = useState<CardSchemeItem[]>(DEFAULT_CARD_SCHEMES);
+  const [cardSchemes, setCardSchemes] = useState<CardSchemeItem[]>([]);
   const [isLoadingSchemes, setIsLoadingSchemes] = useState<boolean>(false);
   const [customerMobile, setCustomerMobile] = useState<string>("");
   const [topupAmount, setTopupAmount] = useState<string>("");
@@ -379,7 +317,7 @@ export default function RetailerPayinPage() {
 
         // 2. Fetch specific Gateway Card Schemes
         const res = await apiClient.get(`/api/v1/payin/card-schemes?vendor_code=${encodeURIComponent(selectedGateway.vendorCode)}`);
-        if (!isCancelled && Array.isArray(res.data) && res.data.length > 0) {
+        if (!isCancelled && Array.isArray(res.data)) {
           setCardSchemes(res.data);
         }
       } catch (err) {
@@ -2183,77 +2121,94 @@ export default function RetailerPayinPage() {
                 description="View supported card categories and their configured MDR rates for the selected payment gateway."
               />
 
-              {/* Informational Display Grid (5 equal columns) */}
-              <div className="payin-schemes__grid">
-                {cardSchemes.map((scheme) => {
-                  const sId = (scheme.id || "").toLowerCase();
-                  const sNet = (scheme.card_network || "").toUpperCase();
-                  const isVisa = sId === "visa" || sNet === "VISA";
-                  const isMastercard = sId === "mastercard" || sNet === "MASTERCARD" || sNet === "MC";
-                  const isRupay = sId === "rupay" || sNet === "RUPAY";
-                  const isAmex = sId === "amex_diners" || sId === "amex" || sNet === "AMEX";
-                  const isCorp = sId === "business_corporate" || sId === "corp" || sNet === "CORP" || sNet === "BUSINESS";
+              {/* Informational Display Grid (Dynamic Active Schemes) */}
+              {isLoadingSchemes ? (
+                <div className="p-8 rounded-xl border border-slate-200 bg-white/60 flex items-center justify-center space-x-2 text-slate-500 text-xs">
+                  <span className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                  <span>Loading applicable card schemes for {selectedGateway.name}...</span>
+                </div>
+              ) : cardSchemes.length === 0 ? (
+                <div className="p-8 rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 text-center flex flex-col items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 mb-2.5">
+                    <CreditCard className="w-5 h-5" />
+                  </div>
+                  <p className="text-sm font-bold text-slate-700">No Active Card Schemes Available</p>
+                  <p className="text-xs text-slate-500 max-w-sm mt-1">
+                    No card categories are currently enabled for {selectedGateway.name}. Please select a different payment gateway or payment method.
+                  </p>
+                </div>
+              ) : (
+                <div className="payin-schemes__grid">
+                  {cardSchemes.map((scheme) => {
+                    const sId = (scheme.id || "").toLowerCase();
+                    const sNet = (scheme.card_network || "").toUpperCase();
+                    const isVisa = sId === "visa" || sNet === "VISA";
+                    const isMastercard = sId === "mastercard" || sNet === "MASTERCARD" || sNet === "MC";
+                    const isRupay = sId === "rupay" || sNet === "RUPAY";
+                    const isAmex = sId === "amex_diners" || sId === "amex" || sNet === "AMEX";
+                    const isCorp = sId === "business_corporate" || sId === "corp" || sNet === "CORP" || sNet === "BUSINESS";
 
-                  return (
-                    <div key={scheme.id} className="payin-schemes__card">
-                      <div className="payin-schemes__top">
-                        {isVisa ? (
-                          <span className="badge-scheme badge-scheme--visa">
-                            VISA
+                    return (
+                      <div key={scheme.id} className="payin-schemes__card">
+                        <div className="payin-schemes__top">
+                          {isVisa ? (
+                            <span className="badge-scheme badge-scheme--visa">
+                              VISA
+                            </span>
+                          ) : isMastercard ? (
+                            <div className="flex items-center">
+                              <svg viewBox="0 0 32 20" width="22" height="14" fill="none" className="flex-shrink-0">
+                                <circle cx="10" cy="10" r="9" fill="#EB001B" />
+                                <circle cx="22" cy="10" r="9" fill="#F79E1B" fillOpacity="0.9" />
+                                <path d="M16 4.3A9 9 0 0 0 12.8 10 9 9 0 0 0 16 15.7 9 9 0 0 0 19.2 10 9 9 0 0 0 16 4.3Z" fill="#FF5F00" />
+                              </svg>
+                            </div>
+                          ) : isRupay ? (
+                            <div className="flex items-center">
+                              <span className="card-brand-logo--rupay-text font-black italic text-xs text-[#1A1F71]">RuPay</span>
+                              <span className="card-brand-logo--rupay-arrow font-black text-xs text-[#FF6600] ml-0.5">▶</span>
+                            </div>
+                          ) : isAmex ? (
+                            <span className="badge-scheme badge-scheme--amex">
+                              AMEX
+                            </span>
+                          ) : isCorp ? (
+                            <div className="w-5 h-5 rounded bg-slate-100 flex items-center justify-center text-slate-700">
+                              <Briefcase className="w-3.5 h-3.5" />
+                            </div>
+                          ) : (
+                            <span className="badge-scheme badge-scheme--visa">
+                              {scheme.name.slice(0, 4).toUpperCase()}
+                            </span>
+                          )}
+
+                          <span className="payin-schemes__status-dot" title="Active & Supported" />
+                        </div>
+
+                        <div className="my-0.5">
+                          <span className="payin-schemes__name">
+                            {scheme.name}
                           </span>
-                        ) : isMastercard ? (
-                          <div className="flex items-center">
-                            <svg viewBox="0 0 32 20" width="22" height="14" fill="none" className="flex-shrink-0">
-                              <circle cx="10" cy="10" r="9" fill="#EB001B" />
-                              <circle cx="22" cy="10" r="9" fill="#F79E1B" fillOpacity="0.9" />
-                              <path d="M16 4.3A9 9 0 0 0 12.8 10 9 9 0 0 0 16 15.7 9 9 0 0 0 19.2 10 9 9 0 0 0 16 4.3Z" fill="#FF5F00" />
-                            </svg>
-                          </div>
-                        ) : isRupay ? (
-                          <div className="flex items-center">
-                            <span className="card-brand-logo--rupay-text font-black italic text-xs text-[#1A1F71]">RuPay</span>
-                            <span className="card-brand-logo--rupay-arrow font-black text-xs text-[#FF6600] ml-0.5">▶</span>
-                          </div>
-                        ) : isAmex ? (
-                          <span className="badge-scheme badge-scheme--amex">
-                            AMEX
+                          <span className="payin-schemes__category">
+                            {scheme.category}
                           </span>
-                        ) : isCorp ? (
-                          <div className="w-5 h-5 rounded bg-slate-100 flex items-center justify-center text-slate-700">
-                            <Briefcase className="w-3.5 h-3.5" />
-                          </div>
-                        ) : (
-                          <span className="badge-scheme badge-scheme--visa">
-                            {scheme.name.slice(0, 4).toUpperCase()}
+                        </div>
+
+                        <div className="payin-schemes__bottom">
+                          <span className="payin-schemes__mdr-label">
+                            MDR
                           </span>
-                        )}
-
-                        <span className="payin-schemes__status-dot" title="Supported" />
+                          <span className="payin-schemes__mdr-rate">
+                            {scheme.is_configured && scheme.mdr_percent !== null && scheme.mdr_percent !== undefined
+                              ? scheme.mdr_display
+                              : "Not Configured"}
+                          </span>
+                        </div>
                       </div>
-
-                      <div className="my-0.5">
-                        <span className="payin-schemes__name">
-                          {scheme.name}
-                        </span>
-                        <span className="payin-schemes__category">
-                          {scheme.category}
-                        </span>
-                      </div>
-
-                      <div className="payin-schemes__bottom">
-                        <span className="payin-schemes__mdr-label">
-                          MDR
-                        </span>
-                        <span
-                          className="payin-schemes__mdr-rate"
-                        >
-                          {scheme.is_configured ? scheme.mdr_display : "2.62%"}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
           </div>

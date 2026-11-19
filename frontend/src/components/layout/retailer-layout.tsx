@@ -300,6 +300,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       const photo = data.photo || {};
       const company = data.company || {};
       const kyc = data.kyc || {};
+      const currentOutlet = useRetailerStore.getState().outlet;
 
       const fallbackOwner = (typeof window !== "undefined" && (() => {
         try {
@@ -327,12 +328,12 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       const resolvedRetailer = personal.retailer_name || personal.store_name || fallbackOwner || "Retailer Store";
       const resolvedCompany = company.company_name || company.legal_name || branding?.display_name || "Enterprise Portal";
       const resolvedCode = personal.retailer_id || personal.application_reference || fallbackCode || "";
-      const photoUrl = photo.photo_url || outlet.avatar || outlet.photo_url || "";
-      const approvalStatus = personal.status === "ACTIVE" ? "ACTIVE" : (outlet.approvalStatus || "ACTIVE");
+      const photoUrl = photo.photo_url || currentOutlet.avatar || currentOutlet.photo_url || "";
+      const approvalStatus = personal.status === "ACTIVE" ? "ACTIVE" : (currentOutlet.approvalStatus || "ACTIVE");
 
       const targetStatus = approvalStatus === "ACTIVE" ? "APPROVED" : "PENDING";
-      if (outlet.approvalStatus !== targetStatus && typeof setApprovalStatus === "function") {
-        setApprovalStatus(targetStatus);
+      if (currentOutlet.approvalStatus !== targetStatus) {
+        useRetailerStore.getState().setApprovalStatus?.(targetStatus);
       }
 
       setProfileDetails((prev) => ({
@@ -343,8 +344,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         retailer_code: resolvedCode,
         photo_url: photoUrl,
         approval_status: approvalStatus,
-        kyc_status: kyc.pan?.kyc_status || outlet.kycStatus || "VERIFIED",
-        location: data.location?.display_address || outlet.location || "",
+        kyc_status: kyc.pan?.kyc_status || currentOutlet.kycStatus || "VERIFIED",
+        location: data.location?.display_address || currentOutlet.location || "",
         last_login_at: data.security?.last_login_at || null,
         plan_name: personal.plan_name || "",
         loading: false,
@@ -354,14 +355,15 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       console.warn("Profile details fetch notice:", err);
       setProfileDetails((prev) => ({ ...prev, loading: false, error: false }));
     }
-  }, [setApprovalStatus, outlet.avatar, outlet.photo_url, outlet.approvalStatus, outlet.kycStatus, outlet.location, branding?.display_name]);
+  }, []);
 
   useEffect(() => {
-    if (!isAuthenticatedSession) return;
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
     fetchProfileDetails();
     // Authoritative balance sync on mount so header and popup immediately show live wallet balance
-    syncBalance();
-  }, [isAuthenticatedSession, fetchProfileDetails, syncBalance]);
+    useRetailerStore.getState().syncBalance?.();
+  }, []);
 
   // Synchronize profile and notification if manual wallet refresh occurs
   useEffect(() => {

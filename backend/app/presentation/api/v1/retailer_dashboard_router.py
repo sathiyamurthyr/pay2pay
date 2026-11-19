@@ -416,18 +416,26 @@ async def get_retailer_header_wallet(
 
     available_balance = max(0.0, wallet_balance - blocked_balance)
 
-    # Todays Metrics for retailer
+    # Authoritative business timezone: Indian Standard Time (UTC+5:30)
     now_utc = datetime.now(timezone.utc)
-    start_of_today = datetime(now_utc.year, now_utc.month, now_utc.day, 0, 0, 0, tzinfo=timezone.utc)
-    end_of_today = datetime(now_utc.year, now_utc.month, now_utc.day, 23, 59, 59, tzinfo=timezone.utc)
+    ist_tz = timezone(timedelta(hours=5, minutes=30))
+    now_ist = datetime.now(ist_tz)
+    start_of_today_ist = datetime(now_ist.year, now_ist.month, now_ist.day, 0, 0, 0, tzinfo=ist_tz)
+    end_of_today_ist = datetime(now_ist.year, now_ist.month, now_ist.day, 23, 59, 59, 999999, tzinfo=ist_tz)
+    start_utc = start_of_today_ist.astimezone(timezone.utc)
+    end_utc = end_of_today_ist.astimezone(timezone.utc)
 
+    t_res = None
     todays_debit = 0.0
     todays_credit = 0.0
     todays_commission = 0.0
     todays_gst = 0.0
     todays_tds = 0.0
     pending_count = 0
+    ret_ref = ctx.get("retailer_ref_id") or ctx.get("user_ref_id")
+    comp_ref = ctx.get("company_ref_id")
 
+    # 1. Payout Today (Debit)
     if pub_id:
         try:
             today_stmt = select(
@@ -440,14 +448,15 @@ async def get_retailer_header_wallet(
                 and_(
                     EnterprisePayoutTransactionModel.retailer_id == pub_id,
                     EnterprisePayoutTransactionModel.status == PayoutTransactionStatus.SUCCESS,
-                    EnterprisePayoutTransactionModel.initiated_at >= start_of_today,
-                    EnterprisePayoutTransactionModel.initiated_at <= end_of_today
+                    or_(
+                        and_(EnterprisePayoutTransactionModel.initiated_at >= start_utc, EnterprisePayoutTransactionModel.initiated_at <= end_utc),
+                        and_(EnterprisePayoutTransactionModel.created_date >= start_utc, EnterprisePayoutTransactionModel.created_date <= end_utc)
+                    )
                 )
             )
             t_res = (await db.execute(today_stmt)).fetchone()
             if t_res:
                 todays_debit = round(float(t_res.debit), 2)
-                todays_credit = round(float(t_res.credit), 2)
                 todays_commission = round(float(t_res.commission), 2)
                 todays_gst = round(float(t_res.gst), 2)
                 todays_tds = round(float(t_res.tds), 2)
@@ -461,10 +470,48 @@ async def get_retailer_header_wallet(
             )
             pending_count = (await db.execute(pend_stmt)).scalar() or 0
         except Exception as e:
-            logger.warning(f"Todays metrics lookup notice: {e}")
+            logger.warning(f"Todays payout metrics lookup notice: {e}")
+
+    # 2. PayIn Today (Credit)
+    payin_today_amount = 0.0
+    payin_today_gst = 0.0
+    try:
+        from app.infrastructure.db.payin_models import PayinTransactionModel
+        p_conds = [
+            func.upper(PayinTransactionModel.txn_status).in_(["SUCCESS", "SETTLED", "COMPLETED"]),
+            or_(
+                and_(PayinTransactionModel.created_at >= start_utc, PayinTransactionModel.created_at <= end_utc),
+                and_(PayinTransactionModel.initiated_at >= start_utc, PayinTransactionModel.initiated_at <= end_utc)
+            )
+        ]
+        if comp_ref:
+            try:
+                p_conds.append(PayinTransactionModel.company_ref_id == int(comp_ref))
+            except (ValueError, TypeError):
+                pass
+        if ret_ref:
+            try:
+                p_conds.append(PayinTransactionModel.retailer_ref_id == int(ret_ref))
+            except (ValueError, TypeError):
+                pass
+        p_stmt = select(
+            func.coalesce(func.sum(PayinTransactionModel.txn_amount), 0.0).label("amt"),
+            func.coalesce(func.sum(PayinTransactionModel.tax_amount), 0.0).label("tax")
+        ).where(and_(*p_conds))
+        p_res = (await db.execute(p_stmt)).fetchone()
+        if p_res:
+            payin_today_amount = round(float(p_res.amt or 0.0), 2)
+            payin_today_gst = round(float(p_res.tax or 0.0), 2)
+    except Exception as e:
+        logger.warning(f"Todays payin metrics lookup notice: {e}")
+
+    todays_credit = payin_today_amount
+    payout_vol = float(t_res.credit) if (t_res and hasattr(t_res, "credit") and t_res.credit is not None) else 0.0
+    combined_volume = round(todays_credit + payout_vol, 2)
+    combined_gst = round(todays_gst + payin_today_gst, 2)
 
     # Greeting calculation
-    hr = now_utc.hour + 5  # IST offset approximation
+    hr = now_ist.hour
     greeting = "Good Morning" if 4 <= hr < 12 else ("Good Afternoon" if 12 <= hr < 17 else "Good Evening")
 
     # Resolve direct photo URL from database
@@ -523,8 +570,11 @@ async def get_retailer_header_wallet(
         "blocked_balance": round(float(blocked_balance), 2),
         "todays_debit": todays_debit,
         "todays_credit": todays_credit,
+        "todays_transfer": combined_volume,
+        "todays_transfer_amount": combined_volume,
+        "todays_volume": combined_volume,
         "todays_commission": todays_commission,
-        "todays_gst": todays_gst,
+        "todays_gst": combined_gst,
         "todays_tds": todays_tds,
         "settlement_pending_amount": 0.0,
         "unread_notifications_count": pending_count,
@@ -777,6 +827,9 @@ async def get_financial_kpis(
     combined_gst = round(payout_gst + payin_gst, 2)
     reporting_date_str = now_ist.strftime("%d %b %Y")
 
+    combined_transfer_amount = round(payin_amount + payout_amount, 2)
+    combined_commission = round(payout_commission, 2)
+
     return {
         # PayIn Today Card
         "payin_today": {
@@ -797,15 +850,19 @@ async def get_financial_kpis(
         "total_payout_charges_today": round(payout_charges, 2),
 
         # Commission & GST Today
-        "commission_today": round(payout_commission, 2),
+        "commission_today": combined_commission,
         "gst_today": combined_gst,
 
-        # Backward Compatible Fields
-        "todays_transfer": round(payout_amount, 2),
-        "todays_transfer_amount": round(payout_amount, 2),
+        # Combined "Today's Business" metrics (PayIn + PayOut for Today in IST)
+        "total_today_amount": combined_transfer_amount,
+        "total_business_amount": combined_transfer_amount,
+        "total_transaction_amount": combined_transfer_amount,
+        "todays_transfer": combined_transfer_amount,
+        "todays_transfer_amount": combined_transfer_amount,
+        "todays_volume": combined_transfer_amount,
         "todays_wallet_debit": round(payout_wallet_debit, 2),
-        "todays_commission": round(payout_commission, 2),
-        "todays_commission_earned": round(payout_commission, 2),
+        "todays_commission": combined_commission,
+        "todays_commission_earned": combined_commission,
         "todays_gst": combined_gst,
         "todays_gst_deducted": round(payout_gst, 2),
         "todays_tds": round(payout_tds, 2),
@@ -843,58 +900,111 @@ async def get_operations_kpis(
     pub_id = ctx.get("public_id")
     t_uuid = ctx.get("tenant_id")
     c_uuid = ctx.get("company_id")
+    ret_ref = ctx.get("retailer_ref_id") or ctx.get("user_ref_id")
+    comp_ref = ctx.get("company_ref_id")
 
-    now_utc = datetime.now(timezone.utc)
-    start_of_today = datetime(now_utc.year, now_utc.month, now_utc.day, 0, 0, 0, tzinfo=timezone.utc)
-    end_of_today = datetime(now_utc.year, now_utc.month, now_utc.day, 23, 59, 59, tzinfo=timezone.utc)
+    # Authoritative business timezone: Indian Standard Time (UTC+5:30)
+    ist_tz = timezone(timedelta(hours=5, minutes=30))
+    now_ist = datetime.now(ist_tz)
+    start_of_today_ist = datetime(now_ist.year, now_ist.month, now_ist.day, 0, 0, 0, tzinfo=ist_tz)
+    end_of_today_ist = datetime(now_ist.year, now_ist.month, now_ist.day, 23, 59, 59, 999999, tzinfo=ist_tz)
+    start_utc = start_of_today_ist.astimezone(timezone.utc)
+    end_utc = end_of_today_ist.astimezone(timezone.utc)
 
-    base_filter = []
-    if t_uuid:
-        base_filter.append(EnterprisePayoutTransactionModel.tenant_id == t_uuid)
-    if pub_id:
-        base_filter.append(EnterprisePayoutTransactionModel.retailer_id == pub_id)
-    if c_uuid:
-        base_filter.append(EnterprisePayoutTransactionModel.company_id == c_uuid)
-
-    today_filter = base_filter + [
-        EnterprisePayoutTransactionModel.initiated_at >= start_of_today,
-        EnterprisePayoutTransactionModel.initiated_at <= end_of_today
-    ]
-
-    succ_cnt, pend_cnt, proc_cnt, fail_cnt, rev_cnt = 0, 0, 0, 0, 0
-    cust_cnt, bene_cnt = 0, 0
-
+    # 1. Payout Today Operations Metrics
+    payout_succ, payout_pend, payout_proc, payout_fail, payout_rev = 0, 0, 0, 0, 0
+    payout_cust_cnt, bene_cnt = 0, 0
     try:
+        payout_time_filter = or_(
+            and_(EnterprisePayoutTransactionModel.initiated_at >= start_utc, EnterprisePayoutTransactionModel.initiated_at <= end_utc),
+            and_(EnterprisePayoutTransactionModel.created_date >= start_utc, EnterprisePayoutTransactionModel.created_date <= end_utc)
+        )
+        payout_base_filter = [payout_time_filter]
+        if t_uuid:
+            payout_base_filter.append(EnterprisePayoutTransactionModel.tenant_id == t_uuid)
+        if pub_id:
+            payout_base_filter.append(EnterprisePayoutTransactionModel.retailer_id == pub_id)
+        if c_uuid:
+            payout_base_filter.append(EnterprisePayoutTransactionModel.company_id == c_uuid)
+
         st_stmt = select(
             EnterprisePayoutTransactionModel.status,
             func.count(EnterprisePayoutTransactionModel.id)
-        )
-        if today_filter:
-            st_stmt = st_stmt.where(and_(*today_filter))
-        st_stmt = st_stmt.group_by(EnterprisePayoutTransactionModel.status)
+        ).where(and_(*payout_base_filter)).group_by(EnterprisePayoutTransactionModel.status)
 
         st_rows = (await db.execute(st_stmt)).fetchall()
         st_map = {str(row[0].value if hasattr(row[0], "value") else row[0]): row[1] for row in st_rows}
 
-        succ_cnt = st_map.get("SUCCESS", 0)
-        pend_cnt = st_map.get("INITIATED", 0) + st_map.get("PENDING", 0)
-        proc_cnt = st_map.get("PROCESSING", 0) + st_map.get("VENDOR_REQUEST_SENT", 0)
-        fail_cnt = st_map.get("FAILED", 0)
-        rev_cnt = st_map.get("REVERSED", 0)
+        payout_succ = st_map.get("SUCCESS", 0)
+        payout_pend = st_map.get("INITIATED", 0) + st_map.get("PENDING", 0)
+        payout_proc = st_map.get("PROCESSING", 0) + st_map.get("VENDOR_REQUEST_SENT", 0)
+        payout_fail = st_map.get("FAILED", 0)
+        payout_rev = st_map.get("REVERSED", 0)
 
-        cust_stmt = select(func.count(func.distinct(EnterprisePayoutTransactionModel.customer_id)))
-        if today_filter:
-            cust_stmt = cust_stmt.where(and_(*today_filter))
-        cust_cnt = (await db.execute(cust_stmt)).scalar() or 0
+        cust_stmt = select(func.count(func.distinct(EnterprisePayoutTransactionModel.customer_id))).where(and_(*payout_base_filter))
+        payout_cust_cnt = (await db.execute(cust_stmt)).scalar() or 0
 
-        bene_stmt = select(func.count(func.distinct(EnterprisePayoutTransactionModel.beneficiary_id)))
-        if today_filter:
-            bene_stmt = bene_stmt.where(and_(*today_filter))
+        bene_stmt = select(func.count(func.distinct(EnterprisePayoutTransactionModel.beneficiary_id))).where(and_(*payout_base_filter))
         bene_cnt = (await db.execute(bene_stmt)).scalar() or 0
     except Exception as e:
-        logger.warning(f"Operations KPI notice: {e}")
+        logger.warning(f"Operations KPI PayOut notice: {e}")
+
+    # 2. PayIn Today Operations Metrics
+    payin_succ, payin_pend, payin_proc, payin_fail, payin_rev = 0, 0, 0, 0, 0
+    payin_cust_cnt = 0
+    try:
+        from app.infrastructure.db.payin_models import PayinTransactionModel
+        payin_time_filter = or_(
+            and_(PayinTransactionModel.created_at >= start_utc, PayinTransactionModel.created_at <= end_utc),
+            and_(PayinTransactionModel.initiated_at >= start_utc, PayinTransactionModel.initiated_at <= end_utc)
+        )
+        payin_base_filter = [payin_time_filter]
+        if comp_ref:
+            try:
+                payin_base_filter.append(PayinTransactionModel.company_ref_id == int(comp_ref))
+            except (ValueError, TypeError):
+                pass
+        if ret_ref:
+            try:
+                payin_base_filter.append(PayinTransactionModel.retailer_ref_id == int(ret_ref))
+            except (ValueError, TypeError):
+                pass
+
+        p_st_stmt = select(
+            func.upper(PayinTransactionModel.txn_status),
+            func.count(PayinTransactionModel.payin_transactions_ref_id)
+        ).where(and_(*payin_base_filter)).group_by(func.upper(PayinTransactionModel.txn_status))
+
+        p_rows = (await db.execute(p_st_stmt)).fetchall()
+        p_map = {str(row[0]): row[1] for row in p_rows}
+
+        for st_name, count in p_map.items():
+            if st_name in ["SUCCESS", "SETTLED", "COMPLETED"]:
+                payin_succ += count
+            elif st_name in ["INITIATED", "PENDING"]:
+                payin_pend += count
+            elif st_name in ["PROCESSING", "IN_PROCESS"]:
+                payin_proc += count
+            elif st_name in ["FAILED", "EXPIRED", "TIMED_OUT", "REJECTED"]:
+                payin_fail += count
+            elif st_name in ["REVERSED", "REFUNDED"]:
+                payin_rev += count
+            else:
+                payin_proc += count
+
+        p_cust_stmt = select(func.count(func.distinct(PayinTransactionModel.cust_mobile))).where(and_(*payin_base_filter))
+        payin_cust_cnt = (await db.execute(p_cust_stmt)).scalar() or 0
+    except Exception as e:
+        logger.warning(f"Operations KPI PayIn notice: {e}")
+
+    succ_cnt = payout_succ + payin_succ
+    pend_cnt = payout_pend + payin_pend
+    proc_cnt = payout_proc + payin_proc
+    fail_cnt = payout_fail + payin_fail
+    rev_cnt = payout_rev + payin_rev
 
     tot_txns = succ_cnt + pend_cnt + proc_cnt + fail_cnt + rev_cnt
+    tot_customers = payout_cust_cnt + payin_cust_cnt
     success_rate = (succ_cnt / tot_txns * 100.0) if tot_txns > 0 else 100.0
 
     return {
@@ -903,11 +1013,28 @@ async def get_operations_kpis(
         "successful_transactions": succ_cnt,
         "failed_transactions": fail_cnt,
         "reversed_transactions": rev_cnt,
-        "todays_customers": cust_cnt,
+        "total_transactions": tot_txns,
+        "todays_customers": tot_customers,
         "todays_beneficiaries": bene_cnt,
         "average_processing_time_seconds": 2.4,
         "success_rate_pct": round(success_rate, 1),
-        "business_health": "EXCELLENT" if success_rate >= 95.0 else "HEALTHY"
+        "business_health": "EXCELLENT" if success_rate >= 95.0 else "HEALTHY",
+        "payin_metrics": {
+            "successful": payin_succ,
+            "pending": payin_pend,
+            "processing": payin_proc,
+            "failed": payin_fail,
+            "reversed": payin_rev,
+            "total": payin_succ + payin_pend + payin_proc + payin_fail + payin_rev
+        },
+        "payout_metrics": {
+            "successful": payout_succ,
+            "pending": payout_pend,
+            "processing": payout_proc,
+            "failed": payout_fail,
+            "reversed": payout_rev,
+            "total": payout_succ + payout_pend + payout_proc + payout_fail + payout_rev
+        }
     }
 
 

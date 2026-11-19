@@ -384,18 +384,54 @@ export const retailerApi = {
     }
   },
 
-  // ── Retailer Comprehensive Profile ──
-  getProfile: async () => {
+  // ── Retailer Comprehensive Profile (Cached with 60s TTL to prevent auto-calling loops) ──
+  getProfile: async (forceRefresh = false) => {
     try {
+      if (typeof window !== "undefined") {
+        const now = Date.now();
+        const cachedStr = sessionStorage.getItem("p2p_retailer_profile_cache");
+        const cachedTimeStr = sessionStorage.getItem("p2p_retailer_profile_time");
+        if (!forceRefresh && cachedStr && cachedTimeStr) {
+          const cachedTime = Number(cachedTimeStr);
+          if (now - cachedTime < 60000) { // 60s cache
+            return JSON.parse(cachedStr);
+          }
+        }
+      }
+
       const activeRetailerId = resolveActiveRetailerId();
       const params: any = {};
       if (activeRetailerId) params.retailer_id = activeRetailerId;
 
       const res = await apiClient.get("/retailer/profile", { params });
-      return res.data?.data || res.data;
+      const data = res.data?.data || res.data;
+
+      if (typeof window !== "undefined" && data) {
+        try {
+          sessionStorage.setItem("p2p_retailer_profile_cache", JSON.stringify(data));
+          sessionStorage.setItem("p2p_retailer_profile_time", String(Date.now()));
+        } catch {}
+      }
+
+      return data;
     } catch (e) {
+      if (typeof window !== "undefined") {
+        try {
+          const cachedStr = sessionStorage.getItem("p2p_retailer_profile_cache");
+          if (cachedStr) return JSON.parse(cachedStr);
+        } catch {}
+      }
       console.error("Failed to fetch retailer profile:", e);
       throw e;
+    }
+  },
+
+  invalidateProfileCache: () => {
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.removeItem("p2p_retailer_profile_cache");
+        sessionStorage.removeItem("p2p_retailer_profile_time");
+      } catch {}
     }
   },
 
