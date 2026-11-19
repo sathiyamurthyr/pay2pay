@@ -21,11 +21,15 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.application.dependencies import get_current_token_payload
+from app.application.dependencies import get_current_token_payload, require_admin_user
 
 logger = logging.getLogger("admin_transaction_operations_router")
 
-router = APIRouter(prefix="/admin/transactions", tags=["Admin Transaction Operations"])
+router = APIRouter(
+    prefix="/admin/transactions",
+    tags=["Admin Transaction Operations"],
+    dependencies=[Depends(require_admin_user)]
+)
 
 STANDARD_FAILURE_REASONS = [
     "Vendor Failed",

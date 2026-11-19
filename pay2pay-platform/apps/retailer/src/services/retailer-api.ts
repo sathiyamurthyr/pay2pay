@@ -62,46 +62,37 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      const url = error.config?.url || "";
-      const errorDetail = (
-        error.response?.data?.detail ||
-        error.response?.data?.message ||
-        ""
+      const url = String(error.config?.url || "");
+      const errorData = error.response?.data;
+      const errorDetail = String(
+        typeof errorData === "string"
+          ? errorData
+          : errorData?.detail || errorData?.message || ""
       ).toLowerCase();
 
-      // IMPORTANT: Do NOT log out the user if the 401 error is from a wrong PIN / MPIN / password, screen unlock, or transactional payout identity!
-      const isPinOrCredentialError =
-        url.includes("/mpin") ||
-        url.includes("/unlock") ||
-        url.includes("/security") ||
-        url.includes("/pin") ||
-        url.includes("/payout") ||
-        url.includes("/bulkpe") ||
-        url.includes("/transfer") ||
-        url.includes("/dmt") ||
-        errorDetail.includes("pin") ||
-        errorDetail.includes("mpin") ||
-        errorDetail.includes("password") ||
-        errorDetail.includes("retailer identity") ||
-        errorDetail.includes("authenticated retailer");
+      // Check if this error is explicitly a token/session expiry or missing auth
+      const isExplicitTokenExpiry =
+        errorDetail.includes("token has expired") ||
+        errorDetail.includes("token expired") ||
+        errorDetail.includes("jwt expired") ||
+        errorDetail.includes("invalid token") ||
+        errorDetail.includes("not authenticated") ||
+        errorDetail.includes("could not validate credentials") ||
+        errorDetail.includes("session expired") ||
+        errorDetail.includes("token_expired");
 
-      if (isPinOrCredentialError) {
+      // Check if this is a transactional wrong-PIN/MPIN attempt inside a modal dialog
+      const isTransactionalPinError =
+        !isExplicitTokenExpiry &&
+        (url.includes("/mpin/verify") || url.includes("/verify-pin") || url.includes("/unlock")) &&
+        (errorDetail.includes("pin") || errorDetail.includes("mpin") || errorDetail.includes("wrong") || errorDetail.includes("incorrect"));
+
+      if (isTransactionalPinError) {
+        // User entered a wrong transaction MPIN: do NOT wipe session
         return Promise.reject(error);
       }
 
-      // ONLY terminate session if the 401 is explicitly from an authoritative session verification endpoint
-      const isAuthVerifyEndpoint =
-        url.includes("/auth/me") ||
-        url.includes("/auth/verify") ||
-        url.includes("/auth/refresh") ||
-        url.includes("/sales/auth/me") ||
-        url.includes("/auth/validate-session");
-
-      if (!isAuthVerifyEndpoint) {
-        // Ancillary, feature, or background API returned 401: do NOT wipe session or redirect to login
-        return Promise.reject(error);
-      }
-
+      // For all other genuine session/token expiry 401s, clear cookies and session storage
       if (typeof window !== "undefined") {
         const isAuthPage =
           window.location.pathname.includes("/login") ||
@@ -112,10 +103,13 @@ apiClient.interceptors.response.use(
             "p2p_access_token",
             "pay2pay_access_token",
             "pay2pay_auth_token",
+            "p2p_sales_token",
+            "pay2pay_sales_token",
             "p2p_user_role",
             "pay2pay_user_role",
             "p2p_session_locked",
             "p2p_session_id",
+            "p2p_destination",
             "token",
             "access_token",
           ];
@@ -126,8 +120,27 @@ apiClient.interceptors.response.use(
             } catch {}
           });
 
+          try {
+            localStorage.removeItem("p2p_access_token");
+            localStorage.removeItem("pay2pay_access_token");
+            localStorage.removeItem("pay2pay_auth_token");
+            localStorage.removeItem("p2p_sales_token");
+            localStorage.removeItem("pay2pay_sales_token");
+            localStorage.removeItem("p2p_session_locked");
+            localStorage.removeItem("p2p_session_locked_at");
+            localStorage.removeItem("p2p_session_last_active");
+            localStorage.removeItem("p2p_session_start_time");
+            sessionStorage.clear();
+          } catch {}
+
           const currentPath = window.location.pathname;
-          window.location.replace(`/retailer/login?reason=session_expired&redirect=${encodeURIComponent(currentPath)}`);
+          let loginPath = "/retailer/login";
+          if (currentPath.startsWith("/admin")) loginPath = "/admin/login";
+          else if (currentPath.startsWith("/sd")) loginPath = "/sd/login";
+          else if (currentPath.startsWith("/dist")) loginPath = "/dist/login";
+          else if (currentPath.startsWith("/super-admin")) loginPath = "/super-admin/login";
+
+          window.location.replace(`${loginPath}?reason=session_expired&redirect=${encodeURIComponent(currentPath)}`);
         }
       }
     }

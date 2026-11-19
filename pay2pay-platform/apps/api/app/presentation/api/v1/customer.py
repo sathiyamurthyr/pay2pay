@@ -106,8 +106,11 @@ async def get_customer_360(
     db: AsyncSession = Depends(get_db),
     current_user: AdminUserModel = Depends(get_current_user)
 ):
-    """Customer 360° — full view: profile, KYC, documents, services, risk, timeline."""
-    view = await CustomerService.get_customer_360(db, customer_id)
+    user_type = (getattr(current_user, "user_type", "") or "").upper()
+    is_super = user_type in ("PLATFORM_ADMIN", "SUPER_ADMIN")
+    tenant_scope = None if is_super else getattr(current_user, "tenant_id", None)
+
+    view = await CustomerService.get_customer_360(db, customer_id, tenant_id=tenant_scope)
     if not view:
         raise HTTPException(status_code=404, detail="Customer not found")
     return APIResponse(data=view.model_dump(mode="json"))

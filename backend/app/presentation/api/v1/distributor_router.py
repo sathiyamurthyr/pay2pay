@@ -150,25 +150,31 @@ async def get_distributor_profile(
     distributor: DistributorModel = Depends(get_current_distributor)
 ):
     """Returns authenticated distributor profile details from authoritative database."""
+    profile_data = {
+        "distributor_ref_id": distributor.distributor_ref_id or distributor.id,
+        "distributor_code": distributor.distributor_code,
+        "business_name": distributor.business_name,
+        "owner_name": distributor.owner_name,
+        "mobile": distributor.mobile,
+        "email": distributor.email,
+        "gst_number": distributor.gst_number,
+        "pan_number": distributor.pan_number,
+        "bank_account_number": distributor.bank_account_number,
+        "ifsc": distributor.ifsc,
+        "state": distributor.state,
+        "city": distributor.city,
+        "address": distributor.address,
+        "pincode": distributor.pincode,
+        "status": distributor.status,
+        "is_active": distributor.is_active,
+        "wallet_balance": float(distributor.wallet_balance or 0.0),
+        "credit_limit": float(distributor.credit_limit or 0.0),
+        "created_date": distributor.created_date.isoformat() if distributor.created_date else None
+    }
     return {
         "success": True,
-        "distributor": {
-            "distributor_ref_id": distributor.distributor_ref_id or distributor.id,
-            "distributor_code": distributor.distributor_code,
-            "business_name": distributor.business_name,
-            "owner_name": distributor.owner_name,
-            "mobile": distributor.mobile,
-            "email": distributor.email,
-            "gst_number": distributor.gst_number,
-            "pan_number": distributor.pan_number,
-            "state": distributor.state,
-            "city": distributor.city,
-            "address": distributor.address,
-            "pincode": distributor.pincode,
-            "status": distributor.status,
-            "is_active": distributor.is_active,
-            "created_date": distributor.created_date.isoformat() if distributor.created_date else None
-        }
+        "data": profile_data,
+        "distributor": profile_data
     }
 
 
@@ -182,19 +188,21 @@ async def get_distributor_wallet(
     Zero hardcoded values.
     """
     wallet = await DistributorService.get_or_create_wallet(db, distributor)
+    wallet_data = {
+        "dist_wallet_ref_id": wallet.dist_wallet_ref_id,
+        "distributor_ref_id": wallet.distributor_ref_id,
+        "available_balance": float(wallet.balance),
+        "currency": wallet.currency,
+        "status": wallet.status,
+        "is_active": wallet.is_active,
+        "is_frozen": wallet.is_frozen,
+        "freeze_reason": wallet.freeze_reason,
+        "updated_at": wallet.updated_at.isoformat()
+    }
     return {
         "success": True,
-        "wallet": {
-            "dist_wallet_ref_id": wallet.dist_wallet_ref_id,
-            "distributor_ref_id": wallet.distributor_ref_id,
-            "available_balance": float(wallet.balance),
-            "currency": wallet.currency,
-            "status": wallet.status,
-            "is_active": wallet.is_active,
-            "is_frozen": wallet.is_frozen,
-            "freeze_reason": wallet.freeze_reason,
-            "updated_at": wallet.updated_at.isoformat()
-        }
+        "data": wallet_data,
+        "wallet": wallet_data
     }
 
 

@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, Query, Path, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.application.dependencies import get_current_user, get_current_tenant_id
+from app.application.dependencies import get_current_user, get_current_tenant_id, require_admin_user
 from app.infrastructure.db.models import AdminUserModel
 from app.application.payout_slab_service import PayoutSlabService
 from app.application.dtos import (
@@ -20,7 +20,11 @@ from app.application.dtos import (
     PayoutSlabResponse, PayoutSlabAuditResponse, PayoutSlabListResponse
 )
 
-router = APIRouter(prefix="/admin/payout-slabs", tags=["Admin Payout Slabs (EPIC-027)"])
+router = APIRouter(
+    prefix="/admin/payout-slabs",
+    tags=["Admin Payout Slabs (EPIC-027)"],
+    dependencies=[Depends(require_admin_user)]
+)
 
 
 @router.get("", response_model=PayoutSlabListResponse, summary="List Payout Slabs")

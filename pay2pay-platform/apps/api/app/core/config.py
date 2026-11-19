@@ -94,6 +94,12 @@ class Settings(BaseSettings):
         "https://sales.pay2pay.in",
         "https://auth.pay2pay.in",
         "https://api.pay2pay.in",
+        "https://near4you.store",
+        "https://www.near4you.store",
+        "https://login.near4you.store",
+        "https://api.near4you.store",
+        "https://admin.near4you.store",
+        "https://sales.near4you.store",
     ]
     
     # Session Inactivity Timeout (Minutes) - Closes session after 15m idle
@@ -133,6 +139,8 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = Field(default="")
     SMTP_FROM_EMAIL: str = Field(default="")
     SMTP_FROM_NAME: str = Field(default="Pay2Pay Enterprise")
+    ADMIN_STATEMENT_EMAIL: str = Field(default="")
+    AUTO_MAIL_DAILY_STATEMENT_ENABLED: bool = Field(default=False)
 
 
     # ── Support Metadata Configuration ──────────────────────────────────────

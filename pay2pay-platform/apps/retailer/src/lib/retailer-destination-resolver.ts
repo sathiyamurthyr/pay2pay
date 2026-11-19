@@ -249,7 +249,13 @@ export async function verifyAndRoutePostLogin(
 
   // 1. Synchronously persist credentials & role
   if (typeof window !== "undefined") {
-    const role = "RETAILER";
+    const rawRole = (options?.userData?.role || options?.userData?.user_type || "").toString().toUpperCase();
+    const role = (rawRole.includes("SUPER_DISTRIBUTOR") || rawRole === "SD" || rawRole === "MSD")
+      ? "SD"
+      : (rawRole.includes("DIST") || rawRole === "DISTRIBUTOR")
+      ? "DIST"
+      : "RETAILER";
+
     // Token fallback: check cookies first (authoritative), then option param
     const getCookieToken = (): string | null => {
       try {
@@ -269,7 +275,11 @@ export async function verifyAndRoutePostLogin(
     const user = options?.userData;
     const now = Date.now();
 
-    const domainAttr = typeof window !== "undefined" && window.location.hostname.endsWith("pay2pay.in") ? "; domain=.pay2pay.in" : "";
+    const isNear4You = typeof window !== "undefined" && window.location.hostname.includes("near4you.store");
+    const domainAttr = isNear4You
+      ? "; domain=.near4you.store"
+      : (typeof window !== "undefined" && window.location.hostname.endsWith("pay2pay.in") ? "; domain=.pay2pay.in" : "");
+
     document.cookie = `p2p_user_role=${role}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
     document.cookie = `pay2pay_user_role=${role}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
     document.cookie = `p2p_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
@@ -308,9 +318,21 @@ export async function verifyAndRoutePostLogin(
   }
 
   try {
+    const rawRole = (options?.userData?.role || options?.userData?.user_type || "").toString().toUpperCase();
+    const defaultDashboard = (rawRole.includes("SUPER_DISTRIBUTOR") || rawRole === "SD" || rawRole === "MSD")
+      ? "/sd/dashboard"
+      : (rawRole.includes("DIST") || rawRole === "DISTRIBUTOR")
+      ? "/dist/dashboard"
+      : "/retailer/dashboard";
+    const defaultReviewPage = (rawRole.includes("SUPER_DISTRIBUTOR") || rawRole === "SD")
+      ? "/sd/account-under-review"
+      : (rawRole.includes("DIST") || rawRole === "DISTRIBUTOR")
+      ? "/dist/account-under-review"
+      : "/retailer/account-under-review";
+
     const status = await fetchAuthoritativeRetailerStatus(true);
     const redirectTarget = (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("redirect") : null);
-    const targetDashboard = redirectTarget || "/retailer/dashboard";
+    const targetDashboard = redirectTarget || defaultDashboard;
 
     if (status) {
       const isBothTrue = status.approve_status === true && status.active_status === true;
@@ -349,7 +371,7 @@ export async function verifyAndRoutePostLogin(
         }
         return { success: true, destination: "DASHBOARD" };
       } else {
-        const waitingUrl = "/retailer/account-under-review";
+        const waitingUrl = defaultReviewPage;
         if (typeof window !== "undefined") {
           window.location.href = waitingUrl;
         } else {
@@ -360,7 +382,7 @@ export async function verifyAndRoutePostLogin(
     }
 
     // Default: Route to waiting page for safety if status unavailable
-    const waitingUrl = "/retailer/account-under-review";
+    const waitingUrl = defaultReviewPage;
     if (typeof window !== "undefined") {
       window.location.href = waitingUrl;
     } else {
@@ -368,7 +390,12 @@ export async function verifyAndRoutePostLogin(
     }
     return { success: true, destination: "ACCOUNT_UNDER_REVIEW" };
   } catch (err) {
-    const waitingUrl = "/retailer/account-under-review";
+    const rawRole = (options?.userData?.role || options?.userData?.user_type || "").toString().toUpperCase();
+    const waitingUrl = (rawRole.includes("SUPER_DISTRIBUTOR") || rawRole === "SD")
+      ? "/sd/account-under-review"
+      : (rawRole.includes("DIST") || rawRole === "DISTRIBUTOR")
+      ? "/dist/account-under-review"
+      : "/retailer/account-under-review";
     if (typeof window !== "undefined") {
       window.location.href = waitingUrl;
     } else {

@@ -703,7 +703,14 @@ class DailyAccountStatementService:
                 else:
                     recipient_name = d.get("retailer_name") or retailer_code
 
-                if recipient_email and "@" in recipient_email:
+                auto_mail_enabled = (
+                    getattr(settings, "AUTO_MAIL_DAILY_STATEMENT_ENABLED", False)
+                    or os.getenv("AUTO_MAIL_DAILY_STATEMENT_ENABLED", "false").lower() in ("true", "1")
+                )
+                if not auto_mail_enabled:
+                    email_status = "SKIPPED_AUTO_DISABLED"
+                    logger.info(f"Auto mail daily account statement report sending is disabled. Skipping email dispatch to {recipient_email}")
+                elif recipient_email and "@" in recipient_email:
                     try:
                         pwd_info = cls.get_statement_password_details(d)
                         email_res = await email_service.send_statement_email(
@@ -886,35 +893,43 @@ class DailyAccountStatementService:
                 )
                 logger.error(f"[ADMIN RECONCILIATION ALERT] {error_message}")
             else:
-                try:
-                    pwd_info = cls.get_statement_password_details(d)
-                    email_res = await email_service.send_statement_email(
-                        recipient_email=admin_email,
-                        recipient_name="Pay2Pay Administration",
-                        statement_date_str=statement_date.strftime("%d %B %Y"),
-                        opening_balance=float(d.get("opening_balance", 0.0)),
-                        total_credit=float(d.get("total_credit", 0.0)),
-                        total_debit=float(d.get("total_debit", 0.0)),
-                        closing_balance=float(d.get("closing_balance", 0.0)),
-                        pdf_bytes=pdf_bytes,
-                        filename=f"{stmt_num}.pdf",
-                        is_admin=True,
-                        password_hint=pwd_info["hint"],
-                        password_formula=pwd_info["formula"],
-                        password_example=pwd_info["example"]
-                    )
-                    if email_res.get("delivered"):
-                        email_status = "SENT"
-                    elif email_res.get("status") == "SIMULATED":
-                        email_status = "SIMULATED"
-                    else:
+                auto_mail_enabled = (
+                    getattr(settings, "AUTO_MAIL_DAILY_STATEMENT_ENABLED", False)
+                    or os.getenv("AUTO_MAIL_DAILY_STATEMENT_ENABLED", "false").lower() in ("true", "1")
+                )
+                if not auto_mail_enabled:
+                    email_status = "SKIPPED_AUTO_DISABLED"
+                    logger.info(f"Auto mail daily account statement report sending is disabled. Skipping admin statement email to {admin_email}")
+                else:
+                    try:
+                        pwd_info = cls.get_statement_password_details(d)
+                        email_res = await email_service.send_statement_email(
+                            recipient_email=admin_email,
+                            recipient_name="Pay2Pay Administration",
+                            statement_date_str=statement_date.strftime("%d %B %Y"),
+                            opening_balance=float(d.get("opening_balance", 0.0)),
+                            total_credit=float(d.get("total_credit", 0.0)),
+                            total_debit=float(d.get("total_debit", 0.0)),
+                            closing_balance=float(d.get("closing_balance", 0.0)),
+                            pdf_bytes=pdf_bytes,
+                            filename=f"{stmt_num}.pdf",
+                            is_admin=True,
+                            password_hint=pwd_info["hint"],
+                            password_formula=pwd_info["formula"],
+                            password_example=pwd_info["example"]
+                        )
+                        if email_res.get("delivered"):
+                            email_status = "SENT"
+                        elif email_res.get("status") == "SIMULATED":
+                            email_status = "SIMULATED"
+                        else:
+                            email_status = "FAILED"
+                        if not email_res.get("delivered") and email_res.get("status") != "SIMULATED":
+                            error_message = email_res.get("detail") or "Failed to deliver admin email."
+                    except Exception as ex:
                         email_status = "FAILED"
-                    if not email_res.get("delivered") and email_res.get("status") != "SIMULATED":
-                        error_message = email_res.get("detail") or "Failed to deliver admin email."
-                except Exception as ex:
-                    email_status = "FAILED"
-                    error_message = str(ex)
-                    logger.error(f"Email dispatch error for Admin {admin_email}: {ex}")
+                        error_message = str(ex)
+                        logger.error(f"Email dispatch error for Admin {admin_email}: {ex}")
 
             p_start = datetime.combine(statement_date, datetime.min.time(), tzinfo=timezone.utc)
             p_end = datetime.combine(statement_date, datetime.max.time(), tzinfo=timezone.utc)

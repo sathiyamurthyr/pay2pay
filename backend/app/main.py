@@ -53,8 +53,11 @@ async def startup_db():
         await asyncio.wait_for(_create_tables(), timeout=5.0)
     except asyncio.TimeoutError:
         print("[STARTUP DB WARNING] Table creation timed out (DB may be locked) — continuing startup.")
-    from app.core.statement_scheduler import background_daily_statement_scheduler
-    asyncio.create_task(background_daily_statement_scheduler())
+    if getattr(settings, "AUTO_MAIL_DAILY_STATEMENT_ENABLED", False):
+        from app.core.statement_scheduler import background_daily_statement_scheduler
+        asyncio.create_task(background_daily_statement_scheduler())
+    else:
+        print("[STATEMENT SCHEDULER] Auto mail daily account statement report sending is STOPPED/DISABLED.")
     from app.core.urbanrupee_scheduler import background_urbanrupee_status_poller
     # Official UrbanRupee automated 5-minute status check (runs only if UrbanRupee priority is 1)
     asyncio.create_task(background_urbanrupee_status_poller(300))
@@ -290,6 +293,13 @@ app.include_router(admin_retailer_controller.router, prefix="/v1")
 app.include_router(admin_retailer_controller.router, prefix=f"{settings.API_V1_STR}/api/v1")
 app.include_router(admin_retailer_controller.router, prefix="/api")
 app.include_router(admin_retailer_controller.router, prefix="")
+
+from app.presentation.api.v1 import admin_migration_router
+app.include_router(admin_migration_router.router, prefix=settings.API_V1_STR)
+app.include_router(admin_migration_router.router, prefix="/v1")
+app.include_router(admin_migration_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(admin_migration_router.router, prefix="/api")
+app.include_router(admin_migration_router.router, prefix="")
 app.include_router(retailer_dashboard_router.router, prefix=f"{settings.API_V1_STR}/payout")
 app.include_router(report_center_router.router, prefix=f"{settings.API_V1_STR}/payout")
 app.include_router(progressive_onboarding_router.router, prefix=settings.API_V1_STR)

@@ -88,6 +88,28 @@ class EmailService:
         if not recipient_email or "@" not in recipient_email:
             return {"status": "ERROR", "message": "Invalid recipient email address."}
 
+        # ── 1. Dispatch via Sathus Shared Notification Platform if configured ────
+        notif_url = getattr(settings, "NOTIFICATION_PLATFORM_URL", "http://127.0.0.1:8150")
+        notif_key = getattr(settings, "NOTIFICATION_PLATFORM_API_KEY", "")
+        notif_enabled = getattr(settings, "NOTIFICATION_PLATFORM_ENABLED", True)
+
+        if notif_enabled and notif_key:
+            try:
+                from sathus_notification.client import SathusNotificationClient
+                client = SathusNotificationClient(api_key=notif_key, base_url=notif_url)
+                res = client.send_event(
+                    event_type="AUTH_OTP",
+                    event_category="AUTH",
+                    recipient_email=recipient_email,
+                    data={"otp_code": otp_code, "expiry_minutes": 10},
+                    idempotency_key=f"otp_{recipient_email}_{otp_code}",
+                    timeout=10.0
+                )
+                logger.info(f"[SATHUS NOTIFICATION PLATFORM SUCCESS] OTP dispatched to {recipient_email} (ID: {res.get('notification_id')})")
+                return {"status": "SUCCESS", "delivered": True, "recipient": recipient_email, "notification_id": res.get("notification_id"), "platform": "sathus_notification_platform"}
+            except Exception as s_exc:
+                logger.warning(f"[SATHUS NOTIFICATION PLATFORM WARNING] OTP dispatch via platform failed: {s_exc}. Falling back to direct SMTP.")
+
         smtp_server = self.smtp_server if self.smtp_server is not None else getattr(settings, "SMTP_SERVER", "smtp.gmail.com")
         smtp_port = self.smtp_port if self.smtp_port is not None else getattr(settings, "SMTP_PORT", 587)
         smtp_username = self.smtp_username if self.smtp_username is not None else getattr(settings, "SMTP_USERNAME", "")
@@ -200,6 +222,27 @@ class EmailService:
         """Dispatch Enterprise Password Reset email with 30-min secure link."""
         if not recipient_email or "@" not in recipient_email:
             return {"status": "ERROR", "message": "Invalid recipient email address."}
+
+        # ── 1. Dispatch via Sathus Shared Notification Platform if configured ────
+        notif_url = getattr(settings, "NOTIFICATION_PLATFORM_URL", "http://127.0.0.1:8150")
+        notif_key = getattr(settings, "NOTIFICATION_PLATFORM_API_KEY", "")
+        notif_enabled = getattr(settings, "NOTIFICATION_PLATFORM_ENABLED", True)
+
+        if notif_enabled and notif_key:
+            try:
+                from sathus_notification.client import SathusNotificationClient
+                client = SathusNotificationClient(api_key=notif_key, base_url=notif_url)
+                res = client.send_event(
+                    event_type="PASSWORD_RESET",
+                    event_category="AUTH",
+                    recipient_email=recipient_email,
+                    data={"reset_link": reset_link},
+                    timeout=10.0
+                )
+                logger.info(f"[SATHUS NOTIFICATION PLATFORM SUCCESS] Password reset dispatched to {recipient_email} (ID: {res.get('notification_id')})")
+                return {"status": "SUCCESS", "delivered": True, "recipient": recipient_email, "notification_id": res.get("notification_id"), "platform": "sathus_notification_platform"}
+            except Exception as s_exc:
+                logger.warning(f"[SATHUS NOTIFICATION PLATFORM WARNING] Password reset dispatch via platform failed: {s_exc}. Falling back to direct SMTP.")
 
         smtp_server = self.smtp_server if self.smtp_server is not None else getattr(settings, "SMTP_SERVER", "smtp.gmail.com")
         smtp_port = self.smtp_port if self.smtp_port is not None else getattr(settings, "SMTP_PORT", 587)
@@ -506,6 +549,31 @@ class EmailService:
             logger.info(f"[EMAIL SERVICE SKIPPED] No valid email address provided for topup approval: {recipient_email}")
             return {"status": "SKIPPED", "message": "No valid recipient email address."}
 
+        # ── 1. Dispatch via Sathus Shared Notification Platform if configured ────
+        notif_url = getattr(settings, "NOTIFICATION_PLATFORM_URL", "http://127.0.0.1:8150")
+        notif_key = getattr(settings, "NOTIFICATION_PLATFORM_API_KEY", "")
+        notif_enabled = getattr(settings, "NOTIFICATION_PLATFORM_ENABLED", True)
+
+        if notif_enabled and notif_key:
+            try:
+                from sathus_notification.client import SathusNotificationClient
+                client = SathusNotificationClient(api_key=notif_key, base_url=notif_url)
+                req_id = payload.get("topup_request_id", "N/A")
+                res = client.send_event(
+                    event_type="TOPUP_STATUS",
+                    event_category="FINANCIAL",
+                    recipient_email=recipient_email,
+                    recipient_name=payload.get("retailer_name"),
+                    title=f"Topup Approved: [Req: {req_id}]",
+                    data=payload,
+                    idempotency_key=f"topup_appr_{req_id}",
+                    timeout=10.0
+                )
+                logger.info(f"[SATHUS NOTIFICATION PLATFORM SUCCESS] Topup confirmation dispatched to {recipient_email} (ID: {res.get('notification_id')})")
+                return {"status": "SUCCESS", "delivered": True, "recipient": recipient_email, "notification_id": res.get("notification_id"), "platform": "sathus_notification_platform"}
+            except Exception as s_exc:
+                logger.warning(f"[SATHUS NOTIFICATION PLATFORM WARNING] Topup dispatch via platform failed: {s_exc}. Falling back to direct SMTP.")
+
         smtp_server = self.smtp_server if self.smtp_server is not None else getattr(settings, "SMTP_SERVER", "smtp.gmail.com")
         smtp_port = self.smtp_port if self.smtp_port is not None else getattr(settings, "SMTP_PORT", 587)
         smtp_username = self.smtp_username if self.smtp_username is not None else getattr(settings, "SMTP_USERNAME", "")
@@ -577,10 +645,57 @@ class EmailService:
         if not recipient_email or "@" not in recipient_email:
             return {"status": "ERROR", "delivered": False, "message": "Invalid recipient email address."}
 
-        smtp_server = self.smtp_server or getattr(settings, "SMTP_SERVER", "smtp.gmail.com")
-        smtp_port = self.smtp_port or getattr(settings, "SMTP_PORT", 587)
-        smtp_username = self.smtp_username or getattr(settings, "SMTP_USERNAME", "")
-        smtp_password = self.smtp_password or getattr(settings, "SMTP_PASSWORD", "")
+        # ── 1. Dispatch via Sathus Shared Notification Platform if enabled ────
+        notif_url = getattr(settings, "NOTIFICATION_PLATFORM_URL", "http://127.0.0.1:8150")
+        notif_key = getattr(settings, "NOTIFICATION_PLATFORM_API_KEY", "")
+        notif_enabled = getattr(settings, "NOTIFICATION_PLATFORM_ENABLED", True)
+
+        if notif_enabled and notif_key:
+            try:
+                import base64
+                from sathus_notification.client import SathusNotificationClient
+                client = SathusNotificationClient(api_key=notif_key, base_url=notif_url)
+                pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
+                attachments = [{
+                    "filename": filename,
+                    "content_base64": pdf_b64,
+                    "content_type": "application/pdf"
+                }]
+                idemp_key = f"stmt_{recipient_email}_{statement_date_str.replace(' ', '_')}_{'admin' if is_admin else 'ret'}"
+
+                res = client.send_event(
+                    event_type="ACCOUNT_STATEMENT",
+                    event_category="FINANCIAL",
+                    recipient_email=recipient_email,
+                    recipient_name=recipient_name,
+                    data={
+                        "statement_date": statement_date_str,
+                        "opening_balance": opening_balance,
+                        "total_credit": total_credit,
+                        "total_debit": total_debit,
+                        "closing_balance": closing_balance,
+                        "password_hint": password_hint or password_formula or "",
+                        "is_admin": is_admin
+                    },
+                    attachments=attachments,
+                    idempotency_key=idemp_key,
+                    timeout=15.0
+                )
+                logger.info(f"[SATHUS NOTIFICATION PLATFORM SUCCESS] Statement notification dispatched for {recipient_email} (ID: {res.get('notification_id')})")
+                return {
+                    "status": "SUCCESS",
+                    "delivered": True,
+                    "recipient": recipient_email,
+                    "notification_id": res.get("notification_id"),
+                    "platform": "sathus_notification_platform"
+                }
+            except Exception as s_exc:
+                logger.warning(f"[SATHUS NOTIFICATION PLATFORM WARNING] Dispatch via platform failed: {s_exc}. Falling back to direct SMTP.")
+
+        smtp_server = self.smtp_server if self.smtp_server is not None else getattr(settings, "SMTP_SERVER", "smtp.gmail.com")
+        smtp_port = self.smtp_port if self.smtp_port is not None else getattr(settings, "SMTP_PORT", 587)
+        smtp_username = self.smtp_username if self.smtp_username is not None else getattr(settings, "SMTP_USERNAME", "")
+        smtp_password = self.smtp_password if self.smtp_password is not None else getattr(settings, "SMTP_PASSWORD", "")
         from_email = self.from_email or getattr(settings, "SMTP_FROM_EMAIL", "") or smtp_username or "statements@pay2pay.in"
         from_name = self.from_name or getattr(settings, "SMTP_FROM_NAME", "Pay2Pay")
 

@@ -137,6 +137,7 @@ const ADMIN_NAV: NavCategory[] = [
     category: "Partners & Hierarchy",
     items: [
       { label: "Partner Hub", href: "/retailers", icon: Store },
+      { label: "Account Migration", href: "/admin/migration", icon: ArrowLeftRight, badge: "Admin" },
       { label: "Distributor Approvals", href: "/retailers/distributor-approvals", icon: CheckCircle2, badge: "Pending" },
       { label: "Master Dist Approvals", href: "/retailers/sd-approvals", icon: Crown, badge: "Pending" },
       { label: "Verification", href: "/admin/retailer-verification", icon: ShieldCheck, badge: "Live" },

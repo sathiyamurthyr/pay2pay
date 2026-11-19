@@ -60,6 +60,37 @@ class WhatsAppService:
 
         formatted_mobile = f"91{clean_mobile}" if len(clean_mobile) == 10 else clean_mobile
 
+        # ── Check Centralized Sathus Notification Platform Integration ─────────
+        notif_enabled = getattr(settings, "NOTIFICATION_PLATFORM_ENABLED", False)
+        notif_url = getattr(settings, "NOTIFICATION_PLATFORM_URL", "http://127.0.0.1:8150")
+        notif_key = getattr(settings, "NOTIFICATION_PLATFORM_API_KEY", "")
+
+        if notif_enabled and notif_key:
+            try:
+                from sathus_notification.client import SathusNotificationClient
+                client = SathusNotificationClient(api_key=notif_key, base_url=notif_url)
+                res = client.send(
+                    channel="whatsapp",
+                    recipient={"phone": formatted_mobile},
+                    content=f"{otp_code} is your Pay2Pay verification code.",
+                    template_code=template_name,
+                    variables={"otp_code": otp_code}
+                )
+                if res.get("status") in ("queued", "accepted", "sent"):
+                    logger.info(f"[SATHUS NOTIFICATION PLATFORM] WhatsApp OTP queued: {res.get('id') or res.get('notification_id')}")
+                    return {
+                        "status": "SUCCESS",
+                        "delivered": True,
+                        "status_code": 200,
+                        "recipient": formatted_mobile,
+                        "message_id": res.get("id") or res.get("notification_id", "N/A"),
+                        "otp_code": otp_code,
+                        "platform": "sathus_notification_platform",
+                        "meta_response": res
+                    }
+            except Exception as e:
+                logger.warning(f"[NOTIFICATION PLATFORM FALLBACK] WhatsApp OTP error: {e}, falling back to direct Meta API")
+
         payload = {
             "messaging_product": "whatsapp",
             "recipient_type": "individual",
@@ -136,6 +167,37 @@ class WhatsAppService:
         """Dispatch freeform WhatsApp text message."""
         clean_mobile = "".join(filter(str.isdigit, mobile_number))
         formatted_mobile = f"91{clean_mobile}" if len(clean_mobile) == 10 else clean_mobile
+
+        # ── Check Centralized Sathus Notification Platform Integration ─────────
+        notif_enabled = getattr(settings, "NOTIFICATION_PLATFORM_ENABLED", False)
+        notif_url = getattr(settings, "NOTIFICATION_PLATFORM_URL", "http://127.0.0.1:8150")
+        notif_key = getattr(settings, "NOTIFICATION_PLATFORM_API_KEY", "")
+
+        if notif_enabled and notif_key:
+            try:
+                from sathus_notification.client import SathusNotificationClient
+                client = SathusNotificationClient(api_key=notif_key, base_url=notif_url)
+                res = client.send(
+                    channel="whatsapp",
+                    recipient={"phone": formatted_mobile},
+                    content=f"{otp_code} is your Pay2Pay verification code.",
+                    template_code=template_name,
+                    variables={"otp_code": otp_code}
+                )
+                if res.get("status") in ("queued", "accepted", "sent"):
+                    logger.info(f"[SATHUS NOTIFICATION PLATFORM] WhatsApp OTP queued: {res.get('id') or res.get('notification_id')}")
+                    return {
+                        "status": "SUCCESS",
+                        "delivered": True,
+                        "status_code": 200,
+                        "recipient": formatted_mobile,
+                        "message_id": res.get("id") or res.get("notification_id", "N/A"),
+                        "otp_code": otp_code,
+                        "platform": "sathus_notification_platform",
+                        "meta_response": res
+                    }
+            except Exception as e:
+                logger.warning(f"[NOTIFICATION PLATFORM FALLBACK] WhatsApp OTP error: {e}, falling back to direct Meta API")
 
         payload = {
             "messaging_product": "whatsapp",
@@ -226,6 +288,48 @@ class WhatsAppService:
         safe_txn_id = str(transaction_id or "")[:50]
         safe_dt = str(date_time_str or "")[:50]
         safe_token = str(receipt_token or "").strip()
+        receipt_url = f"https://receipt.pay2pay.in/r/{safe_token}"
+
+        # ── Check Centralized Sathus Notification Platform Integration ─────────
+        notif_enabled = getattr(settings, "NOTIFICATION_PLATFORM_ENABLED", False)
+        notif_url = getattr(settings, "NOTIFICATION_PLATFORM_URL", "http://127.0.0.1:8150")
+        notif_key = getattr(settings, "NOTIFICATION_PLATFORM_API_KEY", "")
+
+        if notif_enabled and notif_key:
+            try:
+                from sathus_notification.client import SathusNotificationClient
+                client = SathusNotificationClient(api_key=notif_key, base_url=notif_url)
+                res = client.send(
+                    channel="whatsapp",
+                    recipient={"phone": formatted_mobile},
+                    content=f"Payment of {amount_str} completed.",
+                    template_code=template_name,
+                    variables={
+                        "customer_name": safe_customer_name,
+                        "amount": amount_str,
+                        "transaction_id": safe_txn_id,
+                        "date_time": safe_dt,
+                        "status": status_display,
+                        "receipt_token": safe_token
+                    }
+                )
+                if res.get("status") in ("queued", "accepted", "sent"):
+                    logger.info(f"[SATHUS NOTIFICATION PLATFORM] WhatsApp payout status queued: {res.get('id') or res.get('notification_id')}")
+                    return {
+                        "status": "SUCCESS",
+                        "delivered": True,
+                        "status_code": 200,
+                        "recipient": formatted_mobile,
+                        "message_id": res.get("id") or res.get("notification_id", "N/A"),
+                        "template_id": template_id,
+                        "template_name": template_name,
+                        "receipt_token": safe_token,
+                        "receipt_url": receipt_url,
+                        "platform": "sathus_notification_platform",
+                        "meta_response": res
+                    }
+            except Exception as e:
+                logger.warning(f"[NOTIFICATION PLATFORM FALLBACK] WhatsApp payout status error: {e}, falling back to direct Meta API")
 
         payload = {
             "messaging_product": "whatsapp",
@@ -385,6 +489,49 @@ class WhatsAppService:
         safe_dt = str(date_time_str or "").strip()[:50]
         safe_status = str(status or "Pending Approval").strip()[:50]
         safe_view_id = str(view_id or request_id or "").strip()
+        receipt_url = f"https://receipt.pay2pay.in/r/{safe_view_id}"
+
+        # ── Check Centralized Sathus Notification Platform Integration ─────────
+        notif_enabled = getattr(settings, "NOTIFICATION_PLATFORM_ENABLED", False)
+        notif_url = getattr(settings, "NOTIFICATION_PLATFORM_URL", "http://127.0.0.1:8150")
+        notif_key = getattr(settings, "NOTIFICATION_PLATFORM_API_KEY", "")
+
+        if notif_enabled and notif_key:
+            try:
+                from sathus_notification.client import SathusNotificationClient
+                client = SathusNotificationClient(api_key=notif_key, base_url=notif_url)
+                res = client.send(
+                    channel="whatsapp",
+                    recipient={"phone": formatted_mobile},
+                    content=f"New Top-Up Request: {safe_request_id}",
+                    template_code=template_name,
+                    variables={
+                        "retailer_name": safe_retailer_name,
+                        "retailer_id": safe_retailer_id,
+                        "request_id": safe_request_id,
+                        "amount": amt_str,
+                        "payment_mode": safe_mode,
+                        "requested_at": safe_dt,
+                        "status": safe_status,
+                        "view_id": safe_view_id
+                    }
+                )
+                if res.get("status") in ("queued", "accepted", "sent"):
+                    logger.info(f"[SATHUS NOTIFICATION PLATFORM] WhatsApp admin topup alert queued: {res.get('id') or res.get('notification_id')}")
+                    return {
+                        "status": "SUCCESS",
+                        "delivered": True,
+                        "status_code": 200,
+                        "recipient": formatted_mobile,
+                        "message_id": res.get("id") or res.get("notification_id", "N/A"),
+                        "template_id": template_id,
+                        "template_name": template_name,
+                        "view_url": receipt_url,
+                        "platform": "sathus_notification_platform",
+                        "meta_response": res
+                    }
+            except Exception as e:
+                logger.warning(f"[NOTIFICATION PLATFORM FALLBACK] WhatsApp admin topup alert error: {e}, falling back to direct Meta API")
 
         payload = {
             "messaging_product": "whatsapp",

@@ -9,10 +9,14 @@ from sqlalchemy import text, select, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.application.dependencies import get_current_user, get_current_tenant_id
+from app.application.dependencies import get_current_user, get_current_tenant_id, require_admin_user
 from app.infrastructure.db.models import AdminUserModel, AdminServiceVendorWalletModel
 
-router = APIRouter(prefix="/admin/operation-wallets", tags=["Admin Service & Vendor Operation Wallets"])
+router = APIRouter(
+    prefix="/admin/operation-wallets",
+    tags=["Admin Service & Vendor Operation Wallets"],
+    dependencies=[Depends(require_admin_user)]
+)
 
 
 class AdminWalletTopupRequest(BaseModel):

@@ -121,35 +121,48 @@ async def seed_master_data():
         # Company 1 (Near4You) - Gateway G-1 (Airpay, vendor 1)
         # Rates: Visa 2.50%, MasterCard 2.50%, RuPay 1.80%, AMEX 3.00%, CORP 3.30%
         mdr_records = [
-            # Company 2, G-1 (Vendor 2 - BANKME)
+            # Company 2, G-1 (Vendor 2 - BANKME) - Base & Card Schemes
+            (2, 2, None, None, 0.0262, 'COLLECT_ADDITIONALLY', True),
             (2, 2, 1, 'VISA', 0.0262, 'COLLECT_ADDITIONALLY', True),
             (2, 2, 2, 'MASTERCARD', 0.0262, 'COLLECT_ADDITIONALLY', True),
             (2, 2, 3, 'RUPAY', 0.0180, 'COLLECT_ADDITIONALLY', True),
             (2, 2, 4, 'AMEX', 0.0310, 'COLLECT_ADDITIONALLY', True),
             (2, 2, 5, 'CORP', 0.0340, 'COLLECT_ADDITIONALLY', True),
 
-            # Company 2, G-2 (Vendor 1 - AIRPAY)
+            # Company 2, G-2 (Vendor 1 - AIRPAY) - Base & Card Schemes
+            (2, 1, None, None, 0.0285, 'COLLECT_ADDITIONALLY', True),
             (2, 1, 1, 'VISA', 0.0285, 'COLLECT_ADDITIONALLY', True),
             (2, 1, 2, 'MASTERCARD', 0.0285, 'COLLECT_ADDITIONALLY', True),
             (2, 1, 3, 'RUPAY', 0.0180, 'COLLECT_ADDITIONALLY', True),
             (2, 1, 4, 'AMEX', 0.0325, 'COLLECT_ADDITIONALLY', True),
             (2, 1, 5, 'CORP', 0.0350, 'COLLECT_ADDITIONALLY', True),
 
-            # Company 1, G-1 (Vendor 1 - AIRPAY)
+            # Company 1, G-1 (Vendor 1 - AIRPAY) - Base & Card Schemes
+            (1, 1, None, None, 0.0250, 'COLLECT_ADDITIONALLY', True),
             (1, 1, 1, 'VISA', 0.0250, 'COLLECT_ADDITIONALLY', True),
             (1, 1, 2, 'MASTERCARD', 0.0250, 'COLLECT_ADDITIONALLY', True),
             (1, 1, 3, 'RUPAY', 0.0180, 'COLLECT_ADDITIONALLY', True),
             (1, 1, 4, 'AMEX', 0.0300, 'COLLECT_ADDITIONALLY', True),
             (1, 1, 5, 'CORP', 0.0330, 'COLLECT_ADDITIONALLY', True),
+
+            # Company 1, G-2 (Vendor 2 - BANKME) - Base Rule
+            (1, 2, None, None, 0.0262, 'COLLECT_ADDITIONALLY', True),
         ]
 
         for cid, vid, ctid, net, pct, treat, en in mdr_records:
             # Check if exists
-            chk = await conn.execute(text("""
-                SELECT payin_mdr_cfg_ref_id FROM public.payin_mdr_cfg
-                WHERE company_ref_id = :cid AND payin_vendor_ref_id = :vid AND card_network = :net
-                LIMIT 1;
-            """), {"cid": cid, "vid": vid, "net": net})
+            if net is None:
+                chk = await conn.execute(text("""
+                    SELECT payin_mdr_cfg_ref_id FROM public.payin_mdr_cfg
+                    WHERE company_ref_id = :cid AND payin_vendor_ref_id = :vid AND card_network IS NULL
+                    LIMIT 1;
+                """), {"cid": cid, "vid": vid})
+            else:
+                chk = await conn.execute(text("""
+                    SELECT payin_mdr_cfg_ref_id FROM public.payin_mdr_cfg
+                    WHERE company_ref_id = :cid AND payin_vendor_ref_id = :vid AND card_network = :net
+                    LIMIT 1;
+                """), {"cid": cid, "vid": vid, "net": net})
             existing = chk.scalar()
             if existing:
                 await conn.execute(text("""

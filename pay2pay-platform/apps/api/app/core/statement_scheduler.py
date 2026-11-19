@@ -36,6 +36,17 @@ async def background_daily_statement_scheduler():
     Triggers statement generation for all active retailers and Admin at 03:00 AM IST.
     """
     global _last_scheduled_run_date
+    import os
+    from app.core.config import settings
+
+    auto_mail_enabled = (
+        getattr(settings, "AUTO_MAIL_DAILY_STATEMENT_ENABLED", False)
+        or os.getenv("AUTO_MAIL_DAILY_STATEMENT_ENABLED", "false").lower() in ("true", "1")
+    )
+    if not auto_mail_enabled:
+        logger.info("[STATEMENT SCHEDULER] Auto mail daily account statement report sending is STOPPED/DISABLED.")
+        return
+
     logger.info("[STATEMENT SCHEDULER] Daily 3:00 AM statement job scheduler started.")
 
     while True:

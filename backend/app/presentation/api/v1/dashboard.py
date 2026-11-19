@@ -2,7 +2,7 @@ import uuid
 import logging
 from datetime import datetime, date, timedelta, timezone
 from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -50,6 +50,8 @@ async def get_dashboard_widgets(
     Strictly isolated by Company Ref ID for Company Admins.
     """
     t_id = tenant_id or uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8")
+    if str(getattr(ctx.user, "user_type", "")).upper() == "RETAILER":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden: Retailers cannot access admin dashboard widgets")
     comp_ref = ctx.company_ref_id if not ctx.is_super_admin else None
     return await DashboardService.get_dashboard_metrics(db, t_id, company_ref_id=comp_ref)
 
@@ -68,6 +70,8 @@ async def get_dashboard_summary(
     - public.retailer_wallet & payout_transaction
     Strictly filtered by authenticated Company Ref ID.
     """
+    if str(getattr(ctx.user, "user_type", "")).upper() == "RETAILER":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden: Retailers cannot access admin dashboard summary")
     comp_ref = ctx.company_ref_id if not ctx.is_super_admin else None
     comp_where = "WHERE company_ref_id = :comp_ref" if comp_ref is not None else ""
     params = {"comp_ref": comp_ref} if comp_ref is not None else {}
@@ -255,6 +259,12 @@ async def get_pos_transactions(
         where_clauses.append("company_ref_id = :comp_ref")
         params["comp_ref"] = ctx.company_ref_id
 
+    user_type = str(getattr(ctx.user, "user_type", "")).upper()
+    if user_type == "RETAILER":
+        where_clauses.append("(retailer_id = :caller_retailer_id OR retailer_code = :caller_retailer_code)")
+        params["caller_retailer_id"] = ctx.user.public_id
+        params["caller_retailer_code"] = getattr(ctx.user, "retailer_code", None) or getattr(ctx.user, "username", "")
+
     if status:
         where_clauses.append("UPPER(transaction_status) = :status")
         params["status"] = status.upper()
@@ -396,6 +406,12 @@ async def get_pending_transactions(
     if not ctx.is_super_admin:
         where_clauses.append("company_ref_id = :comp_ref")
         params["comp_ref"] = ctx.company_ref_id
+
+    user_type = str(getattr(ctx.user, "user_type", "")).upper()
+    if user_type == "RETAILER":
+        where_clauses.append("(retailer_id = :caller_retailer_id OR retailer_code = :caller_retailer_code)")
+        params["caller_retailer_id"] = ctx.user.public_id
+        params["caller_retailer_code"] = getattr(ctx.user, "retailer_code", None) or getattr(ctx.user, "username", "")
 
     if service:
         where_clauses.append("UPPER(service) = :service")

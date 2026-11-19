@@ -41,17 +41,48 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Interceptor for 401 Unauthorized handling
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
-    // Only perform full session reset if explicit auth verification failed
-    const url = String(error.config?.url || "");
-    const isAuthEndpoint = url.includes("/auth/me") || url.includes("/auth/verify-session") || url.includes("/auth/validate");
+    if (error.response?.status === 401) {
+      const url = String(error.config?.url || "");
+      const errorData = error.response?.data;
+      const errorDetail = String(
+        typeof errorData === "string"
+          ? errorData
+          : errorData?.detail || errorData?.message || ""
+      ).toLowerCase();
 
-    if (error.response?.status === 401 && isAuthEndpoint) {
-      if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
-        window.location.replace(`/login?reason=session_expired&redirect=${encodeURIComponent(window.location.pathname)}`);
+      const isTransactionalPinError =
+        (url.includes("/mpin") || url.includes("/unlock")) &&
+        (errorDetail.includes("pin") || errorDetail.includes("mpin") || errorDetail.includes("wrong") || errorDetail.includes("incorrect"));
+
+      if (!isTransactionalPinError) {
+        if (typeof document !== "undefined") {
+          const cookieNames = [
+            "p2p_access_token",
+            "pay2pay_access_token",
+            "pay2pay_auth_token",
+            "p2p_sales_token",
+            "pay2pay_sales_token",
+            "p2p_user_role",
+            "pay2pay_user_role",
+            "p2p_session_locked",
+            "p2p_session_id",
+            "token",
+            "access_token",
+          ];
+          cookieNames.forEach((name) => {
+            document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
+            try {
+              document.cookie = `${name}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
+            } catch {}
+          });
+        }
+
+        if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
+          window.location.replace(`/login?reason=session_expired&redirect=${encodeURIComponent(window.location.pathname)}`);
+        }
       }
     }
     return Promise.reject(error);
