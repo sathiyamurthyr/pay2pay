@@ -98,7 +98,7 @@ def package_backend():
     if be_tar.exists():
         be_tar.unlink()
 
-    items_to_include = ["app", "requirements.txt", "alembic", "alembic.ini", "sathus_notification"]
+    items_to_include = ["app", "requirements.txt", "alembic", "alembic.ini", "sathus_notification", "seed_payin_mdr_master.py"]
     with tarfile.open(be_tar, "w:gz") as tar:
         for item_name in items_to_include:
             item_path = BACKEND_DIR / item_name
@@ -138,6 +138,10 @@ docker cp /opt/near4you-retailer/backend/app near4you-retailer-backend:/app/
 if [ -d /opt/near4you-retailer/backend/sathus_notification ]; then
     docker cp /opt/near4you-retailer/backend/sathus_notification near4you-retailer-backend:/app/
 fi
+if [ -f /opt/near4you-retailer/backend/seed_payin_mdr_master.py ]; then
+    docker cp /opt/near4you-retailer/backend/seed_payin_mdr_master.py near4you-retailer-backend:/app/
+    docker exec near4you-retailer-backend python seed_payin_mdr_master.py || true
+fi
 docker restart near4you-retailer-backend
 
 echo '=== 4. Rebuilding Frontend Container ==='
@@ -149,7 +153,7 @@ echo '=== 5. Waiting for containers to become healthy ==='
 sleep 15
 docker compose ps frontend backend
 
-echo '=== 5. Domain-Based Branding & Route Verification ==='
+echo '=== 6. Domain-Based Branding & Route Verification ==='
 echo -n 'Pay2Pay Host Title: '
 curl -s -H 'Host: pay2pay.in' http://127.0.0.1:3060/login | grep -o '<title>[^<]*</title>' || true
 
@@ -164,6 +168,19 @@ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3060/wallet-ledger/man
 
 echo -n 'Backend Health Check: '
 curl -s http://127.0.0.1:8090/health || true
+echo ''
+
+echo -n 'PayIn MDR Preview SMSPAY (Company 2, G-1, 500 INR): '
+curl -s -X POST http://127.0.0.1:8090/api/v1/payin/mdr/preview \
+  -H "Content-Type: application/json" \
+  -d '{"company_ref_id": 2, "vendor_code": "G-1", "amount": 500.0}' || true
+echo ''
+
+echo -n 'PayIn MDR Preview Near4You (Company 1, G-1, 500 INR): '
+curl -s -X POST http://127.0.0.1:8090/api/v1/payin/mdr/preview \
+  -H "Content-Type: application/json" \
+  -d '{"company_ref_id": 1, "vendor_code": "G-1", "amount": 500.0}' || true
+echo ''
 
 echo ''
 echo '=== Live Server Deployment Complete! ==='
