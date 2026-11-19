@@ -6,9 +6,17 @@ import LockIcon from "@mui/icons-material/Lock";
 import ContactPhoneIcon from "@mui/icons-material/ContactPhone";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { useAuth } from "@/lib/auth";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 export default function AccountRestrictedPage() {
   const { logout } = useAuth();
+  const branding = useCompanyBranding();
+  const supportEmail = branding.company_code === "SMSPAY"
+    ? "support@smspay.store"
+    : branding.company_code === "NEAR4YOU"
+    ? "support@near4you.store"
+    : "support@pay2pay.in";
+  const brandPrimary = branding.primary_colour || "#2563EB";
 
   return (
     <Box
@@ -65,32 +73,32 @@ export default function AccountRestrictedPage() {
               variant="outlined"
               startIcon={<ContactPhoneIcon />}
               onClick={() => {
-                window.location.href = "mailto:support@near4you.store";
+                window.location.href = `mailto:${supportEmail}`;
               }}
               sx={{
-                borderColor: "#E8E2E5",
-                color: "#292329",
+                borderColor: "#E2E8F0",
+                color: "#0F172A",
                 fontWeight: 700,
                 borderRadius: "12px",
                 height: 44,
                 textTransform: "none",
-                "&:hover": { borderColor: "#A20A3A", bgcolor: "#FFF0F4" },
+                "&:hover": { borderColor: brandPrimary, bgcolor: `${brandPrimary}10` },
               }}
             >
-              Contact Support Desk (support@near4you.store)
+              Contact Support Desk ({supportEmail})
             </Button>
             <Button
               variant="contained"
               startIcon={<LogoutIcon />}
               onClick={logout}
               sx={{
-                bgcolor: "#A20A3A",
+                bgcolor: brandPrimary,
                 color: "#FFFFFF",
                 fontWeight: 800,
                 borderRadius: "12px",
                 height: 44,
                 textTransform: "none",
-                "&:hover": { bgcolor: "#85072F" },
+                "&:hover": { opacity: 0.9 },
               }}
             >
               Logout Session

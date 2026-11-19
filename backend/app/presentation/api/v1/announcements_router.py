@@ -1,7 +1,11 @@
 import uuid
 import mimetypes
+import logging
+from pathlib import Path
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
+
+logger = logging.getLogger("announcements_router")
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request, Header
 from pydantic import BaseModel, Field
@@ -370,35 +374,47 @@ async def admin_update_announcement(
     if payload.end_at is not None:
         ann.end_at = payload.end_at
 
-    if payload.image_url and isinstance(payload.image_url, str) and payload.image_url.strip():
-        # Update or add image
-        img_url = payload.image_url.strip()
-        if ann.images:
-            ann.images[0].image_url = img_url
-            ann.images[0].is_active = True
-            ann.images[0].is_deleted = False
-        else:
-            img_pub_id = uuid.uuid4()
-            ann_img = AnnouncementImageModel(
-                tenant_id=ann.tenant_id,
-                company_id=ann.company_id,
-                public_id=img_pub_id,
-                announcement_id=ann.public_id,
-                b2_object_key=img_url if not img_url.startswith("/uploads") else f"local_{img_pub_id.hex[:8]}",
-                b2_bucket="local" if img_url.startswith("/uploads") else B2_BUCKET_NAME,
-                image_url=img_url,
-                original_filename="banner.jpg",
-                content_type="image/jpeg",
-                file_size=1024,
-                display_order=1,
-                is_active=True,
-                created_by="ADMIN"
-            )
-            db.add(ann_img)
+    if payload.image_url is not None:
+        if isinstance(payload.image_url, str) and payload.image_url.strip():
+            # Update or add image
+            img_url = payload.image_url.strip()
+            active_imgs = [img for img in (ann.images or []) if not img.is_deleted]
+            if active_imgs:
+                active_imgs[0].image_url = img_url
+                active_imgs[0].is_active = True
+                active_imgs[0].is_deleted = False
+                if img_url.startswith("/uploads"):
+                    active_imgs[0].b2_bucket = "local"
+            else:
+                img_pub_id = uuid.uuid4()
+                ann_img = AnnouncementImageModel(
+                    tenant_id=ann.tenant_id,
+                    company_id=ann.company_id,
+                    public_id=img_pub_id,
+                    announcement_id=ann.public_id,
+                    b2_object_key=img_url if not img_url.startswith("/uploads") else f"local_{img_pub_id.hex[:8]}",
+                    b2_bucket="local" if img_url.startswith("/uploads") else B2_BUCKET_NAME,
+                    image_url=img_url,
+                    original_filename="banner.jpg",
+                    content_type="image/jpeg",
+                    file_size=1024,
+                    display_order=1,
+                    is_active=True,
+                    created_by="ADMIN"
+                )
+                db.add(ann_img)
+        elif isinstance(payload.image_url, str) and payload.image_url.strip() == "":
+            # Explicit removal of image
+            for img in (ann.images or []):
+                img.is_active = False
+                img.is_deleted = True
 
     ann.updated_date = datetime.now(timezone.utc)
     ann.updated_by = "ADMIN"
     await db.commit()
+
+    active_imgs = [img for img in (ann.images or []) if not img.is_deleted and img.is_active]
+    top_img_url = active_imgs[0].image_url if active_imgs else None
 
     return {
         "success": True,
@@ -408,6 +424,7 @@ async def admin_update_announcement(
             "id": str(ann.public_id),
             "announcement_code": ann.announcement_code,
             "title": ann.title,
+            "image_url": top_img_url,
             "is_active": ann.is_active,
             "status": ann.status
         }
@@ -554,7 +571,117 @@ async def admin_delete_announcement(
     }
 
 
-@router.post("/admin/{announcement_id}/images", summary="Admin: Upload announcement image to Backblaze B2")
+async def _save_image_with_fallback(file_bytes: bytes, filename: str, content_type: str) -> tuple[str, str, str]:
+    """
+    Attempts to upload image to Backblaze B2.
+    If Backblaze B2 fails or credentials are invalid, safely falls back to local static storage (/uploads/announcements/).
+    Returns: (object_key, public_url, bucket_name)
+    """
+    ext = Path(filename or "image.jpg").suffix.lower() or ".jpg"
+    if ext not in [".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"]:
+        ext = ".jpg"
+
+    # 1. Attempt Backblaze B2
+    try:
+        b2_res = await BackblazeStorageService.upload_document(
+            file_bytes=file_bytes,
+            original_filename=filename or f"announcement_{uuid.uuid4().hex[:6]}{ext}",
+            entity_type="announcements",
+            content_type=content_type
+        )
+        if b2_res and b2_res.get("url"):
+            b2_key = b2_res.get("path") or f"announcements/{uuid.uuid4().hex[:8]}_{filename}"
+            return b2_key, b2_res["url"], B2_BUCKET_NAME
+    except Exception as e:
+        logger.warning(f"Backblaze B2 upload failed ({e}), falling back to local storage.")
+
+    # 2. Local static storage fallback
+    unique_name = f"{uuid.uuid4().hex[:12]}{ext}"
+    target_dir = Path("uploads") / "announcements"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    file_path = target_dir / unique_name
+    file_path.write_bytes(file_bytes)
+
+    local_url = f"/uploads/announcements/{unique_name}"
+    return f"local_{unique_name}", local_url, "local"
+
+
+@router.post("/admin/upload-image", summary="Admin: Upload announcement image with instant preview")
+async def admin_upload_announcement_image_standalone(
+    file: UploadFile = File(...),
+    announcement_id: Optional[str] = Form(None),
+    display_order: int = Form(1),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Direct upload endpoint for immediate admin preview and permanent storage.
+    Supports JPG, PNG, WEBP, GIF, SVG up to 5MB.
+    Tries B2 first; gracefully falls back to local static storage.
+    Optionally attaches to existing announcement if announcement_id is provided.
+    """
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename provided.")
+
+    ext = Path(file.filename).suffix.lower()
+    if ext not in [".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"]:
+        raise HTTPException(status_code=400, detail="Only image files (JPEG, PNG, WebP, GIF, SVG) are permitted.")
+
+    file_bytes = await file.read()
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    if len(file_bytes) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image size exceeds 5 MB limit.")
+
+    content_type = file.content_type or mimetypes.guess_type(file.filename)[0] or "image/jpeg"
+    b2_key, img_url, bucket_name = await _save_image_with_fallback(file_bytes, file.filename, content_type)
+
+    img_pub_id = uuid.uuid4()
+    if announcement_id:
+        try:
+            ann_uuid = uuid.UUID(announcement_id)
+            stmt = select(AnnouncementModel).options(selectinload(AnnouncementModel.images)).where(
+                and_(AnnouncementModel.public_id == ann_uuid, AnnouncementModel.is_deleted == False)
+            )
+            ann = (await db.execute(stmt)).scalars().first()
+            if ann:
+                ann_img = AnnouncementImageModel(
+                    tenant_id=ann.tenant_id,
+                    company_id=ann.company_id,
+                    public_id=img_pub_id,
+                    announcement_id=ann.public_id,
+                    b2_object_key=b2_key,
+                    b2_bucket=bucket_name,
+                    image_url=img_url,
+                    original_filename=file.filename or "image.jpg",
+                    content_type=content_type,
+                    file_size=len(file_bytes),
+                    display_order=display_order,
+                    is_active=True,
+                    created_by="ADMIN"
+                )
+                db.add(ann_img)
+                await db.commit()
+        except Exception as e:
+            logger.warning(f"Could not link image to announcement_id {announcement_id}: {e}")
+
+    return {
+        "success": True,
+        "status": "SUCCESS",
+        "message": "Image uploaded successfully.",
+        "url": img_url,
+        "image_url": img_url,
+        "data": {
+            "id": str(img_pub_id),
+            "url": img_url,
+            "image_url": img_url,
+            "b2_object_key": b2_key,
+            "original_filename": file.filename,
+            "display_order": display_order
+        }
+    }
+
+
+@router.post("/admin/{announcement_id}/images", summary="Admin: Upload announcement image to storage")
 async def admin_upload_announcement_image(
     announcement_id: str,
     file: UploadFile = File(...),
@@ -562,7 +689,7 @@ async def admin_upload_announcement_image(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Uploads announcement image directly to Backblaze B2 and links metadata to announcement.
+    Uploads announcement image to storage (B2 or local fallback) and links metadata to announcement.
     """
     try:
         ann_uuid = uuid.UUID(announcement_id)
@@ -581,21 +708,9 @@ async def admin_upload_announcement_image(
 
     content_type = file.content_type or mimetypes.guess_type(file.filename or "image.jpg")[0] or "image/jpeg"
     if not content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Only image files (JPEG, PNG, WebP) are permitted.")
+        raise HTTPException(status_code=400, detail="Only image files (JPEG, PNG, WebP, GIF, SVG) are permitted.")
 
-    # Upload to Backblaze B2
-    try:
-        b2_res = await BackblazeStorageService.upload_document(
-            file_bytes=file_bytes,
-            original_filename=file.filename or f"announcement_{uuid.uuid4().hex[:6]}.jpg",
-            entity_type="announcements",
-            content_type=content_type
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Backblaze B2 storage upload failed: {str(e)}")
-
-    b2_key = b2_res.get("path") or f"announcements/{uuid.uuid4().hex[:8]}_{file.filename}"
-    img_url = b2_res.get("url") or f"https://f003.backblazeb2.com/file/{B2_BUCKET_NAME}/{b2_key}"
+    b2_key, img_url, bucket_name = await _save_image_with_fallback(file_bytes, file.filename or "image.jpg", content_type)
 
     img_pub_id = uuid.uuid4()
     ann_img = AnnouncementImageModel(
@@ -604,7 +719,7 @@ async def admin_upload_announcement_image(
         public_id=img_pub_id,
         announcement_id=ann.public_id,
         b2_object_key=b2_key,
-        b2_bucket=B2_BUCKET_NAME,
+        b2_bucket=bucket_name,
         image_url=img_url,
         original_filename=file.filename or "image.jpg",
         content_type=content_type,
@@ -619,7 +734,9 @@ async def admin_upload_announcement_image(
     return {
         "success": True,
         "status": "SUCCESS",
-        "message": "Announcement image uploaded to Backblaze B2 successfully.",
+        "message": "Announcement image uploaded successfully.",
+        "url": img_url,
+        "image_url": img_url,
         "data": {
             "id": str(img_pub_id),
             "announcement_id": str(ann.public_id),

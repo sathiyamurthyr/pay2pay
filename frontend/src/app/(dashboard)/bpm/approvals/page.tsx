@@ -206,7 +206,7 @@ export default function BpmApprovalsPage() {
               <CheckSquare className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight">
+              <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
                 Maker-Checker Approval Centre
               </h1>
               <p className="text-xs font-medium text-[#64748B] mt-0.5">
@@ -255,7 +255,7 @@ export default function BpmApprovalsPage() {
               placeholder="Search request, requester, type…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 pr-3 py-1.5 w-56 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[12px] font-medium text-[#FFFFFF] placeholder-[#94A3B8] focus:outline-none focus:border-[#6C63FF] focus:ring-2 focus:ring-[#6C63FF]/15 transition-all"
+              className="pl-8 pr-3 py-1.5 w-56 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[12px] font-medium text-slate-900 placeholder-[#94A3B8] focus:outline-none focus:border-[#6C63FF] focus:ring-2 focus:ring-[#6C63FF]/15 transition-all"
             />
           </div>
 
@@ -434,7 +434,7 @@ export default function BpmApprovalsPage() {
                           <User className="w-3.5 h-3.5 text-[#2563EB]" />
                         </div>
                         <div>
-                          <div className="font-bold text-[#FFFFFF] text-[12px] truncate max-w-[160px]">{a.requested_by}</div>
+                          <div className="font-bold text-slate-900 text-[12px] truncate max-w-[160px]">{a.requested_by}</div>
                           <div className="text-[10px] text-[#94A3B8] font-medium">Operations</div>
                         </div>
                       </div>
@@ -506,11 +506,11 @@ export default function BpmApprovalsPage() {
                   <CheckSquare className="w-5 h-5 text-[#6C63FF]" />
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-[#FFFFFF]">Review Approval Request</h3>
+                  <h3 className="text-base font-extrabold text-slate-900">Review Approval Request</h3>
                   <p className="text-[11px] text-[#64748B] font-mono mt-0.5">{selectedItem.request_code}</p>
                 </div>
               </div>
-              <button onClick={() => setSelectedApproval(null)} className="p-1.5 rounded-xl text-[#94A3B8] hover:text-[#FFFFFF] hover:bg-[#F8FAFC] transition">
+              <button onClick={() => setSelectedApproval(null)} className="p-1.5 rounded-xl text-[#94A3B8] hover:text-slate-900 hover:bg-[#F8FAFC] transition">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -519,7 +519,7 @@ export default function BpmApprovalsPage() {
             <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-2 text-[11px]">
               <div className="flex justify-between">
                 <span className="text-[#64748B] font-semibold">Requested By</span>
-                <span className="font-bold text-[#FFFFFF]">{selectedItem.requested_by}</span>
+                <span className="font-bold text-slate-900">{selectedItem.requested_by}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-[#64748B] font-semibold">Action Type</span>
@@ -527,7 +527,7 @@ export default function BpmApprovalsPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-[#64748B] font-semibold">Approval Level</span>
-                <span className="font-mono font-bold text-[#FFFFFF]">Level {selectedItem.required_level}</span>
+                <span className="font-mono font-bold text-slate-900">Level {selectedItem.required_level}</span>
               </div>
               {selectedItem.remarks && (
                 <div className="pt-1 border-t border-[#E2E8F0]">
@@ -546,7 +546,7 @@ export default function BpmApprovalsPage() {
                 <select
                   value={action}
                   onChange={(e) => setAction(e.target.value)}
-                  className="w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2.5 text-xs font-bold text-[#FFFFFF] focus:outline-none focus:border-[#6C63FF] cursor-pointer"
+                  className="w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#6C63FF] cursor-pointer"
                 >
                   <option value="APPROVED">✅ APPROVE — Grant Request</option>
                   <option value="REJECTED">❌ REJECT — Deny Request</option>
@@ -562,7 +562,7 @@ export default function BpmApprovalsPage() {
                   value={comments}
                   onChange={(e) => setComments(e.target.value)}
                   placeholder="State justification for your approval or rejection decision…"
-                  className="w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2.5 text-xs font-medium text-[#FFFFFF] placeholder-[#94A3B8] focus:outline-none focus:border-[#6C63FF] resize-none"
+                  className="w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2.5 text-xs font-medium text-slate-900 placeholder-[#94A3B8] focus:outline-none focus:border-[#6C63FF] resize-none"
                 />
               </div>
               <div className="flex justify-end gap-3 pt-2">

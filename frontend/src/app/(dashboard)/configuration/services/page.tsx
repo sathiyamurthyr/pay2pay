@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
 import {
   Sliders, RefreshCw, CheckCircle2, AlertTriangle, X,
-  CreditCard, Smartphone, Send, Receipt, Fingerprint, Power, ShieldCheck
+  CreditCard, Smartphone, Send, Receipt, Fingerprint, Power, Building2,
+  Layers, ShieldAlert, Check
 } from "lucide-react";
 
 // Web Audio API Synthesizers for Feedback
@@ -50,7 +51,24 @@ const playErrorSound = () => {
   }
 };
 
+const COMPANIES = [
+  { ref_id: 1, name: "Near4You", code: "NEAR4YOU", port: "4001", color: "#A20A3A" },
+  { ref_id: 2, name: "SMSPAY", code: "SMSPAY", port: "4002", color: "#059669" },
+  { ref_id: 47, name: "Pay2Pay", code: "PAY2PAY", port: "3000", color: "#2563EB" },
+];
+
 export default function ServicesConfigurationPage() {
+  const [selectedCompanyRef, setSelectedCompanyRef] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const host = window.location.hostname.toLowerCase();
+      const port = window.location.port;
+      if (host.includes("smspay") || port === "4002") return 2;
+      if (host.includes("near4you") || port === "4001") return 1;
+      if (host.includes("pay2pay") || port === "3000" || port === "4003") return 47;
+    }
+    return 47; // Default Pay2Pay
+  });
+
   const [servicesList, setServicesList] = useState<any[]>([]);
   const [posModesList, setPosModesList] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -61,10 +79,12 @@ export default function ServicesConfigurationPage() {
     message: ""
   });
 
-  const fetchServicesAndModes = async () => {
+  const selectedCompany = COMPANIES.find((c) => c.ref_id === selectedCompanyRef) || COMPANIES[2];
+
+  const fetchServicesAndModes = useCallback(async (compRef: number) => {
     try {
       setLoading(true);
-      const res = await api.get("/api/v1/admin/services/status");
+      const res = await api.get(`/api/v1/admin/services/status?company_ref_id=${compRef}`);
       if (res.data) {
         setServicesList(res.data.services || []);
         setPosModesList(res.data.pos_modes || []);
@@ -78,11 +98,19 @@ export default function ServicesConfigurationPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchServicesAndModes();
-  }, []);
+    fetchServicesAndModes(selectedCompanyRef);
+  }, [selectedCompanyRef, fetchServicesAndModes]);
+
+  const handleCompanyChange = (newRef: number) => {
+    setSelectedCompanyRef(newRef);
+    setAlertState({
+      type: "success",
+      message: `Loaded live configuration for ${COMPANIES.find((c) => c.ref_id === newRef)?.name || "selected company"}.`
+    });
+  };
 
   const handleToggleService = async (serviceCode: string, currentEnabled: boolean) => {
     const nextState = !currentEnabled;
@@ -91,13 +119,18 @@ export default function ServicesConfigurationPage() {
     );
     setTogglingServiceCode(serviceCode);
     try {
-      const res = await api.patch(`/api/v1/admin/services/${serviceCode}/toggle`, {
-        is_enabled: nextState
-      });
+      const res = await api.patch(
+        `/api/v1/admin/services/${serviceCode}/toggle?company_ref_id=${selectedCompanyRef}`,
+        {
+          is_enabled: nextState,
+          company_ref_id: selectedCompanyRef
+        }
+      );
       playSuccessSound();
+      const compName = selectedCompany.name;
       setAlertState({
         type: "success",
-        message: `Service '${serviceCode}' availability updated to ${nextState ? "ENABLED" : "DISABLED"} via DB Stored Procedure.`
+        message: `Service '${serviceCode}' for ${compName} updated to ${nextState ? "ENABLED" : "DISABLED"} in database.`
       });
       if (res.data?.service) {
         setServicesList((prev) =>
@@ -157,16 +190,16 @@ export default function ServicesConfigurationPage() {
       {/* Top Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight flex items-center gap-3">
-            <Sliders className="w-7 h-7 text-[#2563EB]" /> Service Availability Configuration
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
+            <Sliders className="w-7 h-7 text-[#2563EB]" /> Company-Based Menu & Service Configuration
           </h1>
           <p className="mt-1 text-sm font-medium text-[#64748B]">
-            Control platform customer service access and POS settlement modes. Changes reflect dynamically in the Retailer app with strict backend DB enforcement.
+            Configure platform services and retailer menus per company. Disabling a parent service automatically disables its submenus and removes them from retailer navigation and favourites immediately.
           </p>
         </div>
 
         <button
-          onClick={fetchServicesAndModes}
+          onClick={() => fetchServicesAndModes(selectedCompanyRef)}
           disabled={loading}
           className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#2563EB] text-xs font-extrabold text-white hover:bg-[#1D4ED8] shadow-2xs transition-all cursor-pointer disabled:opacity-50"
         >
@@ -200,7 +233,184 @@ export default function ServicesConfigurationPage() {
         </div>
       )}
 
-      {/* Section 1: POS Settlement Modes Independent Controls (Requirement 2) */}
+      {/* ── COMPANY SELECTOR TABS ── */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <Building2 className="w-5 h-5 text-[#2563EB]" />
+            <div>
+              <h2 className="text-sm font-extrabold text-slate-900">Select Target Company</h2>
+              <p className="text-xs text-[#64748B]">
+                Changes only affect the selected company. Other companies remain completely isolated.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+            {COMPANIES.map((comp) => {
+              const isSelected = selectedCompanyRef === comp.ref_id;
+              return (
+                <button
+                  key={comp.ref_id}
+                  onClick={() => handleCompanyChange(comp.ref_id)}
+                  className={`px-4 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                    isSelected
+                      ? "bg-white text-slate-900 shadow-sm border border-slate-200/80"
+                      : "text-[#64748B] hover:text-slate-900"
+                  }`}
+                >
+                  <span
+                    className="w-2.5 h-2.5 rounded-full"
+                    style={{ backgroundColor: comp.color }}
+                  />
+                  <span>{comp.name}</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 text-[#475569] font-mono">
+                    ID: {comp.ref_id}
+                  </span>
+                  {isSelected && <Check className="w-3.5 h-3.5 text-[#2563EB]" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="pt-2 border-t border-slate-100 flex items-center gap-2 text-xs text-[#64748B]">
+          <span className="font-bold text-slate-700">Currently Editing:</span>
+          <span className="font-extrabold text-[#2563EB]">{selectedCompany.name} (Ref ID: {selectedCompany.ref_id})</span>
+          <span>•</span>
+          <span>Code: <code className="font-mono bg-slate-100 px-1 py-0.5 rounded text-[11px]">{selectedCompany.code}</code></span>
+        </div>
+      </div>
+
+      {/* Section 1: Platform Customer Services Availability */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+        <div className="border-b border-slate-100 pb-4">
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-full bg-[#6C63FF] text-white text-[11px] font-black uppercase tracking-wider">
+              Stored Procedure Engine
+            </span>
+            <h3 className="text-base font-extrabold text-slate-900">
+              Platform Customer Services & Menu Governed Roles ({selectedCompany.name})
+            </h3>
+          </div>
+          <p className="text-xs text-[#64748B] mt-1">
+            Admin controls whether each platform service is available for retailers of <strong>{selectedCompany.name}</strong>.
+            Disabling a service automatically disables its submenus and reports, hides them from navigation, and purges them from live favourites.
+          </p>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-black text-[#64748B] uppercase tracking-wider">
+                <th className="py-3 px-4">Service & Submenus</th>
+                <th className="py-3 px-4">Service Code</th>
+                <th className="py-3 px-4">Governed Routes & Submenus</th>
+                <th className="py-3 px-4">Current Status</th>
+                <th className="py-3 px-4 text-right">Admin Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-xs">
+              {servicesList.map((svc) => {
+                const isEnabled = svc.is_enabled;
+                const isToggling = togglingServiceCode === svc.code;
+                const submenus: string[] = svc.submenus || [];
+
+                return (
+                  <tr key={svc.code} className="hover:bg-slate-50/60 transition-colors">
+                    <td className="py-3.5 px-4 font-bold text-slate-900">
+                      <div className="flex items-center gap-2.5">
+                        {svc.code === "RECHARGE" ? (
+                          <Smartphone className="w-4 h-4 text-[#2563EB]" />
+                        ) : svc.code === "DMT" ? (
+                          <Send className="w-4 h-4 text-[#16A34A]" />
+                        ) : svc.code === "BBPS" ? (
+                          <Receipt className="w-4 h-4 text-[#D97706]" />
+                        ) : svc.code === "AEPS" ? (
+                          <Fingerprint className="w-4 h-4 text-[#9333EA]" />
+                        ) : svc.code === "PAYIN" ? (
+                          <CreditCard className="w-4 h-4 text-[#0284C7]" />
+                        ) : (
+                          <CreditCard className="w-4 h-4 text-[#2563EB]" />
+                        )}
+                        <div>
+                          <div className="text-slate-900 font-extrabold">{svc.name}</div>
+                          <div className="text-[11px] text-[#64748B] font-normal">
+                            Company: {selectedCompany.name} (Ref ID: {selectedCompany.ref_id})
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className="font-mono px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-[#334155] font-bold text-[11px]">
+                        {svc.code}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-[#64748B]">
+                      {submenus.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 max-w-md">
+                          {submenus.map((p) => (
+                            <span
+                              key={p}
+                              className={`font-mono text-[10px] px-1.5 py-0.5 rounded border ${
+                                isEnabled
+                                  ? "bg-slate-50 text-slate-700 border-slate-200"
+                                  : "bg-red-50 text-red-600 border-red-200 line-through opacity-75"
+                              }`}
+                            >
+                              {p}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span>Standard service route</span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase ${
+                          isEnabled
+                            ? "bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]"
+                            : "bg-[#FEF2F2] text-[#991B1B] border border-[#FCA5A5]"
+                        }`}
+                      >
+                        {isEnabled ? (
+                          <CheckCircle2 className="w-3 h-3" />
+                        ) : (
+                          <X className="w-3 h-3" />
+                        )}
+                        {isEnabled ? "ENABLED" : "DISABLED"}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <button
+                        onClick={() => handleToggleService(svc.code, isEnabled)}
+                        disabled={isToggling}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-2xs disabled:opacity-50 ${
+                          isEnabled
+                            ? "bg-[#FEF2F2] text-[#DC2626] border border-[#FCA5A5] hover:bg-[#FEE2E2]"
+                            : "bg-[#F0FDF4] text-[#16A34A] border border-[#BBF7D0] hover:bg-[#DCFCE7]"
+                        }`}
+                      >
+                        {isToggling ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        ) : isEnabled ? (
+                          <Power className="w-3.5 h-3.5" />
+                        ) : (
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                        )}
+                        {isEnabled ? "Disable for " + selectedCompany.name : "Enable for " + selectedCompany.name}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Section 2: POS Settlement Modes Independent Controls */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-4">
           <div>
@@ -208,7 +418,7 @@ export default function ServicesConfigurationPage() {
               <span className="px-2.5 py-0.5 rounded-full bg-[#2563EB] text-white text-[11px] font-black uppercase tracking-wider">
                 Independent Controls
               </span>
-              <h3 className="text-base font-extrabold text-[#FFFFFF]">
+              <h3 className="text-base font-extrabold text-slate-900">
                 POS Top-Up Settlement Mode Controls
               </h3>
             </div>
@@ -233,7 +443,7 @@ export default function ServicesConfigurationPage() {
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-base font-extrabold text-[#FFFFFF]">
+                    <span className="font-mono text-base font-extrabold text-slate-900">
                       {mode.name}
                     </span>
                     <span
@@ -282,115 +492,6 @@ export default function ServicesConfigurationPage() {
               </div>
             );
           })}
-        </div>
-      </div>
-
-      {/* Section 2: Platform Customer Services Availability (Requirement 1) */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-        <div className="border-b border-slate-100 pb-4">
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-[#6C63FF] text-white text-[11px] font-black uppercase tracking-wider">
-              Stored Procedure Engine
-            </span>
-            <h3 className="text-base font-extrabold text-[#FFFFFF]">
-              Platform Customer Service Configuration
-            </h3>
-          </div>
-          <p className="text-xs text-[#64748B] mt-1">
-            Admin controls whether each platform customer service is available to retailers. State changes execute stored procedure <code>sp_toggle_platform_service</code> directly on the live PostgreSQL ledger.
-          </p>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-black text-[#64748B] uppercase tracking-wider">
-                <th className="py-3 px-4">Service</th>
-                <th className="py-3 px-4">Service Code</th>
-                <th className="py-3 px-4">Service Description</th>
-                <th className="py-3 px-4">Current Status</th>
-                <th className="py-3 px-4 text-right">Admin Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-xs">
-              {servicesList.map((svc) => {
-                const isEnabled = svc.is_enabled;
-                const isToggling = togglingServiceCode === svc.code;
-                return (
-                  <tr key={svc.code} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-3.5 px-4 font-bold text-[#FFFFFF]">
-                      <div className="flex items-center gap-2.5">
-                        {svc.code === "RECHARGE" ? (
-                          <Smartphone className="w-4 h-4 text-[#2563EB]" />
-                        ) : svc.code === "DMT" ? (
-                          <Send className="w-4 h-4 text-[#16A34A]" />
-                        ) : svc.code === "BBPS" ? (
-                          <Receipt className="w-4 h-4 text-[#D97706]" />
-                        ) : svc.code === "AEPS" ? (
-                          <Fingerprint className="w-4 h-4 text-[#9333EA]" />
-                        ) : (
-                          <CreditCard className="w-4 h-4 text-[#2563EB]" />
-                        )}
-                        <span>{svc.name}</span>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <span className="font-mono px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-[#334155] font-bold text-[11px]">
-                        {svc.code}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-[#64748B]">
-                      {svc.code === "RECHARGE"
-                        ? "Prepaid & postpaid mobile recharge across all telecom operators"
-                        : svc.code === "DMT"
-                        ? "Domestic Money Transfer (Instant IMPS / NEFT 24x7)"
-                        : svc.code === "BBPS"
-                        ? "Bharat Bill Payment System (Electricity, Water, Gas, Fastag)"
-                        : svc.code === "AEPS"
-                        ? "Aadhaar Enabled Payment System (Cash withdrawal & inquiry)"
-                        : "POS Card swipe settlement top-up working capital"}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase ${
-                          isEnabled
-                            ? "bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]"
-                            : "bg-[#FEF2F2] text-[#991B1B] border border-[#FCA5A5]"
-                        }`}
-                      >
-                        {isEnabled ? (
-                          <CheckCircle2 className="w-3 h-3" />
-                        ) : (
-                          <X className="w-3 h-3" />
-                        )}
-                        {isEnabled ? "ENABLED" : "DISABLED"}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => handleToggleService(svc.code, isEnabled)}
-                        disabled={isToggling}
-                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-2xs disabled:opacity-50 ${
-                          isEnabled
-                            ? "bg-[#FEF2F2] text-[#DC2626] border border-[#FCA5A5] hover:bg-[#FEE2E2]"
-                            : "bg-[#F0FDF4] text-[#16A34A] border border-[#BBF7D0] hover:bg-[#DCFCE7]"
-                        }`}
-                      >
-                        {isToggling ? (
-                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        ) : isEnabled ? (
-                          <Power className="w-3.5 h-3.5" />
-                        ) : (
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                        )}
-                        {isEnabled ? "Disable Service" : "Enable Service"}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
         </div>
       </div>
     </div>

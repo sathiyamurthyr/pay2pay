@@ -49,7 +49,7 @@ export interface ThemeConfig {
 
 const DEFAULT_WHITE_THEME: ThemeConfig = {
   id: "corporate-white",
-  label: "Near4You Enterprise White",
+  label: "Enterprise White",
   swatch: "#FFFFFF",
   headerBg: "#FFFFFF",
   headerText: "#292329",
@@ -115,6 +115,16 @@ interface RetailerStoreState {
 // Balance refresh is strictly MANUAL ONLY (no automatic polling, interval, or navigation triggers).
 // This prevents excessive API traffic and prevents resetting balance to 0 on failure.
 
+export function getDomainScope(): string {
+  if (typeof window === "undefined") return "pay2pay";
+  const host = window.location.hostname.toLowerCase();
+  const port = window.location.port;
+  if (host.includes("smspay") || port === "4002") return "smspay";
+  if (host.includes("near4you") || port === "4001") return "near4you";
+  if (host.includes("pay2pay") || port === "3000" || port === "4003") return "pay2pay";
+  return "default";
+}
+
 const getInitialWalletState = (): WalletState => {
   let main = 0.00;
   let avail = 0.00;
@@ -123,8 +133,13 @@ const getInitialWalletState = (): WalletState => {
   let settlement = 0.00;
   if (typeof window !== "undefined") {
     try {
-      const savedBal = localStorage.getItem("p2p_cached_wallet_balance") || sessionStorage.getItem("p2p_cached_wallet_balance");
-      const savedAvail = localStorage.getItem("p2p_cached_available_balance") || sessionStorage.getItem("p2p_cached_available_balance");
+      const domain = getDomainScope();
+      const savedBal =
+        localStorage.getItem(`p2p_cached_wallet_balance_${domain}`) ||
+        sessionStorage.getItem(`p2p_cached_wallet_balance_${domain}`);
+      const savedAvail =
+        localStorage.getItem(`p2p_cached_available_balance_${domain}`) ||
+        sessionStorage.getItem(`p2p_cached_available_balance_${domain}`);
       if (savedBal && !isNaN(Number(savedBal))) {
         main = Number(savedBal);
       }
@@ -287,6 +302,12 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
               sessionStorage.setItem(`p2p_cached_wallet_balance_${retCode}`, String(bal));
               sessionStorage.setItem(`p2p_cached_available_balance_${retCode}`, String(avail));
             }
+            const domainScope = getDomainScope();
+            localStorage.setItem(`p2p_cached_wallet_balance_${domainScope}`, String(bal));
+            localStorage.setItem(`p2p_cached_available_balance_${domainScope}`, String(avail));
+            sessionStorage.setItem(`p2p_cached_wallet_balance_${domainScope}`, String(bal));
+            sessionStorage.setItem(`p2p_cached_available_balance_${domainScope}`, String(avail));
+            sessionStorage.setItem(`p2p_header_wallet_cache_${domainScope}`, JSON.stringify(rawData));
             sessionStorage.setItem("p2p_header_wallet_cache", JSON.stringify(rawData));
           } catch {}
         }

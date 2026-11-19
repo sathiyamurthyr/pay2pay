@@ -185,7 +185,11 @@ export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Pr
           updated_at: d.updated_at || null,
           support_contact: d.support_contact || {
             phone: "+91 8000 123 456",
-            email: "support@near4you.store",
+            email: typeof window !== "undefined" && window.location.hostname.includes("smspay")
+              ? "support@smspay.store"
+              : typeof window !== "undefined" && window.location.hostname.includes("near4you")
+              ? "support@near4you.store"
+              : "support@pay2pay.in",
             desk: "24x7 Priority Support Desk",
           },
         };

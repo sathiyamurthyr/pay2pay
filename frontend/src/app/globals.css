@@ -217,19 +217,73 @@
 }
 
 .glass-card {
-  background-color: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #F8FAFC;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-}
-
-.light .glass-card {
   background-color: #FFFFFF;
   border: 1px solid #E2E8F0;
   color: #0F172A;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06);
+}
+
+.light .glass-card,
+[data-theme="light"] .glass-card {
+  background-color: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  color: #0F172A;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06);
+}
+
+/* ── Baseline HTML Tables, Inputs & Contrast Protection ─────────────── */
+table {
+  color: var(--text-primary, #0F172A);
+}
+
+thead th {
+  color: var(--text-secondary, #334155);
+}
+
+/* Guard against legacy dark utility text classes remaining on light surfaces */
+table.text-\[\#FFFFFF\],
+table[class*="text-[#FFFFFF]"] {
+  color: #0F172A !important;
+}
+
+thead.text-\[\#FAF8F9\],
+thead[class*="text-[#FAF8F9]"],
+th.text-\[\#FAF8F9\],
+th[class*="text-[#FAF8F9]"] {
+  color: #334155 !important;
+}
+
+td.text-\[\#FAF8F9\],
+td[class*="text-[#FAF8F9]"] {
+  color: #0F172A !important;
+}
+
+/* Form input contrast protection */
+input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="reset"]),
+select,
+textarea {
+  color: #0F172A;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="reset"]).text-\[\#FFFFFF\],
+select.text-\[\#FFFFFF\],
+textarea.text-\[\#FFFFFF\],
+input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="reset"]).text-\[\#FAF8F9\],
+select.text-\[\#FAF8F9\],
+textarea.text-\[\#FAF8F9\] {
+  color: #0F172A !important;
+}
+
+/* Accidental surface token text utility safeguard */
+.text-\[\#FAF8F9\] {
+  color: var(--text-primary, #0F172A);
+}
+
+/* Ensure modal overlays have a proper dimming dark backdrop instead of milky white wash */
+.fixed.inset-0[class*="bg-[#FFFFFF]"],
+.fixed.inset-0[class*="bg-[#FAF8F9]"],
+.fixed.inset-0[class*="bg-white/"] {
+  background-color: rgba(0, 0, 0, 0.6) !important;
 }
 
 /* ── Admin Portal Scoped Enterprise Theme (October 2026 Approved Baseline) ── */
@@ -669,6 +723,62 @@ html {
 .ent-btn-secondary:hover {
   background-color: #F8FAFC;
   border-color: #94A3B8;
+}
+
+.ent-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.ent-input:disabled {
+  background-color: #F1F5F9;
+  color: #94A3B8;
+  cursor: not-allowed;
+  border-color: #E2E8F0;
+}
+
+/* ── Tabs Navigation Components ──────────────────────────────────────── */
+.ent-tab-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem;
+  background-color: #F1F5F9;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+}
+
+.ent-tab-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748B;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ent-tab-btn:hover:not(.active):not(.ent-tab-active) {
+  color: #0F172A;
+  background-color: rgba(255, 255, 255, 0.7);
+}
+
+.ent-tab-btn.active,
+.ent-tab-btn.ent-tab-active,
+.ent-tab-active {
+  color: #0F172A;
+  background-color: #FFFFFF;
+  border-color: #E2E8F0;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 /* ── Modal Overlay ───────────────────────────────────────────────────── */

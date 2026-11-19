@@ -96,12 +96,12 @@ export function middleware(request: NextRequest) {
   const incomingPort = portMatch ? portMatch[1] : request.nextUrl.port || "";
 
   // ── Dedicated Port and Subdomain Portal Enforcement ──
-  // Port 4001 or retailer.*: Retailer Portal
-  // Port 4002 or admin.*: Admin Portal
   // Port 4003 or super-admin.* / superadmin.*: Super Admin Portal
-  const isAdminHost = incomingPort === "4002" || host.startsWith("admin.") || host.includes("admin.smspay.store") || host.includes("admin.near4you.store") || host.includes("admin.pay2pay.in");
+  // admin.* subdomains: Admin Portal
+  // retailer.* subdomains: Retailer Portal
+  const isAdminHost = host.startsWith("admin.") || host.includes("admin.smspay.store") || host.includes("admin.near4you.store") || host.includes("admin.pay2pay.in");
   const isSuperAdminHost = incomingPort === "4003" || host.startsWith("super-admin.") || host.startsWith("superadmin.");
-  const isRetailerHost = incomingPort === "4001" || host.startsWith("retailer.");
+  const isRetailerHost = host.startsWith("retailer.");
 
   let forcedPortal: PortalConfig | null = null;
   if (isRetailerHost) {

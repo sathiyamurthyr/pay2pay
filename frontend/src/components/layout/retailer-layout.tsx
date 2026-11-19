@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { NotificationCenter } from "@/app-shell/components/NotificationCenter";
@@ -61,6 +61,7 @@ import { MobileQuickActionsFAB } from "./mobile-quick-actions-fab";
 import { UniversalSearchDialog } from "@/components/common/universal-search-dialog";
 import { RightContextPanel } from "./right-context-panel";
 import { ApprovalGuardOverlay } from "@/components/common/ApprovalGuardOverlay";
+import { ServiceDownMaintenance } from "@/components/common/ServiceDownMaintenance";
 import { useContactSupportModal } from "@/context/ContactSupportModalContext";
 
 const FULL_DRAWER_WIDTH = 270;
@@ -158,30 +159,36 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   const isPayInPage = pathname === "/retailer/payin";
 
   // Multi-brand Financial Applications: Pay2Pay, Near4You, SMSPAY
-  const isPay2Pay =
-    branding?.company_code === "PAY2PAY" ||
-    branding?.company_name?.toUpperCase().includes("PAY2PAY") ||
-    user?.company_ref_id === 47 ||
-    (typeof window !== "undefined" && window.location.hostname.includes("pay2pay"));
-
-  const isNear4You =
-    branding?.company_code === "NEAR4YOU" ||
-    branding?.company_name?.toUpperCase().includes("NEAR4YOU") ||
-    user?.company_ref_id === 1 ||
-    (typeof window !== "undefined" && window.location.hostname.includes("near4you"));
+  const currentHost = typeof window !== "undefined" ? window.location.hostname.toLowerCase() : "";
+  const currentPort = typeof window !== "undefined" ? window.location.port : "";
 
   const isSmsPay =
     branding?.company_code === "SMSPAY" ||
-    branding?.company_name?.toUpperCase().includes("SMSPAY") ||
-    user?.company_ref_id === 2 ||
-    (typeof window !== "undefined" && window.location.port === "4002") ||
-    (typeof window !== "undefined" && window.location.hostname.includes("smspay"));
+    currentPort === "4002" ||
+    currentHost.includes("smspay") ||
+    (!branding?.company_code && !currentHost.includes("pay2pay") && !currentHost.includes("near4you") && (user as any)?.company_ref_id === 2);
+
+  const isNear4You =
+    !isSmsPay &&
+    (branding?.company_code === "NEAR4YOU" ||
+     currentPort === "4001" ||
+     currentHost.includes("near4you") ||
+     (!branding?.company_code && !currentHost.includes("pay2pay") && (user as any)?.company_ref_id === 1));
+
+  const isPay2Pay =
+    !isSmsPay &&
+    !isNear4You &&
+    (branding?.company_code === "PAY2PAY" ||
+     currentPort === "3000" ||
+     currentPort === "4003" ||
+     currentHost.includes("pay2pay") ||
+     (user as any)?.company_ref_id === 47);
 
   const isFinancialApp = isPay2Pay || isNear4You || isSmsPay;
 
   const appName = branding?.display_name || branding?.company_name || (isPay2Pay ? "Pay2Pay" : isNear4You ? "Near 4 You" : isSmsPay ? "SMSPAY" : "FinTech Platform");
   const appSubtitle = `${appName} Operations`;
-  const appLogo = branding?.logo_url || (isPay2Pay ? "/branding/pay2pay-logo.png" : isNear4You ? "/branding/logo.svg" : "/branding/smspay-mark.svg");
+  const appLogo = branding?.logo_url || (isPay2Pay ? "/branding/pay2pay-logo.png" : isNear4You ? "/branding/logo.svg" : "/branding/smspay-logo.svg");
 
   const brandPrimary = branding?.primary_colour || (isPay2Pay ? "#2563EB" : isNear4You ? "#A20A3A" : "#059669");
   const brandSecondary = branding?.secondary_colour || (isPay2Pay ? "#1E40AF" : isNear4You ? "#85072F" : "#047857");
@@ -225,6 +232,16 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [menuSearchQuery, setMenuSearchQuery] = useState("");
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [servicesStatus, setServicesStatus] = useState<Record<string, boolean>>({
+    DMT: true,
+    RECHARGE: true,
+    AEPS: true,
+    BBPS: true,
+    POS_TOPUP: true,
+    UPI: true,
+    PAYIN: true,
+  });
+  const [disabledSubmenus, setDisabledSubmenus] = useState<string[]>([]);
 
   const [profileDetails, setProfileDetails] = useState<{
     owner_name?: string | null;
@@ -246,13 +263,26 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     let initialCompany = null;
     if (typeof window !== "undefined") {
       try {
+        const host = window.location.hostname.toLowerCase();
+        const port = window.location.port;
+        const isSmspay = host.includes("smspay") || port === "4002";
+        const isPay2pay = host.includes("pay2pay") || port === "3000" || port === "4003";
+
         const uStr = localStorage.getItem("p2p_retailer_user") || localStorage.getItem("user_info") || localStorage.getItem("user");
         if (uStr) {
           const u = JSON.parse(uStr);
-          initialOwner = u.owner_name || u.name || u.full_name || null;
-          initialRetailer = u.store_name || u.retailer_name || null;
-          initialCode = u.retailer_code || u.code || u.retailer_id || null;
-          initialCompany = u.company_name || null;
+          const uCompRef = u.company_ref_id;
+          const uCompCode = (u.company_code || "").toUpperCase();
+          const isMismatch =
+            (isSmspay && (uCompRef === 47 || uCompCode === "PAY2PAY" || (u.retailer_code && String(u.retailer_code).startsWith("P2P-")))) ||
+            (isPay2pay && (uCompRef === 2 || uCompCode === "SMSPAY" || (u.retailer_code && String(u.retailer_code).startsWith("SMSP-"))));
+
+          if (!isMismatch) {
+            initialOwner = u.owner_name || u.name || u.full_name || null;
+            initialRetailer = u.store_name || u.retailer_name || null;
+            initialCode = u.retailer_code || u.code || u.retailer_id || null;
+            initialCompany = u.company_name || null;
+          }
         }
       } catch {}
     }
@@ -302,11 +332,23 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       const kyc = data.kyc || {};
       const currentOutlet = useRetailerStore.getState().outlet;
 
+      const host = typeof window !== "undefined" ? window.location.hostname.toLowerCase() : "";
+      const port = typeof window !== "undefined" ? window.location.port : "";
+      const isSmspay = host.includes("smspay") || port === "4002";
+      const isNear4you = host.includes("near4you") || port === "4001";
+      const isPay2pay = host.includes("pay2pay") || port === "3000" || port === "4003";
+
       const fallbackOwner = (typeof window !== "undefined" && (() => {
         try {
           const uStr = localStorage.getItem("p2p_retailer_user") || localStorage.getItem("user_info") || localStorage.getItem("user");
           if (uStr) {
             const u = JSON.parse(uStr);
+            const uCompRef = u.company_ref_id;
+            const uCompCode = (u.company_code || "").toUpperCase();
+            if ((isSmspay && (uCompRef === 47 || uCompCode === "PAY2PAY" || (u.retailer_code && String(u.retailer_code).startsWith("P2P-")))) ||
+                (isPay2pay && (uCompRef === 2 || uCompCode === "SMSPAY" || (u.retailer_code && String(u.retailer_code).startsWith("SMSP-"))))) {
+              return null;
+            }
             return u.owner_name || u.name || u.full_name;
           }
         } catch {}
@@ -318,15 +360,28 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           const uStr = localStorage.getItem("p2p_retailer_user") || localStorage.getItem("user_info") || localStorage.getItem("user");
           if (uStr) {
             const u = JSON.parse(uStr);
+            const uCompRef = u.company_ref_id;
+            const uCompCode = (u.company_code || "").toUpperCase();
+            if ((isSmspay && (uCompRef === 47 || uCompCode === "PAY2PAY" || (u.retailer_code && String(u.retailer_code).startsWith("P2P-")))) ||
+                (isPay2pay && (uCompRef === 2 || uCompCode === "SMSPAY" || (u.retailer_code && String(u.retailer_code).startsWith("SMSP-"))))) {
+              return null;
+            }
             return u.retailer_code || u.code || u.retailer_id;
           }
         } catch {}
         return null;
       })()) || "";
 
+      const defaultCompanyName = isSmspay ? "SMSPAY" : isNear4you ? "Near4You" : (branding?.company_name || branding?.display_name || "Pay2Pay");
+      let resolvedCompany = company.company_name || company.legal_name || defaultCompanyName;
+      if (isSmspay && resolvedCompany.toLowerCase().includes("pay2pay")) {
+        resolvedCompany = "SMSPAY";
+      } else if (isPay2pay && resolvedCompany.toLowerCase().includes("smspay")) {
+        resolvedCompany = "Pay2Pay";
+      }
+
       const resolvedOwner = personal.owner_name || (personal.first_name ? `${personal.first_name} ${personal.last_name || ""}`.trim() : personal.retailer_name) || fallbackOwner;
       const resolvedRetailer = personal.retailer_name || personal.store_name || fallbackOwner || "Retailer Store";
-      const resolvedCompany = company.company_name || company.legal_name || branding?.display_name || "Enterprise Portal";
       const resolvedCode = personal.retailer_id || personal.application_reference || fallbackCode || "";
       const photoUrl = photo.photo_url || currentOutlet.avatar || currentOutlet.photo_url || "";
       const approvalStatus = personal.status === "ACTIVE" ? "ACTIVE" : (currentOutlet.approvalStatus || "ACTIVE");
@@ -375,7 +430,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         setProfileDetails((prev) => ({
           ...prev,
           owner_name: rInfo.owner_name || prev.owner_name,
-          retailer_name: rInfo.company_name || rInfo.retailer_name || prev.retailer_name,
+          retailer_name: rInfo.store_name || rInfo.retailer_name || prev.retailer_name,
+          company_name: rInfo.company_name || prev.company_name,
           retailer_code: rInfo.retailer_code || rInfo.retailer_id || prev.retailer_code,
           photo_url: rInfo.photo_url || rInfo.avatar_url || prev.photo_url,
         }));
@@ -413,6 +469,27 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // recent-activity auto-fetch REMOVED — was firing on every layout mount with no consumer.
   // Activity data is loaded on-demand from the dashboard page when the user requests it.
+
+  // ── Company-Scoped Live Service Availability Status ──
+  const fetchServicesStatus = useCallback(async () => {
+    try {
+      const res = await apiClient.get("/services/status");
+      if (res.data?.services) {
+        setServicesStatus(res.data.services);
+      }
+      if (Array.isArray(res.data?.disabled_submenus)) {
+        setDisabledSubmenus(res.data.disabled_submenus);
+      }
+    } catch (err) {
+      console.warn("Notice: Services status fetch notice:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isAuthenticatedSession) {
+      fetchServicesStatus();
+    }
+  }, [isAuthenticatedSession, fetchServicesStatus]);
 
   // ── DB-Backed User Favorites (PostgreSQL Stored Procedures & DB APIs) ──
   // Backend resolves user identity from JWT Bearer token — no userRefId needed from frontend.
@@ -456,9 +533,46 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [lockSession]);
 
+  const PATH_SERVICE_MAP: Record<string, string> = {
+    "/retailer/dmt": "DMT",
+    "/retailer/beneficiary": "DMT",
+    "/retailer/beneficiaries": "DMT",
+    "/retailer/reports/payout-transactions": "DMT",
+    "/retailer/card-to-cash": "POS_TOPUP",
+    "/retailer/settlement": "POS_TOPUP",
+    "/retailer/reports/settlement": "POS_TOPUP",
+    "/retailer/aeps": "AEPS",
+    "/retailer/upi": "UPI",
+    "/retailer/bbps": "BBPS",
+    "/retailer/payin": "PAYIN",
+    "/retailer/reports/payin-transactions": "PAYIN",
+    "/retailer/reports/payin": "PAYIN",
+    "/retailer/recharge": "RECHARGE",
+  };
+
+  const isItemEnabled = useCallback(
+    (item: { path: string; serviceCode?: string; parentServiceCode?: string }) => {
+      const directCode = item.serviceCode || PATH_SERVICE_MAP[item.path];
+      if (directCode && servicesStatus[directCode] === false) {
+        return false;
+      }
+      if (item.parentServiceCode && servicesStatus[item.parentServiceCode] === false) {
+        return false;
+      }
+      if (disabledSubmenus && disabledSubmenus.some((p) => item.path === p || (p !== "/retailer" && item.path.startsWith(p)))) {
+        return false;
+      }
+      return true;
+    },
+    [servicesStatus, disabledSubmenus]
+  );
+
   const toggleFavorite = (path: string, e: React.MouseEvent, itemLabel?: string, itemCategory?: string) => {
     e.stopPropagation();
     e.preventDefault();
+    if (!isItemEnabled({ path })) {
+      return;
+    }
     const isCurrentlyFav = favorites.includes(path);
     const updated = isCurrentlyFav ? favorites.filter((p) => p !== path) : [...favorites, path];
 
@@ -505,7 +619,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const activeDrawerWidth = desktopCollapsed ? COLLAPSED_DRAWER_WIDTH : FULL_DRAWER_WIDTH;
 
-  const navCategories = [
+  const navCategories = useMemo(() => [
     {
       title: "MAIN",
       items: [{ label: "Dashboard", path: "/retailer/dashboard", icon: DashboardIcon }],
@@ -513,13 +627,13 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     {
       title: "PAYMENTS",
       items: [
-        { label: "DMT", path: "/retailer/dmt", icon: SendIcon },
-        { label: "Card to Cash", path: "/retailer/card-to-cash", icon: CreditCardIcon },
-        { label: "AEPS", path: "/retailer/aeps", icon: FingerprintIcon },
-        { label: "UPI", path: "/retailer/upi", icon: QrCodeIcon },
-        { label: "BBPS", path: "/retailer/bbps", icon: ReceiptIcon },
-        { label: "PayIn (Add Money)", path: "/retailer/payin", icon: AddCardIcon },
-        { label: "Recharge", path: "/retailer/recharge", icon: PhoneAndroidIcon },
+        { label: "DMT", path: "/retailer/dmt", icon: SendIcon, serviceCode: "DMT" },
+        { label: "Card to Cash", path: "/retailer/card-to-cash", icon: CreditCardIcon, serviceCode: "POS_TOPUP" },
+        { label: "AEPS", path: "/retailer/aeps", icon: FingerprintIcon, serviceCode: "AEPS" },
+        { label: "UPI", path: "/retailer/upi", icon: QrCodeIcon, serviceCode: "UPI" },
+        { label: "BBPS", path: "/retailer/bbps", icon: ReceiptIcon, serviceCode: "BBPS" },
+        { label: "PayIn (Add Money)", path: "/retailer/payin", icon: AddCardIcon, serviceCode: "PAYIN" },
+        { label: "Recharge", path: "/retailer/recharge", icon: PhoneAndroidIcon, serviceCode: "RECHARGE" },
       ],
     },
     {
@@ -535,9 +649,11 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       title: "CUSTOMERS & REPORTS",
       items: [
         { label: "Customers", path: "/retailer/customers", icon: PersonIcon },
-        { label: "Beneficiaries", path: "/retailer/beneficiary", icon: ContactsIcon },
+        { label: "Beneficiaries", path: "/retailer/beneficiary", icon: ContactsIcon, parentServiceCode: "DMT" },
+        { label: "PayIn Report", path: "/retailer/reports/payin-transactions", icon: AssessmentIcon, parentServiceCode: "PAYIN" },
+        { label: "Payout Report", path: "/retailer/reports/payout-transactions", icon: ReceiptLongIcon, parentServiceCode: "DMT" },
         { label: "Transactions", path: "/retailer/reports/transactions", icon: AssessmentIcon },
-        { label: "Settlement", path: "/retailer/reports/settlement", icon: PointOfSaleIcon },
+        { label: "Settlement", path: "/retailer/reports/settlement", icon: PointOfSaleIcon, parentServiceCode: "POS_TOPUP" },
       ],
     },
     {
@@ -548,7 +664,16 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         { label: "Logout", path: "/logout", icon: LogoutIcon },
       ],
     },
-  ];
+  ], []);
+
+  const visibleNavCategories = useMemo(() => {
+    return navCategories
+      .map((cat) => ({
+        ...cat,
+        items: cat.items.filter((item) => isItemEnabled(item)),
+      }))
+      .filter((cat) => cat.items.length > 0);
+  }, [navCategories, isItemEnabled]);
 
   const handleDrawerToggle = () => {
     if (typeof window !== "undefined" && window.innerWidth >= 1200) {
@@ -558,10 +683,26 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const allNavItems = navCategories.flatMap((c) => c.items);
+  const allNavItems = useMemo(() => visibleNavCategories.flatMap((c) => c.items), [visibleNavCategories]);
   const activeMenuItem = allNavItems.find((item) =>
     pathname === item.path || (item.path !== "/retailer-dashboard" && pathname?.startsWith(item.path))
   );
+
+  const isCurrentPathDisabled = useMemo(() => {
+    if (!pathname) return { disabled: false, serviceName: "" };
+    for (const [path, code] of Object.entries(PATH_SERVICE_MAP)) {
+      if (pathname === path || (path !== "/retailer" && pathname.startsWith(path))) {
+        if (servicesStatus[code] === false) {
+          return { disabled: true, serviceName: code };
+        }
+      }
+    }
+    if (disabledSubmenus && disabledSubmenus.some((p) => pathname === p || (p !== "/retailer" && pathname.startsWith(p)))) {
+      const code = PATH_SERVICE_MAP[pathname] || "Service";
+      return { disabled: true, serviceName: code };
+    }
+    return { disabled: false, serviceName: "" };
+  }, [pathname, servicesStatus, disabledSubmenus]);
 
   const renderDrawerContent = (isCollapsed: boolean) => (
     <Box
@@ -735,7 +876,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       >
         {/* ── 1. FAVORITES CATEGORY ── */}
         {!menuSearchQuery && (() => {
-          const allItems = navCategories.flatMap((cat) => cat.items);
+          const allItems = visibleNavCategories.flatMap((cat) => cat.items);
           const favItems = allItems.filter((i) => favorites.includes(i.path));
           if (favItems.length === 0) return null;
 
@@ -844,7 +985,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         })()}
 
         {/* ── 2. CATEGORIZED MENU LIST ── */}
-        {navCategories
+        {visibleNavCategories
           .map((cat) => ({
             ...cat,
             items: cat.items.filter(
@@ -1694,7 +1835,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   <Typography variant="h5" suppressHydrationWarning sx={{ fontSize: "22px", fontWeight: 800, color: brandPrimary, fontFamily: "monospace", lineHeight: 1.1 }}>
                     ₹{(wallet?.mainBalance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Typography>
-                  <IconButton size="small" onClick={syncBalance} disabled={isSyncing} sx={{ p: 0.25 }}>
+                  <IconButton size="small" onClick={() => syncBalance()} disabled={isSyncing} sx={{ p: 0.25 }}>
                     <RefreshIcon sx={{ fontSize: 16, color: brandPrimary, animation: isSyncing ? "spin 1s linear infinite" : "none" }} />
                   </IconButton>
                 </Box>
@@ -2002,6 +2143,11 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 <Typography variant="h6" sx={{ fontWeight: 800 }}>Service Restricted</Typography>
               </Box>
             </ApprovalGuardOverlay>
+          ) : isCurrentPathDisabled.disabled ? (
+            <ServiceDownMaintenance
+              service={isCurrentPathDisabled.serviceName}
+              onRetry={fetchServicesStatus}
+            />
           ) : (
             children
           )}

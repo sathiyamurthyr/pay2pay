@@ -88,7 +88,7 @@ export default function AuditExplorerPage() {
               <ScrollText className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-extrabold text-[#FFFFFF] tracking-tight">Security Audit Trail Explorer</h1>
+              <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Security Audit Trail Explorer</h1>
               <p className="text-xs font-medium text-[#64748B] mt-0.5">
                 Immutable user activity logs · IP tracking · action signatures · resource mutation diffs
               </p>
@@ -133,7 +133,7 @@ export default function AuditExplorerPage() {
               placeholder="Search actor, action, resource…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 pr-3 py-1.5 w-56 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[12px] font-medium text-[#FFFFFF] placeholder-[#94A3B8] focus:outline-none focus:border-[#6366F1] focus:ring-2 focus:ring-[#6366F1]/15 transition-all"
+              className="pl-8 pr-3 py-1.5 w-56 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[12px] font-medium text-slate-900 placeholder-[#94A3B8] focus:outline-none focus:border-[#6366F1] focus:ring-2 focus:ring-[#6366F1]/15 transition-all"
             />
           </div>
           <div className="h-6 w-px bg-[#E2E8F0] mx-0.5" />
@@ -249,7 +249,7 @@ export default function AuditExplorerPage() {
                           <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] flex items-center justify-center text-white text-[9px] font-extrabold shrink-0">
                             {(l.actor_email || "S")[0].toUpperCase()}
                           </div>
-                          <span className="text-[12px] font-semibold text-[#FFFFFF] max-w-[160px] truncate">{l.actor_email || "System"}</span>
+                          <span className="text-[12px] font-semibold text-slate-900 max-w-[160px] truncate">{l.actor_email || "System"}</span>
                         </div>
                       </td>
 
@@ -264,7 +264,7 @@ export default function AuditExplorerPage() {
                       {/* Resource */}
                       <td className="px-4 py-3.5">
                         <div>
-                          <span className="text-[11px] font-semibold text-[#FFFFFF]">{l.resource_type}</span>
+                          <span className="text-[11px] font-semibold text-slate-900">{l.resource_type}</span>
                           <p className="font-mono text-[10px] text-[#94A3B8] mt-0.5">{l.resource_id?.slice(0, 14)}…</p>
                         </div>
                       </td>
@@ -290,7 +290,7 @@ export default function AuditExplorerPage() {
 
         {filtered.length > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 border-t border-[#F1F5F9] bg-gradient-to-r from-[#F8FAFC] to-[#EEF2FF] text-[11px] font-semibold text-[#64748B]">
-            <span>Showing <strong className="text-[#FFFFFF]">{filtered.length}</strong> of <strong className="text-[#FFFFFF]">{logs.length}</strong> audit events</span>
+            <span>Showing <strong className="text-slate-900">{filtered.length}</strong> of <strong className="text-slate-900">{logs.length}</strong> audit events</span>
             <span className="font-mono text-[10px] text-[#94A3B8]">Updated: {lastUpdated.toLocaleTimeString("en-IN")}</span>
           </div>
         )}

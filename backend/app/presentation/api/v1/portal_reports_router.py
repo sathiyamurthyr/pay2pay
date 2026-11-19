@@ -6,7 +6,7 @@ Uses the core reporting engine from admin_reports_router while enforcing tier-ba
 
 import uuid
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+from fastapi import APIRouter, Depends, Query, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -66,6 +66,50 @@ async def retailer_payout_transactions_export(
 ):
     return await export_payout_transactions_csv(
         tenant_id=None, company_id=None, from_date=from_date, to_date=to_date, db=db
+    )
+
+
+@router.get("/retailer/reports/payin-transactions/summary")
+async def retailer_payin_transactions_summary(
+    request: Request,
+    from_date: Optional[str] = Query(None),
+    to_date: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.presentation.api.v1.payin_report_router import get_payin_report_summary
+    return await get_payin_report_summary(
+        request=request, from_date=from_date, to_date=to_date, db=db
+    )
+
+
+@router.get("/retailer/reports/payin-transactions")
+async def retailer_payin_transactions_list(
+    request: Request,
+    page: int = Query(1, ge=1),
+    limit: int = Query(15, ge=1, le=100),
+    search: Optional[str] = Query(None),
+    status_filter: Optional[str] = Query(None),
+    from_date: Optional[str] = Query(None),
+    to_date: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.presentation.api.v1.payin_report_router import get_payin_report_grid
+    return await get_payin_report_grid(
+        request=request, page=page, limit=limit, search=search, status=status_filter,
+        from_date=from_date, to_date=to_date, db=db
+    )
+
+
+@router.get("/retailer/reports/payin-transactions/export")
+async def retailer_payin_transactions_export(
+    request: Request,
+    from_date: Optional[str] = Query(None),
+    to_date: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.presentation.api.v1.payin_report_router import export_payin_report
+    return await export_payin_report(
+        request=request, from_date=from_date, to_date=to_date, db=db
     )
 
 @router.get("/retailer/reports/transaction-ledger/summary")

@@ -22,11 +22,12 @@ export async function generateMetadata(): Promise<Metadata> {
         icons: {
           icon: [
             { url: "/branding/smspay-mark.svg", type: "image/svg+xml" },
-            { url: "/branding/favicon.png", type: "image/png" },
-            { url: "/favicon.ico" },
+            { url: "/branding/smspay-favicon-32x32.png", sizes: "32x32", type: "image/png" },
+            { url: "/branding/smspay-favicon.png", sizes: "32x32", type: "image/png" },
+            { url: "/branding/smspay-favicon.ico" },
           ],
           shortcut: "/branding/smspay-mark.svg",
-          apple: "/branding/smspay-mark.svg",
+          apple: "/branding/smspay-icon-192.png",
         },
         manifest: "/site.webmanifest",
       };
@@ -42,11 +43,12 @@ export async function generateMetadata(): Promise<Metadata> {
         icons: {
           icon: [
             { url: "/branding/logo.svg", type: "image/svg+xml" },
-            { url: "/branding/favicon.png", type: "image/png" },
-            { url: "/favicon.ico" },
+            { url: "/branding/near4you-favicon-32x32.png", sizes: "32x32", type: "image/png" },
+            { url: "/branding/near4you-favicon.png", sizes: "32x32", type: "image/png" },
+            { url: "/branding/near4you-favicon.ico" },
           ],
-          shortcut: "/favicon.ico",
-          apple: "/branding/logo.svg",
+          shortcut: "/branding/near4you-favicon.ico",
+          apple: "/branding/icon-192.png",
         },
         manifest: "/site.webmanifest",
       };
@@ -61,12 +63,12 @@ export async function generateMetadata(): Promise<Metadata> {
       description: "Enterprise Merchant Banking & Settlement Terminal - Pay2Pay",
       icons: {
         icon: [
-          { url: "/branding/pay2pay-logo.png", type: "image/png" },
-          { url: "/branding/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-          { url: "/branding/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+          { url: "/branding/pay2pay-favicon-32x32.png", sizes: "32x32", type: "image/png" },
+          { url: "/branding/pay2pay-favicon.png", sizes: "32x32", type: "image/png" },
+          { url: "/branding/pay2pay-favicon.ico" },
         ],
-        shortcut: "/branding/pay2pay-logo.png",
-        apple: "/branding/pay2pay-logo.png",
+        shortcut: "/branding/pay2pay-favicon.ico",
+        apple: "/branding/pay2pay-icon-192.png",
       },
       manifest: "/site.webmanifest",
     };
@@ -81,12 +83,12 @@ export async function generateMetadata(): Promise<Metadata> {
     description: "Enterprise Merchant Banking & Settlement Terminal - Pay2Pay",
     icons: {
       icon: [
-        { url: "/branding/pay2pay-logo.png", type: "image/png" },
-        { url: "/branding/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-        { url: "/branding/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+        { url: "/branding/pay2pay-favicon-32x32.png", sizes: "32x32", type: "image/png" },
+        { url: "/branding/pay2pay-favicon.png", sizes: "32x32", type: "image/png" },
+        { url: "/branding/pay2pay-favicon.ico" },
       ],
-      shortcut: "/branding/pay2pay-logo.png",
-      apple: "/branding/pay2pay-logo.png",
+      shortcut: "/branding/pay2pay-favicon.ico",
+      apple: "/branding/pay2pay-icon-192.png",
     },
     manifest: "/site.webmanifest",
   };

@@ -22,6 +22,7 @@ from app.infrastructure.db.enterprise_payout_models import (
     EnterprisePayoutTransactionModel, PayoutDoubleEntryLedgerModel, PayoutTransactionStatus
 )
 from app.infrastructure.db.swipe_settlement_models import SwipeMachineSettlementModel, SwipeSettlementStatus
+from app.core.company_resolver import resolve_request_company_ref, get_company_preset
 
 router = APIRouter(prefix="/dashboard/retailer", tags=["Retailer Dashboard & Analytics"])
 
@@ -85,6 +86,19 @@ async def resolve_retailer_context(
     roles = payload.get("roles") or []
     is_admin = any(r in ["ADMIN", "SUPER_ADMIN", "OPS_ADMIN", "PLATFORM_ADMIN"] for r in roles)
 
+    # Enforce request domain company match
+    expected_comp_ref = resolve_request_company_ref(request)
+    if expected_comp_ref and not is_admin:
+        if session_comp_ref is not None and int(session_comp_ref) != int(expected_comp_ref):
+            preset = get_company_preset(expected_comp_ref)
+            target_name = preset.get("company_name", "the requested") if preset else "the requested"
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access Denied: Retailer account belongs to another company and cannot access {target_name} domain (COMPANY_IDENTITY_MISMATCH)."
+            )
+        if session_comp_ref is None:
+            session_comp_ref = expected_comp_ref
+
     if retailer_id and str(retailer_id).strip() and not is_admin:
         allowed = {
             str(payload.get("sub") or "").lower(),
@@ -104,7 +118,11 @@ async def resolve_retailer_context(
     if payload.get("sub") and not ret_model and db:
         sub_uuid = parse_uuid_or_none(str(payload.get("sub")))
         if sub_uuid:
-            ret_chk = (await db.execute(select(RetailerModel).where(RetailerModel.public_id == sub_uuid, RetailerModel.is_deleted == False))).scalars().first()
+            sub_stmt = select(RetailerModel).where(RetailerModel.public_id == sub_uuid, RetailerModel.is_deleted == False)
+            target_comp = expected_comp_ref or session_comp_ref
+            if target_comp and not is_admin:
+                sub_stmt = sub_stmt.where(RetailerModel.company_ref_id == target_comp)
+            ret_chk = (await db.execute(sub_stmt)).scalars().first()
             if ret_chk:
                 ret_model = ret_chk
             else:
@@ -278,28 +296,18 @@ async def resolve_retailer_context(
         approve_status = False
         active_status = False
 
-    eff_company_ref = getattr(ret_model, "company_ref_id", None) or payload.get("company_ref_id")
+    eff_company_ref = getattr(ret_model, "company_ref_id", None) or session_comp_ref or expected_comp_ref
     eff_tenant_ref = getattr(ret_model, "tenant_ref_id", None) or payload.get("tenant_ref_id")
 
     # Domain vs Company Isolation check
-    host_hdr = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
-    clean_host = host_hdr.strip().lower().split(":")[0] if host_hdr else ""
-    if clean_host and clean_host not in ["localhost", "127.0.0.1", "0.0.0.0"] and not is_admin:
-        # Cross-tenant boundary check
-        if "pay2pay" in clean_host and eff_company_ref and eff_company_ref != 47:
+    target_comp = expected_comp_ref or session_comp_ref
+    if target_comp and not is_admin:
+        if eff_company_ref and int(eff_company_ref) != int(target_comp):
+            preset = get_company_preset(target_comp)
+            target_name = preset.get("company_name", "authorized company") if preset else "authorized company"
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access Denied: Retailer account belongs to another company and cannot access Pay2Pay domain."
-            )
-        elif "smspay" in clean_host and eff_company_ref and eff_company_ref != 2:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access Denied: Retailer account belongs to another company and cannot access SMSPAY domain."
-            )
-        elif "near4you" in clean_host and eff_company_ref and eff_company_ref != 1:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access Denied: Retailer account belongs to another company and cannot access Near4You domain."
+                detail=f"Access Denied: Retailer account belongs to another company and cannot access {target_name} domain (COMPANY_IDENTITY_MISMATCH)."
             )
 
     return {

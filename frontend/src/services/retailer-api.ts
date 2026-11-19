@@ -276,7 +276,18 @@ export function classifyApiError(err: any, endpoint: string) {
   return errorInfo;
 }
 
+export function getDomainScopeKey(): string {
+  if (typeof window === "undefined") return "pay2pay";
+  const host = window.location.hostname.toLowerCase();
+  const port = window.location.port;
+  if (host.includes("smspay") || port === "4002") return "smspay";
+  if (host.includes("near4you") || port === "4001") return "near4you";
+  if (host.includes("pay2pay") || port === "3000" || port === "4003") return "pay2pay";
+  return "default";
+}
+
 export function resolveActiveRetailerId(): string {
+  const domain = getDomainScopeKey();
   if (typeof document !== "undefined") {
     try {
       const cookies = document.cookie ? document.cookie.split("; ") : [];
@@ -284,14 +295,30 @@ export function resolveActiveRetailerId(): string {
       const retCodeCookie = cookies.find((row) => row.startsWith("p2p_retailer_code="));
       if (retCodeCookie) {
         const val = retCodeCookie.split("=")[1]?.trim();
-        if (val && !val.includes("-".repeat(4))) return val; // not a UUID
+        if (val && !val.includes("-".repeat(4))) {
+          if (domain === "smspay" && val.startsWith("P2P-")) {
+            // Mismatch: do not leak Pay2Pay retailer code into SMSPAY
+          } else if (domain === "pay2pay" && val.startsWith("SMSP-")) {
+            // Mismatch: do not leak SMSPAY retailer code into Pay2Pay
+          } else {
+            return val;
+          }
+        }
       }
       const retIdCookie = cookies.find((row) =>
         row.startsWith("p2p_active_retailer_id=")
       );
       if (retIdCookie) {
         const val = retIdCookie.split("=")[1]?.trim();
-        if (val) return val;
+        if (val) {
+          if (domain === "smspay" && val.startsWith("P2P-")) {
+            // Mismatch: skip
+          } else if (domain === "pay2pay" && val.startsWith("SMSP-")) {
+            // Mismatch: skip
+          } else {
+            return val;
+          }
+        }
       }
     } catch {}
   }
@@ -300,12 +327,23 @@ export function resolveActiveRetailerId(): string {
       const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user") || localStorage.getItem("pay2pay_user_data");
       if (userStr) {
         const u = JSON.parse(userStr);
-        // Always prefer retailer_code (alphanumeric, not UUID) for identity
-        if (u.retailer_code && !u.retailer_code.includes("-".repeat(4))) return u.retailer_code;
-        if (u.code && !u.code.includes("-".repeat(4))) return u.code;
-        if (u.retailer_id) return u.retailer_id;
-        if (u.public_id) return u.public_id;
-        if (u.id) return u.id;
+        const uCompRef = u.company_ref_id;
+        const uCompCode = (u.company_code || "").toUpperCase();
+        const isCompMismatch =
+          (domain === "smspay" && (uCompRef === 47 || uCompCode === "PAY2PAY")) ||
+          (domain === "pay2pay" && (uCompRef === 2 || uCompCode === "SMSPAY"));
+
+        if (!isCompMismatch) {
+          const codeCandidate = u.retailer_code || u.code || u.retailer_id;
+          if (codeCandidate && !codeCandidate.includes("-".repeat(4))) {
+            if (!(domain === "smspay" && codeCandidate.startsWith("P2P-")) &&
+                !(domain === "pay2pay" && codeCandidate.startsWith("SMSP-"))) {
+              return codeCandidate;
+            }
+          }
+          if (u.public_id && !isCompMismatch) return u.public_id;
+          if (u.id && !isCompMismatch) return u.id;
+        }
       }
       // Dedicated localStorage keys
       const rCodeKey =
@@ -314,7 +352,15 @@ export function resolveActiveRetailerId(): string {
         localStorage.getItem("retailer_code") ||
         localStorage.getItem("pay2pay_reg_id") ||
         "";
-      if (rCodeKey) return rCodeKey;
+      if (rCodeKey) {
+        if (domain === "smspay" && rCodeKey.startsWith("P2P-")) {
+          // Mismatch: skip
+        } else if (domain === "pay2pay" && rCodeKey.startsWith("SMSP-")) {
+          // Mismatch: skip
+        } else {
+          return rCodeKey;
+        }
+      }
     } catch {}
   }
   return "";
@@ -386,11 +432,14 @@ export const retailerApi = {
 
   // ── Retailer Comprehensive Profile (Cached with 60s TTL to prevent auto-calling loops) ──
   getProfile: async (forceRefresh = false) => {
+    const domainKey = getDomainScopeKey();
+    const cacheKey = `p2p_retailer_profile_cache_${domainKey}`;
+    const timeKey = `p2p_retailer_profile_time_${domainKey}`;
     try {
       if (typeof window !== "undefined") {
         const now = Date.now();
-        const cachedStr = sessionStorage.getItem("p2p_retailer_profile_cache");
-        const cachedTimeStr = sessionStorage.getItem("p2p_retailer_profile_time");
+        const cachedStr = sessionStorage.getItem(cacheKey);
+        const cachedTimeStr = sessionStorage.getItem(timeKey);
         if (!forceRefresh && cachedStr && cachedTimeStr) {
           const cachedTime = Number(cachedTimeStr);
           if (now - cachedTime < 60000) { // 60s cache
@@ -408,8 +457,8 @@ export const retailerApi = {
 
       if (typeof window !== "undefined" && data) {
         try {
-          sessionStorage.setItem("p2p_retailer_profile_cache", JSON.stringify(data));
-          sessionStorage.setItem("p2p_retailer_profile_time", String(Date.now()));
+          sessionStorage.setItem(cacheKey, JSON.stringify(data));
+          sessionStorage.setItem(timeKey, String(Date.now()));
         } catch {}
       }
 
@@ -417,7 +466,7 @@ export const retailerApi = {
     } catch (e) {
       if (typeof window !== "undefined") {
         try {
-          const cachedStr = sessionStorage.getItem("p2p_retailer_profile_cache");
+          const cachedStr = sessionStorage.getItem(cacheKey);
           if (cachedStr) return JSON.parse(cachedStr);
         } catch {}
       }
@@ -431,6 +480,10 @@ export const retailerApi = {
       try {
         sessionStorage.removeItem("p2p_retailer_profile_cache");
         sessionStorage.removeItem("p2p_retailer_profile_time");
+        ["smspay", "pay2pay", "near4you", "default"].forEach((k) => {
+          sessionStorage.removeItem(`p2p_retailer_profile_cache_${k}`);
+          sessionStorage.removeItem(`p2p_retailer_profile_time_${k}`);
+        });
       } catch {}
     }
   },

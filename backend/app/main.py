@@ -256,6 +256,14 @@ app.include_router(payout_transaction_report_router.router, prefix="/payout")
 app.include_router(payout_transaction_report_router.router, prefix="")
 app.include_router(payout_report_router.router, prefix=f"{settings.API_V1_STR}/payout")
 app.include_router(payout_ledger_report_router.router, prefix=f"{settings.API_V1_STR}/payout")
+from app.presentation.api.v1 import payin_report_router
+app.include_router(payin_report_router.router, prefix=settings.API_V1_STR)
+app.include_router(payin_report_router.router, prefix="/api/v1")
+app.include_router(payin_report_router.router, prefix=f"{settings.API_V1_STR}/payin")
+app.include_router(payin_report_router.router, prefix="/api/v1/payin")
+app.include_router(payin_report_router.router, prefix="/api/payin")
+app.include_router(payin_report_router.router, prefix="/payin")
+app.include_router(payin_report_router.router, prefix="")
 from app.presentation.api.v1 import retailer_verification_router
 from app.presentation.api.v1 import company_onboarding_router
 from app.presentation.api.v1 import admin_reports_router

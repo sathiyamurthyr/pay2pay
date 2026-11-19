@@ -4,8 +4,12 @@ import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShieldCheck, CheckCircle2, Lock } from "lucide-react";
 import { RegistrationProvider, useRegistration, STEP_TITLES } from "@/context/RegistrationContext";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 function RegistrationLayoutContent({ children }: { children: React.ReactNode }) {
+  const branding = useCompanyBranding();
+  const brandPrimary = branding.primary_colour || "#2563EB";
+  const brandSecondary = branding.secondary_colour || "#1E40AF";
   const {
     currentStep,
     completedSteps,
@@ -21,15 +25,27 @@ function RegistrationLayoutContent({ children }: { children: React.ReactNode }) 
       {/* Top Header Bar */}
       <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-[#E8E2E5]">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#A20A3A] to-[#85072F] p-0.5 shadow-md shadow-[#A20A3A]/20">
-            <div className="w-full h-full bg-[#FFFFFF] rounded-[14px] flex items-center justify-center font-black text-sm text-[#A20A3A]">
-              N4U
+          <div
+            className="w-10 h-10 rounded-2xl p-0.5 shadow-md"
+            style={{
+              background: `linear-gradient(135deg, ${brandPrimary}, ${brandSecondary})`
+            }}
+          >
+            <div className="w-full h-full bg-[#FFFFFF] rounded-[14px] flex items-center justify-center font-black text-sm" style={{ color: brandPrimary }}>
+              {branding.short_name || (branding.display_name ? branding.display_name.slice(0, 3).toUpperCase() : "P2P")}
             </div>
           </div>
           <div>
             <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-[#292329] flex items-center gap-2">
-              Near4You Progressive Registration
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FFF0F4] border border-[#FFD6E2] text-[#A20A3A] font-bold uppercase">
+              {branding.display_name || "FinTech"} Progressive Registration
+              <span
+                className="text-[10px] px-2 py-0.5 rounded-full border font-bold uppercase"
+                style={{
+                  backgroundColor: `${brandPrimary}15`,
+                  borderColor: `${brandPrimary}30`,
+                  color: brandPrimary
+                }}
+              >
                 Step {currentStep === 66 ? "6A" : currentStep === 14 ? "Submitted" : currentStep} of 12
               </span>
             </h1>
@@ -54,7 +70,7 @@ function RegistrationLayoutContent({ children }: { children: React.ReactNode }) 
           </AnimatePresence>
 
           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FAF8F9] border border-[#E8E2E5] text-xs font-bold text-[#625B60]">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#A20A3A]" />
+            <ShieldCheck className="w-3.5 h-3.5" style={{ color: brandPrimary }} />
             <span>Encrypted Session</span>
           </div>
         </div>
@@ -65,14 +81,17 @@ function RegistrationLayoutContent({ children }: { children: React.ReactNode }) 
         <div className="relative z-10 w-full mb-6">
           <div className="flex items-center justify-between text-xs font-bold text-[#625B60] mb-1.5">
             <span>Overall Completion: {progressPercent}%</span>
-            <span className="text-[#A20A3A] font-extrabold">{STEP_TITLES[currentStep] || "Registration"}</span>
+            <span className="font-extrabold" style={{ color: brandPrimary }}>{STEP_TITLES[currentStep] || "Registration"}</span>
           </div>
           <div className="w-full h-2 rounded-full bg-[#FAF8F9] border border-[#E8E2E5] overflow-hidden">
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${progressPercent}%` }}
               transition={{ duration: 0.5, ease: "easeInOut" }}
-              className="h-full bg-gradient-to-r from-[#A20A3A] via-[#C42555] to-[#EDC11E] rounded-full"
+              className="h-full rounded-full"
+              style={{
+                background: `linear-gradient(to right, ${brandPrimary}, ${brandSecondary})`
+              }}
             />
           </div>
 
@@ -88,9 +107,10 @@ function RegistrationLayoutContent({ children }: { children: React.ReactNode }) 
                   key={stepNum}
                   onClick={() => isDone && navigateToStep(stepNum)}
                   disabled={!isDone && !isCurrent}
+                  style={isCurrent ? { backgroundColor: brandPrimary } : undefined}
                   className={`px-2.5 py-1 rounded-xl text-[10px] font-black shrink-0 transition-all flex items-center gap-1 ${
                     isCurrent
-                      ? "bg-[#A20A3A] text-white shadow-md shadow-[#A20A3A]/25 ring-2 ring-[#A20A3A]/40"
+                      ? "text-white shadow-md ring-2 ring-black/10"
                       : isDone
                       ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 cursor-pointer hover:bg-emerald-500/20"
                       : "bg-[#FAF8F9] border border-[#E8E2E5] text-[#8A8288] cursor-not-allowed"

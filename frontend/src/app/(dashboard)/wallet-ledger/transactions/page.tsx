@@ -1159,7 +1159,7 @@ export default function WalletLedgerTransactionsAuditPage() {
           {/* Backdrop */}
           <div
             onClick={closeDrawer}
-            className="fixed inset-0 bg-[#FAF8F9] backdrop-blur-xs transition-opacity"
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
           />
 
           {/* Drawer Panel */}

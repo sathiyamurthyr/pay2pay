@@ -195,9 +195,10 @@ async def init_finance_database():
                 public_id, company_id, tenant_id, logo_url, favicon_url, primary_colour, secondary_colour,
                 record_status, is_active, is_deleted, created_date, created_by, version_no
             ) VALUES 
-            (gen_random_uuid(), :c2_id, :t2_id, '/branding/smspay-logo.png', '/favicon.ico', '#059669', '#10B981', 'ACTIVE', true, false, :now, 'SYSTEM', 1)
+            (gen_random_uuid(), :c1_id, :t1_id, '/branding/logo.svg', '/branding/favicon.png', '#A20A3A', '#EDC11E', 'ACTIVE', true, false, :now, 'SYSTEM', 1),
+            (gen_random_uuid(), :c2_id, :t2_id, '/branding/smspay-logo.svg', '/branding/smspay-mark.svg', '#059669', '#047857', 'ACTIVE', true, false, :now, 'SYSTEM', 1)
             ON CONFLICT DO NOTHING;
-        """), {"c2_id": comp_superrex_id, "t2_id": tenant_superrex_id, "now": now_dt})
+        """), {"c1_id": comp_sathus_id, "t1_id": tenant_sathus_id, "c2_id": comp_superrex_id, "t2_id": tenant_superrex_id, "now": now_dt})
         print("  ✅ Seeded Company Configurations & Branding")
 
         # E. Retailer Account: SMSP-R902523

@@ -769,9 +769,11 @@ async def generate_upi_topup_qr(
     short_hex = uuid.uuid4().hex[:6].upper()
     request_id = f"UPI-{now_str}-{short_hex}"
 
-    # 0. Check Platform Service Configuration for UPI
+    # 0. Check Platform Service Configuration for UPI (Company-Scoped)
+    comp_ref = getattr(retailer, "company_ref_id", None)
     svc_check = await db.execute(
-        text("SELECT is_enabled FROM customer_service_configuration WHERE service_code = 'UPI' AND is_deleted = false;")
+        text("SELECT is_enabled FROM customer_service_configuration WHERE service_code = 'UPI' AND (company_ref_id = :comp_ref OR company_ref_id IS NULL) AND is_deleted = false ORDER BY (company_ref_id IS NOT NULL) DESC LIMIT 1;"),
+        {"comp_ref": comp_ref}
     )
     if svc_check.scalar_one_or_none() is False:
         raise HTTPException(
@@ -1005,9 +1007,11 @@ async def create_topup_request(
     resolved_slip_url = _resolve_slip_url(req.slip_url, req.slip_id)
 
     if is_upi:
-        # Check platform service availability for UPI
+        # Check platform service availability for UPI (Company-Scoped)
+        comp_ref = getattr(retailer, "company_ref_id", None)
         svc_check = await db.execute(
-            text("SELECT is_enabled FROM customer_service_configuration WHERE service_code = 'UPI' AND is_deleted = false;")
+            text("SELECT is_enabled FROM customer_service_configuration WHERE service_code = 'UPI' AND (company_ref_id = :comp_ref OR company_ref_id IS NULL) AND is_deleted = false ORDER BY (company_ref_id IS NOT NULL) DESC LIMIT 1;"),
+            {"comp_ref": comp_ref}
         )
         if svc_check.scalar_one_or_none() is False:
             raise HTTPException(

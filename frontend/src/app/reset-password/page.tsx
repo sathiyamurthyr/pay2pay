@@ -249,7 +249,10 @@ function ResetPasswordContent() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#A20A3A] to-[#85072F] hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm transition shadow-lg shadow-blue-600/25 flex items-center justify-center"
+              style={{
+                background: "linear-gradient(to right, var(--brand-primary, #2563EB), var(--brand-secondary, #1E40AF))"
+              }}
+              className="w-full py-3.5 px-4 rounded-xl text-white font-semibold text-sm transition shadow-lg flex items-center justify-center opacity-95 hover:opacity-100"
             >
               {submitting ? (
                 <>

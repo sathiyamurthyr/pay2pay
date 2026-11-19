@@ -146,7 +146,10 @@ class ReceiptShareService {
   }
 
   public getPublicReceiptUrl(receiptToken: string): string {
-    return `https://receipt.near4you.store/r/${receiptToken}`;
+    const receiptHost = typeof window !== "undefined"
+      ? (window.location.hostname.includes("smspay") ? "receipt.smspay.store" : window.location.hostname.includes("near4you") ? "receipt.near4you.store" : "receipt.pay2pay.in")
+      : "receipt.pay2pay.in";
+    return `https://${receiptHost}/r/${receiptToken}`;
   }
 }
 

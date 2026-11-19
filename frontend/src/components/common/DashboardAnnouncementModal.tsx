@@ -39,6 +39,10 @@ function AnnouncementBannerImage({
 }) {
   const [imgError, setImgError] = useState(false);
 
+  useEffect(() => {
+    setImgError(false);
+  }, [imageUrl]);
+
   if (!imageUrl || imgError) {
     return null;
   }

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Box, Typography, Avatar, Chip } from "@mui/material";
 import BusinessIcon from "@mui/icons-material/Business";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 export interface CompanyHeaderProps {
   logoUrl?: string;
@@ -17,9 +18,9 @@ export interface CompanyHeaderProps {
 }
 
 export const CompanyHeader: React.FC<CompanyHeaderProps> = ({
-  logoUrl = "/branding/logo.svg",
-  companyName = "Near 4 You",
-  legalName = "Sathus Technology Pvt. Ltd.",
+  logoUrl: propLogoUrl,
+  companyName: propCompanyName,
+  legalName: propLegalName,
   title,
   subtitle,
   variant = "modal",
@@ -27,6 +28,12 @@ export const CompanyHeader: React.FC<CompanyHeaderProps> = ({
   statusBadge,
   sx = {}
 }) => {
+  const branding = useCompanyBranding();
+  const logoUrl = propLogoUrl || branding.logo_url || "/branding/logo.svg";
+  const companyName = propCompanyName || branding.company_name || branding.display_name || "Enterprise";
+  const legalName = propLegalName || branding.legal_name || "Enterprise Technologies Pvt. Ltd.";
+  const brandPrimary = branding.primary_colour || "#2563EB";
+
   const [imgError, setImgError] = useState(false);
 
   const isModal = variant === "modal";
@@ -87,14 +94,14 @@ export const CompanyHeader: React.FC<CompanyHeaderProps> = ({
                 sx={{
                   width: "100%",
                   height: "100%",
-                  bgcolor: "#A20A3A",
+                  bgcolor: brandPrimary,
                   color: "#FFFFFF",
                   fontSize: "18px",
                   fontWeight: 700,
                   borderRadius: "8px"
                 }}
               >
-                {companyName ? companyName.charAt(0).toUpperCase() : "N"}
+                {companyName ? companyName.charAt(0).toUpperCase() : "E"}
               </Avatar>
             )}
           </Box>
@@ -107,7 +114,7 @@ export const CompanyHeader: React.FC<CompanyHeaderProps> = ({
                 fontWeight: 700,
                 fontSize: "12px",
                 letterSpacing: "0.5px",
-                color: "#A20A3A",
+                color: brandPrimary,
                 textTransform: "uppercase",
                 display: "block",
                 lineHeight: 1.2
@@ -200,14 +207,14 @@ export const CompanyHeader: React.FC<CompanyHeaderProps> = ({
               sx={{
                 width: "100%",
                 height: "100%",
-                bgcolor: "#A20A3A",
+                bgcolor: brandPrimary,
                 color: "#FFFFFF",
                 fontSize: "16px",
                 fontWeight: 700,
                 borderRadius: "8px"
               }}
             >
-              {companyName ? companyName.charAt(0).toUpperCase() : "N"}
+              {companyName ? companyName.charAt(0).toUpperCase() : "E"}
             </Avatar>
           )}
         </Box>
@@ -219,7 +226,7 @@ export const CompanyHeader: React.FC<CompanyHeaderProps> = ({
               fontWeight: 700,
               fontSize: "11px",
               letterSpacing: "0.5px",
-              color: "#A20A3A",
+              color: brandPrimary,
               textTransform: "uppercase",
               display: "block",
               lineHeight: 1.2,
@@ -293,7 +300,7 @@ export const CompanyHeader: React.FC<CompanyHeaderProps> = ({
             sx={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
           />
         ) : (
-          <BusinessIcon sx={{ color: "#A20A3A", fontSize: 20 }} />
+          <BusinessIcon sx={{ color: brandPrimary, fontSize: 20 }} />
         )}
       </Box>
       <Box>

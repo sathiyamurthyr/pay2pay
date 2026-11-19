@@ -869,7 +869,7 @@ export default function BankGatewaysPage() {
 
       {/* Edit Gateway Modal */}
       {editingGateway && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FAF8F9]/40 backdrop-blur-xs p-4 animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
             <div className="p-6 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-3">

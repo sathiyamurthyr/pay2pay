@@ -42,25 +42,25 @@ export default function OperationalQueuesPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-[#E2E8F0] bg-white overflow-hidden shadow-sm">
+      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-[#FFFFFF]">
-            <thead className="bg-[#F8FAFC] uppercase text-xs font-bold text-[#FAF8F9] border-b border-[#E2E8F0]">
+          <table className="w-full text-left text-sm text-slate-800">
+            <thead className="bg-slate-50 uppercase text-xs font-bold text-slate-700 border-b border-slate-200">
               <tr>
-                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Queue Code</th>
-                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Queue Name</th>
-                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Type</th>
-                <th className="px-5 py-4 font-mono font-extrabold text-right text-[#FAF8F9]">Status</th>
+                <th className="px-5 py-4 font-bold text-slate-700">Queue Code</th>
+                <th className="px-5 py-4 font-bold text-slate-700">Queue Name</th>
+                <th className="px-5 py-4 font-bold text-slate-700">Type</th>
+                <th className="px-5 py-4 font-mono font-bold text-right text-slate-700">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E2E8F0] font-mono text-xs">
+            <tbody className="divide-y divide-slate-100 font-mono text-xs">
               {loading ? (
-                <tr><td colSpan={4} className="px-5 py-12 text-center text-[#64748B] font-medium">Loading Operational Queues...</td></tr>
+                <tr><td colSpan={4} className="px-5 py-12 text-center text-slate-500 font-medium">Loading Operational Queues...</td></tr>
               ) : (
                 queues.map((q) => (
-                  <tr key={q.public_id} className="hover:bg-[#F8FAFC] transition-colors">
-                    <td className="px-5 py-4 text-[#2563EB] font-extrabold">{q.queue_code}</td>
-                    <td className="px-5 py-4 font-sans text-xs font-bold text-[#FFFFFF]">{q.queue_name}</td>
+                  <tr key={q.public_id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-5 py-4 text-blue-600 font-bold">{q.queue_code}</td>
+                    <td className="px-5 py-4 font-sans text-xs font-bold text-slate-900">{q.queue_name}</td>
                     <td className="px-5 py-4 text-[#475569] font-medium">{q.queue_type}</td>
                     <td className="px-5 py-4 text-right">
                       <span className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold bg-[#F0FDF4] text-[#15803D] border border-[#BBF7D0]">

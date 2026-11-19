@@ -110,6 +110,77 @@ async def resolve_company_ref_by_domain(db: AsyncSession, domain_str: str) -> Op
     return None
 
 
+def resolve_brand_metadata(
+    code_hint: Optional[str],
+    host_hint: Optional[str],
+    db_row: Dict[str, Any]
+) -> Dict[str, Any]:
+    c_code = (code_hint or db_row.get("company_code") or "").upper().strip()
+    h_hint = (host_hint or "").lower().strip()
+
+    is_smspay = "SMSPAY" in c_code or "smspay" in h_hint or ":4002" in h_hint
+    is_pay2pay = "PAY2PAY" in c_code or "pay2pay" in h_hint or ":3000" in h_hint or ":4003" in h_hint
+    is_near4you = "NEAR4YOU" in c_code or "near4you" in h_hint or ":4001" in h_hint
+
+    if is_smspay:
+        resolved_code = "SMSPAY"
+        resolved_display = "SMSPAY"
+        resolved_name = "SMSPAY"
+        resolved_legal = "SMSPAY Technologies Pvt. Ltd."
+        resolved_logo = "/branding/smspay-logo.svg"
+        resolved_favicon = "/branding/smspay-mark.svg"
+        resolved_primary = "#059669"
+        resolved_secondary = "#047857"
+    elif is_pay2pay:
+        resolved_code = "PAY2PAY"
+        resolved_display = "Pay2Pay"
+        resolved_name = "Pay2Pay"
+        resolved_legal = "Pay2Pay FinTech Solutions Pvt. Ltd."
+        resolved_logo = "/branding/pay2pay-logo.png"
+        resolved_favicon = "/branding/pay2pay-favicon.png"
+        resolved_primary = "#2563EB"
+        resolved_secondary = "#1E40AF"
+    elif is_near4you:
+        resolved_code = "NEAR4YOU"
+        resolved_display = "Near4You"
+        resolved_name = "Near4You"
+        resolved_legal = "Near4You Enterprise Technologies Pvt. Ltd."
+        resolved_logo = "/branding/logo.svg"
+        resolved_favicon = "/branding/favicon.png"
+        resolved_primary = "#A20A3A"
+        resolved_secondary = "#EDC11E"
+    else:
+        # Default fallback
+        resolved_code = db_row.get("company_code") or "NEAR4YOU"
+        resolved_display = db_row.get("display_name") or db_row.get("company_name") or "Near4You"
+        resolved_name = db_row.get("company_name") or "Near4You"
+        resolved_legal = db_row.get("legal_name") or "Near4You Enterprise Technologies Pvt. Ltd."
+        resolved_logo = db_row.get("logo_url") or "/branding/logo.svg"
+        resolved_favicon = db_row.get("favicon_url") or "/branding/favicon.png"
+        resolved_primary = db_row.get("primary_colour") or "#A20A3A"
+        resolved_secondary = db_row.get("secondary_colour") or "#EDC11E"
+
+    # Allow custom db override if present and not a cross-tenant static default
+    db_logo = db_row.get("logo_url")
+    if db_logo and not (is_smspay and "logo.svg" in db_logo) and not (is_pay2pay and "logo.svg" in db_logo):
+        resolved_logo = db_logo
+
+    db_fav = db_row.get("favicon_url")
+    if db_fav and db_fav not in ["/favicon.ico", "/branding/favicon.png"]:
+        resolved_favicon = db_fav
+
+    return {
+        "company_code": resolved_code,
+        "company_name": resolved_name,
+        "legal_name": resolved_legal,
+        "display_name": resolved_display,
+        "logo_url": resolved_logo,
+        "favicon_url": resolved_favicon,
+        "primary_colour": resolved_primary,
+        "secondary_colour": resolved_secondary,
+    }
+
+
 @router.get("/branding")
 async def get_authenticated_company_branding(
     request: Request,
@@ -133,11 +204,18 @@ async def get_authenticated_company_branding(
 
     # 1. Resolve by explicit domain/company query parameter or hostname first (Domain-driven dynamic branding)
     target_domain = company or domain or request.query_params.get("company") or request.query_params.get("domain")
+    host_header = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+    clean_h = extract_clean_domain(host_header)
+    port_h = host_header.split(":")[1] if ":" in host_header else ""
     if not target_domain:
-        host_header = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
-        clean_h = extract_clean_domain(host_header)
         if clean_h and clean_h not in ["localhost", "127.0.0.1", "0.0.0.0"]:
             target_domain = clean_h
+        elif port_h == "4002":
+            target_domain = "smspay.store"
+        elif port_h == "4001":
+            target_domain = "near4you.store"
+        elif port_h in ["3000", "4003"]:
+            target_domain = "pay2pay.in"
 
     domain_was_specified = bool(target_domain and target_domain.lower() not in ["localhost", "127.0.0.1", "0.0.0.0"])
 
@@ -214,8 +292,14 @@ async def get_authenticated_company_branding(
         # Check if running on localhost / 127.0.0.1 for local dev fallback only
         host_hdr = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
         clean_host = extract_clean_domain(host_hdr)
+        port_hdr = host_hdr.split(":")[1] if ":" in host_hdr else ""
         if clean_host in ["localhost", "127.0.0.1", "0.0.0.0"]:
-            company_ref_id = 47 # Pay2Pay default for local development on generic localhost
+            if port_hdr == "4002":
+                company_ref_id = 2  # SMSPAY
+            elif port_hdr == "4001":
+                company_ref_id = 1  # Near4You
+            else:
+                company_ref_id = 47 # Pay2Pay default for local development on generic localhost
         else:
             corr_id = str(uuid.uuid4())
             raise HTTPException(
@@ -291,37 +375,14 @@ async def get_authenticated_company_branding(
         except Exception:
             domains_list = []
 
-    resolved_code = d.get("company_code") or "NEAR4YOU"
-    resolved_display = d.get("display_name") or d.get("company_name")
-    resolved_name = d.get("company_name") or "Near4You"
-    resolved_logo = d.get("logo_url") or "/branding/logo.svg"
-    resolved_primary = d.get("primary_colour") or "#2563EB"
-    resolved_secondary = d.get("secondary_colour") or "#1E40AF"
-
-    # Multi-tenant brand resolution for shared SUPERREX company (company_ref_id=2)
     brand_hint = (company or "").upper().strip()
-    host_hint = (domain or clean_host or "").lower()
-    if resolved_code == "SUPERREX" or d.get("company_ref_id") == 2:
-        if brand_hint == "SMSPAY" or "smspay" in host_hint:
-            resolved_code = "SMSPAY"
-            resolved_display = "SMSPAY"
-            resolved_name = "SMSPAY Operations"
-            resolved_logo = "/branding/smspay-logo.png"
-            resolved_primary = "#059669"
-            resolved_secondary = "#10B981"
-        elif brand_hint == "PAY2PAY" or "pay2pay" in host_hint:
-            resolved_code = "PAY2PAY"
-            resolved_display = "Pay2Pay"
-            resolved_name = "Pay2Pay FinTech Platform"
-            resolved_logo = "/branding/pay2pay-logo.png"
-            resolved_primary = "#A20A3A"
-            resolved_secondary = "#EDC11E"
-        elif brand_hint == "NEAR4YOU" or "near4you" in host_hint:
-            resolved_code = "NEAR4YOU"
-            resolved_display = "Near4You"
-            resolved_name = "Near4You Retailer Platform"
-            resolved_primary = "#2563EB"
-            resolved_secondary = "#1E40AF"
+    host_hint = domain or target_domain or clean_h or host_header or ""
+
+    brand_meta = resolve_brand_metadata(
+        code_hint=brand_hint or d.get("company_code"),
+        host_hint=host_hint,
+        db_row=d
+    )
 
     return {
         "success": True,
@@ -329,14 +390,14 @@ async def get_authenticated_company_branding(
             "company_id": str(d.get("company_id")) if d.get("company_id") else None,
             "company_ref_id": d.get("company_ref_id"),
             "tenant_ref_id": d.get("tenant_ref_id"),
-            "company_code": resolved_code,
-            "company_name": resolved_name,
-            "legal_name": d.get("legal_name") or "Near4You Enterprise Technologies Pvt. Ltd.",
-            "display_name": resolved_display,
-            "logo_url": resolved_logo,
-            "favicon_url": d.get("favicon_url") or "/branding/favicon.png",
-            "primary_colour": resolved_primary,
-            "secondary_colour": resolved_secondary,
+            "company_code": brand_meta["company_code"],
+            "company_name": brand_meta["company_name"],
+            "legal_name": brand_meta["legal_name"],
+            "display_name": brand_meta["display_name"],
+            "logo_url": brand_meta["logo_url"],
+            "favicon_url": brand_meta["favicon_url"],
+            "primary_colour": brand_meta["primary_colour"],
+            "secondary_colour": brand_meta["secondary_colour"],
             "website": d.get("website"),
             "domains": domains_list
         }
@@ -383,36 +444,11 @@ async def resolve_by_domain(
         except Exception:
             pass
 
-    resolved_code = d.get("company_code") or "NEAR4YOU"
-    resolved_display = d.get("display_name") or d.get("company_name")
-    resolved_name = d.get("company_name") or "Near4You"
-    resolved_logo = d.get("logo_url") or "/branding/logo.svg"
-    resolved_primary = d.get("primary_colour") or "#2563EB"
-    resolved_secondary = d.get("secondary_colour") or "#1E40AF"
-
-    # Multi-tenant brand resolution for shared SUPERREX company (company_ref_id=2)
-    host_hint = (domain or "").lower()
-    if resolved_code == "SUPERREX" or d.get("company_ref_id") == 2:
-        if "smspay" in host_hint:
-            resolved_code = "SMSPAY"
-            resolved_display = "SMSPAY"
-            resolved_name = "SMSPAY Operations"
-            resolved_logo = "/branding/smspay-logo.png"
-            resolved_primary = "#059669"
-            resolved_secondary = "#10B981"
-        elif "pay2pay" in host_hint:
-            resolved_code = "PAY2PAY"
-            resolved_display = "Pay2Pay"
-            resolved_name = "Pay2Pay FinTech Platform"
-            resolved_logo = "/branding/pay2pay-logo.png"
-            resolved_primary = "#A20A3A"
-            resolved_secondary = "#EDC11E"
-        elif "near4you" in host_hint:
-            resolved_code = "NEAR4YOU"
-            resolved_display = "Near4You"
-            resolved_name = "Near4You Retailer Platform"
-            resolved_primary = "#2563EB"
-            resolved_secondary = "#1E40AF"
+    brand_meta = resolve_brand_metadata(
+        code_hint=d.get("company_code"),
+        host_hint=domain,
+        db_row=d
+    )
 
     return {
         "success": True,
@@ -420,14 +456,14 @@ async def resolve_by_domain(
             "company_id": str(d.get("company_id")),
             "company_ref_id": d.get("company_ref_id"),
             "tenant_ref_id": d.get("tenant_ref_id"),
-            "company_code": resolved_code,
-            "company_name": resolved_name,
-            "display_name": resolved_display,
-            "legal_name": d.get("legal_name"),
-            "logo_url": resolved_logo,
-            "favicon_url": d.get("favicon_url"),
-            "primary_colour": resolved_primary,
-            "secondary_colour": resolved_secondary,
+            "company_code": brand_meta["company_code"],
+            "company_name": brand_meta["company_name"],
+            "display_name": brand_meta["display_name"],
+            "legal_name": brand_meta["legal_name"],
+            "logo_url": brand_meta["logo_url"],
+            "favicon_url": brand_meta["favicon_url"],
+            "primary_colour": brand_meta["primary_colour"],
+            "secondary_colour": brand_meta["secondary_colour"],
             "website": d.get("website"),
             "domains": domains_list
         }

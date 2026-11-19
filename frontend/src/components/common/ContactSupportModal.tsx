@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 import {
   X,
   Mail,
@@ -59,6 +60,7 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
   onClose,
   identifier
 }) => {
+  const branding = useCompanyBranding();
   const [loading, setLoading] = useState<boolean>(true);
   const [data, setData] = useState<SupportInfoData | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -81,16 +83,22 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
         })
         .catch(() => {
           // Fallback dynamic structure if server offline
+          const supportMail = branding.company_code === "SMSPAY"
+            ? "support@smspay.store"
+            : branding.company_code === "NEAR4YOU"
+            ? "support@near4you.store"
+            : "support@pay2pay.in";
+
           setData({
             company: {
-              company_name: "Sathus Technology Pvt. Ltd.",
-              company_logo_url: "/logo.svg",
-              support_email: "support@near4you.store",
+              company_name: branding.company_name || branding.display_name || "FinTech Platform",
+              company_logo_url: branding.logo_url || "/branding/logo.svg",
+              support_email: supportMail,
               support_phone: "+91 1800 292 982",
               whatsapp_number: "+91 70139 14767",
               support_hours: "Monday - Saturday | 09:00 AM - 07:00 PM IST",
               live_chat_enabled: true,
-              support_url: "https://near4you.store/support"
+              support_url: branding.website || "https://pay2pay.in"
             },
             application_details: {
               application_id: "APP-REG-A7110CFE2B",
@@ -104,7 +112,7 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
               {
                 id: "faq-1",
                 question: "Why is my account under review?",
-                answer: "All new retailer applications undergo mandatory compliance verification by Near4You risk and operations teams to prevent identity fraud and ensure NPCI/RBI regulatory compliance before granting financial payment access."
+                answer: "All new retailer applications undergo mandatory compliance verification by the risk and operations teams to prevent identity fraud and ensure NPCI/RBI regulatory compliance before granting financial payment access."
               },
               {
                 id: "faq-2",
@@ -126,7 +134,7 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
           setLoading(false);
         });
     }
-  }, [open, identifier]);
+  }, [open, identifier, branding]);
 
   const [mounted, setMounted] = useState<boolean>(false);
   useEffect(() => {

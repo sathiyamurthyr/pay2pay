@@ -39,7 +39,7 @@ export const COMPANY_PRESETS: Record<string, CompanyBrandingData> = {
     display_name: "Near4You",
     short_name: "N4U",
     logo_url: "/branding/logo.svg",
-    favicon_url: "/branding/favicon.png",
+    favicon_url: "/branding/near4you-favicon.png",
     primary_colour: "#A20A3A",
     secondary_colour: "#EDC11E",
     website: "https://near4you.store",
@@ -54,7 +54,7 @@ export const COMPANY_PRESETS: Record<string, CompanyBrandingData> = {
     display_name: "Pay2Pay",
     short_name: "P2P",
     logo_url: "/branding/pay2pay-logo.png",
-    favicon_url: "/branding/favicon.png",
+    favicon_url: "/branding/pay2pay-favicon.png",
     primary_colour: "#2563EB",
     secondary_colour: "#1E40AF",
     website: "https://pay2pay.in",
@@ -408,14 +408,39 @@ function applyBrandingTokens(data: CompanyBrandingData) {
     document.title = `${data.display_name} - FinTech Platform`;
   }
 
-  if (data.favicon_url) {
-    let link = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
-    if (!link) {
-      link = document.createElement("link");
-      link.type = "image/x-icon";
-      link.rel = "shortcut icon";
-      document.getElementsByTagName("head")[0].appendChild(link);
+  if (data.primary_colour) {
+    let metaTheme = document.querySelector("meta[name='theme-color']") as HTMLMetaElement;
+    if (!metaTheme) {
+      metaTheme = document.createElement("meta");
+      metaTheme.name = "theme-color";
+      document.head.appendChild(metaTheme);
     }
-    link.href = data.favicon_url;
+    metaTheme.content = data.primary_colour;
+  }
+
+  if (data.favicon_url) {
+    const existingIcons = document.querySelectorAll<HTMLLinkElement>("link[rel*='icon']");
+    if (existingIcons.length > 0) {
+      existingIcons.forEach((link) => {
+        link.href = data.favicon_url!;
+        if (data.favicon_url!.endsWith(".svg")) {
+          link.type = "image/svg+xml";
+        } else if (data.favicon_url!.endsWith(".png")) {
+          link.type = "image/png";
+        } else if (data.favicon_url!.endsWith(".ico")) {
+          link.type = "image/x-icon";
+        }
+      });
+    } else {
+      const link = document.createElement("link");
+      link.rel = "shortcut icon";
+      link.href = data.favicon_url;
+      if (data.favicon_url.endsWith(".svg")) {
+        link.type = "image/svg+xml";
+      } else if (data.favicon_url.endsWith(".png")) {
+        link.type = "image/png";
+      }
+      document.head.appendChild(link);
+    }
   }
 }

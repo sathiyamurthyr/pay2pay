@@ -6,7 +6,7 @@ import { apiClient } from "@/lib/api";
 import { useRetailerStore } from "@/stores/use-retailer-store";
 import { useTransactionMemoryStore } from "@/stores/use-transaction-memory-store";
 
-export type UserRole = "PLATFORM_ADMIN" | "RETAILER" | "OPERATIONS_ADMIN";
+export type UserRole = "PLATFORM_ADMIN" | "RETAILER" | "OPERATIONS_ADMIN" | "SUPER_ADMIN" | "SD" | "DIST";
 
 export interface User {
   public_id: string;
@@ -210,9 +210,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Load transient user profile details
       try {
+        const host = typeof window !== "undefined" ? window.location.hostname.toLowerCase() : "";
+        const port = typeof window !== "undefined" ? window.location.port : "";
+        const isSmspay = host.includes("smspay") || port === "4002";
+        const isNear4you = host.includes("near4you") || port === "4001";
+        const isPay2pay = host.includes("pay2pay") || port === "3000" || port === "4003";
+
         const storedUser = localStorage.getItem("user_info") || localStorage.getItem("pay2pay_user_data");
+        let parsed: any = null;
         if (storedUser) {
-          const parsed = JSON.parse(storedUser);
+          try {
+            const temp = JSON.parse(storedUser);
+            const compRef = temp.company_ref_id;
+            const compCode = (temp.company_code || "").toUpperCase();
+            const isMismatch =
+              (isSmspay && (compRef === 47 || compCode === "PAY2PAY" || (temp.retailer_code && String(temp.retailer_code).startsWith("P2P-")))) ||
+              (isPay2pay && (compRef === 2 || compCode === "SMSPAY" || (temp.retailer_code && String(temp.retailer_code).startsWith("SMSP-"))));
+
+            if (!isMismatch) {
+              parsed = temp;
+            }
+          } catch {}
+        }
+
+        if (parsed) {
           if (!parsed.roles || !Array.isArray(parsed.roles)) {
             parsed.roles = [parsed.role || storedRole];
           }
@@ -224,8 +245,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setActiveRole(isRet ? "RETAILER" : "PLATFORM_ADMIN");
         } else {
           // Construct minimal profile from active session
-          const host = typeof window !== "undefined" ? window.location.hostname.toLowerCase() : "";
-          const port = typeof window !== "undefined" ? window.location.port : "";
           const fallbackDomain = (host.includes("smspay") || port === "4002")
             ? "smspay.store"
             : (host.includes("near4you") || port === "4001")
