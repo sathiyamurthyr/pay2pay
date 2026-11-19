@@ -40,9 +40,9 @@ type LanguageKey = "English" | "Hindi" | "Tamil" | "Telugu";
 
 const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
   English: {
-    securityAuth: "Near 4 You Security Auth v2.6.4",
+    securityAuth: "Enterprise Security Auth v2.6.4",
     welcomeBack: "Welcome Back",
-    subtitle: "Access your Near 4 You Business Workstation",
+    subtitle: "Access your Business Workstation",
     passwordLogin: "Password",
     otpLogin: "WhatsApp OTP",
     biometricLogin: "Biometric",
@@ -68,15 +68,15 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
     privacyPolicy: "Privacy Policy",
     terms: "Terms of Service",
     refundPolicy: "Refund Policy",
-    rbiFooter: "© 2021 Sathus Technology Pvt. Ltd.\nNear 4 You Portal",
+    rbiFooter: "© 2026 FinTech Platform",
     days30: "30 Days",
     days90: "90 Days",
     forever: "Forever"
   },
   Hindi: {
-    securityAuth: "Near 4 You सुरक्षा प्रमाणीकरण v2.6.4",
+    securityAuth: "सुरक्षा प्रमाणीकरण v2.6.4",
     welcomeBack: "वापसी पर आपका स्वागत है",
-    subtitle: "अपने Near 4 You व्यवसाय वर्कस्टेशन पर लॉगिन करें",
+    subtitle: "अपने व्यवसाय वर्कस्टेशन पर लॉगिन करें",
     passwordLogin: "पासवर्ड",
     otpLogin: "व्हाट्सएप ओटीपी",
     biometricLogin: "बायोमेट्रिक",
@@ -102,15 +102,15 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
     privacyPolicy: "गोपनीयता नीति",
     terms: "सेवा की शर्तें",
     refundPolicy: "रिफंड नीति",
-    rbiFooter: "© 2021 Sathus Technology Pvt. Ltd.\nNear 4 You Portal",
+    rbiFooter: "© 2026 FinTech Platform",
     days30: "30 दिन",
     days90: "90 दिन",
     forever: "हमेशा"
   },
   Tamil: {
-    securityAuth: "Near 4 You பாதுகாப்பு அங்கீகாரம் v2.6.4",
+    securityAuth: "பாதுகாப்பு அங்கீகாரம் v2.6.4",
     welcomeBack: "மீண்டும் வருக",
-    subtitle: "உங்கள் Near 4 You வணிக பணிநிலையத்தை அணுகவும்",
+    subtitle: "உங்கள் வணிக பணிநிலையத்தை அணுகவும்",
     passwordLogin: "கடவுச்சொல்",
     otpLogin: "வாட்ஸ்அப் ஒடிபி",
     biometricLogin: "கைரேகை",
@@ -136,15 +136,15 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
     privacyPolicy: "தனியுரிமைக் கொள்கை",
     terms: "சேவை விதிகள்",
     refundPolicy: "பணத்தைத் திரும்பப்பெறும் கொள்கை",
-    rbiFooter: "© 2021 Sathus Technology Pvt. Ltd.\nNear 4 You Portal",
+    rbiFooter: "© 2026 FinTech Platform",
     days30: "30 நாட்கள்",
     days90: "90 நாட்கள்",
     forever: "எப்போதும்"
   },
   Telugu: {
-    securityAuth: "Near 4 You భద్రతా ప్రమాణీకరణ v2.6.4",
+    securityAuth: "భద్రతా ప్రమాణీకరణ v2.6.4",
     welcomeBack: "తిరిగి స్వాగతం",
-    subtitle: "మీ Near 4 You బిజినెస్ వర్క్‌స్టేషన్‌ను యాక్సెస్ చేయండి",
+    subtitle: "మీ బిజినెస్ వర్క్‌స్టేషన్‌ను యాక్సెస్ చేయండి",
     passwordLogin: "పాస్‌వర్డ్",
     otpLogin: "వాట్సాప్ ఓటీపీ",
     biometricLogin: "బయోమెట్రిక్",
@@ -170,7 +170,7 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
     privacyPolicy: "గోప్యతా విధానం",
     terms: "సేవా నిబంధనలు",
     refundPolicy: "రీఫండ్ పాలసీ",
-    rbiFooter: "© 2021 Sathus Technology Pvt. Ltd.\nNear 4 You Portal",
+    rbiFooter: "© 2026 FinTech Platform",
     days30: "30 రోజులు",
     days90: "90 రోజులు",
     forever: "ఎల్లప్పుడూ"
@@ -208,21 +208,21 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 
   const portalTitle =
     normalizedRole === "COMMON"
-      ? `${display_name || "Near 4 You"} Unified Portal`
+      ? `${display_name || "FinTech"} Unified Portal`
       : normalizedRole === "RETAILER"
-      ? `${display_name || "Near 4 You"} Retailer Portal`
+      ? `${display_name || "FinTech"} Retailer Portal`
       : normalizedRole === "SD"
-      ? `${display_name || "Near 4 You"} SD Portal`
-      : `${display_name || "Near 4 You"} Distributor Portal`;
+      ? `${display_name || "FinTech"} SD Portal`
+      : `${display_name || "FinTech"} Distributor Portal`;
 
   const portalSubtitle =
     normalizedRole === "COMMON"
       ? "Sign in to access your Retailer, Distributor, or Super Distributor Workspace"
       : normalizedRole === "RETAILER"
-      ? `Access your ${display_name || "Near 4 You"} Retailer Business Workstation`
+      ? `Access your ${display_name || "FinTech"} Retailer Business Workstation`
       : normalizedRole === "SD"
-      ? `Access your ${display_name || "Near 4 You"} Super Distributor Workspace`
-      : `Access your ${display_name || "Near 4 You"} Distributor Workspace`;
+      ? `Access your ${display_name || "FinTech"} Super Distributor Workspace`
+      : `Access your ${display_name || "FinTech"} Distributor Workspace`;
 
   const portalRegisterUrl =
     normalizedRole === "COMMON" || normalizedRole === "RETAILER"
@@ -881,12 +881,12 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           <div className="flex items-center gap-3">
             <img
               src={logo_url || "/branding/logo.svg"}
-              alt={display_name || "Near 4 You"}
+              alt={display_name || "FinTech"}
               className="w-10 h-10 rounded-xl object-contain border border-[#E8E2E5] shadow-sm p-0.5 bg-white"
             />
             <div>
               <h1 className="text-sm font-black tracking-tight text-[#292329]">
-                {display_name || "Near 4 You"}
+                {display_name || "FinTech"}
               </h1>
               <p className="text-[10px] font-semibold text-[#625B60]">{portalTitle}</p>
             </div>
@@ -963,7 +963,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                 }}
               >
                 <div className="w-full h-full rounded-[14px] flex items-center justify-center p-1 bg-white">
-                  <img src={logo_url || "/branding/logo.svg"} alt={display_name || "Near 4 You"} className="w-full h-full object-contain" />
+                  <img src={logo_url || "/branding/logo.svg"} alt={display_name || "FinTech"} className="w-full h-full object-contain" />
                 </div>
               </div>
             </div>
@@ -1603,7 +1603,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             <a href="#" className="hover:underline transition-colors">{t.refundPolicy}</a>
           </div>
           <p className="text-[11px] whitespace-pre-line leading-relaxed text-[#8A8288]">
-            {`© ${new Date().getFullYear()} ${legal_name || "Sathus Technology Pvt. Ltd."}\n${display_name || "Near 4 You"} Portal`}
+            {`© ${new Date().getFullYear()} ${legal_name || "Enterprise Technology Pvt. Ltd."}\n${display_name || "FinTech"} Portal`}
           </p>
         </div>
 

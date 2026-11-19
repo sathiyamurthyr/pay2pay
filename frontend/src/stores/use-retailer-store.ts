@@ -49,7 +49,7 @@ export interface ThemeConfig {
 
 const DEFAULT_WHITE_THEME: ThemeConfig = {
   id: "corporate-white",
-  label: "Near4You Enterprise White",
+  label: "Enterprise White",
   swatch: "#FFFFFF",
   headerBg: "#FFFFFF",
   headerText: "#292329",

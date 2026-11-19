@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 import {
   Box,
   Typography,
@@ -191,6 +192,8 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
   service = "DMT",
   onRetry,
 }) => {
+  const branding = useCompanyBranding();
+  const brandPrimary = branding.primary_colour || "#2563EB";
   const [currentLang, setCurrentLang] = useState<SupportedLanguage>("en");
   const [isChecking, setIsChecking] = useState<boolean>(false);
 
@@ -267,8 +270,8 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
             >
               <Box
                 component="img"
-                src="/branding/logo.svg"
-                alt="NEAR4YOU"
+                src={branding.logo_url || "/branding/logo.svg"}
+                alt={branding.display_name || "Platform"}
                 sx={{
                   width: "100%",
                   height: "100%",
@@ -290,7 +293,7 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
                   lineHeight: 1.1,
                 }}
               >
-                NEAR4YOU
+                {branding.display_name || "FinTech"}
               </Typography>
               <Typography
                 variant="caption"
@@ -320,7 +323,7 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
                 py: 0.5,
               }}
             >
-              <TranslateIcon sx={{ fontSize: 18, color: "#A20A3A" }} />
+              <TranslateIcon sx={{ fontSize: 18, color: brandPrimary }} />
               <Select
                 value={currentLang}
                 onChange={(e) => setCurrentLang(e.target.value as SupportedLanguage)}
@@ -353,7 +356,7 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
                     }}
                   >
                     <span>{l.label}</span>
-                    <Typography component="span" sx={{ color: "#A20A3A", fontSize: "12px", fontWeight: 700 }}>
+                    <Typography component="span" sx={{ color: brandPrimary, fontSize: "12px", fontWeight: 700 }}>
                       {l.native}
                     </Typography>
                   </MenuItem>
@@ -523,11 +526,11 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
                 border: "1px solid #E8E2E5",
                 borderRadius: 2,
                 transition: "border-color 0.2s ease",
-                "&:hover": { borderColor: "#A20A3A" },
+                "&:hover": { borderColor: brandPrimary },
               }}
             >
               <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 1 }}>
-                <ShieldIcon sx={{ fontSize: 20, color: "#A20A3A" }} />
+                <ShieldIcon sx={{ fontSize: 20, color: brandPrimary }} />
                 <Typography sx={{ color: "#292329", fontWeight: 700, fontSize: "14px" }}>
                   {t.safeTitle}
                 </Typography>
@@ -591,7 +594,7 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
                 )
               }
               sx={{
-                bgcolor: "#A20A3A",
+                bgcolor: brandPrimary,
                 color: "#FFFFFF",
                 fontWeight: 800,
                 fontSize: "14px",
@@ -599,10 +602,10 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
                 py: 1.25,
                 borderRadius: "10px",
                 textTransform: "none",
-                boxShadow: "0 4px 15px rgba(162, 10, 58, 0.25)",
+                boxShadow: `0 4px 15px ${brandPrimary}40`,
                 "&:hover": {
-                  bgcolor: "#85072F",
-                  boxShadow: "0 6px 20px rgba(162, 10, 58, 0.4)",
+                  opacity: 0.9,
+                  boxShadow: `0 6px 20px ${brandPrimary}60`,
                 },
                 minWidth: { xs: "100%", sm: "240px" },
               }}
@@ -626,8 +629,8 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
                 borderRadius: "10px",
                 textTransform: "none",
                 "&:hover": {
-                  borderColor: "#A20A3A",
-                  bgcolor: "#FFF0F4",
+                  borderColor: brandPrimary,
+                  bgcolor: `${brandPrimary}10`,
                 },
                 minWidth: { xs: "100%", sm: "190px" },
               }}

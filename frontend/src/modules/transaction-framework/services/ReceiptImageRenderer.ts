@@ -206,11 +206,11 @@ export function renderReceiptToCanvas(
   ctx.textBaseline = "top";
   ctx.fillStyle = "#FFFFFF";
   ctx.font = `900 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-  ctx.fillText("Near4You Enterprise", logoX + logoSize + 14, logoY);
+  ctx.fillText(data.companyName || "Enterprise Platform", logoX + logoSize + 14, logoY);
 
   ctx.fillStyle = "#334155";
   ctx.font = `800 12.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-  ctx.fillText(data.companyName || "SUPER REX PRODUCTS PRIVATE LIMITED", logoX + logoSize + 14, logoY + 22);
+  ctx.fillText(data.companyName || "Authorized Payment Network", logoX + logoSize + 14, logoY + 22);
 
   // Subtitle / Tagline
   ctx.fillStyle = "#2563EB";
@@ -437,10 +437,14 @@ export function renderReceiptToCanvas(
   ctx.font = `800 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
   ctx.fillText("Scan to Verify Online Receipt", qrX + qrSize + 16, qrY + 18);
 
+  const dynamicReceiptDomain = typeof window !== "undefined"
+    ? (window.location.hostname.includes("smspay") ? "receipt.smspay.store" : window.location.hostname.includes("near4you") ? "receipt.near4you.store" : "receipt.pay2pay.in")
+    : "receipt.pay2pay.in";
+
   ctx.fillStyle = "#2563EB";
   ctx.font = `700 10.5px "Courier New", Courier, monospace`;
   ctx.fillText(
-    data.publicShareUrl || `https://receipt.near4you.store/r/${data.receiptToken}`,
+    data.publicShareUrl || `https://${dynamicReceiptDomain}/r/${data.receiptToken}`,
     qrX + qrSize + 16,
     qrY + 36
   );
@@ -567,8 +571,13 @@ export async function shareReceiptAsImage(
     // 3. Fallback: Download the PNG file and notify user
     await downloadReceiptImage(data);
 
+    const shareHost = typeof window !== "undefined"
+      ? (window.location.hostname.includes("smspay") ? "receipt.smspay.store" : window.location.hostname.includes("near4you") ? "receipt.near4you.store" : "receipt.pay2pay.in")
+      : "receipt.pay2pay.in";
+    const dynamicShareUrl = data.publicShareUrl || `https://${shareHost}/r/${data.receiptToken}`;
+
     if (targetApp === "whatsapp") {
-      const shareUrl = data.publicShareUrl || `https://receipt.near4you.store/r/${data.receiptToken}`;
+      const shareUrl = dynamicShareUrl;
       const msg = encodeURIComponent(
         `*${data.companyName || "Transaction"} Receipt*\nAmount: ₹${data.amount}\nBeneficiary: ${data.beneficiaryName}\nUTR: ${data.utr}\nView Online: ${shareUrl}`
       );
@@ -581,7 +590,7 @@ export async function shareReceiptAsImage(
     }
 
     if (targetApp === "telegram") {
-      const shareUrl = data.publicShareUrl || `https://receipt.near4you.store/r/${data.receiptToken}`;
+      const shareUrl = dynamicShareUrl;
       const msg = encodeURIComponent(
         `${data.companyName || "Transaction"} Receipt: ₹${data.amount} to ${data.beneficiaryName} (UTR: ${data.utr})`
       );

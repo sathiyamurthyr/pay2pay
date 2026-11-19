@@ -152,3 +152,59 @@ async def test_dashboard_resolve_context_cross_company_mismatch():
         assert "COMPANY_IDENTITY_MISMATCH" in exc_info.value.detail
         assert "SMSPAY" in exc_info.value.detail
 
+
+def test_resolve_brand_metadata_strict_isolation():
+    from app.presentation.api.v1.company_branding_router import resolve_brand_metadata
+
+    # 1. SMSPAY via host hint
+    smspay_meta = resolve_brand_metadata(
+        code_hint=None,
+        host_hint="login.smspay.store",
+        db_row={"company_code": "SUPERREX", "company_ref_id": 2}
+    )
+    assert smspay_meta["company_code"] == "SMSPAY"
+    assert smspay_meta["display_name"] == "SMSPAY"
+    assert smspay_meta["logo_url"] == "/branding/smspay-logo.svg"
+    assert smspay_meta["favicon_url"] == "/branding/smspay-mark.svg"
+    assert smspay_meta["primary_colour"] == "#059669"
+    assert smspay_meta["secondary_colour"] == "#047857"
+    assert smspay_meta["legal_name"] == "SMSPAY Technologies Pvt. Ltd."
+
+    # 2. SMSPAY via port 4002
+    smspay_port_meta = resolve_brand_metadata(
+        code_hint=None,
+        host_hint="localhost:4002",
+        db_row={"company_code": "SUPERREX", "company_ref_id": 2}
+    )
+    assert smspay_port_meta["company_code"] == "SMSPAY"
+    assert smspay_port_meta["favicon_url"] == "/branding/smspay-mark.svg"
+
+    # 3. Pay2Pay via host hint
+    p2p_meta = resolve_brand_metadata(
+        code_hint=None,
+        host_hint="login.pay2pay.in",
+        db_row={"company_code": "PAY2PAY", "company_ref_id": 47}
+    )
+    assert p2p_meta["company_code"] == "PAY2PAY"
+    assert p2p_meta["display_name"] == "Pay2Pay"
+    assert p2p_meta["logo_url"] == "/branding/pay2pay-logo.png"
+    assert p2p_meta["favicon_url"] == "/branding/pay2pay-favicon.png"
+    assert p2p_meta["primary_colour"] == "#2563EB"
+    assert p2p_meta["secondary_colour"] == "#1E40AF"
+    assert p2p_meta["legal_name"] == "Pay2Pay FinTech Solutions Pvt. Ltd."
+
+    # 4. Near4You via host hint
+    n4u_meta = resolve_brand_metadata(
+        code_hint=None,
+        host_hint="login.near4you.store",
+        db_row={"company_code": "NEAR4YOU", "company_ref_id": 1}
+    )
+    assert n4u_meta["company_code"] == "NEAR4YOU"
+    assert n4u_meta["display_name"] == "Near4You"
+    assert n4u_meta["logo_url"] == "/branding/logo.svg"
+    assert n4u_meta["favicon_url"] == "/branding/favicon.png"
+    assert n4u_meta["primary_colour"] == "#A20A3A"
+    assert n4u_meta["secondary_colour"] == "#EDC11E"
+    assert n4u_meta["legal_name"] == "Near4You Enterprise Technologies Pvt. Ltd."
+
+

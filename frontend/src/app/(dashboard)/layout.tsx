@@ -62,8 +62,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         window.location.hostname.startsWith("admin.") ||
         window.location.hostname.includes("admin.smspay.store") ||
         window.location.hostname.includes("admin.near4you.store") ||
-        window.location.hostname.includes("admin.pay2pay.in") ||
-        window.location.port === "4002"
+        window.location.hostname.includes("admin.pay2pay.in")
       );
       const loginTarget = pathname?.startsWith("/super-admin")
         ? "/super-admin/login"
@@ -121,8 +120,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     window.location.hostname.startsWith("admin.") ||
     window.location.hostname.includes("admin.smspay.store") ||
     window.location.hostname.includes("admin.near4you.store") ||
-    window.location.hostname.includes("admin.pay2pay.in") ||
-    window.location.port === "4002"
+    window.location.hostname.includes("admin.pay2pay.in")
   );
 
   const isAdminOrSuperAdminRoute = Boolean(
