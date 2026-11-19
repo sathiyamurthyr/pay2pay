@@ -1292,6 +1292,38 @@ async def update_company_card_mdr(
         "card_network": net
     }
 
+    # Ensure/sync base wildcard rule (card_network IS NULL) for this company & vendor
+    base_find = await db.execute(text("""
+        SELECT payin_mdr_cfg_ref_id FROM public.payin_mdr_cfg
+        WHERE company_ref_id = :cid AND payin_vendor_ref_id = :vid AND card_network IS NULL
+        LIMIT 1;
+    """), {"cid": target_comp, "vid": vendor_ref_id})
+    base_id = base_find.scalar()
+
+    if net == "VISA" or not base_id:
+        if base_id:
+            await db.execute(text("""
+                UPDATE public.payin_mdr_cfg
+                SET mdr_pct = :pct, is_enabled = :en, updated_by = :uby, updated_at = :uat
+                WHERE payin_mdr_cfg_ref_id = :rid;
+            """), {"pct": new_pct_decimal, "en": req.is_enabled, "uby": user_email, "uat": now_utc, "rid": base_id})
+        else:
+            await db.execute(text("""
+                INSERT INTO public.payin_mdr_cfg (
+                    company_ref_id, payin_vendor_ref_id, card_network,
+                    mdr_pct, mdr_fixed, tax_pct, min_mdr, max_mdr, mdr_treatment,
+                    priority, is_enabled, effective_from, created_by, updated_by, created_at, updated_at
+                ) VALUES (
+                    :cid, :vid, NULL,
+                    :pct, 0.0, 0.18, 0.0, 5000.0, :treat,
+                    100, :en, :now, :uby, :uby, :now, :now
+                );
+            """), {
+                "cid": target_comp, "vid": vendor_ref_id, "pct": new_pct_decimal,
+                "treat": req.mdr_treatment or "COLLECT_ADDITIONALLY", "en": req.is_enabled,
+                "now": now_utc, "uby": user_email
+            })
+
     db.add(PayinAuditLogModel(
         company_ref_id=target_comp,
         action_type="UPDATE_COMPANY_CARD_MDR",
@@ -1451,6 +1483,42 @@ async def batch_update_company_card_mdr(
             "is_enabled": item.is_enabled,
             "rule_ref_id": rule_id
         })
+
+    # Ensure/sync base wildcard rule (card_network IS NULL) using primary scheme (VISA) or first active scheme
+    primary_item = next((it for it in req.items if it.card_network.upper() == "VISA" and it.is_enabled), None)
+    if not primary_item:
+        primary_item = next((it for it in req.items if it.is_enabled), req.items[0] if req.items else None)
+
+    if primary_item:
+        base_pct_decimal = round(float(primary_item.mdr_percent) / 100.0, 6)
+        base_find = await db.execute(text("""
+            SELECT payin_mdr_cfg_ref_id FROM public.payin_mdr_cfg
+            WHERE company_ref_id = :cid AND payin_vendor_ref_id = :vid AND card_network IS NULL
+            LIMIT 1;
+        """), {"cid": target_comp, "vid": vendor_ref_id})
+        b_id = base_find.scalar()
+        if b_id:
+            await db.execute(text("""
+                UPDATE public.payin_mdr_cfg
+                SET mdr_pct = :pct, is_enabled = :en, updated_by = :uby, updated_at = :uat
+                WHERE payin_mdr_cfg_ref_id = :rid;
+            """), {"pct": base_pct_decimal, "en": primary_item.is_enabled, "uby": user_email, "uat": now_utc, "rid": b_id})
+        else:
+            await db.execute(text("""
+                INSERT INTO public.payin_mdr_cfg (
+                    company_ref_id, payin_vendor_ref_id, card_network,
+                    mdr_pct, mdr_fixed, tax_pct, min_mdr, max_mdr, mdr_treatment,
+                    priority, is_enabled, effective_from, created_by, updated_by, created_at, updated_at
+                ) VALUES (
+                    :cid, :vid, NULL,
+                    :pct, 0.0, 0.18, 0.0, 5000.0, :treat,
+                    100, :en, :now, :uby, :uby, :now, :now
+                );
+            """), {
+                "cid": target_comp, "vid": vendor_ref_id, "pct": base_pct_decimal,
+                "treat": primary_item.mdr_treatment or "COLLECT_ADDITIONALLY", "en": primary_item.is_enabled,
+                "now": now_utc, "uby": user_email
+            })
 
     await db.commit()
     return {

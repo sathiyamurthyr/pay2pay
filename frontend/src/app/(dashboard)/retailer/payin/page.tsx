@@ -206,6 +206,7 @@ export default function RetailerPayinPage() {
 
   // Supported Card Schemes with Admin-Configured MDR (Display Only)
   const [cardSchemes, setCardSchemes] = useState<CardSchemeItem[]>([]);
+  const [selectedCardNetwork, setSelectedCardNetwork] = useState<string | null>(null);
   const [isLoadingSchemes, setIsLoadingSchemes] = useState<boolean>(false);
   const [customerMobile, setCustomerMobile] = useState<string>("");
   const [topupAmount, setTopupAmount] = useState<string>("");
@@ -376,7 +377,8 @@ export default function RetailerPayinPage() {
           amount: numericAmount,
           service_type_code: "UTILITY",
           payment_mode_code: "CARD",
-          vendor_code: selectedGateway.vendorCode
+          vendor_code: selectedGateway.vendorCode,
+          card_network: selectedCardNetwork || undefined
         });
         if (!isCancelled && res.data) {
           setMdrPreview(res.data);
@@ -402,7 +404,7 @@ export default function RetailerPayinPage() {
       isCancelled = true;
       clearTimeout(timer);
     };
-  }, [numericAmount, isAmountValid, selectedGateway.vendorCode]);
+  }, [numericAmount, isAmountValid, selectedGateway.vendorCode, selectedCardNetwork]);
 
   // Financial Calculations derived from backend MDR preview or baseline fallback
   const calculations = useMemo(() => {
@@ -767,6 +769,7 @@ export default function RetailerPayinPage() {
         payment_mode: "CARD",
         payment_mode_code: "CARD",
         vendor_code: selectedGateway.vendorCode,
+        card_network: selectedCardNetwork || undefined,
         note: "SMSPAY Retailer PayIn Top-Up"
       };
 
@@ -2148,8 +2151,22 @@ export default function RetailerPayinPage() {
                     const isAmex = sId === "amex_diners" || sId === "amex" || sNet === "AMEX";
                     const isCorp = sId === "business_corporate" || sId === "corp" || sNet === "CORP" || sNet === "BUSINESS";
 
+                    const isSelected = selectedCardNetwork === sNet;
                     return (
-                      <div key={scheme.id} className="payin-schemes__card">
+                      <div
+                        key={scheme.id}
+                        onClick={() => {
+                          if (scheme.is_active !== false) {
+                            setSelectedCardNetwork(isSelected ? null : sNet);
+                          }
+                        }}
+                        className={`payin-schemes__card cursor-pointer transition-all duration-200 select-none ${
+                          isSelected
+                            ? "ring-2 ring-emerald-500 bg-emerald-50/60 border-emerald-400 shadow-sm"
+                            : "hover:border-slate-300 hover:shadow-xs"
+                        }`}
+                        title={isSelected ? "Click to deselect (returns to general preview)" : `Click to preview rates for ${scheme.name}`}
+                      >
                         <div className="payin-schemes__top">
                           {isVisa ? (
                             <span className="badge-scheme badge-scheme--visa">
@@ -2182,7 +2199,13 @@ export default function RetailerPayinPage() {
                             </span>
                           )}
 
-                          <span className="payin-schemes__status-dot" title="Active & Supported" />
+                          {isSelected ? (
+                            <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-emerald-600 text-white flex items-center gap-0.5">
+                              <Check className="w-2.5 h-2.5" /> Selected
+                            </span>
+                          ) : (
+                            <span className="payin-schemes__status-dot" title="Active & Supported" />
+                          )}
                         </div>
 
                         <div className="my-0.5">
