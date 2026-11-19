@@ -4112,6 +4112,7 @@ class UserFavoriteMenuModel(BaseEntity, EnterpriseBaseMixin):
 
     user_ref_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    company_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     user_role: Mapped[str] = mapped_column(String(50), default="RETAILER", nullable=False)
     menu_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     menu_href: Mapped[str] = mapped_column(String(255), nullable=False, index=True)

@@ -220,52 +220,23 @@ async def list_admin_platform_services(db: AsyncSession = Depends(get_db)):
 @router.patch("/admin/services/{service_code}/toggle")
 async def toggle_admin_platform_service(
     service_code: str,
+    request: Request,
+    company_ref_id: Optional[int] = Query(None),
     req: Optional[ToggleServiceRequest] = None,
     db: AsyncSession = Depends(get_db)
 ):
     """
     Toggles or sets the enabled status for a platform service (Mobile Recharge, DMT, BBPS, AEPS, POS Top-Up)
-    using stored procedure sp_toggle_platform_service.
+    scoped by company_ref_id.
     """
-    from sqlalchemy import text
-    cur_res = await db.execute(text("SELECT is_enabled FROM customer_service_configuration WHERE service_code = :code AND is_deleted = false;"), {"code": service_code.upper()})
-    row = cur_res.fetchone()
-    if not row:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Service '{service_code}' not found in service configuration."
-        )
-
-    new_val = not row[0] if (req is None or req.is_enabled is None) else req.is_enabled
-
-    sp_res = await db.execute(
-        text("SELECT * FROM sp_toggle_platform_service(:code, :is_enabled, :updated_by);"),
-        {"code": service_code.upper(), "is_enabled": new_val, "updated_by": "ADMIN"}
+    from app.presentation.api.v1.services_router import toggle_platform_service as s_toggle
+    return await s_toggle(
+        service_code=service_code,
+        request=request,
+        company_ref_id=company_ref_id,
+        req=req,
+        db=db
     )
-    await db.commit()
-
-    res = await db.execute(text("SELECT service_code, service_name, is_enabled, config_status FROM customer_service_configuration WHERE is_deleted = false ORDER BY service_code;"))
-    services = [
-        {
-            "code": r[0],
-            "name": r[1],
-            "is_enabled": r[2],
-            "status": r[3]
-        }
-        for r in res.fetchall()
-    ]
-    pos_modes = await PosMdrService.get_all_payment_modes(db)
-
-    return {
-        "success": True,
-        "message": f"Service '{service_code}' status updated to {'ENABLED' if new_val else 'DISABLED'}",
-        "service": {
-            "code": service_code.upper(),
-            "is_enabled": new_val
-        },
-        "services": services,
-        "pos_modes": pos_modes
-    }
 
 
 @router.get("/admin/mdr-configs")
