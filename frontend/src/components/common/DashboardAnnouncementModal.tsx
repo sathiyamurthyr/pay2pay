@@ -250,11 +250,11 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
               )}
             </div>
 
-            {/* Title & Body with clear hierarchy and gold/yellow gradient typography */}
+            {/* Title & Body with clear hierarchy and crisp readable typography */}
             {(item.header !== "Announcement" || item.body) && (
               <div className="space-y-2">
                 {item.header && (
-                  <h2 className="text-xl sm:text-2xl font-black tracking-tight leading-snug bg-gradient-to-r from-amber-100 via-amber-300 to-yellow-400 bg-clip-text text-transparent drop-shadow-[0_2px_8px_rgba(245,158,11,0.2)]">
+                  <h2 className="text-xl sm:text-2xl font-black tracking-tight leading-snug text-gray-900">
                     {item.header}
                   </h2>
                 )}

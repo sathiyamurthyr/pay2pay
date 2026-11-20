@@ -4,25 +4,21 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
+  Check,
   CheckCircle2,
   XCircle,
   Clock,
   Share2,
   Printer,
   Copy,
-  Check,
   ArrowLeft,
   RefreshCw,
+  User,
+  CreditCard,
+  Phone,
+  Mail,
   ExternalLink,
-  ShieldCheck,
-  Building2,
-  Smartphone,
-  Wallet,
-  AlertCircle,
-  Download,
-  Send,
-  Lock,
-  ChevronRight
+  ShieldCheck
 } from "lucide-react";
 import { useCompanyBranding, COMPANY_PRESETS } from "@/hooks/useCompanyBranding";
 
@@ -34,85 +30,95 @@ interface ReceiptData {
   order_id?: string;
   status: "SUCCESS" | "FAILED" | "PENDING" | "PROCESSING" | string;
   amount: number;
-  customer_payable: number;
-  retailer_credit: number;
-  mdr_amount: number;
-  tax_amount: number;
-  total_charges: number;
+  gst?: number;
+  tax_amount?: number;
+  charges?: number;
+  total_charges?: number;
+  total_debited?: number;
+  customer_payable?: number;
+  retailer_credit?: number;
+  retailer_name?: string;
+  retailer_id?: string;
   customer_name?: string;
   customer_mobile?: string;
+  gateway?: string;
+  gateway_ref?: string;
+  rrn?: string;
   provider?: string;
   card_network?: string;
   payment_mode?: string;
-  company_code?: string;
-  company_name?: string;
+  payment_method?: string;
   domain?: string;
+  support_phone?: string;
+  support_email?: string;
+  terms_url?: string;
+  privacy_url?: string;
   created_at?: string;
   completed_at?: string;
   utr?: string;
   failure_reason?: string | null;
 }
 
-function numberToWordsINR(num: number): string {
-  if (isNaN(num) || num === 0) return "Zero Rupees Only";
-  const a = [
-    "", "One ", "Two ", "Three ", "Four ", "Five ", "Six ", "Seven ", "Eight ", "Nine ",
-    "Ten ", "Eleven ", "Twelve ", "Thirteen ", "Fourteen ", "Fifteen ", "Sixteen ", "Seventeen ", "Eighteen ", "Nineteen "
-  ];
-  const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
-
-  const format999 = (n: number): string => {
-    let str = "";
-    if (n > 99) {
-      str += a[Math.floor(n / 100)] + "Hundred ";
-      n %= 100;
-    }
-    if (n > 19) {
-      str += b[Math.floor(n / 10)] + " " + a[n % 10];
-    } else if (n > 0) {
-      str += a[n];
-    }
-    return str;
-  };
-
-  const integerPart = Math.floor(Math.abs(num));
-  const decimalPart = Math.round((Math.abs(num) - integerPart) * 100);
-
-  let result = "";
-  const crores = Math.floor(integerPart / 10000000);
-  const lakhs = Math.floor((integerPart % 10000000) / 100000);
-  const thousands = Math.floor((integerPart % 100000) / 1000);
-  const hundreds = integerPart % 1000;
-
-  if (crores > 0) result += format999(crores) + "Crore ";
-  if (lakhs > 0) result += format999(lakhs) + "Lakh ";
-  if (thousands > 0) result += format999(thousands) + "Thousand ";
-  if (hundreds > 0) result += format999(hundreds);
-
-  result = result.trim() + " Rupees";
-  if (decimalPart > 0) {
-    result += " and " + format999(decimalPart).trim() + " Paise";
-  }
-  return result + " Only";
-}
-
 function formatIST(isoDate?: string | null): string {
-  if (!isoDate) return new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+  if (!isoDate) {
+    const d = new Date();
+    const day = d.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit" });
+    const month = d.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", month: "short" });
+    const year = d.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", year: "numeric" });
+    const time = d.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: true });
+    return `${day} ${month} ${year}, ${time}`;
+  }
   try {
     const d = new Date(isoDate);
-    return d.toLocaleString("en-IN", {
-      timeZone: "Asia/Kolkata",
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: true
-    });
+    const day = d.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit" });
+    const month = d.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", month: "short" });
+    const year = d.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", year: "numeric" });
+    const time = d.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: true });
+    return `${day} ${month} ${year}, ${time}`;
   } catch {
     return isoDate;
   }
+}
+
+/**
+ * Centered Brand Logo Component
+ * Renders high-fidelity SMSPAY logo or domain-specific company logo
+ */
+function ReceiptBrandLogo({ companyCode, logoUrl }: { companyCode: string; logoUrl?: string }) {
+  if (companyCode === "SMSPAY") {
+    return (
+      <div className="flex items-center justify-center select-none py-1">
+        <svg viewBox="0 0 240 52" className="h-11 sm:h-12 w-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+          {/* Upper Orange Swoosh */}
+          <path d="M142 6C168 2 200 10 212 24C200 21 170 14 145 17L142 6Z" fill="#F97316" />
+          {/* Lower Blue Swoosh */}
+          <path d="M202 20C218 28 217 39 184 46C199 43 210 34 204 25L202 20Z" fill="#0284C7" />
+          {/* SMS Letters in Royal Blue */}
+          <text x="12" y="38" fontFamily="system-ui, -apple-system, sans-serif" fontWeight="900" fontStyle="italic" fontSize="38" fill="#0284C7" letterSpacing="-1.5">
+            SMS
+          </text>
+          {/* PAY Letters in Vivid Orange */}
+          <text x="106" y="38" fontFamily="system-ui, -apple-system, sans-serif" fontWeight="900" fontStyle="italic" fontSize="38" fill="#F97316" letterSpacing="-1.5">
+            PAY
+          </text>
+        </svg>
+      </div>
+    );
+  }
+
+  if (logoUrl) {
+    return (
+      <div className="flex items-center justify-center py-1">
+        <img src={logoUrl} alt="Logo" className="h-10 sm:h-11 max-w-[160px] object-contain" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-center py-1 text-xl font-black text-slate-900 tracking-tight">
+      {companyCode}
+    </div>
+  );
 }
 
 export function PayInStatusView() {
@@ -179,15 +185,21 @@ export function PayInStatusView() {
           setReceipt({
             tid: refParam,
             reference_id: refParam,
+            order_id: refParam,
             status: statusParam === "SUCCESS" ? "SUCCESS" : statusParam === "FAILED" ? "FAILED" : "PENDING",
             amount: 0,
+            gst: 0,
+            charges: 0,
+            total_debited: 0,
             customer_payable: 0,
             retailer_credit: 0,
-            mdr_amount: 0,
-            tax_amount: 0,
-            total_charges: 0,
-            provider: "BankMe Gateway",
+            retailer_name: "Retailer Partner",
+            retailer_id: "RT12345",
+            gateway: "G-1",
+            payment_method: "UPI",
             utr: utrParam || refParam,
+            gateway_ref: utrParam || refParam,
+            rrn: utrParam || refParam,
             created_at: new Date().toISOString()
           });
         } else {
@@ -235,64 +247,16 @@ export function PayInStatusView() {
   const isFailed = effectiveStatus === "FAILED" || effectiveStatus === "FAILURE";
   const isPending = !isSuccess && !isFailed;
 
-  // Company Brand Determination
-  const host = typeof window !== "undefined" ? window.location.host : "";
+  // Domain & Company Brand Determination
+  const host = typeof window !== "undefined" ? window.location.host.toLowerCase() : "";
   const companyCode =
-    receipt?.company_code ||
-    (host.includes("smspay") || host.includes("sms-pay") ? "SMSPAY" : host.includes("near4you") ? "NEAR4YOU" : "PAY2PAY");
-  const companyTitle =
-    receipt?.company_name ||
-    (companyCode === "SMSPAY"
-      ? "SMSPAY Digital Payments"
-      : companyCode === "NEAR4YOU"
-      ? "Near4You Financial Services"
-      : "Pay2Pay Enterprise Network");
+    (host.includes("smspay") || host.includes("sms-pay"))
+      ? "SMSPAY"
+      : host.includes("near4you")
+      ? "NEAR4YOU"
+      : "PAY2PAY";
 
-  // Share handlers
-  const handleWhatsAppShare = () => {
-    if (!receipt && !refParam) return;
-    const tid = receipt?.tid || refParam;
-    const amountStr = receipt?.amount ? `₹${receipt.amount.toLocaleString("en-IN")}` : "N/A";
-    const statusEmoji = isSuccess ? "✅ SUCCESS" : isFailed ? "❌ FAILED" : "⏳ PENDING";
-    const utrStr = receipt?.utr || utrParam || "N/A";
-    const dateStr = formatIST(receipt?.completed_at || receipt?.created_at);
-
-    const effectiveBranding = COMPANY_PRESETS[companyCode] || branding;
-    const shareUrl = `https://receipt.sathus.in/r/${tid}`;
-
-    const text =
-      `🧾 *PAYMENT RECEIPT*\n` +
-      `--------------------------------\n` +
-      `🏢 *Company:* ${companyTitle}\n` +
-      `🆔 *Transaction ID:* ${tid}\n` +
-      `💳 *Status:* ${statusEmoji}\n` +
-      `💰 *Amount:* ${amountStr}\n` +
-      `🏦 *Bank UTR:* ${utrStr}\n` +
-      `📅 *Date:* ${dateStr}\n` +
-      `--------------------------------\n` +
-      `🔗 *View Official Receipt:*\n${shareUrl}\n\n` +
-      `_Automated receipt generated by ${companyCode} Gateway_`;
-
-    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
-    window.open(whatsappUrl, "_blank");
-  };
-
-  const handleNativeShare = async () => {
-    const tid = receipt?.tid || refParam;
-    const shareUrl = typeof window !== "undefined" ? window.location.href : "";
-    const title = `${companyCode} PayIn Receipt - ${tid}`;
-    const text = `Receipt of ₹${receipt?.amount?.toLocaleString("en-IN") || "0"} (${effectiveStatus}) for TID ${tid}`;
-
-    if (typeof navigator !== "undefined" && navigator.share) {
-      try {
-        await navigator.share({ title, text, url: shareUrl });
-        return;
-      } catch (err) {
-        // User cancelled or share failed, fallback to copy
-      }
-    }
-    copyToClipboard(shareUrl, "Receipt Link");
-  };
+  const effectiveBranding = COMPANY_PRESETS[companyCode] || branding;
 
   const handlePrint = () => {
     if (typeof window !== "undefined") {
@@ -300,17 +264,34 @@ export function PayInStatusView() {
     }
   };
 
+  const handleShare = async () => {
+    const tid = receipt?.tid || refParam;
+    const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+    const title = `SMSPAY PayIn Receipt - ${tid}`;
+    const text = `SMSPAY Payment Receipt: TID ${tid} | Status: ${effectiveStatus} | Amount: ₹${Number(receipt?.amount || 0).toLocaleString("en-IN")}`;
+
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title, text, url: shareUrl });
+        return;
+      } catch (err) {
+        // Fallback to clipboard
+      }
+    }
+    copyToClipboard(shareUrl, "Receipt Link");
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-slate-100 flex flex-col justify-between py-6 px-3 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#F0F4F8] text-slate-800 flex flex-col justify-between py-6 px-3 sm:px-6">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-emerald-500 text-slate-950 font-semibold px-5 py-2.5 rounded-full shadow-2xl flex items-center gap-2 border border-emerald-400 text-sm animate-bounce no-print">
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white font-semibold px-5 py-2.5 rounded-full shadow-2xl flex items-center gap-2 border border-emerald-400 text-sm animate-bounce no-print">
           <Check className="w-4 h-4 stroke-[3]" />
           <span>{toastMessage}</span>
         </div>
       )}
 
-      {/* Scoped CSS for Print Slip */}
+      {/* Scoped CSS for Print Receipt Slip */}
       <style jsx global>{`
         @media print {
           body {
@@ -322,414 +303,346 @@ export function PayInStatusView() {
           .no-print {
             display: none !important;
           }
-          .print-slip-container {
+          .receipt-main-container {
             box-shadow: none !important;
-            border: 2px solid #0f172a !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 0 !important;
             max-width: 100% !important;
             width: 100% !important;
-            padding: 24px !important;
+            margin: 0 !important;
             background: #ffffff !important;
             color: #000000 !important;
           }
-          .print-black-text {
-            color: #000000 !important;
-          }
-          .print-border {
-            border-color: #cbd5e1 !important;
+          .receipt-accent-swoosh {
+            display: none !important;
           }
         }
       `}</style>
 
-      {/* Top Header / Brand Bar (Hidden during print) */}
-      <header className="max-w-4xl w-full mx-auto flex items-center justify-between pb-6 border-b border-slate-800/80 no-print">
+      {/* Top Navigation Back to Dashboard (No-print) */}
+      <header className="max-w-[640px] w-full mx-auto flex items-center justify-between pb-3 no-print">
         <Link
           href="/retailer/dashboard"
-          className="inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-slate-400 hover:text-white transition-colors group px-3 py-1.5 rounded-lg hover:bg-slate-800/60"
+          className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-600 hover:text-blue-700 transition-colors group px-3 py-1.5 rounded-lg hover:bg-slate-200/60"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
           <span>Back to Dashboard</span>
         </Link>
-
-        <div className="flex items-center gap-3">
-          {effectiveBranding.logo_url ? (
-            <img
-              src={effectiveBranding.logo_url}
-              alt={companyTitle}
-              className="h-8 max-w-[130px] object-contain"
-            />
-          ) : (
-            <div className="w-8 h-8 rounded-lg bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-sm">
-              {companyCode.slice(0, 2)}
-            </div>
-          )}
-          <div className="flex flex-col text-right sm:text-left">
-            <span className="text-xs sm:text-sm font-bold text-slate-200 tracking-wide">
-              {companyTitle}
-            </span>
-            <span className="text-[10px] text-emerald-400 font-mono flex items-center gap-1 justify-end sm:justify-start">
-              <ShieldCheck className="w-3 h-3 text-emerald-400" />
-              Verified Payment Switch
-            </span>
-          </div>
+        <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-semibold">
+          <ShieldCheck className="w-4 h-4 text-emerald-600" />
+          <span>Verified Payment Receipt</span>
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <main className="max-w-2xl w-full mx-auto my-6">
+      {/* Main Receipt Container */}
+      <main className="max-w-[640px] w-full mx-auto my-2">
         {loading && !receipt ? (
-          <div className="bg-slate-850/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-12 text-center shadow-2xl flex flex-col items-center justify-center gap-4">
-            <RefreshCw className="w-10 h-10 text-blue-400 animate-spin" />
-            <h2 className="text-lg font-semibold text-slate-200">
-              Retrieving Authoritative Receipt...
+          <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center shadow-lg flex flex-col items-center justify-center gap-4">
+            <RefreshCw className="w-10 h-10 text-blue-600 animate-spin" />
+            <h2 className="text-lg font-bold text-slate-800">
+              Retrieving Verified Receipt...
             </h2>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-500">
               Querying transaction switch for Reference: {refParam || "ID"}
             </p>
           </div>
         ) : (
-          <div className="print-slip-container bg-slate-850/90 backdrop-blur-xl border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
-            {/* Status Hero Card */}
-            <div
-              className={`p-6 sm:p-8 text-center relative overflow-hidden transition-all duration-300 ${
-                isSuccess
-                  ? "bg-gradient-to-b from-emerald-950/60 via-emerald-900/20 to-transparent border-b border-emerald-800/40"
-                  : isFailed
-                  ? "bg-gradient-to-b from-rose-950/60 via-rose-900/20 to-transparent border-b border-rose-800/40"
-                  : "bg-gradient-to-b from-amber-950/60 via-amber-900/20 to-transparent border-b border-amber-800/40"
-              }`}
-            >
-              {/* Status Icon Indicator */}
-              <div className="flex justify-center mb-4">
+          <div className="receipt-main-container relative bg-white border border-slate-200 rounded-3xl shadow-xl overflow-hidden">
+            {/* Top Curved Blue Accents (Decorative corners matching design) */}
+            <div className="receipt-accent-swoosh absolute top-0 left-0 w-28 sm:w-36 h-28 sm:h-36 overflow-hidden pointer-events-none z-0">
+              <svg viewBox="0 0 140 140" fill="none" className="w-full h-full">
+                <path d="M0 0H140C90 10 30 50 0 140V0Z" fill="url(#blue_grad_left)" />
+                <defs>
+                  <linearGradient id="blue_grad_left" x1="0" y1="0" x2="140" y2="140" gradientUnits="userSpaceOnUse">
+                    <stop stopColor="#1D4ED8" />
+                    <stop offset="1" stopColor="#0284C7" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+
+            <div className="receipt-accent-swoosh absolute top-0 right-0 w-24 sm:w-32 h-24 sm:h-32 overflow-hidden pointer-events-none z-0">
+              <svg viewBox="0 0 120 120" fill="none" className="w-full h-full">
+                <path d="M120 0V120C110 70 80 20 0 0H120Z" fill="url(#blue_grad_right)" />
+                <defs>
+                  <linearGradient id="blue_grad_right" x1="120" y1="0" x2="0" y2="120" gradientUnits="userSpaceOnUse">
+                    <stop stopColor="#1E40AF" />
+                    <stop offset="1" stopColor="#3B82F6" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+
+            {/* Header: Logo in Center */}
+            <div className="relative z-10 pt-6 pb-2 px-6 text-center">
+              <ReceiptBrandLogo companyCode={companyCode} logoUrl={effectiveBranding?.logo_url} />
+            </div>
+
+            {/* Payment Status Hero */}
+            <div className="relative z-10 text-center px-6 pt-3 pb-2">
+              <div className="flex justify-center mb-3">
                 {isSuccess && (
-                  <div className="relative">
-                    <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center border-2 border-emerald-500/60 animate-pulse">
-                      <CheckCircle2 className="w-12 h-12 text-emerald-400 stroke-[2.5]" />
+                  <div className="relative inline-block">
+                    <div className="w-20 h-20 rounded-full bg-[#22C55E] flex items-center justify-center text-white shadow-md">
+                      <Check className="w-10 h-10 stroke-[3.5]" />
                     </div>
+                    {/* Sparkle accents matching design */}
+                    <span className="absolute -top-1 -left-4 text-[#22C55E] text-lg font-bold select-none">✦</span>
+                    <span className="absolute bottom-1 -left-2 text-[#22C55E] text-xs font-bold select-none">✦</span>
+                    <span className="absolute -top-2 -right-3 text-[#22C55E] text-xs font-bold select-none">✦</span>
+                    <span className="absolute bottom-1 -right-4 text-[#22C55E] text-base font-bold select-none">✦</span>
                   </div>
                 )}
                 {isFailed && (
-                  <div className="relative">
-                    <div className="w-20 h-20 rounded-full bg-rose-500/20 flex items-center justify-center border-2 border-rose-500/60">
-                      <XCircle className="w-12 h-12 text-rose-400 stroke-[2.5]" />
+                  <div className="relative inline-block">
+                    <div className="w-20 h-20 rounded-full bg-[#EF4444] flex items-center justify-center text-white shadow-md">
+                      <XCircle className="w-10 h-10 stroke-[3]" />
                     </div>
                   </div>
                 )}
                 {isPending && (
-                  <div className="relative">
-                    <div className="w-20 h-20 rounded-full bg-amber-500/20 flex items-center justify-center border-2 border-amber-500/60">
-                      <Clock className="w-12 h-12 text-amber-400 stroke-[2.5] animate-spin" />
+                  <div className="relative inline-block">
+                    <div className="w-20 h-20 rounded-full bg-[#F59E0B] flex items-center justify-center text-white shadow-md">
+                      <Clock className="w-10 h-10 stroke-[3] animate-spin" />
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Status Title */}
-              <div className="space-y-1">
-                <span
-                  className={`inline-block px-3 py-1 text-xs font-bold tracking-wider uppercase rounded-full ${
-                    isSuccess
-                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
-                      : isFailed
-                      ? "bg-rose-500/20 text-rose-300 border border-rose-500/40"
-                      : "bg-amber-500/20 text-amber-300 border border-amber-500/40"
-                  }`}
-                >
-                  {isSuccess ? "Payment Successful" : isFailed ? "Payment Failed" : "Payment Pending"}
-                </span>
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight pt-2">
-                  {isSuccess
-                    ? "Transaction Completed"
-                    : isFailed
-                    ? "Transaction Declined"
-                    : "Processing Payment"}
-                </h1>
-                <p className="text-xs sm:text-sm text-slate-300 max-w-md mx-auto">
-                  {isSuccess
-                    ? "Your wallet has been credited and payment has been verified by the bank switch."
-                    : isFailed
-                    ? receipt?.failure_reason ||
-                      "The issuing bank or gateway declined the transaction. No amount was deducted."
-                    : "Awaiting bank clearance. Please wait a moment while the switch updates your balance."}
-                </p>
-              </div>
-
-              {/* Primary Amount Card */}
-              <div className="mt-6 pt-6 border-t border-slate-800/60">
-                <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
-                  Total Amount Paid
-                </div>
-                <div className="text-4xl sm:text-5xl font-extrabold text-white mt-1 tracking-tight">
-                  ₹{Number(receipt?.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                </div>
-                {receipt?.amount ? (
-                  <div className="text-xs text-slate-400 italic mt-1.5 capitalize">
-                    {numberToWordsINR(receipt.amount)}
-                  </div>
-                ) : null}
-
-                {/* Net Wallet Credit Tag (Retailer view) */}
-                {isSuccess && receipt?.retailer_credit ? (
-                  <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-full text-emerald-400 text-xs font-medium">
-                    <Wallet className="w-3.5 h-3.5" />
-                    <span>Net Wallet Credit: ₹{Number(receipt.retailer_credit).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
-                  </div>
-                ) : null}
-              </div>
+              {/* Status Title & Message */}
+              <h1
+                className={`text-2xl sm:text-[28px] font-extrabold tracking-tight ${
+                  isSuccess ? "text-[#15803D]" : isFailed ? "text-[#DC2626]" : "text-[#D97706]"
+                }`}
+              >
+                {isSuccess ? "Payment Successful" : isFailed ? "Payment Failed" : "Payment Pending"}
+              </h1>
+              <p className="text-sm text-slate-600 mt-1 max-w-md mx-auto">
+                {isSuccess
+                  ? "Your payment has been processed successfully."
+                  : isFailed
+                  ? receipt?.failure_reason || "The payment transaction could not be completed by the bank switch."
+                  : "Your payment is awaiting confirmation from the bank switch."}
+              </p>
             </div>
 
-            {/* Quick Action Toolbar (WhatsApp, Share, Download, Print) */}
-            <div className="bg-slate-900/90 border-y border-slate-800 p-4 sm:px-8 flex flex-wrap items-center justify-between gap-3 no-print">
-              <div className="text-xs text-slate-400 font-medium">
-                Receipt Actions & Sharing
-              </div>
-
-              <div className="flex items-center flex-wrap gap-2">
-                {/* WhatsApp Share */}
-                <button
-                  onClick={handleWhatsAppShare}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-lg shadow-emerald-900/40 transition-all hover:scale-105 active:scale-95"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>WhatsApp</span>
-                </button>
-
-                {/* Native / System Share */}
-                <button
-                  onClick={handleNativeShare}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-all hover:scale-105 active:scale-95"
-                >
-                  <Share2 className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Share</span>
-                </button>
-
-                {/* Print / Save PDF */}
-                <button
-                  onClick={handlePrint}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-all hover:scale-105 active:scale-95"
-                >
-                  <Printer className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Print Slip</span>
-                </button>
-
-                {/* Manual Status Refresh (for pending) */}
-                {isPending && (
-                  <button
-                    onClick={() => fetchReceiptDetails(false)}
-                    disabled={isRefreshing}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow transition-all"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
-                    <span>Check Status</span>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Authoritative Transaction Details Grid */}
-            <div className="p-6 sm:p-8 space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Reference ID / TID */}
-                <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between">
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                    Transaction Ref ID (TID)
-                  </span>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="font-mono text-sm sm:text-base font-bold text-white tracking-wide break-all">
-                      {receipt?.tid || refParam || "N/A"}
-                    </span>
-                    <button
-                      onClick={() => copyToClipboard(receipt?.tid || refParam, "TID")}
-                      className="ml-2 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors no-print"
-                      title="Copy Reference ID"
-                    >
-                      {copiedKey === "TID" ? (
-                        <Check className="w-4 h-4 text-emerald-400" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
-                    </button>
+            {/* 1. Transaction Summary 3-Column Box */}
+            <div className="relative z-10 bg-[#F1F5F9] border border-[#E2E8F0] rounded-xl p-4 sm:p-5 mx-4 sm:mx-8 mt-5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
+                <div>
+                  <div className="text-xs text-slate-500 font-medium">Transaction ID (TID)</div>
+                  <div className="text-sm font-bold text-slate-900 mt-1 font-mono tracking-tight break-all">
+                    {receipt?.tid || refParam || "--"}
                   </div>
                 </div>
-
-                {/* Bank UTR */}
-                <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between">
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                    Bank UTR / Ref Number
-                  </span>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="font-mono text-sm sm:text-base font-bold text-emerald-400 tracking-wide break-all">
-                      {receipt?.utr || utrParam || receipt?.provider_ref_id || "Awaiting UTR"}
-                    </span>
-                    {(receipt?.utr || utrParam) && (
-                      <button
-                        onClick={() => copyToClipboard(receipt?.utr || utrParam, "UTR")}
-                        className="ml-2 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors no-print"
-                        title="Copy UTR"
-                      >
-                        {copiedKey === "UTR" ? (
-                          <Check className="w-4 h-4 text-emerald-400" />
-                        ) : (
-                          <Copy className="w-4 h-4" />
-                        )}
-                      </button>
-                    )}
+                <div>
+                  <div className="text-xs text-slate-500 font-medium">Order ID</div>
+                  <div className="text-sm font-bold text-slate-900 mt-1 font-mono tracking-tight break-all">
+                    {receipt?.order_id || receipt?.merchant_ref_id || receipt?.tid || "--"}
                   </div>
                 </div>
-
-                {/* Customer Details */}
-                <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4">
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Smartphone className="w-3.5 h-3.5 text-blue-400" />
-                    Customer Mobile
-                  </span>
-                  <div className="font-semibold text-sm sm:text-base text-slate-100 mt-1">
-                    {receipt?.customer_mobile || "Retailer Direct PayIn"}
-                  </div>
-                  {receipt?.customer_name && (
-                    <div className="text-xs text-slate-400 mt-0.5">
-                      Name: {receipt.customer_name}
-                    </div>
-                  )}
-                </div>
-
-                {/* Gateway / Switch Info */}
-                <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4">
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Building2 className="w-3.5 h-3.5 text-purple-400" />
-                    Payment Gateway Switch
-                  </span>
-                  <div className="font-semibold text-sm sm:text-base text-slate-100 mt-1">
-                    {receipt?.provider || "SMSPAY Exclusive Gateway G-1"}
-                  </div>
-                  <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
-                    <Lock className="w-3 h-3 text-emerald-400" />
-                    <span>256-Bit TLS Secured Switching</span>
-                  </div>
-                </div>
-
-                {/* Date & Time */}
-                <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4">
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-amber-400" />
-                    Transaction Timestamp
-                  </span>
-                  <div className="font-semibold text-sm text-slate-100 mt-1">
+                <div>
+                  <div className="text-xs text-slate-500 font-medium">Date & Time</div>
+                  <div className="text-sm font-bold text-slate-900 mt-1">
                     {formatIST(receipt?.completed_at || receipt?.created_at)}
                   </div>
                 </div>
+              </div>
+            </div>
 
-                {/* Order ID */}
-                <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4">
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                    Gateway Order ID
+            {/* 2. Retailer Details Box (STRICT: Retailer Name & Retailer ID ONLY. NO COMPANY DETAILS) */}
+            <div className="relative z-10 border border-[#E2E8F0] rounded-2xl mx-4 sm:mx-8 mt-4 p-4 sm:p-5 bg-white shadow-xs">
+              <div className="flex items-center gap-2 mb-3.5 pb-2.5 border-b border-slate-100">
+                <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-[#0284C7]">
+                  <User className="w-4 h-4 text-[#0284C7]" />
+                </div>
+                <span className="text-sm sm:text-base font-bold text-[#0F172A]">Retailer Details</span>
+              </div>
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600 font-normal">Retailer Name</span>
+                  <span className="font-bold text-slate-900 text-right">
+                    {receipt?.retailer_name || "Rahul Traders"}
                   </span>
-                  <div className="font-mono text-sm text-slate-200 mt-1 break-all">
-                    {receipt?.order_id || receipt?.merchant_ref_id || "BM-PAYIN-DIRECT"}
-                  </div>
                 </div>
-              </div>
-
-              {/* Financial Charges & Settlement Breakdown */}
-              {receipt && (receipt.mdr_amount > 0 || receipt.retailer_credit > 0) && (
-                <div className="border border-slate-800 rounded-2xl p-4 sm:p-5 bg-slate-900/40">
-                  <div className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3">
-                    Settlement & Fee Breakdown
-                  </div>
-                  <div className="space-y-2 text-xs sm:text-sm">
-                    <div className="flex justify-between text-slate-400">
-                      <span>Gross Payment Amount:</span>
-                      <span className="font-semibold text-white">
-                        ₹{Number(receipt.amount).toFixed(2)}
-                      </span>
-                    </div>
-                    {receipt.mdr_amount > 0 && (
-                      <div className="flex justify-between text-slate-400">
-                        <span>Gateway MDR Charges:</span>
-                        <span className="text-rose-400">
-                          - ₹{Number(receipt.mdr_amount).toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-                    {receipt.tax_amount > 0 && (
-                      <div className="flex justify-between text-slate-400">
-                        <span>GST on MDR (18%):</span>
-                        <span className="text-rose-400">
-                          - ₹{Number(receipt.tax_amount).toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-                    <div className="pt-2 border-t border-slate-800 flex justify-between font-bold text-sm sm:text-base">
-                      <span className="text-emerald-400">Net Wallet Credited:</span>
-                      <span className="text-emerald-400 font-mono">
-                        ₹{Number(receipt.retailer_credit || receipt.amount).toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Authorized Stamp representation (Shows on print & screen) */}
-              <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-5 h-5 text-emerald-400" />
-                  <div>
-                    <div className="font-semibold text-slate-200">
-                      Authoritatively Verified by {companyCode} Switch
-                    </div>
-                    <div className="text-[10px] text-slate-500">
-                      Reference Hash: {receipt?.tid ? `SHA256-${receipt.tid.slice(-8)}` : "VERIFIED"}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="font-mono text-[10px] text-slate-500">
-                    STATUS: {effectiveStatus}
-                  </div>
-                  <div className="text-[10px] text-slate-400 font-medium">
-                    {receipt?.domain || host || "sms-pay.in"}
-                  </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600 font-normal">Retailer ID</span>
+                  <span className="font-bold text-slate-900 text-right font-mono">
+                    {receipt?.retailer_id || "RT12345"}
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* Bottom Actions Footer (Hidden during print) */}
-            <div className="p-6 bg-slate-900 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 no-print">
-              <Link
-                href="/retailer/payin"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm shadow-lg shadow-blue-900/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            {/* 3. Payment Details Box */}
+            <div className="relative z-10 border border-[#E2E8F0] rounded-2xl mx-4 sm:mx-8 mt-4 p-4 sm:p-5 bg-white shadow-xs">
+              <div className="flex items-center gap-2 mb-3.5 pb-2.5 border-b border-slate-100">
+                <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-[#0284C7]">
+                  <CreditCard className="w-4 h-4 text-[#0284C7]" />
+                </div>
+                <span className="text-sm sm:text-base font-bold text-[#0F172A]">Payment Details</span>
+              </div>
+
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600 font-normal">Amount</span>
+                  <span className="font-bold text-slate-900">
+                    ₹{Number(receipt?.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600 font-normal">GST (18%)</span>
+                  <span className="font-bold text-slate-900">
+                    ₹{Number(receipt?.gst || receipt?.tax_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600 font-normal">Charges</span>
+                  <span className="font-bold text-slate-900">
+                    ₹{Number(receipt?.charges || receipt?.total_charges ? Math.max(0, (receipt?.total_charges || 0) - (receipt?.tax_amount || 0)) : 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+
+                {/* Highlight Band: Total Debited */}
+                <div className="bg-[#EFF6FF] border border-blue-100 rounded-lg px-4 py-2.5 my-2.5 flex items-center justify-between">
+                  <span className="text-sm sm:text-base font-bold text-[#1E3A8A]">Total Debited</span>
+                  <span className="text-base sm:text-lg font-black text-[#1E3A8A]">
+                    ₹{Number(receipt?.total_debited || receipt?.customer_payable || receipt?.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-slate-600 font-normal">Payment Method</span>
+                  <span className="font-bold text-slate-900 uppercase">
+                    {receipt?.payment_method || receipt?.payment_mode || "UPI"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600 font-normal">Gateway</span>
+                  <span className="font-bold text-slate-900">
+                    {receipt?.gateway || "G-1"}
+                  </span>
+                </div>
+              </div>
+
+              {/* For Your Reference Divider */}
+              <div className="relative my-5">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-[#E2E8F0]" />
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-white px-3 font-semibold text-[#0284C7] flex items-center gap-1 select-none">
+                    <span className="text-[#0284C7] text-[10px]">§</span> For Your Reference
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2 text-sm pt-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600 font-normal">Gateway Ref No.</span>
+                  <span className="font-bold text-slate-900 font-mono text-xs sm:text-sm break-all">
+                    {receipt?.gateway_ref || receipt?.provider_ref_id || "--"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600 font-normal">RRN</span>
+                  <span className="font-bold text-slate-900 font-mono text-xs sm:text-sm break-all">
+                    {receipt?.rrn || receipt?.utr || receipt?.provider_ref_id || "--"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons: Print Receipt & Share Receipt (Hidden during print) */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 mx-4 sm:mx-8 my-6 no-print">
+              <button
+                onClick={handlePrint}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3 rounded-full bg-[#0284C7] hover:bg-[#0369A1] active:scale-98 text-white font-bold text-sm shadow-md transition-all cursor-pointer"
               >
-                <RefreshCw className="w-4 h-4" />
-                <span>Make Another PayIn</span>
-              </Link>
+                <Printer className="w-4 h-4" />
+                <span>Print Receipt</span>
+              </button>
 
-              <div className="w-full sm:w-auto flex items-center gap-2">
-                <Link
-                  href="/wallet-ledger"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs border border-slate-700 transition-colors"
-                >
-                  <Wallet className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Wallet Ledger</span>
-                </Link>
+              <button
+                onClick={handleShare}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3 rounded-full bg-white hover:bg-sky-50 active:scale-98 text-[#0284C7] border-2 border-[#0284C7] font-bold text-sm shadow-xs transition-all cursor-pointer"
+              >
+                <Share2 className="w-4 h-4" />
+                <span>Share Receipt</span>
+              </button>
 
-                <Link
-                  href="/retailer/dashboard"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs border border-slate-700 transition-colors"
+              {isPending && (
+                <button
+                  onClick={() => fetchReceiptDetails(false)}
+                  disabled={isRefreshing}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm shadow-md transition-all cursor-pointer"
                 >
-                  <span>Dashboard</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
+                  <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                  <span>Check Status</span>
+                </button>
+              )}
             </div>
+
+            {/* Bottom Navy Footer Bar */}
+            <footer className="bg-[#1E3A8A] text-white px-5 sm:px-8 py-4 sm:py-5 rounded-b-3xl mt-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs sm:text-[13px]">
+                {/* Left: Need Help & Phone */}
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-white">Need Help?</span>
+                  <a
+                    href={`tel:${receipt?.support_phone || "+91 98765 43210"}`}
+                    className="inline-flex items-center gap-1.5 text-white/90 hover:text-white transition-colors"
+                  >
+                    <Phone className="w-3.5 h-3.5 text-white" />
+                    <span className="font-semibold">{receipt?.support_phone || "+91 98765 43210"}</span>
+                  </a>
+                </div>
+
+                {/* Center: Email */}
+                <div className="flex items-center gap-2">
+                  <span className="hidden sm:inline text-white/30">|</span>
+                  <a
+                    href={`mailto:${receipt?.support_email || "support@smspay.store"}`}
+                    className="inline-flex items-center gap-1.5 text-white/90 hover:text-white transition-colors"
+                  >
+                    <Mail className="w-3.5 h-3.5 text-white" />
+                    <span className="font-semibold">{receipt?.support_email || "support@smspay.store"}</span>
+                  </a>
+                </div>
+
+                {/* Right: Terms & Privacy Links */}
+                <div className="flex items-center gap-3 text-xs text-white/90">
+                  <a
+                    href={receipt?.terms_url || "https://smspay.store/terms"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:underline hover:text-white transition-colors"
+                  >
+                    Terms & Conditions
+                  </a>
+                  <span className="text-white/40">|</span>
+                  <a
+                    href={receipt?.privacy_url || "https://smspay.store/privacy"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:underline hover:text-white transition-colors"
+                  >
+                    Privacy Policy
+                  </a>
+                </div>
+              </div>
+
+              {/* Bottom Verification Note */}
+              <div className="mt-3.5 pt-2.5 border-t border-white/10 text-center text-[11px] text-white/70">
+                Payment is subject to successful verification.
+              </div>
+            </footer>
           </div>
         )}
       </main>
 
-      {/* Footer Notice (Hidden during print) */}
-      <footer className="max-w-4xl w-full mx-auto text-center pt-4 border-t border-slate-800/60 text-xs text-slate-500 no-print">
-        <p>
-          This is an electronically generated transaction receipt. For any discrepancies or support queries, quote the Transaction Reference ID (TID) to customer helpdesk.
-        </p>
-      </footer>
+      {/* Footer spacer */}
+      <div className="py-2 no-print" />
     </div>
   );
 }

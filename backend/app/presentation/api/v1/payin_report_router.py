@@ -82,10 +82,11 @@ def map_gateway_label(vendor_ref: Optional[int], vendor_code: Optional[str] = No
     return "G-1"
 
 
-def resolve_payin_auth_context(request: Optional[Request]) -> Dict[str, Any]:
+async def resolve_payin_auth_context(request: Optional[Request], db: Optional[AsyncSession] = None) -> Dict[str, Any]:
     """
     Extracts authenticated company, retailer and role context.
     Prevents cross-tenant / cross-company context leakage.
+    Authoritatively resolves retailer identity via database if not present in token.
     """
     ctx: Dict[str, Any] = {
         "company_ref_id": None,
@@ -110,9 +111,12 @@ def resolve_payin_auth_context(request: Optional[Request]) -> Dict[str, Any]:
             request.cookies.get("access_token")
         )
 
+    payload = {}
+    sub_str = ""
     if token:
         try:
             payload = decode_access_token(token) or {}
+            sub_str = str(payload.get("sub") or "")
             roles = payload.get("roles") or []
             if isinstance(roles, str):
                 roles = [roles]
@@ -120,9 +124,18 @@ def resolve_payin_auth_context(request: Optional[Request]) -> Dict[str, Any]:
 
             ctx["is_super_admin"] = any("SUPER_ADMIN" in r for r in upper_roles)
             ctx["is_admin"] = ctx["is_super_admin"] or any(r in ("ADMIN", "PLATFORM_ADMIN", "OPS_ADMIN", "FINANCE") for r in upper_roles)
-            ctx["company_ref_id"] = payload.get("company_ref_id")
-            ctx["retailer_ref_id"] = payload.get("retailer_ref_id")
-            ctx["tenant_ref_id"] = payload.get("tenant_ref_id")
+            
+            raw_comp = payload.get("company_ref_id")
+            if raw_comp is not None and str(raw_comp).isdigit():
+                ctx["company_ref_id"] = int(raw_comp)
+
+            raw_ret = payload.get("retailer_ref_id") or payload.get("user_ref_id")
+            if raw_ret is not None and str(raw_ret).isdigit():
+                ctx["retailer_ref_id"] = int(raw_ret)
+
+            raw_ten = payload.get("tenant_ref_id")
+            if raw_ten is not None and str(raw_ten).isdigit():
+                ctx["tenant_ref_id"] = int(raw_ten)
         except Exception:
             pass
 
@@ -131,6 +144,58 @@ def resolve_payin_auth_context(request: Optional[Request]) -> Dict[str, Any]:
     if domain_comp_ref is not None:
         if ctx["company_ref_id"] is None or not ctx["is_super_admin"]:
             ctx["company_ref_id"] = domain_comp_ref
+
+    # Authoritative DB Resolution for Retailer
+    if db and not ctx["is_admin"]:
+        ret_code_claim = payload.get("retailer_code") or request.headers.get("x-retailer-code") or request.cookies.get("p2p_retailer_code")
+        ret_id_claim = payload.get("retailer_id") or request.headers.get("x-retailer-id") or request.cookies.get("p2p_active_retailer_id") or sub_str
+        mobile_claim = payload.get("mobile") or request.headers.get("x-mobile") or request.cookies.get("p2p_mobile")
+
+        try:
+            ret_q = await db.execute(text("""
+                SELECT r.retailer_ref_id, r.public_id, r.tenant_ref_id, r.company_ref_id
+                FROM public.retailer r
+                LEFT JOIN public.retailer_contact rc ON rc.retailer_id = r.public_id
+                LEFT JOIN public.auth_users au ON (au.user_id = r.public_id OR au.mobile_number = rc.mobile)
+                LEFT JOIN public.registration_drafts rd ON (rd.mobile_number = rc.mobile OR rd.mobile_number = au.mobile_number)
+                WHERE r.public_id::text = CAST(:sub AS VARCHAR) 
+                   OR r.retailer_code = CAST(:sub AS VARCHAR)
+                   OR au.public_id::text = CAST(:sub AS VARCHAR)
+                   OR au.user_id::text = CAST(:sub AS VARCHAR)
+                   OR rd.registration_id = CAST(:sub AS VARCHAR)
+                   OR (CAST(:ret_code AS VARCHAR) IS NOT NULL AND r.retailer_code = CAST(:ret_code AS VARCHAR))
+                   OR (CAST(:ret_id AS VARCHAR) IS NOT NULL AND (r.public_id::text = CAST(:ret_id AS VARCHAR) OR rd.registration_id = CAST(:ret_id AS VARCHAR)))
+                   OR (CAST(:mobile AS VARCHAR) IS NOT NULL AND (rc.mobile = CAST(:mobile AS VARCHAR) OR rc.mobile = '91' || CAST(:mobile AS VARCHAR) OR rc.mobile = '+91' || CAST(:mobile AS VARCHAR)))
+                ORDER BY (CASE WHEN r.status = 'ACTIVE' THEN 1 ELSE 2 END), r.is_active DESC
+                LIMIT 1;
+            """), {
+                "sub": str(sub_str) if sub_str else "",
+                "ret_code": str(ret_code_claim) if ret_code_claim else None,
+                "ret_id": str(ret_id_claim) if ret_id_claim else None,
+                "mobile": str(mobile_claim) if mobile_claim else None
+            })
+            ret_row = ret_q.fetchone()
+
+            if not ret_row and ctx.get("company_ref_id"):
+                # Single active retailer on domain company
+                comp_q = await db.execute(text("""
+                    SELECT retailer_ref_id, public_id, tenant_ref_id, company_ref_id
+                    FROM public.retailer
+                    WHERE company_ref_id = :comp_id AND is_active = TRUE AND status = 'ACTIVE'
+                    ORDER BY retailer_ref_id ASC
+                """), {"comp_id": int(ctx["company_ref_id"])})
+                comp_rows = comp_q.fetchall()
+                if len(comp_rows) == 1:
+                    ret_row = comp_rows[0]
+
+            if ret_row:
+                ctx["retailer_ref_id"] = int(ret_row[0])
+                if not ctx.get("tenant_ref_id") and ret_row[2]:
+                    ctx["tenant_ref_id"] = int(ret_row[2])
+                if not ctx.get("company_ref_id") and ret_row[3]:
+                    ctx["company_ref_id"] = int(ret_row[3])
+        except Exception as e_ret:
+            pass
 
     return ctx
 
@@ -152,7 +217,7 @@ async def get_payin_report_summary(
     Computes real-time KPI metrics strictly from public.payin_transactions.
     Never touches Payout tables or applies debit/charges calculations.
     """
-    auth_ctx = resolve_payin_auth_context(request)
+    auth_ctx = await resolve_payin_auth_context(request, db)
     company_ref_val = clean_int(company_ref_id)
     retailer_ref_val = clean_int(retailer_ref_id)
     status_str = clean_str(status)
@@ -302,7 +367,7 @@ async def get_payin_report_grid(
     Paginated PayIn transactions report.
     Returns formatted items, source data mapping, pagination metadata, and footer totals.
     """
-    auth_ctx = resolve_payin_auth_context(request)
+    auth_ctx = await resolve_payin_auth_context(request, db)
     company_ref_val = clean_int(company_ref_id)
     retailer_ref_val = clean_int(retailer_ref_id)
     status_str = clean_str(status)
@@ -502,15 +567,19 @@ async def get_payin_report_grid(
             "card_network": d.get("card_network"),
             "customer_name": d.get("cust_name"),
             "customer_mobile": d.get("cust_mobile"),
+            "mobile_no": d.get("cust_mobile"),
             "amount": float(d.get("txn_amount") or 0.0),
             "txn_amount": float(d.get("txn_amount") or 0.0),
+            "charges": float(d.get("total_charges") or 0.0),
             "mdr_amount": float(d.get("mdr_amount") or 0.0),
             "gst": float(d.get("tax_amount") or 0.0),
             "tax_amount": float(d.get("tax_amount") or 0.0),
             "total_charges": float(d.get("total_charges") or 0.0),
             "total_amount": float(d.get("customer_payable") or (float(d.get("txn_amount") or 0.0) + float(d.get("total_charges") or 0.0))),
             "customer_payable": float(d.get("customer_payable") or (float(d.get("txn_amount") or 0.0) + float(d.get("total_charges") or 0.0))),
+            "wallet_credit": float(d.get("retailer_credit") or d.get("txn_amount") or 0.0),
             "retailer_credit": float(d.get("retailer_credit") or d.get("txn_amount") or 0.0),
+            "method": d.get("payment_mode") or "UPI",
             "status": (d.get("txn_status") or "SUCCESS").upper(),
             "provider_status": d.get("provider_status"),
             "ledger_txn_id": d.get("ledger_txn_id"),
@@ -565,7 +634,7 @@ async def get_payin_transaction_details(
     Retrieves full sanitized PayIn transaction breakdown for the slide-out detail drawer.
     Enforces strict company & retailer ownership validation.
     """
-    auth_ctx = resolve_payin_auth_context(request)
+    auth_ctx = await resolve_payin_auth_context(request, db)
     effective_comp = auth_ctx["company_ref_id"]
     effective_retailer = auth_ctx["retailer_ref_id"]
 
@@ -710,7 +779,7 @@ async def export_payin_report(
     """
     Streams filtered PayIn report CSV adhering to strict column specifications.
     """
-    auth_ctx = resolve_payin_auth_context(request)
+    auth_ctx = await resolve_payin_auth_context(request, db)
     company_ref_val = clean_int(company_ref_id)
     retailer_ref_val = clean_int(retailer_ref_id)
     status_str = clean_str(status)
@@ -791,6 +860,7 @@ async def export_payin_report(
         t.payin_vendor_ref_id,
         v.vendor_code,
         COALESCE(p.pay_mode_code, 'UPI') AS payment_mode,
+        t.cust_mobile,
         t.txn_amount,
         t.mdr_amount,
         t.tax_amount,
@@ -816,18 +886,15 @@ async def export_payin_report(
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow([
-        "S.No",
-        "Transaction ID",
-        "Reference / Order ID",
-        "Retailer ID / Outlet",
-        "Company",
+        "TID",
+        "Amount (₹)",
+        "Charges (₹)",
+        "GST (₹)",
+        "Total Amount (₹)",
+        "Wallet Credit (₹)",
+        "MobileNo",
         "Gateway",
-        "Payment Method",
-        "Transaction Amount (INR)",
-        "Charges (INR)",
-        "GST (INR)",
-        "Total Amount (INR)",
-        "Wallet Credit (INR)",
+        "Method",
         "Status",
         "Date & Time"
     ])
@@ -837,21 +904,20 @@ async def export_payin_report(
         gw_label = map_gateway_label(d.get("payin_vendor_ref_id"), d.get("vendor_code"))
         created_dt = d.get("created_at")
         dt_str = created_dt.astimezone(IST).strftime("%Y-%m-%d %H:%M:%S") if created_dt else "--"
-        ref_id = d.get("merchant_ref_id") or d.get("provider_ref_id") or d.get("tid")
+        mob_val = d.get("cust_mobile") or "--"
+        if len(mob_val) >= 10:
+            mob_val = mob_val[-10:]
 
         writer.writerow([
-            idx + 1,
             d.get("tid") or "--",
-            ref_id or "--",
-            d.get("retailer_name") or d.get("retailer_code") or "--",
-            d.get("company_name") or "SMSPAY",
-            gw_label,
-            d.get("payment_mode") or "UPI",
             f"{money(d.get('txn_amount')):.2f}",
             f"{money(d.get('total_charges')):.2f}",
             f"{money(d.get('tax_amount')):.2f}",
             f"{money(d.get('customer_payable')):.2f}",
             f"{money(d.get('retailer_credit')):.2f}",
+            mob_val,
+            gw_label,
+            d.get("payment_mode") or "UPI",
             (d.get("txn_status") or "SUCCESS").upper(),
             dt_str
         ])

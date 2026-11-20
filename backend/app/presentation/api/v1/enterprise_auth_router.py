@@ -103,7 +103,8 @@ def set_auth_session_cookies(
     super_distributor_id: Optional[str] = None,
     super_distributor_ref_id: Optional[int] = None,
     remember_me: bool = True,
-    company_ref_id: Optional[int] = None
+    company_ref_id: Optional[int] = None,
+    user_ref_id: Optional[int] = None
 ):
     """
     Sets dynamic, enterprise session cookies directly on the HTTP response.
@@ -220,6 +221,18 @@ def set_auth_session_cookies(
         response.set_cookie(
             key="p2p_company_ref_id",
             value=str(company_ref_id),
+            max_age=cookie_max_age,
+            path="/",
+            domain=cookie_domain,
+            secure=is_secure,
+            httponly=False,
+            samesite="lax"
+        )
+
+    if user_ref_id is not None:
+        response.set_cookie(
+            key="p2p_user_ref_id",
+            value=str(user_ref_id),
             max_age=cookie_max_age,
             path="/",
             domain=cookie_domain,
@@ -2169,7 +2182,9 @@ async def verify_login_otp(
             user_type_ref_id=2,
             retailer_code=retailer_code,
             retailer_id=retailer_id,
-            remember_me=rem_session
+            remember_me=rem_session,
+            company_ref_id=comp_ref_id,
+            user_ref_id=ret_ref_id
         )
 
         return {
@@ -2262,14 +2277,35 @@ async def verify_login_otp(
             except Exception:
                 pass
 
+            # Authoritative lookup of approved RetailerModel
+            ret_rec = None
+            try:
+                ret_q = select(RetailerModel).join(RetailerContactModel, RetailerContactModel.retailer_id == RetailerModel.public_id).where(
+                    RetailerContactModel.mobile.in_([clean_mobile, f"+91{clean_mobile}", f"91{clean_mobile}"]),
+                    RetailerModel.is_deleted == False
+                )
+                ret_rec = (await db.execute(ret_q)).scalars().first()
+            except Exception:
+                pass
+
+            token_sub = ret_rec.retailer_code if ret_rec else reg_id
+            token_ret_code = ret_rec.retailer_code if ret_rec else None
+            token_ret_ref = ret_rec.retailer_ref_id if ret_rec else None
+            token_comp_ref = ret_rec.company_ref_id if ret_rec else (expected_company_ref_id or 2)
+            token_comp_id = str(ret_rec.company_id if ret_rec and ret_rec.company_id else DEFAULT_COMPANY_ID)
+
             try:
                 access_token = create_access_token(
-                    subject=reg_id,
+                    subject=token_sub,
                     tenant_id=str(DEFAULT_TENANT_ID),
-                    company_id=str(DEFAULT_COMPANY_ID),
+                    company_id=token_comp_id,
                     roles=["RETAILER"],
                     expires_delta=timedelta(days=30) if rem_session else timedelta(hours=24),
-                    user_type_ref_id=2
+                    user_type_ref_id=2,
+                    retailer_ref_id=token_ret_ref,
+                    retailer_code=token_ret_code,
+                    company_ref_id=token_comp_ref,
+                    mobile=clean_mobile
                 )
             except Exception:
                 access_token = f"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.{session_id}.auth_token"
@@ -2283,8 +2319,9 @@ async def verify_login_otp(
                 approve_status=True,
                 active_status=True,
                 user_type_ref_id=2,
-                retailer_code=None,
-                retailer_id=reg_id,
+                retailer_code=token_ret_code or reg_id,
+                retailer_id=token_ret_code or reg_id,
+                company_ref_id=token_comp_ref,
                 remember_me=rem_session
             )
 
@@ -3245,7 +3282,9 @@ async def verify_biometric_login(
         user_type_ref_id=2,
         retailer_code=retailer_code,
         retailer_id=subject_id,
-        remember_me=rem_session
+        remember_me=rem_session,
+        company_ref_id=comp_ref_id,
+        user_ref_id=ret_ref_id
     )
 
     return {
