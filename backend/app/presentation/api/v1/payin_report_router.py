@@ -220,9 +220,9 @@ async def get_payin_report_summary(
     if gateway_str and gateway_str.upper() != "ALL":
         gw = gateway_str.upper()
         if gw == "G-1":
-            sql += " AND t.payin_vendor_ref_id = 1"
+            sql += " AND (t.payin_vendor_ref_id = 1 OR v.vendor_code ILIKE '%BANKME%')"
         elif gw == "G-2":
-            sql += " AND t.payin_vendor_ref_id = 2"
+            sql += " AND (t.payin_vendor_ref_id = 2 OR v.vendor_code ILIKE '%EASEBUZZ%')"
         else:
             sql += " AND (v.vendor_code ILIKE :gw OR v.vendor_name ILIKE :gw)"
             params["gw"] = f"%{gw}%"
@@ -349,9 +349,9 @@ async def get_payin_report_grid(
     if gateway_str and gateway_str.upper() != "ALL":
         gw = gateway_str.upper()
         if gw == "G-1":
-            base_where += " AND t.payin_vendor_ref_id = 1"
+            base_where += " AND (t.payin_vendor_ref_id = 1 OR v.vendor_code ILIKE '%BANKME%')"
         elif gw == "G-2":
-            base_where += " AND t.payin_vendor_ref_id = 2"
+            base_where += " AND (t.payin_vendor_ref_id = 2 OR v.vendor_code ILIKE '%EASEBUZZ%')"
         else:
             base_where += " AND (v.vendor_code ILIKE :gw OR v.vendor_name ILIKE :gw)"
             params["gw"] = f"%{gw}%"
@@ -421,7 +421,7 @@ async def get_payin_report_grid(
         c.company_code,
         t.retailer_ref_id,
         r.retailer_code,
-        COALESCE(r.outlet_name, r.agent_name, t.cust_name) AS retailer_name,
+        COALESCE(r.store_name, r.legal_name, r.owner_name, t.cust_name, 'Retailer') AS retailer_name,
         t.payin_vendor_ref_id,
         v.vendor_code,
         v.vendor_name,
@@ -580,7 +580,7 @@ async def get_payin_transaction_details(
         c.company_code,
         t.retailer_ref_id,
         r.retailer_code,
-        COALESCE(r.outlet_name, r.agent_name, t.cust_name) AS retailer_name,
+        COALESCE(r.store_name, r.legal_name, r.owner_name, t.cust_name, 'Retailer') AS retailer_name,
         t.payin_vendor_ref_id,
         v.vendor_code,
         v.vendor_name,
@@ -756,9 +756,9 @@ async def export_payin_report(
     if gateway_str and gateway_str.upper() != "ALL":
         gw = gateway_str.upper()
         if gw == "G-1":
-            base_where += " AND t.payin_vendor_ref_id = 1"
+            base_where += " AND (t.payin_vendor_ref_id = 1 OR v.vendor_code ILIKE '%BANKME%')"
         elif gw == "G-2":
-            base_where += " AND t.payin_vendor_ref_id = 2"
+            base_where += " AND (t.payin_vendor_ref_id = 2 OR v.vendor_code ILIKE '%EASEBUZZ%')"
         else:
             base_where += " AND (v.vendor_code ILIKE :gw OR v.vendor_name ILIKE :gw)"
             params["gw"] = f"%{gw}%"
@@ -787,7 +787,7 @@ async def export_payin_report(
         t.provider_ref_id,
         c.company_name,
         r.retailer_code,
-        COALESCE(r.outlet_name, r.agent_name, t.cust_name) AS retailer_name,
+        COALESCE(r.store_name, r.legal_name, r.owner_name, t.cust_name, 'Retailer') AS retailer_name,
         t.payin_vendor_ref_id,
         v.vendor_code,
         COALESCE(p.pay_mode_code, 'UPI') AS payment_mode,
