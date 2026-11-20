@@ -202,10 +202,15 @@ async def resolve_auth_context(request: Request, db: AsyncSession) -> AuthContex
             SELECT r.retailer_ref_id, r.public_id, r.tenant_ref_id, r.company_ref_id, r.regional_manager_ref_id 
             FROM public.retailer r
             LEFT JOIN public.retailer_contact rc ON rc.retailer_id = r.public_id
+            LEFT JOIN public.auth_users au ON (au.user_id = r.public_id OR au.mobile_number = rc.mobile)
+            LEFT JOIN public.registration_drafts rd ON (rd.mobile_number = rc.mobile OR rd.mobile_number = au.mobile_number)
             WHERE r.public_id::text = CAST(:sub AS VARCHAR) 
                OR r.retailer_code = CAST(:sub AS VARCHAR)
+               OR au.public_id::text = CAST(:sub AS VARCHAR)
+               OR au.user_id::text = CAST(:sub AS VARCHAR)
+               OR rd.registration_id = CAST(:sub AS VARCHAR)
                OR (CAST(:ret_code AS VARCHAR) IS NOT NULL AND r.retailer_code = CAST(:ret_code AS VARCHAR))
-               OR (CAST(:ret_id AS VARCHAR) IS NOT NULL AND r.public_id::text = CAST(:ret_id AS VARCHAR))
+               OR (CAST(:ret_id AS VARCHAR) IS NOT NULL AND (r.public_id::text = CAST(:ret_id AS VARCHAR) OR rd.registration_id = CAST(:ret_id AS VARCHAR)))
                OR (CAST(:mobile AS VARCHAR) IS NOT NULL AND (rc.mobile = CAST(:mobile AS VARCHAR) OR rc.mobile = '91' || CAST(:mobile AS VARCHAR) OR rc.mobile = '+91' || CAST(:mobile AS VARCHAR)))
             ORDER BY (CASE WHEN r.status = 'ACTIVE' THEN 1 ELSE 2 END), r.is_active DESC
             LIMIT 1;
@@ -216,6 +221,22 @@ async def resolve_auth_context(request: Request, db: AsyncSession) -> AuthContex
             "mobile": str(mobile_claim) if mobile_claim else None
         })
         ret_row = ret_q.fetchone()
+
+        if not ret_row:
+            # Fallback for single active retailer on domain company
+            from app.core.company_resolver import resolve_request_company_ref
+            dom_comp_ref = resolve_request_company_ref(request) or ctx.company_ref_id
+            if dom_comp_ref:
+                comp_q = await db.execute(text("""
+                    SELECT retailer_ref_id, public_id, tenant_ref_id, company_ref_id, regional_manager_ref_id
+                    FROM public.retailer
+                    WHERE company_ref_id = :comp_id AND is_active = TRUE AND status = 'ACTIVE'
+                    ORDER BY retailer_ref_id ASC
+                """), {"comp_id": int(dom_comp_ref)})
+                comp_rows = comp_q.fetchall()
+                if len(comp_rows) == 1:
+                    ret_row = comp_rows[0]
+
         if ret_row:
             ctx.user_type = "RETAILER"
             ctx.user_type_ref_id = await UserTypeService.get_user_type_ref_id(db, "RETAILER")

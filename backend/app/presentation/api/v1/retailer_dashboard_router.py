@@ -4,7 +4,7 @@ from datetime import datetime, date, time, timedelta, timezone
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select, func, and_, or_, desc, asc, Integer, Float
+from sqlalchemy import select, func, and_, or_, desc, asc, Integer, Float, text
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 
@@ -108,7 +108,7 @@ async def resolve_retailer_context(
         if session_comp_ref is None:
             session_comp_ref = expected_comp_ref
 
-    if retailer_id and str(retailer_id).strip() and not is_admin:
+    if retailer_id and str(retailer_id).strip() and not is_admin and payload:
         allowed = {
             str(payload.get("sub") or "").lower(),
             str(payload.get("retailer_code") or "").lower(),
@@ -192,6 +192,53 @@ async def resolve_retailer_context(
                 if ret_chk:
                     ret_model = ret_chk
                     break
+
+        # 3b. Lookup via AuthUserModel or RegistrationDraftModel
+        if not ret_model:
+            try:
+                candidate_ids = [str(val).strip() for val in [payload.get("sub"), target_ident, req_headers.get("x-retailer-id")] if val]
+                au_conds = []
+                for cid in candidate_ids:
+                    u = parse_uuid_or_none(cid)
+                    if u:
+                        au_conds.extend([AuthUserModel.public_id == u, AuthUserModel.user_id == u])
+                if au_conds:
+                    au_chk = (await db.execute(select(AuthUserModel).where(or_(*au_conds), AuthUserModel.is_deleted == False))).scalars().first()
+                    if au_chk:
+                        ret_by_au = (await db.execute(select(RetailerModel).where(
+                            or_(
+                                RetailerModel.public_id == au_chk.user_id,
+                                RetailerModel.public_id == au_chk.public_id,
+                                RetailerModel.retailer_ref_id == au_chk.auth_users_ref_id
+                            ),
+                            RetailerModel.is_deleted == False
+                        ))).scalars().first()
+                        if ret_by_au:
+                            ret_model = ret_by_au
+            except Exception as e_au:
+                logger.debug(f"AuthUserModel lookup notice: {e_au}")
+
+        if not ret_model:
+            try:
+                from app.infrastructure.db.registration_models import RegistrationDraftModel
+                candidate_ids = [str(val).strip() for val in [payload.get("sub"), target_ident, req_headers.get("x-retailer-id")] if val]
+                if candidate_ids:
+                    d_mob = (await db.execute(select(RegistrationDraftModel.mobile_number).where(
+                        RegistrationDraftModel.registration_id.in_(candidate_ids)
+                    ).limit(1))).scalar()
+                    if d_mob:
+                        d_clean = re.sub(r"\D", "", str(d_mob))[-10:]
+                        if len(d_clean) == 10:
+                            ret_by_draft = (await db.execute(select(RetailerModel).join(
+                                RetailerContactModel, RetailerContactModel.retailer_id == RetailerModel.public_id
+                            ).where(
+                                RetailerContactModel.mobile.in_([d_clean, f"+91{d_clean}", f"91{d_clean}"]),
+                                RetailerModel.is_deleted == False
+                            ))).scalars().first()
+                            if ret_by_draft:
+                                ret_model = ret_by_draft
+            except Exception as e_draft:
+                logger.debug(f"RegistrationDraftModel lookup notice: {e_draft}")
 
         # 4. Search RetailerContactModel by mobile to find RetailerModel
         if not ret_model and clean_mobile:
@@ -571,7 +618,7 @@ async def get_retailer_header_wallet(
         "retailer_name": ctx["retailer_name"],
         "owner_name": ctx["owner_name"],
         "company_name": ctx["store_name"],
-        "retailer_code": ctx["retailer_id"],
+        "retailer_code": ctx.get("retailer_code") or ctx["retailer_id"],
         "retailer_id": ctx["retailer_id"],
         "current_time_iso": now_utc.isoformat(),
         "approve_status": ctx.get("approve_status", False),
