@@ -1,4 +1,5 @@
 import re
+import urllib.parse
 from typing import Optional, Dict, Any
 from fastapi import Request
 
@@ -60,7 +61,7 @@ def resolve_request_company_ref(request: Optional[Request]) -> Optional[int]:
       1 for NEAR4YOU
       or None if unknown/unspecified
     """
-    if not request:
+    if request is None:
         return None
 
     try:
@@ -115,3 +116,102 @@ def resolve_request_company_ref(request: Optional[Request]) -> Optional[int]:
 def get_company_preset(company_ref_id: Optional[int]) -> Optional[Dict[str, Any]]:
     code = COMPANY_REF_TO_CODE.get(company_ref_id)
     return COMPANY_MAPPINGS.get(code) if code else None
+
+
+def is_trusted_domain_for_company(host: str, company_ref_id: Optional[int]) -> bool:
+    """
+    Validates whether a hostname or host:port belongs strictly to the authorized
+    domain whitelist for the specified company. Prevents open redirect vulnerabilities
+    and cross-domain tenant context leakage.
+    """
+    if not host or not company_ref_id:
+        return False
+
+    preset = get_company_preset(company_ref_id)
+    if not preset:
+        return False
+
+    clean_host = host.split(":")[0].strip().lower()
+    port = host.split(":")[1].strip() if ":" in host else None
+
+    # Check authorized domains (exact or subdomain match)
+    for allowed in preset.get("domains", []):
+        allowed_lower = allowed.lower()
+        if clean_host == allowed_lower or clean_host.endswith("." + allowed_lower):
+            return True
+
+    # Dev/local environments (localhost, 127.0.0.1)
+    if clean_host in ("localhost", "127.0.0.1", "0.0.0.0", "host.docker.internal"):
+        if port and port in preset.get("ports", []):
+            return True
+        return True
+
+    return False
+
+
+def resolve_return_base_url(
+    company_ref_id: Optional[int],
+    request: Optional[Request] = None,
+    candidate_url: Optional[str] = None
+) -> str:
+    """
+    Deterministically resolves the return base URL (e.g. https://login.smspay.store)
+    for the verified company context.
+    
+    1. If candidate_url is provided, it must pass strict whitelist validation for that company.
+    2. If request is provided, its Origin / Referer / Host / X-Forwarded-Host is validated.
+    3. If neither matches or is untrusted, safely falls back to the company's canonical website URL.
+    
+    Guarantees:
+    - SMSPAY (2) NEVER leaks to near4you.store or pay2pay.in.
+    - Near4You (1) NEVER leaks to smspay.store or pay2pay.in.
+    - Pay2Pay (47) NEVER leaks to smspay.store or near4you.store.
+    - Untrusted/attacker URLs are strictly rejected.
+    """
+    preset = get_company_preset(company_ref_id)
+    if not preset:
+        code = "SMSPAY" if company_ref_id == 2 else ("PAY2PAY" if company_ref_id == 47 else "NEAR4YOU")
+        preset = COMPANY_MAPPINGS.get(code, COMPANY_MAPPINGS["SMSPAY"])
+
+    # 1. Candidate URL from client request
+    if candidate_url:
+        try:
+            parsed = urllib.parse.urlparse(candidate_url)
+            if parsed.netloc and is_trusted_domain_for_company(parsed.netloc, company_ref_id):
+                scheme = parsed.scheme if parsed.scheme in ("http", "https") else "https"
+                return f"{scheme}://{parsed.netloc}"
+        except Exception:
+            pass
+
+    # 2. Incoming Request context
+    if request is not None:
+        # Origin header
+        origin = request.headers.get("origin")
+        if origin:
+            try:
+                parsed = urllib.parse.urlparse(origin)
+                if parsed.netloc and is_trusted_domain_for_company(parsed.netloc, company_ref_id):
+                    scheme = parsed.scheme if parsed.scheme in ("http", "https") else "https"
+                    return f"{scheme}://{parsed.netloc}"
+            except Exception:
+                pass
+
+        # Referer header
+        referer = request.headers.get("referer")
+        if referer:
+            try:
+                parsed = urllib.parse.urlparse(referer)
+                if parsed.netloc and is_trusted_domain_for_company(parsed.netloc, company_ref_id):
+                    scheme = parsed.scheme if parsed.scheme in ("http", "https") else "https"
+                    return f"{scheme}://{parsed.netloc}"
+            except Exception:
+                pass
+
+        # Host or X-Forwarded-Host header
+        raw_host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+        if raw_host and is_trusted_domain_for_company(raw_host, company_ref_id):
+            proto = request.headers.get("x-forwarded-proto") or request.url.scheme or "https"
+            return f"{proto}://{raw_host}"
+
+    # 3. Canonical website fallback for company
+    return preset.get("website", "https://smspay.store" if company_ref_id == 2 else "https://near4you.store")

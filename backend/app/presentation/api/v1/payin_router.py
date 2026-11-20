@@ -16,6 +16,7 @@ Enterprise Rules:
 
 import uuid
 import logging
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Header, status
 from fastapi.responses import RedirectResponse
@@ -24,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.infrastructure.db.payin_models import PayinTransactionModel
+from app.infrastructure.db.models import RetailerModel
 from app.application.dependencies import (
     get_current_token_payload, get_optional_token_payload, get_current_tenant_id
 )
@@ -35,6 +37,9 @@ from app.application.payin_dtos import (
 from app.application.payin_service import PayInService
 from app.application.payin_config_service import PayInConfigService
 from app.application.payin_routing_service import SMSPAY_COMPANY_REF_ID
+from app.application.bankme_payin_client import BankMePayInClient
+from app.application.wallet_balance_service import WalletBalanceAdjustmentService, WalletAdjustmentDTO
+from app.core.company_resolver import resolve_return_base_url, get_company_preset
 
 logger = logging.getLogger("payin_router")
 
@@ -215,6 +220,7 @@ async def initiate_common_payin(
     - Automatically routes SMSPay (company_ref_id=2) to BankMe and other companies to Existing processing.
     """
     auth_ctx = extract_auth_context(payload, request)
+    auth_ctx["request"] = request
     return await PayInService.initiate_payin(
         db=db,
         request_dto=req_dto,
@@ -362,33 +368,48 @@ async def universal_payin_browser_callback(
     resolved_ref = referenceId or reference_id or tid or ""
     resolved_status = (status or "success").strip().lower()
 
+    target_company_ref_id = None
     # Reconcile if transaction exists and incoming status indicates success
-    if resolved_ref and resolved_status == "success":
+    if resolved_ref:
         try:
-            stmt = select(PayinTransactionModel).where(PayinTransactionModel.tid == resolved_ref)
+            stmt = select(PayinTransactionModel).where(
+                or_(
+                    PayinTransactionModel.tid == resolved_ref,
+                    PayinTransactionModel.merchant_ref_id == resolved_ref,
+                    PayinTransactionModel.provider_ref_id == resolved_ref
+                )
+            )
             res = await db.execute(stmt)
             txn = res.scalars().first()
-            if txn and txn.txn_status != "SUCCESS":
-                wh_payload = BankMeWebhookPayload(
-                    event="payin.success",
-                    status="SUCCESS",
-                    referenceId=resolved_ref,
-                    tid=resolved_ref,
-                    orderId=orderId or txn.provider_ref_id or txn.tid,
-                    utr=utr or txn.provider_ref_id or f"UTR-{resolved_ref[-8:]}",
-                    amount=float(txn.txn_amount),
-                    signature="browser_return_sync"
-                )
-                await PayInService.process_bankme_webhook(
-                    db=db,
-                    payload=wh_payload,
-                    headers=dict(request.headers)
-                )
+            if txn:
+                target_company_ref_id = txn.company_ref_id
+                if resolved_status == "success" and txn.txn_status != "SUCCESS":
+                    wh_payload = BankMeWebhookPayload(
+                        event="payin.success",
+                        status="SUCCESS",
+                        referenceId=resolved_ref,
+                        tid=resolved_ref,
+                        orderId=orderId or txn.provider_ref_id or txn.tid,
+                        utr=utr or txn.provider_ref_id or f"UTR-{resolved_ref[-8:]}",
+                        amount=float(txn.txn_amount),
+                        signature="browser_return_sync"
+                    )
+                    await PayInService.process_bankme_webhook(
+                        db=db,
+                        payload=wh_payload,
+                        headers=dict(request.headers)
+                    )
         except Exception as e:
             logger.warning("Browser return sync notice for %s: %s", resolved_ref, e)
 
-    # Build clean frontend redirect target
-    redirect_target = f"/retailer/payin/status?referenceId={resolved_ref}&status={resolved_status}"
+    # Dynamically resolve return base domain using the verified company context
+    return_base = resolve_return_base_url(
+        company_ref_id=target_company_ref_id,
+        request=request
+    )
+
+    # Build clean frontend redirect target on originating domain
+    redirect_target = f"{return_base}/retailer/payin/status?referenceId={resolved_ref}&status={resolved_status}"
     if orderId:
         redirect_target += f"&orderId={orderId}"
     if utr:
@@ -421,9 +442,66 @@ async def get_payin_receipt(
     if not txn:
         raise HTTPException(status_code=404, detail="Transaction receipt not found")
 
-    company_code = "SMSPAY" if txn.company_ref_id == 2 else ("PAY2PAY" if txn.company_ref_id == 47 else "NEAR4YOU")
-    company_name = "SMSPAY Digital Payments" if txn.company_ref_id == 2 else ("Pay2Pay Enterprise" if txn.company_ref_id == 47 else "Near4You Platform")
-    domain = "smspay.store" if txn.company_ref_id == 2 else ("pay2pay.in" if txn.company_ref_id == 47 else "near4you.store")
+    # If status is pending/initiated and BankMe, check live gateway status
+    if txn.txn_status in ("PENDING", "INITIATED") and txn.company_ref_id == SMSPAY_COMPANY_REF_ID:
+        try:
+            live_check = await BankMePayInClient.check_order_status(
+                tid=txn.tid,
+                bankme_ref=txn.provider_ref_id,
+                company_ref_id=txn.company_ref_id,
+                retailer_ref_id=txn.retailer_ref_id
+            )
+            if live_check.get("success") and live_check.get("status") in ("SUCCESS", "FAILED"):
+                new_st = live_check.get("status")
+                txn.txn_status = new_st
+                txn.provider_status = new_st
+                if live_check.get("utr"):
+                    txn.provider_ref_id = live_check.get("utr")
+                if new_st == "SUCCESS":
+                    txn.completed_at = datetime.now(timezone.utc)
+                await db.commit()
+
+                # Perform wallet credit if needed
+                if new_st == "SUCCESS" and not txn.ledger_txn_id:
+                    try:
+                        ret_stmt = select(RetailerModel).where(
+                            RetailerModel.retailer_ref_id == txn.retailer_ref_id,
+                            RetailerModel.company_ref_id == txn.company_ref_id
+                        )
+                        ret_res = await db.execute(ret_stmt)
+                        ret_obj = ret_res.scalars().first()
+                        credit_amount = float(txn.retailer_credit)
+                        adj_dto = WalletAdjustmentDTO(
+                            user_ref_id=txn.retailer_ref_id,
+                            retailer_id=str(ret_obj.public_id) if ret_obj else None,
+                            retailer_code=ret_obj.retailer_code if ret_obj else None,
+                            company_ref_id=txn.company_ref_id,
+                            user_type_ref_id=2,
+                            entry_type="CREDIT",
+                            amount=credit_amount,
+                            payout_amount=credit_amount,
+                            charge_amount=0.0,
+                            gst_amount=0.0,
+                            service_name="PAYIN_TOPUP",
+                            wallet_type="MAIN",
+                            user_type="RETAILER",
+                            txn_id=txn.tid,
+                            ref_id=live_check.get("utr") or txn.provider_ref_id or txn.tid,
+                            narration=f"PayIn Wallet Top-Up via BankMe (TID: {txn.tid})"
+                        )
+                        adj_res = await WalletBalanceAdjustmentService.execute_wallet_balance_update(db=db, dto=adj_dto)
+                        if adj_res and adj_res.success:
+                            txn.ledger_txn_id = adj_res.txn_id
+                            await db.commit()
+                    except Exception as w_err:
+                        logger.error("Wallet credit error during receipt sync: %s", w_err)
+        except Exception as sync_err:
+            logger.warning("Receipt sync warning for TID %s: %s", txn.tid, sync_err)
+
+    preset = get_company_preset(txn.company_ref_id) or {}
+    company_code = preset.get("company_code", "SMSPAY" if txn.company_ref_id == 2 else "NEAR4YOU")
+    company_name = preset.get("display_name", "SMSPAY" if txn.company_ref_id == 2 else "Near4You")
+    domain = (preset.get("domains") or ["smspay.store"])[0]
 
     raw_mob = txn.cust_mobile or ""
     formatted_mob = f"+91 {raw_mob[-10:]}" if len(raw_mob) >= 10 else raw_mob
