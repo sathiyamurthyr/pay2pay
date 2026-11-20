@@ -141,8 +141,8 @@ function RegistrationLayoutContent({ children }: { children: React.ReactNode }) 
 
       {/* Footer */}
       <div className="relative z-10 mt-6 text-center text-xs font-semibold text-[#8A8288]">
-        <p>© 2021 Sathus Technology Pvt. Ltd.</p>
-        <p>Near4You Retailer Portal</p>
+        <p>© {new Date().getFullYear()} {branding.legal_name || branding.company_name || "Enterprise Technology Pvt. Ltd."}</p>
+        <p>{branding.display_name || "FinTech"} Retailer Portal</p>
       </div>
     </div>
   );

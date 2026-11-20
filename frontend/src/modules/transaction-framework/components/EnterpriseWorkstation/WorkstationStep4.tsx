@@ -529,8 +529,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
       if (typeof window !== "undefined") {
         try {
           const snapshot = {
-            companyName: "Sathus Technology Pvt. Ltd.",
-            brandName: "Near 4 You",
+            companyName: typeof window !== "undefined" && window.location.hostname.includes("smspay") ? "INSPEL TECHNOLOGIES SOLUTIONS PVT" : (typeof window !== "undefined" && window.location.hostname.includes("near4you") ? "SATHUS TECHNOLOGY PRIVATE LIMITED" : "SUPER REX PRODUCTS PRIVATE LIMITED"),
+            brandName: typeof window !== "undefined" && window.location.hostname.includes("smspay") ? "SMSPAY" : (typeof window !== "undefined" && window.location.hostname.includes("near4you") ? "Near4You" : "Pay2Pay"),
             brandTagline: "Enterprise Domestic Money Transfer (DMT) · Authorized Network",
             certifications: "NPCI IMPS Switch Certified · ISO 27001:2022 · 256-Bit SSL Encrypted",
             status: "SUCCESS",
@@ -1816,7 +1816,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
                   {/* FOOTER WITH DIGITAL SIGNATURE NARRATION */}
                   <Typography sx={{ color: "#6B7280", fontSize: "7.5px", textAlign: "center", mt: 0.5 }}>
-                    Digitally Signed by Near4You Enterprise Verification Engine · Version: v2.4-ENT · Support: 1800-123-4567
+                    Digitally Signed by Enterprise Payment Verification Engine · Version: v2.4-ENT · Support: 1800-123-4567
                   </Typography>
                 </Box>
 

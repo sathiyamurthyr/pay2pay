@@ -122,7 +122,7 @@ class ReceiptShareService {
     return {
       isValid: true,
       status: "VERIFIED",
-      message: "Digitally Verified by Near4You Enterprise Verification Engine.",
+      message: "Digitally Verified by Enterprise Payment Verification Engine.",
       verifiedAt: timestamp,
       receiptRecord: record,
     };

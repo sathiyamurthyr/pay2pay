@@ -704,7 +704,11 @@ class PayInService:
 
         # 2. Company branding determination
         company_code = "SMSPAY" if txn.company_ref_id == 2 else ("PAY2PAY" if txn.company_ref_id == 47 else "NEAR4YOU")
-        company_name = "SMSPAY" if txn.company_ref_id == 2 else ("Pay2Pay" if txn.company_ref_id == 47 else "Near4You")
+        company_name = (
+            "INSPEL TECHNOLOGIES SOLUTIONS PVT"
+            if txn.company_ref_id == 2
+            else ("SUPER REX PRODUCTS PRIVATE LIMITED" if txn.company_ref_id == 47 else "SATHUS TECHNOLOGY PRIVATE LIMITED")
+        )
 
         # 3. Format Date
         created_dt = txn.completed_at or txn.created_at

@@ -33,7 +33,7 @@ class NumberedCanvas(canvas.Canvas):
         # Header (Top of page: y=568 pt)
         self.setFont("Helvetica-Bold", 8)
         self.setFillColor(colors.HexColor("#1E3A8A"))
-        self.drawString(36, 568, "Pay2Pay FinTech Retailer Platform")
+        self.drawString(36, 568, "SUPER REX PRODUCTS PRIVATE LIMITED")
         self.setFont("Helvetica-Bold", 8)
         self.setFillColor(colors.HexColor("#64748B"))
         self.drawRightString(805, 568, "Official Retailer Outbound Payout Report")
@@ -137,7 +137,7 @@ def generate_payout_pdf(
     story = []
 
     # 1. Report Header Section
-    story.append(Paragraph("Pay2Pay FinTech Retailer Platform", subtitle_style))
+    story.append(Paragraph("SUPER REX PRODUCTS PRIVATE LIMITED", subtitle_style))
     story.append(Spacer(1, 2))
     story.append(Paragraph("RETAILER PAYOUT REPORT", title_style))
     story.append(Spacer(1, 10))
@@ -350,7 +350,7 @@ class SingleReceiptNumberedCanvas(canvas.Canvas):
         # Header (Top of A4 Portrait: y=802 pt)
         self.setFont("Helvetica-Bold", 8)
         self.setFillColor(colors.HexColor("#1E3A8A"))
-        self.drawString(36, 802, "Pay2Pay FinTech Retailer Platform")
+        self.drawString(36, 802, "SUPER REX PRODUCTS PRIVATE LIMITED")
         self.setFont("Helvetica-Bold", 8)
         self.setFillColor(colors.HexColor("#64748B"))
         self.drawRightString(559, 802, "Official Transaction Receipt")
@@ -452,7 +452,7 @@ def generate_single_transaction_receipt_pdf(
     story = []
 
     # 1. Corporate Header
-    story.append(Paragraph("Pay2Pay FinTech Solutions", sub_title_style))
+    story.append(Paragraph("SUPER REX PRODUCTS PRIVATE LIMITED", sub_title_style))
     story.append(Spacer(1, 2))
     story.append(Paragraph("OFFICIAL TRANSACTION RECEIPT", title_style))
     story.append(Spacer(1, 10))

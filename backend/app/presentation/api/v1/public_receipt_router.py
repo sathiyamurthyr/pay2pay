@@ -106,9 +106,9 @@ async def get_public_receipt(
             company_code = "SMSPAY" if is_smspay else ("PAY2PAY" if is_pay2pay else "NEAR4YOU")
             brand_name = "SMSPAY" if is_smspay else ("Pay2Pay" if is_pay2pay else "Near4You")
             company_name = (
-                "SMSPAY Technologies Pvt. Ltd."
+                "INSPEL TECHNOLOGIES SOLUTIONS PVT"
                 if is_smspay
-                else ("Pay2Pay FinTech Solutions Pvt. Ltd." if is_pay2pay else "Near4You Enterprise Technologies Pvt. Ltd.")
+                else ("SUPER REX PRODUCTS PRIVATE LIMITED" if is_pay2pay else "SATHUS TECHNOLOGY PRIVATE LIMITED")
             )
             brand_tagline = f"{brand_name} Digital Payments · Instant Wallet Top-Up Switch"
 

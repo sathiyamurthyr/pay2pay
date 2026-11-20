@@ -279,8 +279,8 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
   const audit = details?.audit;
 
   const companyLogo = details?.company?.logo || details?.company?.logo_url || branding.logo_url || "/branding/logo.svg";
-  const companyName = details?.company?.name || details?.company?.company_name || branding.company_name || "Near 4 You";
-  const companyLegalName = details?.company?.legal_name || branding.legal_name || "Sathus Technology Pvt. Ltd.";
+  const companyName = branding.display_name || details?.company?.name || "Pay2Pay";
+  const companyLegalName = branding.legal_name || branding.company_name || details?.company?.legal_name || "SUPER REX PRODUCTS PRIVATE LIMITED";
 
   const serviceRaw = (txn?.service || "PAYOUT").toUpperCase();
   const serviceStyle = SERVICE_COLORS[serviceRaw] || {

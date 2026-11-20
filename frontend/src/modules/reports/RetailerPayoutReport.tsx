@@ -906,7 +906,7 @@ export const RetailerPayoutReport: React.FC = () => {
             <!-- Audit & Security Footer -->
             <div class="footer-info">
               <strong>Official Electronic Transaction Voucher</strong><br />
-              This is a computer-generated transaction advice issued via the Near4You Platform.<br />
+              This is a computer-generated transaction advice issued via the ${compName || "this Platform"}.<br />
               Authorized and processed through banking partner switch. No physical signature required.<br />
               Generated on: ${new Date().toLocaleString("en-IN")}
             </div>

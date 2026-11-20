@@ -34,8 +34,8 @@ export const COMPANY_PRESETS: Record<string, CompanyBrandingData> = {
     company_ref_id: 1,
     tenant_ref_id: 1,
     company_code: "NEAR4YOU",
-    company_name: "Near4You",
-    legal_name: "Near4You Enterprise Technologies Pvt. Ltd.",
+    company_name: "SATHUS TECHNOLOGY PRIVATE LIMITED",
+    legal_name: "SATHUS TECHNOLOGY PRIVATE LIMITED",
     display_name: "Near4You",
     short_name: "N4U",
     logo_url: "/branding/logo.svg",
@@ -43,14 +43,14 @@ export const COMPANY_PRESETS: Record<string, CompanyBrandingData> = {
     primary_colour: "#A20A3A",
     secondary_colour: "#EDC11E",
     website: "https://near4you.store",
-    domains: ["near4you.store", "login.near4you.store", "admin.near4you.store", "near4you.in", "admin.near4you.in"],
+    domains: ["near4you.store", "login.near4you.store", "admin.near4you.store", "receipt.near4you.store", "near4you.in", "admin.near4you.in", "receipt.near4you.in"],
   },
   PAY2PAY: {
     company_ref_id: 47,
     tenant_ref_id: 1,
     company_code: "PAY2PAY",
-    company_name: "Pay2Pay",
-    legal_name: "Pay2Pay FinTech Solutions Pvt. Ltd.",
+    company_name: "SUPER REX PRODUCTS PRIVATE LIMITED",
+    legal_name: "SUPER REX PRODUCTS PRIVATE LIMITED",
     display_name: "Pay2Pay",
     short_name: "P2P",
     logo_url: "/branding/pay2pay-logo.png",
@@ -58,14 +58,14 @@ export const COMPANY_PRESETS: Record<string, CompanyBrandingData> = {
     primary_colour: "#2563EB",
     secondary_colour: "#1E40AF",
     website: "https://pay2pay.in",
-    domains: ["pay2pay.in", "login.pay2pay.in", "admin.pay2pay.in", "pay2pay.com", "admin.pay2pay.com"],
+    domains: ["pay2pay.in", "login.pay2pay.in", "admin.pay2pay.in", "receipt.pay2pay.in", "pay2pay.com", "admin.pay2pay.com"],
   },
   SMSPAY: {
     company_ref_id: 2,
     tenant_ref_id: 1,
     company_code: "SMSPAY",
-    company_name: "SMSPAY",
-    legal_name: "SMSPAY Technologies Pvt. Ltd.",
+    company_name: "INSPEL TECHNOLOGIES SOLUTIONS PVT",
+    legal_name: "INSPEL TECHNOLOGIES SOLUTIONS PVT",
     display_name: "SMSPAY",
     short_name: "SMSP",
     logo_url: "/branding/smspay-logo.svg",
@@ -73,7 +73,7 @@ export const COMPANY_PRESETS: Record<string, CompanyBrandingData> = {
     primary_colour: "#059669",
     secondary_colour: "#047857",
     website: "https://smspay.store",
-    domains: ["smspay.store", "login.smspay.store", "admin.smspay.store", "smspay.in", "login.smspay.in", "admin.smspay.in"],
+    domains: ["smspay.store", "login.smspay.store", "admin.smspay.store", "receipt.smspay.store", "smspay.in", "login.smspay.in", "admin.smspay.in", "receipt.smspay.in"],
   },
 };
 
@@ -282,15 +282,18 @@ export function useCompanyBranding() {
 
           if (data.company_code === "NEAR4YOU" || (data.company_name && data.company_name.replace(/\s+/g, "").toUpperCase() === "NEAR4YOU")) {
             data.display_name = "Near4You";
-            data.company_name = "Near4You";
+            data.company_name = "SATHUS TECHNOLOGY PRIVATE LIMITED";
+            data.legal_name = "SATHUS TECHNOLOGY PRIVATE LIMITED";
           }
           if (data.company_code === "PAY2PAY" || (data.company_name && data.company_name.replace(/\s+/g, "").toUpperCase() === "PAY2PAY")) {
             data.display_name = "Pay2Pay";
-            data.company_name = "Pay2Pay";
+            data.company_name = "SUPER REX PRODUCTS PRIVATE LIMITED";
+            data.legal_name = "SUPER REX PRODUCTS PRIVATE LIMITED";
           }
           if (data.company_code === "SMSPAY" || (data.company_name && data.company_name.replace(/\s+/g, "").toUpperCase() === "SMSPAY")) {
             data.display_name = "SMSPAY";
-            data.company_name = "SMSPAY";
+            data.company_name = "INSPEL TECHNOLOGIES SOLUTIONS PVT";
+            data.legal_name = "INSPEL TECHNOLOGIES SOLUTIONS PVT";
           }
 
           setBranding(data);
