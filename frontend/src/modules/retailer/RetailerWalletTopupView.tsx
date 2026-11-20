@@ -221,6 +221,7 @@ export default function RetailerWalletTopupView() {
       setTxnError(null);
 
       const refId = `TOPUP-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
       const res = await apiClient.post("/api/v1/payin/collect", {
         amount: numAmt,
         customer_name: "Retailer Wallet Top-Up",
@@ -230,7 +231,9 @@ export default function RetailerWalletTopupView() {
         payment_mode_code: selectedMode,
         card_type_code: selectedCard || undefined,
         vendor_code: selectedVendor || undefined,
-        note: `Wallet Top-Up via ${selectedMode}`
+        note: `Wallet Top-Up via ${selectedMode}`,
+        return_url: origin ? `${origin}/retailer/payin/status` : undefined,
+        callback_url: origin ? `${origin}/retailer/payin/status` : undefined
       });
 
       if (res.data && res.data.success) {

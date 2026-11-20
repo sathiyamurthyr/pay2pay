@@ -16,6 +16,7 @@ Enterprise Rules:
 
 import uuid
 import logging
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Header, status
 from fastapi.responses import RedirectResponse
@@ -24,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.infrastructure.db.payin_models import PayinTransactionModel
+from app.infrastructure.db.models import RetailerModel
 from app.application.dependencies import (
     get_current_token_payload, get_optional_token_payload, get_current_tenant_id
 )
@@ -35,6 +37,9 @@ from app.application.payin_dtos import (
 from app.application.payin_service import PayInService
 from app.application.payin_config_service import PayInConfigService
 from app.application.payin_routing_service import SMSPAY_COMPANY_REF_ID
+from app.application.bankme_payin_client import BankMePayInClient
+from app.application.wallet_balance_service import WalletBalanceAdjustmentService, WalletAdjustmentDTO
+from app.core.company_resolver import resolve_return_base_url, get_company_preset
 
 logger = logging.getLogger("payin_router")
 
@@ -215,6 +220,7 @@ async def initiate_common_payin(
     - Automatically routes SMSPay (company_ref_id=2) to BankMe and other companies to Existing processing.
     """
     auth_ctx = extract_auth_context(payload, request)
+    auth_ctx["request"] = request
     return await PayInService.initiate_payin(
         db=db,
         request_dto=req_dto,
@@ -362,33 +368,48 @@ async def universal_payin_browser_callback(
     resolved_ref = referenceId or reference_id or tid or ""
     resolved_status = (status or "success").strip().lower()
 
+    target_company_ref_id = None
     # Reconcile if transaction exists and incoming status indicates success
-    if resolved_ref and resolved_status == "success":
+    if resolved_ref:
         try:
-            stmt = select(PayinTransactionModel).where(PayinTransactionModel.tid == resolved_ref)
+            stmt = select(PayinTransactionModel).where(
+                or_(
+                    PayinTransactionModel.tid == resolved_ref,
+                    PayinTransactionModel.merchant_ref_id == resolved_ref,
+                    PayinTransactionModel.provider_ref_id == resolved_ref
+                )
+            )
             res = await db.execute(stmt)
             txn = res.scalars().first()
-            if txn and txn.txn_status != "SUCCESS":
-                wh_payload = BankMeWebhookPayload(
-                    event="payin.success",
-                    status="SUCCESS",
-                    referenceId=resolved_ref,
-                    tid=resolved_ref,
-                    orderId=orderId or txn.provider_ref_id or txn.tid,
-                    utr=utr or txn.provider_ref_id or f"UTR-{resolved_ref[-8:]}",
-                    amount=float(txn.txn_amount),
-                    signature="browser_return_sync"
-                )
-                await PayInService.process_bankme_webhook(
-                    db=db,
-                    payload=wh_payload,
-                    headers=dict(request.headers)
-                )
+            if txn:
+                target_company_ref_id = txn.company_ref_id
+                if resolved_status == "success" and txn.txn_status != "SUCCESS":
+                    wh_payload = BankMeWebhookPayload(
+                        event="payin.success",
+                        status="SUCCESS",
+                        referenceId=resolved_ref,
+                        tid=resolved_ref,
+                        orderId=orderId or txn.provider_ref_id or txn.tid,
+                        utr=utr or txn.provider_ref_id or f"UTR-{resolved_ref[-8:]}",
+                        amount=float(txn.txn_amount),
+                        signature="browser_return_sync"
+                    )
+                    await PayInService.process_bankme_webhook(
+                        db=db,
+                        payload=wh_payload,
+                        headers=dict(request.headers)
+                    )
         except Exception as e:
             logger.warning("Browser return sync notice for %s: %s", resolved_ref, e)
 
-    # Build clean frontend redirect target
-    redirect_target = f"/retailer/payin/status?referenceId={resolved_ref}&status={resolved_status}"
+    # Dynamically resolve return base domain using the verified company context
+    return_base = resolve_return_base_url(
+        company_ref_id=target_company_ref_id,
+        request=request
+    )
+
+    # Build clean frontend redirect target on originating domain
+    redirect_target = f"{return_base}/retailer/payin/status?referenceId={resolved_ref}&status={resolved_status}"
     if orderId:
         redirect_target += f"&orderId={orderId}"
     if utr:
@@ -421,40 +442,122 @@ async def get_payin_receipt(
     if not txn:
         raise HTTPException(status_code=404, detail="Transaction receipt not found")
 
-    company_code = "SMSPAY" if txn.company_ref_id == 2 else ("PAY2PAY" if txn.company_ref_id == 47 else "NEAR4YOU")
-    company_name = "SMSPAY Digital Payments" if txn.company_ref_id == 2 else ("Pay2Pay Enterprise" if txn.company_ref_id == 47 else "Near4You Platform")
-    domain = "smspay.store" if txn.company_ref_id == 2 else ("pay2pay.in" if txn.company_ref_id == 47 else "near4you.store")
+    # Capture all fields eagerly to prevent MissingGreenlet on expired model after commit
+    final_tid = txn.tid
+    final_company_ref_id = txn.company_ref_id
+    final_retailer_ref_id = txn.retailer_ref_id
+    final_merchant_ref = txn.merchant_ref_id or ""
+    final_provider_ref = txn.provider_ref_id
+    final_status = txn.txn_status
+    final_amount = float(txn.txn_amount)
+    final_customer_payable = float(txn.customer_payable or txn.txn_amount)
+    final_retailer_credit = float(txn.retailer_credit or txn.txn_amount)
+    final_mdr_amount = float(txn.mdr_amount or 0)
+    final_tax_amount = float(txn.tax_amount or 0)
+    final_total_charges = float(txn.total_charges or 0)
+    final_cust_name = txn.cust_name or "Retailer Partner"
+    final_cust_mobile = txn.cust_mobile or ""
+    final_card_network = txn.card_network or "Card / Net Banking / UPI"
+    final_ledger_txn_id = txn.ledger_txn_id
+    final_created_at = txn.created_at.isoformat() if txn.created_at else None
+    final_completed_at = txn.completed_at.isoformat() if txn.completed_at else None
+    final_failure_reason = txn.failure_reason
+    final_response_ref = txn.response_ref
 
-    raw_mob = txn.cust_mobile or ""
-    formatted_mob = f"+91 {raw_mob[-10:]}" if len(raw_mob) >= 10 else raw_mob
+    # If status is pending/initiated and BankMe, check live gateway status
+    if final_status in ("PENDING", "INITIATED") and final_company_ref_id == SMSPAY_COMPANY_REF_ID:
+        try:
+            live_check = await BankMePayInClient.check_order_status(
+                tid=final_tid,
+                bankme_ref=final_provider_ref,
+                company_ref_id=final_company_ref_id,
+                retailer_ref_id=final_retailer_ref_id
+            )
+            if live_check.get("success") and live_check.get("status") in ("SUCCESS", "FAILED"):
+                new_st = live_check.get("status")
+                final_status = new_st
+                txn.txn_status = new_st
+                txn.provider_status = new_st
+                if live_check.get("utr"):
+                    final_provider_ref = live_check.get("utr")
+                    txn.provider_ref_id = live_check.get("utr")
+                if new_st == "SUCCESS":
+                    now_utc = datetime.now(timezone.utc)
+                    txn.completed_at = now_utc
+                    final_completed_at = now_utc.isoformat()
+                await db.commit()
+
+                # Perform wallet credit if needed
+                if new_st == "SUCCESS" and not final_ledger_txn_id:
+                    try:
+                        ret_stmt = select(RetailerModel).where(
+                            RetailerModel.retailer_ref_id == final_retailer_ref_id,
+                            RetailerModel.company_ref_id == final_company_ref_id
+                        )
+                        ret_res = await db.execute(ret_stmt)
+                        ret_obj = ret_res.scalars().first()
+                        adj_dto = WalletAdjustmentDTO(
+                            user_ref_id=final_retailer_ref_id,
+                            retailer_id=str(ret_obj.public_id) if ret_obj else None,
+                            retailer_code=ret_obj.retailer_code if ret_obj else None,
+                            company_ref_id=final_company_ref_id,
+                            user_type_ref_id=2,
+                            entry_type="CREDIT",
+                            amount=final_retailer_credit,
+                            payout_amount=final_retailer_credit,
+                            charge_amount=0.0,
+                            gst_amount=0.0,
+                            service_name="PAYIN_TOPUP",
+                            wallet_type="MAIN",
+                            user_type="RETAILER",
+                            txn_id=final_tid,
+                            ref_id=final_provider_ref or final_tid,
+                            narration=f"PayIn Wallet Top-Up via BankMe (TID: {final_tid})"
+                        )
+                        adj_res = await WalletBalanceAdjustmentService.execute_wallet_balance_update(db=db, dto=adj_dto)
+                        if adj_res and adj_res.success:
+                            txn.ledger_txn_id = adj_res.txn_id
+                            final_ledger_txn_id = adj_res.txn_id
+                            await db.commit()
+                    except Exception as w_err:
+                        logger.error("Wallet credit error during receipt sync: %s", w_err)
+        except Exception as sync_err:
+            logger.warning("Receipt sync warning for TID %s: %s", final_tid, sync_err)
+
+    preset = get_company_preset(final_company_ref_id) or {}
+    company_code = preset.get("company_code", "SMSPAY" if final_company_ref_id == 2 else "NEAR4YOU")
+    company_name = preset.get("display_name", "SMSPAY" if final_company_ref_id == 2 else "Near4You")
+    domain = (preset.get("domains") or ["smspay.store"])[0]
+
+    formatted_mob = f"+91 {final_cust_mobile[-10:]}" if len(final_cust_mobile) >= 10 else final_cust_mobile
 
     return {
         "success": True,
         "data": {
-            "tid": txn.tid,
-            "reference_id": txn.tid,
-            "merchant_ref_id": txn.merchant_ref_id,
-            "provider_ref_id": txn.provider_ref_id,
-            "order_id": (txn.response_ref or {}).get("order_id") if isinstance(txn.response_ref, dict) else None,
-            "status": txn.txn_status,
-            "amount": float(txn.txn_amount),
-            "customer_payable": float(txn.customer_payable or txn.txn_amount),
-            "retailer_credit": float(txn.retailer_credit or txn.txn_amount),
-            "mdr_amount": float(txn.mdr_amount or 0),
-            "tax_amount": float(txn.tax_amount or 0),
-            "total_charges": float(txn.total_charges or 0),
-            "customer_name": txn.cust_name or "Retailer Partner",
+            "tid": final_tid,
+            "reference_id": final_tid,
+            "merchant_ref_id": final_merchant_ref,
+            "provider_ref_id": final_provider_ref,
+            "order_id": (final_response_ref or {}).get("order_id") if isinstance(final_response_ref, dict) else None,
+            "status": final_status,
+            "amount": final_amount,
+            "customer_payable": final_customer_payable,
+            "retailer_credit": final_retailer_credit,
+            "mdr_amount": final_mdr_amount,
+            "tax_amount": final_tax_amount,
+            "total_charges": final_total_charges,
+            "customer_name": final_cust_name,
             "customer_mobile": formatted_mob,
-            "provider": "SMSPAY Exclusive Gateway G-1" if txn.company_ref_id == 2 else "Primary Gateway",
-            "card_network": txn.card_network or "Card / Net Banking / UPI",
+            "provider": "SMSPAY Exclusive Gateway G-1" if final_company_ref_id == 2 else "Primary Gateway",
+            "card_network": final_card_network,
             "payment_mode": "CARD",
             "company_code": company_code,
             "company_name": company_name,
             "domain": domain,
-            "created_at": txn.created_at.isoformat() if txn.created_at else None,
-            "completed_at": txn.completed_at.isoformat() if txn.completed_at else None,
-            "utr": txn.provider_ref_id or txn.tid,
-            "failure_reason": txn.failure_reason
+            "created_at": final_created_at,
+            "completed_at": final_completed_at,
+            "utr": final_provider_ref or final_tid,
+            "failure_reason": final_failure_reason
         }
     }
 

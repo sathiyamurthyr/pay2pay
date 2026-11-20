@@ -760,6 +760,8 @@ export default function RetailerPayinPage() {
       const nowMs = Date.now();
       const uniqueRef = `REF-${nowMs}-${Math.floor(Math.random() * 1000)}`;
 
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+
       // 2. Call backend PayIn initiation API (Authoritative Admin Configuration)
       const reqPayload = {
         amount: calculations.topupAmount,
@@ -770,7 +772,9 @@ export default function RetailerPayinPage() {
         payment_mode_code: "CARD",
         vendor_code: selectedGateway.vendorCode,
         card_network: selectedCardNetwork || undefined,
-        note: "SMSPAY Retailer PayIn Top-Up"
+        note: "SMSPAY Retailer PayIn Top-Up",
+        return_url: origin ? `${origin}/retailer/payin/status` : undefined,
+        callback_url: origin ? `${origin}/retailer/payin/status` : undefined
       };
 
       const res = await apiClient.post("/api/v1/payin/collect", reqPayload);

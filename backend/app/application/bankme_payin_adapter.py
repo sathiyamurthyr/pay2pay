@@ -13,6 +13,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 
 from app.application.bankme_payin_client import BankMePayInClient
+from app.core.company_resolver import resolve_return_base_url
 
 logger = logging.getLogger("payin_adapter")
 
@@ -84,6 +85,7 @@ class BankMePayInAdapter(BasePayInProviderAdapter):
             customer_email=customer_email,
             reference_id=reference_id,
             callback_url=callback_url,
+            return_url=kwargs.get("return_url"),
             payment_mode=payment_mode,
             note=note,
             company_ref_id=kwargs.get("company_ref_id", 2),
@@ -177,15 +179,22 @@ class ExistingPayInAdapter(BasePayInProviderAdapter):
         **kwargs
     ) -> Dict[str, Any]:
         ref = f"P2P-PAYIN-{int(time.time())}-{tid[-4:]}"
-        vpa = "pay2pay.merchant@icici"
+        comp_ref = kwargs.get("company_ref_id", 47)
+        return_base = resolve_return_base_url(
+            company_ref_id=comp_ref,
+            request=kwargs.get("request"),
+            candidate_url=kwargs.get("return_url") or callback_url
+        )
+        vpa = "pay2pay.merchant@icici" if comp_ref == 47 else "near4you.merchant@icici"
+        platform_name = "Pay2Pay+Platform" if comp_ref == 47 else "Near4You+Platform"
         upi_string = (
-            f"upi://pay?pa={vpa}&pn=Pay2Pay+Platform"
+            f"upi://pay?pa={vpa}&pn={platform_name}"
             f"&am={amount:.2f}&tr={tid}&tn=PayIn+{tid}&cu=INR"
         )
         qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={upi_string}"
-        checkout_url = f"https://pay2pay.in/checkout?order={ref}&tid={tid}&amount={amount:.2f}"
+        checkout_url = f"{return_base}/retailer/payin/status?referenceId={tid}&order={ref}&amount={amount:.2f}"
 
-        logger.info("Existing PayIn initiated for TID=%s (Non-BankMe company)", tid)
+        logger.info("Existing PayIn initiated for TID=%s (Company Ref #%s)", tid, comp_ref)
         return {
             "success": True,
             "status": "PENDING",
