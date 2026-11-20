@@ -38,6 +38,7 @@ import { MpinSetupCard } from "@/components/customers/mpin-setup-card";
 import { isNormalizedMatch, formatShortCustomerId } from "@/lib/utils";
 import { retailerApi } from "@/services/retailer-api";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES & ENUMS
@@ -101,6 +102,7 @@ function CustomersContent() {
   const urlSelectedId = searchParams?.get("selectedId") || searchParams?.get("id") || "";
 
   const [mounted, setMounted] = useState(false);
+  const branding = useCompanyBranding();
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -351,7 +353,7 @@ function CustomersContent() {
               <Sparkles className="w-4 h-4 text-emerald-400" />
             </h2>
             <p className="text-xs sm:text-sm font-medium text-blue-100/90 line-clamp-1">
-              Search, manage and transact with verified customers.
+              Search, manage and transact with verified {branding.display_name} customers.
             </p>
           </div>
 

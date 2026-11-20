@@ -219,7 +219,25 @@ async def process_recharge(req: RechargeRequest):
         "commission": round(req.amount * 0.025, 2),
     }
 
+class BbpsFetchRequest(BaseModel):
+    billerCategory: str
+    billerId: str
+    consumerNumber: str
+
+@router.post("/bbps/fetch")
+async def fetch_bbps_bill(req: BbpsFetchRequest):
+    return {
+        "success": True,
+        "customerName": "Verified Consumer",
+        "billAmount": 1450.00,
+        "dueDate": (datetime.now(timezone.utc)).strftime("%d %b %Y"),
+        "billNumber": f"BILL-{int(time.time())}",
+        "billerId": req.billerId,
+        "consumerNumber": req.consumerNumber,
+    }
+
 @router.post("/bbps/fetch-and-pay")
+@router.post("/bbps/pay")
 async def pay_bbps(req: BbpsRequest):
     return {
         "success": True,
@@ -227,6 +245,7 @@ async def pay_bbps(req: BbpsRequest):
         "approvalRefNum": f"BBPS{int(time.time())}",
         "status": "SUCCESS",
         "amountPaid": req.amount,
+        "commission": 3.50,
     }
 
 @router.post("/settlement/move-to-bank")

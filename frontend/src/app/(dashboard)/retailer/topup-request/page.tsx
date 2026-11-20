@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import api from "@/lib/api";
 import { useWalletSync, triggerWalletSync } from "@/context/WalletSyncProvider";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 import {
   UploadCloud,
   Clock,
@@ -130,6 +131,7 @@ interface OcrDetails {
 }
 
 export default function RetailerTopupRequestPage() {
+  const branding = useCompanyBranding();
   // ── States & Live Sync ────────────────────────────────────────────────────────
   const { walletData, refreshWallet } = useWalletSync();
   const [walletBalance, setWalletBalance] = useState<number>(walletData?.wallet_balance ?? 0);
@@ -1162,11 +1164,11 @@ export default function RetailerTopupRequestPage() {
                   {/* Company Branding & Amount Card */}
                   <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-5 text-center shadow-xs space-y-3 relative overflow-hidden">
                     <div className="flex flex-col items-center justify-center gap-1">
-                      <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-500 flex items-center justify-center text-slate-950 font-black text-base shadow-sm mb-1">
-                        P2P
+                      <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-500 flex items-center justify-center text-slate-950 font-black text-xs shadow-sm mb-1 uppercase">
+                        {branding.short_name || branding.display_name?.slice(0, 3) || "PAY"}
                       </div>
                       <h4 className="text-base font-black tracking-wider text-slate-900">
-                        {upiQrData.company_name || "Enterprise FinTech"}
+                        {upiQrData.company_name || branding.display_name || "Enterprise FinTech"}
                       </h4>
                       <p className="text-[10px] uppercase font-bold tracking-widest text-amber-800 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full inline-block">
                         Instant UPI Top-Up
@@ -1256,7 +1258,7 @@ export default function RetailerTopupRequestPage() {
 
                     <a
                       href={upiQrData.qr_data_url}
-                      download={`pay2pay-qr-${upiQrData.request_id}.png`}
+                      download={`${(branding.display_name || "pay").toLowerCase()}-qr-${upiQrData.request_id}.png`}
                       className="p-2.5 rounded-xl bg-white border border-slate-200 hover:border-amber-400 text-slate-700 hover:text-slate-900 transition-all shadow-xs flex flex-col items-center gap-1 text-center"
                     >
                       <Download className="h-4 w-4 text-amber-600" />

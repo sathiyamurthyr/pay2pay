@@ -71,6 +71,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { retailerApi } from "@/services/retailer-api";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 export interface KycDocument {
   id: string;
@@ -265,6 +266,18 @@ interface ProfileResponse {
 }
 
 export default function RetailerProfilePage() {
+  const branding = useCompanyBranding();
+  const defaultSupportEmail = branding.website?.includes("smspay")
+    ? "support@smspay.store"
+    : branding.website?.includes("pay2pay")
+    ? "support@pay2pay.in"
+    : "support@near4you.store";
+  const defaultGrievanceEmail = branding.website?.includes("smspay")
+    ? "grievance@smspay.store"
+    : branding.website?.includes("pay2pay")
+    ? "grievance@pay2pay.in"
+    : "grievance@near4you.store";
+  const defaultWebsiteUrl = branding.website || (typeof window !== "undefined" ? window.location.origin : "https://smspay.store");
   const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -1013,15 +1026,15 @@ export default function RetailerProfilePage() {
                         Support Desk Email
                       </Typography>
                     </Stack>
-                    <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: 800 }}>
-                      {profile.company?.support_email || "support@near4you.store"}
+                    <Typography variant="body1" sx={{ color: "#0F172A", fontWeight: 800 }}>
+                      {profile.company?.support_email || defaultSupportEmail}
                     </Typography>
                     <Typography variant="caption" sx={{ color: "#625B60", display: "block", mb: 1.5 }}>
                       24/7 Ticketing Response
                     </Typography>
                     <Stack direction="row" spacing={1}>
                       <Button
-                        href={`mailto:${profile.company?.support_email || "support@near4you.store"}?subject=Retailer%20Support%20Enquiry`}
+                        href={`mailto:${profile.company?.support_email || defaultSupportEmail}?subject=Retailer%20Support%20Enquiry`}
                         variant="contained"
                         size="small"
                         startIcon={<Mail size={13} />}
@@ -1029,7 +1042,7 @@ export default function RetailerProfilePage() {
                       >
                         Email
                       </Button>
-                      <IconButton size="small" onClick={() => handleCopy(profile.company?.support_email || "support@near4you.store", "Support Email")} sx={{ color: "#625B60" }}>
+                      <IconButton size="small" onClick={() => handleCopy(profile.company?.support_email || defaultSupportEmail, "Support Email")} sx={{ color: "#625B60" }}>
                         <Copy size={15} />
                       </IconButton>
                     </Stack>
@@ -1045,7 +1058,7 @@ export default function RetailerProfilePage() {
                         WhatsApp Helpdesk
                       </Typography>
                     </Stack>
-                    <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: 800 }}>
+                    <Typography variant="body1" sx={{ color: "#0F172A", fontWeight: 800 }}>
                       {profile.company?.whatsapp_number || "+91 70139 14767"}
                     </Typography>
                     <Typography variant="caption" sx={{ color: "#625B60", display: "block", mb: 1.5 }}>
@@ -1053,7 +1066,7 @@ export default function RetailerProfilePage() {
                     </Typography>
                     <Stack direction="row" spacing={1}>
                       <Button
-                        href={`https://wa.me/917013914767?text=${encodeURIComponent("Hello Near4You Support, I need assistance with my Retailer Account.")}`}
+                        href={`https://wa.me/917013914767?text=${encodeURIComponent(`Hello ${branding.display_name} Support, I need assistance with my Retailer Account.`)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         variant="contained"
@@ -2267,7 +2280,7 @@ export default function RetailerProfilePage() {
                     No Dedicated Field RM Assigned
                   </Typography>
                   <Typography variant="body2" sx={{ color: "#625B60", mt: 0.5, maxWidth: 500, mx: "auto" }}>
-                    Your account is directly serviced by the Near4You Central Merchant Operations & Priority Support Desk.
+                    Your account is directly serviced by the {profile.company?.brand_name || branding.display_name} Central Merchant Operations & Priority Support Desk.
                   </Typography>
                   <Stack direction="row" spacing={2} justifyContent="center" sx={{ mt: 3 }}>
                     <Button
@@ -2279,7 +2292,7 @@ export default function RetailerProfilePage() {
                       Call Support ({profile.company?.support_phone || "1800 292 982"})
                     </Button>
                     <Button
-                      href={`mailto:${profile.company?.support_email || "support@near4you.store"}?subject=Retailer%20Account%20Assistance`}
+                      href={`mailto:${profile.company?.support_email || defaultSupportEmail}?subject=Retailer%20Account%20Assistance`}
                       variant="outlined"
                       startIcon={<Mail size={16} />}
                       sx={{ color: "#60A5FA", borderColor: "#3B82F6", fontWeight: 700, borderRadius: 2 }}
@@ -2389,8 +2402,8 @@ export default function RetailerProfilePage() {
                 />
               </Stack>
               <Stack spacing={1.5}>
-                <DataRow label="Company Legal Name" value={profile.company?.company_name || "SUPER REX PRODUCTS PRIVATE LIMITED"} />
-                <DataRow label="Brand / Network" value={profile.company?.brand_name || "Near4You Enterprise Network"} />
+                <DataRow label="Company Legal Name" value={profile.company?.company_name || branding.company_name} />
+                <DataRow label="Brand / Network" value={profile.company?.brand_name || `${branding.display_name} Enterprise Network`} />
                 <DataRow
                   label="Corporate Identity Number (CIN)"
                   value={profile.company?.cin || "U72900TN2024PTC168920"}
@@ -2433,11 +2446,11 @@ export default function RetailerProfilePage() {
                 />
                 <DataRow
                   label="Official Support Email"
-                  value={profile.company?.support_email || "support@near4you.store"}
-                  onCopy={() => handleCopy(profile.company?.support_email || "support@near4you.store", "Support Email")}
+                  value={profile.company?.support_email || defaultSupportEmail}
+                  onCopy={() => handleCopy(profile.company?.support_email || defaultSupportEmail, "Support Email")}
                   action={
                     <Button
-                      href={`mailto:${profile.company?.support_email || "support@near4you.store"}?subject=Retailer%20Support%20Enquiry`}
+                      href={`mailto:${profile.company?.support_email || defaultSupportEmail}?subject=Retailer%20Support%20Enquiry`}
                       variant="outlined"
                       size="small"
                       startIcon={<Mail size={13} />}
@@ -2453,7 +2466,7 @@ export default function RetailerProfilePage() {
                   onCopy={() => handleCopy(profile.company?.whatsapp_number || "+91 70139 14767", "WhatsApp Number")}
                   action={
                     <Button
-                      href={`https://wa.me/917013914767?text=${encodeURIComponent("Hello Near4You Support, I need assistance with my Retailer Account.")}`}
+                      href={`https://wa.me/917013914767?text=${encodeURIComponent(`Hello ${branding.display_name} Support, I need assistance with my Retailer Account.`)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       variant="contained"
@@ -2485,16 +2498,16 @@ export default function RetailerProfilePage() {
                       value={profile.company?.headquarters || "Shop No: 7, 1st Floor, Chittaramma Temple Complex, Moosapet, Hyderabad, Telangana - 500018, India"}
                       onCopy={() => handleCopy(profile.company?.headquarters || "Shop No: 7, 1st Floor, Chittaramma Temple Complex, Moosapet, Hyderabad, Telangana - 500018, India", "Office Address")}
                     />
-                    <DataRow label="Official Website Portal" value={profile.company?.website_url || "https://near4you.store"} />
+                    <DataRow label="Official Website Portal" value={profile.company?.website_url || defaultWebsiteUrl} />
                   </Stack>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Stack spacing={1.5}>
-                    <DataRow label="Grievance Redressal Officer" value={profile.company?.nodal_officer || "Grievance Redressal Officer, Near4You"} />
+                    <DataRow label="Grievance Redressal Officer" value={profile.company?.nodal_officer || `Grievance Redressal Officer, ${branding.display_name}`} />
                     <DataRow
                       label="Grievance Escalation Email"
-                      value={profile.company?.grievance_email || "grievance@near4you.store"}
-                      onCopy={() => handleCopy(profile.company?.grievance_email || "grievance@near4you.store", "Grievance Email")}
+                      value={profile.company?.grievance_email || defaultGrievanceEmail}
+                      onCopy={() => handleCopy(profile.company?.grievance_email || defaultGrievanceEmail, "Grievance Email")}
                     />
                     <DataRow label="Resolution Turnaround Time" value="Level 1: 24h | Grievance Escalation: 48-72h" />
                   </Stack>
@@ -3015,7 +3028,7 @@ function DataRow({
         <Typography
           variant="body1"
           sx={{
-            color: isStatus ? "#4ADE80" : "#FFFFFF",
+            color: isStatus ? "#16A34A" : "#0F172A",
             fontWeight: 600,
             wordBreak: "break-all",
           }}
@@ -3041,13 +3054,13 @@ const cardStyle = {
   p: { xs: 2.5, md: 3.5 },
   borderRadius: 3.5,
   bgcolor: "#FFFFFF",
-  border: "1px solid rgba(255, 255, 255, 0.1)",
-  boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.3)",
+  border: "1px solid #E2E8F0",
+  boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.05)",
 };
 
 const cardTitleStyle = {
   fontWeight: 800,
-  color: "#FFFFFF",
+  color: "#0F172A",
   mb: 2.5,
   letterSpacing: "-0.01em",
 };
@@ -3055,19 +3068,19 @@ const cardTitleStyle = {
 const rowBoxStyle = {
   p: 1.8,
   borderRadius: 2.5,
-  bgcolor: "rgba(255, 255, 255, 0.03)",
-  border: "1px solid rgba(255, 255, 255, 0.06)",
+  bgcolor: "#FAF8F9",
+  border: "1px solid #E8E2E5",
 };
 
 const fieldBoxStyle = {
   p: 2,
   borderRadius: 2.5,
-  bgcolor: "rgba(255, 255, 255, 0.03)",
-  border: "1px solid rgba(255, 255, 255, 0.06)",
+  bgcolor: "#FAF8F9",
+  border: "1px solid #E8E2E5",
 };
 
 const labelStyle = {
-  color: "#625B60",
+  color: "#64748B",
   fontWeight: 700,
   textTransform: "uppercase",
   letterSpacing: "0.04em",
@@ -3075,7 +3088,7 @@ const labelStyle = {
 
 const verifiedBadgeStyle = {
   bgcolor: "rgba(34, 197, 94, 0.15)",
-  color: "#4ADE80",
+  color: "#16A34A",
   fontWeight: 700,
   height: 22,
   fontSize: "0.72rem",
@@ -3083,11 +3096,11 @@ const verifiedBadgeStyle = {
 
 const inputStyle = {
   "& .MuiOutlinedInput-root": {
-    color: "#FFFFFF",
-    backgroundColor: "rgba(255, 255, 255, 0.04)",
+    color: "#0F172A",
+    backgroundColor: "#FFFFFF",
     borderRadius: 2.5,
     "& fieldset": {
-      borderColor: "rgba(255, 255, 255, 0.15)",
+      borderColor: "#D1D5DB",
     },
     "&:hover fieldset": {
       borderColor: "#3B82F6",
@@ -3097,13 +3110,13 @@ const inputStyle = {
     },
   },
   "& .MuiInputLabel-root": {
-    color: "#625B60",
+    color: "#64748B",
     "&.Mui-focused": {
-      color: "#60A5FA",
+      color: "#2563EB",
     },
   },
   "& .MuiFormHelperText-root": {
-    color: "#625B60",
+    color: "#64748B",
   },
 };
 
