@@ -533,6 +533,18 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [lockSession]);
 
+  // Global Universal Search Keyboard Shortcut (Ctrl+K / Cmd+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setUniversalSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   const PATH_SERVICE_MAP: Record<string, string> = {
     "/retailer/dmt": "DMT",
     "/retailer/beneficiary": "DMT",
@@ -1500,6 +1512,25 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 }}
               />
             </Paper>
+
+            {/* Mobile Universal Search Button */}
+            <Tooltip title="Universal Search (Ctrl+K)">
+              <IconButton
+                onClick={() => setUniversalSearchOpen(true)}
+                size="small"
+                sx={{
+                  display: { xs: "flex", md: "none" },
+                  color: isFinancialApp ? "#FFFFFF" : brandPrimary,
+                  p: 0.75,
+                  borderRadius: "8px",
+                  "&:hover": {
+                    bgcolor: isFinancialApp ? "rgba(255, 255, 255, 0.15)" : brandLight,
+                  },
+                }}
+              >
+                <SearchIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Tooltip>
           </Stack>
 
           {/* Right: Soundbox, Wallet Balance, Notifications, Theme, Profile */}
