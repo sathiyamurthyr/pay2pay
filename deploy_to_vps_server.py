@@ -98,7 +98,7 @@ def package_backend():
     if be_tar.exists():
         be_tar.unlink()
 
-    items_to_include = ["app", "requirements.txt", "alembic", "alembic.ini", "sathus_notification", "seed_payin_mdr_master.py"]
+    items_to_include = ["app", "requirements.txt", "alembic", "alembic.ini", "sathus_notification", "seed_payin_mdr_master.py", "scripts"]
     with tarfile.open(be_tar, "w:gz") as tar:
         for item_name in items_to_include:
             item_path = BACKEND_DIR / item_name
@@ -138,6 +138,25 @@ docker cp /opt/near4you-retailer/backend/app near4you-retailer-backend:/app/
 if [ -d /opt/near4you-retailer/backend/sathus_notification ]; then
     docker cp /opt/near4you-retailer/backend/sathus_notification near4you-retailer-backend:/app/
 fi
+if [ -d /opt/near4you-retailer/backend/scripts ]; then
+    docker cp /opt/near4you-retailer/backend/scripts near4you-retailer-backend:/app/
+    echo '=== Deploying Service Availability Stored Procedures ==='
+    docker exec near4you-retailer-backend python -c "
+import asyncio
+from sqlalchemy import text
+from app.core.database import engine
+async def main():
+    try:
+        with open('scripts/deploy_service_availability_sp.sql', 'r', encoding='utf-8') as f:
+            sql = f.read()
+        async with engine.begin() as conn:
+            await conn.execute(text(sql))
+        print('Service availability stored procedures deployed successfully.')
+    except Exception as e:
+        print('SP deployment notice:', e)
+asyncio.run(main())
+" || true
+fi
 if [ -f /opt/near4you-retailer/backend/seed_payin_mdr_master.py ]; then
     docker cp /opt/near4you-retailer/backend/seed_payin_mdr_master.py near4you-retailer-backend:/app/
     docker exec near4you-retailer-backend python seed_payin_mdr_master.py || true
@@ -169,6 +188,12 @@ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3060/wallet-ledger/man
 echo -n 'Backend Health Check: '
 curl -s http://127.0.0.1:8090/health || true
 echo ''
+
+echo -n 'Company Services Status (SMSPAY): '
+curl -s -H 'Host: smspay.store' http://127.0.0.1:8090/api/v1/services/status | grep -o '"company_ref_id":[0-9]*' || true
+
+echo -n 'Company Services Status (Pay2Pay): '
+curl -s -H 'Host: pay2pay.in' http://127.0.0.1:8090/api/v1/services/status | grep -o '"company_ref_id":[0-9]*' || true
 
 echo -n 'PayIn MDR Preview SMSPAY (Company 2, G-1, 500 INR): '
 curl -s -X POST http://127.0.0.1:8090/api/v1/payin/mdr/preview \

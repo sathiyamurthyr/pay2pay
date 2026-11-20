@@ -40,65 +40,79 @@ class PosMdrService:
     async def get_active_payment_modes(db: AsyncSession) -> List[Dict[str, Any]]:
         """
         Returns active POS payment modes ordered by display_order.
-        If POS_TOPUP service is disabled by admin, returns an empty list.
+        If POS_TOPUP service is disabled by admin or table missing, returns an empty list.
         """
-        # 1. Check if POS_TOPUP service is enabled in customer_service_configuration
-        svc_stmt = select(CustomerServiceConfigurationModel).where(
-            CustomerServiceConfigurationModel.service_code == "POS_TOPUP",
-            CustomerServiceConfigurationModel.is_deleted == False
-        )
-        svc_res = await db.execute(svc_stmt)
-        pos_svc = svc_res.scalars().first()
-        if pos_svc and not pos_svc.is_enabled:
-            return []
-
-        stmt = (
-            select(PosPaymentModeConfigModel)
-            .where(
-                PosPaymentModeConfigModel.is_active == True,
-                PosPaymentModeConfigModel.is_deleted == False
+        try:
+            # 1. Check if POS_TOPUP service is enabled in customer_service_configuration
+            svc_stmt = select(CustomerServiceConfigurationModel).where(
+                CustomerServiceConfigurationModel.service_code == "POS_TOPUP",
+                CustomerServiceConfigurationModel.is_deleted == False
             )
-            .order_by(PosPaymentModeConfigModel.display_order.asc())
-        )
-        res = await db.execute(stmt)
-        modes = res.scalars().all()
-        return [
-            {
-                "id": str(m.public_id),
-                "code": m.code,
-                "name": m.name,
-                "display_order": m.display_order,
-                "settlement_type": m.settlement_type,
-                "description": m.description,
-                "is_active": m.is_active
-            }
-            for m in modes
-        ]
+            svc_res = await db.execute(svc_stmt)
+            pos_svc = svc_res.scalars().first()
+            if pos_svc and not pos_svc.is_enabled:
+                return []
+
+            stmt = (
+                select(PosPaymentModeConfigModel)
+                .where(
+                    PosPaymentModeConfigModel.is_active == True,
+                    PosPaymentModeConfigModel.is_deleted == False
+                )
+                .order_by(PosPaymentModeConfigModel.display_order.asc())
+            )
+            res = await db.execute(stmt)
+            modes = res.scalars().all()
+            return [
+                {
+                    "id": str(m.public_id),
+                    "code": m.code,
+                    "name": m.name,
+                    "display_order": m.display_order,
+                    "settlement_type": m.settlement_type,
+                    "description": m.description,
+                    "is_active": m.is_active
+                }
+                for m in modes
+            ]
+        except Exception:
+            try:
+                await db.rollback()
+            except Exception:
+                pass
+            return []
 
     @staticmethod
     async def get_all_payment_modes(db: AsyncSession) -> List[Dict[str, Any]]:
         """
         Returns ALL POS payment modes (both active and inactive) for Admin control.
         """
-        stmt = (
-            select(PosPaymentModeConfigModel)
-            .where(PosPaymentModeConfigModel.is_deleted == False)
-            .order_by(PosPaymentModeConfigModel.display_order.asc())
-        )
-        res = await db.execute(stmt)
-        modes = res.scalars().all()
-        return [
-            {
-                "id": str(m.public_id),
-                "code": m.code,
-                "name": m.name,
-                "display_order": m.display_order,
-                "settlement_type": m.settlement_type,
-                "description": m.description,
-                "is_active": m.is_active
-            }
-            for m in modes
-        ]
+        try:
+            stmt = (
+                select(PosPaymentModeConfigModel)
+                .where(PosPaymentModeConfigModel.is_deleted == False)
+                .order_by(PosPaymentModeConfigModel.display_order.asc())
+            )
+            res = await db.execute(stmt)
+            modes = res.scalars().all()
+            return [
+                {
+                    "id": str(m.public_id),
+                    "code": m.code,
+                    "name": m.name,
+                    "display_order": m.display_order,
+                    "settlement_type": m.settlement_type,
+                    "description": m.description,
+                    "is_active": m.is_active
+                }
+                for m in modes
+            ]
+        except Exception:
+            try:
+                await db.rollback()
+            except Exception:
+                pass
+            return []
 
     @staticmethod
     async def toggle_payment_mode(
