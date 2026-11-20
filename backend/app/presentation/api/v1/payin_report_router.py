@@ -13,8 +13,8 @@ from sqlalchemy import text, select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.security import decode_access_token
-from app.core.company_resolver import resolve_request_company_ref
+from app.core.security import decode_access_token, GlobalReceiptSecurity
+from app.core.company_resolver import resolve_request_company_ref, resolve_receipt_base_url
 
 router = APIRouter(prefix="/reports", tags=["PayIn Report"])
 
@@ -594,6 +594,16 @@ async def get_payin_report_grid(
         updated_dt = d.get("completed_at") or d.get("updated_at")
         updated_iso = updated_dt.isoformat() if updated_dt else None
 
+        receipt_tok = GlobalReceiptSecurity.encrypt_receipt_token({
+            "tid": d.get("tid"),
+            "company_ref_id": d.get("company_ref_id"),
+            "status": (d.get("txn_status") or "SUCCESS").upper(),
+            "orderId": d.get("merchant_ref_id") or d.get("tid"),
+            "utr": d.get("provider_ref_id"),
+            "ts": int(datetime.now(timezone.utc).timestamp())
+        })
+        receipt_subdomain_url = f"{resolve_receipt_base_url(d.get('company_ref_id'), request)}/r/{receipt_tok}"
+
         items.append({
             "s_no": s_no,
             "id": str(d.get("payin_transactions_ref_id")),
@@ -634,6 +644,8 @@ async def get_payin_report_grid(
             "date": date_str,
             "time": time_str,
             "date_time": f"{date_str} {time_str}",
+            "receipt_token": receipt_tok,
+            "receipt_url": receipt_subdomain_url,
             "created_at": iso_str,
             "initiated_at": iso_str,
             "updated_at": updated_iso,
@@ -760,6 +772,16 @@ async def get_payin_transaction_details(
     created_dt = d.get("created_at") or d.get("initiated_at")
     completed_dt = d.get("completed_at") or d.get("updated_at")
 
+    detail_receipt_tok = GlobalReceiptSecurity.encrypt_receipt_token({
+        "tid": d.get("tid"),
+        "company_ref_id": d.get("company_ref_id"),
+        "status": (d.get("txn_status") or "SUCCESS").upper(),
+        "orderId": d.get("merchant_ref_id") or d.get("tid"),
+        "utr": d.get("provider_ref_id"),
+        "ts": int(datetime.now(timezone.utc).timestamp())
+    })
+    detail_receipt_url = f"{resolve_receipt_base_url(d.get('company_ref_id'), request)}/r/{detail_receipt_tok}"
+
     return {
         "success": True,
         "data": {
@@ -807,6 +829,8 @@ async def get_payin_transaction_details(
             "mdr_treatment": d.get("mdr_treatment"),
             "customer_payable_policy": d.get("customer_payable_policy"),
             "date_time": created_dt.astimezone(IST).strftime("%d %b %Y %I:%M %p") if created_dt else "--",
+            "receipt_token": detail_receipt_tok,
+            "receipt_url": detail_receipt_url,
             "created_at": created_dt.isoformat() if created_dt else None,
             "initiated_at": created_dt.isoformat() if created_dt else None,
             "completed_at": completed_dt.isoformat() if completed_dt else None,

@@ -162,3 +162,70 @@ def get_mfa_uri(secret: str, email: str) -> str:
         return f"otpauth://totp/{email}?issuer={settings.PROJECT_NAME}"
     totp = pyotp.TOTP(secret)
     return totp.provisioning_uri(name=email, issuer_name=settings.PROJECT_NAME)
+
+
+class GlobalReceiptSecurity:
+    """
+    Enterprise Global Encryption & Decryption Engine for Payment Receipts.
+    Secures transaction identifiers, prevents parameter tampering, and isolates
+    public receipt links on dedicated receipt subdomains.
+    Uses authenticated AES-256-GCM encryption with SHA-256 derived key.
+    """
+    @staticmethod
+    def _get_key() -> bytes:
+        raw = getattr(settings, "AES_ENCRYPTION_KEY", None) or settings.SECRET_KEY
+        return hashlib.sha256(raw.encode("utf-8")).digest()
+
+    @classmethod
+    def encrypt_receipt_token(cls, payload: Dict[str, Any]) -> str:
+        """
+        Encrypts receipt transaction payload into a URL-safe encrypted token.
+        Payload typically contains:
+          - tid: transaction ID (e.g. BPAY201126143777010)
+          - company_ref_id: tenant reference ID
+          - status: transaction status
+          - utr: UTR / RRN
+          - ts: epoch timestamp
+        """
+        import os
+        import json
+        import base64
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+        key = cls._get_key()
+        aesgcm = AESGCM(key)
+        nonce = os.urandom(12)
+        payload_bytes = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+        ciphertext = aesgcm.encrypt(nonce, payload_bytes, None)
+        combined = nonce + ciphertext
+        return base64.urlsafe_b64encode(combined).decode("utf-8").rstrip("=")
+
+    @classmethod
+    def decrypt_receipt_token(cls, token: str) -> Optional[Dict[str, Any]]:
+        """
+        Decrypts an encrypted receipt token. Returns None if invalid or tampered.
+        """
+        if not token or not isinstance(token, str):
+            return None
+        import json
+        import base64
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+        try:
+            key = cls._get_key()
+            aesgcm = AESGCM(key)
+            clean = token.strip()
+            padding = "=" * ((4 - len(clean) % 4) % 4)
+            combined = base64.urlsafe_b64decode(clean + padding)
+            if len(combined) < 28:
+                return None
+            nonce = combined[:12]
+            ciphertext = combined[12:]
+            decrypted = aesgcm.decrypt(nonce, ciphertext, None)
+            return json.loads(decrypted.decode("utf-8"))
+        except Exception:
+            return None
+
+
+encrypt_receipt_token = GlobalReceiptSecurity.encrypt_receipt_token
+decrypt_receipt_token = GlobalReceiptSecurity.decrypt_receipt_token

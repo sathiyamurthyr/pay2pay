@@ -14,7 +14,7 @@ COMPANY_MAPPINGS = {
         "favicon_url": "/branding/smspay-mark.svg",
         "website": "https://smspay.store",
         "support_email": "support@smspay.store",
-        "domains": ["smspay.store", "login.smspay.store", "admin.smspay.store", "smspay.in", "login.smspay.in", "admin.smspay.in"],
+        "domains": ["smspay.store", "login.smspay.store", "admin.smspay.store", "receipt.smspay.store", "smspay.in", "login.smspay.in", "admin.smspay.in", "receipt.smspay.in"],
         "ports": ["4002"]
     },
     "PAY2PAY": {
@@ -27,7 +27,7 @@ COMPANY_MAPPINGS = {
         "favicon_url": "/branding/pay2pay-favicon.png",
         "website": "https://pay2pay.in",
         "support_email": "support@pay2pay.in",
-        "domains": ["pay2pay.in", "login.pay2pay.in", "admin.pay2pay.in", "pay2pay.com", "admin.pay2pay.com"],
+        "domains": ["pay2pay.in", "login.pay2pay.in", "admin.pay2pay.in", "receipt.pay2pay.in", "pay2pay.com", "admin.pay2pay.com"],
         "ports": ["3000", "4003"]
     },
     "NEAR4YOU": {
@@ -40,7 +40,7 @@ COMPANY_MAPPINGS = {
         "favicon_url": "/branding/near4you-favicon.png",
         "website": "https://near4you.store",
         "support_email": "support@near4you.store",
-        "domains": ["near4you.store", "login.near4you.store", "admin.near4you.store", "near4you.in", "admin.near4you.in"],
+        "domains": ["near4you.store", "login.near4you.store", "admin.near4you.store", "receipt.near4you.store", "near4you.in", "admin.near4you.in", "receipt.near4you.in"],
         "ports": ["4001"]
     }
 }
@@ -215,3 +215,44 @@ def resolve_return_base_url(
 
     # 3. Canonical website fallback for company
     return preset.get("website", "https://smspay.store" if company_ref_id == 2 else "https://near4you.store")
+
+
+def resolve_receipt_base_url(
+    company_ref_id: Optional[int],
+    request: Optional[Request] = None
+) -> str:
+    """
+    Deterministically resolves the dedicated customer-facing receipt base URL
+    for the verified company context:
+      - SMSPAY (company_ref_id: 2) -> https://receipt.smspay.store
+      - Near4You (company_ref_id: 1) -> https://receipt.near4you.store
+      - Pay2Pay (company_ref_id: 47) -> https://receipt.pay2pay.in
+    
+    Guarantees strict isolation: receipts never render within the retailer portal chrome.
+    For local development environments (localhost, 127.0.0.1), preserves local host & port.
+    """
+    if request is not None:
+        raw_host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+        clean_host = raw_host.split(":")[0].strip().lower()
+        if clean_host in ("localhost", "127.0.0.1", "0.0.0.0", "host.docker.internal"):
+            proto = request.headers.get("x-forwarded-proto") or request.url.scheme or "http"
+            return f"{proto}://{raw_host}"
+
+    if company_ref_id == 2:
+        return "https://receipt.smspay.store"
+    elif company_ref_id == 47:
+        return "https://receipt.pay2pay.in"
+    elif company_ref_id == 1:
+        return "https://receipt.near4you.store"
+
+    # Fallback to request company ref if provided
+    if request is not None:
+        req_ref = resolve_request_company_ref(request)
+        if req_ref == 2:
+            return "https://receipt.smspay.store"
+        elif req_ref == 47:
+            return "https://receipt.pay2pay.in"
+        elif req_ref == 1:
+            return "https://receipt.near4you.store"
+
+    return "https://receipt.smspay.store"
