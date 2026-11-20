@@ -6,7 +6,7 @@ Uses the core reporting engine from admin_reports_router while enforcing tier-ba
 
 import uuid
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+from fastapi import APIRouter, Depends, Query, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db

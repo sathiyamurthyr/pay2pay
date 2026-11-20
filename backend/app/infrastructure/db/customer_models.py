@@ -221,6 +221,7 @@ class CustomerServiceModel(BaseEntity, EnterpriseBaseMixin):
 class CustomerServiceConfigurationModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "customer_service_configuration"
 
+    company_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     service_code: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     service_name: Mapped[str] = mapped_column(String(100), nullable=False)
     is_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

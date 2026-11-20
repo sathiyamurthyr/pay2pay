@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { NotificationCenter } from "@/app-shell/components/NotificationCenter";
@@ -61,6 +61,7 @@ import { MobileQuickActionsFAB } from "./mobile-quick-actions-fab";
 import { UniversalSearchDialog } from "@/components/common/universal-search-dialog";
 import { RightContextPanel } from "./right-context-panel";
 import { ApprovalGuardOverlay } from "@/components/common/ApprovalGuardOverlay";
+import { ServiceDownMaintenance } from "@/components/common/ServiceDownMaintenance";
 import { useContactSupportModal } from "@/context/ContactSupportModalContext";
 
 const FULL_DRAWER_WIDTH = 270;
@@ -231,6 +232,16 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [menuSearchQuery, setMenuSearchQuery] = useState("");
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [servicesStatus, setServicesStatus] = useState<Record<string, boolean>>({
+    DMT: true,
+    RECHARGE: true,
+    AEPS: true,
+    BBPS: true,
+    POS_TOPUP: true,
+    UPI: true,
+    PAYIN: true,
+  });
+  const [disabledSubmenus, setDisabledSubmenus] = useState<string[]>([]);
 
   const [profileDetails, setProfileDetails] = useState<{
     owner_name?: string | null;
@@ -459,6 +470,27 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   // recent-activity auto-fetch REMOVED — was firing on every layout mount with no consumer.
   // Activity data is loaded on-demand from the dashboard page when the user requests it.
 
+  // ── Company-Scoped Live Service Availability Status ──
+  const fetchServicesStatus = useCallback(async () => {
+    try {
+      const res = await apiClient.get("/services/status");
+      if (res.data?.services) {
+        setServicesStatus(res.data.services);
+      }
+      if (Array.isArray(res.data?.disabled_submenus)) {
+        setDisabledSubmenus(res.data.disabled_submenus);
+      }
+    } catch (err) {
+      console.warn("Notice: Services status fetch notice:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isAuthenticatedSession) {
+      fetchServicesStatus();
+    }
+  }, [isAuthenticatedSession, fetchServicesStatus]);
+
   // ── DB-Backed User Favorites (PostgreSQL Stored Procedures & DB APIs) ──
   // Backend resolves user identity from JWT Bearer token — no userRefId needed from frontend.
   // Do NOT preload from localStorage: stale data from previous user session causes wrong favorites to appear after login.
@@ -501,9 +533,46 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [lockSession]);
 
+  const PATH_SERVICE_MAP: Record<string, string> = {
+    "/retailer/dmt": "DMT",
+    "/retailer/beneficiary": "DMT",
+    "/retailer/beneficiaries": "DMT",
+    "/retailer/reports/payout-transactions": "DMT",
+    "/retailer/card-to-cash": "POS_TOPUP",
+    "/retailer/settlement": "POS_TOPUP",
+    "/retailer/reports/settlement": "POS_TOPUP",
+    "/retailer/aeps": "AEPS",
+    "/retailer/upi": "UPI",
+    "/retailer/bbps": "BBPS",
+    "/retailer/payin": "PAYIN",
+    "/retailer/reports/payin-transactions": "PAYIN",
+    "/retailer/reports/payin": "PAYIN",
+    "/retailer/recharge": "RECHARGE",
+  };
+
+  const isItemEnabled = useCallback(
+    (item: { path: string; serviceCode?: string; parentServiceCode?: string }) => {
+      const directCode = item.serviceCode || PATH_SERVICE_MAP[item.path];
+      if (directCode && servicesStatus[directCode] === false) {
+        return false;
+      }
+      if (item.parentServiceCode && servicesStatus[item.parentServiceCode] === false) {
+        return false;
+      }
+      if (disabledSubmenus && disabledSubmenus.some((p) => item.path === p || (p !== "/retailer" && item.path.startsWith(p)))) {
+        return false;
+      }
+      return true;
+    },
+    [servicesStatus, disabledSubmenus]
+  );
+
   const toggleFavorite = (path: string, e: React.MouseEvent, itemLabel?: string, itemCategory?: string) => {
     e.stopPropagation();
     e.preventDefault();
+    if (!isItemEnabled({ path })) {
+      return;
+    }
     const isCurrentlyFav = favorites.includes(path);
     const updated = isCurrentlyFav ? favorites.filter((p) => p !== path) : [...favorites, path];
 
@@ -550,7 +619,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const activeDrawerWidth = desktopCollapsed ? COLLAPSED_DRAWER_WIDTH : FULL_DRAWER_WIDTH;
 
-  const navCategories = [
+  const navCategories = useMemo(() => [
     {
       title: "MAIN",
       items: [{ label: "Dashboard", path: "/retailer/dashboard", icon: DashboardIcon }],
@@ -558,13 +627,13 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     {
       title: "PAYMENTS",
       items: [
-        { label: "DMT", path: "/retailer/dmt", icon: SendIcon },
-        { label: "Card to Cash", path: "/retailer/card-to-cash", icon: CreditCardIcon },
-        { label: "AEPS", path: "/retailer/aeps", icon: FingerprintIcon },
-        { label: "UPI", path: "/retailer/upi", icon: QrCodeIcon },
-        { label: "BBPS", path: "/retailer/bbps", icon: ReceiptIcon },
-        { label: "PayIn (Add Money)", path: "/retailer/payin", icon: AddCardIcon },
-        { label: "Recharge", path: "/retailer/recharge", icon: PhoneAndroidIcon },
+        { label: "DMT", path: "/retailer/dmt", icon: SendIcon, serviceCode: "DMT" },
+        { label: "Card to Cash", path: "/retailer/card-to-cash", icon: CreditCardIcon, serviceCode: "POS_TOPUP" },
+        { label: "AEPS", path: "/retailer/aeps", icon: FingerprintIcon, serviceCode: "AEPS" },
+        { label: "UPI", path: "/retailer/upi", icon: QrCodeIcon, serviceCode: "UPI" },
+        { label: "BBPS", path: "/retailer/bbps", icon: ReceiptIcon, serviceCode: "BBPS" },
+        { label: "PayIn (Add Money)", path: "/retailer/payin", icon: AddCardIcon, serviceCode: "PAYIN" },
+        { label: "Recharge", path: "/retailer/recharge", icon: PhoneAndroidIcon, serviceCode: "RECHARGE" },
       ],
     },
     {
@@ -580,11 +649,11 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       title: "CUSTOMERS & REPORTS",
       items: [
         { label: "Customers", path: "/retailer/customers", icon: PersonIcon },
-        { label: "Beneficiaries", path: "/retailer/beneficiary", icon: ContactsIcon },
-        { label: "PayIn Report", path: "/retailer/reports/payin-transactions", icon: AssessmentIcon },
-        { label: "Payout Report", path: "/retailer/reports/payout-transactions", icon: ReceiptLongIcon },
+        { label: "Beneficiaries", path: "/retailer/beneficiary", icon: ContactsIcon, parentServiceCode: "DMT" },
+        { label: "PayIn Report", path: "/retailer/reports/payin-transactions", icon: AssessmentIcon, parentServiceCode: "PAYIN" },
+        { label: "Payout Report", path: "/retailer/reports/payout-transactions", icon: ReceiptLongIcon, parentServiceCode: "DMT" },
         { label: "Transactions", path: "/retailer/reports/transactions", icon: AssessmentIcon },
-        { label: "Settlement", path: "/retailer/reports/settlement", icon: PointOfSaleIcon },
+        { label: "Settlement", path: "/retailer/reports/settlement", icon: PointOfSaleIcon, parentServiceCode: "POS_TOPUP" },
       ],
     },
     {
@@ -595,7 +664,16 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         { label: "Logout", path: "/logout", icon: LogoutIcon },
       ],
     },
-  ];
+  ], []);
+
+  const visibleNavCategories = useMemo(() => {
+    return navCategories
+      .map((cat) => ({
+        ...cat,
+        items: cat.items.filter((item) => isItemEnabled(item)),
+      }))
+      .filter((cat) => cat.items.length > 0);
+  }, [navCategories, isItemEnabled]);
 
   const handleDrawerToggle = () => {
     if (typeof window !== "undefined" && window.innerWidth >= 1200) {
@@ -605,10 +683,26 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const allNavItems = navCategories.flatMap((c) => c.items);
+  const allNavItems = useMemo(() => visibleNavCategories.flatMap((c) => c.items), [visibleNavCategories]);
   const activeMenuItem = allNavItems.find((item) =>
     pathname === item.path || (item.path !== "/retailer-dashboard" && pathname?.startsWith(item.path))
   );
+
+  const isCurrentPathDisabled = useMemo(() => {
+    if (!pathname) return { disabled: false, serviceName: "" };
+    for (const [path, code] of Object.entries(PATH_SERVICE_MAP)) {
+      if (pathname === path || (path !== "/retailer" && pathname.startsWith(path))) {
+        if (servicesStatus[code] === false) {
+          return { disabled: true, serviceName: code };
+        }
+      }
+    }
+    if (disabledSubmenus && disabledSubmenus.some((p) => pathname === p || (p !== "/retailer" && pathname.startsWith(p)))) {
+      const code = PATH_SERVICE_MAP[pathname] || "Service";
+      return { disabled: true, serviceName: code };
+    }
+    return { disabled: false, serviceName: "" };
+  }, [pathname, servicesStatus, disabledSubmenus]);
 
   const renderDrawerContent = (isCollapsed: boolean) => (
     <Box
@@ -782,7 +876,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       >
         {/* ── 1. FAVORITES CATEGORY ── */}
         {!menuSearchQuery && (() => {
-          const allItems = navCategories.flatMap((cat) => cat.items);
+          const allItems = visibleNavCategories.flatMap((cat) => cat.items);
           const favItems = allItems.filter((i) => favorites.includes(i.path));
           if (favItems.length === 0) return null;
 
@@ -891,7 +985,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         })()}
 
         {/* ── 2. CATEGORIZED MENU LIST ── */}
-        {navCategories
+        {visibleNavCategories
           .map((cat) => ({
             ...cat,
             items: cat.items.filter(
@@ -2049,6 +2143,11 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 <Typography variant="h6" sx={{ fontWeight: 800 }}>Service Restricted</Typography>
               </Box>
             </ApprovalGuardOverlay>
+          ) : isCurrentPathDisabled.disabled ? (
+            <ServiceDownMaintenance
+              service={isCurrentPathDisabled.serviceName}
+              onRetry={fetchServicesStatus}
+            />
           ) : (
             children
           )}

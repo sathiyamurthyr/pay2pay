@@ -34,6 +34,19 @@ import { useOnboardingGuard } from "@/hooks/useOnboardingGuard";
 import { normalizeUserRole } from "@/lib/portal-resolver";
 import { retailerApi } from "@/services/retailer-api";
 import { useCompanyBranding } from "@/hooks/useCompanyBranding";
+import apiClient from "@/lib/api";
+
+const PATH_SERVICE_MAP: Record<string, string> = {
+  "/retailer/dmt": "DMT",
+  "/retailer/reports/payout-transactions": "DMT",
+  "/retailer/settlements": "POS_TOPUP",
+  "/retailer/card-to-cash": "POS_TOPUP",
+  "/retailer/aeps": "AEPS",
+  "/retailer/upi": "UPI",
+  "/retailer/bbps": "BBPS",
+  "/retailer/payin": "PAYIN",
+  "/retailer/recharge": "RECHARGE",
+};
 
 const FINANCIAL_PATHS = new Set([
   "/retailer/wallet-topup",
@@ -66,6 +79,33 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
 
   const [searchQuery, setSearchQuery] = useState("");
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [servicesStatus, setServicesStatus] = useState<Record<string, boolean>>({});
+  const [disabledSubmenus, setDisabledSubmenus] = useState<string[]>([]);
+
+  useEffect(() => {
+    apiClient
+      .get("/services/status")
+      .then((res: any) => {
+        if (res.data?.services) {
+          setServicesStatus(res.data.services);
+        }
+        if (Array.isArray(res.data?.disabled_submenus)) {
+          setDisabledSubmenus(res.data.disabled_submenus);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const isItemServiceEnabled = (itemPath: string) => {
+    const code = PATH_SERVICE_MAP[itemPath];
+    if (code && servicesStatus[code] === false) {
+      return false;
+    }
+    if (disabledSubmenus.some((p) => itemPath === p || (p !== "/retailer" && itemPath.startsWith(p)))) {
+      return false;
+    }
+    return true;
+  };
 
   const { verificationStatus, retailerStatus, loading: guardLoading } = useOnboardingGuard();
   const isApproved = !guardLoading && verificationStatus === "APPROVED" && retailerStatus === "ACTIVE";
@@ -85,6 +125,9 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
   const toggleFavorite = (path: string, e: React.MouseEvent, label?: string, category?: string) => {
     e.stopPropagation();
     e.preventDefault();
+    if (!isItemServiceEnabled(path)) {
+      return;
+    }
     setFavorites((prev) => {
       const updated = prev.includes(path) ? prev.filter((p) => p !== path) : [...prev, path];
       try {
@@ -222,7 +265,13 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
     },
   ];
 
-  const categories = userRole === "SD" ? sdNavigation : userRole === "DIST" ? distNavigation : retailerNavigation;
+  const baseCategories = userRole === "SD" ? sdNavigation : userRole === "DIST" ? distNavigation : retailerNavigation;
+  const categories = baseCategories
+    .map((cat) => ({
+      ...cat,
+      items: cat.items.filter((item) => isItemServiceEnabled(item.path)),
+    }))
+    .filter((cat) => cat.items.length > 0);
 
   const allItems = categories.flatMap((cat) => cat.items);
   const favoriteItems = allItems.filter((item) => favorites.includes(item.path));

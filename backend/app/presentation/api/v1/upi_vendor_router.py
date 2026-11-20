@@ -530,9 +530,11 @@ async def get_active_retailer_upi_config(
     Returns only ACTIVE vendors with QR ENABLED.
     Used dynamically by the Retailer App.
     """
-    # 1. Enforce Platform Service Configuration for UPI
+    # 1. Enforce Platform Service Configuration for UPI (Company-Scoped)
+    comp_ref = payload.get("company_ref_id") if payload else None
     svc_check = await db.execute(
-        text("SELECT is_enabled FROM customer_service_configuration WHERE service_code = 'UPI' AND is_deleted = false;")
+        text("SELECT is_enabled FROM customer_service_configuration WHERE service_code = 'UPI' AND (company_ref_id = :comp_ref OR company_ref_id IS NULL) AND is_deleted = false ORDER BY (company_ref_id IS NOT NULL) DESC LIMIT 1;"),
+        {"comp_ref": comp_ref}
     )
     if svc_check.scalar_one_or_none() is False:
         return {
@@ -591,8 +593,10 @@ async def calculate_upi_mdr(
     Computes Transaction Amount, MDR Amount, and Net Received Amount based on
     the dynamically configured active UPI vendor.
     """
+    comp_ref = payload.get("company_ref_id") if payload else None
     svc_check = await db.execute(
-        text("SELECT is_enabled FROM customer_service_configuration WHERE service_code = 'UPI' AND is_deleted = false;")
+        text("SELECT is_enabled FROM customer_service_configuration WHERE service_code = 'UPI' AND (company_ref_id = :comp_ref OR company_ref_id IS NULL) AND is_deleted = false ORDER BY (company_ref_id IS NOT NULL) DESC LIMIT 1;"),
+        {"comp_ref": comp_ref}
     )
     if svc_check.scalar_one_or_none() is False:
         raise HTTPException(
