@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone
 from app.presentation.api.v1.payin_report_router import (
     get_payin_report_summary,
@@ -26,7 +26,14 @@ def test_map_gateway_label():
 
 
 @pytest.mark.asyncio
-async def test_payin_report_summary_endpoint():
+@patch("app.presentation.api.v1.payin_report_router.resolve_payin_auth_context", new_callable=AsyncMock)
+async def test_payin_report_summary_endpoint(mock_auth):
+    mock_auth.return_value = {
+        "company_ref_id": 2,
+        "retailer_ref_id": 10928,
+        "is_admin": False,
+        "is_super_admin": False,
+    }
     req = MockRequest(headers={"host": "smspay.store"})
     mock_db = AsyncMock()
 
@@ -78,7 +85,14 @@ async def test_payin_report_summary_endpoint():
 
 
 @pytest.mark.asyncio
-async def test_payin_report_grid_endpoint():
+@patch("app.presentation.api.v1.payin_report_router.resolve_payin_auth_context", new_callable=AsyncMock)
+async def test_payin_report_grid_endpoint(mock_auth):
+    mock_auth.return_value = {
+        "company_ref_id": 2,
+        "retailer_ref_id": 10928,
+        "is_admin": False,
+        "is_super_admin": False,
+    }
     req = MockRequest(headers={"host": "smspay.store"})
     mock_db = AsyncMock()
 
@@ -179,7 +193,14 @@ async def test_payin_report_grid_endpoint():
 
 
 @pytest.mark.asyncio
-async def test_payin_transaction_details_endpoint():
+@patch("app.presentation.api.v1.payin_report_router.resolve_payin_auth_context", new_callable=AsyncMock)
+async def test_payin_transaction_details_endpoint(mock_auth):
+    mock_auth.return_value = {
+        "company_ref_id": 2,
+        "retailer_ref_id": 10928,
+        "is_admin": False,
+        "is_super_admin": False,
+    }
     req = MockRequest(headers={"host": "smspay.store"})
     mock_db = AsyncMock()
 
@@ -252,7 +273,14 @@ async def test_payin_transaction_details_endpoint():
 
 
 @pytest.mark.asyncio
-async def test_export_payin_report_csv():
+@patch("app.presentation.api.v1.payin_report_router.resolve_payin_auth_context", new_callable=AsyncMock)
+async def test_export_payin_report_csv(mock_auth):
+    mock_auth.return_value = {
+        "company_ref_id": 2,
+        "retailer_ref_id": 10928,
+        "is_admin": False,
+        "is_super_admin": False,
+    }
     req = MockRequest(headers={"host": "smspay.store"})
     mock_db = AsyncMock()
 
@@ -269,6 +297,7 @@ async def test_export_payin_report_csv():
         "payin_vendor_ref_id": 1,
         "vendor_code": "BANKME",
         "payment_mode": "UPI",
+        "cust_mobile": "9025232475",
         "txn_amount": 50000.00,
         "mdr_amount": 750.00,
         "tax_amount": 135.00,
@@ -293,8 +322,10 @@ async def test_export_payin_report_csv():
     assert response.status_code == 200
     assert response.media_type == "text/csv"
     csv_text = response.body.decode("utf-8")
-    assert "Transaction ID" in csv_text
+    assert "TID" in csv_text
     assert "Gateway" in csv_text
-    assert "GST (INR)" in csv_text
+    assert "GST (₹)" in csv_text
+    assert "MobileNo" in csv_text
+    assert "9025232475" in csv_text
     assert "G-1" in csv_text
     assert "PIN-20261118-001" in csv_text

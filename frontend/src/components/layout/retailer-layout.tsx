@@ -186,7 +186,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const isFinancialApp = isPay2Pay || isNear4You || isSmsPay;
 
-  const appName = branding?.display_name || branding?.company_name || (isPay2Pay ? "Pay2Pay" : isNear4You ? "Near 4 You" : isSmsPay ? "SMSPAY" : "FinTech Platform");
+  const appName = branding?.display_name || (isPay2Pay ? "Pay2Pay" : isNear4You ? "Near4You" : isSmsPay ? "SMSPAY" : "FinTech Platform");
   const appSubtitle = `${appName} Operations`;
   const appLogo = branding?.logo_url || (isPay2Pay ? "/branding/pay2pay-logo.png" : isNear4You ? "/branding/logo.svg" : "/branding/smspay-logo.svg");
 
@@ -372,13 +372,16 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         return null;
       })()) || "";
 
-      const defaultCompanyName = isSmspay ? "SMSPAY" : isNear4you ? "Near4You" : (branding?.company_name || branding?.display_name || "Pay2Pay");
-      let resolvedCompany = company.company_name || company.legal_name || defaultCompanyName;
-      if (isSmspay && resolvedCompany.toLowerCase().includes("pay2pay")) {
-        resolvedCompany = "SMSPAY";
-      } else if (isPay2pay && resolvedCompany.toLowerCase().includes("smspay")) {
-        resolvedCompany = "Pay2Pay";
-      }
+      const defaultCompanyName = isSmspay
+        ? "INSPEL TECHNOLOGIES SOLUTIONS PVT"
+        : isNear4you
+        ? "SATHUS TECHNOLOGY PRIVATE LIMITED"
+        : (branding?.company_name || "SUPER REX PRODUCTS PRIVATE LIMITED");
+      let resolvedCompany = isSmspay
+        ? "INSPEL TECHNOLOGIES SOLUTIONS PVT"
+        : isNear4you
+        ? "SATHUS TECHNOLOGY PRIVATE LIMITED"
+        : (isPay2pay ? "SUPER REX PRODUCTS PRIVATE LIMITED" : (company.company_name || company.legal_name || defaultCompanyName));
 
       const resolvedOwner = personal.owner_name || (personal.first_name ? `${personal.first_name} ${personal.last_name || ""}`.trim() : personal.retailer_name) || fallbackOwner;
       const resolvedRetailer = personal.retailer_name || personal.store_name || fallbackOwner || "Retailer Store";
@@ -532,6 +535,18 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [lockSession]);
+
+  // Global Universal Search Keyboard Shortcut (Ctrl+K / Cmd+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setUniversalSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const PATH_SERVICE_MAP: Record<string, string> = {
     "/retailer/dmt": "DMT",
@@ -749,6 +764,16 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 component="img"
                 src={appLogo}
                 alt={appName}
+                onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                  const target = e.currentTarget;
+                  if (isSmsPay && !target.src.includes("smspay-logo.svg")) {
+                    target.src = "/branding/smspay-logo.svg";
+                  } else if (isPay2Pay && !target.src.includes("pay2pay-logo.png")) {
+                    target.src = "/branding/pay2pay-logo.png";
+                  } else if (isNear4You && !target.src.includes("logo.svg")) {
+                    target.src = "/branding/logo.svg";
+                  }
+                }}
                 sx={{
                   width: "100%",
                   height: "100%",
@@ -1404,6 +1429,16 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                     component="img"
                     src={appLogo}
                     alt={appName}
+                    onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                      const target = e.currentTarget;
+                      if (isSmsPay && !target.src.includes("smspay-logo.svg")) {
+                        target.src = "/branding/smspay-logo.svg";
+                      } else if (isPay2Pay && !target.src.includes("pay2pay-logo.png")) {
+                        target.src = "/branding/pay2pay-logo.png";
+                      } else if (isNear4You && !target.src.includes("logo.svg")) {
+                        target.src = "/branding/logo.svg";
+                      }
+                    }}
                     sx={{
                       width: 30,
                       height: 30,
@@ -1480,6 +1515,25 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 }}
               />
             </Paper>
+
+            {/* Mobile Universal Search Button */}
+            <Tooltip title="Universal Search (Ctrl+K)">
+              <IconButton
+                onClick={() => setUniversalSearchOpen(true)}
+                size="small"
+                sx={{
+                  display: { xs: "flex", md: "none" },
+                  color: isFinancialApp ? "#FFFFFF" : brandPrimary,
+                  p: 0.75,
+                  borderRadius: "8px",
+                  "&:hover": {
+                    bgcolor: isFinancialApp ? "rgba(255, 255, 255, 0.15)" : brandLight,
+                  },
+                }}
+              >
+                <SearchIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Tooltip>
           </Stack>
 
           {/* Right: Soundbox, Wallet Balance, Notifications, Theme, Profile */}

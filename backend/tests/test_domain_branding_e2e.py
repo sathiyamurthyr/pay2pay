@@ -54,10 +54,11 @@ async def test_branding_endpoint_smspay_domain():
     assert data["company_code"] == "SMSPAY"
     assert data["display_name"] == "SMSPAY"
     assert data["logo_url"] == "/branding/smspay-logo.svg"
-    assert data["favicon_url"] == "/branding/smspay-mark.svg"
+    assert data["favicon_url"] == "/branding/smspay-favicon-32x32.png"
     assert data["primary_colour"] == "#059669"
     assert data["secondary_colour"] == "#047857"
-    assert data["legal_name"] == "SMSPAY Technologies Pvt. Ltd."
+    assert data["company_name"] == "INSPEL TECHNOLOGIES SOLUTIONS PVT"
+    assert data["legal_name"] == "INSPEL TECHNOLOGIES SOLUTIONS PVT"
 
 
 @pytest.mark.asyncio
@@ -96,7 +97,7 @@ async def test_branding_endpoint_smspay_port_4002():
     assert res["success"] is True
     data = res["data"]
     assert data["company_code"] == "SMSPAY"
-    assert data["favicon_url"] == "/branding/smspay-mark.svg"
+    assert data["favicon_url"] == "/branding/smspay-favicon-32x32.png"
     assert data["primary_colour"] == "#059669"
 
 
@@ -112,8 +113,8 @@ async def test_branding_endpoint_pay2pay_domain():
         "company_ref_id": 47,
         "tenant_ref_id": 1,
         "company_code": "PAY2PAY",
-        "company_name": "Pay2Pay FinTech Platform",
-        "legal_name": "Pay2Pay FinTech Solutions Pvt. Ltd.",
+        "company_name": "SUPER REX PRODUCTS PRIVATE LIMITED",
+        "legal_name": "SUPER REX PRODUCTS PRIVATE LIMITED",
         "display_name": "Pay2Pay",
         "website": "https://pay2pay.in",
         "configured_domains": '["pay2pay.in", "login.pay2pay.in"]',
@@ -141,6 +142,8 @@ async def test_branding_endpoint_pay2pay_domain():
     assert data["favicon_url"] == "/branding/pay2pay-favicon.png"
     assert data["primary_colour"] == "#2563EB"
     assert data["secondary_colour"] == "#1E40AF"
+    assert data["company_name"] == "SUPER REX PRODUCTS PRIVATE LIMITED"
+    assert data["legal_name"] == "SUPER REX PRODUCTS PRIVATE LIMITED"
 
 
 @pytest.mark.asyncio
@@ -155,8 +158,8 @@ async def test_branding_endpoint_near4you_domain():
         "company_ref_id": 1,
         "tenant_ref_id": 1,
         "company_code": "NEAR4YOU",
-        "company_name": "Near4You",
-        "legal_name": "Near4You Enterprise Technologies Pvt. Ltd.",
+        "company_name": "SATHUS TECHNOLOGY PRIVATE LIMITED",
+        "legal_name": "SATHUS TECHNOLOGY PRIVATE LIMITED",
         "display_name": "Near4You",
         "website": "https://near4you.store",
         "configured_domains": '["near4you.store", "login.near4you.store"]',
@@ -184,6 +187,8 @@ async def test_branding_endpoint_near4you_domain():
     assert data["favicon_url"] == "/branding/favicon.png"
     assert data["primary_colour"] == "#A20A3A"
     assert data["secondary_colour"] == "#EDC11E"
+    assert data["company_name"] == "SATHUS TECHNOLOGY PRIVATE LIMITED"
+    assert data["legal_name"] == "SATHUS TECHNOLOGY PRIVATE LIMITED"
 
 
 @pytest.mark.asyncio
@@ -214,5 +219,5 @@ async def test_resolve_by_domain_endpoint():
     res = await resolve_by_domain(domain="smspay.store", db=mock_db)
     assert res["success"] is True
     assert res["data"]["company_code"] == "SMSPAY"
-    assert res["data"]["favicon_url"] == "/branding/smspay-mark.svg"
+    assert res["data"]["favicon_url"] == "/branding/smspay-favicon-32x32.png"
     assert res["data"]["primary_colour"] == "#059669"

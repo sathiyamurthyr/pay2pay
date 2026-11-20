@@ -125,17 +125,17 @@ def resolve_brand_metadata(
     if is_smspay:
         resolved_code = "SMSPAY"
         resolved_display = "SMSPAY"
-        resolved_name = "SMSPAY"
-        resolved_legal = "SMSPAY Technologies Pvt. Ltd."
+        resolved_name = "INSPEL TECHNOLOGIES SOLUTIONS PVT"
+        resolved_legal = "INSPEL TECHNOLOGIES SOLUTIONS PVT"
         resolved_logo = "/branding/smspay-logo.svg"
-        resolved_favicon = "/branding/smspay-mark.svg"
+        resolved_favicon = "/branding/smspay-favicon-32x32.png"
         resolved_primary = "#059669"
         resolved_secondary = "#047857"
     elif is_pay2pay:
         resolved_code = "PAY2PAY"
         resolved_display = "Pay2Pay"
-        resolved_name = "Pay2Pay"
-        resolved_legal = "Pay2Pay FinTech Solutions Pvt. Ltd."
+        resolved_name = "SUPER REX PRODUCTS PRIVATE LIMITED"
+        resolved_legal = "SUPER REX PRODUCTS PRIVATE LIMITED"
         resolved_logo = "/branding/pay2pay-logo.png"
         resolved_favicon = "/branding/pay2pay-favicon.png"
         resolved_primary = "#2563EB"
@@ -143,30 +143,30 @@ def resolve_brand_metadata(
     elif is_near4you:
         resolved_code = "NEAR4YOU"
         resolved_display = "Near4You"
-        resolved_name = "Near4You"
-        resolved_legal = "Near4You Enterprise Technologies Pvt. Ltd."
+        resolved_name = "SATHUS TECHNOLOGY PRIVATE LIMITED"
+        resolved_legal = "SATHUS TECHNOLOGY PRIVATE LIMITED"
         resolved_logo = "/branding/logo.svg"
         resolved_favicon = "/branding/favicon.png"
         resolved_primary = "#A20A3A"
         resolved_secondary = "#EDC11E"
     else:
         # Default fallback
-        resolved_code = db_row.get("company_code") or "NEAR4YOU"
-        resolved_display = db_row.get("display_name") or db_row.get("company_name") or "Near4You"
-        resolved_name = db_row.get("company_name") or "Near4You"
-        resolved_legal = db_row.get("legal_name") or "Near4You Enterprise Technologies Pvt. Ltd."
-        resolved_logo = db_row.get("logo_url") or "/branding/logo.svg"
-        resolved_favicon = db_row.get("favicon_url") or "/branding/favicon.png"
-        resolved_primary = db_row.get("primary_colour") or "#A20A3A"
-        resolved_secondary = db_row.get("secondary_colour") or "#EDC11E"
+        resolved_code = db_row.get("company_code") or "PAY2PAY"
+        resolved_display = db_row.get("display_name") or db_row.get("company_name") or "Pay2Pay"
+        resolved_name = db_row.get("company_name") or "SUPER REX PRODUCTS PRIVATE LIMITED"
+        resolved_legal = db_row.get("legal_name") or "SUPER REX PRODUCTS PRIVATE LIMITED"
+        resolved_logo = db_row.get("logo_url") or "/branding/pay2pay-logo.png"
+        resolved_favicon = db_row.get("favicon_url") or "/branding/pay2pay-favicon.png"
+        resolved_primary = db_row.get("primary_colour") or "#2563EB"
+        resolved_secondary = db_row.get("secondary_colour") or "#1E40AF"
 
     # Allow custom db override if present and not a cross-tenant static default
     db_logo = db_row.get("logo_url")
-    if db_logo and not (is_smspay and "logo.svg" in db_logo) and not (is_pay2pay and "logo.svg" in db_logo):
+    if db_logo and not (is_smspay and ("logo" in db_logo.lower() or "smspay" in db_logo.lower())) and not (is_pay2pay and "logo.svg" in db_logo):
         resolved_logo = db_logo
 
     db_fav = db_row.get("favicon_url")
-    if db_fav and db_fav not in ["/favicon.ico", "/branding/favicon.png"]:
+    if db_fav and db_fav not in ["/favicon.ico", "/branding/favicon.png", "/branding/smspay-mark.svg"]:
         resolved_favicon = db_fav
 
     return {

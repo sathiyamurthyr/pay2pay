@@ -1678,9 +1678,12 @@ async def get_photo_image(
             v_conds.append(RetailerVerificationModel.mobile_number.like(f"%{clean_mobile}"))
 
         if v_conds:
-            v_row = (await db.execute(select(RetailerVerificationModel).where(or_(*v_conds)).order_by(desc(RetailerVerificationModel.created_date)))).scalars().first()
-            if v_row:
-                reg_id = v_row.registration_id
+            try:
+                v_row = (await db.execute(select(RetailerVerificationModel).where(or_(*v_conds)).order_by(desc(RetailerVerificationModel.created_date)))).scalars().first()
+                if v_row:
+                    reg_id = v_row.registration_id
+            except Exception:
+                pass
 
     raw_url = None
     if reg_id:

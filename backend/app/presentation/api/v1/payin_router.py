@@ -39,7 +39,8 @@ from app.application.payin_config_service import PayInConfigService
 from app.application.payin_routing_service import SMSPAY_COMPANY_REF_ID
 from app.application.bankme_payin_client import BankMePayInClient
 from app.application.wallet_balance_service import WalletBalanceAdjustmentService, WalletAdjustmentDTO
-from app.core.company_resolver import resolve_return_base_url, get_company_preset
+from app.core.company_resolver import resolve_return_base_url, resolve_receipt_base_url, get_company_preset
+from app.core.security import GlobalReceiptSecurity
 
 logger = logging.getLogger("payin_router")
 
@@ -402,19 +403,25 @@ async def universal_payin_browser_callback(
         except Exception as e:
             logger.warning("Browser return sync notice for %s: %s", resolved_ref, e)
 
-    # Dynamically resolve return base domain using the verified company context
-    return_base = resolve_return_base_url(
+    # Dynamically resolve receipt base domain using the verified company context
+    receipt_base = resolve_receipt_base_url(
         company_ref_id=target_company_ref_id,
         request=request
     )
 
-    # Build clean frontend redirect target on originating domain
-    redirect_target = f"{return_base}/retailer/payin/status?referenceId={resolved_ref}&status={resolved_status}"
-    if orderId:
-        redirect_target += f"&orderId={orderId}"
-    if utr:
-        redirect_target += f"&utr={utr}"
+    # Encrypt the transaction token payload so no plain-text parameters are exposed in the URL
+    receipt_payload = {
+        "tid": resolved_ref,
+        "company_ref_id": target_company_ref_id,
+        "status": resolved_status,
+        "orderId": orderId,
+        "utr": utr,
+        "ts": int(datetime.now(timezone.utc).timestamp())
+    }
+    encrypted_token = GlobalReceiptSecurity.encrypt_receipt_token(receipt_payload)
 
+    # Redirect directly to isolated receipt experience on receipt.<domain>
+    redirect_target = f"{receipt_base}/r/{encrypted_token}"
     return RedirectResponse(url=redirect_target, status_code=302)
 
 
@@ -429,18 +436,31 @@ async def get_payin_receipt(
     """
     Public receipt endpoint for sharing, downloading, and verifying PayIn transactions.
     Provides verified transaction details without requiring user authentication.
+    Supports authenticated AES-256-GCM encrypted tokens for tenant isolation and security.
     """
+    clean_ref = reference_id.strip()
+    decrypted = GlobalReceiptSecurity.decrypt_receipt_token(clean_ref)
+    target_ref = (decrypted.get("tid") if decrypted else None) or clean_ref
+
     stmt = select(PayinTransactionModel).where(
         or_(
-            PayinTransactionModel.tid == reference_id,
-            PayinTransactionModel.merchant_ref_id == reference_id,
-            PayinTransactionModel.provider_ref_id == reference_id
+            PayinTransactionModel.tid == target_ref,
+            PayinTransactionModel.merchant_ref_id == target_ref,
+            PayinTransactionModel.provider_ref_id == target_ref,
+            PayinTransactionModel.tid == clean_ref
         )
     )
     res = await db.execute(stmt)
     txn = res.scalars().first()
     if not txn:
         raise HTTPException(status_code=404, detail="Transaction receipt not found")
+
+    if decrypted and decrypted.get("company_ref_id") and txn.company_ref_id != decrypted["company_ref_id"]:
+        logger.warning(
+            "[PAYIN_RECEIPT] Cross-company access rejected: token company %s vs txn company %s",
+            decrypted["company_ref_id"], txn.company_ref_id
+        )
+        raise HTTPException(status_code=403, detail="Cross-company receipt access prohibited")
 
     # Capture all fields eagerly to prevent MissingGreenlet on expired model after commit
     final_tid = txn.tid
@@ -525,11 +545,52 @@ async def get_payin_receipt(
             logger.warning("Receipt sync warning for TID %s: %s", final_tid, sync_err)
 
     preset = get_company_preset(final_company_ref_id) or {}
-    company_code = preset.get("company_code", "SMSPAY" if final_company_ref_id == 2 else "NEAR4YOU")
-    company_name = preset.get("display_name", "SMSPAY" if final_company_ref_id == 2 else "Near4You")
     domain = (preset.get("domains") or ["smspay.store"])[0]
+    support_phone = preset.get("support_phone") or "+91 98765 43210"
+    support_email = preset.get("support_email") or ("support@smspay.store" if final_company_ref_id == 2 else "support@pay2pay.in")
 
     formatted_mob = f"+91 {final_cust_mobile[-10:]}" if len(final_cust_mobile) >= 10 else final_cust_mobile
+
+    # Resolve retailer name & ID strictly (No company names)
+    ret_name = "Retailer Partner"
+    ret_code = "RET12345"
+    if final_retailer_ref_id:
+        try:
+            from app.infrastructure.db.models import RetailerModel
+            ret_stmt = select(RetailerModel).where(RetailerModel.retailer_ref_id == final_retailer_ref_id)
+            ret_res = await db.execute(ret_stmt)
+            ret_obj = ret_res.scalars().first()
+            if ret_obj:
+                ret_name = ret_obj.store_name or ret_obj.owner_name or ret_obj.legal_name or "Retailer Partner"
+                ret_code = ret_obj.retailer_code or str(ret_obj.public_id)
+        except Exception as r_err:
+            logger.warning(f"Error fetching retailer details for receipt: {r_err}")
+
+    # Determine payment mode name
+    pay_mode_val = "UPI"
+    if hasattr(txn, "pay_mode_ref_id") and txn.pay_mode_ref_id:
+        try:
+            from app.infrastructure.db.payin_models import PayinPaymentModeModel
+            pm_stmt = select(PayinPaymentModeModel).where(PayinPaymentModeModel.payin_payment_mode_ref_id == txn.pay_mode_ref_id)
+            pm_res = await db.execute(pm_stmt)
+            pm_obj = pm_res.scalars().first()
+            if pm_obj and pm_obj.pay_mode_name:
+                pay_mode_val = pm_obj.pay_mode_name
+        except Exception as pm_err:
+            logger.warning(f"Error fetching pay mode for receipt: {pm_err}")
+
+    # Determine customer-facing gateway label (G-1 or G-2 only)
+    gw_label = "G-1" if (txn.payin_vendor_ref_id == 1 or final_company_ref_id == 2) else "G-2"
+    order_id_val = None
+    if isinstance(final_response_ref, dict):
+        order_id_val = final_response_ref.get("order_id") or final_response_ref.get("orderId")
+    if not order_id_val:
+        order_id_val = final_merchant_ref or final_tid
+
+    calc_charges = final_mdr_amount or round(max(0.0, final_total_charges - final_tax_amount), 2)
+    calc_total_debited = final_customer_payable if final_customer_payable > 0 else round(final_amount + final_total_charges, 2)
+    receipt_base = resolve_receipt_base_url(final_company_ref_id)
+    receipt_link = f"{receipt_base}/r/{clean_ref}"
 
     return {
         "success": True,
@@ -538,25 +599,37 @@ async def get_payin_receipt(
             "reference_id": final_tid,
             "merchant_ref_id": final_merchant_ref,
             "provider_ref_id": final_provider_ref,
-            "order_id": (final_response_ref or {}).get("order_id") if isinstance(final_response_ref, dict) else None,
+            "order_id": order_id_val,
             "status": final_status,
             "amount": final_amount,
-            "customer_payable": final_customer_payable,
-            "retailer_credit": final_retailer_credit,
-            "mdr_amount": final_mdr_amount,
+            "gst": final_tax_amount,
             "tax_amount": final_tax_amount,
+            "charges": calc_charges,
             "total_charges": final_total_charges,
+            "total_debited": calc_total_debited,
+            "customer_payable": calc_total_debited,
+            "retailer_credit": final_retailer_credit,
+            "retailer_name": ret_name,
+            "retailer_id": ret_code,
             "customer_name": final_cust_name,
             "customer_mobile": formatted_mob,
-            "provider": "SMSPAY Exclusive Gateway G-1" if final_company_ref_id == 2 else "Primary Gateway",
+            "gateway": gw_label,
+            "gateway_ref": final_provider_ref or final_tid,
+            "rrn": final_provider_ref or final_tid,
+            "provider": f"Gateway {gw_label}",
             "card_network": final_card_network,
-            "payment_mode": "CARD",
-            "company_code": company_code,
-            "company_name": company_name,
+            "payment_mode": pay_mode_val,
+            "payment_method": pay_mode_val,
             "domain": domain,
+            "support_phone": support_phone,
+            "support_email": support_email,
+            "terms_url": f"https://{domain}/terms",
+            "privacy_url": f"https://{domain}/privacy",
             "created_at": final_created_at,
             "completed_at": final_completed_at,
             "utr": final_provider_ref or final_tid,
+            "download_url": receipt_link,
+            "receipt_url": receipt_link,
             "failure_reason": final_failure_reason
         }
     }

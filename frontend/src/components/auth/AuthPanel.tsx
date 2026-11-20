@@ -202,7 +202,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       ? "SD"
       : "DIST";
 
-  const { display_name, legal_name, logo_url, primary_colour, secondary_colour } = useCompanyBranding();
+  const { display_name, company_name, legal_name, logo_url, primary_colour, secondary_colour } = useCompanyBranding();
   const brandPrimary = primary_colour || "#A20A3A";
   const brandSecondary = secondary_colour || "#EDC11E";
 
@@ -1603,7 +1603,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             <a href="#" className="hover:underline transition-colors">{t.refundPolicy}</a>
           </div>
           <p className="text-[11px] whitespace-pre-line leading-relaxed text-[#8A8288]">
-            {`© ${new Date().getFullYear()} ${legal_name || "Enterprise Technology Pvt. Ltd."}\n${display_name || "FinTech"} Portal`}
+            {`© ${new Date().getFullYear()} ${legal_name || company_name || "Enterprise Technology Pvt. Ltd."}\n${display_name || "FinTech"} Portal`}
           </p>
         </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useRef } from "react";
 import {
   Box,
   Typography,
@@ -19,7 +19,6 @@ import {
   TableRow,
   Chip,
   IconButton,
-  Drawer,
   Divider,
   TablePagination,
   Skeleton,
@@ -55,18 +54,22 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
-import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import StorefrontIcon from "@mui/icons-material/Storefront";
-import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import AssessmentIcon from "@mui/icons-material/Assessment";
+import CreditCardIcon from "@mui/icons-material/CreditCard";
+import BarChartIcon from "@mui/icons-material/BarChart";
+import HubIcon from "@mui/icons-material/Hub";
+import PersonIcon from "@mui/icons-material/Person";
+import ShareIcon from "@mui/icons-material/Share";
+import ErrorIcon from "@mui/icons-material/Error";
+import PendingIcon from "@mui/icons-material/Pending";
 
 import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 import { useRetailerStore } from "@/stores/use-retailer-store";
-import { getApiBaseUrl } from "@/lib/api-config";
+import { getPublicReceiptUrl } from "@/lib/receipt-security";
 
 export interface PayinReportSummary {
   total_transactions: number;
@@ -89,41 +92,47 @@ export interface PayinReportSummary {
 }
 
 export interface PayinReportItem {
-  s_no: number;
+  s_no?: number;
   id: string;
   tid: string;
-  transaction_id: string;
-  reference_id: string;
+  transaction_id?: string;
+  reference_id?: string;
   merchant_ref_id?: string;
   provider_ref_id?: string;
-  retailer_id: string;
-  retailer_name: string;
+  retailer_id?: string;
+  retailer_name?: string;
   company_id?: string;
-  company_name: string;
-  company_code: string;
+  company_name?: string;
+  company_code?: string;
   gateway: string;
-  vendor_name: string;
+  vendor_name?: string;
   payment_mode: string;
-  payment_mode_name: string;
+  payment_mode_name?: string;
+  method?: string;
   card_network?: string;
   customer_name?: string;
   customer_mobile?: string;
+  mobile_no?: string;
   amount: number;
-  txn_amount: number;
-  mdr_amount: number;
+  txn_amount?: number;
+  charges?: number;
+  mdr_amount?: number;
   gst: number;
-  tax_amount: number;
-  total_charges: number;
+  tax_amount?: number;
+  total_charges?: number;
   total_amount: number;
-  customer_payable: number;
+  customer_payable?: number;
+  wallet_credit?: number;
   retailer_credit: number;
   status: string;
   provider_status?: string;
   ledger_txn_id?: string;
   failure_reason?: string;
-  date: string;
-  time: string;
+  date?: string;
+  time?: string;
   date_time: string;
+  receipt_token?: string;
+  receipt_url?: string;
   created_at?: string;
   initiated_at?: string;
   updated_at?: string;
@@ -135,6 +144,46 @@ export interface PayinReportProps {
   portalType?: "retailer" | "admin" | "sd" | "dist";
   title?: string;
   subtitle?: string;
+}
+
+/**
+ * Isolated Iframe Print Helper:
+ * Completely prevents empty pages, modal portal clipping, and parent CSS interference.
+ */
+function printReceiptSlip(slipHtml: string) {
+  if (typeof window === "undefined") return;
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow?.document;
+  if (!doc) return;
+
+  doc.open();
+  doc.write(slipHtml);
+  doc.close();
+
+  iframe.onload = () => {
+    setTimeout(() => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } catch (err) {
+        console.error("Print error:", err);
+      } finally {
+        setTimeout(() => {
+          if (iframe.parentNode) {
+            iframe.parentNode.removeChild(iframe);
+          }
+        }, 1200);
+      }
+    }, 250);
+  };
 }
 
 export const RetailerPayinReport: React.FC<PayinReportProps> = ({
@@ -164,8 +213,10 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
   const [totalRecords, setTotalRecords] = useState<number>(0);
   const [lastUpdatedTime, setLastUpdatedTime] = useState<string>("--");
 
-  // Filter States (Editing filters does NOT trigger fetch until Apply is clicked)
+  // Filter States
   const [globalSearch, setGlobalSearch] = useState<string>("");
+  const [tidFilter, setTidFilter] = useState<string>("");
+  const [mobileFilter, setMobileFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [gatewayFilter, setGatewayFilter] = useState<string>("ALL");
   const [paymentModeFilter, setPaymentModeFilter] = useState<string>("ALL");
@@ -189,57 +240,63 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
   const [rowsPerPage, setRowsPerPage] = useState<number>(10);
   const [density, setDensity] = useState<"compact" | "medium" | "comfortable">("medium");
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
 
-  // Anchor Els for Menus & Popovers
+  // Anchor Els for Top & Bottom Popovers
   const [densityAnchorEl, setDensityAnchorEl] = useState<null | HTMLElement>(null);
   const [columnsAnchorEl, setColumnsAnchorEl] = useState<null | HTMLElement>(null);
   const [exportAnchorEl, setExportAnchorEl] = useState<null | HTMLElement>(null);
   const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
 
+  // Bottom Toolbar Filter Anchors
+  const [dateRangeAnchorEl, setDateRangeAnchorEl] = useState<null | HTMLElement>(null);
+  const [tidAnchorEl, setTidAnchorEl] = useState<null | HTMLElement>(null);
+  const [mobileAnchorEl, setMobileAnchorEl] = useState<null | HTMLElement>(null);
+  const [gatewayAnchorEl, setGatewayAnchorEl] = useState<null | HTMLElement>(null);
+  const [methodAnchorEl, setMethodAnchorEl] = useState<null | HTMLElement>(null);
+  const [statusAnchorEl, setStatusAnchorEl] = useState<null | HTMLElement>(null);
+
   // Column Visibility
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
 
-  // Drawer & Modal States
-  const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
+  // Modal States
+  const [breakdownModalOpen, setBreakdownModalOpen] = useState<boolean>(false);
   const [selectedTxn, setSelectedTxn] = useState<PayinReportItem | null>(null);
   const [receiptDialogOpen, setReceiptDialogOpen] = useState<boolean>(false);
 
-  // Toast Feedback
-  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
-  const [snackbarMessage, setSnackbarMessage] = useState<string>("");
+  // Toast Feedback (Matching the screenshot pill toast)
+  const [toastOpen, setToastOpen] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<string>("Receipt link copied successfully!");
 
   const showToast = (msg: string) => {
-    setSnackbarMessage(msg);
-    setSnackbarOpen(true);
+    setToastMessage(msg);
+    setToastOpen(true);
+    setTimeout(() => {
+      setToastOpen(false);
+    }, 4000);
   };
 
   const copyToClipboard = (text: string, label: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard.writeText(text);
-      showToast(`${label} copied to clipboard`);
+      showToast(`${label} copied successfully!`);
     }
   };
 
-  const toggleExpandCard = (id: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    setExpandedCards((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  // Requirement 7: Explicit Report Data Fetch (Triggered ONLY on Apply or Refresh)
-  const executeReportFetch = useCallback(async () => {
+  const executeReportFetch = useCallback(async (targetPage: number = page, targetLimit: number = rowsPerPage) => {
     setIsLoading(true);
     setHasLoaded(true);
 
     try {
       const q = new URLSearchParams({
-        page: (page + 1).toString(),
-        limit: rowsPerPage.toString(),
+        page: (targetPage + 1).toString(),
+        limit: targetLimit.toString(),
       });
 
       if (fromDate) q.append("from_date", fromDate);
       if (toDate) q.append("to_date", toDate);
+      if (tidFilter.trim()) q.append("tid", tidFilter.trim());
+      if (mobileFilter.trim()) q.append("mobile", mobileFilter.trim());
       if (globalSearch.trim()) q.append("search", globalSearch.trim());
       if (statusFilter !== "ALL") q.append("status", statusFilter);
       if (gatewayFilter !== "ALL") q.append("gateway", gatewayFilter);
@@ -272,6 +329,8 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
       const summaryQ = new URLSearchParams();
       if (fromDate) summaryQ.append("from_date", fromDate);
       if (toDate) summaryQ.append("to_date", toDate);
+      if (tidFilter.trim()) summaryQ.append("tid", tidFilter.trim());
+      if (mobileFilter.trim()) summaryQ.append("mobile", mobileFilter.trim());
       if (globalSearch.trim()) summaryQ.append("search", globalSearch.trim());
       if (statusFilter !== "ALL") summaryQ.append("status", statusFilter);
       if (gatewayFilter !== "ALL") summaryQ.append("gateway", gatewayFilter);
@@ -335,25 +394,27 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [page, rowsPerPage, fromDate, toDate, globalSearch, statusFilter, gatewayFilter, paymentModeFilter]);
+  }, [page, rowsPerPage, fromDate, toDate, tidFilter, mobileFilter, globalSearch, statusFilter, gatewayFilter, paymentModeFilter]);
 
   const handleApplyFilters = () => {
     setPage(0);
-    executeReportFetch();
+    executeReportFetch(0, rowsPerPage);
   };
 
   const handleRefresh = () => {
     setIsRefreshing(true);
-    executeReportFetch();
+    executeReportFetch(page, rowsPerPage);
   };
 
   const handleResetFilters = () => {
     setGlobalSearch("");
+    setTidFilter("");
+    setMobileFilter("");
     setStatusFilter("ALL");
     setGatewayFilter("ALL");
     setPaymentModeFilter("ALL");
     handleDatePreset("TODAY");
-    showToast("Filters reset to default. Click 'Apply' to load.");
+    showToast("Filters reset to default.");
   };
 
   const handleDatePreset = (preset: string) => {
@@ -402,6 +463,8 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
       const q = new URLSearchParams();
       if (fromDate) q.append("from_date", fromDate);
       if (toDate) q.append("to_date", toDate);
+      if (tidFilter.trim()) q.append("tid", tidFilter.trim());
+      if (mobileFilter.trim()) q.append("mobile", mobileFilter.trim());
       if (globalSearch.trim()) q.append("search", globalSearch.trim());
       if (statusFilter !== "ALL") q.append("status", statusFilter);
       if (gatewayFilter !== "ALL") q.append("gateway", gatewayFilter);
@@ -434,11 +497,6 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
       console.error("Export failed:", err);
       showToast("Export failed. Please try again.");
     }
-  };
-
-  const handleExportPdf = () => {
-    window.print();
-    setExportAnchorEl(null);
   };
 
   const toggleColumn = (colKey: string) => {
@@ -477,9 +535,9 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
     return `${from || "Start"} to ${to || "Today"}`;
   };
 
-  const openDetailsDrawer = async (item: PayinReportItem) => {
+  const openDetailsBreakdown = async (item: PayinReportItem) => {
     setSelectedTxn(item);
-    setDrawerOpen(true);
+    setBreakdownModalOpen(true);
     try {
       const token = typeof window !== "undefined" ? (
         localStorage.getItem("p2p_access_token") ||
@@ -499,7 +557,7 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
         }
       }
     } catch {
-      // Non-fatal: fallback to table row data
+      // Non-fatal fallback
     }
   };
 
@@ -507,6 +565,41 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
     if (e) e.stopPropagation();
     setSelectedTxn(item);
     setReceiptDialogOpen(true);
+  };
+
+  const handleShareReceipt = async (item: PayinReportItem) => {
+    const shareUrl =
+      item.receipt_url ||
+      item.receiptUrl ||
+      getPublicReceiptUrl(item.receipt_token || item.tid, undefined, item.company_code);
+
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({
+          title: `Payment Receipt - ${item.tid}`,
+          text: `Payment Receipt for TID ${item.tid} - Amount: ₹${item.amount || item.txn_amount || 0}`,
+          url: shareUrl,
+        });
+        showToast("Receipt link shared successfully!");
+        return;
+      } catch (err: any) {
+        if (err.name !== "AbortError") {
+          // Fall through to clipboard copy
+        } else {
+          return;
+        }
+      }
+    }
+
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(shareUrl);
+      showToast("Receipt link copied successfully!");
+    }
+  };
+
+  const handlePrintVerifiedReceipt = (item: PayinReportItem) => {
+    const slipHtml = generateReceiptPrintHtml(item, branding);
+    printReceiptSlip(slipHtml);
   };
 
   const formatDateTime = (dtStr?: string) => {
@@ -522,7 +615,6 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
     }
   };
 
-  // Status Styling
   const getStatusBadge = (status: string) => {
     const s = (status || "").toUpperCase();
     if (s === "SUCCESS" || s === "SETTLED" || s === "COMPLETED") {
@@ -558,7 +650,7 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
   };
 
   return (
-    <Box sx={{ width: "100%", maxWidth: "100%", overflowX: "hidden", p: { xs: 1.5, sm: 2.5, md: 3 } }}>
+    <Box sx={{ width: "100%", maxWidth: "100%", overflowX: "hidden", p: { xs: 1.5, sm: 2.5, md: 3 }, position: "relative" }}>
       {/* ── 1. PAGE HEADER ── */}
       <Box sx={{ mb: 2.5 }}>
         <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ xs: "flex-start", sm: "center" }} justifyContent="space-between" spacing={2}>
@@ -768,84 +860,7 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
         </Paper>
       </Box>
 
-      {/* ── 3. ENTERPRISE DATE RANGE BAR ── */}
-      <Paper
-        elevation={0}
-        sx={{
-          p: 1.2,
-          px: { xs: 1.5, sm: 2 },
-          borderRadius: "12px",
-          bgcolor: "#FFFFFF",
-          border: "1px solid #E5E7EB",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.02)",
-          mb: 2,
-          display: "flex",
-          flexDirection: { xs: "column", lg: "row" },
-          alignItems: { xs: "flex-start", lg: "center" },
-          justifyContent: "space-between",
-          gap: 1.5,
-        }}
-      >
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ overflowX: "auto", maxWidth: "100%", width: "100%", pb: { xs: 0.5, lg: 0 } }}>
-          <Stack direction="row" alignItems="center" spacing={0.8} sx={{ color: "#059669", mr: 1, flexShrink: 0 }}>
-            <CalendarMonthIcon sx={{ fontSize: 18 }} />
-            <Typography sx={{ fontSize: "12.5px", fontWeight: 800, color: "#059669", whiteSpace: "nowrap" }}>
-              Date Range:
-            </Typography>
-          </Stack>
-
-          {[
-            { key: "TODAY", label: "Today" },
-            { key: "YESTERDAY", label: "Yesterday" },
-            { key: "7D", label: "7D" },
-            { key: "30D", label: "30D" },
-            { key: "60D", label: "60D" },
-            { key: "90D", label: "90D" },
-            { key: "ALL", label: "All Time" },
-            { key: "CUSTOM", label: "Custom Range" },
-          ].map((preset) => {
-            const isSelected = activePreset === preset.key;
-            return (
-              <Button
-                key={preset.key}
-                size="small"
-                onClick={() => {
-                  if (preset.key === "CUSTOM") {
-                    setCustomDateOpen(true);
-                  } else {
-                    handleDatePreset(preset.key);
-                  }
-                }}
-                sx={{
-                  px: 1.6,
-                  py: 0.5,
-                  minWidth: "auto",
-                  borderRadius: "8px",
-                  fontSize: "12px",
-                  fontWeight: isSelected ? 800 : 600,
-                  textTransform: "none",
-                  whiteSpace: "nowrap",
-                  flexShrink: 0,
-                  bgcolor: isSelected ? "#059669" : "#F3F4F6",
-                  color: isSelected ? "#FFFFFF" : "#4B5563",
-                  border: isSelected ? "1px solid #059669" : "1px solid #E5E7EB",
-                  "&:hover": {
-                    bgcolor: isSelected ? "#047857" : "#E5E7EB",
-                  },
-                }}
-              >
-                {preset.label}
-              </Button>
-            );
-          })}
-        </Stack>
-
-        <Typography sx={{ fontSize: "11.5px", color: "#6B7280", fontWeight: 600, flexShrink: 0, whiteSpace: "nowrap" }}>
-          Selected Period: <strong style={{ color: "#059669" }}>{formatDisplayDateRange(fromDate, toDate, activePreset)}</strong>
-        </Typography>
-      </Paper>
-
-      {/* ── 4. MASTER CONTROLS TOOLBAR ── */}
+      {/* ── 3. TOP MASTER TOOLBAR (SEARCH, DENSITY, EXPORT, REFRESH) ── */}
       <Paper
         elevation={0}
         sx={{
@@ -897,9 +912,9 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
           />
         </Box>
 
-        {/* Action Controls & Explicit Apply Button */}
+        {/* Action Controls */}
         <Stack direction="row" alignItems="center" spacing={1} sx={{ flexWrap: "wrap", justifyContent: { xs: "flex-start", lg: "flex-end" } }}>
-          {/* Requirement 7: Explicit Apply Button */}
+          {/* Apply Button */}
           <Button
             size="small"
             variant="contained"
@@ -919,26 +934,6 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
             }}
           >
             Apply Filters
-          </Button>
-
-          {/* Filter Popover Button */}
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={(e) => setFilterAnchorEl(e.currentTarget)}
-            startIcon={<FilterListIcon sx={{ fontSize: 16, color: statusFilter !== "ALL" || gatewayFilter !== "ALL" || paymentModeFilter !== "ALL" ? "#059669" : "#6B7280" }} />}
-            sx={{
-              height: "38px",
-              fontSize: "12px",
-              fontWeight: 700,
-              textTransform: "none",
-              borderRadius: "8px",
-              color: statusFilter !== "ALL" || gatewayFilter !== "ALL" || paymentModeFilter !== "ALL" ? "#059669" : "#374151",
-              borderColor: statusFilter !== "ALL" || gatewayFilter !== "ALL" || paymentModeFilter !== "ALL" ? "#059669" : "#D1D5DB",
-              bgcolor: statusFilter !== "ALL" || gatewayFilter !== "ALL" || paymentModeFilter !== "ALL" ? "rgba(5, 150, 105, 0.08)" : "#FFFFFF",
-            }}
-          >
-            Filter {statusFilter !== "ALL" || gatewayFilter !== "ALL" || paymentModeFilter !== "ALL" ? "•" : ""}
           </Button>
 
           {/* Density */}
@@ -1000,7 +995,7 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
           </Button>
 
           {/* Refresh */}
-          <Tooltip title="Refresh Data (Single Request)">
+          <Tooltip title="Refresh Data">
             <IconButton
               size="small"
               onClick={handleRefresh}
@@ -1071,18 +1066,15 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
         </Typography>
         <Divider sx={{ my: 0.5 }} />
         {[
-          { id: "s_no", label: "S.No" },
-          { id: "tid", label: "Transaction ID" },
-          { id: "reference_id", label: "Reference / Order ID" },
-          { id: "retailer", label: "Retailer / Outlet" },
-          { id: "company", label: "Company" },
-          { id: "gateway", label: "Gateway (G-1/G-2)" },
-          { id: "payment_mode", label: "Payment Method" },
-          { id: "amount", label: "Base Amount (₹)" },
-          { id: "charges", label: "Charges & MDR (₹)" },
+          { id: "tid", label: "TID" },
+          { id: "amount", label: "Amount (₹)" },
+          { id: "charges", label: "Charges (₹)" },
           { id: "gst", label: "GST (₹)" },
           { id: "total_amount", label: "Total Amount (₹)" },
           { id: "wallet_credit", label: "Wallet Credit (₹)" },
+          { id: "customer_mobile", label: "MobileNo" },
+          { id: "gateway", label: "Gateway" },
+          { id: "method", label: "Method" },
           { id: "status", label: "Status" },
           { id: "date_time", label: "Date & Time" },
         ].map((col) => (
@@ -1099,99 +1091,848 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
         ))}
       </Menu>
 
-      {/* Filter Popover */}
-      <Popover
-        anchorEl={filterAnchorEl}
-        open={Boolean(filterAnchorEl)}
-        onClose={() => setFilterAnchorEl(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-        slotProps={{ paper: { sx: { borderRadius: "12px", width: 300, p: 2, boxShadow: "0 8px 32px rgba(0,0,0,0.12)" } } }}
+      {/* Export Dropdown Menu */}
+      <Menu
+        anchorEl={exportAnchorEl}
+        open={Boolean(exportAnchorEl)}
+        onClose={() => setExportAnchorEl(null)}
+        slotProps={{ paper: { sx: { borderRadius: "10px", width: 200 } } }}
       >
-        <Typography sx={{ fontSize: "13px", fontWeight: 800, color: "#111827", mb: 1.5 }}>
-          Filter PayIn Records
-        </Typography>
-        <Stack spacing={1.5}>
-          {/* Status */}
-          <Box>
-            <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#059669", mb: 0.5 }}>STATUS</Typography>
-            <FormControl fullWidth size="small">
-              <Select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                sx={{ height: 36, fontSize: "12px" }}
-              >
-                <MenuItem value="ALL">All Statuses</MenuItem>
-                <MenuItem value="SUCCESS">Success</MenuItem>
-                <MenuItem value="PENDING">Pending / Processing</MenuItem>
-                <MenuItem value="FAILED">Failed</MenuItem>
-                <MenuItem value="REVERSED">Reversed</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
+        <MenuItem onClick={handleExportCsv} sx={{ fontSize: "12.5px", gap: 1.5, py: 1 }}>
+          <TableChartIcon sx={{ fontSize: 17, color: "#059669" }} />
+          Export to CSV / Excel
+        </MenuItem>
+        <MenuItem onClick={() => { if (items.length > 0) handlePrintVerifiedReceipt(items[0]); setExportAnchorEl(null); }} sx={{ fontSize: "12.5px", gap: 1.5, py: 1 }}>
+          <PrintIcon sx={{ fontSize: 17, color: "#2563EB" }} />
+          Print / Save as PDF
+        </MenuItem>
+      </Menu>
 
-          {/* Gateway (Customer-facing labels G-1 / G-2 only) */}
-          <Box>
-            <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#059669", mb: 0.5 }}>GATEWAY</Typography>
-            <FormControl fullWidth size="small">
-              <Select
-                value={gatewayFilter}
-                onChange={(e) => setGatewayFilter(e.target.value)}
-                sx={{ height: 36, fontSize: "12px" }}
-              >
-                <MenuItem value="ALL">All Gateways</MenuItem>
-                <MenuItem value="G-1">Gateway G-1</MenuItem>
-                <MenuItem value="G-2">Gateway G-2</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
+      {/* ── 4. ENTERPRISE DATA TABLE (EXACT 12 COLUMNS) ── */}
+      <Box sx={{ display: { xs: "none", md: "block" } }}>
+        <Paper
+          elevation={0}
+          sx={{
+            borderRadius: "14px",
+            bgcolor: "#FFFFFF",
+            border: "1px solid #E5E7EB",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.03)",
+            overflow: "hidden",
+            width: "100%",
+          }}
+        >
+          <TableContainer sx={{ overflowX: "auto" }}>
+            <Table sx={{ minWidth: 1100, tableLayout: "auto" }}>
+              <TableHead>
+                <TableRow sx={{ bgcolor: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
+                  {/* 1. TID */}
+                  {!hiddenColumns.has("tid") && (
+                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, pl: 2, whiteSpace: "nowrap" }}>
+                      TID
+                    </TableCell>
+                  )}
+                  {/* 2. Amount (₹) */}
+                  {!hiddenColumns.has("amount") && (
+                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, textAlign: "right", whiteSpace: "nowrap" }}>
+                      AMOUNT (₹)
+                    </TableCell>
+                  )}
+                  {/* 3. Charges (₹) */}
+                  {!hiddenColumns.has("charges") && (
+                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, textAlign: "right", whiteSpace: "nowrap" }}>
+                      CHARGES (₹)
+                    </TableCell>
+                  )}
+                  {/* 4. GST (₹) */}
+                  {!hiddenColumns.has("gst") && (
+                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, textAlign: "right", whiteSpace: "nowrap" }}>
+                      GST (₹)
+                    </TableCell>
+                  )}
+                  {/* 5. Total Amount (₹) */}
+                  {!hiddenColumns.has("total_amount") && (
+                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, textAlign: "right", whiteSpace: "nowrap" }}>
+                      TOTAL AMOUNT (₹)
+                    </TableCell>
+                  )}
+                  {/* 6. Wallet Credit (₹) */}
+                  {!hiddenColumns.has("wallet_credit") && (
+                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, textAlign: "right", whiteSpace: "nowrap" }}>
+                      WALLET CREDIT (₹)
+                    </TableCell>
+                  )}
+                  {/* 7. MobileNo */}
+                  {!hiddenColumns.has("customer_mobile") && (
+                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
+                      MOBILENO
+                    </TableCell>
+                  )}
+                  {/* 8. Gateway */}
+                  {!hiddenColumns.has("gateway") && (
+                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
+                      GATEWAY
+                    </TableCell>
+                  )}
+                  {/* 9. Method */}
+                  {!hiddenColumns.has("method") && (
+                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
+                      METHOD
+                    </TableCell>
+                  )}
+                  {/* 10. Status */}
+                  {!hiddenColumns.has("status") && (
+                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
+                      STATUS
+                    </TableCell>
+                  )}
+                  {/* 11. Date & Time */}
+                  {!hiddenColumns.has("date_time") && (
+                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
+                      DATE &amp; TIME
+                    </TableCell>
+                  )}
+                  {/* 12. Action */}
+                  <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, pr: 2, textAlign: "center", whiteSpace: "nowrap" }}>
+                    ACTION
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {isLoading ? (
+                  [1, 2, 3, 4, 5].map((n) => (
+                    <TableRow key={n}>
+                      <TableCell colSpan={12} sx={{ py: 2.5 }}>
+                        <Skeleton variant="text" height={26} />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : !hasLoaded ? (
+                  <TableRow>
+                    <TableCell colSpan={12} align="center" sx={{ py: 8 }}>
+                      <AssessmentIcon sx={{ fontSize: 48, color: "#9CA3AF", mb: 1.5 }} />
+                      <Typography sx={{ fontWeight: 800, fontSize: "16px", color: "#111827" }}>
+                        Ready to Generate PayIn Report
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: "#6B7280", mt: 0.5, mb: 2 }}>
+                        Select your desired date range and filters, then click <strong>Apply</strong> to load transactions.
+                      </Typography>
+                      <Button
+                        variant="contained"
+                        onClick={handleApplyFilters}
+                        startIcon={<PlayArrowIcon />}
+                        sx={{ bgcolor: "#059669", color: "#FFFFFF", fontWeight: 800, textTransform: "none", borderRadius: "8px" }}
+                      >
+                        Generate Report Now
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ) : items.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={12} align="center" sx={{ py: 8 }}>
+                      <ReceiptIcon sx={{ fontSize: 44, color: "#9CA3AF", mb: 1 }} />
+                      <Typography sx={{ fontWeight: 800, fontSize: "15px", color: "#111827" }}>
+                        No PayIn Records Found
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: "#6B7280", display: "block", mt: 0.5 }}>
+                        No transactions match your selected filter criteria.
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  items.map((row, idx) => {
+                    const stBadge = getStatusBadge(row.status);
+                    const dt = formatDateTime(row.date_time || row.created_at);
 
-          {/* Payment Method */}
-          <Box>
-            <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#059669", mb: 0.5 }}>PAYMENT METHOD</Typography>
-            <FormControl fullWidth size="small">
-              <Select
-                value={paymentModeFilter}
-                onChange={(e) => setPaymentModeFilter(e.target.value)}
-                sx={{ height: 36, fontSize: "12px" }}
-              >
-                <MenuItem value="ALL">All Methods</MenuItem>
-                <MenuItem value="UPI">UPI</MenuItem>
-                <MenuItem value="QR">QR Code</MenuItem>
-                <MenuItem value="NETBANKING">Net Banking</MenuItem>
-                <MenuItem value="CARD">Debit / Credit Card</MenuItem>
-                <MenuItem value="POS">POS Terminal</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
+                    return (
+                      <TableRow
+                        key={row.id || row.tid || idx}
+                        hover
+                        onClick={() => openDetailsBreakdown(row)}
+                        sx={{
+                          cursor: "pointer",
+                          height: density === "compact" ? 40 : density === "comfortable" ? 58 : 48,
+                          "&:hover": { bgcolor: "rgba(5, 150, 105, 0.04)" },
+                        }}
+                      >
+                        {/* 1. TID */}
+                        {!hiddenColumns.has("tid") && (
+                          <TableCell sx={{ fontSize: "12px", fontWeight: 700, fontFamily: "monospace", color: "#111827", pl: 2, whiteSpace: "nowrap" }}>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                              <span>{row.tid}</span>
+                              <Tooltip title="Copy TID">
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    copyToClipboard(row.tid, "TID");
+                                  }}
+                                  sx={{ p: 0.3, opacity: 0.6, "&:hover": { opacity: 1 } }}
+                                >
+                                  <ContentCopyIcon sx={{ fontSize: 13 }} />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
+                          </TableCell>
+                        )}
 
-          <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-            <Button
-              fullWidth
-              size="small"
-              variant="contained"
-              onClick={() => {
-                handleApplyFilters();
-                setFilterAnchorEl(null);
-              }}
-              sx={{ bgcolor: "#059669", color: "#FFFFFF", fontWeight: 700, textTransform: "none" }}
-            >
-              Apply
+                        {/* 2. Amount (₹) */}
+                        {!hiddenColumns.has("amount") && (
+                          <TableCell sx={{ fontSize: "12px", fontWeight: 700, textAlign: "right", color: "#111827", fontFamily: "monospace", whiteSpace: "nowrap" }}>
+                            ₹{Number(row.amount || row.txn_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </TableCell>
+                        )}
+
+                        {/* 3. Charges (₹) */}
+                        {!hiddenColumns.has("charges") && (
+                          <TableCell sx={{ fontSize: "12px", textAlign: "right", color: "#4B5563", fontFamily: "monospace", whiteSpace: "nowrap" }}>
+                            ₹{Number(row.charges ?? row.total_charges ?? 0).toFixed(2)}
+                          </TableCell>
+                        )}
+
+                        {/* 4. GST (₹) */}
+                        {!hiddenColumns.has("gst") && (
+                          <TableCell sx={{ fontSize: "12px", textAlign: "right", color: "#4B5563", fontFamily: "monospace", whiteSpace: "nowrap" }}>
+                            ₹{Number(row.gst ?? row.tax_amount ?? 0).toFixed(2)}
+                          </TableCell>
+                        )}
+
+                        {/* 5. Total Amount (₹) */}
+                        {!hiddenColumns.has("total_amount") && (
+                          <TableCell sx={{ fontSize: "12px", fontWeight: 700, textAlign: "right", color: "#2563EB", fontFamily: "monospace", whiteSpace: "nowrap" }}>
+                            ₹{Number(row.total_amount || row.customer_payable || row.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </TableCell>
+                        )}
+
+                        {/* 6. Wallet Credit (₹) */}
+                        {!hiddenColumns.has("wallet_credit") && (
+                          <TableCell sx={{ fontSize: "12px", fontWeight: 800, textAlign: "right", color: "#10B981", fontFamily: "monospace", whiteSpace: "nowrap" }}>
+                            +₹{Number(row.wallet_credit ?? row.retailer_credit ?? row.amount ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </TableCell>
+                        )}
+
+                        {/* 7. MobileNo */}
+                        {!hiddenColumns.has("customer_mobile") && (
+                          <TableCell sx={{ fontSize: "12px", fontFamily: "monospace", color: "#374151", fontWeight: 600, whiteSpace: "nowrap" }}>
+                            {row.customer_mobile || row.mobile_no || "--"}
+                          </TableCell>
+                        )}
+
+                        {/* 8. Gateway */}
+                        {!hiddenColumns.has("gateway") && (
+                          <TableCell sx={{ fontSize: "12px", fontWeight: 700, color: "#059669", whiteSpace: "nowrap" }}>
+                            <Chip
+                              label={row.gateway || "G-1"}
+                              size="small"
+                              sx={{
+                                fontWeight: 800,
+                                fontSize: "10.5px",
+                                height: 22,
+                                bgcolor: "rgba(5, 150, 105, 0.08)",
+                                color: "#059669",
+                                border: "1px solid rgba(5, 150, 105, 0.25)",
+                              }}
+                            />
+                          </TableCell>
+                        )}
+
+                        {/* 9. Method */}
+                        {!hiddenColumns.has("method") && (
+                          <TableCell sx={{ fontSize: "12px", color: "#374151", fontWeight: 600, whiteSpace: "nowrap" }}>
+                            {row.method || row.payment_mode || "UPI"}
+                          </TableCell>
+                        )}
+
+                        {/* 10. Status */}
+                        {!hiddenColumns.has("status") && (
+                          <TableCell sx={{ whiteSpace: "nowrap" }}>
+                            <Chip
+                              label={stBadge.label}
+                              size="small"
+                              sx={{
+                                fontWeight: 800,
+                                fontSize: "10.5px",
+                                height: 22,
+                                color: stBadge.color,
+                                bgcolor: stBadge.bg,
+                                border: stBadge.border,
+                              }}
+                            />
+                          </TableCell>
+                        )}
+
+                        {/* 11. Date & Time */}
+                        {!hiddenColumns.has("date_time") && (
+                          <TableCell sx={{ fontSize: "11.5px", whiteSpace: "nowrap" }}>
+                            <Typography sx={{ fontSize: "12px", color: "#111827", fontWeight: 600 }}>{dt.date}</Typography>
+                            <Typography sx={{ fontSize: "10.5px", color: "#6B7280" }}>{dt.time}</Typography>
+                          </TableCell>
+                        )}
+
+                        {/* 12. Action */}
+                        <TableCell sx={{ textAlign: "center", pr: 2, whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
+                          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5 }}>
+                            <Tooltip title="View Transaction Breakdown">
+                              <IconButton size="small" onClick={() => openDetailsBreakdown(row)}>
+                                <VisibilityIcon sx={{ fontSize: 16, color: "#059669" }} />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="View Verified Receipt">
+                              <IconButton size="small" onClick={(e) => openReceiptModal(row, e)}>
+                                <PrintIcon sx={{ fontSize: 16, color: "#2563EB" }} />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          {/* Footer Totals Banner */}
+          {hasLoaded && items.length > 0 && footerTotals && (
+            <Box sx={{ p: 1.5, px: 2, bgcolor: "#F9FAFB", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
+              <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#374151" }}>
+                Filtered Total: <strong style={{ color: "#059669" }}>{footerTotals.total_transactions} Orders</strong>
+              </Typography>
+              <Stack direction="row" spacing={2.5}>
+                <Typography sx={{ fontSize: "12px", color: "#4B5563" }}>
+                  Volume: <strong style={{ color: "#111827" }}>₹{footerTotals.total_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
+                </Typography>
+                <Typography sx={{ fontSize: "12px", color: "#4B5563" }}>
+                  Total Charges: <strong style={{ color: "#2563EB" }}>₹{footerTotals.total_charges.toFixed(2)}</strong>
+                </Typography>
+                <Typography sx={{ fontSize: "12px", color: "#4B5563" }}>
+                  Total GST: <strong style={{ color: "#2563EB" }}>₹{footerTotals.total_gst.toFixed(2)}</strong>
+                </Typography>
+                <Typography sx={{ fontSize: "12px", color: "#4B5563" }}>
+                  Wallet Credit: <strong style={{ color: "#10B981" }}>+₹{footerTotals.total_retailer_credit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
+                </Typography>
+              </Stack>
+            </Box>
+          )}
+
+          {/* Pagination Controls */}
+          <TablePagination
+            component="div"
+            count={hasLoaded ? totalRecords : 0}
+            page={page}
+            onPageChange={(_, newPage) => {
+              setPage(newPage);
+              executeReportFetch(newPage, rowsPerPage);
+            }}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(e) => {
+              const newLimit = parseInt(e.target.value, 10);
+              setRowsPerPage(newLimit);
+              setPage(0);
+              executeReportFetch(0, newLimit);
+            }}
+            rowsPerPageOptions={[10, 25, 50, 100]}
+            sx={{ borderTop: "1px solid #E5E7EB" }}
+          />
+        </Paper>
+      </Box>
+
+      {/* ── 5. MOBILE RESPONSIVE CARDS VIEW ── */}
+      <Box sx={{ display: { xs: "block", md: "none" } }}>
+        {!hasLoaded ? (
+          <Paper elevation={0} sx={{ p: 4, textAlign: "center", borderRadius: "12px", bgcolor: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+            <AssessmentIcon sx={{ fontSize: 40, color: "#9CA3AF", mb: 1 }} />
+            <Typography sx={{ fontWeight: 800, fontSize: "15px", color: "#111827" }}>
+              Ready to Generate Report
+            </Typography>
+            <Typography variant="caption" sx={{ color: "#6B7280", display: "block", mt: 0.5, mb: 2 }}>
+              Tap Apply Filters to load transactions
+            </Typography>
+            <Button variant="contained" onClick={handleApplyFilters} sx={{ bgcolor: "#059669", color: "#FFFFFF", fontWeight: 700 }}>
+              Apply Filters
             </Button>
-            <Button
-              fullWidth
-              size="small"
-              variant="outlined"
-              onClick={() => {
-                handleResetFilters();
-                setFilterAnchorEl(null);
-              }}
-              sx={{ color: "#DC2626", borderColor: "#FCA5A5", textTransform: "none" }}
-            >
-              Reset
-            </Button>
+          </Paper>
+        ) : items.length === 0 ? (
+          <Paper elevation={0} sx={{ p: 4, textAlign: "center", borderRadius: "12px", bgcolor: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+            <Typography sx={{ fontWeight: 700, color: "#6B7280" }}>No transactions found</Typography>
+          </Paper>
+        ) : (
+          <Stack spacing={1.5}>
+            {items.map((row, idx) => {
+              const stBadge = getStatusBadge(row.status);
+              const dt = formatDateTime(row.date_time || row.created_at);
+
+              return (
+                <Paper
+                  key={row.id || row.tid || idx}
+                  elevation={0}
+                  onClick={() => openDetailsBreakdown(row)}
+                  sx={{
+                    p: 2,
+                    borderRadius: "12px",
+                    bgcolor: "#FFFFFF",
+                    border: "1px solid #E5E7EB",
+                    cursor: "pointer",
+                  }}
+                >
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+                    <Box>
+                      <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#111827", fontFamily: "monospace" }}>
+                        {row.tid}
+                      </Typography>
+                      <Typography sx={{ fontSize: "11px", color: "#6B7280" }}>{dt.date} · {dt.time}</Typography>
+                    </Box>
+                    <Chip label={stBadge.label} size="small" sx={{ fontSize: "10px", height: 20, color: stBadge.color, bgcolor: stBadge.bg, border: stBadge.border, fontWeight: 800 }} />
+                  </Stack>
+
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 1.5 }}>
+                    <Box>
+                      <Typography sx={{ fontSize: "10.5px", color: "#6B7280", textTransform: "uppercase", fontWeight: 700 }}>COLLECTION</Typography>
+                      <Typography sx={{ fontSize: "16px", fontWeight: 900, color: "#111827", fontFamily: "monospace" }}>
+                        ₹{Number(row.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ textAlign: "right" }}>
+                      <Typography sx={{ fontSize: "10.5px", color: "#059669", textTransform: "uppercase", fontWeight: 700 }}>WALLET CREDIT</Typography>
+                      <Typography sx={{ fontSize: "16px", fontWeight: 900, color: "#10B981", fontFamily: "monospace" }}>
+                        +₹{Number(row.retailer_credit || row.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </Typography>
+                    </Box>
+                  </Stack>
+
+                  <Divider sx={{ my: 1.5 }} />
+
+                  <Stack direction="row" alignItems="center" justifyContent="space-between">
+                    <Typography sx={{ fontSize: "11px", color: "#4B5563" }}>
+                      Customer: <strong>{row.customer_mobile || row.mobile_no || "--"}</strong>
+                    </Typography>
+                    <Typography sx={{ fontSize: "11px", color: "#4B5563" }}>
+                      Gateway: <strong>{row.gateway || "G-1"}</strong> · {row.method || row.payment_mode || "UPI"}
+                    </Typography>
+                  </Stack>
+                  <Box sx={{ mt: 1, textAlign: "right" }}>
+                    <Button size="small" onClick={(e) => { e.stopPropagation(); openDetailsBreakdown(row); }} sx={{ fontSize: "11px", textTransform: "none", color: "#059669", fontWeight: 700 }}>
+                      View Details →
+                    </Button>
+                  </Box>
+                </Paper>
+              );
+            })}
           </Stack>
+        )}
+      </Box>
+
+      {/* ── 6. BOTTOM FILTER TOOLBAR (MATCHING REFERENCE SCREENSHOT) ── */}
+      <Box
+        sx={{
+          mt: 2.5,
+          p: 1.5,
+          borderRadius: "14px",
+          bgcolor: "#FFFFFF",
+          border: "1px solid #E5E7EB",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 1.5,
+        }}
+      >
+        {/* Left Filter Buttons Group */}
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ flexWrap: "wrap" }}>
+          {/* 1. Date Range ⌄ */}
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={(e) => setDateRangeAnchorEl(e.currentTarget)}
+            startIcon={<CalendarMonthIcon sx={{ fontSize: 16, color: "#059669" }} />}
+            endIcon={<ArrowDropDownIcon sx={{ fontSize: 16 }} />}
+            sx={{
+              borderRadius: "20px",
+              height: 36,
+              px: 1.8,
+              fontSize: "12px",
+              fontWeight: 700,
+              textTransform: "none",
+              color: "#374151",
+              borderColor: activePreset !== "TODAY" ? "#059669" : "#D1D5DB",
+              bgcolor: activePreset !== "TODAY" ? "rgba(5, 150, 105, 0.05)" : "#FFFFFF",
+            }}
+          >
+            {activePreset === "TODAY"
+              ? "Date Range"
+              : activePreset === "CUSTOM"
+              ? `${fromDate || "Start"} - ${toDate || "End"}`
+              : activePreset}
+          </Button>
+
+          {/* 2. Transaction ID ⌄ */}
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={(e) => setTidAnchorEl(e.currentTarget)}
+            endIcon={<ArrowDropDownIcon sx={{ fontSize: 16 }} />}
+            sx={{
+              borderRadius: "20px",
+              height: 36,
+              px: 1.8,
+              fontSize: "12px",
+              fontWeight: 700,
+              textTransform: "none",
+              color: tidFilter ? "#059669" : "#374151",
+              borderColor: tidFilter ? "#059669" : "#D1D5DB",
+              bgcolor: tidFilter ? "rgba(5, 150, 105, 0.05)" : "#FFFFFF",
+            }}
+          >
+            {tidFilter ? `TID: ${tidFilter.slice(0, 12)}...` : "Transaction ID"}
+          </Button>
+
+          {/* 3. Mobile Number ⌄ */}
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={(e) => setMobileAnchorEl(e.currentTarget)}
+            endIcon={<ArrowDropDownIcon sx={{ fontSize: 16 }} />}
+            sx={{
+              borderRadius: "20px",
+              height: 36,
+              px: 1.8,
+              fontSize: "12px",
+              fontWeight: 700,
+              textTransform: "none",
+              color: mobileFilter ? "#059669" : "#374151",
+              borderColor: mobileFilter ? "#059669" : "#D1D5DB",
+              bgcolor: mobileFilter ? "rgba(5, 150, 105, 0.05)" : "#FFFFFF",
+            }}
+          >
+            {mobileFilter ? `Mobile: ${mobileFilter}` : "Mobile Number"}
+          </Button>
+
+          {/* 4. Gateway ⌄ */}
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={(e) => setGatewayAnchorEl(e.currentTarget)}
+            endIcon={<ArrowDropDownIcon sx={{ fontSize: 16 }} />}
+            sx={{
+              borderRadius: "20px",
+              height: 36,
+              px: 1.8,
+              fontSize: "12px",
+              fontWeight: 700,
+              textTransform: "none",
+              color: gatewayFilter !== "ALL" ? "#059669" : "#374151",
+              borderColor: gatewayFilter !== "ALL" ? "#059669" : "#D1D5DB",
+              bgcolor: gatewayFilter !== "ALL" ? "rgba(5, 150, 105, 0.05)" : "#FFFFFF",
+            }}
+          >
+            {gatewayFilter !== "ALL" ? `Gateway: ${gatewayFilter}` : "Gateway"}
+          </Button>
+
+          {/* 5. Method ⌄ */}
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={(e) => setMethodAnchorEl(e.currentTarget)}
+            endIcon={<ArrowDropDownIcon sx={{ fontSize: 16 }} />}
+            sx={{
+              borderRadius: "20px",
+              height: 36,
+              px: 1.8,
+              fontSize: "12px",
+              fontWeight: 700,
+              textTransform: "none",
+              color: paymentModeFilter !== "ALL" ? "#059669" : "#374151",
+              borderColor: paymentModeFilter !== "ALL" ? "#059669" : "#D1D5DB",
+              bgcolor: paymentModeFilter !== "ALL" ? "rgba(5, 150, 105, 0.05)" : "#FFFFFF",
+            }}
+          >
+            {paymentModeFilter !== "ALL" ? `Method: ${paymentModeFilter}` : "Method"}
+          </Button>
+
+          {/* 6. Status ⌄ */}
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={(e) => setStatusAnchorEl(e.currentTarget)}
+            endIcon={<ArrowDropDownIcon sx={{ fontSize: 16 }} />}
+            sx={{
+              borderRadius: "20px",
+              height: 36,
+              px: 1.8,
+              fontSize: "12px",
+              fontWeight: 700,
+              textTransform: "none",
+              color: statusFilter !== "ALL" ? "#059669" : "#374151",
+              borderColor: statusFilter !== "ALL" ? "#059669" : "#D1D5DB",
+              bgcolor: statusFilter !== "ALL" ? "rgba(5, 150, 105, 0.05)" : "#FFFFFF",
+            }}
+          >
+            {statusFilter !== "ALL" ? `Status: ${statusFilter}` : "Status"}
+          </Button>
+
+          {/* 7. Apply */}
+          <Button
+            size="small"
+            variant="contained"
+            onClick={handleApplyFilters}
+            disabled={isLoading}
+            sx={{
+              borderRadius: "20px",
+              height: 36,
+              px: 2.5,
+              fontSize: "12.5px",
+              fontWeight: 800,
+              textTransform: "none",
+              bgcolor: "#059669",
+              color: "#FFFFFF",
+              "&:hover": { bgcolor: "#047857" },
+            }}
+          >
+            Apply
+          </Button>
+
+          {/* 8. Reset */}
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={handleResetFilters}
+            sx={{
+              borderRadius: "20px",
+              height: 36,
+              px: 2,
+              fontSize: "12.5px",
+              fontWeight: 700,
+              textTransform: "none",
+              color: "#4B5563",
+              borderColor: "#D1D5DB",
+            }}
+          >
+            Reset
+          </Button>
+        </Stack>
+
+        {/* Right Toast Pill Notification (Matching screenshot) */}
+        {toastOpen && (
+          <Box
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 1,
+              bgcolor: "#ECFDF5",
+              border: "1px solid #10B981",
+              color: "#065F46",
+              borderRadius: "20px",
+              px: 2,
+              py: 0.7,
+              boxShadow: "0 2px 8px rgba(16, 185, 129, 0.15)",
+              animation: "fadeIn 0.2s ease-in-out",
+            }}
+          >
+            <CheckCircleIcon sx={{ fontSize: 18, color: "#10B981" }} />
+            <Typography sx={{ fontSize: "12.5px", fontWeight: 700 }}>
+              {toastMessage}
+            </Typography>
+            <IconButton size="small" onClick={() => setToastOpen(false)} sx={{ p: 0.2, ml: 0.5, color: "#065F46" }}>
+              <CloseIcon sx={{ fontSize: 14 }} />
+            </IconButton>
+          </Box>
+        )}
+      </Box>
+
+      {/* ── 7. POPUP MENUS FOR BOTTOM FILTER BUTTONS ── */}
+
+      {/* Date Range Menu */}
+      <Menu
+        anchorEl={dateRangeAnchorEl}
+        open={Boolean(dateRangeAnchorEl)}
+        onClose={() => setDateRangeAnchorEl(null)}
+        slotProps={{ paper: { sx: { borderRadius: "12px", width: 180, p: 0.5 } } }}
+      >
+        {[
+          { key: "TODAY", label: "Today" },
+          { key: "YESTERDAY", label: "Yesterday" },
+          { key: "7D", label: "Last 7 Days" },
+          { key: "30D", label: "Last 30 Days" },
+          { key: "60D", label: "Last 60 Days" },
+          { key: "90D", label: "Last 90 Days" },
+          { key: "ALL", label: "All Time" },
+        ].map((p) => (
+          <MenuItem
+            key={p.key}
+            onClick={() => {
+              handleDatePreset(p.key);
+              setDateRangeAnchorEl(null);
+            }}
+            sx={{ fontSize: "12px", fontWeight: activePreset === p.key ? 800 : 500 }}
+          >
+            {p.label}
+          </MenuItem>
+        ))}
+        <Divider sx={{ my: 0.5 }} />
+        <MenuItem
+          onClick={() => {
+            setDateRangeAnchorEl(null);
+            setCustomDateOpen(true);
+          }}
+          sx={{ fontSize: "12px", fontWeight: activePreset === "CUSTOM" ? 800 : 600, color: "#059669" }}
+        >
+          Custom Date Range...
+        </MenuItem>
+      </Menu>
+
+      {/* Transaction ID Popover */}
+      <Popover
+        anchorEl={tidAnchorEl}
+        open={Boolean(tidAnchorEl)}
+        onClose={() => setTidAnchorEl(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        slotProps={{ paper: { sx: { borderRadius: "12px", width: 280, p: 2, boxShadow: "0 8px 24px rgba(0,0,0,0.12)" } } }}
+      >
+        <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#059669", mb: 1, textTransform: "uppercase" }}>
+          Filter by Transaction ID
+        </Typography>
+        <TextField
+          fullWidth
+          size="small"
+          placeholder="e.g. BPAY2011261..."
+          value={tidFilter}
+          onChange={(e) => setTidFilter(e.target.value)}
+          sx={{ mb: 1.5, "& input": { fontSize: "12px", fontFamily: "monospace" } }}
+        />
+        <Stack direction="row" spacing={1}>
+          <Button
+            fullWidth
+            size="small"
+            variant="contained"
+            onClick={() => setTidAnchorEl(null)}
+            sx={{ bgcolor: "#059669", color: "#FFFFFF", fontWeight: 700, textTransform: "none" }}
+          >
+            Set Filter
+          </Button>
+          <Button
+            fullWidth
+            size="small"
+            variant="outlined"
+            onClick={() => {
+              setTidFilter("");
+              setTidAnchorEl(null);
+            }}
+            sx={{ color: "#6B7280", borderColor: "#D1D5DB", textTransform: "none" }}
+          >
+            Clear
+          </Button>
         </Stack>
       </Popover>
+
+      {/* Mobile Number Popover */}
+      <Popover
+        anchorEl={mobileAnchorEl}
+        open={Boolean(mobileAnchorEl)}
+        onClose={() => setMobileAnchorEl(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        slotProps={{ paper: { sx: { borderRadius: "12px", width: 280, p: 2, boxShadow: "0 8px 24px rgba(0,0,0,0.12)" } } }}
+      >
+        <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#059669", mb: 1, textTransform: "uppercase" }}>
+          Filter by Customer Mobile
+        </Typography>
+        <TextField
+          fullWidth
+          size="small"
+          placeholder="e.g. 9845678901"
+          value={mobileFilter}
+          onChange={(e) => setMobileFilter(e.target.value)}
+          sx={{ mb: 1.5, "& input": { fontSize: "12px", fontFamily: "monospace" } }}
+        />
+        <Stack direction="row" spacing={1}>
+          <Button
+            fullWidth
+            size="small"
+            variant="contained"
+            onClick={() => setMobileAnchorEl(null)}
+            sx={{ bgcolor: "#059669", color: "#FFFFFF", fontWeight: 700, textTransform: "none" }}
+          >
+            Set Filter
+          </Button>
+          <Button
+            fullWidth
+            size="small"
+            variant="outlined"
+            onClick={() => {
+              setMobileFilter("");
+              setMobileAnchorEl(null);
+            }}
+            sx={{ color: "#6B7280", borderColor: "#D1D5DB", textTransform: "none" }}
+          >
+            Clear
+          </Button>
+        </Stack>
+      </Popover>
+
+      {/* Gateway Menu */}
+      <Menu
+        anchorEl={gatewayAnchorEl}
+        open={Boolean(gatewayAnchorEl)}
+        onClose={() => setGatewayAnchorEl(null)}
+        slotProps={{ paper: { sx: { borderRadius: "12px", width: 170, p: 0.5 } } }}
+      >
+        <MenuItem onClick={() => { setGatewayFilter("ALL"); setGatewayAnchorEl(null); }} sx={{ fontSize: "12px", fontWeight: gatewayFilter === "ALL" ? 800 : 500 }}>
+          All Gateways
+        </MenuItem>
+        <MenuItem onClick={() => { setGatewayFilter("G-1"); setGatewayAnchorEl(null); }} sx={{ fontSize: "12px", fontWeight: gatewayFilter === "G-1" ? 800 : 500 }}>
+          Gateway G-1
+        </MenuItem>
+        <MenuItem onClick={() => { setGatewayFilter("G-2"); setGatewayAnchorEl(null); }} sx={{ fontSize: "12px", fontWeight: gatewayFilter === "G-2" ? 800 : 500 }}>
+          Gateway G-2
+        </MenuItem>
+      </Menu>
+
+      {/* Method Menu */}
+      <Menu
+        anchorEl={methodAnchorEl}
+        open={Boolean(methodAnchorEl)}
+        onClose={() => setMethodAnchorEl(null)}
+        slotProps={{ paper: { sx: { borderRadius: "12px", width: 190, p: 0.5 } } }}
+      >
+        {["ALL", "UPI", "QR", "NETBANKING", "CARD", "POS"].map((m) => (
+          <MenuItem
+            key={m}
+            onClick={() => {
+              setPaymentModeFilter(m);
+              setMethodAnchorEl(null);
+            }}
+            sx={{ fontSize: "12px", fontWeight: paymentModeFilter === m ? 800 : 500 }}
+          >
+            {m === "ALL" ? "All Methods" : m === "NETBANKING" ? "Net Banking" : m === "CARD" ? "Debit / Credit Card" : m}
+          </MenuItem>
+        ))}
+      </Menu>
+
+      {/* Status Menu */}
+      <Menu
+        anchorEl={statusAnchorEl}
+        open={Boolean(statusAnchorEl)}
+        onClose={() => setStatusAnchorEl(null)}
+        slotProps={{ paper: { sx: { borderRadius: "12px", width: 180, p: 0.5 } } }}
+      >
+        {[
+          { key: "ALL", label: "All Statuses" },
+          { key: "SUCCESS", label: "Success" },
+          { key: "PENDING", label: "Pending" },
+          { key: "FAILED", label: "Failed" },
+          { key: "REVERSED", label: "Reversed" },
+        ].map((s) => (
+          <MenuItem
+            key={s.key}
+            onClick={() => {
+              setStatusFilter(s.key);
+              setStatusAnchorEl(null);
+            }}
+            sx={{ fontSize: "12px", fontWeight: statusFilter === s.key ? 800 : 500 }}
+          >
+            {s.label}
+          </MenuItem>
+        ))}
+      </Menu>
 
       {/* Custom Date Range Dialog */}
       <Dialog
@@ -1241,730 +1982,753 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
         </DialogActions>
       </Dialog>
 
-      {/* Export Dropdown Menu */}
-      <Menu
-        anchorEl={exportAnchorEl}
-        open={Boolean(exportAnchorEl)}
-        onClose={() => setExportAnchorEl(null)}
-        slotProps={{ paper: { sx: { borderRadius: "10px", width: 200 } } }}
-      >
-        <MenuItem onClick={handleExportCsv} sx={{ fontSize: "12.5px", gap: 1.5, py: 1 }}>
-          <TableChartIcon sx={{ fontSize: 17, color: "#059669" }} />
-          Export to CSV / Excel
-        </MenuItem>
-        <MenuItem onClick={handleExportPdf} sx={{ fontSize: "12.5px", gap: 1.5, py: 1 }}>
-          <PrintIcon sx={{ fontSize: 17, color: "#2563EB" }} />
-          Print / Save as PDF
-        </MenuItem>
-      </Menu>
-
-      {/* ── 5. ENTERPRISE DATA TABLE (DESKTOP) ── */}
-      <Box sx={{ display: { xs: "none", md: "block" } }}>
-        <Paper
-          elevation={0}
-          sx={{
-            borderRadius: "14px",
-            bgcolor: "#FFFFFF",
-            border: "1px solid #E5E7EB",
-            boxShadow: "0 2px 10px rgba(0,0,0,0.03)",
-            overflow: "hidden",
-            width: "100%",
-          }}
-        >
-          <TableContainer sx={{ overflowX: "auto" }}>
-            <Table sx={{ minWidth: 1100, tableLayout: "auto" }}>
-              <TableHead>
-                <TableRow sx={{ bgcolor: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
-                  <TableCell padding="checkbox" sx={{ py: 1.2, pl: 2 }}>
-                    <Checkbox
-                      size="small"
-                      checked={items.length > 0 && selectedIds.size === items.length}
-                      indeterminate={selectedIds.size > 0 && selectedIds.size < items.length}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedIds(new Set(items.map((_, i) => String(i))));
-                        } else {
-                          setSelectedIds(new Set());
-                        }
-                      }}
-                      sx={{ "&.Mui-checked": { color: "#059669" } }}
-                    />
-                  </TableCell>
-                  {!hiddenColumns.has("s_no") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
-                      S.NO
-                    </TableCell>
-                  )}
-                  {!hiddenColumns.has("tid") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
-                      TRANSACTION ID
-                    </TableCell>
-                  )}
-                  {!hiddenColumns.has("reference_id") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
-                      REF / ORDER ID
-                    </TableCell>
-                  )}
-                  {!hiddenColumns.has("retailer") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
-                      RETAILER / OUTLET
-                    </TableCell>
-                  )}
-                  {!hiddenColumns.has("company") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
-                      COMPANY
-                    </TableCell>
-                  )}
-                  {!hiddenColumns.has("gateway") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
-                      GATEWAY
-                    </TableCell>
-                  )}
-                  {!hiddenColumns.has("payment_mode") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
-                      METHOD
-                    </TableCell>
-                  )}
-                  {!hiddenColumns.has("amount") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, textAlign: "right", whiteSpace: "nowrap" }}>
-                      AMOUNT (₹)
-                    </TableCell>
-                  )}
-                  {!hiddenColumns.has("charges") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, textAlign: "right", whiteSpace: "nowrap" }}>
-                      CHARGES (₹)
-                    </TableCell>
-                  )}
-                  {!hiddenColumns.has("gst") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, textAlign: "right", whiteSpace: "nowrap" }}>
-                      GST (₹)
-                    </TableCell>
-                  )}
-                  {!hiddenColumns.has("total_amount") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, textAlign: "right", whiteSpace: "nowrap" }}>
-                      TOTAL AMOUNT (₹)
-                    </TableCell>
-                  )}
-                  {!hiddenColumns.has("wallet_credit") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, textAlign: "right", whiteSpace: "nowrap" }}>
-                      WALLET CREDIT (₹)
-                    </TableCell>
-                  )}
-                  {!hiddenColumns.has("status") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
-                      STATUS
-                    </TableCell>
-                  )}
-                  {!hiddenColumns.has("date_time") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
-                      DATE &amp; TIME
-                    </TableCell>
-                  )}
-                  <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, pr: 2, textAlign: "center", whiteSpace: "nowrap" }}>
-                    ACTION
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {isLoading ? (
-                  [1, 2, 3, 4, 5].map((n) => (
-                    <TableRow key={n}>
-                      <TableCell colSpan={16} sx={{ py: 2.5 }}>
-                        <Skeleton variant="text" height={26} />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : !hasLoaded ? (
-                  /* Initial State before user clicks Apply */
-                  <TableRow>
-                    <TableCell colSpan={16} align="center" sx={{ py: 8 }}>
-                      <AssessmentIcon sx={{ fontSize: 48, color: "#9CA3AF", mb: 1.5 }} />
-                      <Typography sx={{ fontWeight: 800, fontSize: "16px", color: "#111827" }}>
-                        Ready to Generate PayIn Report
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: "#6B7280", mt: 0.5, mb: 2 }}>
-                        Select your desired date range and filters above, then click <strong>Apply Filters</strong> to load transactions.
-                      </Typography>
-                      <Button
-                        variant="contained"
-                        onClick={handleApplyFilters}
-                        startIcon={<PlayArrowIcon />}
-                        sx={{ bgcolor: "#059669", color: "#FFFFFF", fontWeight: 800, textTransform: "none", borderRadius: "8px" }}
-                      >
-                        Generate Report Now
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ) : items.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={16} align="center" sx={{ py: 8 }}>
-                      <ReceiptIcon sx={{ fontSize: 44, color: "#9CA3AF", mb: 1 }} />
-                      <Typography sx={{ fontWeight: 800, fontSize: "15px", color: "#111827" }}>
-                        No PayIn Records Found
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: "#6B7280", display: "block", mt: 0.5 }}>
-                        No transactions match your selected filter criteria.
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  items.map((row, idx) => {
-                    const sNo = page * rowsPerPage + idx + 1;
-                    const stBadge = getStatusBadge(row.status);
-                    const dt = formatDateTime(row.date_time || row.created_at);
-
-                    return (
-                      <TableRow
-                        key={row.id || row.tid || idx}
-                        hover
-                        onClick={() => openDetailsDrawer(row)}
-                        sx={{
-                          cursor: "pointer",
-                          height: density === "compact" ? 40 : density === "comfortable" ? 58 : 48,
-                          bgcolor: selectedIds.has(String(idx)) ? "rgba(5, 150, 105, 0.04)" : "inherit",
-                          "&:hover": { bgcolor: "rgba(5, 150, 105, 0.04)" },
-                        }}
-                      >
-                        <TableCell padding="checkbox" sx={{ pl: 2 }} onClick={(e) => e.stopPropagation()}>
-                          <Checkbox
-                            size="small"
-                            checked={selectedIds.has(String(idx))}
-                            onChange={(e) => {
-                              setSelectedIds((prev) => {
-                                const next = new Set(prev);
-                                if (e.target.checked) next.add(String(idx));
-                                else next.delete(String(idx));
-                                return next;
-                              });
-                            }}
-                            sx={{ "&.Mui-checked": { color: "#059669" } }}
-                          />
-                        </TableCell>
-
-                        {!hiddenColumns.has("s_no") && (
-                          <TableCell sx={{ fontSize: "12px", color: "#6B7280", fontWeight: 600 }}>
-                            {sNo}
-                          </TableCell>
-                        )}
-
-                        {!hiddenColumns.has("tid") && (
-                          <TableCell sx={{ fontSize: "12px", fontWeight: 700, fontFamily: "monospace", color: "#111827" }}>
-                            {row.tid}
-                          </TableCell>
-                        )}
-
-                        {!hiddenColumns.has("reference_id") && (
-                          <TableCell sx={{ fontSize: "12px", fontFamily: "monospace", color: "#4B5563" }}>
-                            {row.reference_id || row.merchant_ref_id || "--"}
-                          </TableCell>
-                        )}
-
-                        {!hiddenColumns.has("retailer") && (
-                          <TableCell sx={{ fontSize: "12px", fontWeight: 600, color: "#111827" }}>
-                            {row.retailer_name}
-                          </TableCell>
-                        )}
-
-                        {!hiddenColumns.has("company") && (
-                          <TableCell sx={{ fontSize: "12px", color: "#4B5563" }}>
-                            {row.company_name}
-                          </TableCell>
-                        )}
-
-                        {!hiddenColumns.has("gateway") && (
-                          <TableCell sx={{ fontSize: "12px", fontWeight: 700, color: "#059669" }}>
-                            {/* Requirement 3: Gateway customer-facing labels G-1 / G-2 only */}
-                            <Chip
-                              label={row.gateway || "G-1"}
-                              size="small"
-                              sx={{
-                                fontWeight: 800,
-                                fontSize: "10.5px",
-                                height: 22,
-                                bgcolor: "rgba(5, 150, 105, 0.08)",
-                                color: "#059669",
-                                border: "1px solid rgba(5, 150, 105, 0.25)",
-                              }}
-                            />
-                          </TableCell>
-                        )}
-
-                        {!hiddenColumns.has("payment_mode") && (
-                          <TableCell sx={{ fontSize: "12px", color: "#374151", fontWeight: 600 }}>
-                            {row.payment_mode || "UPI"}
-                          </TableCell>
-                        )}
-
-                        {!hiddenColumns.has("amount") && (
-                          <TableCell sx={{ fontSize: "12px", fontWeight: 700, textAlign: "right", color: "#111827", fontFamily: "monospace" }}>
-                            ₹{Number(row.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                          </TableCell>
-                        )}
-
-                        {!hiddenColumns.has("charges") && (
-                          <TableCell sx={{ fontSize: "12px", textAlign: "right", color: "#4B5563", fontFamily: "monospace" }}>
-                            ₹{Number(row.total_charges || 0).toFixed(2)}
-                          </TableCell>
-                        )}
-
-                        {!hiddenColumns.has("gst") && (
-                          <TableCell sx={{ fontSize: "12px", textAlign: "right", color: "#4B5563", fontFamily: "monospace" }}>
-                            ₹{Number(row.gst || row.tax_amount || 0).toFixed(2)}
-                          </TableCell>
-                        )}
-
-                        {!hiddenColumns.has("total_amount") && (
-                          <TableCell sx={{ fontSize: "12px", fontWeight: 700, textAlign: "right", color: "#2563EB", fontFamily: "monospace" }}>
-                            ₹{Number(row.total_amount || row.customer_payable || row.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                          </TableCell>
-                        )}
-
-                        {!hiddenColumns.has("wallet_credit") && (
-                          <TableCell sx={{ fontSize: "12px", fontWeight: 800, textAlign: "right", color: "#10B981", fontFamily: "monospace" }}>
-                            +₹{Number(row.retailer_credit || row.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                          </TableCell>
-                        )}
-
-                        {!hiddenColumns.has("status") && (
-                          <TableCell>
-                            <Chip
-                              label={stBadge.label}
-                              size="small"
-                              sx={{
-                                fontWeight: 800,
-                                fontSize: "10.5px",
-                                height: 22,
-                                color: stBadge.color,
-                                bgcolor: stBadge.bg,
-                                border: stBadge.border,
-                              }}
-                            />
-                          </TableCell>
-                        )}
-
-                        {!hiddenColumns.has("date_time") && (
-                          <TableCell sx={{ fontSize: "11.5px", whiteSpace: "nowrap" }}>
-                            <Typography sx={{ fontSize: "12px", color: "#111827", fontWeight: 600 }}>{dt.date}</Typography>
-                            <Typography sx={{ fontSize: "10.5px", color: "#6B7280" }}>{dt.time}</Typography>
-                          </TableCell>
-                        )}
-
-                        <TableCell sx={{ textAlign: "center", pr: 2 }} onClick={(e) => e.stopPropagation()}>
-                          <Stack direction="row" spacing={0.5} justifyContent="center">
-                            <Tooltip title="View Transaction Breakdown">
-                              <IconButton size="small" onClick={() => openDetailsDrawer(row)}>
-                                <VisibilityIcon sx={{ fontSize: 16, color: "#059669" }} />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="View Verified Receipt">
-                              <IconButton size="small" onClick={(e) => openReceiptModal(row, e)}>
-                                <PrintIcon sx={{ fontSize: 16, color: "#2563EB" }} />
-                              </IconButton>
-                            </Tooltip>
-                          </Stack>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-
-          {/* Footer Totals Banner */}
-          {hasLoaded && items.length > 0 && footerTotals && (
-            <Box sx={{ p: 1.5, px: 2, bgcolor: "#F9FAFB", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
-              <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#374151" }}>
-                Filtered Total: <strong style={{ color: "#059669" }}>{footerTotals.total_transactions} Orders</strong>
-              </Typography>
-              <Stack direction="row" spacing={2.5}>
-                <Typography sx={{ fontSize: "12px", color: "#4B5563" }}>
-                  Volume: <strong style={{ color: "#111827" }}>₹{footerTotals.total_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
-                </Typography>
-                <Typography sx={{ fontSize: "12px", color: "#4B5563" }}>
-                  Total Charges: <strong style={{ color: "#2563EB" }}>₹{footerTotals.total_charges.toFixed(2)}</strong>
-                </Typography>
-                <Typography sx={{ fontSize: "12px", color: "#4B5563" }}>
-                  Total GST: <strong style={{ color: "#2563EB" }}>₹{footerTotals.total_gst.toFixed(2)}</strong>
-                </Typography>
-                <Typography sx={{ fontSize: "12px", color: "#4B5563" }}>
-                  Wallet Credit: <strong style={{ color: "#10B981" }}>+₹{footerTotals.total_retailer_credit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
-                </Typography>
-              </Stack>
-            </Box>
-          )}
-
-          {/* Pagination Controls */}
-          <TablePagination
-            component="div"
-            count={hasLoaded ? totalRecords : 0}
-            page={page}
-            onPageChange={(_, newPage) => {
-              setPage(newPage);
-              // Trigger fetch on page navigation
-              setTimeout(executeReportFetch, 10);
-            }}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={(e) => {
-              setRowsPerPage(parseInt(e.target.value, 10));
-              setPage(0);
-              setTimeout(executeReportFetch, 10);
-            }}
-            rowsPerPageOptions={[10, 25, 50, 100]}
-            sx={{ borderTop: "1px solid #E5E7EB" }}
-          />
-        </Paper>
-      </Box>
-
-      {/* ── 6. MOBILE RESPONSIVE CARDS VIEW (xs: block, md: none) ── */}
-      <Box sx={{ display: { xs: "block", md: "none" } }}>
-        {!hasLoaded ? (
-          <Paper elevation={0} sx={{ p: 4, textAlign: "center", borderRadius: "12px", bgcolor: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-            <AssessmentIcon sx={{ fontSize: 40, color: "#9CA3AF", mb: 1 }} />
-            <Typography sx={{ fontWeight: 800, fontSize: "15px", color: "#111827" }}>
-              Ready to Generate Report
-            </Typography>
-            <Typography variant="caption" sx={{ color: "#6B7280", display: "block", mt: 0.5, mb: 2 }}>
-              Tap Apply Filters to load transactions
-            </Typography>
-            <Button variant="contained" onClick={handleApplyFilters} sx={{ bgcolor: "#059669", color: "#FFFFFF", fontWeight: 700 }}>
-              Apply Filters
-            </Button>
-          </Paper>
-        ) : items.length === 0 ? (
-          <Paper elevation={0} sx={{ p: 4, textAlign: "center", borderRadius: "12px", bgcolor: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-            <Typography sx={{ fontWeight: 700, color: "#6B7280" }}>No transactions found</Typography>
-          </Paper>
-        ) : (
-          <Stack spacing={1.5}>
-            {items.map((row, idx) => {
-              const stBadge = getStatusBadge(row.status);
-              const isExpanded = expandedCards[row.tid || String(idx)];
-              const dt = formatDateTime(row.date_time || row.created_at);
-
-              return (
-                <Paper
-                  key={row.id || row.tid || idx}
-                  elevation={0}
-                  onClick={() => openDetailsDrawer(row)}
-                  sx={{
-                    p: 2,
-                    borderRadius: "12px",
-                    bgcolor: "#FFFFFF",
-                    border: "1px solid #E5E7EB",
-                    cursor: "pointer",
-                  }}
-                >
-                  <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-                    <Box>
-                      <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#111827", fontFamily: "monospace" }}>
-                        {row.tid}
-                      </Typography>
-                      <Typography sx={{ fontSize: "11px", color: "#6B7280" }}>{dt.date} · {dt.time}</Typography>
-                    </Box>
-                    <Chip label={stBadge.label} size="small" sx={{ fontSize: "10px", height: 20, color: stBadge.color, bgcolor: stBadge.bg, border: stBadge.border, fontWeight: 800 }} />
-                  </Stack>
-
-                  <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 1.5 }}>
-                    <Box>
-                      <Typography sx={{ fontSize: "10.5px", color: "#6B7280", textTransform: "uppercase", fontWeight: 700 }}>COLLECTION</Typography>
-                      <Typography sx={{ fontSize: "16px", fontWeight: 900, color: "#111827", fontFamily: "monospace" }}>
-                        ₹{Number(row.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ textAlign: "right" }}>
-                      <Typography sx={{ fontSize: "10.5px", color: "#059669", textTransform: "uppercase", fontWeight: 700 }}>WALLET CREDIT</Typography>
-                      <Typography sx={{ fontSize: "16px", fontWeight: 900, color: "#10B981", fontFamily: "monospace" }}>
-                        +₹{Number(row.retailer_credit || row.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                      </Typography>
-                    </Box>
-                  </Stack>
-
-                  <Divider sx={{ my: 1.5 }} />
-
-                  <Stack direction="row" alignItems="center" justifyContent="space-between">
-                    <Typography sx={{ fontSize: "11px", color: "#4B5563" }}>
-                      Gateway: <strong>{row.gateway || "G-1"}</strong> · {row.payment_mode || "UPI"}
-                    </Typography>
-                    <Button size="small" onClick={(e) => { e.stopPropagation(); openDetailsDrawer(row); }} sx={{ fontSize: "11px", textTransform: "none", color: "#059669", fontWeight: 700 }}>
-                      View Details →
-                    </Button>
-                  </Stack>
-                </Paper>
-              );
-            })}
-          </Stack>
-        )}
-      </Box>
-
-      {/* ── 7. TRANSACTION DETAIL SLIDE-OUT DRAWER ── */}
-      <Drawer
-        anchor="right"
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        PaperProps={{
-          sx: {
-            width: { xs: "100%", sm: 460 },
-            p: 3,
-            bgcolor: "#FFFFFF",
+      {/* ── 8. TRANSACTION BREAKDOWN MODAL (MATCHING LEFT PANEL OF SCREENSHOT) ── */}
+      <Dialog
+        open={breakdownModalOpen}
+        onClose={() => setBreakdownModalOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: "16px",
+              p: 0,
+              bgcolor: "#FFFFFF",
+              overflow: "hidden",
+              boxShadow: "0 20px 48px rgba(0,0,0,0.18)",
+            },
           },
         }}
       >
         {selectedTxn && (
-          <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-            {/* Drawer Header */}
-            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ pb: 2, borderBottom: "1px solid #E5E7EB" }}>
-              <Box>
-                <Typography sx={{ fontSize: "11px", color: "#059669", fontWeight: 800, textTransform: "uppercase" }}>
-                  TRANSACTION BREAKDOWN
-                </Typography>
-                <Typography variant="h6" sx={{ fontWeight: 900, color: "#111827", fontFamily: "monospace" }}>
-                  {selectedTxn.tid}
-                </Typography>
+          <Box>
+            {/* Modal Header */}
+            <Box
+              sx={{
+                p: 2.2,
+                px: 3,
+                borderBottom: "1px solid #E5E7EB",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                bgcolor: "#FFFFFF",
+              }}
+            >
+              {/* Domain Logo */}
+              <Box sx={{ display: "flex", alignItems: "center" }}>
+                {branding?.logo_url ? (
+                  <img
+                    src={branding.logo_url}
+                    alt={branding.display_name || "Logo"}
+                    style={{ height: 28, maxWidth: 140, objectFit: "contain" }}
+                  />
+                ) : (
+                  <Typography sx={{ fontWeight: 900, fontSize: "20px", color: "#059669", letterSpacing: "-0.5px" }}>
+                    SMSPAY
+                  </Typography>
+                )}
               </Box>
-              <IconButton size="small" onClick={() => setDrawerOpen(false)}>
-                <CloseIcon />
-              </IconButton>
-            </Stack>
 
-            {/* Scrollable Content */}
-            <Box sx={{ flex: 1, overflowY: "auto", py: 2.5 }}>
-              <Stack spacing={2.5}>
-                {/* Status Card */}
-                <Paper elevation={0} sx={{ p: 2, borderRadius: "10px", bgcolor: "#F9FAFB", border: "1px solid #E5E7EB" }}>
-                  <Stack direction="row" alignItems="center" justifyContent="space-between">
-                    <Typography sx={{ fontSize: "12px", color: "#6B7280", fontWeight: 600 }}>Payment Status</Typography>
+              {/* Title */}
+              <Typography sx={{ fontWeight: 800, fontSize: "16px", color: "#111827" }}>
+                Transaction Breakdown
+              </Typography>
+
+              {/* Close Button */}
+              <IconButton size="small" onClick={() => setBreakdownModalOpen(false)} sx={{ color: "#6B7280" }}>
+                <CloseIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Box>
+
+            {/* Modal Content */}
+            <Box sx={{ p: 3, maxHeight: "75vh", overflowY: "auto", display: "flex", flexDirection: "column", gap: 2 }}>
+              {/* Card 1: Transaction Summary */}
+              <Paper elevation={0} sx={{ p: 2, borderRadius: "12px", bgcolor: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+                  <CreditCardIcon sx={{ color: "#059669", fontSize: 18 }} />
+                  <Typography sx={{ fontSize: "13px", fontWeight: 800, color: "#111827" }}>
+                    Transaction Summary
+                  </Typography>
+                </Stack>
+
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                  <Box>
+                    <Typography sx={{ fontSize: "11px", color: "#6B7280", fontWeight: 600 }}>TID</Typography>
+                    <Typography sx={{ fontSize: "12.5px", fontWeight: 800, fontFamily: "monospace", color: "#111827" }}>
+                      {selectedTxn.tid}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ textAlign: "right" }}>
+                    <Typography sx={{ fontSize: "11px", color: "#6B7280", fontWeight: 600, mb: 0.3 }}>Payment Status</Typography>
                     <Chip
                       label={selectedTxn.status}
                       size="small"
                       sx={{
                         fontWeight: 800,
+                        fontSize: "10.5px",
+                        height: 22,
                         color: getStatusBadge(selectedTxn.status).color,
                         bgcolor: getStatusBadge(selectedTxn.status).bg,
                         border: getStatusBadge(selectedTxn.status).border,
                       }}
                     />
-                  </Stack>
-                  <Typography sx={{ fontSize: "22px", fontWeight: 900, color: "#111827", mt: 1, fontFamily: "monospace" }}>
-                    ₹{Number(selectedTxn.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                  </Typography>
-                  <Typography sx={{ fontSize: "11px", color: "#6B7280", mt: 0.5 }}>
-                    Reference ID: {selectedTxn.reference_id || selectedTxn.merchant_ref_id || "--"}
-                  </Typography>
-                </Paper>
+                  </Box>
+                </Stack>
 
-                {/* Financial Ledger Breakdown */}
-                <Box>
-                  <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#059669", textTransform: "uppercase", mb: 1 }}>
+                <Typography sx={{ fontSize: "24px", fontWeight: 900, color: "#111827", mt: 1.5, lineHeight: 1.1 }}>
+                  ₹{Number(selectedTxn.amount || selectedTxn.txn_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </Typography>
+                <Typography sx={{ fontSize: "11.5px", color: "#6B7280", mt: 0.5 }}>
+                  Reference ID: {selectedTxn.reference_id || selectedTxn.merchant_ref_id || "--"}
+                </Typography>
+              </Paper>
+
+              {/* Card 2: Financial Breakdown */}
+              <Paper elevation={0} sx={{ p: 2, borderRadius: "12px", bgcolor: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+                  <BarChartIcon sx={{ color: "#059669", fontSize: 18 }} />
+                  <Typography sx={{ fontSize: "13px", fontWeight: 800, color: "#111827" }}>
                     Financial Breakdown
                   </Typography>
-                  <Paper elevation={0} sx={{ p: 1.5, borderRadius: "10px", bgcolor: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-                    <Stack spacing={1}>
-                      <Stack direction="row" justifyContent="space-between">
-                        <Typography sx={{ fontSize: "12px", color: "#6B7280" }}>Base Collection Amount</Typography>
-                        <Typography sx={{ fontSize: "12px", fontWeight: 700, fontFamily: "monospace" }}>
-                          ₹{Number(selectedTxn.amount || 0).toFixed(2)}
-                        </Typography>
-                      </Stack>
-                      <Stack direction="row" justifyContent="space-between">
-                        <Typography sx={{ fontSize: "12px", color: "#6B7280" }}>MDR Charges</Typography>
-                        <Typography sx={{ fontSize: "12px", fontWeight: 600, fontFamily: "monospace" }}>
-                          ₹{Number(selectedTxn.mdr_amount || 0).toFixed(2)}
-                        </Typography>
-                      </Stack>
-                      <Stack direction="row" justifyContent="space-between">
-                        <Typography sx={{ fontSize: "12px", color: "#6B7280" }}>GST on Charges (18%)</Typography>
-                        <Typography sx={{ fontSize: "12px", fontWeight: 600, fontFamily: "monospace" }}>
-                          ₹{Number(selectedTxn.gst || selectedTxn.tax_amount || 0).toFixed(2)}
-                        </Typography>
-                      </Stack>
-                      <Stack direction="row" justifyContent="space-between">
-                        <Typography sx={{ fontSize: "12px", color: "#6B7280" }}>Total Surcharges</Typography>
-                        <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#2563EB", fontFamily: "monospace" }}>
-                          ₹{Number(selectedTxn.total_charges || 0).toFixed(2)}
-                        </Typography>
-                      </Stack>
-                      <Divider sx={{ my: 0.5 }} />
-                      <Stack direction="row" justifyContent="space-between">
-                        <Typography sx={{ fontSize: "12.5px", fontWeight: 800, color: "#111827" }}>Total Customer Payable</Typography>
-                        <Typography sx={{ fontSize: "12.5px", fontWeight: 900, color: "#2563EB", fontFamily: "monospace" }}>
-                          ₹{Number(selectedTxn.total_amount || selectedTxn.customer_payable || selectedTxn.amount || 0).toFixed(2)}
-                        </Typography>
-                      </Stack>
-                      <Stack direction="row" justifyContent="space-between">
-                        <Typography sx={{ fontSize: "12.5px", fontWeight: 800, color: "#059669" }}>Net Wallet Credited</Typography>
-                        <Typography sx={{ fontSize: "13px", fontWeight: 900, color: "#10B981", fontFamily: "monospace" }}>
-                          +₹{Number(selectedTxn.retailer_credit || selectedTxn.amount || 0).toFixed(2)}
-                        </Typography>
-                      </Stack>
-                    </Stack>
-                  </Paper>
+                </Stack>
+
+                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5, mb: 1.5 }}>
+                  <Box>
+                    <Typography sx={{ fontSize: "11px", color: "#6B7280" }}>Base Amount</Typography>
+                    <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#111827" }}>
+                      ₹{Number(selectedTxn.amount || selectedTxn.txn_amount || 0).toFixed(2)}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography sx={{ fontSize: "11px", color: "#6B7280" }}>GST (18%)</Typography>
+                    <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#111827" }}>
+                      ₹{Number(selectedTxn.gst ?? selectedTxn.tax_amount ?? 0).toFixed(2)}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography sx={{ fontSize: "11px", color: "#6B7280" }}>Charges</Typography>
+                    <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#111827" }}>
+                      ₹{Number(selectedTxn.charges ?? selectedTxn.total_charges ?? 0).toFixed(2)}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography sx={{ fontSize: "11px", color: "#6B7280" }}>Total Amount</Typography>
+                    <Typography sx={{ fontSize: "13px", fontWeight: 800, color: "#111827" }}>
+                      ₹{Number(selectedTxn.total_amount || selectedTxn.customer_payable || selectedTxn.amount || 0).toFixed(2)}
+                    </Typography>
+                  </Box>
                 </Box>
 
-                {/* Gateway & Routing Info */}
-                <Box>
-                  <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#059669", textTransform: "uppercase", mb: 1 }}>
+                {/* Highlighted Wallet Credit Green Band */}
+                <Box
+                  sx={{
+                    bgcolor: "rgba(16, 185, 129, 0.12)",
+                    border: "1px solid rgba(16, 185, 129, 0.25)",
+                    borderRadius: "8px",
+                    px: 1.5,
+                    py: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <AccountBalanceWalletIcon sx={{ fontSize: 16, color: "#059669" }} />
+                    <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#059669" }}>
+                      Wallet Credit
+                    </Typography>
+                  </Stack>
+                  <Typography sx={{ fontSize: "13.5px", fontWeight: 900, color: "#059669" }}>
+                    +₹{Number(selectedTxn.wallet_credit ?? selectedTxn.retailer_credit ?? selectedTxn.amount ?? 0).toFixed(2)}
+                  </Typography>
+                </Box>
+              </Paper>
+
+              {/* Card 3: Gateway & Routing */}
+              <Paper elevation={0} sx={{ p: 2, borderRadius: "12px", bgcolor: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+                  <HubIcon sx={{ color: "#059669", fontSize: 18 }} />
+                  <Typography sx={{ fontSize: "13px", fontWeight: 800, color: "#111827" }}>
                     Gateway &amp; Routing
                   </Typography>
-                  <Paper elevation={0} sx={{ p: 1.5, borderRadius: "10px", bgcolor: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-                    <Stack spacing={1}>
-                      <Stack direction="row" justifyContent="space-between">
-                        <Typography sx={{ fontSize: "12px", color: "#6B7280" }}>Gateway Label</Typography>
-                        {/* Requirement 3: Gateway customer-facing labels G-1 / G-2 only */}
-                        <Chip label={selectedTxn.gateway || "G-1"} size="small" sx={{ fontWeight: 800, fontSize: "11px", height: 20, bgcolor: "rgba(5, 150, 105, 0.1)", color: "#059669" }} />
-                      </Stack>
-                      <Stack direction="row" justifyContent="space-between">
-                        <Typography sx={{ fontSize: "12px", color: "#6B7280" }}>Payment Mode</Typography>
-                        <Typography sx={{ fontSize: "12px", fontWeight: 700 }}>{selectedTxn.payment_mode || "UPI"}</Typography>
-                      </Stack>
-                      <Stack direction="row" justifyContent="space-between">
-                        <Typography sx={{ fontSize: "12px", color: "#6B7280" }}>Ledger Txn ID</Typography>
-                        <Typography sx={{ fontSize: "11px", fontFamily: "monospace" }}>{selectedTxn.ledger_txn_id || "--"}</Typography>
-                      </Stack>
-                    </Stack>
-                  </Paper>
-                </Box>
+                </Stack>
 
-                {/* Customer Details */}
-                <Box>
-                  <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#059669", textTransform: "uppercase", mb: 1 }}>
+                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5 }}>
+                  <Box>
+                    <Typography sx={{ fontSize: "11px", color: "#6B7280", mb: 0.3 }}>Gateway Label</Typography>
+                    <Chip
+                      label={selectedTxn.gateway || "G-1"}
+                      size="small"
+                      sx={{
+                        fontWeight: 800,
+                        fontSize: "11px",
+                        height: 20,
+                        bgcolor: "rgba(5, 150, 105, 0.1)",
+                        color: "#059669",
+                        border: "1px solid rgba(5, 150, 105, 0.25)",
+                      }}
+                    />
+                  </Box>
+                  <Box>
+                    <Typography sx={{ fontSize: "11px", color: "#6B7280" }}>Payment Mode</Typography>
+                    <Typography sx={{ fontSize: "12.5px", fontWeight: 800, color: "#111827" }}>
+                      {selectedTxn.method || selectedTxn.payment_mode || "UPI"}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ gridColumn: "span 2" }}>
+                    <Typography sx={{ fontSize: "11px", color: "#6B7280" }}>Ledger Txn ID</Typography>
+                    <Typography sx={{ fontSize: "12px", fontFamily: "monospace", color: "#111827", fontWeight: 600 }}>
+                      {selectedTxn.ledger_txn_id || selectedTxn.tid || "--"}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Paper>
+
+              {/* Card 4: Customer Details */}
+              <Paper elevation={0} sx={{ p: 2, borderRadius: "12px", bgcolor: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+                  <PersonIcon sx={{ color: "#059669", fontSize: 18 }} />
+                  <Typography sx={{ fontSize: "13px", fontWeight: 800, color: "#111827" }}>
                     Customer Details
                   </Typography>
-                  <Paper elevation={0} sx={{ p: 1.5, borderRadius: "10px", bgcolor: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-                    <Stack spacing={1}>
-                      <Stack direction="row" justifyContent="space-between">
-                        <Typography sx={{ fontSize: "12px", color: "#6B7280" }}>Name</Typography>
-                        <Typography sx={{ fontSize: "12px", fontWeight: 700 }}>{selectedTxn.customer_name || "Customer"}</Typography>
-                      </Stack>
-                      <Stack direction="row" justifyContent="space-between">
-                        <Typography sx={{ fontSize: "12px", color: "#6B7280" }}>Mobile</Typography>
-                        <Typography sx={{ fontSize: "12px", fontFamily: "monospace" }}>{selectedTxn.customer_mobile || "--"}</Typography>
-                      </Stack>
-                    </Stack>
-                  </Paper>
-                </Box>
+                </Stack>
 
-                {/* Timestamps */}
-                <Box>
-                  <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#059669", textTransform: "uppercase", mb: 1 }}>
-                    Audit Timestamps
-                  </Typography>
-                  <Paper elevation={0} sx={{ p: 1.5, borderRadius: "10px", bgcolor: "#F9FAFB", border: "1px solid #E5E7EB" }}>
-                    <Stack spacing={1}>
-                      <Stack direction="row" justifyContent="space-between">
-                        <Typography sx={{ fontSize: "11px", color: "#6B7280" }}>Initiated At</Typography>
-                        <Typography sx={{ fontSize: "11px", fontFamily: "monospace" }}>{selectedTxn.initiated_at || selectedTxn.created_at || "--"}</Typography>
-                      </Stack>
-                      <Stack direction="row" justifyContent="space-between">
-                        <Typography sx={{ fontSize: "11px", color: "#6B7280" }}>Completed At</Typography>
-                        <Typography sx={{ fontSize: "11px", fontFamily: "monospace" }}>{selectedTxn.completed_at || selectedTxn.updated_at || "--"}</Typography>
-                      </Stack>
-                    </Stack>
-                  </Paper>
+                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5 }}>
+                  <Box>
+                    <Typography sx={{ fontSize: "11px", color: "#6B7280" }}>Name</Typography>
+                    <Typography sx={{ fontSize: "12.5px", fontWeight: 700, color: "#111827" }}>
+                      {selectedTxn.customer_name || selectedTxn.retailer_name || "Customer"}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography sx={{ fontSize: "11px", color: "#6B7280" }}>Mobile No</Typography>
+                    <Typography sx={{ fontSize: "12.5px", fontWeight: 700, fontFamily: "monospace", color: "#111827" }}>
+                      {selectedTxn.customer_mobile || selectedTxn.mobile_no || "--"}
+                    </Typography>
+                  </Box>
                 </Box>
-              </Stack>
+              </Paper>
             </Box>
 
-            {/* Drawer Actions */}
-            <Box sx={{ pt: 2, borderTop: "1px solid #E5E7EB" }}>
+            {/* Modal Bottom Actions (Print Receipt, Share Receipt, Print Verified Receipt) */}
+            <Box
+              sx={{
+                p: 2,
+                px: 3,
+                bgcolor: "#F9FAFB",
+                borderTop: "1px solid #E5E7EB",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: 1.2,
+              }}
+            >
               <Button
-                fullWidth
+                variant="outlined"
+                startIcon={<PrintIcon sx={{ fontSize: 16 }} />}
+                onClick={() => {
+                  setReceiptDialogOpen(true);
+                }}
+                sx={{
+                  color: "#059669",
+                  borderColor: "#059669",
+                  fontWeight: 700,
+                  fontSize: "12px",
+                  textTransform: "none",
+                  borderRadius: "8px",
+                  bgcolor: "#FFFFFF",
+                  "&:hover": { bgcolor: "rgba(5, 150, 105, 0.05)", borderColor: "#047857" },
+                }}
+              >
+                Print Receipt
+              </Button>
+
+              <Button
+                variant="outlined"
+                startIcon={<ShareIcon sx={{ fontSize: 16 }} />}
+                onClick={() => handleShareReceipt(selectedTxn)}
+                sx={{
+                  color: "#059669",
+                  borderColor: "#059669",
+                  fontWeight: 700,
+                  fontSize: "12px",
+                  textTransform: "none",
+                  borderRadius: "8px",
+                  bgcolor: "#FFFFFF",
+                  "&:hover": { bgcolor: "rgba(5, 150, 105, 0.05)", borderColor: "#047857" },
+                }}
+              >
+                Share Receipt
+              </Button>
+
+              <Button
                 variant="contained"
-                startIcon={<PrintIcon />}
-                onClick={() => setReceiptDialogOpen(true)}
-                sx={{ bgcolor: "#059669", color: "#FFFFFF", fontWeight: 800, textTransform: "none", py: 1 }}
+                startIcon={<PrintIcon sx={{ fontSize: 16 }} />}
+                onClick={() => handlePrintVerifiedReceipt(selectedTxn)}
+                sx={{
+                  bgcolor: "#059669",
+                  color: "#FFFFFF",
+                  fontWeight: 800,
+                  fontSize: "12px",
+                  textTransform: "none",
+                  borderRadius: "8px",
+                  boxShadow: "0 2px 6px rgba(5, 150, 105, 0.25)",
+                  "&:hover": { bgcolor: "#047857" },
+                }}
               >
                 Print Verified Receipt
               </Button>
             </Box>
           </Box>
         )}
-      </Drawer>
+      </Dialog>
 
-      {/* ── 8. PRINTABLE RECEIPT MODAL ── */}
+      {/* ── 9. PAYMENT RECEIPT MODAL (MATCHING RIGHT PANEL OF SCREENSHOT) ── */}
       <Dialog
         open={receiptDialogOpen}
         onClose={() => setReceiptDialogOpen(false)}
-        slotProps={{ paper: { sx: { width: 440, borderRadius: "14px", p: 1 } } }}
+        maxWidth="xs"
+        fullWidth
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: "16px",
+              p: 0,
+              bgcolor: "#FFFFFF",
+              overflow: "hidden",
+              boxShadow: "0 20px 48px rgba(0,0,0,0.18)",
+            },
+          },
+        }}
       >
         {selectedTxn && (
-          <>
-            <DialogTitle sx={{ fontWeight: 800, fontSize: "16px", textAlign: "center", pb: 1 }}>
-              Official Payment Receipt
-            </DialogTitle>
-            <DialogContent>
-              <Paper elevation={0} sx={{ p: 2, borderRadius: "10px", bgcolor: "#F9FAFB", border: "1px dashed #D1D5DB" }}>
-                <Typography sx={{ fontWeight: 900, textAlign: "center", fontSize: "16px", color: "#111827" }}>
-                  {selectedTxn.company_name || "SMSPAY"}
+          <Box sx={{ position: "relative" }}>
+            {/* Header with Centered Logo */}
+            <Box sx={{ pt: 3, px: 3, textAlign: "center" }}>
+              <Box sx={{ display: "flex", justifyContent: "center", mb: 1.5 }}>
+                {branding?.logo_url ? (
+                  <img
+                    src={branding.logo_url}
+                    alt={branding.display_name || "Logo"}
+                    style={{ height: 36, maxWidth: 170, objectFit: "contain" }}
+                  />
+                ) : (
+                  <Typography sx={{ fontWeight: 900, fontSize: "22px", color: "#059669" }}>
+                    SMSPAY
+                  </Typography>
+                )}
+              </Box>
+
+              {/* Green Thin Divider Line */}
+              <Box sx={{ height: "2px", bgcolor: "#10B981", width: "100%", mb: 1.5 }} />
+
+              <Typography sx={{ fontWeight: 800, fontSize: "18px", color: "#111827", mb: 0.8 }}>
+                Payment Receipt
+              </Typography>
+
+              {/* Payment Successful Status */}
+              <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.8} sx={{ mb: 2 }}>
+                <CheckCircleIcon sx={{ color: "#059669", fontSize: 18 }} />
+                <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#059669" }}>
+                  Payment Successful
                 </Typography>
-                <Typography sx={{ fontSize: "11px", textAlign: "center", color: "#6B7280", mb: 2 }}>
-                  PayIn Merchant Collection Receipt
-                </Typography>
+              </Stack>
+            </Box>
 
-                <Divider sx={{ my: 1.5 }} />
-
-                <Stack spacing={1}>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography sx={{ fontSize: "11px", color: "#6B7280" }}>Txn ID:</Typography>
-                    <Typography sx={{ fontSize: "11px", fontWeight: 700, fontFamily: "monospace" }}>{selectedTxn.tid}</Typography>
-                  </Stack>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography sx={{ fontSize: "11px", color: "#6B7280" }}>Status:</Typography>
-                    <Typography sx={{ fontSize: "11px", fontWeight: 800, color: "#059669" }}>{selectedTxn.status}</Typography>
-                  </Stack>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography sx={{ fontSize: "11px", color: "#6B7280" }}>Retailer / Outlet:</Typography>
-                    <Typography sx={{ fontSize: "11px", fontWeight: 700 }}>{selectedTxn.retailer_name}</Typography>
-                  </Stack>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography sx={{ fontSize: "11px", color: "#6B7280" }}>Customer:</Typography>
-                    <Typography sx={{ fontSize: "11px", fontWeight: 600 }}>{selectedTxn.customer_name} ({selectedTxn.customer_mobile})</Typography>
-                  </Stack>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography sx={{ fontSize: "11px", color: "#6B7280" }}>Date &amp; Time:</Typography>
-                    <Typography sx={{ fontSize: "11px" }}>{selectedTxn.date_time}</Typography>
-                  </Stack>
-
-                  <Divider sx={{ my: 1 }} />
-
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography sx={{ fontSize: "11px", color: "#6B7280" }}>Base Amount:</Typography>
-                    <Typography sx={{ fontSize: "11px", fontWeight: 700 }}>₹{Number(selectedTxn.amount || 0).toFixed(2)}</Typography>
-                  </Stack>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography sx={{ fontSize: "11px", color: "#6B7280" }}>Charges &amp; GST:</Typography>
-                    <Typography sx={{ fontSize: "11px" }}>₹{Number(selectedTxn.total_charges || 0).toFixed(2)}</Typography>
-                  </Stack>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography sx={{ fontSize: "13px", fontWeight: 900 }}>Total Collected:</Typography>
-                    <Typography sx={{ fontSize: "14px", fontWeight: 900, color: "#059669" }}>
-                      ₹{Number(selectedTxn.total_amount || selectedTxn.amount || 0).toFixed(2)}
-                    </Typography>
-                  </Stack>
-                </Stack>
+            {/* Receipt Body */}
+            <Box sx={{ px: 3, pb: 2 }}>
+              {/* Summary Gray Card */}
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 1.5,
+                  borderRadius: "10px",
+                  bgcolor: "#F9FAFB",
+                  border: "1px solid #E5E7EB",
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 1.5,
+                  mb: 2,
+                }}
+              >
+                <Box>
+                  <Typography sx={{ fontSize: "10.5px", color: "#6B7280" }}>TID</Typography>
+                  <Typography sx={{ fontSize: "11.5px", fontWeight: 800, fontFamily: "monospace", color: "#111827" }}>
+                    {selectedTxn.tid}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography sx={{ fontSize: "10.5px", color: "#6B7280" }}>Date &amp; Time</Typography>
+                  <Typography sx={{ fontSize: "11.5px", fontWeight: 700, color: "#111827" }}>
+                    {selectedTxn.date_time || formatDateTime(selectedTxn.created_at).date}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography sx={{ fontSize: "10.5px", color: "#6B7280" }}>Retailer</Typography>
+                  <Typography sx={{ fontSize: "11.5px", fontWeight: 700, color: "#111827" }}>
+                    {selectedTxn.retailer_name || outlet?.outlet_name || "Retailer Partner"}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography sx={{ fontSize: "10.5px", color: "#6B7280" }}>Mobile No</Typography>
+                  <Typography sx={{ fontSize: "11.5px", fontWeight: 700, fontFamily: "monospace", color: "#111827" }}>
+                    {selectedTxn.customer_mobile || selectedTxn.mobile_no || "--"}
+                  </Typography>
+                </Box>
               </Paper>
-            </DialogContent>
-            <DialogActions sx={{ p: 2, pt: 0 }}>
-              <Button onClick={() => setReceiptDialogOpen(false)}>Close</Button>
-              <Button variant="contained" onClick={() => window.print()} sx={{ bgcolor: "#059669", color: "#FFFFFF", fontWeight: 800 }}>
-                Print
+
+              {/* Payment Details Section */}
+              <Typography sx={{ fontSize: "12.5px", fontWeight: 800, color: "#059669", mb: 1 }}>
+                Payment Details
+              </Typography>
+              <Stack spacing={0.8} sx={{ mb: 2 }}>
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography sx={{ fontSize: "12px", color: "#4B5563" }}>Base Amount</Typography>
+                  <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#111827" }}>
+                    ₹{Number(selectedTxn.amount || selectedTxn.txn_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </Typography>
+                </Stack>
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography sx={{ fontSize: "12px", color: "#4B5563" }}>Charges</Typography>
+                  <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#111827" }}>
+                    ₹{Number(selectedTxn.charges ?? selectedTxn.total_charges ?? 0).toFixed(2)}
+                  </Typography>
+                </Stack>
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography sx={{ fontSize: "12px", color: "#4B5563" }}>GST (18%)</Typography>
+                  <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#111827" }}>
+                    ₹{Number(selectedTxn.gst ?? selectedTxn.tax_amount ?? 0).toFixed(2)}
+                  </Typography>
+                </Stack>
+                <Box sx={{ bgcolor: "rgba(16, 185, 129, 0.08)", p: 0.8, px: 1.2, borderRadius: "6px", display: "flex", justifyContent: "space-between" }}>
+                  <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#059669" }}>Total Amount</Typography>
+                  <Typography sx={{ fontSize: "12.5px", fontWeight: 900, color: "#059669" }}>
+                    ₹{Number(selectedTxn.total_amount || selectedTxn.customer_payable || selectedTxn.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </Typography>
+                </Box>
+                <Box sx={{ bgcolor: "rgba(16, 185, 129, 0.12)", p: 0.8, px: 1.2, borderRadius: "6px", display: "flex", justifyContent: "space-between" }}>
+                  <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#10B981" }}>Wallet Credit</Typography>
+                  <Typography sx={{ fontSize: "12.5px", fontWeight: 900, color: "#10B981" }}>
+                    +₹{Number(selectedTxn.wallet_credit ?? selectedTxn.retailer_credit ?? selectedTxn.amount ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </Typography>
+                </Box>
+              </Stack>
+
+              {/* Gateway & Method Section */}
+              <Typography sx={{ fontSize: "12.5px", fontWeight: 800, color: "#059669", mb: 1 }}>
+                Gateway &amp; Method
+              </Typography>
+              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5, mb: 2 }}>
+                <Box>
+                  <Typography sx={{ fontSize: "10.5px", color: "#6B7280" }}>Gateway</Typography>
+                  <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#111827" }}>
+                    {selectedTxn.gateway || "G-1"}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography sx={{ fontSize: "10.5px", color: "#6B7280" }}>Method</Typography>
+                  <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#111827" }}>
+                    {selectedTxn.method || selectedTxn.payment_mode || "UPI"}
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* Thank you note */}
+              <Typography sx={{ textAlign: "center", fontSize: "11.5px", fontStyle: "italic", color: "#6B7280", my: 2 }}>
+                Thank you for using {branding?.display_name || "SMSPAY"}!
+              </Typography>
+            </Box>
+
+            {/* Bottom Wave Graphic */}
+            <Box
+              sx={{
+                width: "100%",
+                height: 38,
+                background: "linear-gradient(135deg, #059669 0%, #10B981 50%, #34D399 100%)",
+                borderRadius: "40% 40% 0 0 / 16px 16px 0 0",
+              }}
+            />
+
+            {/* Dialog Actions */}
+            <Box sx={{ p: 2, px: 3, display: "flex", justifyContent: "space-between", bgcolor: "#FFFFFF" }}>
+              <Button onClick={() => setReceiptDialogOpen(false)} sx={{ color: "#6B7280", textTransform: "none", fontWeight: 700 }}>
+                Close
               </Button>
-            </DialogActions>
-          </>
+              <Button
+                variant="contained"
+                startIcon={<PrintIcon />}
+                onClick={() => handlePrintVerifiedReceipt(selectedTxn)}
+                sx={{
+                  bgcolor: "#059669",
+                  color: "#FFFFFF",
+                  fontWeight: 800,
+                  textTransform: "none",
+                  borderRadius: "8px",
+                  "&:hover": { bgcolor: "#047857" },
+                }}
+              >
+                Print Slip
+              </Button>
+            </Box>
+          </Box>
         )}
       </Dialog>
-
-      {/* Snackbar Notifications */}
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={3000}
-        onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert onClose={() => setSnackbarOpen(false)} severity="success" sx={{ width: "100%", borderRadius: "10px" }}>
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 };
+
+/**
+ * Generates verified receipt HTML string for standard isolated browser printing
+ */
+function generateReceiptPrintHtml(item: PayinReportItem, brand: any) {
+  const logo = brand?.logo_url || "/branding/pay2pay-logo.png";
+  const compName = brand?.display_name || brand?.company_name || "SMSPAY";
+  const st = (item.status || "SUCCESS").toUpperCase();
+  const isSuccess = st === "SUCCESS" || st === "COMPLETED" || st === "SETTLED";
+  const isPending = st === "PENDING" || st === "INITIATED" || st === "PROCESSING";
+  const stColor = isSuccess ? "#059669" : isPending ? "#D97706" : "#DC2626";
+  const stText = isSuccess ? "Payment Successful" : isPending ? "Payment Pending" : "Payment Failed";
+  const dt = item.date_time || item.created_at || "--";
+  const baseAmt = Number(item.amount || item.txn_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 });
+  const chargesAmt = Number(item.charges ?? item.total_charges ?? 0).toFixed(2);
+  const gstAmt = Number(item.gst ?? item.tax_amount ?? 0).toFixed(2);
+  const totalAmt = Number(item.total_amount || item.customer_payable || item.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 });
+  const creditAmt = Number(item.wallet_credit ?? item.retailer_credit ?? item.amount ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 });
+  const retName = item.retailer_name || "Retailer Partner";
+  const custMob = item.customer_mobile || item.mobile_no || "--";
+  const gw = item.gateway || "G-1";
+  const method = item.method || item.payment_mode || "UPI";
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Payment Receipt - ${item.tid}</title>
+  <style>
+    @page { size: auto; margin: 12mm 10mm; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #FFFFFF;
+      color: #111827;
+      display: flex;
+      justify-content: center;
+    }
+    .receipt-card {
+      width: 100%;
+      max-width: 420px;
+      border: 1px solid #E5E7EB;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #FFFFFF;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.06);
+    }
+    .header {
+      text-align: center;
+      padding: 24px 20px 14px;
+    }
+    .logo {
+      max-height: 38px;
+      max-width: 160px;
+      object-fit: contain;
+      margin-bottom: 12px;
+    }
+    .green-line {
+      height: 2px;
+      background: #10B981;
+      width: 100%;
+      margin-bottom: 16px;
+    }
+    .title {
+      font-size: 19px;
+      font-weight: 800;
+      color: #111827;
+      margin: 0 0 8px;
+      letter-spacing: -0.3px;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: ${stColor};
+      font-weight: 700;
+      font-size: 13.5px;
+    }
+    .status-icon {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: ${stColor};
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    .content {
+      padding: 0 20px 20px;
+    }
+    .summary-box {
+      background: #F9FAFB;
+      border: 1px solid #F3F4F6;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px 16px;
+    }
+    .summary-item .label {
+      font-size: 11px;
+      color: #6B7280;
+      margin-bottom: 3px;
+    }
+    .summary-item .val {
+      font-size: 12px;
+      font-weight: 700;
+      color: #111827;
+      word-break: break-all;
+    }
+    .section-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: #059669;
+      margin: 16px 0 10px;
+      letter-spacing: 0.2px;
+    }
+    .data-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      font-size: 12.5px;
+      border-bottom: 1px dashed #F3F4F6;
+    }
+    .data-row .row-label {
+      color: #4B5563;
+    }
+    .data-row .row-val {
+      font-weight: 700;
+      color: #111827;
+    }
+    .total-row {
+      background: #F0FDF4;
+      padding: 8px 12px;
+      border-radius: 8px;
+      margin-top: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: none;
+    }
+    .total-row .row-label {
+      font-weight: 800;
+      color: #059669;
+      font-size: 13px;
+    }
+    .total-row .row-val {
+      font-weight: 900;
+      color: #059669;
+      font-size: 14px;
+    }
+    .gw-box {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px 16px;
+      padding: 8px 0;
+    }
+    .footer-note {
+      text-align: center;
+      font-size: 12px;
+      color: #6B7280;
+      font-style: italic;
+      margin: 24px 0 16px;
+    }
+    .wave-bg {
+      width: 100%;
+      height: 48px;
+      background: linear-gradient(135deg, #059669 0%, #10B981 50%, #34D399 100%);
+      border-radius: 40% 40% 0 0 / 20px 20px 0 0;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="receipt-card">
+    <div class="header">
+      <img src="${logo}" class="logo" alt="${compName}" />
+      <div class="green-line"></div>
+      <h2 class="title">Payment Receipt</h2>
+      <div class="status-badge">
+        <span class="status-icon">✓</span>
+        <span>${stText}</span>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="summary-box">
+        <div class="summary-item">
+          <div class="label">TID</div>
+          <div class="val" style="font-family: monospace;">${item.tid}</div>
+        </div>
+        <div class="summary-item">
+          <div class="label">Date & Time</div>
+          <div class="val">${dt}</div>
+        </div>
+        <div class="summary-item">
+          <div class="label">Retailer</div>
+          <div class="val">${retName}</div>
+        </div>
+        <div class="summary-item">
+          <div class="label">Mobile No</div>
+          <div class="val" style="font-family: monospace;">${custMob}</div>
+        </div>
+      </div>
+
+      <div class="section-title">Payment Details</div>
+      <div class="data-row">
+        <span class="row-label">Base Amount</span>
+        <span class="row-val">₹${baseAmt}</span>
+      </div>
+      <div class="data-row">
+        <span class="row-label">Charges</span>
+        <span class="row-val">₹${chargesAmt}</span>
+      </div>
+      <div class="data-row">
+        <span class="row-label">GST (18%)</span>
+        <span class="row-val">₹${gstAmt}</span>
+      </div>
+      <div class="total-row">
+        <span class="row-label">Total Amount</span>
+        <span class="row-val">₹${totalAmt}</span>
+      </div>
+      <div class="total-row" style="background: #ECFDF5; margin-top: 4px;">
+        <span class="row-label" style="color: #10B981;">Wallet Credit</span>
+        <span class="row-val" style="color: #10B981;">+₹${creditAmt}</span>
+      </div>
+
+      <div class="section-title" style="margin-top: 20px;">Gateway & Method</div>
+      <div class="gw-box">
+        <div class="summary-item">
+          <div class="label">Gateway</div>
+          <div class="val">${gw}</div>
+        </div>
+        <div class="summary-item">
+          <div class="label">Method</div>
+          <div class="val">${method}</div>
+        </div>
+      </div>
+
+      <div class="footer-note">Thank you for using ${compName}!</div>
+    </div>
+
+    <div class="wave-bg"></div>
+  </div>
+</body>
+</html>`;
+}
+
+export default RetailerPayinReport;

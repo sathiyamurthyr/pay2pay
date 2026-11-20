@@ -278,10 +278,61 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 1. Explicit Public Routes (Always accessible without authentication)
-  const isReceiptDomain = host.includes("receipt.near4you.store");
+  // 1. Dedicated Receipt Domain Isolation & Public Capability Routes
+  const hostLower = host.toLowerCase();
+  const isReceiptDomain =
+    hostLower.startsWith("receipt.") ||
+    hostLower.includes("receipt.smspay.store") ||
+    hostLower.includes("receipt.near4you.store") ||
+    hostLower.includes("receipt.pay2pay.in") ||
+    hostLower.includes("receipt.smspay.in") ||
+    hostLower.includes("receipt.near4you.in");
+
+  if (isReceiptDomain) {
+    // Strictly isolate receipt subdomains: NEVER allow portal routes (retailer, admin, dist, sd, dashboard, etc.)
+    const isProtectedPortalRoute =
+      pathname.startsWith("/retailer") ||
+      pathname.startsWith("/admin") ||
+      pathname.startsWith("/super-admin") ||
+      pathname.startsWith("/dist") ||
+      pathname.startsWith("/sd") ||
+      pathname.startsWith("/dashboard") ||
+      pathname.startsWith("/retailer-dashboard") ||
+      pathname.startsWith("/admin-dashboard") ||
+      pathname.startsWith("/operations") ||
+      pathname.startsWith("/announcements") ||
+      pathname.startsWith("/wallet-ledger");
+
+    if (isProtectedPortalRoute) {
+      return new NextResponse("Access Denied: Portal not available on receipt subdomain.", {
+        status: 403,
+        headers: { "Content-Type": "text/plain" }
+      });
+    }
+
+    // Root rewrites directly to capability receipt route /r
+    if (pathname === "/" || pathname === "") {
+      return applySecurityHeaders(NextResponse.rewrite(new URL("/r", request.url)));
+    }
+
+    const isAllowedReceiptRoute =
+      pathname.startsWith("/r/") ||
+      pathname === "/r" ||
+      pathname.startsWith("/receipt") ||
+      pathname.startsWith("/payin/status");
+
+    if (isAllowedReceiptRoute) {
+      return applySecurityHeaders(NextResponse.next());
+    }
+
+    // Any other path on receipt domain is forbidden (fail closed)
+    return new NextResponse("Access Denied: Portal not available on receipt subdomain.", {
+      status: 403,
+      headers: { "Content-Type": "text/plain" }
+    });
+  }
+
   const isReceiptRoute =
-    isReceiptDomain ||
     pathname.startsWith("/r/") ||
     pathname === "/r" ||
     pathname.startsWith("/receipt");

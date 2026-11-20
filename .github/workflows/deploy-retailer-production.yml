@@ -4,20 +4,57 @@ on:
   push:
     branches:
       - prod
-      - main
     paths:
-      - 'pay2pay-platform/apps/retailer/**'
+      - 'frontend/**'
       - 'backend/**'
       - '.github/workflows/deploy-retailer-production.yml'
   workflow_dispatch:
+    inputs:
+      deploy_scope:
+        description: 'Deployment scope'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - backend_only
+          - frontend_only
 
 concurrency:
   group: production-near4you-retailer
   cancel-in-progress: false
 
 jobs:
-  validate-and-build:
-    name: Build & Package Retailer App
+  detect-changes:
+    name: Detect Changed Paths
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Check Changed Files
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - '.github/workflows/deploy-retailer-production.yml'
+            frontend:
+              - 'frontend/**'
+              - '.github/workflows/deploy-retailer-production.yml'
+
+  build-frontend:
+    name: Build & Package Retailer Frontend
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.frontend == 'true' ||
+      github.event.inputs.deploy_scope == 'all' ||
+      github.event.inputs.deploy_scope == 'frontend_only' ||
+      github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -28,25 +65,33 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: pay2pay-platform/package-lock.json
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: Install Monorepo Dependencies
+      - name: Restore Next.js Cache
+        uses: actions/cache@v4
+        with:
+          path: frontend/.next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('frontend/package-lock.json') }}-${{ hashFiles('frontend/src/**') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('frontend/package-lock.json') }}-
+
+      - name: Install Frontend Dependencies
         run: |
-          cd pay2pay-platform
+          cd frontend
           npm ci --legacy-peer-deps
 
-      - name: Build Retailer Frontend for near4you.store
+      - name: Build Retailer Frontend
         env:
           NEXT_PUBLIC_API_URL: "/api/v1"
           NODE_OPTIONS: "--max-old-space-size=3072"
           NEXT_TELEMETRY_DISABLED: "1"
         run: |
-          cd pay2pay-platform/apps/retailer
+          cd frontend
           npm run build
 
       - name: Assemble Standalone Bundle
         run: |
-          APP_DIR="pay2pay-platform/apps/retailer"
+          APP_DIR="frontend"
           STANDALONE="$APP_DIR/.next/standalone"
           APP_SUBDIR="$STANDALONE/apps/retailer"
           mkdir -p "$STANDALONE/.next" "$APP_SUBDIR/.next"
@@ -54,6 +99,18 @@ jobs:
           cp -r "$APP_DIR/.next/static" "$APP_SUBDIR/.next/static" || true
           cp -r "$APP_DIR/public" "$STANDALONE/public" || true
           cp -r "$APP_DIR/public" "$APP_SUBDIR/public" || true
+          if [ -f "$STANDALONE/server.js" ]; then
+            cp "$STANDALONE/server.js" "$APP_SUBDIR/server.js"
+          fi
+          if [ -d "$STANDALONE/.next/server" ]; then
+            mkdir -p "$APP_SUBDIR/.next/server"
+            cp -r "$STANDALONE/.next/server" "$APP_SUBDIR/.next/"
+          fi
+          for item in "$STANDALONE/.next"/*; do
+            if [ -f "$item" ]; then
+              cp "$item" "$APP_SUBDIR/.next/"
+            fi
+          done
           cd "$STANDALONE"
           tar -czf ../../../retailer_standalone.tar.gz .
           echo "✅ Built retailer_standalone.tar.gz"
@@ -62,19 +119,22 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: retailer-standalone-bundle
-          path: pay2pay-platform/apps/retailer_standalone.tar.gz
+          path: retailer_standalone.tar.gz
           retention-days: 7
 
   deploy-to-vps:
     name: Deploy to Production VPS
-    needs: validate-and-build
+    needs: [detect-changes, build-frontend]
+    if: always() && !cancelled() && needs.build-frontend.result != 'failure'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Download Built Artifact
+      - name: Download Frontend Artifact if Available
+        id: download-artifact
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: retailer-standalone-bundle
           path: ./
@@ -82,35 +142,74 @@ jobs:
       - name: Configure SSH Key
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_deploy
+          echo "${{ secrets.VPS_SSH_KEY || secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
 
-      - name: Sync Backend & Frontend to VPS
+      - name: Package Backend Bundle
+        run: |
+          tar -czf near4you_backend_update.tar.gz \
+            --exclude="__pycache__" \
+            --exclude="*.pyc" \
+            --exclude=".pytest_cache" \
+            -C backend \
+            app requirements.txt alembic alembic.ini sathus_notification scripts seed_payin_mdr_master.py || \
+          tar -czf near4you_backend_update.tar.gz \
+            --exclude="__pycache__" \
+            --exclude="*.pyc" \
+            -C backend app requirements.txt
+          echo "✅ Backend packaged: $(ls -lh near4you_backend_update.tar.gz | awk '{print $5}')"
+
+      - name: Sync and Deploy on VPS
         env:
-          HOST: ${{ secrets.VPS_SSH_HOST || '157.20.172.186' }}
+          HOST: ${{ secrets.VPS_SSH_HOST || secrets.SERVER_HOST || '157.20.172.186' }}
           PORT: ${{ secrets.VPS_SSH_PORT || '55002' }}
           USER: ${{ secrets.VPS_SSH_USER || 'sathiya' }}
+          HAS_FRONTEND_BUNDLE: ${{ steps.download-artifact.outcome == 'success' }}
         run: |
-          echo "==> Transferring frontend bundle to VPS..."
-          scp -P $PORT -i ~/.ssh/id_deploy -o StrictHostKeyChecking=no retailer_standalone.tar.gz $USER@$HOST:/tmp/retailer_standalone.tar.gz
+          echo "==> Transferring update bundles to VPS..."
+          scp -P $PORT -i ~/.ssh/id_deploy -o StrictHostKeyChecking=no near4you_backend_update.tar.gz $USER@$HOST:/tmp/near4you_backend_update.tar.gz
+          if [ -f retailer_standalone.tar.gz ]; then
+            scp -P $PORT -i ~/.ssh/id_deploy -o StrictHostKeyChecking=no retailer_standalone.tar.gz $USER@$HOST:/tmp/retailer_standalone.tar.gz
+          fi
 
-          echo "==> Deploying on VPS..."
+          echo "==> Executing deployment commands on VPS..."
           ssh -p $PORT -i ~/.ssh/id_deploy -o StrictHostKeyChecking=no $USER@$HOST << 'EOF'
-            set -e
+            set -euo pipefail
             DEPLOY_DIR="/opt/near4you-retailer"
             sudo mkdir -p "$DEPLOY_DIR/frontend" "$DEPLOY_DIR/backend"
-            
-            # Unpack frontend bundle
-            sudo tar -xzf /tmp/retailer_standalone.tar.gz -C "$DEPLOY_DIR/frontend/"
-            sudo rm -f /tmp/retailer_standalone.tar.gz
-            
-            # Restart only the dedicated near4you-retailer compose project
-            cd "$DEPLOY_DIR"
-            sudo docker compose build --pull
-            sudo docker compose up -d --remove-orphans
-            
-            # Health check validation
+
+            # 1. Update Backend
+            if [ -f /tmp/near4you_backend_update.tar.gz ]; then
+              echo "--- Unpacking backend update ---"
+              sudo tar --no-same-owner -xzf /tmp/near4you_backend_update.tar.gz -C "$DEPLOY_DIR/backend/"
+              sudo rm -f /tmp/near4you_backend_update.tar.gz
+              sudo docker cp "$DEPLOY_DIR/backend/app" near4you-retailer-backend:/app/
+              if [ -d "$DEPLOY_DIR/backend/sathus_notification" ]; then
+                sudo docker cp "$DEPLOY_DIR/backend/sathus_notification" near4you-retailer-backend:/app/
+              fi
+              if [ -d "$DEPLOY_DIR/backend/scripts" ]; then
+                sudo docker cp "$DEPLOY_DIR/backend/scripts" near4you-retailer-backend:/app/
+              fi
+              sudo docker restart near4you-retailer-backend
+              echo "✅ Backend restarted"
+            fi
+
+            # 2. Update Frontend (if archive was uploaded)
+            if [ -f /tmp/retailer_standalone.tar.gz ]; then
+              echo "--- Unpacking frontend standalone bundle ---"
+              sudo tar --no-same-owner -xzf /tmp/retailer_standalone.tar.gz -C "$DEPLOY_DIR/frontend/"
+              sudo rm -f /tmp/retailer_standalone.tar.gz
+              cd "$DEPLOY_DIR"
+              sudo docker compose build frontend
+              sudo docker compose up -d --force-recreate frontend
+              echo "✅ Frontend container rebuilt and recreated"
+            fi
+
+            # 3. Post-Deployment Verification
+            echo "--- Verifying deployment health ---"
             sleep 10
-            curl -fsS http://127.0.0.1:8090/openapi.json > /dev/null && echo "✅ Backend OK"
-            wget -q --spider http://127.0.0.1:3060/ && echo "✅ Frontend OK"
+            sudo docker compose ps frontend backend
+            curl -fsS http://127.0.0.1:8090/health && echo " -> Backend OK"
+            wget -q --spider http://127.0.0.1:3060/retailer/login && echo " -> Frontend OK"
+            echo "🎉 Deployment successfully verified!"
           EOF

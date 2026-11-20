@@ -50,18 +50,22 @@ def test_get_company_preset():
     smspay = get_company_preset(2)
     assert smspay is not None
     assert smspay["company_code"] == "SMSPAY"
-    assert smspay["company_name"] == "SMSPAY"
+    assert smspay["company_name"] == "INSPEL TECHNOLOGIES SOLUTIONS PVT"
+    assert smspay["legal_name"] == "INSPEL TECHNOLOGIES SOLUTIONS PVT"
     assert smspay["website"] == "https://smspay.store"
     assert smspay["support_email"] == "support@smspay.store"
 
     p2p = get_company_preset(47)
     assert p2p is not None
     assert p2p["company_code"] == "PAY2PAY"
-    assert p2p["company_name"] == "Pay2Pay"
+    assert p2p["company_name"] == "SUPER REX PRODUCTS PRIVATE LIMITED"
+    assert p2p["legal_name"] == "SUPER REX PRODUCTS PRIVATE LIMITED"
 
     n4u = get_company_preset(1)
     assert n4u is not None
     assert n4u["company_code"] == "NEAR4YOU"
+    assert n4u["company_name"] == "SATHUS TECHNOLOGY PRIVATE LIMITED"
+    assert n4u["legal_name"] == "SATHUS TECHNOLOGY PRIVATE LIMITED"
 
 
 @pytest.mark.asyncio
@@ -123,7 +127,7 @@ async def test_profile_resolve_context_cross_company_mismatch():
 
         assert exc_info.value.status_code == 403
         assert "COMPANY_IDENTITY_MISMATCH" in exc_info.value.detail
-        assert "SMSPAY" in exc_info.value.detail
+        assert ("INSPEL TECHNOLOGIES SOLUTIONS PVT" in exc_info.value.detail or "SMSPAY" in exc_info.value.detail)
 
 
 @pytest.mark.asyncio
@@ -150,7 +154,7 @@ async def test_dashboard_resolve_context_cross_company_mismatch():
 
         assert exc_info.value.status_code == 403
         assert "COMPANY_IDENTITY_MISMATCH" in exc_info.value.detail
-        assert "SMSPAY" in exc_info.value.detail
+        assert ("INSPEL TECHNOLOGIES SOLUTIONS PVT" in exc_info.value.detail or "SMSPAY" in exc_info.value.detail)
 
 
 def test_resolve_brand_metadata_strict_isolation():
@@ -164,11 +168,12 @@ def test_resolve_brand_metadata_strict_isolation():
     )
     assert smspay_meta["company_code"] == "SMSPAY"
     assert smspay_meta["display_name"] == "SMSPAY"
+    assert smspay_meta["company_name"] == "INSPEL TECHNOLOGIES SOLUTIONS PVT"
+    assert smspay_meta["legal_name"] == "INSPEL TECHNOLOGIES SOLUTIONS PVT"
     assert smspay_meta["logo_url"] == "/branding/smspay-logo.svg"
-    assert smspay_meta["favicon_url"] == "/branding/smspay-mark.svg"
+    assert smspay_meta["favicon_url"] == "/branding/smspay-favicon-32x32.png"
     assert smspay_meta["primary_colour"] == "#059669"
     assert smspay_meta["secondary_colour"] == "#047857"
-    assert smspay_meta["legal_name"] == "SMSPAY Technologies Pvt. Ltd."
 
     # 2. SMSPAY via port 4002
     smspay_port_meta = resolve_brand_metadata(
@@ -177,7 +182,7 @@ def test_resolve_brand_metadata_strict_isolation():
         db_row={"company_code": "SUPERREX", "company_ref_id": 2}
     )
     assert smspay_port_meta["company_code"] == "SMSPAY"
-    assert smspay_port_meta["favicon_url"] == "/branding/smspay-mark.svg"
+    assert smspay_port_meta["favicon_url"] == "/branding/smspay-favicon-32x32.png"
 
     # 3. Pay2Pay via host hint
     p2p_meta = resolve_brand_metadata(
@@ -187,11 +192,12 @@ def test_resolve_brand_metadata_strict_isolation():
     )
     assert p2p_meta["company_code"] == "PAY2PAY"
     assert p2p_meta["display_name"] == "Pay2Pay"
+    assert p2p_meta["company_name"] == "SUPER REX PRODUCTS PRIVATE LIMITED"
+    assert p2p_meta["legal_name"] == "SUPER REX PRODUCTS PRIVATE LIMITED"
     assert p2p_meta["logo_url"] == "/branding/pay2pay-logo.png"
     assert p2p_meta["favicon_url"] == "/branding/pay2pay-favicon.png"
     assert p2p_meta["primary_colour"] == "#2563EB"
     assert p2p_meta["secondary_colour"] == "#1E40AF"
-    assert p2p_meta["legal_name"] == "Pay2Pay FinTech Solutions Pvt. Ltd."
 
     # 4. Near4You via host hint
     n4u_meta = resolve_brand_metadata(
@@ -201,10 +207,11 @@ def test_resolve_brand_metadata_strict_isolation():
     )
     assert n4u_meta["company_code"] == "NEAR4YOU"
     assert n4u_meta["display_name"] == "Near4You"
+    assert n4u_meta["company_name"] == "SATHUS TECHNOLOGY PRIVATE LIMITED"
+    assert n4u_meta["legal_name"] == "SATHUS TECHNOLOGY PRIVATE LIMITED"
     assert n4u_meta["logo_url"] == "/branding/logo.svg"
     assert n4u_meta["favicon_url"] == "/branding/favicon.png"
     assert n4u_meta["primary_colour"] == "#A20A3A"
     assert n4u_meta["secondary_colour"] == "#EDC11E"
-    assert n4u_meta["legal_name"] == "Near4You Enterprise Technologies Pvt. Ltd."
 
 

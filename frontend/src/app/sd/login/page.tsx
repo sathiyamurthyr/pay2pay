@@ -1,8 +1,16 @@
+"use client";
+
 import React from "react";
 import { AuthPanel } from "@/components/auth/AuthPanel";
 import { ShieldCheck, Network, Layers } from "lucide-react";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 export default function SuperDistributorLoginPage() {
+  const branding = useCompanyBranding();
+  const brandPrimary = branding.primary_colour || "#A20A3A";
+  const brandSecondary = branding.secondary_colour || "#EDC11E";
+  const brandName = branding.display_name || "FinTech";
+
   return (
     <div className="min-h-screen bg-[#FFFFFF] text-[#292329] flex flex-col justify-between overflow-x-hidden relative select-none">
       {/* Main Content */}
@@ -10,17 +18,28 @@ export default function SuperDistributorLoginPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center w-full">
           {/* Left Column — SD Marketing Hero */}
           <div className="hidden lg:flex lg:col-span-6 flex-col justify-center space-y-6 pr-4">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FFF8DC] border border-[#FFF3C4] w-fit">
-              <ShieldCheck className="w-4 h-4 text-[#EDC11E]" />
-              <span className="text-xs font-semibold text-[#D4A915]">
-                Super Distributor Master Console
+            <div
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border w-fit"
+              style={{
+                backgroundColor: `${brandSecondary}15`,
+                borderColor: `${brandSecondary}30`,
+              }}
+            >
+              <ShieldCheck className="w-4 h-4" style={{ color: brandSecondary }} />
+              <span className="text-xs font-semibold" style={{ color: brandPrimary }}>
+                {brandName} Super Distributor Master Console
               </span>
             </div>
 
             <div className="space-y-3">
               <h1 className="text-3xl xl:text-4xl font-extrabold tracking-tight text-[#292329] leading-tight">
-                Near 4 You SD Portal <br />
-                <span className="bg-gradient-to-r from-[#A20A3A] via-[#C42555] to-[#EDC11E] bg-clip-text text-transparent">
+                {brandName} SD Portal <br />
+                <span
+                  className="bg-clip-text text-transparent font-black"
+                  style={{
+                    backgroundImage: `linear-gradient(to right, ${brandPrimary}, ${brandSecondary})`
+                  }}
+                >
                   Super Distributor Workspace
                 </span>
               </h1>

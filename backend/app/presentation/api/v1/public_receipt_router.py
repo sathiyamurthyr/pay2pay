@@ -19,6 +19,9 @@ from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.security import GlobalReceiptSecurity
+from app.core.company_resolver import resolve_receipt_base_url, get_company_preset
+from app.application.gateway_masking_service import GatewayMaskingService
 from app.infrastructure.db.payout_workflow_models import (
     PayoutReceiptModel,
     PayoutWorkflowTransactionModel
@@ -36,16 +39,30 @@ router = APIRouter(tags=["Public Digital Receipts"])
 @router.get("/receipt/{token}")
 @router.get("/api/v1/public/receipt/{token}")
 async def get_public_receipt(
-    token: str = Path(..., min_length=4, max_length=64, description="Secure high-entropy receipt token, transaction ID, or public UUID"),
+    token: str = Path(..., min_length=4, max_length=512, description="Secure high-entropy receipt token, transaction ID, or public UUID"),
     db: AsyncSession = Depends(get_db)
 ) -> Dict[str, Any]:
     """
     Public verified endpoint to retrieve digital receipt snapshot by secure token, transaction ID, or UUID.
     No authentication required: the token itself acts as a capability URL secret.
+    Supports authenticated AES-256-GCM encrypted tokens for tenant-isolated, parameter-tamper-proof links.
     """
     clean_token = token.strip()
     if not clean_token:
         raise HTTPException(status_code=400, detail="Invalid receipt token.")
+
+    # Attempt AES-256-GCM authenticated payload decryption
+    decrypted_payload = GlobalReceiptSecurity.decrypt_receipt_token(clean_token)
+    decrypted_tid: Optional[str] = None
+    expected_company_ref_id: Optional[int] = None
+    if decrypted_payload and isinstance(decrypted_payload, dict):
+        decrypted_tid = (
+            decrypted_payload.get("tid") or
+            decrypted_payload.get("transactionId") or
+            decrypted_payload.get("referenceId") or
+            decrypted_payload.get("orderId")
+        )
+        expected_company_ref_id = decrypted_payload.get("company_ref_id")
 
     u_tok: Optional[uuid.UUID] = None
     try:
@@ -53,32 +70,51 @@ async def get_public_receipt(
     except Exception:
         pass
 
+    # Build prioritized candidate list for transaction lookup
+    lookup_candidates = [clean_token]
+    if decrypted_tid and decrypted_tid not in lookup_candidates:
+        lookup_candidates.append(decrypted_tid)
+
     # =========================================================================
     # 0. Primary Fast Lookup: PayinTransactionModel (PayIn Wallet Top-Up Receipt)
     # =========================================================================
     try:
         from app.infrastructure.db.payin_models import PayinTransactionModel
-        payin_conditions = [
-            PayinTransactionModel.tid == clean_token,
-            PayinTransactionModel.merchant_ref_id == clean_token,
-            PayinTransactionModel.provider_ref_id == clean_token
-        ]
+        payin_conditions = []
+        for cand in lookup_candidates:
+            payin_conditions.extend([
+                PayinTransactionModel.tid == cand,
+                PayinTransactionModel.merchant_ref_id == cand,
+                PayinTransactionModel.provider_ref_id == cand
+            ])
 
         stmt_payin = select(PayinTransactionModel).where(or_(*payin_conditions))
         payin_txn = (await db.execute(stmt_payin)).scalars().first()
 
         if payin_txn:
+            # Tenant isolation enforcement
+            if expected_company_ref_id is not None and payin_txn.company_ref_id != expected_company_ref_id:
+                logger.warning(
+                    "[PUBLIC_RECEIPT] Tenant mismatch: token specifies company %s but txn has %s",
+                    expected_company_ref_id, payin_txn.company_ref_id
+                )
+                raise HTTPException(status_code=403, detail="Receipt verification failed: tenant mismatch")
+
             is_smspay = payin_txn.company_ref_id == 2
             is_pay2pay = payin_txn.company_ref_id == 47
 
             company_code = "SMSPAY" if is_smspay else ("PAY2PAY" if is_pay2pay else "NEAR4YOU")
             brand_name = "SMSPAY" if is_smspay else ("Pay2Pay" if is_pay2pay else "Near4You")
             company_name = (
-                "SMSPAY Technologies Pvt. Ltd."
+                "INSPEL TECHNOLOGIES SOLUTIONS PVT"
                 if is_smspay
-                else ("Pay2Pay FinTech Solutions Pvt. Ltd." if is_pay2pay else "Near4You Enterprise Technologies Pvt. Ltd.")
+                else ("SUPER REX PRODUCTS PRIVATE LIMITED" if is_pay2pay else "SATHUS TECHNOLOGY PRIVATE LIMITED")
             )
             brand_tagline = f"{brand_name} Digital Payments · Instant Wallet Top-Up Switch"
+
+            preset = get_company_preset(payin_txn.company_ref_id) or {}
+            support_phone = preset.get("support_phone", "+91 98765 43210")
+            support_email = preset.get("support_email", "support@smspay.store" if is_smspay else "support@pay2pay.in")
 
             ret_name = payin_txn.cust_name or "Retailer Partner"
             ret_code = ""
@@ -104,10 +140,25 @@ async def get_public_receipt(
             else:
                 st_text = f"WALLET TOP-UP {st_norm}"
 
-            clean_sig = str(clean_token).replace("-", "").upper()[-8:]
-            return {
+            clean_sig = str(payin_txn.tid or clean_token).replace("-", "").upper()[-8:]
+            gw_code = GatewayMaskingService.get_gateway_code(payin_txn.payin_vendor_ref_id)
+            receipt_base = resolve_receipt_base_url(payin_txn.company_ref_id)
+            receipt_url = f"{receipt_base}/r/{clean_token}"
+
+            base_amt = float(payin_txn.txn_amount)
+            charges_amt = float(payin_txn.mdr_amount or 0.0)
+            gst_amt = float(payin_txn.tax_amount or 0.0)
+            total_deb = float(payin_txn.customer_payable or (base_amt + float(payin_txn.total_charges or 0.0)))
+            wallet_cred = float(payin_txn.retailer_credit or base_amt)
+
+            formatted_mob = f"+91 {ret_mob[-10:]}" if len(ret_mob) >= 10 else ret_mob
+            utr_val = payin_txn.provider_ref_id or payin_txn.tid
+            order_id_val = payin_txn.merchant_ref_id or payin_txn.tid
+
+            receipt_result = {
                 "valid": True,
                 "receiptToken": payin_txn.tid or clean_token,
+                "token": clean_token,
                 "companyName": company_name,
                 "companyCode": company_code,
                 "brandName": brand_name,
@@ -115,33 +166,57 @@ async def get_public_receipt(
                 "certifications": "NPCI IMPS Switch Certified · ISO 27001:2022 · 256-Bit SSL Encrypted",
                 "status": st_norm,
                 "statusText": st_text,
-                "amount": float(payin_txn.retailer_credit or payin_txn.txn_amount),
-                "requestedAmount": float(payin_txn.txn_amount),
-                "approvedAmount": float(payin_txn.retailer_credit or payin_txn.txn_amount),
-                "walletCredit": float(payin_txn.retailer_credit or payin_txn.txn_amount),
-                "charges": float(payin_txn.mdr_amount or 0.0),
-                "gst": float(payin_txn.tax_amount or 0.0),
-                "totalPaid": float(payin_txn.txn_amount),
+                "amount": base_amt,
+                "requestedAmount": base_amt,
+                "approvedAmount": wallet_cred,
+                "walletCredit": wallet_cred,
+                "retailerCredit": wallet_cred,
+                "charges": charges_amt,
+                "gst": gst_amt,
+                "taxAmount": gst_amt,
+                "totalDebited": total_deb,
+                "totalPaid": total_deb,
+                "totalAmount": total_deb,
                 "transactionId": payin_txn.tid,
-                "utr": payin_txn.provider_ref_id or payin_txn.tid,
-                "channel": payin_txn.card_network or "CARD / UPI",
-                "paymentMode": getattr(payin_txn, "card_network", None) or "CARD",
+                "tid": payin_txn.tid,
+                "orderId": order_id_val,
+                "utr": utr_val,
+                "gatewayRef": utr_val,
+                "rrn": utr_val,
+                "channel": payin_txn.card_network or "UPI",
+                "paymentMode": getattr(payin_txn, "card_network", None) or "UPI",
+                "paymentMethod": getattr(payin_txn, "card_network", None) or "UPI",
+                "gateway": gw_code,
+                "gatewayCode": gw_code,
+                "gatewayName": f"Gateway {gw_code}",
                 "date": date_formatted,
+                "dateTime": date_formatted,
                 "customerName": ret_name,
-                "customerMobile": ret_mob,
+                "customerMobile": formatted_mob,
+                "mobileNo": formatted_mob,
                 "retailerName": f"{ret_name} ({ret_code})" if ret_code else ret_name,
-                "retailerMobile": ret_mob,
+                "retailerId": ret_code or "RT12345",
+                "retailerCode": ret_code or "RT12345",
+                "retailerMobile": formatted_mob,
                 "beneficiaryName": f"{brand_name} Retailer Main Wallet",
                 "beneficiaryBank": f"{brand_name} CBS Gateway Switch",
                 "beneficiaryIfsc": "SMSP0000CBS" if is_smspay else "P2P0000CBS",
                 "beneficiaryAccount": f"Wallet A/C: {ret_code}" if ret_code else "Retailer Primary Wallet",
                 "signature": f"SIG-SHA256-{clean_sig}982A1B7C",
-                "downloadUrl": f"https://receipt.sathus.in/r/{payin_txn.tid or clean_token}",
+                "downloadUrl": receipt_url,
+                "receiptUrl": receipt_url,
+                "supportPhone": support_phone,
+                "supportEmail": support_email,
                 "isTopup": True,
                 "isApproved": st_norm == "SUCCESS",
                 "isPendingApproval": st_norm in ("PENDING", "PROCESSING", "INITIATED"),
                 "receiptType": "PAYIN_TOPUP"
             }
+            # Wrap data for dual compatibility with frontend body.data or flat body
+            receipt_result["data"] = {**receipt_result}
+            return receipt_result
+    except HTTPException:
+        raise
     except Exception as e:
         logger.warning(f"[PUBLIC_RECEIPT] PayinTransactionModel lookup notice: {e}")
 
@@ -149,11 +224,13 @@ async def get_public_receipt(
     # 1. Primary Lookup: PayoutReceiptModel (DMT / Payout Official Receipt)
     # =========================================================================
     try:
-        pr_conditions = [
-            PayoutReceiptModel.receipt_token == clean_token,
-            PayoutReceiptModel.reference_number == clean_token,
-            PayoutReceiptModel.transaction_number == clean_token
-        ]
+        pr_conditions = []
+        for cand in lookup_candidates:
+            pr_conditions.extend([
+                PayoutReceiptModel.receipt_token == cand,
+                PayoutReceiptModel.reference_number == cand,
+                PayoutReceiptModel.transaction_number == cand
+            ])
         if u_tok:
             pr_conditions.append(PayoutReceiptModel.public_id == u_tok)
             pr_conditions.append(PayoutReceiptModel.transaction_id == u_tok)
@@ -212,12 +289,14 @@ async def get_public_receipt(
     # 2. Fallback: PayoutWorkflowTransactionModel (Direct Payout Transactions)
     # =========================================================================
     try:
-        tx_conditions = [
-            PayoutWorkflowTransactionModel.reference_number == clean_token,
-            PayoutWorkflowTransactionModel.transaction_number == clean_token,
-            PayoutWorkflowTransactionModel.utr_number == clean_token,
-            PayoutWorkflowTransactionModel.cashfree_transfer_id == clean_token
-        ]
+        tx_conditions = []
+        for cand in lookup_candidates:
+            tx_conditions.extend([
+                PayoutWorkflowTransactionModel.reference_number == cand,
+                PayoutWorkflowTransactionModel.transaction_number == cand,
+                PayoutWorkflowTransactionModel.utr_number == cand,
+                PayoutWorkflowTransactionModel.cashfree_transfer_id == cand
+            ])
         if u_tok:
             tx_conditions.append(PayoutWorkflowTransactionModel.public_id == u_tok)
 
