@@ -30,17 +30,16 @@ def money(value: Any) -> Decimal:
         return Decimal("0.00")
 
 
-def parse_date_range(from_date: Optional[str], to_date: Optional[str]) -> Tuple[datetime, datetime]:
-    now_ist = datetime.now(IST)
+def parse_date_range(from_date: Optional[str], to_date: Optional[str]) -> Tuple[Optional[datetime], Optional[datetime]]:
+    start_dt = None
+    end_dt = None
     if from_date and isinstance(from_date, str) and from_date.strip():
         try:
             start_dt = datetime.strptime(from_date.strip(), "%Y-%m-%d").replace(
                 hour=0, minute=0, second=0, microsecond=0, tzinfo=IST
             ).astimezone(timezone.utc)
         except ValueError:
-            start_dt = datetime(now_ist.year, now_ist.month, now_ist.day, 0, 0, 0, tzinfo=IST).astimezone(timezone.utc)
-    else:
-        start_dt = datetime(now_ist.year, now_ist.month, now_ist.day, 0, 0, 0, tzinfo=IST).astimezone(timezone.utc)
+            pass
 
     if to_date and isinstance(to_date, str) and to_date.strip():
         try:
@@ -48,9 +47,7 @@ def parse_date_range(from_date: Optional[str], to_date: Optional[str]) -> Tuple[
                 hour=23, minute=59, second=59, microsecond=999999, tzinfo=IST
             ).astimezone(timezone.utc)
         except ValueError:
-            end_dt = datetime(now_ist.year, now_ist.month, now_ist.day, 23, 59, 59, microsecond=999999, tzinfo=IST).astimezone(timezone.utc)
-    else:
-        end_dt = datetime(now_ist.year, now_ist.month, now_ist.day, 23, 59, 59, microsecond=999999, tzinfo=IST).astimezone(timezone.utc)
+            pass
 
     return start_dt, end_dt
 
@@ -210,6 +207,9 @@ async def get_payin_report_summary(
     status: Optional[str] = Query(None),
     gateway: Optional[str] = Query(None),
     payment_mode: Optional[str] = Query(None),
+    tid: Optional[str] = Query(None),
+    mobile: Optional[str] = Query(None),
+    mobile_number: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
@@ -223,6 +223,8 @@ async def get_payin_report_summary(
     status_str = clean_str(status)
     gateway_str = clean_str(gateway)
     payment_mode_str = clean_str(payment_mode)
+    tid_str = clean_str(tid)
+    mobile_str = clean_str(mobile) or clean_str(mobile_number)
     search_str = clean_str(search)
 
     effective_comp = auth_ctx["company_ref_id"]
@@ -235,7 +237,77 @@ async def get_payin_report_summary(
 
     start_dt, end_dt = parse_date_range(from_date, to_date)
 
-    sql = """
+    where_clauses = ["1=1"]
+    params: Dict[str, Any] = {}
+
+    if start_dt is not None:
+        where_clauses.append("t.created_at >= :start_dt")
+        params["start_dt"] = start_dt
+
+    if end_dt is not None:
+        where_clauses.append("t.created_at <= :end_dt")
+        params["end_dt"] = end_dt
+
+    if effective_comp is not None:
+        where_clauses.append("t.company_ref_id = :comp_ref")
+        params["comp_ref"] = effective_comp
+
+    if effective_retailer is not None:
+        where_clauses.append("t.retailer_ref_id = :ret_ref")
+        params["ret_ref"] = effective_retailer
+
+    if tid_str:
+        where_clauses.append("t.tid ILIKE :tid_val")
+        params["tid_val"] = f"%{tid_str}%"
+
+    if mobile_str:
+        mob_clean = mobile_str[-10:] if len(mobile_str) >= 10 else mobile_str
+        where_clauses.append("t.cust_mobile ILIKE :mob_val")
+        params["mob_val"] = f"%{mob_clean}%"
+
+    if status_str and status_str.upper() != "ALL":
+        st = status_str.upper()
+        if st in ("SUCCESS", "COMPLETED", "SETTLED"):
+            where_clauses.append("UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED')")
+        elif st in ("PENDING", "INITIATED", "PROCESSING"):
+            where_clauses.append("UPPER(t.txn_status) IN ('PENDING', 'INITIATED', 'PROCESSING')")
+        elif st in ("FAILED", "REJECTED", "TIMEOUT", "FAILURE"):
+            where_clauses.append("UPPER(t.txn_status) IN ('FAILED', 'REJECTED', 'TIMEOUT', 'FAILURE')")
+        elif st in ("REVERSED", "REFUNDED"):
+            where_clauses.append("UPPER(t.txn_status) IN ('REVERSED', 'REFUNDED')")
+        else:
+            where_clauses.append("UPPER(t.txn_status) = :st")
+            params["st"] = st
+
+    if gateway_str and gateway_str.upper() != "ALL":
+        gw = gateway_str.upper()
+        if gw == "G-1":
+            where_clauses.append("(t.payin_vendor_ref_id = 1 OR v.vendor_code ILIKE '%BANKME%')")
+        elif gw == "G-2":
+            where_clauses.append("(t.payin_vendor_ref_id = 2 OR v.vendor_code ILIKE '%EASEBUZZ%')")
+        else:
+            where_clauses.append("(v.vendor_code ILIKE :gw OR v.vendor_name ILIKE :gw)")
+            params["gw"] = f"%{gw}%"
+
+    if payment_mode_str and payment_mode_str.upper() != "ALL":
+        pm = payment_mode_str.upper()
+        where_clauses.append("(p.pay_mode_code ILIKE :pm OR p.pay_mode_name ILIKE :pm)")
+        params["pm"] = f"%{pm}%"
+
+    if search_str:
+        s = f"%{search_str}%"
+        where_clauses.append("""(
+            t.tid ILIKE :s OR
+            t.merchant_ref_id ILIKE :s OR
+            t.provider_ref_id ILIKE :s OR
+            t.cust_mobile ILIKE :s OR
+            t.cust_name ILIKE :s
+        )""")
+        params["s"] = s
+
+    base_where = "WHERE " + " AND ".join(where_clauses)
+
+    sql = f"""
     SELECT
         COUNT(t.payin_transactions_ref_id) AS total_transactions,
         COALESCE(SUM(t.txn_amount), 0.0) AS total_volume,
@@ -256,57 +328,8 @@ async def get_payin_report_summary(
     FROM public.payin_transactions t
     LEFT JOIN public.payin_vendors v ON t.payin_vendor_ref_id = v.payin_vendor_ref_id
     LEFT JOIN public.payin_payment_modes p ON t.pay_mode_ref_id = p.payin_payment_mode_ref_id
-    WHERE t.created_at >= :start_dt AND t.created_at <= :end_dt
+    {base_where}
     """
-    params: Dict[str, Any] = {"start_dt": start_dt, "end_dt": end_dt}
-
-    if effective_comp is not None:
-        sql += " AND t.company_ref_id = :comp_ref"
-        params["comp_ref"] = effective_comp
-
-    if effective_retailer is not None:
-        sql += " AND t.retailer_ref_id = :ret_ref"
-        params["ret_ref"] = effective_retailer
-
-    if status_str and status_str.upper() != "ALL":
-        st = status_str.upper()
-        if st == "SUCCESS":
-            sql += " AND UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED')"
-        elif st == "PENDING":
-            sql += " AND UPPER(t.txn_status) IN ('PENDING', 'INITIATED', 'PROCESSING')"
-        elif st == "FAILED":
-            sql += " AND UPPER(t.txn_status) IN ('FAILED', 'REJECTED', 'TIMEOUT')"
-        elif st == "REVERSED":
-            sql += " AND UPPER(t.txn_status) IN ('REVERSED', 'REFUNDED')"
-        else:
-            sql += " AND UPPER(t.txn_status) = :st"
-            params["st"] = st
-
-    if gateway_str and gateway_str.upper() != "ALL":
-        gw = gateway_str.upper()
-        if gw == "G-1":
-            sql += " AND (t.payin_vendor_ref_id = 1 OR v.vendor_code ILIKE '%BANKME%')"
-        elif gw == "G-2":
-            sql += " AND (t.payin_vendor_ref_id = 2 OR v.vendor_code ILIKE '%EASEBUZZ%')"
-        else:
-            sql += " AND (v.vendor_code ILIKE :gw OR v.vendor_name ILIKE :gw)"
-            params["gw"] = f"%{gw}%"
-
-    if payment_mode_str and payment_mode_str.upper() != "ALL":
-        pm = payment_mode_str.upper()
-        sql += " AND (p.pay_mode_code ILIKE :pm OR p.pay_mode_name ILIKE :pm)"
-        params["pm"] = f"%{pm}%"
-
-    if search_str:
-        s = f"%{search_str}%"
-        sql += """ AND (
-            t.tid ILIKE :s OR
-            t.merchant_ref_id ILIKE :s OR
-            t.provider_ref_id ILIKE :s OR
-            t.cust_mobile ILIKE :s OR
-            t.cust_name ILIKE :s
-        )"""
-        params["s"] = s
 
     res = await db.execute(text(sql), params)
     row = res.fetchone()
@@ -356,6 +379,9 @@ async def get_payin_report_grid(
     status: Optional[str] = Query(None),
     gateway: Optional[str] = Query(None),
     payment_mode: Optional[str] = Query(None),
+    tid: Optional[str] = Query(None),
+    mobile: Optional[str] = Query(None),
+    mobile_number: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=200),
@@ -373,6 +399,8 @@ async def get_payin_report_grid(
     status_str = clean_str(status)
     gateway_str = clean_str(gateway)
     payment_mode_str = clean_str(payment_mode)
+    tid_str = clean_str(tid)
+    mobile_str = clean_str(mobile) or clean_str(mobile_number)
     search_str = clean_str(search)
 
     effective_comp = auth_ctx["company_ref_id"]
@@ -386,56 +414,75 @@ async def get_payin_report_grid(
     start_dt, end_dt = parse_date_range(from_date, to_date)
     offset = (page - 1) * limit
 
-    base_where = "WHERE t.created_at >= :start_dt AND t.created_at <= :end_dt"
-    params: Dict[str, Any] = {"start_dt": start_dt, "end_dt": end_dt}
+    where_clauses = ["1=1"]
+    params: Dict[str, Any] = {}
+
+    if start_dt is not None:
+        where_clauses.append("t.created_at >= :start_dt")
+        params["start_dt"] = start_dt
+
+    if end_dt is not None:
+        where_clauses.append("t.created_at <= :end_dt")
+        params["end_dt"] = end_dt
 
     if effective_comp is not None:
-        base_where += " AND t.company_ref_id = :comp_ref"
+        where_clauses.append("t.company_ref_id = :comp_ref")
         params["comp_ref"] = effective_comp
 
     if effective_retailer is not None:
-        base_where += " AND t.retailer_ref_id = :ret_ref"
+        where_clauses.append("t.retailer_ref_id = :ret_ref")
         params["ret_ref"] = effective_retailer
+
+    if tid_str:
+        where_clauses.append("t.tid ILIKE :tid_val")
+        params["tid_val"] = f"%{tid_str}%"
+
+    if mobile_str:
+        mob_clean = mobile_str[-10:] if len(mobile_str) >= 10 else mobile_str
+        where_clauses.append("t.cust_mobile ILIKE :mob_val")
+        params["mob_val"] = f"%{mob_clean}%"
 
     if status_str and status_str.upper() != "ALL":
         st = status_str.upper()
-        if st == "SUCCESS":
-            base_where += " AND UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED')"
-        elif st == "PENDING":
-            base_where += " AND UPPER(t.txn_status) IN ('PENDING', 'INITIATED', 'PROCESSING')"
-        elif st == "FAILED":
-            base_where += " AND UPPER(t.txn_status) IN ('FAILED', 'REJECTED', 'TIMEOUT')"
-        elif st == "REVERSED":
-            base_where += " AND UPPER(t.txn_status) IN ('REVERSED', 'REFUNDED')"
+        if st in ("SUCCESS", "COMPLETED", "SETTLED"):
+            where_clauses.append("UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED')")
+        elif st in ("PENDING", "INITIATED", "PROCESSING"):
+            where_clauses.append("UPPER(t.txn_status) IN ('PENDING', 'INITIATED', 'PROCESSING')")
+        elif st in ("FAILED", "REJECTED", "TIMEOUT", "FAILURE"):
+            where_clauses.append("UPPER(t.txn_status) IN ('FAILED', 'REJECTED', 'TIMEOUT', 'FAILURE')")
+        elif st in ("REVERSED", "REFUNDED"):
+            where_clauses.append("UPPER(t.txn_status) IN ('REVERSED', 'REFUNDED')")
         else:
-            base_where += " AND UPPER(t.txn_status) = :st"
+            where_clauses.append("UPPER(t.txn_status) = :st")
             params["st"] = st
 
     if gateway_str and gateway_str.upper() != "ALL":
         gw = gateway_str.upper()
         if gw == "G-1":
-            base_where += " AND (t.payin_vendor_ref_id = 1 OR v.vendor_code ILIKE '%BANKME%')"
+            where_clauses.append("(t.payin_vendor_ref_id = 1 OR v.vendor_code ILIKE '%BANKME%')")
         elif gw == "G-2":
-            base_where += " AND (t.payin_vendor_ref_id = 2 OR v.vendor_code ILIKE '%EASEBUZZ%')"
+            where_clauses.append("(t.payin_vendor_ref_id = 2 OR v.vendor_code ILIKE '%EASEBUZZ%')")
         else:
-            base_where += " AND (v.vendor_code ILIKE :gw OR v.vendor_name ILIKE :gw)"
+            where_clauses.append("(v.vendor_code ILIKE :gw OR v.vendor_name ILIKE :gw)")
             params["gw"] = f"%{gw}%"
 
     if payment_mode_str and payment_mode_str.upper() != "ALL":
         pm = payment_mode_str.upper()
-        base_where += " AND (p.pay_mode_code ILIKE :pm OR p.pay_mode_name ILIKE :pm)"
+        where_clauses.append("(p.pay_mode_code ILIKE :pm OR p.pay_mode_name ILIKE :pm)")
         params["pm"] = f"%{pm}%"
 
     if search_str:
         s = f"%{search_str}%"
-        base_where += """ AND (
+        where_clauses.append("""(
             t.tid ILIKE :s OR
             t.merchant_ref_id ILIKE :s OR
             t.provider_ref_id ILIKE :s OR
             t.cust_mobile ILIKE :s OR
             t.cust_name ILIKE :s
-        )"""
+        )""")
         params["s"] = s
+
+    base_where = "WHERE " + " AND ".join(where_clauses)
 
     # 1. Total records & footer totals count
     count_sql = f"""
@@ -728,14 +775,17 @@ async def get_payin_transaction_details(
             "retailer_name": d.get("retailer_name"),
             "customer_name": d.get("cust_name"),
             "customer_mobile": d.get("cust_mobile"),
+            "mobile_no": d.get("cust_mobile"),
             "customer_email": d.get("cust_email"),
             "gateway": gw_label,
             "vendor_name": gw_label,  # Customer-facing labels G-1 / G-2 only
             "payment_mode": d.get("payment_mode") or "UPI",
             "payment_mode_name": d.get("payment_mode_name") or "UPI",
+            "method": d.get("payment_mode") or "UPI",
             "card_network": d.get("card_network"),
             "amount": float(d.get("txn_amount") or 0.0),
             "txn_amount": float(d.get("txn_amount") or 0.0),
+            "charges": float(d.get("total_charges") or 0.0),
             "mdr_pct": float(d.get("mdr_pct") or 0.0),
             "mdr_fixed": float(d.get("mdr_fixed") or 0.0),
             "mdr_amount": float(d.get("mdr_amount") or 0.0),
@@ -744,6 +794,7 @@ async def get_payin_transaction_details(
             "total_charges": float(d.get("total_charges") or 0.0),
             "total_amount": float(d.get("customer_payable") or (float(d.get("txn_amount") or 0.0) + float(d.get("total_charges") or 0.0))),
             "customer_payable": float(d.get("customer_payable") or (float(d.get("txn_amount") or 0.0) + float(d.get("total_charges") or 0.0))),
+            "wallet_credit": float(d.get("retailer_credit") or d.get("txn_amount") or 0.0),
             "retailer_credit": float(d.get("retailer_credit") or d.get("txn_amount") or 0.0),
             "status": (d.get("txn_status") or "SUCCESS").upper(),
             "provider_status": d.get("provider_status"),
@@ -755,6 +806,7 @@ async def get_payin_transaction_details(
             "currency": d.get("currency") or "INR",
             "mdr_treatment": d.get("mdr_treatment"),
             "customer_payable_policy": d.get("customer_payable_policy"),
+            "date_time": created_dt.astimezone(IST).strftime("%d %b %Y %I:%M %p") if created_dt else "--",
             "created_at": created_dt.isoformat() if created_dt else None,
             "initiated_at": created_dt.isoformat() if created_dt else None,
             "completed_at": completed_dt.isoformat() if completed_dt else None,
@@ -773,6 +825,9 @@ async def export_payin_report(
     status: Optional[str] = Query(None),
     gateway: Optional[str] = Query(None),
     payment_mode: Optional[str] = Query(None),
+    tid: Optional[str] = Query(None),
+    mobile: Optional[str] = Query(None),
+    mobile_number: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
@@ -785,6 +840,8 @@ async def export_payin_report(
     status_str = clean_str(status)
     gateway_str = clean_str(gateway)
     payment_mode_str = clean_str(payment_mode)
+    tid_str = clean_str(tid)
+    mobile_str = clean_str(mobile) or clean_str(mobile_number)
     search_str = clean_str(search)
 
     effective_comp = auth_ctx["company_ref_id"]
@@ -797,56 +854,75 @@ async def export_payin_report(
 
     start_dt, end_dt = parse_date_range(from_date, to_date)
 
-    base_where = "WHERE t.created_at >= :start_dt AND t.created_at <= :end_dt"
-    params: Dict[str, Any] = {"start_dt": start_dt, "end_dt": end_dt}
+    where_clauses = ["1=1"]
+    params: Dict[str, Any] = {}
+
+    if start_dt is not None:
+        where_clauses.append("t.created_at >= :start_dt")
+        params["start_dt"] = start_dt
+
+    if end_dt is not None:
+        where_clauses.append("t.created_at <= :end_dt")
+        params["end_dt"] = end_dt
 
     if effective_comp is not None:
-        base_where += " AND t.company_ref_id = :comp_ref"
+        where_clauses.append("t.company_ref_id = :comp_ref")
         params["comp_ref"] = effective_comp
 
     if effective_retailer is not None:
-        base_where += " AND t.retailer_ref_id = :ret_ref"
+        where_clauses.append("t.retailer_ref_id = :ret_ref")
         params["ret_ref"] = effective_retailer
+
+    if tid_str:
+        where_clauses.append("t.tid ILIKE :tid_val")
+        params["tid_val"] = f"%{tid_str}%"
+
+    if mobile_str:
+        mob_clean = mobile_str[-10:] if len(mobile_str) >= 10 else mobile_str
+        where_clauses.append("t.cust_mobile ILIKE :mob_val")
+        params["mob_val"] = f"%{mob_clean}%"
 
     if status_str and status_str.upper() != "ALL":
         st = status_str.upper()
-        if st == "SUCCESS":
-            base_where += " AND UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED')"
-        elif st == "PENDING":
-            base_where += " AND UPPER(t.txn_status) IN ('PENDING', 'INITIATED', 'PROCESSING')"
-        elif st == "FAILED":
-            base_where += " AND UPPER(t.txn_status) IN ('FAILED', 'REJECTED', 'TIMEOUT')"
-        elif st == "REVERSED":
-            base_where += " AND UPPER(t.txn_status) IN ('REVERSED', 'REFUNDED')"
+        if st in ("SUCCESS", "COMPLETED", "SETTLED"):
+            where_clauses.append("UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED')")
+        elif st in ("PENDING", "INITIATED", "PROCESSING"):
+            where_clauses.append("UPPER(t.txn_status) IN ('PENDING', 'INITIATED', 'PROCESSING')")
+        elif st in ("FAILED", "REJECTED", "TIMEOUT", "FAILURE"):
+            where_clauses.append("UPPER(t.txn_status) IN ('FAILED', 'REJECTED', 'TIMEOUT', 'FAILURE')")
+        elif st in ("REVERSED", "REFUNDED"):
+            where_clauses.append("UPPER(t.txn_status) IN ('REVERSED', 'REFUNDED')")
         else:
-            base_where += " AND UPPER(t.txn_status) = :st"
+            where_clauses.append("UPPER(t.txn_status) = :st")
             params["st"] = st
 
     if gateway_str and gateway_str.upper() != "ALL":
         gw = gateway_str.upper()
         if gw == "G-1":
-            base_where += " AND (t.payin_vendor_ref_id = 1 OR v.vendor_code ILIKE '%BANKME%')"
+            where_clauses.append("(t.payin_vendor_ref_id = 1 OR v.vendor_code ILIKE '%BANKME%')")
         elif gw == "G-2":
-            base_where += " AND (t.payin_vendor_ref_id = 2 OR v.vendor_code ILIKE '%EASEBUZZ%')"
+            where_clauses.append("(t.payin_vendor_ref_id = 2 OR v.vendor_code ILIKE '%EASEBUZZ%')")
         else:
-            base_where += " AND (v.vendor_code ILIKE :gw OR v.vendor_name ILIKE :gw)"
+            where_clauses.append("(v.vendor_code ILIKE :gw OR v.vendor_name ILIKE :gw)")
             params["gw"] = f"%{gw}%"
 
     if payment_mode_str and payment_mode_str.upper() != "ALL":
         pm = payment_mode_str.upper()
-        base_where += " AND (p.pay_mode_code ILIKE :pm OR p.pay_mode_name ILIKE :pm)"
+        where_clauses.append("(p.pay_mode_code ILIKE :pm OR p.pay_mode_name ILIKE :pm)")
         params["pm"] = f"%{pm}%"
 
     if search_str:
         s = f"%{search_str}%"
-        base_where += """ AND (
+        where_clauses.append("""(
             t.tid ILIKE :s OR
             t.merchant_ref_id ILIKE :s OR
             t.provider_ref_id ILIKE :s OR
             t.cust_mobile ILIKE :s OR
             t.cust_name ILIKE :s
-        )"""
+        )""")
         params["s"] = s
+
+    base_where = "WHERE " + " AND ".join(where_clauses)
 
     sql = f"""
     SELECT
