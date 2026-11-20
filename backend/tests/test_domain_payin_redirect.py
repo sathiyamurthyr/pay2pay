@@ -150,6 +150,46 @@ class TestBankMeClientRedirectUrl:
             assert "near4you" not in sent_payload["redirectUrl"]
             assert resp["success"] is True
 
+    @pytest.mark.asyncio
+    async def test_bankme_redirect_url_rejects_env_near4you_for_smspay(self):
+        tid = "BPAY9876543210"
+
+        with patch("httpx.AsyncClient.post") as mock_post:
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = {
+                "success": True,
+                "data": {
+                    "orderId": "BM-ORD-222",
+                    "paymentUrl": "https://bankme.co.in/checkout/pay?token=abc",
+                    "status": "INITIATED"
+                }
+            }
+            mock_post.return_value = mock_resp
+
+            with patch.object(BankMePayInClient, "get_credentials", return_value=("pk_test", "sk_test", "sim", "https://bankme.co.in")):
+                with patch("app.application.bankme_payin_client.AsyncSessionLocal"):
+                    # Mock settings with Near4You URL as in VPS .env
+                    with patch("app.application.bankme_payin_client.settings") as mock_settings:
+                        mock_settings.BANKME_PAYIN_REDIRECT_BASE_URL = "https://login.near4you.store/retailer/payin"
+
+                        # Call without return_url or callback_url
+                        resp = await BankMePayInClient.create_payin_order(
+                            tid=tid,
+                            amount=500.0,
+                            customer_name="SMSPAY Retailer",
+                            customer_mobile="9876543210",
+                            company_ref_id=2
+                        )
+
+            # Despite .env having near4you.store, SMSPAY company must reject it and use smspay.store
+            assert mock_post.called
+            call_kwargs = mock_post.call_args[1]
+            sent_payload = call_kwargs["json"]
+            assert sent_payload["redirectUrl"] == f"https://smspay.store/retailer/payin/status?referenceId={tid}"
+            assert "near4you" not in sent_payload["redirectUrl"]
+            assert resp["success"] is True
+
 
 class TestPayInStatusService:
     """Verify PayIn status lookup, live sync, and greenlet safety."""
