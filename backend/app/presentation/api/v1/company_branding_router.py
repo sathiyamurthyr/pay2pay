@@ -128,7 +128,7 @@ def resolve_brand_metadata(
         resolved_name = "SMSPAY"
         resolved_legal = "SMSPAY Technologies Pvt. Ltd."
         resolved_logo = "/branding/smspay-logo.svg"
-        resolved_favicon = "/branding/smspay-mark.svg"
+        resolved_favicon = "/branding/smspay-favicon-32x32.png"
         resolved_primary = "#059669"
         resolved_secondary = "#047857"
     elif is_pay2pay:
@@ -162,11 +162,11 @@ def resolve_brand_metadata(
 
     # Allow custom db override if present and not a cross-tenant static default
     db_logo = db_row.get("logo_url")
-    if db_logo and not (is_smspay and "logo.svg" in db_logo) and not (is_pay2pay and "logo.svg" in db_logo):
+    if db_logo and not (is_smspay and ("logo" in db_logo.lower() or "smspay" in db_logo.lower())) and not (is_pay2pay and "logo.svg" in db_logo):
         resolved_logo = db_logo
 
     db_fav = db_row.get("favicon_url")
-    if db_fav and db_fav not in ["/favicon.ico", "/branding/favicon.png"]:
+    if db_fav and db_fav not in ["/favicon.ico", "/branding/favicon.png", "/branding/smspay-mark.svg"]:
         resolved_favicon = db_fav
 
     return {

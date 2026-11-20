@@ -749,6 +749,16 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 component="img"
                 src={appLogo}
                 alt={appName}
+                onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                  const target = e.currentTarget;
+                  if (isSmsPay && !target.src.includes("smspay-logo.svg")) {
+                    target.src = "/branding/smspay-logo.svg";
+                  } else if (isPay2Pay && !target.src.includes("pay2pay-logo.png")) {
+                    target.src = "/branding/pay2pay-logo.png";
+                  } else if (isNear4You && !target.src.includes("logo.svg")) {
+                    target.src = "/branding/logo.svg";
+                  }
+                }}
                 sx={{
                   width: "100%",
                   height: "100%",
@@ -1404,6 +1414,16 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                     component="img"
                     src={appLogo}
                     alt={appName}
+                    onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                      const target = e.currentTarget;
+                      if (isSmsPay && !target.src.includes("smspay-logo.svg")) {
+                        target.src = "/branding/smspay-logo.svg";
+                      } else if (isPay2Pay && !target.src.includes("pay2pay-logo.png")) {
+                        target.src = "/branding/pay2pay-logo.png";
+                      } else if (isNear4You && !target.src.includes("logo.svg")) {
+                        target.src = "/branding/logo.svg";
+                      }
+                    }}
                     sx={{
                       width: 30,
                       height: 30,

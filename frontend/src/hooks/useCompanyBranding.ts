@@ -69,7 +69,7 @@ export const COMPANY_PRESETS: Record<string, CompanyBrandingData> = {
     display_name: "SMSPAY",
     short_name: "SMSP",
     logo_url: "/branding/smspay-logo.svg",
-    favicon_url: "/branding/smspay-mark.svg",
+    favicon_url: "/branding/smspay-favicon-32x32.png",
     primary_colour: "#059669",
     secondary_colour: "#047857",
     website: "https://smspay.store",
@@ -441,6 +441,16 @@ function applyBrandingTokens(data: CompanyBrandingData) {
         link.type = "image/png";
       }
       document.head.appendChild(link);
+    }
+
+    const appleIcon = document.querySelector<HTMLLinkElement>("link[rel='apple-touch-icon']");
+    const appleUrl = data.company_code === "SMSPAY"
+      ? "/branding/smspay-icon-192.png"
+      : data.company_code === "PAY2PAY"
+      ? "/branding/pay2pay-icon-192.png"
+      : "/branding/near4you-favicon.png";
+    if (appleIcon) {
+      appleIcon.href = appleUrl;
     }
   }
 }

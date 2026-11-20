@@ -165,7 +165,7 @@ def test_resolve_brand_metadata_strict_isolation():
     assert smspay_meta["company_code"] == "SMSPAY"
     assert smspay_meta["display_name"] == "SMSPAY"
     assert smspay_meta["logo_url"] == "/branding/smspay-logo.svg"
-    assert smspay_meta["favicon_url"] == "/branding/smspay-mark.svg"
+    assert smspay_meta["favicon_url"] == "/branding/smspay-favicon-32x32.png"
     assert smspay_meta["primary_colour"] == "#059669"
     assert smspay_meta["secondary_colour"] == "#047857"
     assert smspay_meta["legal_name"] == "SMSPAY Technologies Pvt. Ltd."
@@ -177,7 +177,7 @@ def test_resolve_brand_metadata_strict_isolation():
         db_row={"company_code": "SUPERREX", "company_ref_id": 2}
     )
     assert smspay_port_meta["company_code"] == "SMSPAY"
-    assert smspay_port_meta["favicon_url"] == "/branding/smspay-mark.svg"
+    assert smspay_port_meta["favicon_url"] == "/branding/smspay-favicon-32x32.png"
 
     # 3. Pay2Pay via host hint
     p2p_meta = resolve_brand_metadata(
