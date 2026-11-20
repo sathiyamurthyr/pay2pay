@@ -72,7 +72,7 @@ COMPANY_CONFIGS = {
         "name": "Near4You Hyperlocal Retail",
         "domain": "near4you.store",
         "sender_email": "donotreply@near4you.store",
-        "sender_name": "Near4You Platform",
+        "sender_name": "Near4You",
         "primary_color": "#A20A3A",
         "api_key_attr": "NOTIFICATION_PLATFORM_API_KEY_NEAR4YOU",
         "default_key": "snk_near4you_kcX8KkGb8o872D66YndUWerbBG85k1CTKSHvkFituKw",
@@ -596,7 +596,7 @@ class GlobalNotificationPlatformClient:
         safe_token = str(receipt_token or transaction_id).strip()
         receipt_url = f"https://receipt.sathus.in/r/{safe_token}"
 
-        company_display = "SMSPAY Digital Payments" if cfg["project_code"] == "SMSPAY" else ("Pay2Pay Enterprise" if cfg["project_code"] == "PAY2PAY" else "Near4You Platform")
+        company_display = "INSPEL TECHNOLOGIES SOLUTIONS PVT" if cfg["project_code"] == "SMSPAY" else ("SUPER REX PRODUCTS PRIVATE LIMITED" if cfg["project_code"] == "PAY2PAY" else "SATHUS TECHNOLOGY PRIVATE LIMITED")
         primary_color = cfg.get("primary_color", "#059669")
 
         subject = f"Wallet Top-Up {status.upper()} - {transaction_id} | {company_display}"

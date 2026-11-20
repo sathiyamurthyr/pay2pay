@@ -229,14 +229,19 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
                 {/* 1. COMPANY INFORMATION */}
                 <div className="p-4 rounded-2xl bg-[#FAF8F9] border border-[#E8E2E5] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-3.5">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#A20A3A] to-[#85072F] text-white font-black text-base flex items-center justify-center shadow-md">
-                      N4U
+                    <div
+                      className="w-12 h-12 rounded-2xl text-white font-black text-base flex items-center justify-center shadow-md"
+                      style={{
+                        background: `linear-gradient(135deg, ${branding.primary_colour || "#A20A3A"}, ${branding.secondary_colour || "#85072F"})`
+                      }}
+                    >
+                      {branding.short_name || (branding.display_name ? branding.display_name.slice(0, 3).toUpperCase() : "P2P")}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <Building2 className="w-4 h-4 text-[#A20A3A]" />
+                        <Building2 className="w-4 h-4" style={{ color: branding.primary_colour || "#A20A3A" }} />
                         <h3 className="text-sm font-extrabold text-[#292329]">
-                          {company?.company_name || "Sathus Technology Pvt. Ltd."}
+                          {branding.company_name || branding.legal_name || company?.company_name || "FinTech Platform"}
                         </h3>
                       </div>
                       <div className="flex items-center gap-1.5 mt-1 text-xs text-[#625B60]">

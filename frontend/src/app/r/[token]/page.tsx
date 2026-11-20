@@ -124,9 +124,18 @@ export default function PublicReceiptPage() {
             const targetApprovalUrl = data.adminApprovalUrl || `${adminBase}/operations/topup-requests?requestId=${encodeURIComponent(reqId)}`;
             setAdminApprovalUrl(targetApprovalUrl);
 
+            const isSmspay = (data.brandName || "").toLowerCase().includes("smspay") || (data.companyCode || "").includes("SMSPAY") || (typeof window !== "undefined" && window.location.hostname.includes("smspay"));
+            const isNear4you = (data.brandName || "").toLowerCase().includes("near4you") || (data.companyCode || "").includes("NEAR4YOU") || (typeof window !== "undefined" && window.location.hostname.includes("near4you"));
+            const fallbackCompName = isSmspay
+              ? "INSPEL TECHNOLOGIES SOLUTIONS PVT"
+              : isNear4you
+              ? "SATHUS TECHNOLOGY PRIVATE LIMITED"
+              : "SUPER REX PRODUCTS PRIVATE LIMITED";
+            const fallbackBrandName = isSmspay ? "SMSPAY" : isNear4you ? "Near4You" : "Pay2Pay";
+
             setReceiptData({
-              companyName: data.companyName || "SUPER REX PRODUCTS PRIVATE LIMITED",
-              brandName: data.brandName || "Near4You",
+              companyName: data.companyName || fallbackCompName,
+              brandName: data.brandName || fallbackBrandName,
               brandTagline: data.brandTagline || "Enterprise Domestic Money Transfer (DMT) · Authorized Network",
               certifications: data.certifications || "NPCI IMPS Switch Certified · ISO 27001:2022 · 256-Bit SSL Encrypted",
               status: data.status || "SUCCESS",

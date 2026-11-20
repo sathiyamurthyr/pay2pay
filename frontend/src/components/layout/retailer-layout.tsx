@@ -186,7 +186,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const isFinancialApp = isPay2Pay || isNear4You || isSmsPay;
 
-  const appName = branding?.display_name || branding?.company_name || (isPay2Pay ? "Pay2Pay" : isNear4You ? "Near 4 You" : isSmsPay ? "SMSPAY" : "FinTech Platform");
+  const appName = branding?.display_name || (isPay2Pay ? "Pay2Pay" : isNear4You ? "Near4You" : isSmsPay ? "SMSPAY" : "FinTech Platform");
   const appSubtitle = `${appName} Operations`;
   const appLogo = branding?.logo_url || (isPay2Pay ? "/branding/pay2pay-logo.png" : isNear4You ? "/branding/logo.svg" : "/branding/smspay-logo.svg");
 
@@ -372,13 +372,16 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         return null;
       })()) || "";
 
-      const defaultCompanyName = isSmspay ? "SMSPAY" : isNear4you ? "Near4You" : (branding?.company_name || branding?.display_name || "Pay2Pay");
-      let resolvedCompany = company.company_name || company.legal_name || defaultCompanyName;
-      if (isSmspay && resolvedCompany.toLowerCase().includes("pay2pay")) {
-        resolvedCompany = "SMSPAY";
-      } else if (isPay2pay && resolvedCompany.toLowerCase().includes("smspay")) {
-        resolvedCompany = "Pay2Pay";
-      }
+      const defaultCompanyName = isSmspay
+        ? "INSPEL TECHNOLOGIES SOLUTIONS PVT"
+        : isNear4you
+        ? "SATHUS TECHNOLOGY PRIVATE LIMITED"
+        : (branding?.company_name || "SUPER REX PRODUCTS PRIVATE LIMITED");
+      let resolvedCompany = isSmspay
+        ? "INSPEL TECHNOLOGIES SOLUTIONS PVT"
+        : isNear4you
+        ? "SATHUS TECHNOLOGY PRIVATE LIMITED"
+        : (isPay2pay ? "SUPER REX PRODUCTS PRIVATE LIMITED" : (company.company_name || company.legal_name || defaultCompanyName));
 
       const resolvedOwner = personal.owner_name || (personal.first_name ? `${personal.first_name} ${personal.last_name || ""}`.trim() : personal.retailer_name) || fallbackOwner;
       const resolvedRetailer = personal.retailer_name || personal.store_name || fallbackOwner || "Retailer Store";

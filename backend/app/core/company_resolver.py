@@ -7,8 +7,8 @@ COMPANY_MAPPINGS = {
     "SMSPAY": {
         "company_ref_id": 2,
         "company_code": "SMSPAY",
-        "company_name": "SMSPAY",
-        "legal_name": "SMSPAY Technologies Pvt. Ltd.",
+        "company_name": "INSPEL TECHNOLOGIES SOLUTIONS PVT",
+        "legal_name": "INSPEL TECHNOLOGIES SOLUTIONS PVT",
         "display_name": "SMSPAY",
         "logo_url": "/branding/smspay-logo.svg",
         "favicon_url": "/branding/smspay-mark.svg",
@@ -20,8 +20,8 @@ COMPANY_MAPPINGS = {
     "PAY2PAY": {
         "company_ref_id": 47,
         "company_code": "PAY2PAY",
-        "company_name": "Pay2Pay",
-        "legal_name": "Pay2Pay FinTech Solutions Pvt. Ltd.",
+        "company_name": "SUPER REX PRODUCTS PRIVATE LIMITED",
+        "legal_name": "SUPER REX PRODUCTS PRIVATE LIMITED",
         "display_name": "Pay2Pay",
         "logo_url": "/branding/pay2pay-logo.png",
         "favicon_url": "/branding/pay2pay-favicon.png",
@@ -33,8 +33,8 @@ COMPANY_MAPPINGS = {
     "NEAR4YOU": {
         "company_ref_id": 1,
         "company_code": "NEAR4YOU",
-        "company_name": "Near4You",
-        "legal_name": "Near4You Enterprise Technologies Pvt. Ltd.",
+        "company_name": "SATHUS TECHNOLOGY PRIVATE LIMITED",
+        "legal_name": "SATHUS TECHNOLOGY PRIVATE LIMITED",
         "display_name": "Near4You",
         "logo_url": "/branding/logo.svg",
         "favicon_url": "/branding/near4you-favicon.png",
