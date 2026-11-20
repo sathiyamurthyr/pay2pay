@@ -103,7 +103,8 @@ def set_auth_session_cookies(
     super_distributor_id: Optional[str] = None,
     super_distributor_ref_id: Optional[int] = None,
     remember_me: bool = True,
-    company_ref_id: Optional[int] = None
+    company_ref_id: Optional[int] = None,
+    user_ref_id: Optional[int] = None
 ):
     """
     Sets dynamic, enterprise session cookies directly on the HTTP response.
@@ -220,6 +221,18 @@ def set_auth_session_cookies(
         response.set_cookie(
             key="p2p_company_ref_id",
             value=str(company_ref_id),
+            max_age=cookie_max_age,
+            path="/",
+            domain=cookie_domain,
+            secure=is_secure,
+            httponly=False,
+            samesite="lax"
+        )
+
+    if user_ref_id is not None:
+        response.set_cookie(
+            key="p2p_user_ref_id",
+            value=str(user_ref_id),
             max_age=cookie_max_age,
             path="/",
             domain=cookie_domain,
@@ -2169,7 +2182,9 @@ async def verify_login_otp(
             user_type_ref_id=2,
             retailer_code=retailer_code,
             retailer_id=retailer_id,
-            remember_me=rem_session
+            remember_me=rem_session,
+            company_ref_id=comp_ref_id,
+            user_ref_id=ret_ref_id
         )
 
         return {
@@ -3245,7 +3260,9 @@ async def verify_biometric_login(
         user_type_ref_id=2,
         retailer_code=retailer_code,
         retailer_id=subject_id,
-        remember_me=rem_session
+        remember_me=rem_session,
+        company_ref_id=comp_ref_id,
+        user_ref_id=ret_ref_id
     )
 
     return {

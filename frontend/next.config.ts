@@ -9,7 +9,13 @@ const nextConfig: NextConfig = {
     webpackBuildWorker: false,
   },
   async rewrites() {
-    const rawUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+    const rawUrl =
+      process.env.INTERNAL_BACKEND_URL ||
+      process.env.BACKEND_URL ||
+      (process.env.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL.startsWith("http")
+        ? process.env.NEXT_PUBLIC_API_URL
+        : "") ||
+      "http://backend:8000";
     const cleanUrl = rawUrl.replace(/\/api\/v1\/?$/, "").replace(/\/$/, "");
     return [
       {

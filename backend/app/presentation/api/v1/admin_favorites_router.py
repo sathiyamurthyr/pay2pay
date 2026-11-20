@@ -44,6 +44,7 @@ async def get_admin_favorites(
                 parsed = raw_json
             return parsed
     except Exception as sp_err:
+        await db.rollback()
         print(f"[FAVORITES ROUTER WARNING] SP execution error: {sp_err}. Falling back to ORM query.")
 
     # 2. ORM Fallback

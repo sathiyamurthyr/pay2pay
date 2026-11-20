@@ -16,8 +16,6 @@ from app.infrastructure.db.models import (
     RetailerBankModel, RetailerContactModel, AdminUserModel
 )
 from app.infrastructure.db.auth_models import LoginHistoryModel, AuthUserModel
-from app.infrastructure.db.verification_models import RetailerVerificationModel
-from app.infrastructure.db.registration_models import RegistrationDraftModel, RegistrationAadhaarModel
 from app.infrastructure.db.enterprise_payout_models import (
     EnterprisePayoutTransactionModel, PayoutDoubleEntryLedgerModel, PayoutTransactionStatus
 )
@@ -53,7 +51,8 @@ async def resolve_retailer_context(
     or standard BIGINT user_ref_id / user_type_ref_id identifiers.
     """
     cookies = request.cookies if request else {}
-    auth_header = request.headers.get("authorization", "") if request else ""
+    req_headers = request.headers if request else {}
+    auth_header = req_headers.get("authorization", "") if req_headers else ""
     token = None
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.replace("Bearer ", "").strip()
@@ -67,22 +66,32 @@ async def resolve_retailer_context(
         payload = decode_access_token(token) or {}
 
     ret_model = None
-    eff_ref_id = user_ref_id or retailer_ref_id or payload.get("user_ref_id") or payload.get("retailer_ref_id")
-    eff_type_id = user_type_ref_id or payload.get("user_type_ref_id") or 2
+    header_user_ref = req_headers.get("x-user-ref-id") or req_headers.get("x-retailer-ref-id")
+    cookie_user_ref = cookies.get("p2p_user_ref_id")
+    eff_ref_id = user_ref_id or retailer_ref_id or payload.get("user_ref_id") or payload.get("retailer_ref_id") or header_user_ref or cookie_user_ref
+    eff_type_id = user_type_ref_id or payload.get("user_type_ref_id") or req_headers.get("x-user-type-ref-id") or 2
 
-    # Direct indexed BIGINT lookup by retailer_ref_id
-    if eff_ref_id and db:
-        try:
-            ref_int = int(eff_ref_id)
-            ret_chk = (await db.execute(select(RetailerModel).where(RetailerModel.retailer_ref_id == ref_int, RetailerModel.is_deleted == False))).scalars().first()
-            if ret_chk:
-                ret_model = ret_chk
-        except (ValueError, TypeError):
-            pass
-
+    # Clean mobile number
     clean_mobile = ""
-    target_ident = retailer_id or payload.get("retailer_id") or payload.get("retailer_code") or payload.get("registration_id")
-    session_comp_ref = payload.get("company_ref_id")
+    mob_candidate = payload.get("mobile") or req_headers.get("x-mobile") or cookies.get("p2p_mobile")
+    if mob_candidate:
+        raw_digits = re.sub(r"\D", "", str(mob_candidate))
+        if len(raw_digits) >= 10:
+            clean_mobile = raw_digits[-10:]
+
+    # Target identifier from all standard sources
+    target_ident = (
+        retailer_id or
+        payload.get("retailer_code") or
+        payload.get("retailer_id") or
+        req_headers.get("x-retailer-code") or
+        req_headers.get("x-retailer-id") or
+        cookies.get("p2p_retailer_code") or
+        cookies.get("p2p_active_retailer_id") or
+        payload.get("registration_id")
+    )
+
+    session_comp_ref = payload.get("company_ref_id") or req_headers.get("x-company-ref-id") or cookies.get("p2p_company_ref_id")
     roles = payload.get("roles") or []
     is_admin = any(r in ["ADMIN", "SUPER_ADMIN", "OPS_ADMIN", "PLATFORM_ADMIN"] for r in roles)
 
@@ -104,77 +113,87 @@ async def resolve_retailer_context(
             str(payload.get("sub") or "").lower(),
             str(payload.get("retailer_code") or "").lower(),
             str(payload.get("retailer_id") or "").lower(),
-            str(payload.get("retailer_ref_id") or "").lower()
+            str(payload.get("retailer_ref_id") or "").lower(),
+            str(req_headers.get("x-retailer-code") or "").lower(),
+            str(req_headers.get("x-retailer-id") or "").lower()
         }
-        if str(retailer_id).strip().lower() not in allowed:
+        if str(retailer_id).strip().lower() not in allowed and not is_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied: Retailer does not have permission for the requested entity (COMPANY_IDENTITY_MISMATCH)."
             )
 
-    if payload.get("mobile"):
-        clean_mobile = str(payload.get("mobile"))[-10:]
-
-    if payload.get("sub") and not ret_model and db:
-        sub_uuid = parse_uuid_or_none(str(payload.get("sub")))
-        if sub_uuid:
-            sub_stmt = select(RetailerModel).where(RetailerModel.public_id == sub_uuid, RetailerModel.is_deleted == False)
-            target_comp = expected_comp_ref or session_comp_ref
-            if target_comp and not is_admin:
-                sub_stmt = sub_stmt.where(RetailerModel.company_ref_id == target_comp)
-            ret_chk = (await db.execute(sub_stmt)).scalars().first()
-            if ret_chk:
-                ret_model = ret_chk
-            else:
-                adm_chk = (await db.execute(select(AdminUserModel).where(AdminUserModel.public_id == sub_uuid, AdminUserModel.is_deleted == False))).scalars().first()
-                if adm_chk and adm_chk.phone:
-                    clean_mobile = re.sub(r"\D", "", str(adm_chk.phone))[-10:]
-
-    if target_ident and not ret_model:
-        raw_digits = re.sub(r"\D", "", str(target_ident))
-        if len(raw_digits) >= 10:
-            clean_mobile = raw_digits[-10:]
-
     r_uuid = parse_uuid_or_none(target_ident)
     t_uuid = parse_uuid_or_none(tenant_id)
     c_uuid = parse_uuid_or_none(company_id)
-
     verif = None
 
     if db and not ret_model:
-        # 1. Search RetailerModel first (authoritative merchant record with wallet)
-        if r_uuid:
-            ret_stmt = select(RetailerModel).where(RetailerModel.public_id == r_uuid, RetailerModel.is_deleted == False)
-            ret_model = (await db.execute(ret_stmt)).scalars().first()
-            if not ret_model:
-                adm_chk = (await db.execute(select(AdminUserModel).where(AdminUserModel.public_id == r_uuid, AdminUserModel.is_deleted == False))).scalars().first()
-                if adm_chk and adm_chk.phone:
-                    clean_mobile = re.sub(r"\D", "", str(adm_chk.phone))[-10:]
-        elif target_ident and target_ident != "RET-PENDING":
-            ref_id_int = None
-            digits = re.sub(r"\D", "", str(target_ident))
-            if digits:
-                try:
-                    ref_id_int = int(digits)
-                except ValueError:
-                    pass
+        # 1. Direct indexed BIGINT lookup by retailer_ref_id / user_ref_id
+        if eff_ref_id:
+            try:
+                ref_int = int(eff_ref_id)
+                ret_stmt = select(RetailerModel).where(RetailerModel.retailer_ref_id == ref_int, RetailerModel.is_deleted == False)
+                target_comp = expected_comp_ref or session_comp_ref
+                if target_comp and not is_admin:
+                    ret_stmt = ret_stmt.where(RetailerModel.company_ref_id == int(target_comp))
+                ret_chk = (await db.execute(ret_stmt)).scalars().first()
+                if ret_chk:
+                    ret_model = ret_chk
+            except (ValueError, TypeError):
+                pass
 
-            conds = [
-                RetailerModel.retailer_code == target_ident,
-                RetailerModel.retailer_code.ilike(f"%{target_ident}%")
-            ]
-            if ref_id_int:
-                conds.append(RetailerModel.retailer_ref_id == ref_id_int)
+        # 2. Lookup by candidate UUIDs in RetailerModel
+        if not ret_model:
+            candidate_uuids = []
+            for val in [payload.get("sub"), target_ident, req_headers.get("x-retailer-id"), cookies.get("p2p_active_retailer_id")]:
+                u = parse_uuid_or_none(val)
+                if u and u not in candidate_uuids:
+                    candidate_uuids.append(u)
+            for u in candidate_uuids:
+                sub_stmt = select(RetailerModel).where(RetailerModel.public_id == u, RetailerModel.is_deleted == False)
+                target_comp = expected_comp_ref or session_comp_ref
+                if target_comp and not is_admin:
+                    sub_stmt = sub_stmt.where(RetailerModel.company_ref_id == int(target_comp))
+                ret_chk = (await db.execute(sub_stmt)).scalars().first()
+                if ret_chk:
+                    ret_model = ret_chk
+                    break
+                else:
+                    adm_chk = (await db.execute(select(AdminUserModel).where(AdminUserModel.public_id == u, AdminUserModel.is_deleted == False))).scalars().first()
+                    if adm_chk and adm_chk.phone and not clean_mobile:
+                        clean_mobile = re.sub(r"\D", "", str(adm_chk.phone))[-10:]
 
-            ret_stmt = select(RetailerModel).where(
-                or_(*conds),
-                RetailerModel.is_deleted == False
-            )
-            if session_comp_ref and not is_admin:
-                ret_stmt = ret_stmt.where(RetailerModel.company_ref_id == session_comp_ref)
-            ret_model = (await db.execute(ret_stmt)).scalars().first()
+        # 3. Lookup by retailer code or numeric string
+        if not ret_model:
+            candidate_codes = []
+            for c in [target_ident, req_headers.get("x-retailer-code"), cookies.get("p2p_retailer_code")]:
+                if c and str(c).strip() and str(c) not in candidate_codes and str(c) != "RET-PENDING":
+                    candidate_codes.append(str(c).strip())
+            for code in candidate_codes:
+                ref_id_int = None
+                digits = re.sub(r"\D", "", code)
+                if digits:
+                    try:
+                        ref_id_int = int(digits)
+                    except ValueError:
+                        pass
+                conds = [
+                    RetailerModel.retailer_code == code,
+                    RetailerModel.retailer_code.ilike(f"%{code}%")
+                ]
+                if ref_id_int:
+                    conds.append(RetailerModel.retailer_ref_id == ref_id_int)
+                ret_stmt = select(RetailerModel).where(or_(*conds), RetailerModel.is_deleted == False)
+                target_comp = expected_comp_ref or session_comp_ref
+                if target_comp and not is_admin:
+                    ret_stmt = ret_stmt.where(RetailerModel.company_ref_id == int(target_comp))
+                ret_chk = (await db.execute(ret_stmt)).scalars().first()
+                if ret_chk:
+                    ret_model = ret_chk
+                    break
 
-        # 2. Search RetailerContactModel by mobile to find RetailerModel
+        # 4. Search RetailerContactModel by mobile to find RetailerModel
         if not ret_model and clean_mobile:
             mob_vars = [clean_mobile, f"+91{clean_mobile}", f"91{clean_mobile}"]
             if clean_mobile.startswith("91") and len(clean_mobile) == 12:
@@ -185,8 +204,9 @@ async def resolve_retailer_context(
                     RetailerModel.is_deleted == False,
                     RetailerContactModel.is_deleted == False
                 ]
-                if session_comp_ref and not is_admin:
-                    ret_contact_conds.append(RetailerModel.company_ref_id == session_comp_ref)
+                target_comp = expected_comp_ref or session_comp_ref
+                if target_comp and not is_admin:
+                    ret_contact_conds.append(RetailerModel.company_ref_id == int(target_comp))
                 ret_contact_stmt = (
                     select(RetailerModel)
                     .join(RetailerContactModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
@@ -194,40 +214,24 @@ async def resolve_retailer_context(
                     .order_by(RetailerModel.created_date.asc())
                 )
                 ret_model = (await db.execute(ret_contact_stmt)).scalars().first()
-            except Exception:
-                pass
+            except Exception as e_contact:
+                logger.debug(f"RetailerContact lookup skipped: {e_contact}")
 
-        if ret_model and session_comp_ref and not is_admin:
-            if ret_model.company_ref_id and ret_model.company_ref_id != session_comp_ref:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Access denied: Retailer entity belongs to another company (COMPANY_IDENTITY_MISMATCH)."
-                )
-
-        # 3. Search RegistrationDraftModel if not found in RetailerModel
-        if not ret_model:
-            draft_conds = []
-            if r_uuid:
-                draft_conds.append(RegistrationDraftModel.public_id == r_uuid)
-            if target_ident and target_ident != "RET-PENDING":
-                draft_conds.append(RegistrationDraftModel.registration_id == target_ident)
-            if clean_mobile:
-                draft_conds.append(RegistrationDraftModel.mobile_number == clean_mobile)
-                draft_conds.append(RegistrationDraftModel.mobile_number == f"+91{clean_mobile}")
-                draft_conds.append(RegistrationDraftModel.mobile_number == f"91{clean_mobile}")
-                draft_conds.append(RegistrationDraftModel.mobile_number.like(f"%{clean_mobile}%"))
-
-            if draft_conds:
-                try:
-                    draft_stmt = select(RegistrationDraftModel).where(or_(*draft_conds)).order_by(desc(RegistrationDraftModel.updated_date))
-                    draft_rec = (await db.execute(draft_stmt)).scalars().first()
-                    if draft_rec:
-                        verif = draft_rec
-                except Exception as e_d:
-                    logger.debug(f"RegistrationDraftModel lookup skipped: {e_d}")
-
-        # 4. If still not resolved and no target identifier, do not silently bind to RET-10928
-        pass
+        # 5. Domain company context fallback: if single active retailer exists for the authenticated company
+        target_comp = expected_comp_ref or session_comp_ref
+        if not ret_model and target_comp and not is_admin:
+            try:
+                comp_stmt = select(RetailerModel).where(
+                    RetailerModel.company_ref_id == int(target_comp),
+                    RetailerModel.is_deleted == False,
+                    RetailerModel.is_active == True,
+                    RetailerModel.status == "ACTIVE"
+                ).order_by(RetailerModel.created_date.asc())
+                comp_rets = (await db.execute(comp_stmt)).scalars().all()
+                if len(comp_rets) == 1:
+                    ret_model = comp_rets[0]
+            except Exception as e_comp:
+                logger.debug(f"Domain company retailer fallback error: {e_comp}")
 
     # Determine dynamic identity: Prioritize active RetailerModel
     if ret_model:
@@ -376,43 +380,66 @@ async def get_retailer_header_wallet(
         db=db
     )
     pub_id = ctx.get("public_id")
+    ret_ref = ctx.get("retailer_ref_id") or ctx.get("user_ref_id")
+    comp_ref = ctx.get("company_ref_id")
 
     # Fetch Real Wallet Balance from Database
     wallet_balance = 0.00
     blocked_balance = 0.00
     is_initialized = False
 
-    if pub_id:
+    # 1. Authoritative Stored Procedure: public.get_user_wallet
+    if ret_ref and db:
         try:
-            wal_stmt = select(RetailerWalletModel).where(RetailerWalletModel.retailer_id == pub_id)
+            sp_res = await db.execute(
+                text("SELECT wallet_balance, is_frozen, is_active, wallet_status FROM public.get_user_wallet(:uid, :utype)"),
+                {"uid": int(ret_ref), "utype": int(ctx.get("user_type_ref_id") or 2)}
+            )
+            sp_row = sp_res.fetchone()
+            if sp_row and sp_row.wallet_balance is not None:
+                wallet_balance = float(sp_row.wallet_balance)
+                blocked_balance = 0.00
+                is_initialized = True
+        except Exception as e_sp:
+            logger.warning(f"get_user_wallet SP lookup notice: {e_sp}")
+
+    # 2. ORM lookup on RetailerWalletModel (by retailer_id or user_ref_id)
+    if not is_initialized and (pub_id or ret_ref) and db:
+        try:
+            wal_conds = []
+            if pub_id:
+                wal_conds.append(RetailerWalletModel.retailer_id == pub_id)
+            if ret_ref:
+                wal_conds.append(RetailerWalletModel.user_ref_id == int(ret_ref))
+            wal_stmt = select(RetailerWalletModel).where(
+                or_(*wal_conds),
+                RetailerWalletModel.is_deleted == False
+            ).order_by(RetailerWalletModel.id.desc())
             wal_obj = (await db.execute(wal_stmt)).scalars().first()
             if wal_obj:
                 wallet_balance = float(wal_obj.wallet_balance)
                 blocked_balance = 0.00
                 is_initialized = True
-            else:
-                # Initialize wallet record for this merchant
-                new_wal = RetailerWalletModel(
-                    retailer_id=pub_id,
-                    tenant_id=ctx.get("tenant_id") or uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8"),
-                    wallet_balance=0.00,
-                )
-                db.add(new_wal)
-                await db.commit()
-                wallet_balance = 0.00
-                blocked_balance = 0.00
-                is_initialized = True
         except Exception as e:
             logger.warning(f"Wallet balance lookup exception: {e}")
 
-    # Fallback lookup by retailer_code ONLY if no wallet found for pub_id and not initialized
-    if not is_initialized and ctx.get("retailer_id"):
+    # 3. Fallback lookup by retailer_code if still not initialized
+    if not is_initialized and ctx.get("retailer_id") and db:
         try:
             target_code = ctx.get("retailer_id")
-            ret_lookup = select(RetailerModel).where(RetailerModel.retailer_code == target_code)
+            ret_lookup = select(RetailerModel).where(
+                RetailerModel.retailer_code == target_code,
+                RetailerModel.is_deleted == False
+            )
             ret_row = (await db.execute(ret_lookup)).scalars().first()
             if ret_row:
-                wal_stmt = select(RetailerWalletModel).where(RetailerWalletModel.retailer_id == ret_row.public_id)
+                wal_stmt = select(RetailerWalletModel).where(
+                    or_(
+                        RetailerWalletModel.retailer_id == ret_row.public_id,
+                        RetailerWalletModel.user_ref_id == ret_row.retailer_ref_id
+                    ),
+                    RetailerWalletModel.is_deleted == False
+                ).order_by(RetailerWalletModel.id.desc())
                 wal_obj = (await db.execute(wal_stmt)).scalars().first()
                 if wal_obj:
                     wallet_balance = float(wal_obj.wallet_balance)
@@ -524,40 +551,17 @@ async def get_retailer_header_wallet(
 
     # Resolve direct photo URL from database
     direct_photo_url = None
-    reg_id_target = ctx.get("registration_id") or ctx.get("retailer_id")
-    clean_mob = ctx.get("mobile") or ctx.get("mobile_number") or ""
-
-    # 1. Resolve actual registration_id if reg_id_target is not REG-*
-    actual_reg_id = reg_id_target if (reg_id_target and str(reg_id_target).startswith("REG-")) else None
-    if not actual_reg_id and (clean_mob or reg_id_target or ctx.get("public_id")):
+    target_id_for_photo = ctx.get("retailer_code") or ctx.get("retailer_id") or str(pub_id or "")
+    if pub_id and db:
         try:
-            v_conds = []
-            if ctx.get("public_id"):
-                v_conds.append(RetailerVerificationModel.public_id == ctx["public_id"])
-            if reg_id_target:
-                v_conds.append(RetailerVerificationModel.retailer_id == str(reg_id_target))
-                v_conds.append(RetailerVerificationModel.registration_id == str(reg_id_target))
-            if clean_mob and len(clean_mob) >= 10:
-                cm = clean_mob[-10:]
-                v_conds.append(RetailerVerificationModel.mobile_number.like(f"%{cm}"))
-            if v_conds:
-                v_row = (await db.execute(select(RetailerVerificationModel).where(or_(*v_conds)).order_by(desc(RetailerVerificationModel.created_date)))).scalars().first()
-                if v_row:
-                    actual_reg_id = v_row.registration_id
+            from app.infrastructure.db.models import RetailerKYCModel
+            k_stmt = select(RetailerKYCModel.business_proof_url).where(RetailerKYCModel.retailer_id == pub_id, RetailerKYCModel.is_deleted == False).limit(1)
+            k_res = (await db.execute(k_stmt)).scalar()
+            if k_res and (k_res.startswith("/uploads/") or k_res.startswith("http")):
+                direct_photo_url = k_res
         except Exception:
             pass
 
-    # 2. Query RegistrationAadhaarModel or RegistrationDraftModel for photo_url
-    if actual_reg_id:
-        try:
-            a_stmt = select(RegistrationAadhaarModel).where(RegistrationAadhaarModel.registration_id == actual_reg_id).order_by(desc(RegistrationAadhaarModel.created_date))
-            aadhaar_r = (await db.execute(a_stmt)).scalars().first()
-            if aadhaar_r and aadhaar_r.photo_url and (aadhaar_r.photo_url.startswith("/uploads/") or aadhaar_r.photo_url.startswith("http")):
-                direct_photo_url = aadhaar_r.photo_url
-        except Exception:
-            pass
-
-    target_id_for_photo = actual_reg_id or reg_id_target or ""
     resolved_photo = direct_photo_url or (f"/api/v1/retailer/profile/photo-image?retailer_id={target_id_for_photo}" if target_id_for_photo else None)
 
     return {
@@ -651,29 +655,58 @@ async def get_fast_wallet_balance(
     )
     enforce_active_approved_retailer(ctx)
     pub_id = ctx.get("public_id")
+    ret_ref = ctx.get("retailer_ref_id") or ctx.get("user_ref_id")
 
     wallet_balance = 0.00
-    if pub_id:
+    # 1. Authoritative Stored Procedure: public.get_user_wallet
+    if ret_ref and db:
         try:
-            wal_stmt = select(RetailerWalletModel.wallet_balance).where(RetailerWalletModel.retailer_id == pub_id)
+            sp_res = await db.execute(
+                text("SELECT wallet_balance FROM public.get_user_wallet(:uid, :utype)"),
+                {"uid": int(ret_ref), "utype": int(ctx.get("user_type_ref_id") or 2)}
+            )
+            sp_row = sp_res.fetchone()
+            if sp_row and sp_row.wallet_balance is not None:
+                wallet_balance = float(sp_row.wallet_balance)
+        except Exception as e_sp:
+            logger.warning(f"Fast wallet SP lookup notice: {e_sp}")
+
+    # 2. ORM lookup on RetailerWalletModel
+    if wallet_balance == 0.00 and (pub_id or ret_ref) and db:
+        try:
+            wal_conds = []
+            if pub_id:
+                wal_conds.append(RetailerWalletModel.retailer_id == pub_id)
+            if ret_ref:
+                wal_conds.append(RetailerWalletModel.user_ref_id == int(ret_ref))
+            wal_stmt = select(RetailerWalletModel.wallet_balance).where(
+                or_(*wal_conds),
+                RetailerWalletModel.is_deleted == False
+            ).order_by(RetailerWalletModel.id.desc())
             w_res = (await db.execute(wal_stmt)).scalar()
             if w_res is not None:
                 wallet_balance = float(w_res)
         except Exception as e:
             logger.warning(f"Fast wallet lookup notice: {e}")
-    elif ctx.get("retailer_id"):
+    elif wallet_balance == 0.00 and ctx.get("retailer_id") and db:
         try:
             target_code = ctx.get("retailer_id")
-            ret_lookup = select(RetailerModel.public_id).where(
+            ret_lookup = select(RetailerModel).where(
                 or_(
                     RetailerModel.retailer_code == target_code,
                     RetailerModel.retailer_code.ilike(f"%{target_code}%")
                 ),
                 RetailerModel.is_deleted == False
             )
-            ret_pid = (await db.execute(ret_lookup)).scalar()
-            if ret_pid:
-                wal_stmt = select(RetailerWalletModel.wallet_balance).where(RetailerWalletModel.retailer_id == ret_pid)
+            ret_row = (await db.execute(ret_lookup)).scalars().first()
+            if ret_row:
+                wal_stmt = select(RetailerWalletModel.wallet_balance).where(
+                    or_(
+                        RetailerWalletModel.retailer_id == ret_row.public_id,
+                        RetailerWalletModel.user_ref_id == ret_row.retailer_ref_id
+                    ),
+                    RetailerWalletModel.is_deleted == False
+                ).order_by(RetailerWalletModel.id.desc())
                 w_res = (await db.execute(wal_stmt)).scalar()
                 if w_res is not None:
                     wallet_balance = float(w_res)
