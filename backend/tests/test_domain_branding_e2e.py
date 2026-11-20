@@ -54,7 +54,7 @@ async def test_branding_endpoint_smspay_domain():
     assert data["company_code"] == "SMSPAY"
     assert data["display_name"] == "SMSPAY"
     assert data["logo_url"] == "/branding/smspay-logo.svg"
-    assert data["favicon_url"] == "/branding/smspay-mark.svg"
+    assert data["favicon_url"] == "/branding/smspay-favicon-32x32.png"
     assert data["primary_colour"] == "#059669"
     assert data["secondary_colour"] == "#047857"
     assert data["legal_name"] == "SMSPAY Technologies Pvt. Ltd."
@@ -96,7 +96,7 @@ async def test_branding_endpoint_smspay_port_4002():
     assert res["success"] is True
     data = res["data"]
     assert data["company_code"] == "SMSPAY"
-    assert data["favicon_url"] == "/branding/smspay-mark.svg"
+    assert data["favicon_url"] == "/branding/smspay-favicon-32x32.png"
     assert data["primary_colour"] == "#059669"
 
 
@@ -214,5 +214,5 @@ async def test_resolve_by_domain_endpoint():
     res = await resolve_by_domain(domain="smspay.store", db=mock_db)
     assert res["success"] is True
     assert res["data"]["company_code"] == "SMSPAY"
-    assert res["data"]["favicon_url"] == "/branding/smspay-mark.svg"
+    assert res["data"]["favicon_url"] == "/branding/smspay-favicon-32x32.png"
     assert res["data"]["primary_colour"] == "#059669"

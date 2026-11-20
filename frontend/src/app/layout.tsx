@@ -21,12 +21,12 @@ export async function generateMetadata(): Promise<Metadata> {
         description: "Enterprise Merchant Banking & Settlement Terminal - SMSPAY",
         icons: {
           icon: [
-            { url: "/branding/smspay-mark.svg", type: "image/svg+xml" },
             { url: "/branding/smspay-favicon-32x32.png", sizes: "32x32", type: "image/png" },
             { url: "/branding/smspay-favicon.png", sizes: "32x32", type: "image/png" },
             { url: "/branding/smspay-favicon.ico" },
+            { url: "/branding/smspay-mark.svg", type: "image/svg+xml" },
           ],
-          shortcut: "/branding/smspay-mark.svg",
+          shortcut: "/branding/smspay-favicon-32x32.png",
           apple: "/branding/smspay-icon-192.png",
         },
         manifest: "/site.webmanifest",
