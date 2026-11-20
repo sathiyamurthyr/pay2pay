@@ -42,6 +42,7 @@ from app.application.gateway_masking_service import GatewayMaskingService
 from app.application.bankme_payin_client import BankMePayInClient, record_payin_api_audit_log
 from app.application.transaction_reference_service import TransactionReferenceService
 from app.application.wallet_balance_service import WalletBalanceAdjustmentService, WalletAdjustmentDTO
+from app.core.company_resolver import resolve_return_base_url
 from app.infrastructure.db.payin_models import (
     PayinTransactionModel, PayinCallbackLogModel, PayinServiceTypeModel,
     PayinPaymentModeModel, PayinCardTypeModel, PayinVendorModel, PayinApiLogModel
@@ -354,7 +355,15 @@ class PayInService:
                 adapter = ExistingPayInAdapter()
                 provider_code = "EXISTING"
 
-        # 9. Invoke Provider Adapter
+        # 9. Resolve Verified Domain Return URL & Invoke Provider Adapter
+        req = auth_context.get("request")
+        return_base = resolve_return_base_url(
+            company_ref_id=company_ref_id,
+            request=req,
+            candidate_url=request_dto.return_url or request_dto.callback_url
+        )
+        resolved_return_url = f"{return_base}/retailer/payin/status?referenceId={tid}"
+
         provider_resp = await adapter.initiate_payin(
             tid=tid,
             amount=calc["customer_payable"],
@@ -363,6 +372,8 @@ class PayInService:
             customer_email=request_dto.customer_email,
             reference_id=tid,
             callback_url=request_dto.callback_url or (vendor.callback_url if vendor else None),
+            return_url=resolved_return_url,
+            request=req,
             payment_mode=mode_code,
             note=request_dto.note,
             company_ref_id=company_ref_id,
@@ -796,6 +807,7 @@ class PayInService:
         final_retailer_credit = float(txn.retailer_credit)
         final_card_network = txn.card_network
         final_mdr_treatment = txn.mdr_treatment
+        final_customer_payable_policy = txn.customer_payable_policy
         final_ledger_txn_id = txn.ledger_txn_id
         final_created_at = txn.created_at.isoformat() if txn.created_at else None
         final_updated_at = txn.updated_at.isoformat() if txn.updated_at else None
@@ -821,42 +833,46 @@ class PayInService:
                         now_utc = datetime.now(timezone.utc)
                         txn.completed_at = now_utc
                         final_updated_at = now_utc.isoformat()
-                        # Automatic wallet credit if not already credited
-                        if not txn.ledger_txn_id:
-                            try:
-                                ret_stmt = select(RetailerModel).where(
-                                    RetailerModel.retailer_ref_id == txn.retailer_ref_id,
-                                    RetailerModel.company_ref_id == txn.company_ref_id
-                                )
-                                ret_res = await db.execute(ret_stmt)
-                                ret_obj = ret_res.scalars().first()
-                                credit_amount = float(txn.retailer_credit)
-                                adj_dto = WalletAdjustmentDTO(
-                                    user_ref_id=txn.retailer_ref_id,
-                                    retailer_id=str(ret_obj.public_id) if ret_obj else None,
-                                    retailer_code=ret_obj.retailer_code if ret_obj else None,
-                                    company_ref_id=txn.company_ref_id,
-                                    user_type_ref_id=2,
-                                    entry_type="CREDIT",
-                                    amount=credit_amount,
-                                    payout_amount=credit_amount,
-                                    charge_amount=0.0,
-                                    gst_amount=0.0,
-                                    service_name="PAYIN_TOPUP",
-                                    wallet_type="MAIN",
-                                    user_type="RETAILER",
-                                    txn_id=txn.tid,
-                                    ref_id=live_check.get("utr") or txn.provider_ref_id or txn.tid,
-                                    narration=f"PayIn Wallet Top-Up via BankMe (TID: {txn.tid})"
-                                )
-                                adj_res = await WalletBalanceAdjustmentService.execute_wallet_balance_update(db=db, dto=adj_dto)
-                                if adj_res and adj_res.success:
-                                    final_ledger_txn_id = adj_res.txn_id
-                                    txn.ledger_txn_id = adj_res.txn_id
-                                    logger.info("Credited ₹%s to retailer_ref_id=%s via sync for TID=%s", credit_amount, txn.retailer_ref_id, txn.tid)
-                            except Exception as w_err:
-                                logger.error("Wallet credit error during status sync for TID %s: %s", txn.tid, w_err)
+
+                    # Commit transaction status update first to ensure persistence
                     await db.commit()
+
+                    # Automatic wallet credit if not already credited (isolated transaction)
+                    if new_st == "SUCCESS" and not final_ledger_txn_id:
+                        try:
+                            ret_stmt = select(RetailerModel).where(
+                                RetailerModel.retailer_ref_id == txn.retailer_ref_id,
+                                RetailerModel.company_ref_id == txn.company_ref_id
+                            )
+                            ret_res = await db.execute(ret_stmt)
+                            ret_obj = ret_res.scalars().first()
+                            credit_amount = float(final_retailer_credit)
+                            adj_dto = WalletAdjustmentDTO(
+                                user_ref_id=txn.retailer_ref_id,
+                                retailer_id=str(ret_obj.public_id) if ret_obj else None,
+                                retailer_code=ret_obj.retailer_code if ret_obj else None,
+                                company_ref_id=txn.company_ref_id,
+                                user_type_ref_id=2,
+                                entry_type="CREDIT",
+                                amount=credit_amount,
+                                payout_amount=credit_amount,
+                                charge_amount=0.0,
+                                gst_amount=0.0,
+                                service_name="PAYIN_TOPUP",
+                                wallet_type="MAIN",
+                                user_type="RETAILER",
+                                txn_id=final_tid,
+                                ref_id=live_check.get("utr") or final_provider_ref or final_tid,
+                                narration=f"PayIn Wallet Top-Up via BankMe (TID: {final_tid})"
+                            )
+                            adj_res = await WalletBalanceAdjustmentService.execute_wallet_balance_update(db=db, dto=adj_dto)
+                            if adj_res and adj_res.success:
+                                final_ledger_txn_id = adj_res.txn_id
+                                txn.ledger_txn_id = adj_res.txn_id
+                                await db.commit()
+                                logger.info("Credited ₹%s to retailer_ref_id=%s via sync for TID=%s", credit_amount, txn.retailer_ref_id, final_tid)
+                        except Exception as w_err:
+                            logger.error("Wallet credit error during status sync for TID %s: %s", final_tid, w_err)
             except Exception as sync_err:
                 logger.warning("Error performing live BankMe status check for TID %s: %s", tid, sync_err)
 
@@ -880,8 +896,8 @@ class PayInService:
             provider=masked_provider,
             card_network=final_card_network,
             mdr_treatment=final_mdr_treatment,
-            customer_payable_policy=txn.customer_payable_policy or ("WITH_MDR" if final_mdr_treatment == "COLLECT_ADDITIONALLY" else "WITHOUT_MDR"),
-            policy_display_name="Customer Pays MDR Charges" if (txn.customer_payable_policy == "WITH_MDR" or final_mdr_treatment == "COLLECT_ADDITIONALLY") else "Retailer Bears MDR Charges",
+            customer_payable_policy=final_customer_payable_policy or ("WITH_MDR" if final_mdr_treatment == "COLLECT_ADDITIONALLY" else "WITHOUT_MDR"),
+            policy_display_name="Customer Pays MDR Charges" if (final_customer_payable_policy == "WITH_MDR" or final_mdr_treatment == "COLLECT_ADDITIONALLY") else "Retailer Bears MDR Charges",
             ledger_txn_id=final_ledger_txn_id,
             created_at=final_created_at,
             updated_at=final_updated_at

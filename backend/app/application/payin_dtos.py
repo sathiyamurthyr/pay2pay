@@ -21,6 +21,7 @@ class CommonPayInRequest(BaseModel):
     customer_email: Optional[str] = Field(None, description="Customer Email Address")
     reference_id: str = Field(..., min_length=3, max_length=100, description="Unique Merchant / Retailer Reference ID")
     callback_url: Optional[str] = Field(None, max_length=500, description="Client Webhook Callback URL")
+    return_url: Optional[str] = Field(None, max_length=500, description="Client Browser Return URL after payment")
     
     # Extended Multi-Vendor & Service parameters (optional with backward-compatible defaults)
     payment_mode: Optional[str] = Field("UPI", description="Payment Mode: UPI, QR, NETBANKING, CARD")

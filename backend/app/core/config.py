@@ -165,7 +165,7 @@ class Settings(BaseSettings):
         default_factory=lambda: os.getenv("BANKME_PAYIN_CHECKOUT_URL", "")
     )
     BANKME_PAYIN_REDIRECT_BASE_URL: str = Field(
-        default_factory=lambda: os.getenv("BANKME_PAYIN_REDIRECT_BASE_URL", "https://login.near4you.store/retailer/payin")
+        default_factory=lambda: os.getenv("BANKME_PAYIN_REDIRECT_BASE_URL", "")
     )
     BANKME_PAYIN_SIMULATION: bool = Field(
         default_factory=lambda: os.getenv("BANKME_PAYIN_SIMULATION", "false").lower() in ("true", "1", "yes")

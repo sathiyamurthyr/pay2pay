@@ -18,6 +18,7 @@ from typing import Dict, Any, Optional, Tuple
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.infrastructure.db.payin_models import PayinApiLogModel
+from app.core.company_resolver import resolve_return_base_url
 
 logger = logging.getLogger("bankme_payin_client")
 
@@ -142,6 +143,7 @@ class BankMePayInClient:
         customer_email: Optional[str] = None,
         reference_id: Optional[str] = None,
         callback_url: Optional[str] = None,
+        return_url: Optional[str] = None,
         payment_mode: str = "UPI",
         note: Optional[str] = None,
         company_ref_id: int = 2,
@@ -161,12 +163,18 @@ class BankMePayInClient:
         raw_digits = re.sub(r"\D", "", str(customer_mobile or ""))
         clean_mobile = raw_digits[-10:] if len(raw_digits) >= 10 else "9876543210"
 
-        # BankMe strictly requires an https:// domain for redirectUrl
-        redirect_base = getattr(settings, "BANKME_PAYIN_REDIRECT_BASE_URL", "https://login.near4you.store/retailer/payin")
-        if callback_url and callback_url.startswith("https://"):
+        # Resolve return URL dynamically using verified company domain
+        if return_url and return_url.startswith("http"):
+            valid_redirect_url = return_url
+        elif callback_url and callback_url.startswith("http") and not callback_url.endswith("/api/v1/payin/callback") and not callback_url.endswith("/api/v1/payin/webhook/bankme"):
             valid_redirect_url = callback_url
         else:
-            valid_redirect_url = f"{redirect_base}?tid={tid}"
+            configured_base = getattr(settings, "BANKME_PAYIN_REDIRECT_BASE_URL", "")
+            if configured_base and configured_base.startswith("http"):
+                base_domain = configured_base.rstrip("/")
+            else:
+                base_domain = resolve_return_base_url(company_ref_id=company_ref_id)
+            valid_redirect_url = f"{base_domain}/retailer/payin/status?referenceId={tid}"
 
         # Authoritative TID as BankMe referenceId (guarantees idempotency and unified status lookup)
         ref_id = tid
