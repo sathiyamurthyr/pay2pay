@@ -97,7 +97,7 @@ export default function BatchesPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#FAF8F9] flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
             <Receipt className="h-7 w-7 text-[#2563EB]" />
             Settlement Batches & Bank Payouts
           </h1>
@@ -124,39 +124,39 @@ export default function BatchesPage() {
       </div>
 
       {/* Grid Table */}
-      <div className="rounded-xl border border-[#E2E8F0] bg-white overflow-hidden shadow-sm">
+      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-[#FFFFFF]">
-            <thead className="bg-[#F8FAFC] uppercase font-mono text-xs text-[#FAF8F9] border-b border-[#E2E8F0]">
+          <table className="w-full text-left text-sm text-slate-800">
+            <thead className="bg-slate-50 uppercase font-mono text-xs font-bold text-slate-700 border-b border-slate-200">
               <tr>
-                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Batch Number & Date</th>
-                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Gross Volume</th>
-                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Total MDR & GST</th>
-                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Net Payout Amount</th>
-                <th className="px-5 py-4 font-extrabold text-[#FAF8F9]">Status</th>
+                <th className="px-5 py-4 font-bold text-slate-700">Batch Number & Date</th>
+                <th className="px-5 py-4 font-bold text-slate-700">Gross Volume</th>
+                <th className="px-5 py-4 font-bold text-slate-700">Total MDR & GST</th>
+                <th className="px-5 py-4 font-bold text-slate-700">Net Payout Amount</th>
+                <th className="px-5 py-4 font-bold text-slate-700">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E2E8F0]">
+            <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-5 py-12 text-center text-[#64748B] font-medium">
+                  <td colSpan={5} className="px-5 py-12 text-center text-slate-500 font-medium">
                     Loading Settlement Batches...
                   </td>
                 </tr>
               ) : batches.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-5 py-12 text-center text-[#64748B] font-medium">
+                  <td colSpan={5} className="px-5 py-12 text-center text-slate-500 font-medium">
                     No settlement batches generated yet. Click 'Generate Settlement Batch' to process.
                   </td>
                 </tr>
               ) : (
                 batches.map((b) => (
-                  <tr key={b.public_id} className="hover:bg-[#F8FAFC] transition-colors">
+                  <tr key={b.public_id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-5 py-4">
                       <div className="font-mono text-xs text-[#2563EB] font-extrabold">{b.batch_number}</div>
-                      <div className="text-[10px] text-[#64748B] font-semibold">{b.batch_date} ({b.transaction_count} txns)</div>
+                      <div className="text-[10px] text-slate-500 font-semibold">{b.batch_date} ({b.transaction_count} txns)</div>
                     </td>
-                    <td className="px-5 py-4 font-mono font-bold text-[#FFFFFF]">₹{b.gross_volume.toLocaleString("en-IN")}</td>
+                    <td className="px-5 py-4 font-mono font-bold text-slate-900">₹{b.gross_volume.toLocaleString("en-IN")}</td>
                     <td className="px-5 py-4 font-mono text-xs">
                       <span className="text-[#7C3AED] font-bold">MDR: ₹{b.total_mdr}</span> | <span className="text-[#0284C7] font-bold">GST: ₹{b.total_gst}</span>
                     </td>
@@ -176,16 +176,16 @@ export default function BatchesPage() {
 
       {/* Generate Batch Modal */}
       {showBatchModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FAF8F9]/60 backdrop-blur-sm p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="w-full max-w-md rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xl space-y-4 my-8">
             <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-4">
-              <h2 className="text-lg font-bold text-[#FAF8F9] flex items-center gap-2">
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <Receipt className="h-5 w-5 text-[#2563EB]" />
                 Generate Settlement Batch
               </h2>
               <button
                 onClick={() => setShowBatchModal(false)}
-                className="text-[#64748B] hover:text-[#FAF8F9] transition-colors"
+                className="text-slate-500 hover:text-slate-800 transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -200,7 +200,7 @@ export default function BatchesPage() {
                   value={batchForm.company_id}
                   onChange={(e) => setBatchForm({ ...batchForm, company_id: e.target.value })}
                   placeholder="Enter target tenant public_id"
-                  className="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-xs font-mono text-[#FAF8F9] focus:border-[#2563EB] focus:outline-none"
+                  className="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-xs font-mono text-slate-900 focus:border-[#2563EB] focus:outline-none"
                 />
               </div>
               <div>
@@ -210,7 +210,7 @@ export default function BatchesPage() {
                   required
                   value={batchForm.batch_date}
                   onChange={(e) => setBatchForm({ ...batchForm, batch_date: e.target.value })}
-                  className="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-xs font-mono text-[#FAF8F9] focus:border-[#2563EB] focus:outline-none"
+                  className="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-xs font-mono text-slate-900 focus:border-[#2563EB] focus:outline-none"
                 />
               </div>
 

@@ -158,30 +158,36 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   const isPayInPage = pathname === "/retailer/payin";
 
   // Multi-brand Financial Applications: Pay2Pay, Near4You, SMSPAY
-  const isPay2Pay =
-    branding?.company_code === "PAY2PAY" ||
-    branding?.company_name?.toUpperCase().includes("PAY2PAY") ||
-    user?.company_ref_id === 47 ||
-    (typeof window !== "undefined" && window.location.hostname.includes("pay2pay"));
-
-  const isNear4You =
-    branding?.company_code === "NEAR4YOU" ||
-    branding?.company_name?.toUpperCase().includes("NEAR4YOU") ||
-    user?.company_ref_id === 1 ||
-    (typeof window !== "undefined" && window.location.hostname.includes("near4you"));
+  const currentHost = typeof window !== "undefined" ? window.location.hostname.toLowerCase() : "";
+  const currentPort = typeof window !== "undefined" ? window.location.port : "";
 
   const isSmsPay =
     branding?.company_code === "SMSPAY" ||
-    branding?.company_name?.toUpperCase().includes("SMSPAY") ||
-    user?.company_ref_id === 2 ||
-    (typeof window !== "undefined" && window.location.port === "4002") ||
-    (typeof window !== "undefined" && window.location.hostname.includes("smspay"));
+    currentPort === "4002" ||
+    currentHost.includes("smspay") ||
+    (!branding?.company_code && !currentHost.includes("pay2pay") && !currentHost.includes("near4you") && (user as any)?.company_ref_id === 2);
+
+  const isNear4You =
+    !isSmsPay &&
+    (branding?.company_code === "NEAR4YOU" ||
+     currentPort === "4001" ||
+     currentHost.includes("near4you") ||
+     (!branding?.company_code && !currentHost.includes("pay2pay") && (user as any)?.company_ref_id === 1));
+
+  const isPay2Pay =
+    !isSmsPay &&
+    !isNear4You &&
+    (branding?.company_code === "PAY2PAY" ||
+     currentPort === "3000" ||
+     currentPort === "4003" ||
+     currentHost.includes("pay2pay") ||
+     (user as any)?.company_ref_id === 47);
 
   const isFinancialApp = isPay2Pay || isNear4You || isSmsPay;
 
   const appName = branding?.display_name || branding?.company_name || (isPay2Pay ? "Pay2Pay" : isNear4You ? "Near 4 You" : isSmsPay ? "SMSPAY" : "FinTech Platform");
   const appSubtitle = `${appName} Operations`;
-  const appLogo = branding?.logo_url || (isPay2Pay ? "/branding/pay2pay-logo.png" : isNear4You ? "/branding/logo.svg" : "/branding/smspay-mark.svg");
+  const appLogo = branding?.logo_url || (isPay2Pay ? "/branding/pay2pay-logo.png" : isNear4You ? "/branding/logo.svg" : "/branding/smspay-logo.svg");
 
   const brandPrimary = branding?.primary_colour || (isPay2Pay ? "#2563EB" : isNear4You ? "#A20A3A" : "#059669");
   const brandSecondary = branding?.secondary_colour || (isPay2Pay ? "#1E40AF" : isNear4You ? "#85072F" : "#047857");
@@ -246,13 +252,26 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     let initialCompany = null;
     if (typeof window !== "undefined") {
       try {
+        const host = window.location.hostname.toLowerCase();
+        const port = window.location.port;
+        const isSmspay = host.includes("smspay") || port === "4002";
+        const isPay2pay = host.includes("pay2pay") || port === "3000" || port === "4003";
+
         const uStr = localStorage.getItem("p2p_retailer_user") || localStorage.getItem("user_info") || localStorage.getItem("user");
         if (uStr) {
           const u = JSON.parse(uStr);
-          initialOwner = u.owner_name || u.name || u.full_name || null;
-          initialRetailer = u.store_name || u.retailer_name || null;
-          initialCode = u.retailer_code || u.code || u.retailer_id || null;
-          initialCompany = u.company_name || null;
+          const uCompRef = u.company_ref_id;
+          const uCompCode = (u.company_code || "").toUpperCase();
+          const isMismatch =
+            (isSmspay && (uCompRef === 47 || uCompCode === "PAY2PAY" || (u.retailer_code && String(u.retailer_code).startsWith("P2P-")))) ||
+            (isPay2pay && (uCompRef === 2 || uCompCode === "SMSPAY" || (u.retailer_code && String(u.retailer_code).startsWith("SMSP-"))));
+
+          if (!isMismatch) {
+            initialOwner = u.owner_name || u.name || u.full_name || null;
+            initialRetailer = u.store_name || u.retailer_name || null;
+            initialCode = u.retailer_code || u.code || u.retailer_id || null;
+            initialCompany = u.company_name || null;
+          }
         }
       } catch {}
     }
@@ -302,11 +321,23 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       const kyc = data.kyc || {};
       const currentOutlet = useRetailerStore.getState().outlet;
 
+      const host = typeof window !== "undefined" ? window.location.hostname.toLowerCase() : "";
+      const port = typeof window !== "undefined" ? window.location.port : "";
+      const isSmspay = host.includes("smspay") || port === "4002";
+      const isNear4you = host.includes("near4you") || port === "4001";
+      const isPay2pay = host.includes("pay2pay") || port === "3000" || port === "4003";
+
       const fallbackOwner = (typeof window !== "undefined" && (() => {
         try {
           const uStr = localStorage.getItem("p2p_retailer_user") || localStorage.getItem("user_info") || localStorage.getItem("user");
           if (uStr) {
             const u = JSON.parse(uStr);
+            const uCompRef = u.company_ref_id;
+            const uCompCode = (u.company_code || "").toUpperCase();
+            if ((isSmspay && (uCompRef === 47 || uCompCode === "PAY2PAY" || (u.retailer_code && String(u.retailer_code).startsWith("P2P-")))) ||
+                (isPay2pay && (uCompRef === 2 || uCompCode === "SMSPAY" || (u.retailer_code && String(u.retailer_code).startsWith("SMSP-"))))) {
+              return null;
+            }
             return u.owner_name || u.name || u.full_name;
           }
         } catch {}
@@ -318,15 +349,28 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           const uStr = localStorage.getItem("p2p_retailer_user") || localStorage.getItem("user_info") || localStorage.getItem("user");
           if (uStr) {
             const u = JSON.parse(uStr);
+            const uCompRef = u.company_ref_id;
+            const uCompCode = (u.company_code || "").toUpperCase();
+            if ((isSmspay && (uCompRef === 47 || uCompCode === "PAY2PAY" || (u.retailer_code && String(u.retailer_code).startsWith("P2P-")))) ||
+                (isPay2pay && (uCompRef === 2 || uCompCode === "SMSPAY" || (u.retailer_code && String(u.retailer_code).startsWith("SMSP-"))))) {
+              return null;
+            }
             return u.retailer_code || u.code || u.retailer_id;
           }
         } catch {}
         return null;
       })()) || "";
 
+      const defaultCompanyName = isSmspay ? "SMSPAY" : isNear4you ? "Near4You" : (branding?.company_name || branding?.display_name || "Pay2Pay");
+      let resolvedCompany = company.company_name || company.legal_name || defaultCompanyName;
+      if (isSmspay && resolvedCompany.toLowerCase().includes("pay2pay")) {
+        resolvedCompany = "SMSPAY";
+      } else if (isPay2pay && resolvedCompany.toLowerCase().includes("smspay")) {
+        resolvedCompany = "Pay2Pay";
+      }
+
       const resolvedOwner = personal.owner_name || (personal.first_name ? `${personal.first_name} ${personal.last_name || ""}`.trim() : personal.retailer_name) || fallbackOwner;
       const resolvedRetailer = personal.retailer_name || personal.store_name || fallbackOwner || "Retailer Store";
-      const resolvedCompany = company.company_name || company.legal_name || branding?.display_name || "Enterprise Portal";
       const resolvedCode = personal.retailer_id || personal.application_reference || fallbackCode || "";
       const photoUrl = photo.photo_url || currentOutlet.avatar || currentOutlet.photo_url || "";
       const approvalStatus = personal.status === "ACTIVE" ? "ACTIVE" : (currentOutlet.approvalStatus || "ACTIVE");
@@ -375,7 +419,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         setProfileDetails((prev) => ({
           ...prev,
           owner_name: rInfo.owner_name || prev.owner_name,
-          retailer_name: rInfo.company_name || rInfo.retailer_name || prev.retailer_name,
+          retailer_name: rInfo.store_name || rInfo.retailer_name || prev.retailer_name,
+          company_name: rInfo.company_name || prev.company_name,
           retailer_code: rInfo.retailer_code || rInfo.retailer_id || prev.retailer_code,
           photo_url: rInfo.photo_url || rInfo.avatar_url || prev.photo_url,
         }));
@@ -536,6 +581,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       items: [
         { label: "Customers", path: "/retailer/customers", icon: PersonIcon },
         { label: "Beneficiaries", path: "/retailer/beneficiary", icon: ContactsIcon },
+        { label: "PayIn Report", path: "/retailer/reports/payin-transactions", icon: AssessmentIcon },
+        { label: "Payout Report", path: "/retailer/reports/payout-transactions", icon: ReceiptLongIcon },
         { label: "Transactions", path: "/retailer/reports/transactions", icon: AssessmentIcon },
         { label: "Settlement", path: "/retailer/reports/settlement", icon: PointOfSaleIcon },
       ],
@@ -1694,7 +1741,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   <Typography variant="h5" suppressHydrationWarning sx={{ fontSize: "22px", fontWeight: 800, color: brandPrimary, fontFamily: "monospace", lineHeight: 1.1 }}>
                     ₹{(wallet?.mainBalance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Typography>
-                  <IconButton size="small" onClick={syncBalance} disabled={isSyncing} sx={{ p: 0.25 }}>
+                  <IconButton size="small" onClick={() => syncBalance()} disabled={isSyncing} sx={{ p: 0.25 }}>
                     <RefreshIcon sx={{ fontSize: 16, color: brandPrimary, animation: isSyncing ? "spin 1s linear infinite" : "none" }} />
                   </IconButton>
                 </Box>

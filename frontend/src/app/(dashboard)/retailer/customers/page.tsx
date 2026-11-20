@@ -774,7 +774,7 @@ function CustomersContent() {
           7. QR SCAN MODAL & UNIVERSAL SEARCH DIALOG
       ───────────────────────────────────────────────────────────────────── */}
       {showQrModal && (
-        <div className="fixed inset-0 z-50 bg-[#FFFFFF]/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#FAF8F9] border border-slate-200 dark:border-[#E8E2E5] rounded-3xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl">
             <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 mx-auto flex items-center justify-center">
               <QrCode className="w-6 h-6" />

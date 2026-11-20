@@ -90,7 +90,7 @@ export const MultiDeviceSessionModal: React.FC<MultiDeviceSessionModalProps> = (
   isOpen,
   onClose,
   onProceed,
-  userEmail = "admin@near4you.store",
+  userEmail = "user@domain.com",
 }) => {
   const [sessions, setSessions] = useState<DeviceSession[]>(DEFAULT_SESSIONS);
   const [revokingId, setRevokingId] = useState<string | null>(null);

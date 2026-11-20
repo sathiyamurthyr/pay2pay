@@ -89,6 +89,10 @@ function AnnouncementThumbnail({
 }) {
   const [imgError, setImgError] = useState(false);
 
+  useEffect(() => {
+    setImgError(false);
+  }, [imageUrl]);
+
   if (imageUrl && !imgError) {
     return (
       <div className="relative w-28 h-20 rounded-xl overflow-hidden shrink-0 border border-slate-200 bg-slate-100 shadow-2xs">
@@ -194,42 +198,104 @@ export default function AnnouncementsPage() {
     fetchAnnouncements();
   }, []);
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const uploadImageToServer = async (file: File, annId?: string | null): Promise<string | null> => {
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("display_order", "1");
+      if (annId) {
+        fd.append("announcement_id", annId);
+      }
+      // 1. Try dedicated announcement upload endpoint (with B2 & local fallback)
+      try {
+        const res = await api.post("/api/v1/announcements/admin/upload-image", fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        const url = res.data?.data?.url || res.data?.data?.image_url || res.data?.url || res.data?.image_url;
+        if (url) return url;
+      } catch (e1) {
+        console.warn("Dedicated upload failed, trying fallback:", e1);
+      }
+
+      // 2. Try announcement images route if annId exists
+      if (annId) {
+        try {
+          const res2 = await api.post(`/api/v1/announcements/admin/${annId}/images`, fd, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+          const url2 = res2.data?.data?.image_url || res2.data?.image_url;
+          if (url2) return url2;
+        } catch (e2) {
+          console.warn("Announcement images route failed:", e2);
+        }
+      }
+
+      // 3. Fallback to generic image upload
+      const fdFallback = new FormData();
+      fdFallback.append("file", file);
+      fdFallback.append("folder", "announcements");
+      const res3 = await api.post("/api/v1/upload/image", fdFallback, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return res3.data?.url || res3.data?.path || null;
+    } catch (err) {
+      console.error("All upload attempts failed:", err);
+      return null;
+    }
+  };
+
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
       showToast("error", "Image must be under 5 MB");
       return;
     }
-    setImageFile(file);
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    if (!["jpg", "jpeg", "png", "webp", "gif", "svg"].includes(ext || "")) {
+      showToast("error", "Only JPG, PNG, WEBP, GIF, and SVG images are supported");
+      return;
+    }
+
+    // Local instant preview
     const reader = new FileReader();
-    reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+    reader.onload = (ev) => {
+      setImagePreview(ev.target?.result as string);
+    };
     reader.readAsDataURL(file);
+
+    // Immediate server upload so the permanent URL is persisted
+    setUploading(true);
+    try {
+      const serverUrl = await uploadImageToServer(file, editingId);
+      if (serverUrl) {
+        setImagePreview(serverUrl);
+        setImageFile(null); // Marked as uploaded to server
+        showToast("success", "Banner image uploaded successfully!");
+      } else {
+        showToast("error", "Failed to upload image. Please try again.");
+        setImagePreview(null);
+        setImageFile(null);
+      }
+    } catch {
+      showToast("error", "Failed to upload image to server.");
+      setImagePreview(null);
+      setImageFile(null);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setImagePreview(null);
+    setImageFile(null);
+    if (fileRef.current) fileRef.current.value = "";
+    showToast("success", "Image removed.");
   };
 
   const uploadImageToB2 = async (annId: string, file: File): Promise<string | null> => {
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("display_order", "1");
-      const res = await api.post(`/api/v1/announcements/admin/${annId}/images`, fd, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      return res.data?.data?.image_url || res.data?.image_url || null;
-    } catch {
-      // Fallback to generic media upload
-      try {
-        const fd = new FormData();
-        fd.append("file", file);
-        fd.append("folder", "announcements");
-        const res2 = await api.post("/api/v1/upload/image", fd, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-        return res2.data?.url || res2.data?.path || null;
-      } catch {
-        return null;
-      }
-    }
+    return uploadImageToServer(file, annId);
   };
 
   const handleOpenCreate = () => {
@@ -280,7 +346,7 @@ export default function AnnouncementsPage() {
         display_type: "MODAL",
         is_active: form.is_active,
         status: form.is_active ? "ACTIVE" : "DRAFT",
-        image_url: imagePreview && !imageFile ? imagePreview : null,
+        image_url: imagePreview ? imagePreview : (editingId ? "" : null),
       };
 
       if (editingId) {
@@ -291,30 +357,13 @@ export default function AnnouncementsPage() {
           await api.patch(`/api/v1/announcements/admin/${editingId}`, payload);
         }
 
-        // Upload new image if selected
-        if (imageFile) {
-          setUploading(true);
-          await uploadImageToB2(editingId, imageFile);
-          setUploading(false);
-        }
-
         showToast("success", "Announcement updated successfully!");
       } else {
         // Create new announcement
-        let createdId: string | null = null;
         try {
-          const res = await api.post("/api/v1/announcements/admin/create", payload);
-          createdId = res.data?.data?.id || res.data?.id || null;
+          await api.post("/api/v1/announcements/admin/create", payload);
         } catch {
-          const res2 = await api.post("/api/v1/announcements", payload);
-          createdId = res2.data?.data?.id || res2.data?.id || null;
-        }
-
-        // Upload image to B2 if created and file exists
-        if (createdId && imageFile) {
-          setUploading(true);
-          await uploadImageToB2(createdId, imageFile);
-          setUploading(false);
+          await api.post("/api/v1/announcements", payload);
         }
 
         showToast("success", "Announcement created and broadcasted successfully!");
@@ -764,23 +813,44 @@ export default function AnnouncementsPage() {
                   Banner Image <span className="text-slate-400 font-normal lowercase">(optional)</span>
                 </label>
                 <div
-                  className="relative w-full h-36 rounded-2xl border-2 border-dashed border-slate-200 hover:border-violet-400 bg-slate-50/60 hover:bg-violet-50/30 overflow-hidden cursor-pointer transition-all flex flex-col items-center justify-center group"
+                  className="relative w-full h-44 rounded-2xl border-2 border-dashed border-slate-200 hover:border-violet-400 bg-slate-50/60 hover:bg-violet-50/30 overflow-hidden cursor-pointer transition-all flex flex-col items-center justify-center group"
                   onClick={() => fileRef.current?.click()}
                 >
-                  {imagePreview ? (
+                  {uploading ? (
+                    <div className="flex flex-col items-center justify-center gap-2 text-violet-600">
+                      <RefreshCw className="h-6 w-6 animate-spin text-violet-600" />
+                      <span className="text-xs font-bold text-violet-700">Uploading image to server...</span>
+                    </div>
+                  ) : imagePreview ? (
                     <>
                       <Image
                         src={imagePreview}
                         alt="preview"
                         fill
-                        style={{ objectFit: "cover" }}
+                        style={{ objectFit: "contain" }}
+                        className="bg-slate-950/5"
                         unoptimized
                       />
-                      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-2xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white text-slate-900 text-xs font-bold shadow-lg">
+                      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-2xs flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            fileRef.current?.click();
+                          }}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white text-slate-900 text-xs font-bold shadow-lg hover:bg-slate-100 transition-colors"
+                        >
                           <Upload className="h-4 w-4 text-violet-600" />
                           <span>Change Image</span>
-                        </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleRemoveImage}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-rose-600 text-white text-xs font-bold shadow-lg hover:bg-rose-700 transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4 text-white" />
+                          <span>Remove</span>
+                        </button>
                       </div>
                     </>
                   ) : (
@@ -793,6 +863,18 @@ export default function AnnouncementsPage() {
                     </div>
                   )}
                 </div>
+                {imagePreview && !uploading && (
+                  <div className="flex justify-end mt-1.5">
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Remove banner image</span>
+                    </button>
+                  </div>
+                )}
                 <input
                   ref={fileRef}
                   type="file"

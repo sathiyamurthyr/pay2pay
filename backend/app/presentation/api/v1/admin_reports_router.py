@@ -779,6 +779,112 @@ async def export_payout_transactions_csv(
 
 
 # ==============================================================================
+# PAYIN TRANSACTIONS REPORT ENDPOINTS (Admin Report Routing)
+# ==============================================================================
+
+@router.get("/payin-transactions/summary")
+async def get_admin_payin_transactions_summary(
+    request: Request,
+    from_date: Optional[str] = Query(None),
+    to_date: Optional[str] = Query(None),
+    company_ref_id: Optional[int] = Query(None),
+    retailer_ref_id: Optional[int] = Query(None),
+    status: Optional[str] = Query(None),
+    gateway: Optional[str] = Query(None),
+    payment_mode: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.presentation.api.v1.payin_report_router import get_payin_report_summary
+    return await get_payin_report_summary(
+        request=request,
+        from_date=from_date,
+        to_date=to_date,
+        company_ref_id=company_ref_id,
+        retailer_ref_id=retailer_ref_id,
+        status=status,
+        gateway=gateway,
+        payment_mode=payment_mode,
+        search=search,
+        db=db
+    )
+
+
+@router.get("/payin-transactions")
+async def list_admin_payin_transactions(
+    request: Request,
+    from_date: Optional[str] = Query(None),
+    to_date: Optional[str] = Query(None),
+    company_ref_id: Optional[int] = Query(None),
+    retailer_ref_id: Optional[int] = Query(None),
+    status: Optional[str] = Query(None),
+    gateway: Optional[str] = Query(None),
+    payment_mode: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(15, ge=1, le=200),
+    sort_by: str = Query("created_at"),
+    sort_dir: str = Query("desc"),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.presentation.api.v1.payin_report_router import get_payin_report_grid
+    return await get_payin_report_grid(
+        request=request,
+        from_date=from_date,
+        to_date=to_date,
+        company_ref_id=company_ref_id,
+        retailer_ref_id=retailer_ref_id,
+        status=status,
+        gateway=gateway,
+        payment_mode=payment_mode,
+        search=search,
+        page=page,
+        limit=limit,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        db=db
+    )
+
+
+@router.get("/payin-transactions/{id}/details")
+async def get_admin_payin_transaction_details(
+    id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    from app.presentation.api.v1.payin_report_router import get_payin_transaction_details
+    return await get_payin_transaction_details(tid=id, request=request, db=db)
+
+
+@router.get("/payin-transactions/export")
+async def export_admin_payin_transactions(
+    request: Request,
+    from_date: Optional[str] = Query(None),
+    to_date: Optional[str] = Query(None),
+    company_ref_id: Optional[int] = Query(None),
+    retailer_ref_id: Optional[int] = Query(None),
+    status: Optional[str] = Query(None),
+    gateway: Optional[str] = Query(None),
+    payment_mode: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.presentation.api.v1.payin_report_router import export_payin_report
+    return await export_payin_report(
+        request=request,
+        from_date=from_date,
+        to_date=to_date,
+        company_ref_id=company_ref_id,
+        retailer_ref_id=retailer_ref_id,
+        status=status,
+        gateway=gateway,
+        payment_mode=payment_mode,
+        search=search,
+        db=db
+    )
+
+
+# ==============================================================================
 # 2. TRANSACTION LEDGER REPORT ENDPOINTS
 # ==============================================================================
 

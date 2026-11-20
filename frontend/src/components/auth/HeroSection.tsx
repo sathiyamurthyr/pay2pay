@@ -86,14 +86,14 @@ export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = false
               <div
                 className="w-full h-full rounded-[14px] flex items-center justify-center p-1 bg-white"
               >
-                <img src={logo_url || "/branding/logo.svg"} alt={display_name || "Near 4 You"} className="w-full h-full object-contain" />
+                <img src={logo_url || "/branding/logo.svg"} alt={display_name || "FinTech"} className="w-full h-full object-contain" />
               </div>
             </div>
             <div>
               <h1
                 className="text-sm 2xl:text-lg font-extrabold tracking-tight leading-tight text-[#292329]"
               >
-                {display_name || "Near 4 You"}
+                {display_name || "FinTech"}
               </h1>
               <p
                 className="text-[10px] 2xl:text-xs font-semibold mt-0.5 text-[#625B60]"

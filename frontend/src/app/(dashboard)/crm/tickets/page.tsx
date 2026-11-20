@@ -119,10 +119,10 @@ export default function TicketsPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-[#E5E7EB] bg-white overflow-hidden shadow-2xs">
+      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-[#FFFFFF]">
-            <thead className="bg-[#F8FAFC] uppercase font-mono text-xs font-extrabold text-[#FAF8F9] border-b border-[#E5E7EB]">
+          <table className="w-full text-left text-sm text-slate-800">
+            <thead className="bg-slate-50 uppercase font-mono text-xs font-bold text-slate-700 border-b border-slate-200">
               <tr>
                 <th className="px-5 py-4">Ticket #</th>
                 <th className="px-5 py-4">Subject</th>
@@ -133,16 +133,16 @@ export default function TicketsPage() {
                 <th className="px-5 py-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E5E7EB] font-mono text-xs">
+            <tbody className="divide-y divide-slate-100 font-mono text-xs">
               {loading ? (
-                <tr><td colSpan={7} className="px-5 py-12 text-center text-[#6B7280]">Loading Support Tickets...</td></tr>
+                <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-500">Loading Support Tickets...</td></tr>
               ) : tickets.length === 0 ? (
-                <tr><td colSpan={7} className="px-5 py-12 text-center text-[#6B7280]">No support tickets found.</td></tr>
+                <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-500">No support tickets found.</td></tr>
               ) : (
                 tickets.map((t) => (
-                  <tr key={t.public_id} className="hover:bg-[#EFF6FF] transition-colors">
+                  <tr key={t.public_id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-5 py-4 font-mono text-xs text-[#2563EB] font-extrabold">{t.ticket_number}</td>
-                    <td className="px-5 py-4 font-sans text-xs font-bold text-[#FAF8F9]">{t.subject}</td>
+                    <td className="px-5 py-4 font-sans text-xs font-bold text-slate-900">{t.subject}</td>
                     <td className="px-5 py-4 font-mono text-xs text-[#6B7280]">{t.category}</td>
                     <td className="px-5 py-4 font-mono text-xs font-extrabold text-[#D97706]">{t.priority}</td>
                     <td className="px-5 py-4">
@@ -179,7 +179,7 @@ export default function TicketsPage() {
 
       {/* Create Ticket Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FFFFFF]/80 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-lg rounded-xl border border-[#E8E2E5] bg-[#FAF8F9] p-6 shadow-2xl space-y-6">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-bold text-[#292329] flex items-center gap-2">
@@ -233,7 +233,7 @@ export default function TicketsPage() {
 
       {/* Assign Agent Modal */}
       {showAssignModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FFFFFF]/80 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-md rounded-xl border border-[#E8E2E5] bg-[#FAF8F9] p-6 shadow-2xl space-y-4">
             <h3 className="text-lg font-bold text-[#292329]">Assign Support Agent</h3>
             <form onSubmit={handleAssign} className="space-y-4 text-sm">
@@ -252,7 +252,7 @@ export default function TicketsPage() {
 
       {/* Resolve Modal */}
       {showResolveModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FFFFFF]/80 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-md rounded-xl border border-[#E8E2E5] bg-[#FAF8F9] p-6 shadow-2xl space-y-4">
             <h3 className="text-lg font-bold text-[#292329]">Resolve Ticket</h3>
             <form onSubmit={handleResolve} className="space-y-4 text-sm">

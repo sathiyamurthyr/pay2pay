@@ -23,6 +23,7 @@ from app.infrastructure.db.models import RetailerModel, RetailerContactModel, Ad
 from app.infrastructure.db.registration_models import RegistrationDraftModel, RegistrationAadhaarModel
 from app.infrastructure.db.verification_models import RetailerVerificationModel
 from app.core.security import verify_password, hash_password, create_access_token, decode_access_token
+from app.core.company_resolver import resolve_request_company_ref, get_company_preset
 
 DEFAULT_TENANT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 DEFAULT_COMPANY_ID = uuid.UUID("00000000-0000-0000-0000-000000000002")
@@ -101,7 +102,8 @@ def set_auth_session_cookies(
     super_distributor_code: Optional[str] = None,
     super_distributor_id: Optional[str] = None,
     super_distributor_ref_id: Optional[int] = None,
-    remember_me: bool = True
+    remember_me: bool = True,
+    company_ref_id: Optional[int] = None
 ):
     """
     Sets dynamic, enterprise session cookies directly on the HTTP response.
@@ -206,6 +208,18 @@ def set_auth_session_cookies(
         response.set_cookie(
             key="p2p_active_retailer_id",
             value=str(retailer_id),
+            max_age=cookie_max_age,
+            path="/",
+            domain=cookie_domain,
+            secure=is_secure,
+            httponly=False,
+            samesite="lax"
+        )
+
+    if company_ref_id is not None:
+        response.set_cookie(
+            key="p2p_company_ref_id",
+            value=str(company_ref_id),
             max_age=cookie_max_age,
             path="/",
             domain=cookie_domain,
@@ -710,18 +724,23 @@ async def login_with_password(
         logger.warning(f"admin_user table check: {e}")
         admin_user = None
 
-    # 2. Check if user is in auth_user or retailer table
+    # 2. Check if user is in auth_user or retailer table strictly scoped to domain company
     existing_retailer = None
     auth_user = None
+    expected_company_ref_id = resolve_request_company_ref(request)
     try:
+        r_conds = [
+            RetailerContactModel.mobile.in_(mobile_variants),
+            RetailerModel.is_deleted == False,
+            RetailerContactModel.is_deleted == False
+        ]
+        if expected_company_ref_id and not is_admin_portal:
+            r_conds.append(RetailerModel.company_ref_id == expected_company_ref_id)
+
         r_stmt = (
             select(RetailerContactModel, RetailerModel)
             .join(RetailerModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
-            .where(
-                RetailerContactModel.mobile.in_(mobile_variants),
-                RetailerModel.is_deleted == False,
-                RetailerContactModel.is_deleted == False
-            )
+            .where(*r_conds)
             .order_by(
                 case((RetailerModel.status == "ACTIVE", 1), else_=2),
                 RetailerModel.is_active.desc(),
@@ -732,10 +751,16 @@ async def login_with_password(
         if r_res:
             _, existing_retailer = r_res
 
-        auth_user_stmt = select(AuthUserModel).where(AuthUserModel.mobile_number.in_(mobile_variants))
+        auth_user_conds = [AuthUserModel.mobile_number.in_(mobile_variants)]
+        if expected_company_ref_id and not is_admin_portal:
+            auth_user_conds.append(AuthUserModel.company_ref_id == expected_company_ref_id)
+        auth_user_stmt = select(AuthUserModel).where(*auth_user_conds)
         auth_user = (await db.execute(auth_user_stmt)).scalars().first()
         if auth_user and not existing_retailer:
-            ret_stmt = select(RetailerModel).where(RetailerModel.public_id == auth_user.user_id)
+            ret_conds = [RetailerModel.public_id == auth_user.user_id]
+            if expected_company_ref_id and not is_admin_portal:
+                ret_conds.append(RetailerModel.company_ref_id == expected_company_ref_id)
+            ret_stmt = select(RetailerModel).where(*ret_conds)
             existing_retailer = (await db.execute(ret_stmt)).scalars().first()
     except Exception:
         pass
@@ -1526,8 +1551,18 @@ async def login_with_password(
                 auth_role_name = "SUPER_ADMIN" if is_super else "ADMIN"
                 dash_url = "/super-admin/dashboard" if is_super else "/admin/dashboard"
         else:
-            comp_ref_id = getattr(existing_retailer, "company_ref_id", None) or (getattr(auth_user, "company_ref_id", None) if auth_user else 1)
-            user_roles = [auth_user.role] if auth_user and auth_user.role else ["RETAILER"]
+            comp_ref_id = getattr(existing_retailer, "company_ref_id", None) or (getattr(auth_user, "company_ref_id", None) if auth_user else None) or expected_company_ref_id or 1
+            if not is_admin and expected_company_ref_id and comp_ref_id and comp_ref_id != expected_company_ref_id:
+                logger.warning(
+                    f"Security mismatch: Retailer company {comp_ref_id} does not match expected domain company {expected_company_ref_id}"
+                )
+                comp_preset = get_company_preset(expected_company_ref_id)
+                portal_name = comp_preset.get("company_name", "this") if comp_preset else "this"
+                raise HTTPException(
+                    status_code=401,
+                    detail=f"Access denied: Retailer account does not belong to {portal_name} portal."
+                )
+            user_roles = [auth_role] if auth_role else ["RETAILER"]
             auth_role_name = "RETAILER"
             dash_url = "/retailer/dashboard"
 
@@ -1598,7 +1633,8 @@ async def login_with_password(
                 approve_status=True,
                 active_status=True,
                 user_type_ref_id=1,
-                remember_me=rem_session
+                remember_me=rem_session,
+                company_ref_id=comp_ref_id
             )
             return {
                 "success": True,
@@ -1702,7 +1738,8 @@ async def login_with_password(
             user_type_ref_id=2,
             retailer_code=ret_code,
             retailer_id=ret_public_id,
-            remember_me=rem_session
+            remember_me=rem_session,
+            company_ref_id=comp_ref_id
         )
 
         return {

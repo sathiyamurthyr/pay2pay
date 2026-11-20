@@ -16,44 +16,67 @@ export default function AdminLoginPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center w-full">
           {/* Left Column — Hero / Marketing (Hidden on Mobile) */}
           <div className="hidden lg:flex lg:col-span-6 flex-col justify-center space-y-6 pr-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FFF0F4] border border-[#FFD6E2] w-fit">
-              <ShieldAlert className="w-4 h-4 text-[#A20A3A]" />
-              <span className="text-xs font-bold text-[#A20A3A]">
-                RESTRICTED ACCESS · {branding.company_name} Admin Security Zone
+            <div
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border w-fit"
+              style={{
+                backgroundColor: branding.primary_colour ? `${branding.primary_colour}10` : "rgba(37, 99, 235, 0.08)",
+                borderColor: branding.primary_colour ? `${branding.primary_colour}30` : "rgba(37, 99, 235, 0.2)"
+              }}
+            >
+              <ShieldAlert className="w-4 h-4" style={{ color: branding.primary_colour || "#2563EB" }} />
+              <span className="text-xs font-bold" style={{ color: branding.primary_colour || "#2563EB" }}>
+                RESTRICTED ACCESS · {branding.company_name || branding.display_name || "Enterprise"} Admin Security Zone
               </span>
             </div>
 
             <div className="space-y-3">
-              <h1 className="text-3xl xl:text-4xl font-extrabold tracking-tight text-[#292329] leading-tight">
+              <h1 className="text-3xl xl:text-4xl font-extrabold tracking-tight text-[#0F172A] leading-tight">
                 Enterprise Admin & <br />
-                <span className="bg-gradient-to-r from-[#A20A3A] via-[#C42555] to-[#EDC11E] bg-clip-text text-transparent">
+                <span
+                  className="bg-clip-text text-transparent font-black"
+                  style={{
+                    backgroundImage: `linear-gradient(to right, ${branding.primary_colour || "#2563EB"}, ${branding.secondary_colour || "#1E40AF"})`
+                  }}
+                >
                   Security Control Center
                 </span>
               </h1>
-              <p className="text-sm text-[#625B60] leading-relaxed max-w-md">
+              <p className="text-sm text-[#475569] leading-relaxed max-w-md">
                 Full platform administration, compliance oversight, financial risk controls, tenant policy definitions, and audit log inspection.
               </p>
             </div>
 
             {/* Feature Pills */}
             <div className="grid grid-cols-2 gap-3 pt-2">
-              <div className="p-3 rounded-2xl bg-[#FAF8F9] border border-[#E8E2E5] flex items-start gap-3">
-                <div className="p-2 rounded-xl bg-[#FFF0F4] text-[#A20A3A] shrink-0">
+              <div className="p-3 rounded-2xl bg-white border border-[#E2E8F0] shadow-sm flex items-start gap-3">
+                <div
+                  className="p-2 rounded-xl shrink-0"
+                  style={{
+                    backgroundColor: branding.primary_colour ? `${branding.primary_colour}15` : "rgba(37, 99, 235, 0.1)",
+                    color: branding.primary_colour || "#2563EB"
+                  }}
+                >
                   <KeyRound className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-[#292329]">Privileged RBAC</h4>
-                  <p className="text-[11px] text-[#625B60]">Strict multi-factor access control</p>
+                  <h4 className="text-xs font-bold text-[#0F172A]">Privileged RBAC</h4>
+                  <p className="text-[11px] text-[#64748B]">Strict multi-factor access control</p>
                 </div>
               </div>
 
-              <div className="p-3 rounded-2xl bg-[#FAF8F9] border border-[#E8E2E5] flex items-start gap-3">
-                <div className="p-2 rounded-xl bg-[#FFF8DC] text-[#EDC11E] shrink-0">
+              <div className="p-3 rounded-2xl bg-white border border-[#E2E8F0] shadow-sm flex items-start gap-3">
+                <div
+                  className="p-2 rounded-xl shrink-0"
+                  style={{
+                    backgroundColor: branding.secondary_colour ? `${branding.secondary_colour}15` : "rgba(30, 64, 175, 0.1)",
+                    color: branding.secondary_colour || "#1E40AF"
+                  }}
+                >
                   <Server className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-[#292329]">System Audit Logs</h4>
-                  <p className="text-[11px] text-[#625B60]">Immutable ledger transaction trace</p>
+                  <h4 className="text-xs font-bold text-[#0F172A]">System Audit Logs</h4>
+                  <p className="text-[11px] text-[#64748B]">Immutable ledger transaction trace</p>
                 </div>
               </div>
             </div>

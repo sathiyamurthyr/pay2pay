@@ -4,9 +4,13 @@ import React from "react";
 import Link from "next/link";
 import { CheckCircle2, ShieldCheck, ArrowRight, Clock, PhoneCall } from "lucide-react";
 import { useContactSupportModal } from "@/context/ContactSupportModalContext";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 export default function RegisterSubmittedPage() {
   const { openContactSupportModal } = useContactSupportModal();
+  const branding = useCompanyBranding();
+  const brandPrimary = branding.primary_colour || "#2563EB";
+  const brandSecondary = branding.secondary_colour || "#1E40AF";
 
   return (
     <div className="text-center space-y-5 py-4 select-none">
@@ -58,7 +62,10 @@ export default function RegisterSubmittedPage() {
       <div className="pt-2 flex flex-col sm:flex-row gap-2.5 justify-center">
         <Link
           href="/login"
-          className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#A20A3A] to-[#85072F] text-white font-extrabold text-xs shadow-lg shadow-blue-500/25 flex items-center justify-center gap-1.5 hover:brightness-110 transition-all"
+          style={{
+            background: `linear-gradient(to right, ${brandPrimary}, ${brandSecondary})`
+          }}
+          className="w-full sm:w-auto px-6 py-2.5 rounded-xl text-white font-extrabold text-xs shadow-lg flex items-center justify-center gap-1.5 hover:brightness-110 transition-all"
         >
           <span>Sign In to Workstation</span>
           <ArrowRight className="w-3.5 h-3.5" />
@@ -69,7 +76,7 @@ export default function RegisterSubmittedPage() {
           className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-100 dark:bg-[#FAF8F9] border border-slate-300 dark:border-[#E8E2E5] text-slate-700 dark:text-[#292329] font-bold text-xs flex items-center justify-center gap-1.5 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-[#F5F2F4] transition-all"
         >
           <PhoneCall className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-          <span>Contact Near4You Support</span>
+          <span>Contact {branding.display_name || "Enterprise"} Support</span>
         </button>
       </div>
     </div>

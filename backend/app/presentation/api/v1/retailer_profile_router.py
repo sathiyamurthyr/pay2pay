@@ -18,6 +18,7 @@ from app.infrastructure.adapters.whatsapp_service import whatsapp_service
 
 from app.core.database import get_db
 from app.core.security import hash_password, verify_password
+from app.core.company_resolver import resolve_request_company_ref, get_company_preset
 from sqlalchemy.orm import selectinload
 from app.infrastructure.db.models import (
     RetailerModel, RetailerContactModel, RetailerAddressModel,
@@ -306,6 +307,19 @@ async def resolve_retailer_context(request: Request, retailer_id: Optional[str],
     roles = payload.get("roles") or []
     is_admin = any(r in ["ADMIN", "SUPER_ADMIN", "OPS_ADMIN"] for r in roles)
 
+    # Enforce request domain company match
+    expected_comp_ref = resolve_request_company_ref(request)
+    if expected_comp_ref and not is_admin:
+        if session_company_ref_id is not None and int(session_company_ref_id) != int(expected_comp_ref):
+            preset = get_company_preset(expected_comp_ref)
+            target_name = preset.get("company_name", "the requested") if preset else "the requested"
+            raise HTTPException(
+                status_code=403,
+                detail=f"Access denied: Retailer account belongs to another company and cannot access {target_name} domain (COMPANY_IDENTITY_MISMATCH)."
+            )
+        if session_company_ref_id is None:
+            session_company_ref_id = expected_comp_ref
+
     if sub:
         # 1. Check auth_users table
         u_res = await db.execute(text("SELECT mobile_number, email, full_name, company_ref_id, tenant_ref_id FROM auth_users WHERE user_id::text = :sub OR public_id::text = :sub OR email = :sub"), {"sub": str(sub)})
@@ -359,6 +373,8 @@ async def resolve_retailer_context(request: Request, retailer_id: Optional[str],
 
     if sub_uuid:
         ret_stmt = select(RetailerModel).where(RetailerModel.public_id == sub_uuid, RetailerModel.is_deleted == False)
+        if (expected_comp_ref or session_company_ref_id) and not is_admin:
+            ret_stmt = ret_stmt.where(RetailerModel.company_ref_id == (expected_comp_ref or session_company_ref_id))
         ret_model = (await db.execute(ret_stmt)).scalars().first()
         if ret_model:
             target_ident = ret_model.retailer_code or str(ret_model.public_id)
@@ -399,16 +415,20 @@ async def resolve_retailer_context(request: Request, retailer_id: Optional[str],
         if r_uuid_cand:
             conds.append(RetailerModel.public_id == r_uuid_cand)
         ret_q = select(RetailerModel).where(or_(*conds), RetailerModel.is_deleted == False)
-        if session_company_ref_id and not is_admin:
-            ret_q = ret_q.where(RetailerModel.company_ref_id == session_company_ref_id)
+        target_comp = expected_comp_ref or session_company_ref_id
+        if target_comp and not is_admin:
+            ret_q = ret_q.where(RetailerModel.company_ref_id == target_comp)
         ret_model = (await db.execute(ret_q)).scalars().first()
 
     # Enforce company reference ID matching on resolved entity
-    if ret_model and session_company_ref_id and not is_admin:
-        if ret_model.company_ref_id and ret_model.company_ref_id != session_company_ref_id:
+    target_comp = expected_comp_ref or session_company_ref_id
+    if ret_model and target_comp and not is_admin:
+        if ret_model.company_ref_id and int(ret_model.company_ref_id) != int(target_comp):
+            preset = get_company_preset(target_comp)
+            target_name = preset.get("company_name", "authorized company") if preset else "authorized company"
             raise HTTPException(
                 status_code=403,
-                detail="Access denied: Retailer does not belong to authorized company (COMPANY_IDENTITY_MISMATCH)."
+                detail=f"Access denied: Retailer does not belong to {target_name} (COMPANY_IDENTITY_MISMATCH)."
             )
 
     if not target_ident and not clean_mobile:
@@ -1004,8 +1024,11 @@ async def get_retailer_profile(
             "last_updated": None
         }
 
-    # 14. Build Dynamic COMPANY Contact & Support Info from authoritative CompanyModel
-    resolved_comp_ref = (ret_model.company_ref_id if ret_model else None) or session_company_ref_id or 1
+    # 14. Build Dynamic COMPANY Contact & Support Info from authoritative CompanyModel & Domain Resolver
+    expected_comp_ref = resolve_request_company_ref(request)
+    resolved_comp_ref = expected_comp_ref or (ret_model.company_ref_id if ret_model else None) or session_company_ref_id or 1
+    preset = get_company_preset(resolved_comp_ref) or {}
+
     c_stmt = (
         select(CompanyModel)
         .where(CompanyModel.company_ref_id == resolved_comp_ref)
@@ -1013,43 +1036,55 @@ async def get_retailer_profile(
     )
     comp = (await db.execute(c_stmt)).scalars().first()
 
+    default_name = preset.get("company_name") or "Enterprise Network"
+    default_brand = preset.get("display_name") or default_name
+    default_legal = preset.get("legal_name") or default_name
+    default_website = preset.get("website") or "https://smspay.store"
+    site_clean = default_website.replace("https://", "").replace("http://", "").strip("/")
+    default_email = preset.get("support_email") or f"support@{site_clean}"
+    default_logo = preset.get("logo_url") or "/branding/logo.svg"
+
     if comp:
         prim_contact = comp.contacts[0] if comp.contacts else None
         prim_addr = comp.addresses[0] if comp.addresses else None
+        comp_site = comp.website or default_website
+        comp_site_clean = comp_site.replace("https://", "").replace("http://", "").strip("/")
         company_data = {
-            "company_name": comp.company_name or comp.legal_name or "Enterprise Network",
-            "brand_name": comp.display_name or comp.company_name or "Enterprise Network",
-            "legal_name": comp.legal_name or comp.company_name,
+            "company_name": comp.company_name or comp.legal_name or default_name,
+            "brand_name": comp.display_name or comp.company_name or default_brand,
+            "legal_name": comp.legal_name or comp.company_name or default_legal,
             "cin": comp.cin_number or "—",
             "gstin": comp.gst_number or "—",
-            "support_email": (prim_contact.support_email if prim_contact else None) or (prim_contact.email if prim_contact else None) or f"support@{comp.website.replace('https://', '').replace('http://', '').strip('/') if comp.website else 'smspay.store'}",
+            "support_email": (prim_contact.support_email if prim_contact else None) or (prim_contact.email if prim_contact else None) or default_email,
             "support_phone": (prim_contact.support_phone if prim_contact else None) or (prim_contact.mobile if prim_contact else None) or "1800 292 982",
             "direct_phone": (prim_contact.mobile if prim_contact else None) or "+91 44 4892 9820",
             "whatsapp_number": (prim_contact.mobile if prim_contact else None) or "+91 70139 14767",
-            "grievance_email": (prim_contact.email if prim_contact else None) or f"grievance@{comp.website.replace('https://', '').replace('http://', '').strip('/') if comp.website else 'smspay.store'}",
-            "nodal_officer": f"Grievance Redressal Officer, {comp.company_name or 'Enterprise Network'}",
+            "grievance_email": (prim_contact.email if prim_contact else None) or f"grievance@{comp_site_clean}",
+            "nodal_officer": f"Grievance Redressal Officer, {comp.company_name or default_name}",
             "support_hours": "Monday - Saturday | 09:00 AM - 07:00 PM IST",
             "headquarters": f"{prim_addr.address}, {prim_addr.city}, {prim_addr.state} - {prim_addr.pincode}" if prim_addr else "Corporate Headquarters",
-            "helpdesk_url": comp.website or "https://smspay.store/support",
-            "website_url": comp.website or "https://smspay.store"
+            "helpdesk_url": comp_site if "/support" in comp_site else f"{comp_site.rstrip('/')}/support",
+            "website_url": comp_site,
+            "logo_url": default_logo
         }
     else:
         company_data = {
-            "company_name": "Enterprise Network",
-            "brand_name": "Enterprise Network",
-            "legal_name": "Enterprise Network",
+            "company_name": default_name,
+            "brand_name": default_brand,
+            "legal_name": default_legal,
             "cin": "—",
             "gstin": "—",
-            "support_email": "support@smspay.store",
+            "support_email": default_email,
             "support_phone": "1800 292 982",
             "direct_phone": "—",
             "whatsapp_number": "—",
-            "grievance_email": "grievance@smspay.store",
-            "nodal_officer": "Grievance Redressal Officer",
+            "grievance_email": f"grievance@{site_clean}",
+            "nodal_officer": f"Grievance Redressal Officer, {default_name}",
             "support_hours": "Monday - Saturday | 09:00 AM - 07:00 PM IST",
             "headquarters": "Corporate Headquarters",
-            "helpdesk_url": "https://smspay.store/support",
-            "website_url": "https://smspay.store"
+            "helpdesk_url": f"{default_website.rstrip('/')}/support",
+            "website_url": default_website,
+            "logo_url": default_logo
         }
 
     return {
