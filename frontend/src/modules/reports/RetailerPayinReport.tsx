@@ -89,40 +89,44 @@ export interface PayinReportSummary {
 }
 
 export interface PayinReportItem {
-  s_no: number;
+  s_no?: number;
   id: string;
   tid: string;
-  transaction_id: string;
-  reference_id: string;
+  transaction_id?: string;
+  reference_id?: string;
   merchant_ref_id?: string;
   provider_ref_id?: string;
-  retailer_id: string;
-  retailer_name: string;
+  retailer_id?: string;
+  retailer_name?: string;
   company_id?: string;
-  company_name: string;
-  company_code: string;
+  company_name?: string;
+  company_code?: string;
   gateway: string;
-  vendor_name: string;
+  vendor_name?: string;
   payment_mode: string;
-  payment_mode_name: string;
+  payment_mode_name?: string;
+  method?: string;
   card_network?: string;
   customer_name?: string;
   customer_mobile?: string;
+  mobile_no?: string;
   amount: number;
-  txn_amount: number;
-  mdr_amount: number;
+  txn_amount?: number;
+  charges?: number;
+  mdr_amount?: number;
   gst: number;
-  tax_amount: number;
-  total_charges: number;
+  tax_amount?: number;
+  total_charges?: number;
   total_amount: number;
-  customer_payable: number;
+  customer_payable?: number;
+  wallet_credit?: number;
   retailer_credit: number;
   status: string;
   provider_status?: string;
   ledger_txn_id?: string;
   failure_reason?: string;
-  date: string;
-  time: string;
+  date?: string;
+  time?: string;
   date_time: string;
   created_at?: string;
   initiated_at?: string;
@@ -1071,18 +1075,15 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
         </Typography>
         <Divider sx={{ my: 0.5 }} />
         {[
-          { id: "s_no", label: "S.No" },
-          { id: "tid", label: "Transaction ID" },
-          { id: "reference_id", label: "Reference / Order ID" },
-          { id: "retailer", label: "Retailer / Outlet" },
-          { id: "company", label: "Company" },
-          { id: "gateway", label: "Gateway (G-1/G-2)" },
-          { id: "payment_mode", label: "Payment Method" },
-          { id: "amount", label: "Base Amount (₹)" },
-          { id: "charges", label: "Charges & MDR (₹)" },
+          { id: "tid", label: "TID" },
+          { id: "amount", label: "Amount (₹)" },
+          { id: "charges", label: "Charges (₹)" },
           { id: "gst", label: "GST (₹)" },
           { id: "total_amount", label: "Total Amount (₹)" },
           { id: "wallet_credit", label: "Wallet Credit (₹)" },
+          { id: "customer_mobile", label: "MobileNo" },
+          { id: "gateway", label: "Gateway" },
+          { id: "method", label: "Method" },
           { id: "status", label: "Status" },
           { id: "date_time", label: "Date & Time" },
         ].map((col) => (
@@ -1275,91 +1276,73 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
             <Table sx={{ minWidth: 1100, tableLayout: "auto" }}>
               <TableHead>
                 <TableRow sx={{ bgcolor: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
-                  <TableCell padding="checkbox" sx={{ py: 1.2, pl: 2 }}>
-                    <Checkbox
-                      size="small"
-                      checked={items.length > 0 && selectedIds.size === items.length}
-                      indeterminate={selectedIds.size > 0 && selectedIds.size < items.length}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedIds(new Set(items.map((_, i) => String(i))));
-                        } else {
-                          setSelectedIds(new Set());
-                        }
-                      }}
-                      sx={{ "&.Mui-checked": { color: "#059669" } }}
-                    />
-                  </TableCell>
-                  {!hiddenColumns.has("s_no") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
-                      S.NO
-                    </TableCell>
-                  )}
+                  {/* 1. TID */}
                   {!hiddenColumns.has("tid") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
-                      TRANSACTION ID
+                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, pl: 2, whiteSpace: "nowrap" }}>
+                      TID
                     </TableCell>
                   )}
-                  {!hiddenColumns.has("reference_id") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
-                      REF / ORDER ID
-                    </TableCell>
-                  )}
-                  {!hiddenColumns.has("retailer") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
-                      RETAILER / OUTLET
-                    </TableCell>
-                  )}
-                  {!hiddenColumns.has("company") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
-                      COMPANY
-                    </TableCell>
-                  )}
-                  {!hiddenColumns.has("gateway") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
-                      GATEWAY
-                    </TableCell>
-                  )}
-                  {!hiddenColumns.has("payment_mode") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
-                      METHOD
-                    </TableCell>
-                  )}
+                  {/* 2. Amount (₹) */}
                   {!hiddenColumns.has("amount") && (
                     <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, textAlign: "right", whiteSpace: "nowrap" }}>
                       AMOUNT (₹)
                     </TableCell>
                   )}
+                  {/* 3. Charges (₹) */}
                   {!hiddenColumns.has("charges") && (
                     <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, textAlign: "right", whiteSpace: "nowrap" }}>
                       CHARGES (₹)
                     </TableCell>
                   )}
+                  {/* 4. GST (₹) */}
                   {!hiddenColumns.has("gst") && (
                     <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, textAlign: "right", whiteSpace: "nowrap" }}>
                       GST (₹)
                     </TableCell>
                   )}
+                  {/* 5. Total Amount (₹) */}
                   {!hiddenColumns.has("total_amount") && (
                     <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, textAlign: "right", whiteSpace: "nowrap" }}>
                       TOTAL AMOUNT (₹)
                     </TableCell>
                   )}
+                  {/* 6. Wallet Credit (₹) */}
                   {!hiddenColumns.has("wallet_credit") && (
                     <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, textAlign: "right", whiteSpace: "nowrap" }}>
                       WALLET CREDIT (₹)
                     </TableCell>
                   )}
+                  {/* 7. MobileNo (Customer Mobile Number) */}
+                  {!hiddenColumns.has("customer_mobile") && (
+                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
+                      MOBILENO
+                    </TableCell>
+                  )}
+                  {/* 8. Gateway */}
+                  {!hiddenColumns.has("gateway") && (
+                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
+                      GATEWAY
+                    </TableCell>
+                  )}
+                  {/* 9. Method */}
+                  {!hiddenColumns.has("method") && (
+                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
+                      METHOD
+                    </TableCell>
+                  )}
+                  {/* 10. Status */}
                   {!hiddenColumns.has("status") && (
                     <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
                       STATUS
                     </TableCell>
                   )}
+                  {/* 11. Date & Time */}
                   {!hiddenColumns.has("date_time") && (
                     <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
                       DATE &amp; TIME
                     </TableCell>
                   )}
+                  {/* 12. Action */}
                   <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, pr: 2, textAlign: "center", whiteSpace: "nowrap" }}>
                     ACTION
                   </TableCell>
@@ -1369,7 +1352,7 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                 {isLoading ? (
                   [1, 2, 3, 4, 5].map((n) => (
                     <TableRow key={n}>
-                      <TableCell colSpan={16} sx={{ py: 2.5 }}>
+                      <TableCell colSpan={12} sx={{ py: 2.5 }}>
                         <Skeleton variant="text" height={26} />
                       </TableCell>
                     </TableRow>
@@ -1377,7 +1360,7 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                 ) : !hasLoaded ? (
                   /* Initial State before user clicks Apply */
                   <TableRow>
-                    <TableCell colSpan={16} align="center" sx={{ py: 8 }}>
+                    <TableCell colSpan={12} align="center" sx={{ py: 8 }}>
                       <AssessmentIcon sx={{ fontSize: 48, color: "#9CA3AF", mb: 1.5 }} />
                       <Typography sx={{ fontWeight: 800, fontSize: "16px", color: "#111827" }}>
                         Ready to Generate PayIn Report
@@ -1397,7 +1380,7 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                   </TableRow>
                 ) : items.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={16} align="center" sx={{ py: 8 }}>
+                    <TableCell colSpan={12} align="center" sx={{ py: 8 }}>
                       <ReceiptIcon sx={{ fontSize: 44, color: "#9CA3AF", mb: 1 }} />
                       <Typography sx={{ fontWeight: 800, fontSize: "15px", color: "#111827" }}>
                         No PayIn Records Found
@@ -1409,7 +1392,6 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                   </TableRow>
                 ) : (
                   items.map((row, idx) => {
-                    const sNo = page * rowsPerPage + idx + 1;
                     const stBadge = getStatusBadge(row.status);
                     const dt = formatDateTime(row.date_time || row.created_at);
 
@@ -1421,59 +1403,75 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                         sx={{
                           cursor: "pointer",
                           height: density === "compact" ? 40 : density === "comfortable" ? 58 : 48,
-                          bgcolor: selectedIds.has(String(idx)) ? "rgba(5, 150, 105, 0.04)" : "inherit",
                           "&:hover": { bgcolor: "rgba(5, 150, 105, 0.04)" },
                         }}
                       >
-                        <TableCell padding="checkbox" sx={{ pl: 2 }} onClick={(e) => e.stopPropagation()}>
-                          <Checkbox
-                            size="small"
-                            checked={selectedIds.has(String(idx))}
-                            onChange={(e) => {
-                              setSelectedIds((prev) => {
-                                const next = new Set(prev);
-                                if (e.target.checked) next.add(String(idx));
-                                else next.delete(String(idx));
-                                return next;
-                              });
-                            }}
-                            sx={{ "&.Mui-checked": { color: "#059669" } }}
-                          />
-                        </TableCell>
-
-                        {!hiddenColumns.has("s_no") && (
-                          <TableCell sx={{ fontSize: "12px", color: "#6B7280", fontWeight: 600 }}>
-                            {sNo}
-                          </TableCell>
-                        )}
-
+                        {/* 1. TID */}
                         {!hiddenColumns.has("tid") && (
-                          <TableCell sx={{ fontSize: "12px", fontWeight: 700, fontFamily: "monospace", color: "#111827" }}>
-                            {row.tid}
+                          <TableCell sx={{ fontSize: "12px", fontWeight: 700, fontFamily: "monospace", color: "#111827", pl: 2, whiteSpace: "nowrap" }}>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                              <span>{row.tid}</span>
+                              <Tooltip title="Copy TID">
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    copyToClipboard(row.tid, "TID");
+                                  }}
+                                  sx={{ p: 0.3, opacity: 0.6, "&:hover": { opacity: 1 } }}
+                                >
+                                  <ContentCopyIcon sx={{ fontSize: 13 }} />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
                           </TableCell>
                         )}
 
-                        {!hiddenColumns.has("reference_id") && (
-                          <TableCell sx={{ fontSize: "12px", fontFamily: "monospace", color: "#4B5563" }}>
-                            {row.reference_id || row.merchant_ref_id || "--"}
+                        {/* 2. Amount (₹) */}
+                        {!hiddenColumns.has("amount") && (
+                          <TableCell sx={{ fontSize: "12px", fontWeight: 700, textAlign: "right", color: "#111827", fontFamily: "monospace", whiteSpace: "nowrap" }}>
+                            ₹{Number(row.amount || row.txn_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                           </TableCell>
                         )}
 
-                        {!hiddenColumns.has("retailer") && (
-                          <TableCell sx={{ fontSize: "12px", fontWeight: 600, color: "#111827" }}>
-                            {row.retailer_name}
+                        {/* 3. Charges (₹) */}
+                        {!hiddenColumns.has("charges") && (
+                          <TableCell sx={{ fontSize: "12px", textAlign: "right", color: "#4B5563", fontFamily: "monospace", whiteSpace: "nowrap" }}>
+                            ₹{Number(row.charges ?? row.total_charges ?? 0).toFixed(2)}
                           </TableCell>
                         )}
 
-                        {!hiddenColumns.has("company") && (
-                          <TableCell sx={{ fontSize: "12px", color: "#4B5563" }}>
-                            {row.company_name}
+                        {/* 4. GST (₹) */}
+                        {!hiddenColumns.has("gst") && (
+                          <TableCell sx={{ fontSize: "12px", textAlign: "right", color: "#4B5563", fontFamily: "monospace", whiteSpace: "nowrap" }}>
+                            ₹{Number(row.gst ?? row.tax_amount ?? 0).toFixed(2)}
                           </TableCell>
                         )}
 
+                        {/* 5. Total Amount (₹) */}
+                        {!hiddenColumns.has("total_amount") && (
+                          <TableCell sx={{ fontSize: "12px", fontWeight: 700, textAlign: "right", color: "#2563EB", fontFamily: "monospace", whiteSpace: "nowrap" }}>
+                            ₹{Number(row.total_amount || row.customer_payable || row.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </TableCell>
+                        )}
+
+                        {/* 6. Wallet Credit (₹) */}
+                        {!hiddenColumns.has("wallet_credit") && (
+                          <TableCell sx={{ fontSize: "12px", fontWeight: 800, textAlign: "right", color: "#10B981", fontFamily: "monospace", whiteSpace: "nowrap" }}>
+                            +₹{Number(row.wallet_credit ?? row.retailer_credit ?? row.amount ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </TableCell>
+                        )}
+
+                        {/* 7. MobileNo (Customer Mobile Number) */}
+                        {!hiddenColumns.has("customer_mobile") && (
+                          <TableCell sx={{ fontSize: "12px", fontFamily: "monospace", color: "#374151", fontWeight: 600, whiteSpace: "nowrap" }}>
+                            {row.customer_mobile || row.mobile_no || "--"}
+                          </TableCell>
+                        )}
+
+                        {/* 8. Gateway */}
                         {!hiddenColumns.has("gateway") && (
-                          <TableCell sx={{ fontSize: "12px", fontWeight: 700, color: "#059669" }}>
-                            {/* Requirement 3: Gateway customer-facing labels G-1 / G-2 only */}
+                          <TableCell sx={{ fontSize: "12px", fontWeight: 700, color: "#059669", whiteSpace: "nowrap" }}>
                             <Chip
                               label={row.gateway || "G-1"}
                               size="small"
@@ -1489,44 +1487,16 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                           </TableCell>
                         )}
 
-                        {!hiddenColumns.has("payment_mode") && (
-                          <TableCell sx={{ fontSize: "12px", color: "#374151", fontWeight: 600 }}>
-                            {row.payment_mode || "UPI"}
+                        {/* 9. Method */}
+                        {!hiddenColumns.has("method") && (
+                          <TableCell sx={{ fontSize: "12px", color: "#374151", fontWeight: 600, whiteSpace: "nowrap" }}>
+                            {row.method || row.payment_mode || "UPI"}
                           </TableCell>
                         )}
 
-                        {!hiddenColumns.has("amount") && (
-                          <TableCell sx={{ fontSize: "12px", fontWeight: 700, textAlign: "right", color: "#111827", fontFamily: "monospace" }}>
-                            ₹{Number(row.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                          </TableCell>
-                        )}
-
-                        {!hiddenColumns.has("charges") && (
-                          <TableCell sx={{ fontSize: "12px", textAlign: "right", color: "#4B5563", fontFamily: "monospace" }}>
-                            ₹{Number(row.total_charges || 0).toFixed(2)}
-                          </TableCell>
-                        )}
-
-                        {!hiddenColumns.has("gst") && (
-                          <TableCell sx={{ fontSize: "12px", textAlign: "right", color: "#4B5563", fontFamily: "monospace" }}>
-                            ₹{Number(row.gst || row.tax_amount || 0).toFixed(2)}
-                          </TableCell>
-                        )}
-
-                        {!hiddenColumns.has("total_amount") && (
-                          <TableCell sx={{ fontSize: "12px", fontWeight: 700, textAlign: "right", color: "#2563EB", fontFamily: "monospace" }}>
-                            ₹{Number(row.total_amount || row.customer_payable || row.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                          </TableCell>
-                        )}
-
-                        {!hiddenColumns.has("wallet_credit") && (
-                          <TableCell sx={{ fontSize: "12px", fontWeight: 800, textAlign: "right", color: "#10B981", fontFamily: "monospace" }}>
-                            +₹{Number(row.retailer_credit || row.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                          </TableCell>
-                        )}
-
+                        {/* 10. Status */}
                         {!hiddenColumns.has("status") && (
-                          <TableCell>
+                          <TableCell sx={{ whiteSpace: "nowrap" }}>
                             <Chip
                               label={stBadge.label}
                               size="small"
@@ -1542,6 +1512,7 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                           </TableCell>
                         )}
 
+                        {/* 11. Date & Time */}
                         {!hiddenColumns.has("date_time") && (
                           <TableCell sx={{ fontSize: "11.5px", whiteSpace: "nowrap" }}>
                             <Typography sx={{ fontSize: "12px", color: "#111827", fontWeight: 600 }}>{dt.date}</Typography>
@@ -1549,8 +1520,9 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                           </TableCell>
                         )}
 
-                        <TableCell sx={{ textAlign: "center", pr: 2 }} onClick={(e) => e.stopPropagation()}>
-                          <Stack direction="row" spacing={0.5} justifyContent="center">
+                        {/* 12. Action */}
+                        <TableCell sx={{ textAlign: "center", pr: 2, whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
+                          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5 }}>
                             <Tooltip title="View Transaction Breakdown">
                               <IconButton size="small" onClick={() => openDetailsDrawer(row)}>
                                 <VisibilityIcon sx={{ fontSize: 16, color: "#059669" }} />
@@ -1561,7 +1533,7 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                                 <PrintIcon sx={{ fontSize: 16, color: "#2563EB" }} />
                               </IconButton>
                             </Tooltip>
-                          </Stack>
+                          </Box>
                         </TableCell>
                       </TableRow>
                     );
@@ -1684,12 +1656,17 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
 
                   <Stack direction="row" alignItems="center" justifyContent="space-between">
                     <Typography sx={{ fontSize: "11px", color: "#4B5563" }}>
-                      Gateway: <strong>{row.gateway || "G-1"}</strong> · {row.payment_mode || "UPI"}
+                      Customer: <strong>{row.customer_mobile || row.mobile_no || "--"}</strong>
                     </Typography>
+                    <Typography sx={{ fontSize: "11px", color: "#4B5563" }}>
+                      Gateway: <strong>{row.gateway || "G-1"}</strong> · {row.method || row.payment_mode || "UPI"}
+                    </Typography>
+                  </Stack>
+                  <Box sx={{ mt: 1, textAlign: "right" }}>
                     <Button size="small" onClick={(e) => { e.stopPropagation(); openDetailsDrawer(row); }} sx={{ fontSize: "11px", textTransform: "none", color: "#059669", fontWeight: 700 }}>
                       View Details →
                     </Button>
-                  </Stack>
+                  </Box>
                 </Paper>
               );
             })}

@@ -269,6 +269,7 @@ async def test_export_payin_report_csv():
         "payin_vendor_ref_id": 1,
         "vendor_code": "BANKME",
         "payment_mode": "UPI",
+        "cust_mobile": "9025232475",
         "txn_amount": 50000.00,
         "mdr_amount": 750.00,
         "tax_amount": 135.00,
@@ -293,8 +294,10 @@ async def test_export_payin_report_csv():
     assert response.status_code == 200
     assert response.media_type == "text/csv"
     csv_text = response.body.decode("utf-8")
-    assert "Transaction ID" in csv_text
+    assert "TID" in csv_text
     assert "Gateway" in csv_text
-    assert "GST (INR)" in csv_text
+    assert "GST (₹)" in csv_text
+    assert "MobileNo" in csv_text
+    assert "9025232475" in csv_text
     assert "G-1" in csv_text
     assert "PIN-20261118-001" in csv_text

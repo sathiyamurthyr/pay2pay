@@ -567,15 +567,19 @@ async def get_payin_report_grid(
             "card_network": d.get("card_network"),
             "customer_name": d.get("cust_name"),
             "customer_mobile": d.get("cust_mobile"),
+            "mobile_no": d.get("cust_mobile"),
             "amount": float(d.get("txn_amount") or 0.0),
             "txn_amount": float(d.get("txn_amount") or 0.0),
+            "charges": float(d.get("total_charges") or 0.0),
             "mdr_amount": float(d.get("mdr_amount") or 0.0),
             "gst": float(d.get("tax_amount") or 0.0),
             "tax_amount": float(d.get("tax_amount") or 0.0),
             "total_charges": float(d.get("total_charges") or 0.0),
             "total_amount": float(d.get("customer_payable") or (float(d.get("txn_amount") or 0.0) + float(d.get("total_charges") or 0.0))),
             "customer_payable": float(d.get("customer_payable") or (float(d.get("txn_amount") or 0.0) + float(d.get("total_charges") or 0.0))),
+            "wallet_credit": float(d.get("retailer_credit") or d.get("txn_amount") or 0.0),
             "retailer_credit": float(d.get("retailer_credit") or d.get("txn_amount") or 0.0),
+            "method": d.get("payment_mode") or "UPI",
             "status": (d.get("txn_status") or "SUCCESS").upper(),
             "provider_status": d.get("provider_status"),
             "ledger_txn_id": d.get("ledger_txn_id"),
@@ -856,6 +860,7 @@ async def export_payin_report(
         t.payin_vendor_ref_id,
         v.vendor_code,
         COALESCE(p.pay_mode_code, 'UPI') AS payment_mode,
+        t.cust_mobile,
         t.txn_amount,
         t.mdr_amount,
         t.tax_amount,
@@ -881,18 +886,15 @@ async def export_payin_report(
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow([
-        "S.No",
-        "Transaction ID",
-        "Reference / Order ID",
-        "Retailer ID / Outlet",
-        "Company",
+        "TID",
+        "Amount (₹)",
+        "Charges (₹)",
+        "GST (₹)",
+        "Total Amount (₹)",
+        "Wallet Credit (₹)",
+        "MobileNo",
         "Gateway",
-        "Payment Method",
-        "Transaction Amount (INR)",
-        "Charges (INR)",
-        "GST (INR)",
-        "Total Amount (INR)",
-        "Wallet Credit (INR)",
+        "Method",
         "Status",
         "Date & Time"
     ])
@@ -902,21 +904,20 @@ async def export_payin_report(
         gw_label = map_gateway_label(d.get("payin_vendor_ref_id"), d.get("vendor_code"))
         created_dt = d.get("created_at")
         dt_str = created_dt.astimezone(IST).strftime("%Y-%m-%d %H:%M:%S") if created_dt else "--"
-        ref_id = d.get("merchant_ref_id") or d.get("provider_ref_id") or d.get("tid")
+        mob_val = d.get("cust_mobile") or "--"
+        if len(mob_val) >= 10:
+            mob_val = mob_val[-10:]
 
         writer.writerow([
-            idx + 1,
             d.get("tid") or "--",
-            ref_id or "--",
-            d.get("retailer_name") or d.get("retailer_code") or "--",
-            d.get("company_name") or "SMSPAY",
-            gw_label,
-            d.get("payment_mode") or "UPI",
             f"{money(d.get('txn_amount')):.2f}",
             f"{money(d.get('total_charges')):.2f}",
             f"{money(d.get('tax_amount')):.2f}",
             f"{money(d.get('customer_payable')):.2f}",
             f"{money(d.get('retailer_credit')):.2f}",
+            mob_val,
+            gw_label,
+            d.get("payment_mode") or "UPI",
             (d.get("txn_status") or "SUCCESS").upper(),
             dt_str
         ])
