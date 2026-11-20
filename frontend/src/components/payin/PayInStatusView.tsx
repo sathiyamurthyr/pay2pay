@@ -21,8 +21,9 @@ import {
   ShieldCheck
 } from "lucide-react";
 import { useCompanyBranding, COMPANY_PRESETS } from "@/hooks/useCompanyBranding";
+import { isReceiptSubdomain } from "@/lib/receipt-security";
 
-interface ReceiptData {
+export interface ReceiptData {
   tid: string;
   reference_id: string;
   merchant_ref_id?: string;
@@ -121,12 +122,23 @@ function ReceiptBrandLogo({ companyCode, logoUrl }: { companyCode: string; logoU
   );
 }
 
-export function PayInStatusView() {
+interface PayInStatusViewProps {
+  tokenProp?: string;
+  initialData?: ReceiptData | null;
+  isStandalone?: boolean;
+}
+
+export function PayInStatusView({
+  tokenProp,
+  initialData,
+  isStandalone
+}: PayInStatusViewProps = {}) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const branding = useCompanyBranding();
 
   const refParam =
+    tokenProp ||
     searchParams.get("referenceId") ||
     searchParams.get("reference_id") ||
     searchParams.get("tid") ||
@@ -135,8 +147,8 @@ export function PayInStatusView() {
   const statusParam = (searchParams.get("status") || "pending").toUpperCase();
   const utrParam = searchParams.get("utr") || "";
 
-  const [loading, setLoading] = useState<boolean>(true);
-  const [receipt, setReceipt] = useState<ReceiptData | null>(null);
+  const [loading, setLoading] = useState<boolean>(!initialData);
+  const [receipt, setReceipt] = useState<ReceiptData | null>(initialData || null);
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [pollCount, setPollCount] = useState<number>(0);
@@ -167,43 +179,94 @@ export function PayInStatusView() {
       setIsRefreshing(true);
 
       try {
-        const res = await fetch(`/api/v1/payin/receipt/${encodeURIComponent(refParam)}`, {
+        // Attempt retrieval via verified public receipt capability endpoint
+        let fetched = false;
+        const publicRes = await fetch(`/api/v1/public/receipt/${encodeURIComponent(refParam)}`, {
           cache: "no-store",
           headers: { Accept: "application/json" }
         });
 
-        if (res.ok) {
-          const body = await res.json();
-          if (body.success && body.data) {
-            setReceipt(body.data);
+        if (publicRes.ok) {
+          const body = await publicRes.json();
+          const d = body.data || body;
+          if (d && (d.tid || d.transactionId || d.valid)) {
+            setReceipt({
+              tid: d.tid || d.transactionId || refParam,
+              reference_id: d.reference_id || d.tid || d.transactionId || refParam,
+              order_id: d.order_id || d.orderId || d.tid || refParam,
+              merchant_ref_id: d.merchant_ref_id || d.orderId,
+              provider_ref_id: d.provider_ref_id || d.utr,
+              status: (d.status || statusParam).toUpperCase(),
+              amount: Number(d.amount || d.requestedAmount || 0),
+              gst: Number(d.gst || d.tax_amount || d.taxAmount || 0),
+              tax_amount: Number(d.tax_amount || d.taxAmount || d.gst || 0),
+              charges: Number(d.charges || d.total_charges || 0),
+              total_charges: Number(d.total_charges || d.charges || 0),
+              total_debited: Number(d.total_debited || d.totalDebited || d.totalPaid || d.amount || 0),
+              customer_payable: Number(d.customer_payable || d.totalDebited || d.amount || 0),
+              retailer_credit: Number(d.retailer_credit || d.walletCredit || d.amount || 0),
+              retailer_name: d.retailer_name || d.retailerName || "Retailer Partner",
+              retailer_id: d.retailer_id || d.retailerId || d.retailerCode || "RT12345",
+              customer_name: d.customer_name || d.customerName || "Customer",
+              customer_mobile: d.customer_mobile || d.customerMobile || d.mobileNo || "",
+              gateway: d.gateway || d.gatewayCode || "G-1",
+              gateway_ref: d.gateway_ref || d.gatewayRef || d.utr || refParam,
+              rrn: d.rrn || d.utr || refParam,
+              payment_method: d.payment_method || d.paymentMode || d.channel || "UPI",
+              domain: d.domain,
+              support_phone: d.support_phone || d.supportPhone || "+91 98765 43210",
+              support_email: d.support_email || d.supportEmail || "support@smspay.store",
+              created_at: d.created_at || d.date || new Date().toISOString(),
+              completed_at: d.completed_at || d.date,
+              utr: d.utr || d.gateway_ref || refParam,
+              failure_reason: d.failure_reason
+            });
             setErrorMsg("");
-          } else {
-            setErrorMsg("Receipt details unavailable");
+            fetched = true;
           }
-        } else if (res.status === 404) {
-          // Fallback minimal receipt from search params if backend hasn't written record yet
-          setReceipt({
-            tid: refParam,
-            reference_id: refParam,
-            order_id: refParam,
-            status: statusParam === "SUCCESS" ? "SUCCESS" : statusParam === "FAILED" ? "FAILED" : "PENDING",
-            amount: 0,
-            gst: 0,
-            charges: 0,
-            total_debited: 0,
-            customer_payable: 0,
-            retailer_credit: 0,
-            retailer_name: "Retailer Partner",
-            retailer_id: "RT12345",
-            gateway: "G-1",
-            payment_method: "UPI",
-            utr: utrParam || refParam,
-            gateway_ref: utrParam || refParam,
-            rrn: utrParam || refParam,
-            created_at: new Date().toISOString()
+        }
+
+        if (!fetched) {
+          // Fallback to payin receipt endpoint
+          const res = await fetch(`/api/v1/payin/receipt/${encodeURIComponent(refParam)}`, {
+            cache: "no-store",
+            headers: { Accept: "application/json" }
           });
-        } else {
-          setErrorMsg(`Server returned status ${res.status}`);
+
+          if (res.ok) {
+            const body = await res.json();
+            if (body.success && body.data) {
+              setReceipt(body.data);
+              setErrorMsg("");
+              fetched = true;
+            }
+          } else if (res.status === 404 && !receipt) {
+            setReceipt({
+              tid: refParam,
+              reference_id: refParam,
+              order_id: refParam,
+              status: statusParam === "SUCCESS" ? "SUCCESS" : statusParam === "FAILED" ? "FAILED" : "PENDING",
+              amount: 0,
+              gst: 0,
+              charges: 0,
+              total_debited: 0,
+              customer_payable: 0,
+              retailer_credit: 0,
+              retailer_name: "Retailer Partner",
+              retailer_id: "RT12345",
+              gateway: "G-1",
+              payment_method: "UPI",
+              utr: utrParam || refParam,
+              gateway_ref: utrParam || refParam,
+              rrn: utrParam || refParam,
+              created_at: new Date().toISOString()
+            });
+            fetched = true;
+          }
+        }
+
+        if (!fetched && !receipt) {
+          setErrorMsg("Receipt details unavailable");
         }
       } catch (err: any) {
         console.error("Error fetching receipt:", err);
@@ -213,7 +276,7 @@ export function PayInStatusView() {
         setIsRefreshing(false);
       }
     },
-    [refParam, statusParam, utrParam]
+    [refParam, statusParam, utrParam, receipt]
   );
 
   // Initial load
@@ -321,13 +384,17 @@ export function PayInStatusView() {
 
       {/* Top Navigation Back to Dashboard (No-print) */}
       <header className="max-w-[640px] w-full mx-auto flex items-center justify-between pb-3 no-print">
-        <Link
-          href="/retailer/dashboard"
-          className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-600 hover:text-blue-700 transition-colors group px-3 py-1.5 rounded-lg hover:bg-slate-200/60"
-        >
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-          <span>Back to Dashboard</span>
-        </Link>
+        {(!isStandalone && !isReceiptSubdomain(host)) ? (
+          <Link
+            href="/retailer/dashboard"
+            className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-600 hover:text-blue-700 transition-colors group px-3 py-1.5 rounded-lg hover:bg-slate-200/60"
+          >
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            <span>Back to Dashboard</span>
+          </Link>
+        ) : (
+          <div />
+        )}
         <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-semibold">
           <ShieldCheck className="w-4 h-4 text-emerald-600" />
           <span>Verified Payment Receipt</span>

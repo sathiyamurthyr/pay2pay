@@ -21,6 +21,8 @@ import {
   RefreshCw,
   FileText,
 } from "lucide-react";
+import { PayInStatusView } from "@/components/payin/PayInStatusView";
+import { resolveReceiptDomain } from "@/lib/receipt-security";
 
 export default function PublicReceiptPage() {
   const params = useParams();
@@ -36,6 +38,8 @@ export default function PublicReceiptPage() {
   const [adminApprovalUrl, setAdminApprovalUrl] = useState("");
   const [countdown, setCountdown] = useState(2);
   const [showReceiptSlip, setShowReceiptSlip] = useState(false);
+  const [isPayinReceipt, setIsPayinReceipt] = useState(false);
+  const [payinData, setPayinData] = useState<any>(null);
   const [receiptData, setReceiptData] = useState({
     companyName: "SUPER REX PRODUCTS PRIVATE LIMITED",
     brandName: "Near4You",
@@ -70,11 +74,21 @@ export default function PublicReceiptPage() {
       if (!token) return;
       try {
         setLoading(true);
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://api.near4you.store";
-        const res = await fetch(`${apiBase}/api/v1/public/receipt/${token}`);
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
+        const res = await fetch(`${apiBase}/api/v1/public/receipt/${encodeURIComponent(token)}`);
         if (res.ok) {
           const data = await res.json();
           if (isMounted && data && data.valid) {
+            // Check if this is a PayIn transaction
+            if (data.receiptType === "PAYIN_TOPUP") {
+              setIsPayinReceipt(true);
+              setPayinData(data);
+              setVerified(true);
+              setNotFound(false);
+              setLoading(false);
+              return;
+            }
+
             // 1. Detect if the visitor came from an Admin notification link
             // Admin template 1043386768499813 sends: ?source=admin_approval (or ?target=admin)
             const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
@@ -142,7 +156,7 @@ export default function PublicReceiptPage() {
             setLoading(false);
             return;
           }
-        } else if (res.status === 404) {
+        } else if (res.status === 404 || res.status === 400) {
           if (isMounted) {
             setNotFound(true);
             setVerified(false);
@@ -205,7 +219,9 @@ export default function PublicReceiptPage() {
   };
 
   const handleShareWhatsApp = () => {
-    const shareText = `*Near4You Official Transaction Receipt*\n\n` +
+    const brand = receiptData.brandName || "Payment";
+    const receiptBase = resolveReceiptDomain(undefined, brand);
+    const shareText = `*${brand} Official Transaction Receipt*\n\n` +
       `*Status:* SUCCESS (Real-Time CBS Settled)\n` +
       `*Amount:* ₹${receiptData.amount.toFixed(2)}\n` +
       `*Beneficiary:* ${receiptData.beneficiaryName}\n` +
@@ -213,10 +229,18 @@ export default function PublicReceiptPage() {
       `*A/C:* ${receiptData.beneficiaryAccount}\n` +
       `*UTR / RRN:* ${receiptData.utr}\n` +
       `*Receipt Token:* ${token}\n\n` +
-      `Verify Online: https://receipt.near4you.store/r/${token}`;
+      `Verify Online: ${receiptBase}/r/${encodeURIComponent(token)}`;
     
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`, "_blank");
   };
+
+  if (isPayinReceipt) {
+    return (
+      <div className="min-h-screen bg-[#F0F4F8] text-slate-800">
+        <PayInStatusView tokenProp={token} initialData={payinData} isStandalone={true} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#FFFFFF] text-[#292329] flex flex-col items-center justify-start p-3 sm:p-6 select-none">
@@ -252,7 +276,7 @@ export default function PublicReceiptPage() {
           <div>
             <div className="flex items-center gap-1.5">
               <span className="font-black text-base tracking-tight bg-gradient-to-r from-[#FEF08A] via-[#FBBF24] to-[#F59E0B] bg-clip-text text-transparent">
-                Near4You
+                {receiptData.brandName || "Payment"}
               </span>
               <span className="text-xs px-1.5 py-0.5 rounded bg-blue-500/20 border border-blue-400/40 text-blue-300 font-bold">
                 Enterprise

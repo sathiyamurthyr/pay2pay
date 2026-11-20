@@ -69,6 +69,7 @@ import PendingIcon from "@mui/icons-material/Pending";
 
 import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 import { useRetailerStore } from "@/stores/use-retailer-store";
+import { getPublicReceiptUrl } from "@/lib/receipt-security";
 
 export interface PayinReportSummary {
   total_transactions: number;
@@ -130,6 +131,8 @@ export interface PayinReportItem {
   date?: string;
   time?: string;
   date_time: string;
+  receipt_token?: string;
+  receipt_url?: string;
   created_at?: string;
   initiated_at?: string;
   updated_at?: string;
@@ -565,8 +568,10 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
   };
 
   const handleShareReceipt = async (item: PayinReportItem) => {
-    const origin = typeof window !== "undefined" ? window.location.origin : "https://login.smspay.store";
-    const shareUrl = `${origin}/retailer/payin/status?referenceId=${encodeURIComponent(item.tid)}&status=${(item.status || "success").toLowerCase()}`;
+    const shareUrl =
+      item.receipt_url ||
+      item.receiptUrl ||
+      getPublicReceiptUrl(item.receipt_token || item.tid, undefined, item.company_code);
 
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
