@@ -37,6 +37,7 @@ from app.application.payin_dtos import (
 from app.application.payin_routing_service import PayInRoutingService, PayInProvider, SMSPAY_COMPANY_REF_ID
 from app.application.payin_mdr_service import PayInMdrService
 from app.application.payin_config_service import PayInConfigService
+from app.application.payment_method_normalizer import PaymentMethodNormalizer, NormalizedPaymentMethod
 from app.application.bankme_payin_adapter import BankMePayInAdapter, ExistingPayInAdapter
 from app.application.gateway_masking_service import GatewayMaskingService
 from app.application.bankme_payin_client import BankMePayInClient, record_payin_api_audit_log
@@ -423,6 +424,168 @@ class PayInService:
         )
 
     @classmethod
+    async def reconcile_and_finalize_transaction(
+        cls,
+        db: AsyncSession,
+        txn: PayinTransactionModel,
+        raw_gateway_payload: Optional[Dict[str, Any]] = None,
+        provider_status: Optional[str] = None,
+        provider_ref_id: Optional[str] = None,
+        source: str = "STATUS_SYNC"
+    ) -> Dict[str, Any]:
+        """
+        Authoritative transaction finalization and reconciliation engine:
+        1. Normalizes actual payment method returned by payment gateway (Visa, Mastercard, RuPay, UPI, Amex, Corp, etc.)
+        2. Assigns pay_mode_ref_id and card_type_ref_id consistently without defaulting missing methods to UPI.
+        3. Resolves dynamic MDR configuration based on authenticated company ID, vendor ID, and detected method.
+        4. Re-calculates exact financial charges (MDR, GST, Customer Payable, Retailer Credit) using Decimal arithmetic.
+        5. Atomically credits retailer wallet using the reconciled credit amount via WalletBalanceAdjustmentService.
+        """
+        now_utc = datetime.now(timezone.utc)
+        eff_status = (provider_status or txn.txn_status or "SUCCESS").strip().upper()
+
+        # 1. Normalize Payment Method from Gateway Response
+        norm = PaymentMethodNormalizer.normalize_gateway_method(raw_payload=raw_gateway_payload)
+
+        # Update card_network and payment mode if detected
+        if norm.card_network:
+            txn.card_network = norm.card_network
+            if norm.card_network in ("VISA", "MASTERCARD", "RUPAY", "AMEX", "CORP"):
+                ct_stmt = select(PayinCardTypeModel.payin_card_type_ref_id).where(
+                    PayinCardTypeModel.card_network == norm.card_network
+                )
+                ct_res = await db.execute(ct_stmt)
+                ct_id = ct_res.scalar()
+                if ct_id:
+                    txn.card_type_ref_id = ct_id
+
+        if norm.pay_mode_code and norm.pay_mode_code != "UNKNOWN":
+            pm_stmt = select(PayinPaymentModeModel.payin_payment_mode_ref_id).where(
+                PayinPaymentModeModel.pay_mode_code == norm.pay_mode_code
+            )
+            pm_res = await db.execute(pm_stmt)
+            pm_id = pm_res.scalar()
+            if pm_id:
+                txn.pay_mode_ref_id = pm_id
+        elif norm.pay_mode_code == "UNKNOWN" and not txn.pay_mode_ref_id:
+            pm_stmt = select(PayinPaymentModeModel.payin_payment_mode_ref_id).where(
+                PayinPaymentModeModel.pay_mode_code == "UNKNOWN"
+            )
+            pm_res = await db.execute(pm_stmt)
+            pm_id = pm_res.scalar()
+            if pm_id:
+                txn.pay_mode_ref_id = pm_id
+
+        # 2. Recalculate Dynamic MDR Charges (if wallet has not yet been credited)
+        if not txn.ledger_txn_id:
+            try:
+                mdr_cfg = await PayInMdrService.resolve_mdr_rule(
+                    db=db,
+                    company_ref_id=txn.company_ref_id,
+                    vendor_ref_id=txn.payin_vendor_ref_id,
+                    service_type_ref_id=txn.svc_type_ref_id,
+                    payment_mode_ref_id=txn.pay_mode_ref_id,
+                    card_type_ref_id=txn.card_type_ref_id,
+                    card_network=txn.card_network
+                )
+                calc = PayInMdrService.calculate_charges(txn.txn_amount, mdr_cfg)
+                txn.mdr_pct = calc["mdr_pct"]
+                txn.mdr_amount = calc["mdr_amount"]
+                txn.tax_amount = calc["tax_amount"]
+                txn.total_charges = calc["total_charges"]
+                txn.customer_payable = calc["customer_payable"]
+                txn.retailer_credit = calc["retailer_credit"]
+                txn.company_mdr_liability = calc["company_mdr_liability"]
+                txn.mdr_treatment = calc["mdr_treatment"]
+                txn.customer_payable_policy = calc.get("customer_payable_policy", txn.customer_payable_policy)
+                logger.info(
+                    "Reconciled TID %s with method %s (%s): MDR=%.4f, charges=%.2f, credit=%.2f",
+                    txn.tid, txn.card_network or norm.display_name, calc["mdr_treatment"],
+                    calc["mdr_pct"], calc["total_charges"], calc["retailer_credit"]
+                )
+            except Exception as mdr_err:
+                logger.error("Could not resolve MDR rule for TID %s (method %s): %s", txn.tid, txn.card_network, mdr_err)
+
+        # 3. Update Status and References
+        if provider_ref_id:
+            txn.provider_ref_id = provider_ref_id
+
+        if eff_status == "SUCCESS":
+            txn.txn_status = "SUCCESS"
+            txn.provider_status = "SUCCESS"
+            txn.callback_status = "SUCCESS"
+            if not txn.completed_at:
+                txn.completed_at = now_utc
+
+            # 4. Atomic Wallet Credit if not already credited
+            if not txn.ledger_txn_id:
+                try:
+                    ret_stmt = select(RetailerModel).where(
+                        RetailerModel.retailer_ref_id == txn.retailer_ref_id,
+                        RetailerModel.company_ref_id == txn.company_ref_id
+                    )
+                    ret_res = await db.execute(ret_stmt)
+                    ret_obj = ret_res.scalars().first()
+                    credit_amt = float(txn.retailer_credit)
+
+                    clean_method = PaymentMethodNormalizer.get_clean_method_display(
+                        card_network=txn.card_network,
+                        pay_mode_code=norm.pay_mode_code
+                    )
+
+                    adj_dto = WalletAdjustmentDTO(
+                        user_ref_id=txn.retailer_ref_id,
+                        retailer_id=str(ret_obj.public_id) if ret_obj else None,
+                        retailer_code=ret_obj.retailer_code if ret_obj else None,
+                        company_ref_id=txn.company_ref_id,
+                        user_type_ref_id=2,  # Retailer
+                        entry_type="CREDIT",
+                        amount=credit_amt,
+                        payout_amount=credit_amt,
+                        charge_amount=0.0,
+                        gst_amount=0.0,
+                        service_name="PAYIN_TOPUP",
+                        wallet_type="MAIN",
+                        user_type="RETAILER",
+                        txn_id=txn.tid,
+                        ref_id=txn.provider_ref_id or txn.tid,
+                        narration=f"PayIn Wallet Top-Up ({clean_method}, TID: {txn.tid})"
+                    )
+                    adj_res = await WalletBalanceAdjustmentService.execute_wallet_balance_update(db=db, dto=adj_dto)
+                    if adj_res and adj_res.success:
+                        txn.ledger_txn_id = adj_res.txn_id
+                        logger.info(
+                            "Credited ₹%.2f to retailer %s for TID %s (ledger_id=%s, source=%s)",
+                            credit_amt, txn.retailer_ref_id, txn.tid, adj_res.txn_id, source
+                        )
+                    else:
+                        err_msg = adj_res.error_message if adj_res else "Wallet SP returned failure"
+                        logger.error("Wallet credit SP returned failure for TID %s: %s", txn.tid, err_msg)
+                except Exception as w_err:
+                    logger.error("Wallet credit exception for TID %s: %s", txn.tid, w_err)
+
+        elif eff_status in ("FAILED", "FAILURE"):
+            txn.txn_status = "FAILED"
+            txn.provider_status = "FAILED"
+            txn.callback_status = "FAILED"
+
+        await db.commit()
+
+        return {
+            "tid": txn.tid,
+            "status": txn.txn_status,
+            "card_network": txn.card_network,
+            "pay_mode_ref_id": txn.pay_mode_ref_id,
+            "mdr_pct": float(txn.mdr_pct or 0.0),
+            "mdr_amount": float(txn.mdr_amount or 0.0),
+            "tax_amount": float(txn.tax_amount or 0.0),
+            "total_charges": float(txn.total_charges or 0.0),
+            "customer_payable": float(txn.customer_payable or 0.0),
+            "retailer_credit": float(txn.retailer_credit or 0.0),
+            "ledger_txn_id": txn.ledger_txn_id
+        }
+
+    @classmethod
     async def process_bankme_webhook(
         cls,
         db: AsyncSession,
@@ -532,120 +695,20 @@ class PayInService:
         except Exception as api_log_err:
             logger.warning("Failed to record webhook in payin_api_logs: %s", api_log_err)
 
-        # 6. Evaluate Provider Status
-        provider_status = (payload.status or "SUCCESS").strip().upper()
-        now_utc = datetime.now(timezone.utc)
-
-        if provider_status == "SUCCESS":
-            txn.txn_status = "SUCCESS"
-            txn.provider_status = "SUCCESS"
-            txn.provider_ref_id = payload.bankme_ref or payload.utr or txn.provider_ref_id
-            txn.callback_status = "SUCCESS"
-            txn.completed_at = now_utc
-
-            # Actual Card Type Identification & Reconciliation
-            actual_network = (
-                payload.card_network or 
-                (payload.raw_payload.get("card_network") if payload.raw_payload else None) or
-                (payload.raw_payload.get("card_category") if payload.raw_payload else None) or
-                (payload.raw_payload.get("cardScheme") if payload.raw_payload else None)
-            )
-            if actual_network:
-                actual_str = str(actual_network).strip().upper()
-                if "VISA" in actual_str:
-                    norm_net = "VISA"
-                elif "MASTER" in actual_str or actual_str == "MC":
-                    norm_net = "MASTERCARD"
-                elif "RUPAY" in actual_str:
-                    norm_net = "RUPAY"
-                elif "AMEX" in actual_str or "DINERS" in actual_str:
-                    norm_net = "AMEX"
-                elif "CORP" in actual_str or "BUSINESS" in actual_str:
-                    norm_net = "CORP"
-                else:
-                    norm_net = actual_str
-
-                try:
-                    mdr_cfg = await PayInMdrService.resolve_mdr_rule(
-                        db=db,
-                        company_ref_id=txn.company_ref_id,
-                        vendor_ref_id=txn.payin_vendor_ref_id,
-                        card_network=norm_net
-                    )
-                    calc = PayInMdrService.calculate_charges(txn.txn_amount, mdr_cfg)
-                    txn.card_network = norm_net
-                    txn.mdr_rate = calc["mdr_pct"]
-                    txn.mdr_amount = calc["mdr_amount"]
-                    txn.tax_amount = calc["tax_amount"]
-                    txn.total_charges = calc["total_charges"]
-                    txn.customer_payable = calc["customer_payable"]
-                    txn.retailer_credit = calc["retailer_credit"]
-                    txn.company_mdr_liability = calc["company_mdr_liability"]
-                    txn.mdr_treatment = calc["mdr_treatment"]
-                    logger.info(
-                        "Reconciled TID %s with verified provider card network %s: MDR=%.4f (%s), credit=%.2f",
-                        tid, norm_net, calc["mdr_pct"], calc["mdr_treatment"], calc["retailer_credit"]
-                    )
-                except Exception as e:
-                    logger.warning("Could not reconcile provider card network %s for TID %s: %s", norm_net, tid, e)
-
-            # 7. Credit Retailer Wallet via Authoritative WalletBalanceAdjustmentService
-            # (which executes public.wallet_balance_update stored procedure)
-            try:
-                # Resolve Retailer UUID directly from txn.retailer_ref_id
-                ret_stmt = select(RetailerModel).where(
-                    RetailerModel.retailer_ref_id == txn.retailer_ref_id,
-                    RetailerModel.company_ref_id == txn.company_ref_id
-                )
-                ret_res = await db.execute(ret_stmt)
-                ret_obj = ret_res.scalars().first()
-
-                credit_amount = float(txn.retailer_credit)
-                adj_dto = WalletAdjustmentDTO(
-                    user_ref_id=txn.retailer_ref_id,
-                    retailer_id=str(ret_obj.public_id) if ret_obj else None,
-                    retailer_code=ret_obj.retailer_code if ret_obj else None,
-                    company_ref_id=txn.company_ref_id,
-                    user_type_ref_id=2,  # Retailer
-                    entry_type="CREDIT",
-                    amount=credit_amount,
-                    payout_amount=credit_amount,
-                    charge_amount=0.0,
-                    gst_amount=0.0,
-                    service_name="PAYIN_TOPUP",
-                    wallet_type="MAIN",
-                    user_type="RETAILER",
-                    txn_id=tid,
-                    ref_id=payload.utr or payload.bankme_ref or tid,
-                    narration=f"PayIn Wallet Top-Up via BankMe (TID: {tid})"
-                )
-
-                adj_res = await WalletBalanceAdjustmentService.execute_wallet_balance_update(
-                    db=db,
-                    dto=adj_dto
-                )
-
-                if adj_res and adj_res.success:
-                    txn.ledger_txn_id = adj_res.txn_id
-                    cb_log.process_status = "COMPLETED"
-                    logger.info("Successfully credited ₹%s to retailer_ref_id=%s via SP for TID=%s", credit_amount, txn.retailer_ref_id, tid)
-                else:
-                    err = adj_res.error_message if adj_res else "SP execution returned failure"
-                    logger.error("Wallet SP credit failed for TID=%s: %s", tid, err)
-                    cb_log.process_status = "WALLET_CREDIT_FAILED"
-                    cb_log.error_msg = err
-
-            except Exception as ex:
-                logger.error("Error invoking wallet balance update SP for TID=%s: %s", tid, ex)
-                cb_log.process_status = "WALLET_CREDIT_EXCEPTION"
-                cb_log.error_msg = str(ex)
-
+        # 6. Authoritative Reconciliation, Dynamic MDR Recalculation, and Wallet Credit
+        recon_res = await cls.reconcile_and_finalize_transaction(
+            db=db,
+            txn=txn,
+            raw_gateway_payload=payload.model_dump(),
+            provider_status=payload.status or "SUCCESS",
+            provider_ref_id=payload.bankme_ref or payload.utr,
+            source="BANKME_WEBHOOK"
+        )
+        if recon_res["status"] == "SUCCESS":
+            cb_log.process_status = "COMPLETED"
         else:
-            txn.txn_status = "FAILED"
-            txn.provider_status = provider_status
-            txn.callback_status = "FAILED"
-            txn.failure_reason = payload.event or "Payment failed at provider"
             cb_log.process_status = "PAYMENT_FAILED"
+            txn.failure_reason = payload.event or "Payment failed at provider"
 
         await db.commit()
 
@@ -826,57 +889,26 @@ class PayInService:
                     retailer_ref_id=txn.retailer_ref_id
                 )
                 if live_check.get("success") and live_check.get("status") in ("SUCCESS", "FAILED"):
-                    new_st = live_check.get("status")
-                    final_status = new_st
-                    txn.txn_status = new_st
-                    txn.provider_status = new_st
+                    recon_res = await cls.reconcile_and_finalize_transaction(
+                        db=db,
+                        txn=txn,
+                        raw_gateway_payload=live_check,
+                        provider_status=live_check.get("status"),
+                        provider_ref_id=live_check.get("utr"),
+                        source="BANKME_STATUS_SYNC"
+                    )
+                    final_status = recon_res["status"]
+                    final_mdr_charge = recon_res["mdr_amount"]
+                    final_gst_amount = recon_res["tax_amount"]
+                    final_total_charges = recon_res["total_charges"]
+                    final_customer_payable = recon_res["customer_payable"]
+                    final_retailer_credit = recon_res["retailer_credit"]
+                    final_card_network = recon_res["card_network"]
+                    final_ledger_txn_id = recon_res["ledger_txn_id"]
                     if live_check.get("utr"):
                         final_provider_ref = live_check.get("utr")
-                        txn.provider_ref_id = live_check.get("utr")
-                    if new_st == "SUCCESS":
-                        now_utc = datetime.now(timezone.utc)
-                        txn.completed_at = now_utc
-                        final_updated_at = now_utc.isoformat()
-
-                    # Commit transaction status update first to ensure persistence
-                    await db.commit()
-
-                    # Automatic wallet credit if not already credited (isolated transaction)
-                    if new_st == "SUCCESS" and not final_ledger_txn_id:
-                        try:
-                            ret_stmt = select(RetailerModel).where(
-                                RetailerModel.retailer_ref_id == txn.retailer_ref_id,
-                                RetailerModel.company_ref_id == txn.company_ref_id
-                            )
-                            ret_res = await db.execute(ret_stmt)
-                            ret_obj = ret_res.scalars().first()
-                            credit_amount = float(final_retailer_credit)
-                            adj_dto = WalletAdjustmentDTO(
-                                user_ref_id=txn.retailer_ref_id,
-                                retailer_id=str(ret_obj.public_id) if ret_obj else None,
-                                retailer_code=ret_obj.retailer_code if ret_obj else None,
-                                company_ref_id=txn.company_ref_id,
-                                user_type_ref_id=2,
-                                entry_type="CREDIT",
-                                amount=credit_amount,
-                                payout_amount=credit_amount,
-                                charge_amount=0.0,
-                                gst_amount=0.0,
-                                service_name="PAYIN_TOPUP",
-                                wallet_type="MAIN",
-                                user_type="RETAILER",
-                                txn_id=final_tid,
-                                ref_id=live_check.get("utr") or final_provider_ref or final_tid,
-                                narration=f"PayIn Wallet Top-Up via BankMe (TID: {final_tid})"
-                            )
-                            adj_res = await WalletBalanceAdjustmentService.execute_wallet_balance_update(db=db, dto=adj_dto)
-                            if adj_res and adj_res.success:
-                                final_ledger_txn_id = adj_res.txn_id
-                                txn.ledger_txn_id = adj_res.txn_id
-                                await db.commit()
-                                logger.info("Credited ₹%s to retailer_ref_id=%s via sync for TID=%s", credit_amount, txn.retailer_ref_id, final_tid)
-                        except Exception as w_err:
-                            logger.error("Wallet credit error during status sync for TID %s: %s", final_tid, w_err)
+                    if final_status == "SUCCESS":
+                        final_updated_at = datetime.now(timezone.utc).isoformat()
             except Exception as sync_err:
                 logger.warning("Error performing live BankMe status check for TID %s: %s", tid, sync_err)
 
