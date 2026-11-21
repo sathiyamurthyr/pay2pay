@@ -1,13 +1,14 @@
 "use client";
 
 import React from "react";
-import { AppShell } from "@/app-shell/AppShell";
-import { EnterpriseReportCenter } from "@/modules/report-center/EnterpriseReportCenter";
+import { GstReportModule } from "@/modules/reports/GstReportModule";
 
 export default function RetailerTaxReportPage() {
   return (
-    <AppShell pageTitle="Retailer Portal — Tax & GST Report" activePath="/retailer/reports/tax">
-      <EnterpriseReportCenter />
-    </AppShell>
+    <GstReportModule
+      portalType="retailer"
+      title="Retailer Service-Wise GST Statement"
+      subtitle="Monthly service-wise GST report and tax invoice downloads for your retailer outlet."
+    />
   );
 }
