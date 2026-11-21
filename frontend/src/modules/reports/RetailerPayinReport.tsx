@@ -359,8 +359,8 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
         const rawItems: PayinReportItem[] = Array.isArray(data.items)
           ? data.items
           : Array.isArray(data.data?.items)
-          ? data.data.items
-          : [];
+            ? data.data.items
+            : [];
         const total = data.pagination?.total_records ?? data.data?.pagination?.total_records ?? rawItems.length;
 
         setItems(rawItems);
@@ -604,10 +604,10 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
+      document.documentElement.requestFullscreen().catch(() => { });
       setIsFullscreen(true);
     } else {
-      document.exitFullscreen().catch(() => {});
+      document.exitFullscreen().catch(() => { });
       setIsFullscreen(false);
     }
   };
@@ -991,8 +991,8 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
             {activePreset === "TODAY"
               ? "Date Range"
               : activePreset === "CUSTOM"
-              ? `${fromDate || "Start"} - ${toDate || "End"}`
-              : activePreset}
+                ? `${fromDate || "Start"} - ${toDate || "End"}`
+                : activePreset}
           </Button>
 
           {/* 2. Transaction ID ⌄ */}
@@ -1436,11 +1436,17 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                 <TableRow sx={{ bgcolor: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
                   {/* 1. TID */}
                   {!hiddenColumns.has("tid") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, pl: 2, whiteSpace: "nowrap" }}>
+                    <TableCell
+                      onClick={() => handleSort("tid")}
+                      sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, pl: 2, whiteSpace: "nowrap", cursor: "pointer" }}
+                    >
                       <TableSortLabel
                         active={sortBy === "tid"}
                         direction={sortBy === "tid" ? sortDir : "desc"}
-                        onClick={() => handleSort("tid")}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSort("tid");
+                        }}
                         sx={{
                           "&.MuiTableSortLabel-root": { color: "#059669", fontWeight: 800 },
                           "&.MuiTableSortLabel-root:hover": { color: "#047857" },
@@ -1454,11 +1460,17 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                   )}
                   {/* 2. Amount (₹) */}
                   {!hiddenColumns.has("amount") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, textAlign: "right", whiteSpace: "nowrap" }}>
+                    <TableCell
+                      onClick={() => handleSort("txn_amount")}
+                      sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, textAlign: "right", whiteSpace: "nowrap", cursor: "pointer" }}
+                    >
                       <TableSortLabel
                         active={sortBy === "txn_amount"}
                         direction={sortBy === "txn_amount" ? sortDir : "desc"}
-                        onClick={() => handleSort("txn_amount")}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSort("txn_amount");
+                        }}
                         sx={{
                           "&.MuiTableSortLabel-root": { color: "#059669", fontWeight: 800 },
                           "&.MuiTableSortLabel-root:hover": { color: "#047857" },
@@ -1484,11 +1496,17 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                   )}
                   {/* 5. Total Amount (₹) */}
                   {!hiddenColumns.has("total_amount") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, textAlign: "right", whiteSpace: "nowrap" }}>
+                    <TableCell
+                      onClick={() => handleSort("customer_payable")}
+                      sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, textAlign: "right", whiteSpace: "nowrap", cursor: "pointer" }}
+                    >
                       <TableSortLabel
                         active={sortBy === "customer_payable"}
                         direction={sortBy === "customer_payable" ? sortDir : "desc"}
-                        onClick={() => handleSort("customer_payable")}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSort("customer_payable");
+                        }}
                         sx={{
                           "&.MuiTableSortLabel-root": { color: "#059669", fontWeight: 800 },
                           "&.MuiTableSortLabel-root:hover": { color: "#047857" },
@@ -1502,11 +1520,17 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                   )}
                   {/* 6. Wallet Credit (₹) */}
                   {!hiddenColumns.has("wallet_credit") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, textAlign: "right", whiteSpace: "nowrap" }}>
+                    <TableCell
+                      onClick={() => handleSort("retailer_credit")}
+                      sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, textAlign: "right", whiteSpace: "nowrap", cursor: "pointer" }}
+                    >
                       <TableSortLabel
                         active={sortBy === "retailer_credit"}
                         direction={sortBy === "retailer_credit" ? sortDir : "desc"}
-                        onClick={() => handleSort("retailer_credit")}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSort("retailer_credit");
+                        }}
                         sx={{
                           "&.MuiTableSortLabel-root": { color: "#059669", fontWeight: 800 },
                           "&.MuiTableSortLabel-root:hover": { color: "#047857" },
@@ -1538,11 +1562,17 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                   )}
                   {/* 10. Status */}
                   {!hiddenColumns.has("status") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
+                    <TableCell
+                      onClick={() => handleSort("txn_status")}
+                      sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap", cursor: "pointer" }}
+                    >
                       <TableSortLabel
                         active={sortBy === "txn_status"}
                         direction={sortBy === "txn_status" ? sortDir : "desc"}
-                        onClick={() => handleSort("txn_status")}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSort("txn_status");
+                        }}
                         sx={{
                           "&.MuiTableSortLabel-root": { color: "#059669", fontWeight: 800 },
                           "&.MuiTableSortLabel-root:hover": { color: "#047857" },
@@ -1556,11 +1586,17 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                   )}
                   {/* 11. Date & Time */}
                   {!hiddenColumns.has("date_time") && (
-                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
+                    <TableCell
+                      onClick={() => handleSort("created_at")}
+                      sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap", cursor: "pointer" }}
+                    >
                       <TableSortLabel
                         active={sortBy === "created_at"}
                         direction={sortBy === "created_at" ? sortDir : "desc"}
-                        onClick={() => handleSort("created_at")}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSort("created_at");
+                        }}
                         sx={{
                           "&.MuiTableSortLabel-root": { color: "#059669", fontWeight: 800 },
                           "&.MuiTableSortLabel-root:hover": { color: "#047857" },
@@ -1776,20 +1812,20 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
           {hasLoaded && items.length > 0 && footerTotals && (
             <Box sx={{ p: 1.5, px: 2, bgcolor: "#F9FAFB", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
               <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#374151" }}>
-                Filtered Total: <strong style={{ color: "#059669" }}>{footerTotals.total_transactions} Orders</strong>
+                Filtered Total: <strong style={{ color: "#059669" }}>{footerTotals.total_transactions ?? items.length} Orders</strong>
               </Typography>
               <Stack direction="row" spacing={2.5}>
                 <Typography sx={{ fontSize: "12px", color: "#4B5563" }}>
-                  Volume: <strong style={{ color: "#111827" }}>₹{footerTotals.total_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
+                  Volume: <strong style={{ color: "#111827" }}>₹{Number(footerTotals.total_amount ?? footerTotals.total_txn_amount ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
                 </Typography>
                 <Typography sx={{ fontSize: "12px", color: "#4B5563" }}>
-                  Total Charges: <strong style={{ color: "#2563EB" }}>₹{footerTotals.total_charges.toFixed(2)}</strong>
+                  Total Charges: <strong style={{ color: "#2563EB" }}>₹{Number(footerTotals.total_charges ?? 0).toFixed(2)}</strong>
                 </Typography>
                 <Typography sx={{ fontSize: "12px", color: "#4B5563" }}>
-                  Total GST: <strong style={{ color: "#2563EB" }}>₹{footerTotals.total_gst.toFixed(2)}</strong>
+                  Total GST: <strong style={{ color: "#2563EB" }}>₹{Number(footerTotals.total_gst ?? footerTotals.total_tax_amount ?? 0).toFixed(2)}</strong>
                 </Typography>
                 <Typography sx={{ fontSize: "12px", color: "#4B5563" }}>
-                  Wallet Credit: <strong style={{ color: "#10B981" }}>+₹{footerTotals.total_retailer_credit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
+                  Wallet Credit: <strong style={{ color: "#10B981" }}>+₹{Number(footerTotals.total_retailer_credit ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
                 </Typography>
               </Stack>
             </Box>
