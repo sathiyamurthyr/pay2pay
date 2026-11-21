@@ -156,33 +156,75 @@ async def list_company_configurations(
     where_clause = ""
     params = {}
     if not ctx.is_super_admin:
-        where_clause = "WHERE cfg.company_ref_id = :comp_ref"
+        where_clause = "AND c.company_ref_id = :comp_ref"
         params["comp_ref"] = ctx.company_ref_id
 
     stmt = text(f"""
         SELECT 
-            cfg.payin_company_cfg_ref_id,
-            cfg.company_ref_id,
+            COALESCE(cfg.payin_company_cfg_ref_id, 0) AS payin_company_cfg_ref_id,
+            c.company_ref_id,
             c.company_name,
             c.company_code,
-            cfg.payin_enabled,
-            cfg.min_amount,
-            cfg.max_amount,
-            cfg.daily_txn_limit,
-            cfg.daily_amt_limit,
+            COALESCE(cfg.payin_enabled, TRUE) AS payin_enabled,
+            COALESCE(cfg.min_amount, 10.00) AS min_amount,
+            COALESCE(cfg.max_amount, 500000.00) AS max_amount,
+            COALESCE(cfg.daily_txn_limit, 500) AS daily_txn_limit,
+            COALESCE(cfg.daily_amt_limit, 2000000.00) AS daily_amt_limit,
             COALESCE(cfg.customer_payable_policy, 'WITH_MDR') AS customer_payable_policy,
             cfg.updated_by,
             cfg.updated_at
-        FROM public.payin_company_cfg cfg
-        JOIN public.company c ON cfg.company_ref_id = c.company_ref_id
+        FROM public.company c
+        LEFT JOIN public.payin_company_cfg cfg ON c.company_ref_id = cfg.company_ref_id
+        WHERE c.is_active = TRUE AND c.is_deleted = FALSE
         {where_clause}
-        ORDER BY cfg.company_ref_id ASC;
+        ORDER BY c.company_ref_id ASC;
     """)
     res = await db.execute(stmt, params)
+
+    # Fetch company vendors mapping
+    v_stmt = text("""
+        SELECT 
+            cv.payin_company_vendor_ref_id,
+            cv.company_ref_id,
+            cv.payin_vendor_ref_id,
+            v.vendor_code,
+            v.vendor_name,
+            v.provider_name,
+            cv.gateway_code,
+            cv.retailer_display_name,
+            cv.description,
+            cv.display_order,
+            cv.status,
+            cv.is_enabled,
+            cv.is_default,
+            COALESCE(cv.min_amount, 10.00) AS min_amount,
+            COALESCE(cv.max_amount, 500000.00) AS max_amount,
+            cv.updated_by,
+            cv.updated_at
+        FROM public.payin_company_vendors cv
+        JOIN public.payin_vendors v ON cv.payin_vendor_ref_id = v.payin_vendor_ref_id
+        ORDER BY cv.company_ref_id ASC, cv.display_order ASC, cv.vendor_priority ASC;
+    """)
+    v_res = await db.execute(v_stmt)
+    vendors_by_company = {}
+    for vr in v_res.mappings().all():
+        cid = vr["company_ref_id"]
+        if cid not in vendors_by_company:
+            vendors_by_company[cid] = []
+        vd = dict(vr)
+        vd["min_amount"] = float(vd["min_amount"]) if vd.get("min_amount") is not None else 10.0
+        vd["max_amount"] = float(vd["max_amount"]) if vd.get("max_amount") is not None else 500000.0
+        vd["updated_at"] = vd["updated_at"].isoformat() if vd.get("updated_at") else None
+        vendors_by_company[cid].append(vd)
+
     rows = []
     for r in res.mappings().all():
         d = dict(r)
+        d["min_amount"] = float(d["min_amount"]) if d.get("min_amount") is not None else 10.0
+        d["max_amount"] = float(d["max_amount"]) if d.get("max_amount") is not None else 500000.0
+        d["daily_amt_limit"] = float(d["daily_amt_limit"]) if d.get("daily_amt_limit") is not None else 2000000.0
         d["customer_payable_policy_name"] = "Customer Pays MDR Charges" if d.get("customer_payable_policy") == "WITH_MDR" else "Retailer Bears MDR Charges"
+        d["vendors"] = vendors_by_company.get(d["company_ref_id"], [])
         rows.append(d)
     return {"success": True, "companies": rows, "data": rows}
 
@@ -360,11 +402,72 @@ async def toggle_company_payin(
     res = await db.execute(stmt)
     cfg = res.scalars().first()
     if not cfg:
-        raise HTTPException(status_code=404, detail="Company configuration not found")
-
-    cfg.payin_enabled = req.is_enabled
+        cfg = PayinCompanyCfgModel(
+            company_ref_id=company_ref_id,
+            payin_enabled=req.is_enabled,
+            min_amount=10.0,
+            max_amount=500000.0,
+            daily_txn_limit=500,
+            daily_amt_limit=2000000.0,
+            customer_payable_policy="WITH_MDR",
+            updated_by=ctx.user_email
+        )
+        db.add(cfg)
+    else:
+        cfg.payin_enabled = req.is_enabled
+        cfg.updated_by = ctx.user_email
+        cfg.updated_at = datetime.now(timezone.utc)
     await db.commit()
     return {"success": True, "company_ref_id": company_ref_id, "payin_enabled": cfg.payin_enabled}
+
+
+@router.post("/companies/{company_ref_id}/limits")
+async def update_company_limits(
+    company_ref_id: int,
+    req: UpdateCompanyLimitsRequest,
+    ctx: CompanyContext = Depends(get_company_context),
+    db: AsyncSession = Depends(get_db)
+):
+    """Updates company-level PayIn limits (min_amount, max_amount, daily_amt_limit, daily_txn_limit, payin_enabled)."""
+    ctx.validate_access(company_ref_id)
+    stmt = select(PayinCompanyCfgModel).where(PayinCompanyCfgModel.company_ref_id == company_ref_id)
+    cfg = (await db.execute(stmt)).scalars().first()
+    if not cfg:
+        cfg = PayinCompanyCfgModel(
+            company_ref_id=company_ref_id,
+            payin_enabled=True if req.payin_enabled is None else req.payin_enabled,
+            min_amount=10.0 if req.min_amount is None else req.min_amount,
+            max_amount=500000.0 if req.max_amount is None else req.max_amount,
+            daily_txn_limit=500 if req.daily_txn_limit is None else req.daily_txn_limit,
+            daily_amt_limit=2000000.0 if req.daily_amt_limit is None else req.daily_amt_limit,
+            customer_payable_policy="WITH_MDR",
+            updated_by=ctx.user_email
+        )
+        db.add(cfg)
+    else:
+        if req.payin_enabled is not None:
+            cfg.payin_enabled = req.payin_enabled
+        if req.min_amount is not None:
+            cfg.min_amount = req.min_amount
+        if req.max_amount is not None:
+            cfg.max_amount = req.max_amount
+        if req.daily_txn_limit is not None:
+            cfg.daily_txn_limit = req.daily_txn_limit
+        if req.daily_amt_limit is not None:
+            cfg.daily_amt_limit = req.daily_amt_limit
+        cfg.updated_by = ctx.user_email
+        cfg.updated_at = datetime.now(timezone.utc)
+
+    await db.commit()
+    return {
+        "success": True,
+        "company_ref_id": company_ref_id,
+        "min_amount": float(cfg.min_amount),
+        "max_amount": float(cfg.max_amount),
+        "daily_txn_limit": cfg.daily_txn_limit,
+        "daily_amt_limit": float(cfg.daily_amt_limit),
+        "payin_enabled": cfg.payin_enabled
+    }
 
 
 # ── ADMIN ACCESS GUARD ──
@@ -944,6 +1047,8 @@ async def list_payment_gateways(
             cv.status,
             cv.is_enabled,
             cv.is_default,
+            COALESCE(cv.min_amount, 10.00) AS min_amount,
+            COALESCE(cv.max_amount, 500000.00) AS max_amount,
             cv.updated_by,
             cv.updated_at
         FROM public.payin_company_vendors cv
@@ -969,6 +1074,8 @@ async def list_payment_gateways(
             "status": r["status"],
             "is_enabled": r["is_enabled"],
             "is_default": r["is_default"],
+            "min_amount": float(r["min_amount"]) if r.get("min_amount") is not None else 10.0,
+            "max_amount": float(r["max_amount"]) if r.get("max_amount") is not None else 500000.0,
             "updated_by": r["updated_by"],
             "updated_at": r["updated_at"].isoformat() if r["updated_at"] else None
         })
@@ -1042,6 +1149,10 @@ async def update_payment_gateway(
             cv.status = "INACTIVE"
         elif cv.is_enabled and cv.status == "INACTIVE":
             cv.status = "ACTIVE"
+    if req.min_amount is not None:
+        cv.min_amount = req.min_amount
+    if req.max_amount is not None:
+        cv.max_amount = req.max_amount
 
     cv.updated_by = ctx.user_email
     cv.updated_at = datetime.now(timezone.utc)
@@ -1082,6 +1193,8 @@ async def update_payment_gateway(
             "display_order": cv.display_order,
             "status": cv.status,
             "is_enabled": cv.is_enabled,
+            "min_amount": float(cv.min_amount) if cv.min_amount is not None else 10.0,
+            "max_amount": float(cv.max_amount) if cv.max_amount is not None else 500000.0,
             "updated_by": cv.updated_by,
             "updated_at": cv.updated_at.isoformat() if cv.updated_at else None
         }
@@ -1206,6 +1319,8 @@ async def create_payment_gateway(
         status=req.status.strip().upper() if req.status else "ACTIVE",
         is_enabled=req.is_enabled if req.is_enabled is not None else True,
         is_default=False,
+        min_amount=req.min_amount if req.min_amount is not None else 10.0,
+        max_amount=req.max_amount if req.max_amount is not None else 500000.0,
         vendor_priority=req.display_order or 1,
         updated_by=ctx.user_email
     )
@@ -1242,7 +1357,9 @@ async def create_payment_gateway(
             "description": new_cv.description,
             "display_order": new_cv.display_order,
             "status": new_cv.status,
-            "is_enabled": new_cv.is_enabled
+            "is_enabled": new_cv.is_enabled,
+            "min_amount": float(new_cv.min_amount) if new_cv.min_amount is not None else 10.0,
+            "max_amount": float(new_cv.max_amount) if new_cv.max_amount is not None else 500000.0
         }
     }
 

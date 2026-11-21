@@ -29,6 +29,7 @@ from typing import Optional, Dict, Any, Tuple
 from sqlalchemy import select, and_, or_, text, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
+from app.core.exceptions import DomainException
 
 from app.application.payin_dtos import (
     CommonPayInRequest, CommonPayInResponse, PayInStatusResponse,
@@ -113,6 +114,26 @@ class PayInService:
             company_ref_id=company_ref_id,
             requested_vendor_code=preview_req.vendor_code
         )
+
+        # 1b. Enforce Min/Max Amount Limits
+        amt = float(preview_req.amount)
+        cfg_stmt = text("""
+            SELECT COALESCE(cv.min_amount, cfg.min_amount, 10.00) AS eff_min,
+                   COALESCE(cv.max_amount, cfg.max_amount, 500000.00) AS eff_max
+            FROM public.payin_company_cfg cfg
+            LEFT JOIN public.payin_company_vendors cv 
+                ON cv.company_ref_id = cfg.company_ref_id 
+                AND cv.payin_vendor_ref_id = :v_ref
+            WHERE cfg.company_ref_id = :c_ref
+            LIMIT 1;
+        """)
+        cfg_res = (await db.execute(cfg_stmt, {"c_ref": company_ref_id, "v_ref": vendor.payin_vendor_ref_id})).mappings().first()
+        eff_min = float(cfg_res["eff_min"]) if cfg_res else 10.0
+        eff_max = float(cfg_res["eff_max"]) if cfg_res else 500000.0
+        if amt < eff_min or amt > eff_max:
+            raise DomainException(
+                f"Transaction amount ₹{amt:,.2f} is outside allowed limits (Min: ₹{eff_min:,.2f}, Max: ₹{eff_max:,.2f})."
+            )
 
         # 2. Resolve Service Type ID
         s_type_id = None
@@ -268,6 +289,26 @@ class PayInService:
             company_ref_id=company_ref_id,
             requested_vendor_code=request_dto.vendor_code
         )
+
+        # 3b. Enforce Min/Max Amount Limits
+        amt = float(request_dto.amount)
+        cfg_stmt = text("""
+            SELECT COALESCE(cv.min_amount, cfg.min_amount, 10.00) AS eff_min,
+                   COALESCE(cv.max_amount, cfg.max_amount, 500000.00) AS eff_max
+            FROM public.payin_company_cfg cfg
+            LEFT JOIN public.payin_company_vendors cv 
+                ON cv.company_ref_id = cfg.company_ref_id 
+                AND cv.payin_vendor_ref_id = :v_ref
+            WHERE cfg.company_ref_id = :c_ref
+            LIMIT 1;
+        """)
+        cfg_res = (await db.execute(cfg_stmt, {"c_ref": company_ref_id, "v_ref": vendor.payin_vendor_ref_id})).mappings().first()
+        eff_min = float(cfg_res["eff_min"]) if cfg_res else 10.0
+        eff_max = float(cfg_res["eff_max"]) if cfg_res else 500000.0
+        if amt < eff_min or amt > eff_max:
+            raise DomainException(
+                f"Transaction amount ₹{amt:,.2f} is outside allowed limits (Min: ₹{eff_min:,.2f}, Max: ₹{eff_max:,.2f})."
+            )
 
         # 4. Resolve Catalog IDs
         # Service Type

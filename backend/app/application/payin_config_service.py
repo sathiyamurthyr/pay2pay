@@ -120,7 +120,9 @@ class PayInConfigService:
                 cv.description,
                 cv.display_order,
                 cv.status,
-                cv.is_enabled
+                cv.is_enabled,
+                COALESCE(cv.min_amount, 10.00) AS min_amount,
+                COALESCE(cv.max_amount, 500000.00) AS max_amount
             FROM public.payin_company_vendors cv
             JOIN public.payin_vendors v ON cv.payin_vendor_ref_id = v.payin_vendor_ref_id
             WHERE cv.company_ref_id = :c_ref 
@@ -146,6 +148,8 @@ class PayInConfigService:
             disp_order = r[8] or (1 if g_code == "G-1" else 2)
             g_status = r[9] or "ACTIVE"
             g_enabled = r[10] if r[10] is not None else True
+            v_min_amt = float(r[11]) if len(r) > 11 and r[11] is not None else (float(comp_cfg.min_amount) if comp_cfg else 10.0)
+            v_max_amt = float(r[12]) if len(r) > 12 and r[12] is not None else (float(comp_cfg.max_amount) if comp_cfg else 500000.0)
 
             if is_admin:
                 # Authorized admin preserves internal provider visibility
@@ -163,7 +167,9 @@ class PayInConfigService:
                     badge="Active" if g_status == "ACTIVE" and g_enabled else "Inactive",
                     badge_color="#10B981" if g_status == "ACTIVE" and g_enabled else "#94A3B8",
                     is_active=(g_status == "ACTIVE" and g_enabled),
-                    is_enabled=g_enabled
+                    is_enabled=g_enabled,
+                    min_amount=v_min_amt,
+                    max_amount=v_max_amt
                 ))
             else:
                 # Customer-facing roles see only Admin-configured dynamic gateway name and masked code
@@ -182,6 +188,8 @@ class PayInConfigService:
                     badge_color="#10B981",
                     is_active=True,
                     is_enabled=True,
+                    min_amount=v_min_amt,
+                    max_amount=v_max_amt,
                     supported_methods=["CREDIT_CARD", "DEBIT_CARD", "UPI", "NET_BANKING"]
                 ))
 

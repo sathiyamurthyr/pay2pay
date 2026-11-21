@@ -100,6 +100,8 @@ class PayinCompanyVendorModel(Base):
     vendor_priority: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     is_default: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    min_amount: Mapped[Optional[float]] = mapped_column(Numeric(14, 2), default=10.00, nullable=True)
+    max_amount: Mapped[Optional[float]] = mapped_column(Numeric(14, 2), default=500000.00, nullable=True)
     effective_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
     effective_to: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     updated_by: Mapped[str] = mapped_column(String(100), default="SYSTEM", nullable=False)
