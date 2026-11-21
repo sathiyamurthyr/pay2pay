@@ -398,7 +398,9 @@ class PayInService:
             payment_mode=mode_code,
             note=request_dto.note,
             company_ref_id=company_ref_id,
-            retailer_ref_id=retailer_ref_id,
+            retailer_ref_id=effective_retailer_ref,
+            user_ref_id=user_ref_id,
+            user_type_ref_id=user_type_ref_id,
             vendor_ref_id=vendor.payin_vendor_ref_id if vendor else 1
         )
 

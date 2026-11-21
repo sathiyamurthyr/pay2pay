@@ -91,6 +91,8 @@ class BankMePayInAdapter(BasePayInProviderAdapter):
             note=note,
             company_ref_id=kwargs.get("company_ref_id", 2),
             retailer_ref_id=kwargs.get("retailer_ref_id"),
+            user_ref_id=kwargs.get("user_ref_id"),
+            user_type_ref_id=kwargs.get("user_type_ref_id"),
             vendor_ref_id=kwargs.get("vendor_ref_id", 1)
         )
 
@@ -106,6 +108,8 @@ class BankMePayInAdapter(BasePayInProviderAdapter):
             reference_id=kwargs.get("reference_id"),
             company_ref_id=kwargs.get("company_ref_id", 2),
             retailer_ref_id=kwargs.get("retailer_ref_id"),
+            user_ref_id=kwargs.get("user_ref_id"),
+            user_type_ref_id=kwargs.get("user_type_ref_id"),
             vendor_ref_id=kwargs.get("vendor_ref_id", 1)
         )
 
