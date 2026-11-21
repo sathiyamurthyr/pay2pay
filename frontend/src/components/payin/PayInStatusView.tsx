@@ -303,12 +303,12 @@ export function PayInStatusView({
     [refParam, statusParam, utrParam, receipt]
   );
 
-  // Clean URL search parameters on mount if standalone receipt view
+  // Always clean URL search parameters on mount so sensitive parameters (referenceId, status, etc.) are never exposed in the browser
   useEffect(() => {
-    if (typeof window !== "undefined" && window.location.search && isStandalone) {
+    if (typeof window !== "undefined" && window.location.search) {
       window.history.replaceState({}, "", window.location.pathname);
     }
-  }, [isStandalone]);
+  }, []);
 
   // Initial load
   useEffect(() => {
@@ -359,20 +359,23 @@ export function PayInStatusView({
   };
 
   const handleShare = async () => {
-    const tid = receipt?.tid || refParam;
-    const shareUrl = typeof window !== "undefined" ? window.location.href : "";
-    const title = `SMSPAY PayIn Receipt - ${tid}`;
-    const text = `SMSPAY Payment Receipt: TID ${tid} | Status: ${effectiveStatus} | Amount: ₹${Number(receipt?.amount || 0).toLocaleString("en-IN")}`;
+    const tid = receipt?.tid || "";
+    const cleanUrl =
+      receipt?.short_url ||
+      receipt?.receipt_url ||
+      (typeof window !== "undefined" ? `${window.location.origin}${window.location.pathname}` : "");
+    const title = `${companyCode} PayIn Receipt - ${tid}`;
+    const text = `${companyCode} Payment Receipt: TID ${tid} | Status: ${effectiveStatus} | Amount: ₹${Number(receipt?.amount || 0).toLocaleString("en-IN")}`;
 
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
-        await navigator.share({ title, text, url: shareUrl });
+        await navigator.share({ title, text, url: cleanUrl });
         return;
       } catch (err) {
         // Fallback to clipboard
       }
     }
-    copyToClipboard(shareUrl, "Receipt Link");
+    copyToClipboard(cleanUrl, "Receipt Link");
   };
 
   return (
@@ -451,7 +454,7 @@ export function PayInStatusView({
               Retrieving Verified Receipt...
             </h2>
             <p className="text-xs text-slate-500">
-              Querying transaction switch for Reference: {refParam || "ID"}
+              Verifying transaction status with secure banking switch...
             </p>
           </div>
         ) : (
@@ -540,7 +543,7 @@ export function PayInStatusView({
                 <div>
                   <div className="text-xs text-slate-500 font-medium">Transaction ID (TID)</div>
                   <div className="text-sm font-bold text-slate-900 mt-1 font-mono tracking-tight break-all">
-                    {receipt?.tid || refParam || "--"}
+                    {receipt?.tid || "--"}
                   </div>
                 </div>
                 <div>

@@ -441,19 +441,43 @@ async def universal_payin_browser_callback(
         request=request
     )
 
-    # Encrypt the transaction token payload so no plain-text parameters are exposed in the URL
-    receipt_payload = {
-        "tid": resolved_ref,
-        "company_ref_id": target_company_ref_id,
-        "status": resolved_status,
-        "orderId": orderId,
-        "utr": utr,
-        "ts": int(datetime.now(timezone.utc).timestamp())
-    }
-    encrypted_token = GlobalReceiptSecurity.encrypt_receipt_token(receipt_payload)
+    from app.application.receipt_short_link_service import ReceiptShortLinkService
+    short_code = None
+    if resolved_ref:
+        try:
+            short_code = getattr(txn, "receipt_short_code", None) if txn else None
+            if not short_code and txn:
+                short_code = await ReceiptShortLinkService.generate_or_get_short_code(
+                    db=db,
+                    tid=txn.tid,
+                    company_ref_id=txn.company_ref_id,
+                    user_type_ref_id=txn.user_type_ref_id,
+                    user_ref_id=txn.user_ref_id,
+                    payin_txn_id=txn.payin_transactions_ref_id
+                )
+            elif not short_code and resolved_ref:
+                short_code = await ReceiptShortLinkService.generate_or_get_short_code(
+                    db=db,
+                    tid=resolved_ref,
+                    company_ref_id=target_company_ref_id or 2
+                )
+        except Exception as sc_err:
+            logger.warning("Short link generation error during browser return: %s", sc_err)
 
-    # Redirect directly to isolated receipt experience on receipt.<domain>
-    redirect_target = f"{receipt_base}/r/{encrypted_token}"
+    if short_code:
+        redirect_target = f"{receipt_base}/r/{short_code}"
+    else:
+        receipt_payload = {
+            "tid": resolved_ref,
+            "company_ref_id": target_company_ref_id,
+            "status": resolved_status,
+            "orderId": orderId,
+            "utr": utr,
+            "ts": int(datetime.now(timezone.utc).timestamp())
+        }
+        encrypted_token = GlobalReceiptSecurity.encrypt_receipt_token(receipt_payload)
+        redirect_target = f"{receipt_base}/r/{encrypted_token}"
+
     return RedirectResponse(url=redirect_target, status_code=302)
 
 
@@ -598,16 +622,33 @@ async def get_payin_receipt(
     calc_charges = final_mdr_amount or round(max(0.0, final_total_charges - final_tax_amount), 2)
     calc_total_debited = final_customer_payable if final_customer_payable > 0 else round(final_amount + final_total_charges, 2)
     receipt_base = resolve_receipt_base_url(final_company_ref_id)
-    receipt_payload = {
-        "tid": final_tid,
-        "company_ref_id": final_company_ref_id,
-        "status": final_status,
-        "orderId": order_id_val,
-        "utr": final_provider_ref or final_tid,
-        "ts": int(datetime.now(timezone.utc).timestamp())
-    }
-    encrypted_token = clean_ref if decrypted else GlobalReceiptSecurity.encrypt_receipt_token(receipt_payload)
-    receipt_link = f"{receipt_base}/r/{encrypted_token}"
+    short_code = getattr(txn, "receipt_short_code", None)
+    if not short_code:
+        try:
+            short_code = await ReceiptShortLinkService.generate_or_get_short_code(
+                db=db,
+                tid=final_tid,
+                company_ref_id=final_company_ref_id,
+                user_type_ref_id=getattr(txn, "user_type_ref_id", None),
+                user_ref_id=getattr(txn, "user_ref_id", None),
+                payin_txn_id=txn.payin_transactions_ref_id
+            )
+        except Exception as sc_err:
+            logger.warning("Short link generation error in get_payin_receipt: %s", sc_err)
+
+    if short_code:
+        receipt_link = f"{receipt_base}/r/{short_code}"
+    else:
+        receipt_payload = {
+            "tid": final_tid,
+            "company_ref_id": final_company_ref_id,
+            "status": final_status,
+            "orderId": order_id_val,
+            "utr": final_provider_ref or final_tid,
+            "ts": int(datetime.now(timezone.utc).timestamp())
+        }
+        encrypted_token = clean_ref if decrypted else GlobalReceiptSecurity.encrypt_receipt_token(receipt_payload)
+        receipt_link = f"{receipt_base}/r/{encrypted_token}"
 
     return {
         "success": True,
