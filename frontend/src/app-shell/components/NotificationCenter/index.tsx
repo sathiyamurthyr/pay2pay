@@ -130,6 +130,32 @@ export const NotificationCenter: React.FC<{
 
         // Sync to window event so dashboard components update synchronously
         if (typeof window !== "undefined") {
+          // Check for live Terminal Lock / Unlock alerts dispatched by Admin
+          const terminalLockAlert = items.find(
+            (i: any) =>
+              (i.event_type === "TERMINAL_LOCK" || i.type === "TERMINAL_LOCK" || (i.title && i.title.toLowerCase().includes("terminal locked"))) &&
+              !i.is_read
+          );
+          const terminalUnlockAlert = items.find(
+            (i: any) =>
+              (i.event_type === "TERMINAL_UNLOCK" || i.type === "TERMINAL_UNLOCK" || (i.title && i.title.toLowerCase().includes("terminal unlocked"))) &&
+              !i.is_read
+          );
+
+          if (terminalLockAlert) {
+            window.dispatchEvent(
+              new CustomEvent("pay2pay:terminal_lock_event", {
+                detail: { locked: true, alert: terminalLockAlert }
+              })
+            );
+          } else if (terminalUnlockAlert) {
+            window.dispatchEvent(
+              new CustomEvent("pay2pay:terminal_lock_event", {
+                detail: { locked: false, alert: terminalUnlockAlert }
+              })
+            );
+          }
+
           window.dispatchEvent(
             new CustomEvent("pay2pay:notifications_synced", {
               detail: { notifications: items, unreadCount: computedUnread }

@@ -66,6 +66,17 @@ class SessionAuditRequest(BaseModel):
     details: Optional[Dict[str, Any]] = None
 
 
+class SessionLockRequest(BaseModel):
+    retailer_id: Optional[str] = None
+    tenant_id: Optional[str] = None
+    device_info: Optional[str] = None
+    browser: Optional[str] = None
+    os_name: Optional[str] = None
+    ip_address: Optional[str] = None
+    details: Optional[Dict[str, Any]] = None
+    reason: Optional[str] = "Manual terminal lock"
+
+
 # Helper function to resolve user security settings
 async def get_or_create_user_security_settings(
     db: AsyncSession,
@@ -108,6 +119,160 @@ MPIN_SECRET_SALT = "PAY2PAY_ENTERPRISE_MPIN_SALT_KEY_v1_2026"
 def _hash_mpin(pin: str, customer_id_str: str) -> str:
     salt = f"{MPIN_SECRET_SALT}:{customer_id_str}".encode("utf-8")
     return hmac.new(salt, pin.encode("utf-8"), hashlib.sha256).hexdigest()
+
+# ------------------------------------------------------------------------------
+# LOCK & STATUS API ENDPOINTS (Database-Backed Persistent Terminal Lock)
+# ------------------------------------------------------------------------------
+
+@router.post("/session/lock", summary="Lock Active Terminal / Session")
+@router.post("/auth/security/lock", summary="Lock Active Terminal / Session (Alias)")
+async def lock_screen_session(
+    req: Optional[SessionLockRequest] = None,
+    payload: dict = Depends(get_current_token_payload),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Authoritative terminal lock endpoint.
+    Persists locked state directly to RetailerModel and UserSecuritySettingsModel,
+    preventing any transaction or session operations until verified unlock.
+    """
+    user_sub = str(payload.get("sub") or "").strip()
+    retailer_claim = str(payload.get("retailer_id") or payload.get("retailer_code") or "").strip()
+    tenant_sub = payload.get("tenant_id")
+    try:
+        tenant_id = uuid.UUID(str(tenant_sub)) if tenant_sub else DEFAULT_TENANT_ID
+    except Exception:
+        tenant_id = DEFAULT_TENANT_ID
+
+    uid = None
+    if user_sub and user_sub != "default":
+        try:
+            uid = uuid.UUID(user_sub)
+        except Exception:
+            uid = None
+
+    now_utc = datetime.now(timezone.utc)
+    target_retailer = None
+
+    # Resolve target retailer
+    query_parts = []
+    if uid:
+        query_parts.append(RetailerModel.public_id == uid)
+    if user_sub:
+        query_parts.append(RetailerModel.retailer_code == user_sub)
+    if retailer_claim:
+        query_parts.append(RetailerModel.retailer_code == retailer_claim)
+        try:
+            query_parts.append(RetailerModel.public_id == uuid.UUID(retailer_claim))
+        except Exception:
+            pass
+
+    if query_parts:
+        stmt = select(RetailerModel).where(or_(*query_parts), RetailerModel.is_deleted == False)
+        target_retailer = (await db.execute(stmt)).scalars().first()
+
+    if target_retailer:
+        target_retailer.status = "LOCKED"
+        target_retailer.mpin_locked = True
+        target_retailer.mpin_locked_at = now_utc
+        target_retailer.updated_date = now_utc
+
+    # Update or Create UserSecuritySettings
+    effective_uid = uid or (target_retailer.public_id if target_retailer else uuid.UUID("1072b5d2-0fd1-4323-a02a-03809d58b005"))
+    sec = await get_or_create_user_security_settings(
+        db,
+        user_id=effective_uid,
+        tenant_id=tenant_id,
+        company_id=getattr(target_retailer, "company_id", None),
+        portal="RETAILER"
+    )
+    sec.locked_until = now_utc + timedelta(days=365)
+    sec.updated_date = now_utc
+
+    # Create Session Audit Log
+    audit = SessionAuditLogModel(
+        public_id=uuid.uuid4(),
+        retailer_id=effective_uid,
+        tenant_id=tenant_id,
+        event_type="SESSION_LOCKED",
+        device_info=req.device_info if req else None,
+        browser=req.browser if req else None,
+        os_name=req.os_name if req else None,
+        ip_address=req.ip_address if req else None,
+        details=req.details if req else {"reason": (req.reason if req else "Manual terminal lock")}
+    )
+    db.add(audit)
+    await db.commit()
+
+    return {
+        "success": True,
+        "status": "LOCKED",
+        "is_locked": True,
+        "message": "Terminal locked successfully.",
+        "locked_at": now_utc.isoformat()
+    }
+
+
+@router.get("/session/status", summary="Check Active Terminal Lock Status")
+@router.get("/auth/security/status", summary="Check Active Terminal Lock Status (Alias)")
+async def get_session_lock_status(
+    payload: dict = Depends(get_current_token_payload),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Returns authoritative backend lock state. Prevents lock bypass on browser refresh.
+    """
+    user_sub = str(payload.get("sub") or "").strip()
+    retailer_claim = str(payload.get("retailer_id") or payload.get("retailer_code") or "").strip()
+
+    uid = None
+    if user_sub and user_sub != "default":
+        try:
+            uid = uuid.UUID(user_sub)
+        except Exception:
+            uid = None
+
+    query_parts = []
+    if uid:
+        query_parts.append(RetailerModel.public_id == uid)
+    if user_sub:
+        query_parts.append(RetailerModel.retailer_code == user_sub)
+    if retailer_claim:
+        query_parts.append(RetailerModel.retailer_code == retailer_claim)
+        try:
+            query_parts.append(RetailerModel.public_id == uuid.UUID(retailer_claim))
+        except Exception:
+            pass
+
+    target_retailer = None
+    if query_parts:
+        stmt = select(RetailerModel).where(or_(*query_parts), RetailerModel.is_deleted == False)
+        target_retailer = (await db.execute(stmt)).scalars().first()
+
+    now_utc = datetime.now(timezone.utc)
+    is_locked = False
+    lock_reason = None
+
+    if target_retailer:
+        if str(target_retailer.status or "").upper() == "LOCKED" or bool(target_retailer.mpin_locked):
+            is_locked = True
+            lock_reason = "Retailer terminal is marked as LOCKED."
+
+    if not is_locked and uid:
+        stmt_sec = select(UserSecuritySettingsModel).where(UserSecuritySettingsModel.user_id == uid)
+        sec = (await db.execute(stmt_sec)).scalars().first()
+        if sec and sec.locked_until and sec.locked_until > now_utc:
+            is_locked = True
+            lock_reason = "User security lock active."
+
+    return {
+        "success": True,
+        "is_locked": is_locked,
+        "status": "LOCKED" if is_locked else (target_retailer.status if target_retailer else "ACTIVE"),
+        "mpin_locked": bool(target_retailer.mpin_locked) if target_retailer else False,
+        "reason": lock_reason
+    }
+
 
 # ------------------------------------------------------------------------------
 # UNLOCK API ENDPOINTS (Database-Backed Hash Verification)
@@ -185,7 +350,10 @@ async def unlock_screen_session(
     if view_row:
         r_id = view_row["retailer_id"]
         is_locked = bool(view_row["mpin_locked"])
-        if is_locked:
+        # If mpin_failed_attempts >= 5, enforce WhatsApp reset. Otherwise, allow PIN verification to unlock manual screen lock.
+        failed_attempts = int(view_row["mpin_failed_attempts"] or 0)
+        max_attempts = int(view_row["mpin_max_attempts"] or 5)
+        if is_locked and failed_attempts >= max_attempts:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Transaction PIN is locked due to repeated incorrect attempts. Please reset your PIN via WhatsApp authorization."
@@ -202,6 +370,7 @@ async def unlock_screen_session(
         is_pin_valid = verify_password(clean_pin, mpin_hash) or (_hash_mpin(clean_pin, str(r_id)) == mpin_hash)
 
         if is_pin_valid:
+            now_utc = datetime.now(timezone.utc)
             # Stored Procedure: Record successful PIN attempt
             try:
                 await db.execute(text("SELECT public.sp_record_retailer_pin_attempt(:rid, TRUE)"), {"rid": r_id})
@@ -210,12 +379,40 @@ async def unlock_screen_session(
                 logger.warning(f"Error calling sp_record_retailer_pin_attempt: {sp_err}")
                 await db.commit()
 
+            # Ensure retailer status is restored to ACTIVE and mpin_locked is cleared
+            try:
+                ret_obj = (await db.execute(select(RetailerModel).where(RetailerModel.public_id == r_id))).scalars().first()
+                if ret_obj:
+                    if ret_obj.status == "LOCKED":
+                        ret_obj.status = "ACTIVE"
+                    ret_obj.mpin_locked = False
+                    ret_obj.mpin_locked_at = None
+                    ret_obj.mpin_unlocked_at = now_utc
+                    ret_obj.mpin_unlocked_by = str(user_sub)
+                    ret_obj.updated_date = now_utc
+                    await db.commit()
+            except Exception as ret_upd_err:
+                logger.warning(f"Error resetting retailer status in unlock_screen_session: {ret_upd_err}")
+
+            # Also clear user_security_settings locked_until
+            try:
+                sec_stmt = select(UserSecuritySettingsModel).where(UserSecuritySettingsModel.user_id == r_id)
+                sec_obj = (await db.execute(sec_stmt)).scalars().first()
+                if sec_obj:
+                    sec_obj.locked_until = None
+                    sec_obj.failed_attempt_count = 0
+                    sec_obj.last_pin_verified_at = now_utc
+                    sec_obj.updated_date = now_utc
+                    await db.commit()
+            except Exception as sec_err:
+                logger.warning(f"Error clearing user security settings in unlock: {sec_err}")
+
             return {
                 "status": "UNLOCKED",
                 "success": True,
                 "unlocked": True,
                 "message": "Session unlocked successfully.",
-                "verified_at": datetime.now(timezone.utc).isoformat()
+                "verified_at": now_utc.isoformat()
             }
         else:
             # Stored Procedure: Record failed attempt and lock if threshold exceeded
@@ -242,15 +439,27 @@ async def unlock_screen_session(
     if uid:
         sec = (await db.execute(select(UserSecuritySettingsModel).where(UserSecuritySettingsModel.user_id == uid))).scalars().first()
         if sec and sec.security_pin_hash and verify_password(clean_pin, sec.security_pin_hash):
+            now_utc = datetime.now(timezone.utc)
             sec.failed_attempt_count = 0
-            sec.last_pin_verified_at = datetime.now(timezone.utc)
+            sec.locked_until = None
+            sec.last_pin_verified_at = now_utc
+            # Also restore retailer if associated
+            r_obj = (await db.execute(select(RetailerModel).where(RetailerModel.public_id == uid))).scalars().first()
+            if r_obj:
+                if r_obj.status == "LOCKED":
+                    r_obj.status = "ACTIVE"
+                r_obj.mpin_locked = False
+                r_obj.mpin_locked_at = None
+                r_obj.mpin_unlocked_at = now_utc
+                r_obj.mpin_unlocked_by = str(uid)
+                r_obj.updated_date = now_utc
             await db.commit()
             return {
                 "status": "UNLOCKED",
                 "success": True,
                 "unlocked": True,
                 "message": "Session unlocked successfully.",
-                "verified_at": datetime.now(timezone.utc).isoformat()
+                "verified_at": now_utc.isoformat()
             }
 
     raise HTTPException(

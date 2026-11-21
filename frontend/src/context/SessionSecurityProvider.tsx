@@ -23,7 +23,7 @@ interface SessionSecurityContextType {
   remainingWarningSeconds: number;
   securitySettings: SecuritySettings;
   lockedAt: number | null;
-  lockSession: () => void;
+  lockSession: () => Promise<void> | void;
   stayActive: () => void;
   unlockSession: (pin?: string) => Promise<{ success: boolean; message?: string }>;
   updateSettings: (newSettings: Partial<SecuritySettings>) => Promise<void>;
@@ -260,6 +260,61 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
         setSessionState("ACTIVE");
         setLockedAt(null);
       }
+
+      // Authoritative Backend Lock Status Verification on Mount (P0 Anti-Bypass)
+      const verifyBackendLockStatus = async () => {
+        try {
+          const baseUrl = getApiBaseUrl().replace(/\/api\/v1\/?$/, "");
+          const token = getAuthToken();
+          if (!token) return;
+
+          const res = await axios.get(`${baseUrl}/api/v1/session/status`, {
+            headers: { Authorization: `Bearer ${token}` },
+            timeout: 5000,
+          });
+
+          if (res.data?.is_locked) {
+            setSessionState("LOCKED");
+            const lockTime = Date.now();
+            setLockedAt((prev) => prev || lockTime);
+            try {
+              localStorage.setItem("p2p_session_locked", "true");
+              localStorage.setItem("p2p_session_locked_at", String(lockTime));
+            } catch (e) {}
+          }
+        } catch (err) {
+          // Keep local state on network error
+        }
+      };
+      verifyBackendLockStatus();
+
+      // Live Terminal Lock/Unlock Event Listener (Real-Time Admin & System Sync)
+      const handleTerminalLockEvent = (e: any) => {
+        const isLocked = Boolean(e?.detail?.locked);
+        if (isLocked) {
+          const lockTime = Date.now();
+          setSessionState("LOCKED");
+          setLockedAt(lockTime);
+          try {
+            localStorage.setItem("p2p_session_locked", "true");
+            localStorage.setItem("p2p_session_locked_at", String(lockTime));
+          } catch (err) {}
+          soundSystem.playLockSound();
+        } else {
+          setSessionState("ACTIVE");
+          setLockedAt(null);
+          try {
+            localStorage.removeItem("p2p_session_locked");
+            localStorage.removeItem("p2p_session_locked_at");
+          } catch (err) {}
+          soundSystem.playUnlockSound();
+        }
+      };
+      window.addEventListener("pay2pay:terminal_lock_event", handleTerminalLockEvent);
+
+      return () => {
+        window.removeEventListener("pay2pay:terminal_lock_event", handleTerminalLockEvent);
+      };
     }
   }, []);
 
@@ -411,25 +466,56 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
     return () => clearInterval(interval);
   }, [sessionState, securitySettings, isProcessingTx]);
 
-  // Explicit Lock Session Action
-  const lockSession = () => {
+  // Explicit Lock Session Action (P0 Authoritative Backend Confirmation Before Audio)
+  const lockSession = async () => {
     if (isPublicAuthRoute() || !hasAuthToken()) return;
 
-    const now = Date.now();
-    setSessionState("LOCKED");
-    setLockedAt(now);
-
     try {
-      localStorage.setItem("p2p_session_locked", "true");
-      localStorage.setItem("p2p_session_locked_at", String(now));
-    } catch (e) {}
+      const baseUrl = getApiBaseUrl().replace(/\/api\/v1\/?$/, "");
+      const token = getAuthToken();
 
-    soundSystem.playLockSound();
-    logAuditEvent("SESSION_LOCKED", { timestamp: now });
+      const response = await axios.post(
+        `${baseUrl}/api/v1/session/lock`,
+        {
+          reason: "Manual workstation lock",
+          browser: typeof navigator !== "undefined" ? navigator.userAgent : "WebBrowser",
+          os_name: typeof navigator !== "undefined" ? navigator.platform : "UnknownOS",
+        },
+        {
+          headers: {
+            Authorization: token ? `Bearer ${token}` : "",
+            "Content-Type": "application/json",
+          },
+          timeout: 8000,
+        }
+      );
 
-    // Broadcast lock to other tabs
-    if (broadcastChannelRef.current) {
-      broadcastChannelRef.current.postMessage({ type: "BROADCAST_LOCK", lockedAt: now });
+      if (response.data?.success || response.status === 200) {
+        const now = Date.now();
+        setSessionState("LOCKED");
+        setLockedAt(now);
+
+        try {
+          localStorage.setItem("p2p_session_locked", "true");
+          localStorage.setItem("p2p_session_locked_at", String(now));
+        } catch (e) {}
+
+        // Sound notification plays ONLY after backend confirms success!
+        soundSystem.playLockSound();
+        logAuditEvent("SESSION_LOCKED", { timestamp: now, method: "MANUAL" });
+
+        // Broadcast lock to other tabs
+        if (broadcastChannelRef.current) {
+          broadcastChannelRef.current.postMessage({ type: "BROADCAST_LOCK", lockedAt: now });
+        }
+      } else {
+        console.error("[SessionSecurityProvider] Lock failed: backend returned non-success", response.data);
+        soundSystem.playErrorSound();
+      }
+    } catch (err: any) {
+      console.error("[SessionSecurityProvider] Lock operation failed:", err);
+      // Under no circumstances play lock sound if operation fails or times out
+      soundSystem.playErrorSound();
     }
   };
 
