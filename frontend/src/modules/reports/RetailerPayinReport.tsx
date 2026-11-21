@@ -192,6 +192,7 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
   title = "PayIn Transaction Report",
   subtitle = "Live collections, wallet credits & gateway routing master journal",
 }) => {
+  const isAdmin = portalType === "admin";
   const branding = useCompanyBranding();
   const { outlet } = useRetailerStore();
 
@@ -503,6 +504,7 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
     }
     const headers = [
       "TID",
+      ...(isAdmin ? ["ReferenceID", "Retailer"] : []),
       "Amount (₹)",
       "Charges (₹)",
       "GST (₹)",
@@ -510,24 +512,40 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
       "Wallet Credit (₹)",
       "MobileNo",
       "Gateway",
+      ...(isAdmin ? ["Vendor"] : []),
       "Method",
       "Status",
       "Date & Time",
     ];
 
-    const rows = itemsToExport.map((item) => [
-      item.tid || "--",
-      Number(item.amount || 0).toFixed(2),
-      Number(item.charges || 0).toFixed(2),
-      Number(item.gst || 0).toFixed(2),
-      Number(item.total_amount || 0).toFixed(2),
-      Number(item.wallet_credit || 0).toFixed(2),
-      item.customer_mobile || "--",
-      item.gateway || "G-1",
-      item.method || item.payment_mode || "--",
-      (item.status || "SUCCESS").toUpperCase(),
-      item.date_time || "--",
-    ]);
+    const rows = itemsToExport.map((item) => {
+      const rowArr: (string | number)[] = [item.tid || "--"];
+      if (isAdmin) {
+        rowArr.push(item.reference_id || item.merchant_ref_id || item.provider_ref_id || "--");
+        const retName = item.retailer_name || "";
+        const retId = item.retailer_id || "";
+        const retDisplay = retName && retId && !retName.includes(retId) ? `${retName} (${retId})` : (retName || retId || "--");
+        rowArr.push(retDisplay);
+      }
+      rowArr.push(
+        Number(item.amount || 0).toFixed(2),
+        Number(item.charges || 0).toFixed(2),
+        Number(item.gst || 0).toFixed(2),
+        Number(item.total_amount || 0).toFixed(2),
+        Number(item.wallet_credit || 0).toFixed(2),
+        item.customer_mobile || "--",
+        item.gateway || "G-1",
+      );
+      if (isAdmin) {
+        rowArr.push(item.vendor_name || item.gateway || "G-1");
+      }
+      rowArr.push(
+        item.method || item.payment_mode || "--",
+        (item.status || "SUCCESS").toUpperCase(),
+        item.date_time || "--",
+      );
+      return rowArr;
+    });
 
     const csvContent =
       "data:text/csv;charset=utf-8," +
@@ -547,6 +565,7 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
     try {
       showToast("Preparing PayIn CSV export...");
       const q = new URLSearchParams();
+      if (portalType) q.append("portal", portalType);
       if (fromDate) q.append("from_date", fromDate);
       if (toDate) q.append("to_date", toDate);
       if (tidFilter.trim()) q.append("tid", tidFilter.trim());
@@ -1376,6 +1395,10 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
         <Divider sx={{ my: 0.5 }} />
         {[
           { id: "tid", label: "TID" },
+          ...(isAdmin ? [
+            { id: "reference_id", label: "ReferenceID" },
+            { id: "retailer", label: "Retailer" },
+          ] : []),
           { id: "amount", label: "Amount (₹)" },
           { id: "charges", label: "Charges (₹)" },
           { id: "gst", label: "GST (₹)" },
@@ -1383,6 +1406,9 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
           { id: "wallet_credit", label: "Wallet Credit (₹)" },
           { id: "customer_mobile", label: "MobileNo" },
           { id: "gateway", label: "Gateway" },
+          ...(isAdmin ? [
+            { id: "vendor", label: "Vendor" },
+          ] : []),
           { id: "method", label: "Method" },
           { id: "status", label: "Status" },
           { id: "date_time", label: "Date & Time" },
@@ -1456,6 +1482,22 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                       >
                         TID
                       </TableSortLabel>
+                    </TableCell>
+                  )}
+                  {/* ReferenceID (Admin Only) */}
+                  {isAdmin && !hiddenColumns.has("reference_id") && (
+                    <TableCell
+                      sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}
+                    >
+                      REFERENCEID
+                    </TableCell>
+                  )}
+                  {/* Retailer (Admin Only) */}
+                  {isAdmin && !hiddenColumns.has("retailer") && (
+                    <TableCell
+                      sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}
+                    >
+                      RETAILER
                     </TableCell>
                   )}
                   {/* 2. Amount (₹) */}
@@ -1554,6 +1596,12 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                       GATEWAY
                     </TableCell>
                   )}
+                  {/* Vendor (Admin Only) */}
+                  {isAdmin && !hiddenColumns.has("vendor") && (
+                    <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
+                      VENDOR
+                    </TableCell>
+                  )}
                   {/* 9. Method */}
                   {!hiddenColumns.has("method") && (
                     <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
@@ -1618,14 +1666,14 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                 {isLoading ? (
                   [1, 2, 3, 4, 5].map((n) => (
                     <TableRow key={n}>
-                      <TableCell colSpan={12} sx={{ py: 2.5 }}>
+                      <TableCell colSpan={isAdmin ? 15 : 12} sx={{ py: 2.5 }}>
                         <Skeleton variant="text" height={26} />
                       </TableCell>
                     </TableRow>
                   ))
                 ) : !hasLoaded ? (
                   <TableRow>
-                    <TableCell colSpan={12} align="center" sx={{ py: 8 }}>
+                    <TableCell colSpan={isAdmin ? 15 : 12} align="center" sx={{ py: 8 }}>
                       <AssessmentIcon sx={{ fontSize: 48, color: "#9CA3AF", mb: 1.5 }} />
                       <Typography sx={{ fontWeight: 800, fontSize: "16px", color: "#111827" }}>
                         Ready to Generate PayIn Report
@@ -1645,7 +1693,7 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                   </TableRow>
                 ) : items.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={12} align="center" sx={{ py: 8 }}>
+                    <TableCell colSpan={isAdmin ? 15 : 12} align="center" sx={{ py: 8 }}>
                       <ReceiptIcon sx={{ fontSize: 44, color: "#9CA3AF", mb: 1 }} />
                       <Typography sx={{ fontWeight: 800, fontSize: "15px", color: "#111827" }}>
                         No PayIn Records Found
@@ -1689,6 +1737,43 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                                 </IconButton>
                               </Tooltip>
                             </Box>
+                          </TableCell>
+                        )}
+
+                        {/* ReferenceID (Admin Only) */}
+                        {isAdmin && !hiddenColumns.has("reference_id") && (
+                          <TableCell sx={{ fontSize: "12px", fontFamily: "monospace", color: "#111827", whiteSpace: "nowrap" }}>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                              <span>{row.reference_id || row.merchant_ref_id || row.provider_ref_id || "--"}</span>
+                              {Boolean(row.reference_id || row.merchant_ref_id) && (
+                                <Tooltip title="Copy ReferenceID">
+                                  <IconButton
+                                    size="small"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      copyToClipboard(row.reference_id || row.merchant_ref_id || "", "ReferenceID");
+                                    }}
+                                    sx={{ p: 0.3, opacity: 0.6, "&:hover": { opacity: 1 } }}
+                                  >
+                                    <ContentCopyIcon sx={{ fontSize: 13 }} />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
+                            </Box>
+                          </TableCell>
+                        )}
+
+                        {/* Retailer (Admin Only) */}
+                        {isAdmin && !hiddenColumns.has("retailer") && (
+                          <TableCell sx={{ fontSize: "12px", whiteSpace: "nowrap" }}>
+                            <Typography sx={{ fontSize: "12px", color: "#111827", fontWeight: 600 }}>
+                              {row.retailer_name || "--"}
+                            </Typography>
+                            {row.retailer_id && (
+                              <Typography sx={{ fontSize: "10.5px", color: "#6B7280", fontFamily: "monospace" }}>
+                                {row.retailer_id}
+                              </Typography>
+                            )}
                           </TableCell>
                         )}
 
@@ -1747,6 +1832,24 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                                 bgcolor: "rgba(5, 150, 105, 0.08)",
                                 color: "#059669",
                                 border: "1px solid rgba(5, 150, 105, 0.25)",
+                              }}
+                            />
+                          </TableCell>
+                        )}
+
+                        {/* Vendor (Admin Only) */}
+                        {isAdmin && !hiddenColumns.has("vendor") && (
+                          <TableCell sx={{ fontSize: "12px", fontWeight: 700, whiteSpace: "nowrap" }}>
+                            <Chip
+                              label={row.vendor_name || row.gateway || "G-1"}
+                              size="small"
+                              sx={{
+                                fontWeight: 800,
+                                fontSize: "10.5px",
+                                height: 22,
+                                bgcolor: "rgba(37, 99, 235, 0.08)",
+                                color: "#2563EB",
+                                border: "1px solid rgba(37, 99, 235, 0.25)",
                               }}
                             />
                           </TableCell>
@@ -1926,6 +2029,16 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                       Gateway: <strong>{row.gateway || "G-1"}</strong> · {row.method || row.payment_mode || "--"}
                     </Typography>
                   </Stack>
+                  {isAdmin && (
+                    <Box sx={{ mt: 1, pt: 1, borderTop: "1px dashed #E5E7EB" }}>
+                      <Typography sx={{ fontSize: "11px", color: "#4B5563" }}>
+                        Retailer: <strong>{row.retailer_name || "--"}</strong> {row.retailer_id ? `(${row.retailer_id})` : ""}
+                      </Typography>
+                      <Typography sx={{ fontSize: "11px", color: "#4B5563" }}>
+                        Ref ID: <strong>{row.reference_id || row.merchant_ref_id || "--"}</strong> · Vendor: <strong>{row.vendor_name || row.gateway || "G-1"}</strong>
+                      </Typography>
+                    </Box>
+                  )}
                   <Box sx={{ mt: 1, textAlign: "right" }}>
                     <Button size="small" onClick={(e) => { e.stopPropagation(); openDetailsBreakdown(row); }} sx={{ fontSize: "11px", textTransform: "none", color: "#059669", fontWeight: 700 }}>
                       View Details →

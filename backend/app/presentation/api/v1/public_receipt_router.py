@@ -77,23 +77,24 @@ async def get_public_receipt(
         lookup_candidates.append(decrypted_tid)
 
     # =========================================================================
-    # 0. Primary Fast Lookup: PayinTransactionModel (PayIn Wallet Top-Up Receipt)
+    # 0. Primary Secure Lookup: PayinTransactionModel (Encrypted Capability Token)
     # =========================================================================
     try:
         from app.infrastructure.db.payin_models import PayinTransactionModel
-        payin_conditions = []
-        for cand in lookup_candidates:
-            payin_conditions.extend([
-                PayinTransactionModel.tid == cand,
-                PayinTransactionModel.merchant_ref_id == cand,
-                PayinTransactionModel.provider_ref_id == cand
-            ])
-
-        stmt_payin = select(PayinTransactionModel).where(or_(*payin_conditions))
-        payin_txn = (await db.execute(stmt_payin)).scalars().first()
+        payin_txn = None
+        # Strict security: PayIn transactions require an authenticated decrypted token
+        if decrypted_tid:
+            stmt_payin = select(PayinTransactionModel).where(
+                or_(
+                    PayinTransactionModel.tid == decrypted_tid,
+                    PayinTransactionModel.merchant_ref_id == decrypted_tid,
+                    PayinTransactionModel.provider_ref_id == decrypted_tid
+                )
+            )
+            payin_txn = (await db.execute(stmt_payin)).scalars().first()
 
         if payin_txn:
-            # Tenant isolation enforcement
+            # Tenant isolation enforcement: fail closed on cross-company mismatch
             if expected_company_ref_id is not None and payin_txn.company_ref_id != expected_company_ref_id:
                 logger.warning(
                     "[PUBLIC_RECEIPT] Tenant mismatch: token specifies company %s but txn has %s",
@@ -125,8 +126,8 @@ async def get_public_receipt(
                     ret_stmt = select(RetailerModel).where(RetailerModel.retailer_ref_id == payin_txn.retailer_ref_id)
                     ret = (await db.execute(ret_stmt)).scalars().first()
                     if ret:
-                        ret_name = getattr(ret, "owner_name", None) or getattr(ret, "store_name", None) or ret_name
-                        ret_code = getattr(ret, "retailer_code", "") or ""
+                        ret_name = getattr(ret, "store_name", None) or getattr(ret, "owner_name", None) or getattr(ret, "legal_name", None) or ret_name
+                        ret_code = getattr(ret, "retailer_code", "") or f"RT{payin_txn.retailer_ref_id}"
                 except Exception as r_err:
                     logger.warning(f"[PUBLIC_RECEIPT] Retailer lookup notice for PayIn: {r_err}")
 
@@ -134,6 +135,45 @@ async def get_public_receipt(
             date_formatted = created_dt.strftime("%d %b %Y, %I:%M %p") if created_dt else "16 Nov 2026, 05:45 PM"
 
             st_norm = (payin_txn.txn_status or "SUCCESS").upper().strip()
+            base_amt = float(payin_txn.txn_amount)
+            charges_amt = float(payin_txn.mdr_amount or 0.0)
+            gst_amt = float(payin_txn.tax_amount or 0.0)
+            total_deb = float(payin_txn.customer_payable or (base_amt + float(payin_txn.total_charges or 0.0)))
+            wallet_cred = float(payin_txn.retailer_credit or base_amt)
+            utr_val = payin_txn.provider_ref_id or payin_txn.tid
+            order_id_val = payin_txn.merchant_ref_id or payin_txn.tid
+
+            # Live gateway sync if status is pending/initiated for BankMe
+            if st_norm in ("PENDING", "PROCESSING", "INITIATED") and payin_txn.company_ref_id == 2:
+                try:
+                    from app.application.bankme_payin_client import BankMePayInClient
+                    from app.application.payin_service import PayInService
+                    live_check = await BankMePayInClient.check_order_status(
+                        tid=payin_txn.tid,
+                        bankme_ref=payin_txn.provider_ref_id,
+                        company_ref_id=payin_txn.company_ref_id,
+                        retailer_ref_id=payin_txn.retailer_ref_id
+                    )
+                    if live_check.get("success") and live_check.get("status") in ("SUCCESS", "FAILED"):
+                        recon_res = await PayInService.reconcile_and_finalize_transaction(
+                            db=db,
+                            txn=payin_txn,
+                            raw_gateway_payload=live_check,
+                            provider_status=live_check.get("status"),
+                            provider_ref_id=live_check.get("utr"),
+                            source="PUBLIC_RECEIPT_SYNC"
+                        )
+                        st_norm = recon_res["status"].upper()
+                        base_amt = float(payin_txn.txn_amount)
+                        charges_amt = float(recon_res.get("mdr_amount", payin_txn.mdr_amount or 0.0))
+                        gst_amt = float(recon_res.get("tax_amount", payin_txn.tax_amount or 0.0))
+                        total_deb = float(recon_res.get("customer_payable", payin_txn.customer_payable or (base_amt + charges_amt + gst_amt)))
+                        wallet_cred = float(recon_res.get("retailer_credit", payin_txn.retailer_credit or base_amt))
+                        if live_check.get("utr"):
+                            utr_val = live_check.get("utr")
+                except Exception as sync_err:
+                    logger.warning("[PUBLIC_RECEIPT] Live status sync notice for %s: %s", payin_txn.tid, sync_err)
+
             if st_norm == "SUCCESS":
                 st_text = "WALLET TOP-UP SUCCESSFUL · REAL-TIME CBS SETTLED"
             elif st_norm in ("PENDING", "PROCESSING", "INITIATED"):
@@ -146,74 +186,116 @@ async def get_public_receipt(
             receipt_base = resolve_receipt_base_url(payin_txn.company_ref_id)
             receipt_url = f"{receipt_base}/r/{clean_token}"
 
-            base_amt = float(payin_txn.txn_amount)
-            charges_amt = float(payin_txn.mdr_amount or 0.0)
-            gst_amt = float(payin_txn.tax_amount or 0.0)
-            total_deb = float(payin_txn.customer_payable or (base_amt + float(payin_txn.total_charges or 0.0)))
-            wallet_cred = float(payin_txn.retailer_credit or base_amt)
-
             formatted_mob = f"+91 {ret_mob[-10:]}" if len(ret_mob) >= 10 else ret_mob
-            utr_val = payin_txn.provider_ref_id or payin_txn.tid
-            order_id_val = payin_txn.merchant_ref_id or payin_txn.tid
+
+            # Authoritative Payment Method Normalization (Never default to UPI)
+            pay_mode_code = None
+            if hasattr(payin_txn, "pay_mode_ref_id") and payin_txn.pay_mode_ref_id:
+                try:
+                    from app.infrastructure.db.payin_models import PayinPaymentModeModel
+                    pm_stmt = select(PayinPaymentModeModel.pay_mode_code).where(
+                        PayinPaymentModeModel.payin_payment_mode_ref_id == payin_txn.pay_mode_ref_id
+                    )
+                    pm_res = await db.execute(pm_stmt)
+                    pay_mode_code = pm_res.scalar()
+                except Exception as pm_err:
+                    logger.warning(f"[PUBLIC_RECEIPT] Error fetching pay mode code: {pm_err}")
+
+            clean_method_display = PaymentMethodNormalizer.get_clean_method_display(
+                card_network=getattr(payin_txn, "card_network", None),
+                pay_mode_code=pay_mode_code,
+                fallback_str=getattr(payin_txn, "payment_mode", None)
+            )
 
             receipt_result = {
                 "valid": True,
-                "receiptToken": payin_txn.tid or clean_token,
+                "receiptToken": clean_token,
+                "receipt_token": clean_token,
                 "token": clean_token,
                 "companyName": company_name,
+                "company_name": company_name,
                 "companyCode": company_code,
+                "company_code": company_code,
                 "brandName": brand_name,
+                "brand_name": brand_name,
                 "brandTagline": brand_tagline,
+                "brand_tagline": brand_tagline,
                 "certifications": "NPCI IMPS Switch Certified · ISO 27001:2022 · 256-Bit SSL Encrypted",
                 "status": st_norm,
                 "statusText": st_text,
+                "status_text": st_text,
                 "amount": base_amt,
+                "txn_amount": base_amt,
                 "requestedAmount": base_amt,
                 "approvedAmount": wallet_cred,
                 "walletCredit": wallet_cred,
+                "wallet_credit": wallet_cred,
                 "retailerCredit": wallet_cred,
+                "retailer_credit": wallet_cred,
                 "charges": charges_amt,
+                "mdr_amount": charges_amt,
                 "gst": gst_amt,
                 "taxAmount": gst_amt,
+                "tax_amount": gst_amt,
                 "totalDebited": total_deb,
+                "total_debited": total_deb,
                 "totalPaid": total_deb,
                 "totalAmount": total_deb,
+                "total_amount": total_deb,
+                "customer_payable": total_deb,
                 "transactionId": payin_txn.tid,
                 "tid": payin_txn.tid,
                 "orderId": order_id_val,
+                "order_id": order_id_val,
                 "utr": utr_val,
                 "gatewayRef": utr_val,
+                "gateway_ref": utr_val,
                 "rrn": utr_val,
-                "channel": PaymentMethodNormalizer.get_clean_method_display(card_network=getattr(payin_txn, "card_network", None)),
-                "paymentMode": PaymentMethodNormalizer.get_clean_method_display(card_network=getattr(payin_txn, "card_network", None)),
-                "paymentMethod": PaymentMethodNormalizer.get_clean_method_display(card_network=getattr(payin_txn, "card_network", None)),
+                "channel": clean_method_display,
+                "paymentMode": clean_method_display,
+                "payment_mode": clean_method_display,
+                "paymentMethod": clean_method_display,
+                "payment_method": clean_method_display,
+                "card_network": getattr(payin_txn, "card_network", None),
                 "gateway": gw_code,
                 "gatewayCode": gw_code,
+                "gateway_code": gw_code,
                 "gatewayName": f"Gateway {gw_code}",
                 "date": date_formatted,
                 "dateTime": date_formatted,
                 "customerName": ret_name,
+                "customer_name": ret_name,
                 "customerMobile": formatted_mob,
+                "customer_mobile": formatted_mob,
                 "mobileNo": formatted_mob,
-                "retailerName": f"{ret_name} ({ret_code})" if ret_code else ret_name,
+                "retailerName": ret_name,
+                "retailer_name": ret_name,
                 "retailerId": ret_code or "RT12345",
+                "retailer_id": ret_code or "RT12345",
                 "retailerCode": ret_code or "RT12345",
+                "retailer_code": ret_code or "RT12345",
                 "retailerMobile": formatted_mob,
+                "retailer_mobile": formatted_mob,
                 "beneficiaryName": f"{brand_name} Retailer Main Wallet",
                 "beneficiaryBank": f"{brand_name} CBS Gateway Switch",
                 "beneficiaryIfsc": "SMSP0000CBS" if is_smspay else "P2P0000CBS",
                 "beneficiaryAccount": f"Wallet A/C: {ret_code}" if ret_code else "Retailer Primary Wallet",
                 "signature": f"SIG-SHA256-{clean_sig}982A1B7C",
                 "downloadUrl": receipt_url,
+                "download_url": receipt_url,
                 "receiptUrl": receipt_url,
+                "receipt_url": receipt_url,
                 "supportPhone": support_phone,
+                "support_phone": support_phone,
                 "supportEmail": support_email,
+                "support_email": support_email,
+                "terms_url": f"https://{preset.get('domains', ['smspay.store'])[0]}/terms",
+                "privacy_url": f"https://{preset.get('domains', ['smspay.store'])[0]}/privacy",
                 "isTopup": True,
                 "isApproved": st_norm == "SUCCESS",
                 "isPendingApproval": st_norm in ("PENDING", "PROCESSING", "INITIATED"),
                 "receiptType": "PAYIN_TOPUP"
             }
-            # Wrap data for dual compatibility with frontend body.data or flat body
             receipt_result["data"] = {**receipt_result}
             return receipt_result
     except HTTPException:

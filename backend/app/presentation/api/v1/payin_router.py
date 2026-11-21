@@ -567,7 +567,16 @@ async def get_payin_receipt(
     calc_charges = final_mdr_amount or round(max(0.0, final_total_charges - final_tax_amount), 2)
     calc_total_debited = final_customer_payable if final_customer_payable > 0 else round(final_amount + final_total_charges, 2)
     receipt_base = resolve_receipt_base_url(final_company_ref_id)
-    receipt_link = f"{receipt_base}/r/{clean_ref}"
+    receipt_payload = {
+        "tid": final_tid,
+        "company_ref_id": final_company_ref_id,
+        "status": final_status,
+        "orderId": order_id_val,
+        "utr": final_provider_ref or final_tid,
+        "ts": int(datetime.now(timezone.utc).timestamp())
+    }
+    encrypted_token = clean_ref if decrypted else GlobalReceiptSecurity.encrypt_receipt_token(receipt_payload)
+    receipt_link = f"{receipt_base}/r/{encrypted_token}"
 
     return {
         "success": True,
@@ -609,6 +618,52 @@ async def get_payin_receipt(
             "receipt_url": receipt_link,
             "failure_reason": final_failure_reason
         }
+    }
+
+
+@router.get(
+    "/receipt-token",
+    summary="Get Encrypted Receipt Token for Transaction"
+)
+async def get_payin_receipt_token(
+    reference_id: str = Query(..., description="Transaction Reference ID / TID"),
+    request: Request = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Returns the secure, tamper-proof AES-256-GCM encrypted receipt capability token
+    and isolated receipt URL for a transaction.
+    """
+    clean_ref = reference_id.strip()
+    stmt = select(PayinTransactionModel).where(
+        or_(
+            PayinTransactionModel.tid == clean_ref,
+            PayinTransactionModel.merchant_ref_id == clean_ref,
+            PayinTransactionModel.provider_ref_id == clean_ref
+        )
+    )
+    res = await db.execute(stmt)
+    txn = res.scalars().first()
+    if not txn:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    receipt_payload = {
+        "tid": txn.tid,
+        "company_ref_id": txn.company_ref_id,
+        "status": (txn.txn_status or "SUCCESS").upper(),
+        "orderId": txn.merchant_ref_id or txn.tid,
+        "utr": txn.provider_ref_id or txn.tid,
+        "ts": int(datetime.now(timezone.utc).timestamp())
+    }
+    encrypted_token = GlobalReceiptSecurity.encrypt_receipt_token(receipt_payload)
+    receipt_base = resolve_receipt_base_url(txn.company_ref_id, request)
+
+    return {
+        "success": True,
+        "tid": txn.tid,
+        "receipt_token": encrypted_token,
+        "receipt_url": f"{receipt_base}/r/{encrypted_token}",
+        "company_code": "SMSPAY" if txn.company_ref_id == 2 else ("PAY2PAY" if txn.company_ref_id == 47 else "NEAR4YOU")
     }
 
 

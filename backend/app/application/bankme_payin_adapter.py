@@ -13,7 +13,8 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 
 from app.application.bankme_payin_client import BankMePayInClient
-from app.core.company_resolver import resolve_return_base_url
+from app.core.company_resolver import resolve_return_base_url, resolve_receipt_base_url
+from app.core.security import GlobalReceiptSecurity
 
 logger = logging.getLogger("payin_adapter")
 
@@ -180,11 +181,17 @@ class ExistingPayInAdapter(BasePayInProviderAdapter):
     ) -> Dict[str, Any]:
         ref = f"P2P-PAYIN-{int(time.time())}-{tid[-4:]}"
         comp_ref = kwargs.get("company_ref_id", 47)
-        return_base = resolve_return_base_url(
+        receipt_base = resolve_receipt_base_url(
             company_ref_id=comp_ref,
-            request=kwargs.get("request"),
-            candidate_url=kwargs.get("return_url") or callback_url
+            request=kwargs.get("request")
         )
+        encrypted_token = GlobalReceiptSecurity.encrypt_receipt_token({
+            "tid": tid,
+            "company_ref_id": comp_ref,
+            "status": "PENDING",
+            "orderId": ref,
+            "ts": int(time.time())
+        })
         vpa = "pay2pay.merchant@icici" if comp_ref == 47 else "near4you.merchant@icici"
         platform_name = "Pay2Pay+Platform" if comp_ref == 47 else "Near4You+Platform"
         upi_string = (
@@ -192,7 +199,7 @@ class ExistingPayInAdapter(BasePayInProviderAdapter):
             f"&am={amount:.2f}&tr={tid}&tn=PayIn+{tid}&cu=INR"
         )
         qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={upi_string}"
-        checkout_url = f"{return_base}/retailer/payin/status?referenceId={tid}&order={ref}&amount={amount:.2f}"
+        checkout_url = f"{receipt_base}/r/{encrypted_token}"
 
         logger.info("Existing PayIn initiated for TID=%s (Company Ref #%s)", tid, comp_ref)
         return {

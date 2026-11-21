@@ -212,6 +212,7 @@ async def get_payin_report_summary(
     mobile: Optional[str] = Query(None),
     mobile_number: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    portal: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -937,6 +938,7 @@ async def export_payin_report(
     mobile: Optional[str] = Query(None),
     mobile_number: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    portal: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -1055,6 +1057,7 @@ async def export_payin_report(
         COALESCE(r.store_name, r.legal_name, r.owner_name, t.cust_name, 'Retailer') AS retailer_name,
         t.payin_vendor_ref_id,
         v.vendor_code,
+        v.vendor_name,
         t.card_network,
         COALESCE(p.pay_mode_code, 'UPI') AS payment_mode,
         t.cust_mobile,
@@ -1080,21 +1083,41 @@ async def export_payin_report(
     res = await db.execute(text(sql), params)
     rows = res.fetchall()
 
+    is_admin_export = bool(auth_ctx.get("is_admin")) and (portal == "admin" or portal is None or auth_ctx.get("is_super_admin"))
+
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow([
-        "TID",
-        "Amount (₹)",
-        "Charges (₹)",
-        "GST (₹)",
-        "Total Amount (₹)",
-        "Wallet Credit (₹)",
-        "MobileNo",
-        "Gateway",
-        "Method",
-        "Status",
-        "Date & Time"
-    ])
+    if is_admin_export:
+        writer.writerow([
+            "TID",
+            "ReferenceID",
+            "Retailer",
+            "Amount (₹)",
+            "Charges (₹)",
+            "GST (₹)",
+            "Total Amount (₹)",
+            "Wallet Credit (₹)",
+            "MobileNo",
+            "Gateway",
+            "Vendor",
+            "Method",
+            "Status",
+            "Date & Time"
+        ])
+    else:
+        writer.writerow([
+            "TID",
+            "Amount (₹)",
+            "Charges (₹)",
+            "GST (₹)",
+            "Total Amount (₹)",
+            "Wallet Credit (₹)",
+            "MobileNo",
+            "Gateway",
+            "Method",
+            "Status",
+            "Date & Time"
+        ])
 
     for idx, r in enumerate(rows):
         d = dict(r._mapping)
@@ -1110,19 +1133,46 @@ async def export_payin_report(
             pay_mode_code=d.get("payment_mode")
         )
 
-        writer.writerow([
-            d.get("tid") or "--",
-            f"{money(d.get('txn_amount')):.2f}",
-            f"{money(d.get('total_charges')):.2f}",
-            f"{money(d.get('tax_amount')):.2f}",
-            f"{money(d.get('customer_payable')):.2f}",
-            f"{money(d.get('retailer_credit')):.2f}",
-            mob_val,
-            gw_label,
-            clean_method,
-            (d.get("txn_status") or "SUCCESS").upper(),
-            dt_str
-        ])
+        if is_admin_export:
+            ret_val = d.get("retailer_name")
+            ret_code = d.get("retailer_code")
+            if ret_code and ret_val and ret_code not in ret_val:
+                ret_display = f"{ret_val} ({ret_code})"
+            else:
+                ret_display = ret_val or ret_code or "Retailer"
+            ref_id = d.get("merchant_ref_id") or d.get("provider_ref_id") or d.get("tid") or "--"
+            vendor_val = gw_label
+
+            writer.writerow([
+                d.get("tid") or "--",
+                ref_id,
+                ret_display,
+                f"{money(d.get('txn_amount')):.2f}",
+                f"{money(d.get('total_charges')):.2f}",
+                f"{money(d.get('tax_amount')):.2f}",
+                f"{money(d.get('customer_payable')):.2f}",
+                f"{money(d.get('retailer_credit')):.2f}",
+                mob_val,
+                gw_label,
+                vendor_val,
+                clean_method,
+                (d.get("txn_status") or "SUCCESS").upper(),
+                dt_str
+            ])
+        else:
+            writer.writerow([
+                d.get("tid") or "--",
+                f"{money(d.get('txn_amount')):.2f}",
+                f"{money(d.get('total_charges')):.2f}",
+                f"{money(d.get('tax_amount')):.2f}",
+                f"{money(d.get('customer_payable')):.2f}",
+                f"{money(d.get('retailer_credit')):.2f}",
+                mob_val,
+                gw_label,
+                clean_method,
+                (d.get("txn_status") or "SUCCESS").upper(),
+                dt_str
+            ])
 
     csv_data = output.getvalue()
     today_str = datetime.now(IST).strftime("%Y%m%d_%H%M%S")

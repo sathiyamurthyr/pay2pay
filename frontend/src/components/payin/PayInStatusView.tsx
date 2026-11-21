@@ -60,6 +60,81 @@ export interface ReceiptData {
   failure_reason?: string | null;
 }
 
+export function normalizeReceiptData(d: any): ReceiptData | null {
+  if (!d) return null;
+  const raw = d.data || d;
+  const tid = raw.tid || raw.transactionId || raw.reference_id || raw.referenceId || "";
+  if (!tid) return null;
+
+  const rawMethod =
+    raw.payment_method ||
+    raw.paymentMethod ||
+    raw.payment_mode ||
+    raw.paymentMode ||
+    raw.channel ||
+    raw.card_network ||
+    raw.cardNetwork;
+
+  let cleanMethod = "Pending Classification";
+  if (rawMethod && typeof rawMethod === "string" && rawMethod.trim()) {
+    const rm = rawMethod.trim();
+    const up = rm.toUpperCase();
+    if (up === "VISA") cleanMethod = "Visa";
+    else if (up === "MASTERCARD" || up === "MC") cleanMethod = "Mastercard";
+    else if (up === "RUPAY") cleanMethod = "RuPay";
+    else if (up === "AMEX") cleanMethod = "AMEX";
+    else if (up === "CORP" || up === "CORPORATE") cleanMethod = "Corporate Card";
+    else if (up === "UPI") cleanMethod = "UPI";
+    else if (up === "CREDIT_CARD") cleanMethod = "Credit Card";
+    else if (up === "DEBIT_CARD") cleanMethod = "Debit Card";
+    else if (up === "NET_BANKING") cleanMethod = "Net Banking";
+    else cleanMethod = rm;
+  }
+
+  const baseAmt = Number(raw.amount || raw.txn_amount || raw.requestedAmount || 0);
+  const gstAmt = Number(raw.gst || raw.tax_amount || raw.taxAmount || 0);
+  const chargesAmt = Number(raw.charges || raw.mdr_amount || (raw.total_charges ? Math.max(0, raw.total_charges - gstAmt) : 0) || 0);
+  const totalDeb = Number(raw.total_debited || raw.totalDebited || raw.total_amount || raw.totalAmount || raw.totalPaid || raw.customer_payable || raw.customerPayable || (baseAmt + chargesAmt + gstAmt));
+  const walletCred = Number(raw.retailer_credit || raw.retailerCredit || raw.wallet_credit || raw.walletCredit || raw.approvedAmount || baseAmt);
+
+  return {
+    tid,
+    reference_id: raw.reference_id || raw.referenceId || tid,
+    order_id: raw.order_id || raw.orderId || raw.merchant_ref_id || raw.merchantRefId || tid,
+    merchant_ref_id: raw.merchant_ref_id || raw.merchantRefId || raw.orderId || raw.order_id,
+    provider_ref_id: raw.provider_ref_id || raw.providerRefId || raw.gateway_ref || raw.gatewayRef || raw.utr || raw.rrn,
+    status: (raw.status || raw.txn_status || "SUCCESS").toUpperCase(),
+    amount: baseAmt,
+    gst: gstAmt,
+    tax_amount: gstAmt,
+    charges: chargesAmt,
+    total_charges: chargesAmt + gstAmt,
+    total_debited: totalDeb,
+    customer_payable: totalDeb,
+    retailer_credit: walletCred,
+    retailer_name: raw.retailer_name || raw.retailerName || raw.customer_name || raw.customerName || "Retailer Partner",
+    retailer_id: raw.retailer_id || raw.retailerId || raw.retailer_code || raw.retailerCode || "RT12345",
+    customer_name: raw.customer_name || raw.customerName || raw.retailer_name || raw.retailerName || "Customer",
+    customer_mobile: raw.customer_mobile || raw.customerMobile || raw.mobile_no || raw.mobileNo || "",
+    gateway: raw.gateway || raw.gatewayCode || raw.vendor_name || "G-1",
+    gateway_ref: raw.gateway_ref || raw.gatewayRef || raw.provider_ref_id || raw.providerRefId || raw.utr || raw.rrn || "--",
+    rrn: raw.rrn || raw.utr || raw.gateway_ref || raw.gatewayRef || raw.provider_ref_id || "--",
+    provider: raw.provider || `Gateway ${raw.gateway || "G-1"}`,
+    card_network: raw.card_network || raw.cardNetwork,
+    payment_mode: cleanMethod,
+    payment_method: cleanMethod,
+    domain: raw.domain || raw.website,
+    support_phone: raw.support_phone || raw.supportPhone || "+91 98765 43210",
+    support_email: raw.support_email || raw.supportEmail || "support@smspay.store",
+    terms_url: raw.terms_url || raw.termsUrl,
+    privacy_url: raw.privacy_url || raw.privacyUrl,
+    created_at: raw.created_at || raw.createdAt || raw.date || raw.dateTime,
+    completed_at: raw.completed_at || raw.completedAt || raw.date || raw.dateTime,
+    utr: raw.utr || raw.rrn || raw.gateway_ref,
+    failure_reason: raw.failure_reason || raw.failureReason
+  };
+}
+
 function formatIST(isoDate?: string | null): string {
   if (!isoDate) {
     const d = new Date();
@@ -148,7 +223,7 @@ export function PayInStatusView({
   const utrParam = searchParams.get("utr") || "";
 
   const [loading, setLoading] = useState<boolean>(!initialData);
-  const [receipt, setReceipt] = useState<ReceiptData | null>(initialData || null);
+  const [receipt, setReceipt] = useState<ReceiptData | null>(initialData ? normalizeReceiptData(initialData) : null);
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [pollCount, setPollCount] = useState<number>(0);
@@ -188,39 +263,9 @@ export function PayInStatusView({
 
         if (publicRes.ok) {
           const body = await publicRes.json();
-          const d = body.data || body;
-          if (d && (d.tid || d.transactionId || d.valid)) {
-            setReceipt({
-              tid: d.tid || d.transactionId || refParam,
-              reference_id: d.reference_id || d.tid || d.transactionId || refParam,
-              order_id: d.order_id || d.orderId || d.tid || refParam,
-              merchant_ref_id: d.merchant_ref_id || d.orderId,
-              provider_ref_id: d.provider_ref_id || d.utr,
-              status: (d.status || statusParam).toUpperCase(),
-              amount: Number(d.amount || d.requestedAmount || 0),
-              gst: Number(d.gst || d.tax_amount || d.taxAmount || 0),
-              tax_amount: Number(d.tax_amount || d.taxAmount || d.gst || 0),
-              charges: Number(d.charges || d.total_charges || 0),
-              total_charges: Number(d.total_charges || d.charges || 0),
-              total_debited: Number(d.total_debited || d.totalDebited || d.totalPaid || d.amount || 0),
-              customer_payable: Number(d.customer_payable || d.totalDebited || d.amount || 0),
-              retailer_credit: Number(d.retailer_credit || d.walletCredit || d.amount || 0),
-              retailer_name: d.retailer_name || d.retailerName || "Retailer Partner",
-              retailer_id: d.retailer_id || d.retailerId || d.retailerCode || "RT12345",
-              customer_name: d.customer_name || d.customerName || "Customer",
-              customer_mobile: d.customer_mobile || d.customerMobile || d.mobileNo || "",
-              gateway: d.gateway || d.gatewayCode || "G-1",
-              gateway_ref: d.gateway_ref || d.gatewayRef || d.utr || refParam,
-              rrn: d.rrn || d.utr || refParam,
-              payment_method: d.payment_method || d.paymentMode || d.channel || "UPI",
-              domain: d.domain,
-              support_phone: d.support_phone || d.supportPhone || "+91 98765 43210",
-              support_email: d.support_email || d.supportEmail || "support@smspay.store",
-              created_at: d.created_at || d.date || new Date().toISOString(),
-              completed_at: d.completed_at || d.date,
-              utr: d.utr || d.gateway_ref || refParam,
-              failure_reason: d.failure_reason
-            });
+          const normalized = normalizeReceiptData(body);
+          if (normalized) {
+            setReceipt(normalized);
             setErrorMsg("");
             fetched = true;
           }
@@ -235,38 +280,17 @@ export function PayInStatusView({
 
           if (res.ok) {
             const body = await res.json();
-            if (body.success && body.data) {
-              setReceipt(body.data);
+            const normalized = normalizeReceiptData(body);
+            if (normalized) {
+              setReceipt(normalized);
               setErrorMsg("");
               fetched = true;
             }
-          } else if (res.status === 404 && !receipt) {
-            setReceipt({
-              tid: refParam,
-              reference_id: refParam,
-              order_id: refParam,
-              status: statusParam === "SUCCESS" ? "SUCCESS" : statusParam === "FAILED" ? "FAILED" : "PENDING",
-              amount: 0,
-              gst: 0,
-              charges: 0,
-              total_debited: 0,
-              customer_payable: 0,
-              retailer_credit: 0,
-              retailer_name: "Retailer Partner",
-              retailer_id: "RT12345",
-              gateway: "G-1",
-              payment_method: "UPI",
-              utr: utrParam || refParam,
-              gateway_ref: utrParam || refParam,
-              rrn: utrParam || refParam,
-              created_at: new Date().toISOString()
-            });
-            fetched = true;
           }
         }
 
         if (!fetched && !receipt) {
-          setErrorMsg("Receipt details unavailable");
+          setErrorMsg("Receipt details unavailable or verification failed");
         }
       } catch (err: any) {
         console.error("Error fetching receipt:", err);
@@ -403,7 +427,17 @@ export function PayInStatusView({
 
       {/* Main Receipt Container */}
       <main className="max-w-[640px] w-full mx-auto my-2">
-        {loading && !receipt ? (
+        {errorMsg && !receipt ? (
+          <div className="bg-white border border-red-200 rounded-3xl p-10 text-center shadow-lg flex flex-col items-center justify-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center text-red-500">
+              <XCircle className="w-8 h-8" />
+            </div>
+            <h2 className="text-lg font-bold text-slate-900">Receipt Verification Failed</h2>
+            <p className="text-xs text-slate-500 max-w-sm">
+              The requested payment receipt does not exist, has expired, or failed security validation.
+            </p>
+          </div>
+        ) : loading && !receipt ? (
           <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center shadow-lg flex flex-col items-center justify-center gap-4">
             <RefreshCw className="w-10 h-10 text-blue-600 animate-spin" />
             <h2 className="text-lg font-bold text-slate-800">
@@ -529,13 +563,13 @@ export function PayInStatusView({
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-slate-600 font-normal">Retailer Name</span>
                   <span className="font-bold text-slate-900 text-right">
-                    {receipt?.retailer_name || "Rahul Traders"}
+                    {receipt?.retailer_name || "--"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-slate-600 font-normal">Retailer ID</span>
                   <span className="font-bold text-slate-900 text-right font-mono">
-                    {receipt?.retailer_id || "RT12345"}
+                    {receipt?.retailer_id || "--"}
                   </span>
                 </div>
               </div>
@@ -580,8 +614,8 @@ export function PayInStatusView({
 
                 <div className="flex items-center justify-between pt-1">
                   <span className="text-slate-600 font-normal">Payment Method</span>
-                  <span className="font-bold text-slate-900 uppercase">
-                    {receipt?.payment_method || receipt?.payment_mode || "UPI"}
+                  <span className="font-bold text-slate-900">
+                    {receipt?.payment_method || receipt?.payment_mode || "Pending Classification"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
