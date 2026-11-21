@@ -31,26 +31,109 @@ def money(value: Any) -> Decimal:
         return Decimal("0.00")
 
 
-def parse_date_range(from_date: Optional[str], to_date: Optional[str]) -> Tuple[Optional[datetime], Optional[datetime]]:
-    start_dt = None
-    end_dt = None
-    if from_date and isinstance(from_date, str) and from_date.strip():
+MONTH_MAP = {
+    "1": 1, "01": 1, "jan": 1, "january": 1,
+    "2": 2, "02": 2, "feb": 2, "february": 2,
+    "3": 3, "03": 3, "mar": 3, "march": 3,
+    "4": 4, "04": 4, "apr": 4, "april": 4,
+    "5": 5, "05": 5, "may": 5,
+    "6": 6, "06": 6, "jun": 6, "june": 6,
+    "7": 7, "07": 7, "jul": 7, "july": 7,
+    "8": 8, "08": 8, "aug": 8, "august": 8,
+    "9": 9, "09": 9, "sep": 9, "september": 9,
+    "10": 10, "oct": 10, "october": 10,
+    "11": 11, "nov": 11, "november": 11,
+    "12": 12, "dec": 12, "december": 12,
+}
+
+
+def get_days_in_month(year: int, month: int) -> int:
+    if month in (1, 3, 5, 7, 8, 10, 12):
+        return 31
+    if month in (4, 6, 9, 11):
+        return 30
+    is_leap = (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0))
+    return 29 if is_leap else 28
+
+
+def parse_date_range(
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    month: Optional[str] = None,
+    year: Optional[int] = None
+) -> Tuple[Optional[datetime], Optional[datetime]]:
+    """
+    Robust Indian Standard Time (IST) date range parser converting accurately to UTC.
+    Supports YYYY-MM-DD, YYYY-MM, DD-MM-YYYY, ISO strings, and month names (e.g. September).
+    Never defaults a September query to the current month.
+    """
+    now_ist = datetime.now(IST)
+    default_year = year or now_ist.year
+
+    if month and str(month).strip():
+        m_str = str(month).strip().lower()
+        if m_str in MONTH_MAP:
+            m_num = MONTH_MAP[m_str]
+            target_year = default_year
+            last_day = get_days_in_month(target_year, m_num)
+            start_ist = datetime(target_year, m_num, 1, 0, 0, 0, tzinfo=IST)
+            end_ist = datetime(target_year, m_num, last_day, 23, 59, 59, 999999, tzinfo=IST)
+            return start_ist.astimezone(timezone.utc), end_ist.astimezone(timezone.utc)
+
+    if from_date and len(from_date.strip()) == 7 and from_date.strip().count("-") == 1:
         try:
-            start_dt = datetime.strptime(from_date.strip(), "%Y-%m-%d").replace(
-                hour=0, minute=0, second=0, microsecond=0, tzinfo=IST
-            ).astimezone(timezone.utc)
-        except ValueError:
+            parts = from_date.strip().split("-")
+            y = int(parts[0])
+            m = int(parts[1])
+            last_day = get_days_in_month(y, m)
+            start_ist = datetime(y, m, 1, 0, 0, 0, tzinfo=IST)
+            end_ist = datetime(y, m, last_day, 23, 59, 59, 999999, tzinfo=IST)
+            return start_ist.astimezone(timezone.utc), end_ist.astimezone(timezone.utc)
+        except Exception:
             pass
 
-    if to_date and isinstance(to_date, str) and to_date.strip():
-        try:
-            end_dt = datetime.strptime(to_date.strip(), "%Y-%m-%d").replace(
-                hour=23, minute=59, second=59, microsecond=999999, tzinfo=IST
-            ).astimezone(timezone.utc)
-        except ValueError:
-            pass
+    def parse_single_dt(d_str: str, is_end: bool) -> Optional[datetime]:
+        d_clean = d_str.strip()
+        if "T" in d_clean:
+            d_clean = d_clean.split("T")[0]
+        for fmt in ["%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%Y/%m/%d"]:
+            try:
+                dt = datetime.strptime(d_clean, fmt)
+                if is_end:
+                    return dt.replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=IST)
+                else:
+                    return dt.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=IST)
+            except ValueError:
+                continue
+        low = d_clean.lower()
+        for m_name, m_val in MONTH_MAP.items():
+            if m_name.isalpha() and m_name in low:
+                y = default_year
+                for token in low.split():
+                    if token.isdigit() and len(token) == 4:
+                        y = int(token)
+                last_day = get_days_in_month(y, m_val)
+                if is_end:
+                    return datetime(y, m_val, last_day, 23, 59, 59, 999999, tzinfo=IST)
+                else:
+                    return datetime(y, m_val, 1, 0, 0, 0, tzinfo=IST)
+        return None
 
-    return start_dt, end_dt
+    start_dt = parse_single_dt(from_date, is_end=False) if from_date else None
+    end_dt = parse_single_dt(to_date, is_end=True) if to_date else None
+
+    if start_dt and not end_dt:
+        if start_dt.month != now_ist.month or start_dt.year != now_ist.year:
+            last_day = get_days_in_month(start_dt.year, start_dt.month)
+            end_dt = datetime(start_dt.year, start_dt.month, last_day, 23, 59, 59, 999999, tzinfo=IST)
+
+    if end_dt and not start_dt:
+        start_dt = datetime(end_dt.year, end_dt.month, 1, 0, 0, 0, tzinfo=IST)
+
+    return (
+        start_dt.astimezone(timezone.utc) if start_dt else None,
+        end_dt.astimezone(timezone.utc) if end_dt else None
+    )
 
 
 def clean_str(val: Any) -> Optional[str]:
@@ -203,6 +286,7 @@ async def get_payin_report_summary(
     request: Request,
     from_date: Optional[str] = Query(None),
     to_date: Optional[str] = Query(None),
+    month: Optional[str] = Query(None),
     company_ref_id: Optional[int] = Query(None),
     retailer_ref_id: Optional[int] = Query(None),
     status: Optional[str] = Query(None),
@@ -237,7 +321,7 @@ async def get_payin_report_summary(
     if auth_ctx["is_admin"] and retailer_ref_val is not None:
         effective_retailer = retailer_ref_val
 
-    start_dt, end_dt = parse_date_range(from_date, to_date)
+    start_dt, end_dt = parse_date_range(from_date, to_date, month=month)
 
     where_clauses = ["1=1"]
     params: Dict[str, Any] = {}
@@ -388,6 +472,7 @@ async def get_payin_report_grid(
     request: Request,
     from_date: Optional[str] = Query(None),
     to_date: Optional[str] = Query(None),
+    month: Optional[str] = Query(None),
     company_ref_id: Optional[int] = Query(None),
     retailer_ref_id: Optional[int] = Query(None),
     status: Optional[str] = Query(None),
@@ -425,7 +510,7 @@ async def get_payin_report_grid(
     if auth_ctx["is_admin"] and retailer_ref_val is not None:
         effective_retailer = retailer_ref_val
 
-    start_dt, end_dt = parse_date_range(from_date, to_date)
+    start_dt, end_dt = parse_date_range(from_date, to_date, month=month)
     offset = (page - 1) * limit
 
     where_clauses = ["1=1"]
@@ -929,6 +1014,7 @@ async def export_payin_report(
     request: Request,
     from_date: Optional[str] = Query(None),
     to_date: Optional[str] = Query(None),
+    month: Optional[str] = Query(None),
     company_ref_id: Optional[int] = Query(None),
     retailer_ref_id: Optional[int] = Query(None),
     status: Optional[str] = Query(None),
@@ -962,7 +1048,7 @@ async def export_payin_report(
     if auth_ctx["is_admin"] and retailer_ref_val is not None:
         effective_retailer = retailer_ref_val
 
-    start_dt, end_dt = parse_date_range(from_date, to_date)
+    start_dt, end_dt = parse_date_range(from_date, to_date, month=month)
 
     where_clauses = ["1=1"]
     params: Dict[str, Any] = {}
