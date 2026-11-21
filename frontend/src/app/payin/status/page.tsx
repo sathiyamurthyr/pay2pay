@@ -34,9 +34,9 @@ function PublicPayInStatusRedirect() {
           return res.json();
         })
         .then((data) => {
-          if (data && data.receipt_token) {
-            const receiptBase = resolveReceiptDomain(undefined, data.company_code);
-            window.location.replace(`${receiptBase}/r/${encodeURIComponent(data.receipt_token)}`);
+          if (data && (data.receipt_url || data.short_url || data.receipt_token)) {
+            const targetUrl = data.receipt_url || data.short_url || `${resolveReceiptDomain(undefined, data.company_code)}/r/${encodeURIComponent(data.receipt_token)}`;
+            window.location.replace(targetUrl);
           } else {
             router.replace("/login");
           }

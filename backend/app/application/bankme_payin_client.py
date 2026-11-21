@@ -173,20 +173,23 @@ class BankMePayInClient:
         raw_digits = re.sub(r"\D", "", str(customer_mobile or ""))
         clean_mobile = raw_digits[-10:] if len(raw_digits) >= 10 else "9876543210"
 
-        # Resolve dedicated receipt base domain and encrypt transaction payload so no plain-text parameters are exposed
+        # Resolve dedicated receipt base domain and Bitly-style short URL so no plain-text parameters are exposed
         from app.core.security import GlobalReceiptSecurity
         from app.core.company_resolver import resolve_receipt_base_url
 
         receipt_base = resolve_receipt_base_url(company_ref_id=company_ref_id)
-        token_payload = {
-            "tid": tid,
-            "company_ref_id": company_ref_id,
-            "status": "PENDING",
-            "orderId": tid,
-            "ts": int(time.time())
-        }
-        encrypted_token = GlobalReceiptSecurity.encrypt_receipt_token(token_payload)
-        valid_redirect_url = f"{receipt_base}/r/{encrypted_token}"
+        if return_url and str(return_url).strip():
+            valid_redirect_url = str(return_url).strip()
+        else:
+            token_payload = {
+                "tid": tid,
+                "company_ref_id": company_ref_id,
+                "status": "PENDING",
+                "orderId": tid,
+                "ts": int(time.time())
+            }
+            encrypted_token = GlobalReceiptSecurity.encrypt_receipt_token(token_payload)
+            valid_redirect_url = f"{receipt_base}/r/{encrypted_token}"
 
         # Authoritative TID as BankMe referenceId (guarantees idempotency and unified status lookup)
         ref_id = tid

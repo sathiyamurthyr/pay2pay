@@ -594,7 +594,7 @@ class GlobalNotificationPlatformClient:
 
         client, cfg = self.get_client(company_context)
         safe_token = str(receipt_token or transaction_id).strip()
-        receipt_url = f"https://receipt.sathus.in/r/{safe_token}"
+        receipt_url = f"https://receipt.{cfg['domain']}/r/{safe_token}"
 
         company_display = "INSPEL TECHNOLOGIES SOLUTIONS PVT" if cfg["project_code"] == "SMSPAY" else ("SUPER REX PRODUCTS PRIVATE LIMITED" if cfg["project_code"] == "PAY2PAY" else "SATHUS TECHNOLOGY PRIVATE LIMITED")
         primary_color = cfg.get("primary_color", "#059669")

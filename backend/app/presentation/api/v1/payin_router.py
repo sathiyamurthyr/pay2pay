@@ -678,22 +678,28 @@ async def get_payin_receipt_token(
     if not txn:
         raise HTTPException(status_code=404, detail="Transaction not found")
 
-    receipt_payload = {
-        "tid": txn.tid,
-        "company_ref_id": txn.company_ref_id,
-        "status": (txn.txn_status or "SUCCESS").upper(),
-        "orderId": txn.merchant_ref_id or txn.tid,
-        "utr": txn.provider_ref_id or txn.tid,
-        "ts": int(datetime.now(timezone.utc).timestamp())
-    }
-    encrypted_token = GlobalReceiptSecurity.encrypt_receipt_token(receipt_payload)
+    from app.application.receipt_short_link_service import ReceiptShortLinkService
+    short_code = getattr(txn, "receipt_short_code", None)
+    if not short_code:
+        short_code = await ReceiptShortLinkService.generate_or_get_short_code(
+            db=db,
+            tid=txn.tid,
+            company_ref_id=txn.company_ref_id,
+            user_type_ref_id=txn.user_type_ref_id,
+            user_ref_id=txn.user_ref_id,
+            payin_txn_id=txn.payin_transactions_ref_id
+        )
+
     receipt_base = resolve_receipt_base_url(txn.company_ref_id, request)
+    short_url = f"{receipt_base}/r/{short_code}"
 
     return {
         "success": True,
         "tid": txn.tid,
-        "receipt_token": encrypted_token,
-        "receipt_url": f"{receipt_base}/r/{encrypted_token}",
+        "receipt_token": short_code,
+        "short_code": short_code,
+        "short_url": short_url,
+        "receipt_url": short_url,
         "company_code": "SMSPAY" if txn.company_ref_id == 2 else ("PAY2PAY" if txn.company_ref_id == 47 else "NEAR4YOU")
     }
 

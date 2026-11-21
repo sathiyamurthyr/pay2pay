@@ -226,6 +226,7 @@ class PayinTransactionModel(Base):
         Index("idx_payin_txns_vendor", "payin_vendor_ref_id"),
         Index("idx_payin_txns_status", "txn_status"),
         Index("idx_payin_txns_provider_ref", "provider_ref_id"),
+        Index("idx_payin_txns_short_code", "receipt_short_code"),
         Index("idx_payin_txns_created_at", "created_at"),
         {"extend_existing": True}
     )
@@ -289,6 +290,7 @@ class PayinTransactionModel(Base):
     response_ref: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
     failure_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     ledger_txn_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    receipt_short_code: Mapped[Optional[str]] = mapped_column(String(16), unique=True, index=True, nullable=True)
     
     initiated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -395,5 +397,49 @@ class PayinApiLogModel(Base):
     environment: Mapped[str] = mapped_column(String(32), default="sandbox", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class ReceiptShortLinkModel(Base):
+    """
+    Bitly-style short URL mapping for official digital payment receipts.
+    Maps high-entropy random short codes to internal transactions and capability tokens.
+    """
+    __tablename__ = "receipt_short_links"
+    __table_args__ = (
+        UniqueConstraint("short_code", name="uq_receipt_short_links_code"),
+        Index("idx_receipt_short_links_tid", "tid"),
+        Index("idx_receipt_short_links_company", "company_ref_id"),
+        Index("idx_receipt_short_links_active", "is_active", "is_revoked"),
+        {"extend_existing": True}
+    )
+
+    receipt_short_link_ref_id: Mapped[int] = mapped_column(
+        BigInteger, Identity(start=1, cycle=False), primary_key=True
+    )
+    short_code: Mapped[str] = mapped_column(String(16), nullable=False, unique=True, index=True)
+    tid: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
+    payin_transactions_ref_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger, ForeignKey("payin_transactions.payin_transactions_ref_id", ondelete="CASCADE"), nullable=True
+    )
+    receipt_token: Mapped[str] = mapped_column(Text, nullable=False)
+    company_ref_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("company.company_ref_id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    user_type_ref_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger, ForeignKey("user_type.user_type_ref_id", ondelete="RESTRICT"), nullable=True
+    )
+    user_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_revoked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    revocation_reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    access_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_accessed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False)
+
 
 

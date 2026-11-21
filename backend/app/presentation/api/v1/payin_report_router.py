@@ -796,6 +796,7 @@ async def get_payin_report_grid(
         t.provider_resp_msg,
         t.failure_reason,
         t.ledger_txn_id,
+        t.receipt_short_code,
         t.initiated_at,
         t.completed_at,
         t.created_at,
@@ -830,15 +831,21 @@ async def get_payin_report_grid(
         updated_dt = d.get("completed_at") or d.get("updated_at")
         updated_iso = updated_dt.isoformat() if updated_dt else None
 
-        receipt_tok = GlobalReceiptSecurity.encrypt_receipt_token({
-            "tid": d.get("tid"),
-            "company_ref_id": d.get("company_ref_id"),
-            "status": (d.get("txn_status") or "SUCCESS").upper(),
-            "orderId": d.get("merchant_ref_id") or d.get("tid"),
-            "utr": d.get("provider_ref_id"),
-            "ts": int(datetime.now(timezone.utc).timestamp())
-        })
-        receipt_subdomain_url = f"{resolve_receipt_base_url(d.get('company_ref_id'), request)}/r/{receipt_tok}"
+        short_code = d.get("receipt_short_code")
+        receipt_base = resolve_receipt_base_url(d.get("company_ref_id"), request)
+        if short_code:
+            receipt_subdomain_url = f"{receipt_base}/r/{short_code}"
+            receipt_tok = short_code
+        else:
+            receipt_tok = GlobalReceiptSecurity.encrypt_receipt_token({
+                "tid": d.get("tid"),
+                "company_ref_id": d.get("company_ref_id"),
+                "status": (d.get("txn_status") or "SUCCESS").upper(),
+                "orderId": d.get("merchant_ref_id") or d.get("tid"),
+                "utr": d.get("provider_ref_id"),
+                "ts": int(datetime.now(timezone.utc).timestamp())
+            })
+            receipt_subdomain_url = f"{receipt_base}/r/{receipt_tok}"
 
         clean_method = PaymentMethodNormalizer.get_clean_method_display(
             card_network=d.get("card_network"),
@@ -891,6 +898,8 @@ async def get_payin_report_grid(
             "date": date_str,
             "time": time_str,
             "date_time": f"{date_str} {time_str}",
+            "short_code": short_code or receipt_tok,
+            "short_url": receipt_subdomain_url,
             "receipt_token": receipt_tok,
             "receipt_url": receipt_subdomain_url,
             "created_at": iso_str,
@@ -992,6 +1001,7 @@ async def get_payin_transaction_details(
         t.idempotency_key,
         t.failure_reason,
         t.ledger_txn_id,
+        t.receipt_short_code,
         t.initiated_at,
         t.completed_at,
         t.created_at,
@@ -1033,15 +1043,21 @@ async def get_payin_transaction_details(
     created_dt = d.get("created_at") or d.get("initiated_at")
     completed_dt = d.get("completed_at") or d.get("updated_at")
 
-    detail_receipt_tok = GlobalReceiptSecurity.encrypt_receipt_token({
-        "tid": d.get("tid"),
-        "company_ref_id": d.get("company_ref_id"),
-        "status": (d.get("txn_status") or "SUCCESS").upper(),
-        "orderId": d.get("merchant_ref_id") or d.get("tid"),
-        "utr": d.get("provider_ref_id"),
-        "ts": int(datetime.now(timezone.utc).timestamp())
-    })
-    detail_receipt_url = f"{resolve_receipt_base_url(d.get('company_ref_id'), request)}/r/{detail_receipt_tok}"
+    short_code = d.get("receipt_short_code")
+    detail_receipt_base = resolve_receipt_base_url(d.get("company_ref_id"), request)
+    if short_code:
+        detail_receipt_url = f"{detail_receipt_base}/r/{short_code}"
+        detail_receipt_tok = short_code
+    else:
+        detail_receipt_tok = GlobalReceiptSecurity.encrypt_receipt_token({
+            "tid": d.get("tid"),
+            "company_ref_id": d.get("company_ref_id"),
+            "status": (d.get("txn_status") or "SUCCESS").upper(),
+            "orderId": d.get("merchant_ref_id") or d.get("tid"),
+            "utr": d.get("provider_ref_id"),
+            "ts": int(datetime.now(timezone.utc).timestamp())
+        })
+        detail_receipt_url = f"{detail_receipt_base}/r/{detail_receipt_tok}"
 
     return {
         "success": True,
@@ -1095,6 +1111,8 @@ async def get_payin_transaction_details(
             "mdr_treatment": d.get("mdr_treatment"),
             "customer_payable_policy": d.get("customer_payable_policy"),
             "date_time": created_dt.astimezone(IST).strftime("%d %b %Y %I:%M %p") if created_dt else "--",
+            "short_code": short_code or detail_receipt_tok,
+            "short_url": detail_receipt_url,
             "receipt_token": detail_receipt_tok,
             "receipt_url": detail_receipt_url,
             "created_at": created_dt.isoformat() if created_dt else None,
@@ -1268,6 +1286,7 @@ async def export_payin_report(
         t.customer_payable,
         t.retailer_credit,
         t.txn_status,
+        t.receipt_short_code,
         t.created_at,
         t.completed_at
     FROM public.payin_transactions t

@@ -367,20 +367,23 @@ class PayInService:
                 adapter = ExistingPayInAdapter()
                 provider_code = "EXISTING"
 
-        # 9. Resolve Verified Dedicated Receipt Base URL & Encrypt Capability Token
+        # 9. Resolve Verified Dedicated Receipt Base URL & Bitly-Style Short URL
         req = auth_context.get("request")
         receipt_base = resolve_receipt_base_url(
             company_ref_id=company_ref_id,
             request=req
         )
-        encrypted_receipt_token = GlobalReceiptSecurity.encrypt_receipt_token({
-            "tid": tid,
-            "company_ref_id": company_ref_id,
-            "status": "PENDING",
-            "orderId": tid,
-            "ts": int(datetime.now(timezone.utc).timestamp())
-        })
-        resolved_return_url = f"{receipt_base}/r/{encrypted_receipt_token}"
+        from app.application.receipt_short_link_service import ReceiptShortLinkService
+        short_code = await ReceiptShortLinkService.generate_or_get_short_code(
+            db=db,
+            tid=tid,
+            company_ref_id=company_ref_id,
+            user_type_ref_id=user_type_ref_id,
+            user_ref_id=user_ref_id,
+            payin_txn_id=payin_txn.payin_transactions_ref_id
+        )
+        payin_txn.receipt_short_code = short_code
+        resolved_return_url = f"{receipt_base}/r/{short_code}"
 
         provider_resp = await adapter.initiate_payin(
             tid=tid,
@@ -810,9 +813,22 @@ class PayInService:
         created_dt = txn.completed_at or txn.created_at
         date_str = created_dt.strftime("%d-%b-%Y %I:%M %p") if created_dt else datetime.now().strftime("%d-%b-%Y %I:%M %p")
 
+        # Resolve short code for WhatsApp and Email notifications
+        from app.application.receipt_short_link_service import ReceiptShortLinkService
+        short_code = getattr(txn, "receipt_short_code", None)
+        if not short_code:
+            short_code = await ReceiptShortLinkService.generate_or_get_short_code(
+                db=db,
+                tid=tid,
+                company_ref_id=txn.company_ref_id,
+                user_type_ref_id=txn.user_type_ref_id,
+                user_ref_id=txn.user_ref_id,
+                payin_txn_id=txn.payin_transactions_ref_id
+            )
+
         results = {}
 
-        # 4. Dispatch WhatsApp
+        # 4. Dispatch WhatsApp with Bitly-style short URL token
         if target_mobile:
             try:
                 wa_res = await whatsapp_service.send_payin_wallet_topup_notification(
@@ -823,7 +839,7 @@ class PayInService:
                     date_time_str=date_str,
                     payment_mode=txn.card_network or "CARD",
                     status="SUCCESS",
-                    receipt_token=tid,
+                    receipt_token=short_code,
                     company_name=company_name,
                     company_context=company_code
                 )
@@ -836,7 +852,7 @@ class PayInService:
             logger.warning("PayIn WhatsApp notification skipped: No mobile number for TID %s", tid)
             results["whatsapp"] = {"status": "SKIPPED", "detail": "No phone number available"}
 
-        # 5. Dispatch Email
+        # 5. Dispatch Email with Bitly-style short URL token
         if target_email:
             try:
                 email_res = await global_notification_platform_client.send_payin_wallet_topup_email(
@@ -848,7 +864,7 @@ class PayInService:
                     payment_mode=txn.card_network or "CARD",
                     payment_date=date_str,
                     status="SUCCESS",
-                    receipt_token=tid,
+                    receipt_token=short_code,
                     company_context=company_code
                 )
                 results["email"] = email_res

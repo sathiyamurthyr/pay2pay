@@ -12,17 +12,20 @@ Supports:
 """
 
 import uuid
+import time
 import logging
+from collections import defaultdict
 from typing import Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import GlobalReceiptSecurity
-from app.core.company_resolver import resolve_receipt_base_url, get_company_preset
+from app.core.company_resolver import resolve_receipt_base_url, get_company_preset, resolve_request_company_ref
 from app.application.gateway_masking_service import GatewayMaskingService
 from app.application.payment_method_normalizer import PaymentMethodNormalizer
+from app.application.receipt_short_link_service import ReceiptShortLinkService, SHORT_CODE_REGEX
 from app.infrastructure.db.payout_workflow_models import (
     PayoutReceiptModel,
     PayoutWorkflowTransactionModel
@@ -33,6 +36,34 @@ from app.infrastructure.db.transaction_engine_models import CentralTransactionMo
 
 logger = logging.getLogger(__name__)
 
+# Sliding-window rate limiter (prevents enumeration and brute-force abuse)
+_RATE_LIMIT_STORE: Dict[str, list] = defaultdict(list)
+_FAILED_ATTEMPT_STORE: Dict[str, list] = defaultdict(list)
+
+def check_public_receipt_rate_limit(client_ip: str) -> None:
+    now = time.time()
+    window = now - 60.0
+    reqs = [t for t in _RATE_LIMIT_STORE[client_ip] if t > window]
+    reqs.append(now)
+    _RATE_LIMIT_STORE[client_ip] = reqs
+    if len(reqs) > 120:  # Max 120 requests per minute
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many receipt requests. Please try again later."
+        )
+
+def record_failed_attempt(client_ip: str) -> None:
+    now = time.time()
+    window = now - 60.0
+    fails = [t for t in _FAILED_ATTEMPT_STORE[client_ip] if t > window]
+    fails.append(now)
+    _FAILED_ATTEMPT_STORE[client_ip] = fails
+    if len(fails) > 20:  # Max 20 failed lookups per minute
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Rate limit exceeded due to multiple invalid receipt lookups. Please try again later."
+        )
+
 router = APIRouter(tags=["Public Digital Receipts"])
 
 
@@ -40,7 +71,8 @@ router = APIRouter(tags=["Public Digital Receipts"])
 @router.get("/receipt/{token}")
 @router.get("/api/v1/public/receipt/{token}")
 async def get_public_receipt(
-    token: str = Path(..., min_length=4, max_length=512, description="Secure high-entropy receipt token, transaction ID, or public UUID"),
+    token: str = Path(..., min_length=4, max_length=512, description="Secure high-entropy receipt token, short code, transaction ID, or public UUID"),
+    request: Request = None,
     db: AsyncSession = Depends(get_db)
 ) -> Dict[str, Any]:
     """
@@ -52,18 +84,43 @@ async def get_public_receipt(
     if not clean_token:
         raise HTTPException(status_code=400, detail="Invalid receipt token.")
 
-    # Attempt AES-256-GCM authenticated payload decryption
-    decrypted_payload = GlobalReceiptSecurity.decrypt_receipt_token(clean_token)
+    # 0. Anti-enumeration sliding-window rate limiting
+    client_ip = "127.0.0.1"
+    if request:
+        client_ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "127.0.0.1")
+    check_public_receipt_rate_limit(client_ip)
+
     decrypted_tid: Optional[str] = None
     expected_company_ref_id: Optional[int] = None
-    if decrypted_payload and isinstance(decrypted_payload, dict):
-        decrypted_tid = (
-            decrypted_payload.get("tid") or
-            decrypted_payload.get("transactionId") or
-            decrypted_payload.get("referenceId") or
-            decrypted_payload.get("orderId")
-        )
-        expected_company_ref_id = decrypted_payload.get("company_ref_id")
+    short_link_meta: Optional[Dict[str, Any]] = None
+
+    # 1. Primary lookup: Bitly-style short capability code (e.g. /r/aB72xK9p)
+    if SHORT_CODE_REGEX.match(clean_token):
+        try:
+            short_link_meta = await ReceiptShortLinkService.resolve_short_code(db=db, short_code=clean_token, request=request)
+            if short_link_meta:
+                decrypted_tid = short_link_meta.get("tid")
+                expected_company_ref_id = short_link_meta.get("company_ref_id")
+        except HTTPException as http_e:
+            record_failed_attempt(client_ip)
+            raise http_e
+        except Exception as ex:
+            logger.debug("[PUBLIC_RECEIPT] Short code lookup notice: %s", ex)
+
+    # 2. Secondary lookup: Attempt AES-256-GCM authenticated payload decryption (backward compatibility)
+    if not decrypted_tid:
+        decrypted_payload = GlobalReceiptSecurity.decrypt_receipt_token(clean_token)
+        if decrypted_payload and isinstance(decrypted_payload, dict):
+            decrypted_tid = (
+                decrypted_payload.get("tid") or
+                decrypted_payload.get("transactionId") or
+                decrypted_payload.get("referenceId") or
+                decrypted_payload.get("orderId")
+            )
+            expected_company_ref_id = decrypted_payload.get("company_ref_id")
+
+    # Authoritative request domain context for tenant isolation
+    domain_comp_ref = resolve_request_company_ref(request) if request else None
 
     u_tok: Optional[uuid.UUID] = None
     try:
@@ -99,6 +156,13 @@ async def get_public_receipt(
                 logger.warning(
                     "[PUBLIC_RECEIPT] Tenant mismatch: token specifies company %s but txn has %s",
                     expected_company_ref_id, payin_txn.company_ref_id
+                )
+                raise HTTPException(status_code=403, detail="Receipt verification failed: tenant mismatch")
+
+            if domain_comp_ref is not None and payin_txn.company_ref_id != domain_comp_ref:
+                logger.warning(
+                    "[PUBLIC_RECEIPT] Domain tenant mismatch: host specifies company %s but txn has %s",
+                    domain_comp_ref, payin_txn.company_ref_id
                 )
                 raise HTTPException(status_code=403, detail="Receipt verification failed: tenant mismatch")
 
@@ -184,8 +248,20 @@ async def get_public_receipt(
 
             clean_sig = str(payin_txn.tid or clean_token).replace("-", "").upper()[-8:]
             gw_code = GatewayMaskingService.get_gateway_code(payin_txn.payin_vendor_ref_id)
-            receipt_base = resolve_receipt_base_url(payin_txn.company_ref_id)
-            receipt_url = f"{receipt_base}/r/{clean_token}"
+            receipt_base = resolve_receipt_base_url(payin_txn.company_ref_id, request)
+            short_code = getattr(payin_txn, "receipt_short_code", None)
+            if not short_code and short_link_meta:
+                short_code = short_link_meta.get("short_code")
+            if not short_code:
+                short_code = await ReceiptShortLinkService.generate_or_get_short_code(
+                    db=db,
+                    tid=payin_txn.tid,
+                    company_ref_id=payin_txn.company_ref_id,
+                    user_type_ref_id=payin_txn.user_type_ref_id,
+                    user_ref_id=payin_txn.user_ref_id,
+                    payin_txn_id=payin_txn.payin_transactions_ref_id
+                )
+            receipt_url = f"{receipt_base}/r/{short_code}"
 
             formatted_mob = f"+91 {ret_mob[-10:]}" if len(ret_mob) >= 10 else ret_mob
 
@@ -210,9 +286,13 @@ async def get_public_receipt(
 
             receipt_result = {
                 "valid": True,
-                "receiptToken": clean_token,
-                "receipt_token": clean_token,
-                "token": clean_token,
+                "short_code": short_code,
+                "shortCode": short_code,
+                "short_url": receipt_url,
+                "shortUrl": receipt_url,
+                "receiptToken": short_code,
+                "receipt_token": short_code,
+                "token": short_code,
                 "companyName": company_name,
                 "company_name": company_name,
                 "companyCode": company_code,
@@ -584,8 +664,9 @@ async def get_public_receipt(
         logger.warning(f"[PUBLIC_RECEIPT] CentralTransactionModel lookup notice: {e}")
 
     # =========================================================================
-    # 5. Anti-Enumeration 404
+    # 5. Anti-Enumeration 404 & Rate Limiting Penalty
     # =========================================================================
+    record_failed_attempt(client_ip)
     raise HTTPException(
         status_code=404,
         detail="Receipt not found. The receipt link may be invalid, expired, or access is restricted."
