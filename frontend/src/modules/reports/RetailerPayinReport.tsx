@@ -474,6 +474,13 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
       const yStr = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, "0")}-${String(y.getDate()).padStart(2, "0")}`;
       setFromDate(yStr);
       setToDate(yStr);
+    } else if (preset === "THIS_MONTH" || preset === "this_month") {
+      const startOfMonth = `${dNow.getFullYear()}-${String(dNow.getMonth() + 1).padStart(2, "0")}-01`;
+      setFromDate(startOfMonth);
+      setToDate(today);
+    } else if (preset === "SEPTEMBER" || preset === "september" || preset === "SEP_2026") {
+      setFromDate("2026-09-01");
+      setToDate("2026-09-30");
     } else if (preset === "7D" || preset === "7_DAYS") {
       const d = new Date();
       d.setDate(d.getDate() - 7);
@@ -2063,6 +2070,8 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
         {[
           { key: "TODAY", label: "Today" },
           { key: "YESTERDAY", label: "Yesterday" },
+          { key: "THIS_MONTH", label: "This Month" },
+          { key: "SEPTEMBER", label: "September 2026" },
           { key: "7D", label: "Last 7 Days" },
           { key: "30D", label: "Last 30 Days" },
           { key: "60D", label: "Last 60 Days" },

@@ -68,6 +68,14 @@ export default function PublicReceiptPage() {
     proofSlipUrl: "",
   });
 
+  // Clean URL query parameters (?referenceId=...&status=...) from address bar so sensitive parameters are never exposed
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.search) {
+      const cleanPath = window.location.pathname;
+      window.history.replaceState({}, "", cleanPath);
+    }
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
     async function fetchReceipt() {

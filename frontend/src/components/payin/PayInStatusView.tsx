@@ -303,6 +303,13 @@ export function PayInStatusView({
     [refParam, statusParam, utrParam, receipt]
   );
 
+  // Clean URL search parameters on mount if standalone receipt view
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.search && isStandalone) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [isStandalone]);
+
   // Initial load
   useEffect(() => {
     fetchReceiptDetails(true);
@@ -310,7 +317,7 @@ export function PayInStatusView({
 
   // Polling for pending status
   useEffect(() => {
-    const currentStatus = (receipt?.status || statusParam).toUpperCase();
+    const currentStatus = (receipt?.status || "PENDING").toUpperCase();
     if (currentStatus === "PENDING" || currentStatus === "PROCESSING" || currentStatus === "INITIATED") {
       if (pollCount < 20) {
         pollTimerRef.current = setTimeout(() => {
@@ -322,13 +329,13 @@ export function PayInStatusView({
     return () => {
       if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
     };
-  }, [receipt?.status, statusParam, pollCount, fetchReceiptDetails]);
+  }, [receipt?.status, pollCount, fetchReceiptDetails]);
 
-  // Determine current active status
+  // Determine current active status strictly from verified backend receipt record
+  // Never trust status query parameter from URL (prevent tampering/spoofing)
   const effectiveStatus = (
     receipt?.status ||
-    statusParam ||
-    "PENDING"
+    (loading ? "VERIFYING" : "PENDING")
   ).toUpperCase();
   const isSuccess = effectiveStatus === "SUCCESS";
   const isFailed = effectiveStatus === "FAILED" || effectiveStatus === "FAILURE";
