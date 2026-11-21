@@ -272,3 +272,52 @@ export async function adjustRetailerWallet(
   );
   return data;
 }
+
+/**
+ * 10. Admin Lock Retailer Terminal
+ */
+export async function lockRetailerTerminal(
+  retailerId: string,
+  reason?: string
+): Promise<ControllerActionResponse & { is_locked: boolean; status: string }> {
+  const { data } = await apiClient.post(
+    `/api/v1/admin/retailer-control/${retailerId}/terminal/lock`,
+    { reason }
+  );
+  return data;
+}
+
+/**
+ * 11. Admin Unlock Retailer Terminal
+ */
+export async function unlockRetailerTerminal(
+  retailerId: string,
+  reason?: string
+): Promise<ControllerActionResponse & { is_locked: boolean; status: string }> {
+  const { data } = await apiClient.post(
+    `/api/v1/admin/retailer-control/${retailerId}/terminal/unlock`,
+    { reason }
+  );
+  return data;
+}
+
+/**
+ * 12. Get Retailer Terminal Lock Status
+ */
+export async function getRetailerTerminalStatus(
+  retailerId: string
+): Promise<{
+  success: boolean;
+  retailer_id: string;
+  retailer_code: string;
+  status: string;
+  is_locked: boolean;
+  mpin_locked: boolean;
+  mpin_locked_at: string | null;
+  mpin_unlocked_at: string | null;
+}> {
+  const { data } = await apiClient.get(
+    `/api/v1/admin/retailer-control/${retailerId}/terminal/status`
+  );
+  return data;
+}

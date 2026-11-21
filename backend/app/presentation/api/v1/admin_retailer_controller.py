@@ -8,9 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, func, or_, and_, desc
 
 from app.core.database import get_db
-from app.infrastructure.db.models import RetailerModel, AdminUserModel
+from app.infrastructure.db.models import RetailerModel, AdminUserModel, UserNotificationAlertModel
 from app.infrastructure.db.registration_models import RegistrationDraftModel
-from app.infrastructure.db.session_security_models import SessionAuditLogModel, RetailerSecuritySettingsModel
+from app.infrastructure.db.session_security_models import (
+    SessionAuditLogModel, RetailerSecuritySettingsModel, UserSecuritySettingsModel
+)
 from app.application.dependencies import get_current_user, get_current_tenant_id
 
 
@@ -83,6 +85,11 @@ class RetailerWalletAdjustRequest(BaseModel):
     amount: float = Field(..., gt=0, description="Adjustment amount in INR")
     reason: str = Field(..., description="Reason for adjustment")
     reference_id: Optional[str] = Field(None, description="External bank / audit ticket reference")
+
+
+class AdminTerminalLockRequest(BaseModel):
+    reason: Optional[str] = Field(None, description="Reason for administrative terminal lock or unlock")
+    notes: Optional[str] = Field(None, description="Internal compliance notes")
 
 
 # ─── 1. LIST RETAILERS WITH ADVANCED CONTROLLER FILTERS ───
@@ -915,5 +922,232 @@ async def update_super_distributor_approval_status(
         "status": sd.status,
         "is_active": sd.is_active
     }
+
+
+# ─── 10. TERMINAL LOCK & UNLOCK CONTROLLER (P0 ENTERPRISE SECURITY) ───
+
+async def _resolve_retailer_for_admin(
+    retailer_id: str,
+    current_admin: AdminUserModel,
+    db: AsyncSession
+) -> RetailerModel:
+    try:
+        u_id = uuid.UUID(retailer_id)
+        stmt = select(RetailerModel).where(RetailerModel.public_id == u_id, RetailerModel.is_deleted == False)
+    except (ValueError, TypeError):
+        stmt = select(RetailerModel).where(RetailerModel.retailer_code == retailer_id, RetailerModel.is_deleted == False)
+
+    r_obj = (await db.execute(stmt)).scalars().first()
+    if not r_obj:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Retailer not found.")
+
+    # Multi-tenant Company Isolation Check
+    admin_user_type = (getattr(current_admin, "user_type", "") or "").upper()
+    admin_company_id = getattr(current_admin, "company_id", None)
+    if admin_company_id and admin_user_type not in ("PLATFORM_ADMIN", "SUPER_ADMIN"):
+        if r_obj.company_id and r_obj.company_id != admin_company_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access Denied: Retailer does not belong to your company tenant."
+            )
+    return r_obj
+
+
+@router.post("/{retailer_id}/terminal/lock", summary="Admin Lock Retailer Terminal")
+async def lock_retailer_terminal_controller(
+    retailer_id: str,
+    req: Optional[AdminTerminalLockRequest] = None,
+    current_admin: AdminUserModel = Depends(require_admin_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Authoritative Administrative Terminal Lock.
+    Immediately sets RetailerModel.status to 'LOCKED', marks mpin_locked = True,
+    locks UserSecuritySettingsModel, generates an audit record, and dispatches a live alert.
+    """
+    r_obj = await _resolve_retailer_for_admin(retailer_id, current_admin, db)
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+
+    # 1. Update Retailer Record
+    r_obj.status = "LOCKED"
+    r_obj.mpin_locked = True
+    r_obj.mpin_locked_at = now_utc
+    r_obj.updated_date = now_utc
+
+    # 2. Update UserSecuritySettings
+    stmt_sec = select(UserSecuritySettingsModel).where(
+        UserSecuritySettingsModel.user_id == r_obj.public_id,
+        UserSecuritySettingsModel.portal == "RETAILER"
+    )
+    sec = (await db.execute(stmt_sec)).scalars().first()
+    if not sec:
+        sec = UserSecuritySettingsModel(
+            public_id=uuid.uuid4(),
+            user_id=r_obj.public_id,
+            tenant_id=r_obj.tenant_id or uuid.UUID("00000000-0000-0000-0000-000000000001"),
+            company_id=r_obj.company_id,
+            portal="RETAILER",
+            security_pin_hash=r_obj.mpin_hash,
+            pin_enabled=bool(r_obj.mpin_hash),
+            failed_attempt_count=0
+        )
+        db.add(sec)
+    sec.locked_until = now_utc + datetime.timedelta(days=365)
+    sec.updated_date = now_utc
+
+    # 3. Add Audit Log
+    admin_id_str = str(getattr(current_admin, "public_id", current_admin.id if hasattr(current_admin, "id") else "ADMIN"))
+    audit = SessionAuditLogModel(
+        public_id=uuid.uuid4(),
+        retailer_id=r_obj.public_id,
+        tenant_id=r_obj.tenant_id or uuid.UUID("00000000-0000-0000-0000-000000000001"),
+        event_type="ADMIN_TERMINAL_LOCK",
+        details={
+            "admin_id": admin_id_str,
+            "admin_name": getattr(current_admin, "full_name", "Admin"),
+            "reason": req.reason if req else "Administrative terminal lock",
+            "notes": req.notes if req else None
+        }
+    )
+    db.add(audit)
+
+    # 4. Dispatch Live Notification Alert to Retailer Terminal
+    notif = UserNotificationAlertModel(
+        public_id=uuid.uuid4(),
+        user_id=r_obj.public_id,
+        tenant_id=r_obj.tenant_id or uuid.UUID("00000000-0000-0000-0000-000000000001"),
+        company_id=r_obj.company_id,
+        notification_type="SECURITY",
+        event_type="TERMINAL_LOCK",
+        event_status="LOCKED",
+        title="Terminal Locked by Admin",
+        message=f"Terminal has been locked by Administrator. Reason: {req.reason if req and req.reason else 'Administrative security compliance'}",
+        status="UNREAD",
+        is_read=False,
+        created_date=now_utc
+    )
+    db.add(notif)
+
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": f"Terminal for retailer {r_obj.retailer_code or retailer_id} successfully locked.",
+        "retailer_id": str(r_obj.public_id),
+        "retailer_code": r_obj.retailer_code,
+        "status": "LOCKED",
+        "is_locked": True,
+        "mpin_locked": True,
+        "locked_at": now_utc.isoformat()
+    }
+
+
+@router.post("/{retailer_id}/terminal/unlock", summary="Admin Unlock Retailer Terminal")
+async def unlock_retailer_terminal_controller(
+    retailer_id: str,
+    req: Optional[AdminTerminalLockRequest] = None,
+    current_admin: AdminUserModel = Depends(require_admin_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Authoritative Administrative Terminal Unlock.
+    Immediately restores RetailerModel.status to 'ACTIVE', resets mpin_locked to False,
+    clears UserSecuritySettingsModel lockout, records audit, and sends unlock alert.
+    """
+    r_obj = await _resolve_retailer_for_admin(retailer_id, current_admin, db)
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+
+    # 1. Update Retailer Record
+    r_obj.status = "ACTIVE"
+    r_obj.is_active = True
+    r_obj.mpin_locked = False
+    r_obj.mpin_locked_at = None
+    r_obj.mpin_unlocked_at = now_utc
+    admin_id_str = str(getattr(current_admin, "public_id", current_admin.id if hasattr(current_admin, "id") else "ADMIN"))
+    r_obj.mpin_unlocked_by = admin_id_str
+    r_obj.mpin_failed_attempts = 0
+    r_obj.updated_date = now_utc
+
+    # 2. Clear UserSecuritySettings Lockout
+    stmt_sec = select(UserSecuritySettingsModel).where(
+        UserSecuritySettingsModel.user_id == r_obj.public_id,
+        UserSecuritySettingsModel.portal == "RETAILER"
+    )
+    sec = (await db.execute(stmt_sec)).scalars().first()
+    if sec:
+        sec.locked_until = None
+        sec.failed_attempt_count = 0
+        sec.updated_date = now_utc
+
+    # 3. Add Audit Log
+    audit = SessionAuditLogModel(
+        public_id=uuid.uuid4(),
+        retailer_id=r_obj.public_id,
+        tenant_id=r_obj.tenant_id or uuid.UUID("00000000-0000-0000-0000-000000000001"),
+        event_type="ADMIN_TERMINAL_UNLOCK",
+        details={
+            "admin_id": admin_id_str,
+            "admin_name": getattr(current_admin, "full_name", "Admin"),
+            "reason": req.reason if req else "Administrative terminal unlock",
+            "notes": req.notes if req else None
+        }
+    )
+    db.add(audit)
+
+    # 4. Dispatch Live Notification Alert to Retailer Terminal
+    notif = UserNotificationAlertModel(
+        public_id=uuid.uuid4(),
+        user_id=r_obj.public_id,
+        tenant_id=r_obj.tenant_id or uuid.UUID("00000000-0000-0000-0000-000000000001"),
+        company_id=r_obj.company_id,
+        notification_type="SECURITY",
+        event_type="TERMINAL_UNLOCK",
+        event_status="UNLOCKED",
+        title="Terminal Unlocked by Admin",
+        message="Terminal has been unlocked by Administrator. All services are restored.",
+        status="UNREAD",
+        is_read=False,
+        created_date=now_utc
+    )
+    db.add(notif)
+
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": f"Terminal for retailer {r_obj.retailer_code or retailer_id} successfully unlocked.",
+        "retailer_id": str(r_obj.public_id),
+        "retailer_code": r_obj.retailer_code,
+        "status": "ACTIVE",
+        "is_locked": False,
+        "mpin_locked": False,
+        "unlocked_at": now_utc.isoformat()
+    }
+
+
+@router.get("/{retailer_id}/terminal/status", summary="Get Retailer Terminal Lock Status")
+async def get_retailer_terminal_status_controller(
+    retailer_id: str,
+    current_admin: AdminUserModel = Depends(require_admin_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Returns authoritative terminal lock status for admin visibility.
+    """
+    r_obj = await _resolve_retailer_for_admin(retailer_id, current_admin, db)
+    is_locked = str(r_obj.status or "").upper() == "LOCKED" or bool(r_obj.mpin_locked)
+
+    return {
+        "success": True,
+        "retailer_id": str(r_obj.public_id),
+        "retailer_code": r_obj.retailer_code,
+        "status": r_obj.status,
+        "is_locked": is_locked,
+        "mpin_locked": bool(r_obj.mpin_locked),
+        "mpin_locked_at": r_obj.mpin_locked_at.isoformat() if r_obj.mpin_locked_at else None,
+        "mpin_unlocked_at": r_obj.mpin_unlocked_at.isoformat() if r_obj.mpin_unlocked_at else None,
+        "mpin_unlocked_by": r_obj.mpin_unlocked_by
+    }
+
 
 

@@ -46,6 +46,9 @@ import {
   revokeRetailerSessions,
   impersonateRetailer,
   adjustRetailerWallet,
+  lockRetailerTerminal,
+  unlockRetailerTerminal,
+  getRetailerTerminalStatus,
   type RetailerOverview,
   type ServiceToggles,
   type RetailerLimits,
@@ -198,6 +201,7 @@ export default function RetailerControllerPage() {
   const [walletRef, setWalletRef] = useState("");
   const [impersonationToken, setImpersonationToken] = useState<string | null>(null);
   const [impersonationUrl, setImpersonationUrl] = useState<string | null>(null);
+  const [terminalLocked, setTerminalLocked] = useState<boolean>(false);
 
   const showToast = (msg: string, type: "success" | "error") => setToast({ msg, type });
 
@@ -208,6 +212,10 @@ export default function RetailerControllerPage() {
       setOverview(res.retailer);
       setServiceToggles(res.retailer.service_toggles);
       setLimits(res.retailer.limits);
+      try {
+        const tStatus = await getRetailerTerminalStatus(retailerId);
+        setTerminalLocked(Boolean(tStatus.is_locked));
+      } catch {}
     } catch {
       showToast("Failed to load retailer overview.", "error");
     } finally {
@@ -291,6 +299,34 @@ export default function RetailerControllerPage() {
       showToast(`${res.revoked_sessions_count} session(s) terminated immediately.`, "success");
     } catch {
       showToast("Failed to revoke sessions.", "error");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleLockTerminal = async () => {
+    setBusy("terminal-lock");
+    try {
+      const res = await lockRetailerTerminal(retailerId, "Administrative lock from controller");
+      setTerminalLocked(true);
+      showToast(res.message || "Retailer terminal locked successfully.", "success");
+      await loadOverview();
+    } catch {
+      showToast("Failed to lock retailer terminal.", "error");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleUnlockTerminal = async () => {
+    setBusy("terminal-unlock");
+    try {
+      const res = await unlockRetailerTerminal(retailerId, "Administrative unlock from controller");
+      setTerminalLocked(false);
+      showToast(res.message || "Retailer terminal unlocked successfully.", "success");
+      await loadOverview();
+    } catch {
+      showToast("Failed to unlock retailer terminal.", "error");
     } finally {
       setBusy(null);
     }
@@ -636,6 +672,48 @@ export default function RetailerControllerPage() {
                 {busy === "revoke" ? <RefreshCw className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
                 Revoke All Sessions
               </button>
+            </div>
+          </div>
+
+          {/* Terminal Lock & Unlock (P0 Enterprise Security Control) */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Terminal Security State</p>
+              <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border ${
+                terminalLocked ? "bg-[#FEF2F2] text-[#991B1B] border-[#FECACA]" : "bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]"
+              }`}>
+                {terminalLocked ? "TERMINAL LOCKED" : "TERMINAL ACTIVE"}
+              </span>
+            </div>
+            <div className={`p-4 rounded-xl border ${terminalLocked ? "bg-[#FFFBEB] border-[#FDE68A]" : "bg-[#F8FAFC] border-[#E2E8F0]"}`}>
+              <p className="text-[12px] font-semibold text-[#475569] mb-3">
+                {terminalLocked
+                  ? "Terminal is currently LOCKED. Retailer transactions and screen access are blocked until unlocked."
+                  : "Locking the terminal immediately freezes the retailer's active workstation session and blocks all financial transactions."}
+              </p>
+              <div className="flex gap-2">
+                {terminalLocked ? (
+                  <button
+                    id="unlock-terminal-btn"
+                    onClick={handleUnlockTerminal}
+                    disabled={busy === "terminal-unlock"}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#16A34A] text-white text-[12px] font-extrabold hover:bg-[#15803D] transition-all cursor-pointer"
+                  >
+                    {busy === "terminal-unlock" ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Unlock className="w-4 h-4" />}
+                    Unlock Retailer Terminal
+                  </button>
+                ) : (
+                  <button
+                    id="lock-terminal-btn"
+                    onClick={handleLockTerminal}
+                    disabled={busy === "terminal-lock"}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#D97706] text-white text-[12px] font-extrabold hover:bg-[#B45309] transition-all cursor-pointer"
+                  >
+                    {busy === "terminal-lock" ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+                    Lock Retailer Terminal
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

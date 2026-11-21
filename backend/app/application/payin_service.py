@@ -233,6 +233,22 @@ class PayInService:
         user_ref_id = int(user_ref_id)
         effective_retailer_ref = user_ref_id if user_type_code == "RETAILER" else None
 
+        # P0 Security: Strict Terminal & Retailer Account Lock Enforcement
+        if effective_retailer_ref:
+            ret_check_stmt = select(RetailerModel).where(
+                RetailerModel.retailer_ref_id == effective_retailer_ref,
+                RetailerModel.company_ref_id == company_ref_id,
+                RetailerModel.is_deleted == False
+            )
+            ret_record = (await db.execute(ret_check_stmt)).scalars().first()
+            if ret_record:
+                ret_status = str(ret_record.status or "").upper()
+                if ret_status in ("LOCKED", "BLOCKED", "SUSPENDED", "INACTIVE", "REJECTED") or getattr(ret_record, "mpin_locked", False):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Access Denied: Terminal or retailer account is locked. Please unlock the terminal before initiating transactions."
+                    )
+
         # 2. Check for duplicate reference ID / Idempotency
         idempotency_key = f"{company_ref_id}:{request_dto.reference_id}"
         stmt_dup = select(PayinTransactionModel).where(
