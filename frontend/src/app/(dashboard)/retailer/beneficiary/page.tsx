@@ -83,6 +83,7 @@ import { DeleteBeneficiaryDialog } from "@/components/payout/delete-beneficiary-
 import { BeneficiaryDataGrid } from "@/modules/transaction-framework/components/Beneficiary/BeneficiaryDataGrid";
 import { useBeneficiary, BeneficiaryData } from "@/modules/transaction-framework/hooks/useBeneficiary";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 // ─── CONSTANTS ──────────────────────────────────────────────────────────────
 
@@ -148,6 +149,7 @@ function playFailureSound() {
 function BeneficiaryWorkspaceContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const branding = useCompanyBranding();
   const { wallet } = useRetailerStore();
   const { selectedCustomer, setSelectedCustomer, setSelectedBeneficiary, referrerUrl } = useTransactionMemoryStore();
 
@@ -641,6 +643,7 @@ function BeneficiaryWorkspaceContent() {
   };
 
   const handleCompleteAndReturn = async () => {
+    localStorage.removeItem(`${branding.app_name || "retailer"}_beneficiary_workspace_draft`);
     localStorage.removeItem("pay2pay_beneficiary_workspace_draft");
     try {
       await retailerApi.invalidateBeneficiarySession();
@@ -726,7 +729,7 @@ function BeneficiaryWorkspaceContent() {
 
   const saveDraft = () => {
     try {
-      localStorage.setItem("pay2pay_beneficiary_workspace_draft", JSON.stringify({
+      localStorage.setItem(`${branding.app_name || "retailer"}_beneficiary_workspace_draft`, JSON.stringify({
         benName, nickName, relationship, accNum, confirmAccNum, bankName, ifscCode, micrCode, activeStep
       }));
       setLastSaved(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
@@ -763,7 +766,7 @@ function BeneficiaryWorkspaceContent() {
               Beneficiaries
             </h1>
             <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 hidden sm:inline-block">
-              Bank-Grade Beneficiary Management
+              {branding.display_name} Beneficiary Management
             </span>
           </div>
         </div>
@@ -813,11 +816,11 @@ function BeneficiaryWorkspaceContent() {
                 <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
                   <Sparkles className="w-4 h-4" />
                 </div>
-                <h2 className="text-lg sm:text-xl font-black tracking-tight bg-gradient-to-r from-amber-200 via-amber-400 to-amber-500 bg-clip-text text-transparent">
+                <h2 className="text-lg sm:text-xl font-black tracking-tight text-slate-900">
                   Beneficiary Registration
                 </h2>
               </div>
-              <p className="text-xs sm:text-sm font-medium text-[#292329]">
+              <p className="text-xs sm:text-sm font-medium text-slate-600">
                 Step {activeStep + 1} of {STEPS.length}: {STEPS[activeStep]?.label} • Verify bank account instantly via Penny Drop.
               </p>
             </div>
@@ -829,10 +832,10 @@ function BeneficiaryWorkspaceContent() {
                   {(activeCustomerName || "C").charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <div className="text-xs font-black text-amber-300 leading-tight">
+                  <div className="text-xs font-black text-slate-900 leading-tight">
                     {activeCustomerName}
                   </div>
-                  <div className="text-[11px] font-mono text-[#625B60]">
+                  <div className="text-[11px] font-mono text-slate-500">
                     {activeCustomerMobile} {activeCustomerId ? `• ${activeCustomerId}` : ""}
                   </div>
                 </div>
@@ -849,12 +852,12 @@ function BeneficiaryWorkspaceContent() {
           className="rounded-[20px] bg-[#FFFFFF]/80 backdrop-blur-2xl border border-amber-500/20 p-4 sm:p-5 shadow-xl"
         >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-black uppercase tracking-wider text-amber-400">
+            <span className="text-[11px] font-black uppercase tracking-wider text-slate-700">
               PROGRESS
             </span>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-[#625B60]">Completion</span>
-              <span className="text-xs font-black bg-gradient-to-r from-amber-300 to-amber-500 bg-clip-text text-transparent">
+              <span className="text-xs font-bold text-slate-500">Completion</span>
+              <span className="text-xs font-black text-emerald-600">
                 {completionPct}%
               </span>
             </div>
@@ -866,7 +869,7 @@ function BeneficiaryWorkspaceContent() {
               initial={{ width: 0 }}
               animate={{ width: `${completionPct}%` }}
               transition={{ duration: 0.4, ease: "easeOut" }}
-              className="h-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.5)] rounded-full"
+              className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-600 shadow-[0_0_12px_rgba(16,185,129,0.3)] rounded-full"
             />
           </div>
 
@@ -880,7 +883,7 @@ function BeneficiaryWorkspaceContent() {
                   key={s.label}
                   className={`flex items-center gap-2.5 p-2.5 rounded-xl border transition-all ${
                     isCurrent
-                      ? "bg-amber-500/10 border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.15)]"
+                      ? "bg-emerald-50 border-emerald-300 shadow-sm"
                       : isDone
                       ? "bg-emerald-500/10 border-emerald-500/30"
                       : "bg-[#FAF8F9]/40 border-[#E8E2E5]/60 opacity-60"
@@ -891,18 +894,18 @@ function BeneficiaryWorkspaceContent() {
                       isDone
                         ? "bg-emerald-500 text-slate-950 shadow-xs"
                         : isCurrent
-                        ? "bg-gradient-to-br from-amber-300 to-amber-500 text-slate-950 shadow-md shadow-amber-500/30"
-                        : "bg-[#F5F2F4] text-[#625B60] border border-[#E8E2E5]"
+                        ? "bg-emerald-600 text-white shadow-md shadow-emerald-500/30"
+                        : "bg-[#F5F2F4] text-slate-500 border border-[#E8E2E5]"
                     }`}
                   >
                     {isDone ? <Check className="w-4 h-4 stroke-[3]" /> : idx + 1}
                   </div>
                   <div className="min-w-0">
-                    <div className={`text-xs font-black truncate ${isCurrent ? "text-amber-300" : isDone ? "text-emerald-300" : "text-[#625B60]"}`}>
+                    <div className={`text-xs font-black truncate ${isCurrent ? "text-emerald-800" : isDone ? "text-emerald-700" : "text-slate-500"}`}>
                       {s.label}
                     </div>
                     {isCurrent && (
-                      <div className="text-[10px] font-bold text-amber-400/80">Est. {s.est}</div>
+                      <div className="text-[10px] font-bold text-emerald-600">Est. {s.est}</div>
                     )}
                   </div>
                 </div>
@@ -923,25 +926,25 @@ function BeneficiaryWorkspaceContent() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.25, delay: 0.1 }}
-                className="rounded-[20px] bg-[#FFFFFF]/80 backdrop-blur-2xl border border-amber-500/20 p-4 sm:p-5 shadow-xl"
+                className="rounded-[20px] bg-[#FFFFFF]/90 backdrop-blur-2xl border border-slate-200 p-4 sm:p-5 shadow-sm"
               >
-                <div className="text-[11px] font-black uppercase tracking-wider text-amber-400 mb-3">
+                <div className="text-[11px] font-black uppercase tracking-wider text-slate-500 mb-3">
                   CUSTOMER
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 via-yellow-400 to-amber-600 p-[2px] shrink-0 shadow-lg shadow-amber-500/20">
-                    <div className="w-full h-full rounded-full bg-[#FFFFFF] flex items-center justify-center font-black text-base text-amber-300">
+                  <div className="w-12 h-12 rounded-full bg-emerald-100 border border-emerald-300 p-[2px] shrink-0 shadow-sm">
+                    <div className="w-full h-full rounded-full bg-emerald-600 flex items-center justify-center font-black text-base text-white">
                       {(activeCustomerName || "S").charAt(0).toUpperCase()}
                     </div>
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-sm sm:text-base font-black truncate bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 bg-clip-text text-transparent">
+                    <h3 className="text-sm sm:text-base font-black truncate text-slate-900">
                       {activeCustomerName}
                     </h3>
-                    <div className="text-xs font-mono font-bold text-[#292329]">
+                    <div className="text-xs font-mono font-bold text-slate-700">
                       {activeCustomerMobile}
                     </div>
-                    <div className="text-[11px] font-mono text-amber-400/80">
+                    <div className="text-[11px] font-mono text-slate-500">
                       {activeCustomerId}
                     </div>
                   </div>
@@ -953,25 +956,25 @@ function BeneficiaryWorkspaceContent() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.25, delay: 0.15 }}
-                className="rounded-[20px] bg-[#FFFFFF]/80 backdrop-blur-2xl border border-amber-500/20 p-4 sm:p-5 shadow-xl"
+                className="rounded-[20px] bg-[#FFFFFF]/90 backdrop-blur-2xl border border-slate-200 p-4 sm:p-5 shadow-sm"
               >
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <div>
-                    <div className="text-[11px] font-black uppercase tracking-wider text-amber-400">
+                    <div className="text-[11px] font-black uppercase tracking-wider text-slate-500">
                       REGISTERED BENEFICIARIES
                     </div>
-                    <div className="text-lg sm:text-xl font-black text-white mt-0.5">
-                      {beneficiaries.length || 16} Active Accounts
+                    <div className="text-lg sm:text-xl font-black text-slate-900 mt-0.5">
+                      {beneficiaries.length} Active Accounts
                     </div>
                   </div>
                   
-                  {/* MANAGE / DELETE Glass Button */}
+                  {/* MANAGE / DELETE Button */}
                   <button
                     type="button"
                     onClick={() => setSavedBenModalOpen(true)}
-                    className="min-h-[44px] px-3.5 py-2 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-black text-xs flex items-center gap-1.5 transition-all shadow-[0_0_12px_rgba(245,158,11,0.15)] cursor-pointer shrink-0"
+                    className="min-h-[40px] px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer shrink-0"
                   >
-                    <ListIcon sx={{ fontSize: 18 }} className="text-amber-400" />
+                    <ListIcon sx={{ fontSize: 18 }} className="text-slate-600" />
                     <span>MANAGE / DELETE</span>
                   </button>
                 </div>
@@ -982,24 +985,24 @@ function BeneficiaryWorkspaceContent() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.25, delay: 0.2 }}
-                className="rounded-[20px] bg-[#FFFFFF]/80 backdrop-blur-2xl border border-amber-500/20 p-4 sm:p-5 shadow-xl"
+                className="rounded-[20px] bg-[#FFFFFF]/90 backdrop-blur-2xl border border-slate-200 p-4 sm:p-5 shadow-sm"
               >
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-1.5">
-                    <Wallet className="w-4 h-4 text-amber-400" />
-                    <span className="text-[11px] font-black uppercase tracking-wider text-amber-400">
+                    <Wallet className="w-4 h-4 text-emerald-600" />
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">
                       RETAILER WALLET
                     </span>
                   </div>
-                  <div className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-black text-[10px] flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <div className="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-black text-[10px] flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     Active
                   </div>
                 </div>
-                <div className="text-2xl sm:text-3xl font-black bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 bg-clip-text text-transparent my-1">
+                <div className="text-2xl sm:text-3xl font-black text-emerald-600 my-1">
                   ₹{walletBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </div>
-                <div className="text-xs font-bold text-[#625B60]">
+                <div className="text-xs font-bold text-slate-500">
                   Available Balance
                 </div>
               </motion.div>
@@ -1046,16 +1049,16 @@ function BeneficiaryWorkspaceContent() {
                   <form onSubmit={handleStep1Submit} className="space-y-4">
 
                     {/* ── BENEFICIARY DETAILS CARD ── */}
-                    <div className="rounded-[20px] bg-[#FFFFFF]/80 backdrop-blur-2xl border border-amber-500/20 p-5 sm:p-6 shadow-xl space-y-4">
-                      <div className="flex items-center gap-2.5 pb-2 border-b border-[#E8E2E5]">
-                        <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300">
+                    <div className="rounded-[20px] bg-[#FFFFFF] border border-slate-200 p-5 sm:p-6 shadow-sm space-y-4">
+                      <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
                           <PersonIcon sx={{ fontSize: 18 }} />
                         </div>
                         <div>
-                          <h3 className="text-sm sm:text-base font-black text-white">
+                          <h3 className="text-sm sm:text-base font-black text-slate-900">
                             Beneficiary Details
                           </h3>
-                          <p className="text-xs text-[#625B60] font-medium">
+                          <p className="text-xs text-slate-500 font-medium">
                             Name will be replaced with official bank registered name after verification
                           </p>
                         </div>
@@ -1070,9 +1073,9 @@ function BeneficiaryWorkspaceContent() {
                             required
                             helperText="As per sender's knowledge"
                             sx={{
-                              "& .MuiInputBase-root": { bgcolor: "#FFFFFF", color: "#FFFFFF", borderRadius: 2.5, border: "1px solid #1E293B" },
-                              "& .MuiInputLabel-root": { color: "#625B60" },
-                              "& .MuiFormHelperText-root": { color: "#625B60" },
+                              "& .MuiInputBase-root": { bgcolor: "#FFFFFF", color: "#0F172A", borderRadius: 2, border: "1px solid #CBD5E1" },
+                              "& .MuiInputLabel-root": { color: "#64748B" },
+                              "& .MuiFormHelperText-root": { color: "#64748B" },
                             }}
                           />
                         </div>
@@ -1084,18 +1087,18 @@ function BeneficiaryWorkspaceContent() {
                             onChange={e => setNickName(e.target.value)}
                             helperText="e.g. Mom's SBI Account"
                             sx={{
-                              "& .MuiInputBase-root": { bgcolor: "#FFFFFF", color: "#FFFFFF", borderRadius: 2.5, border: "1px solid #1E293B" },
-                              "& .MuiInputLabel-root": { color: "#625B60" },
-                              "& .MuiFormHelperText-root": { color: "#625B60" },
+                              "& .MuiInputBase-root": { bgcolor: "#FFFFFF", color: "#0F172A", borderRadius: 2, border: "1px solid #CBD5E1" },
+                              "& .MuiInputLabel-root": { color: "#64748B" },
+                              "& .MuiFormHelperText-root": { color: "#64748B" },
                             }}
                           />
                         </div>
 
                         <div className="sm:col-span-2">
                           <FormControl fullWidth size="small" sx={{
-                            "& .MuiInputBase-root": { bgcolor: "#FFFFFF", color: "#FFFFFF", borderRadius: 2.5, border: "1px solid #1E293B" },
-                            "& .MuiInputLabel-root": { color: "#625B60" },
-                            "& .MuiSvgIcon-root": { color: "#A20A3A" },
+                            "& .MuiInputBase-root": { bgcolor: "#FFFFFF", color: "#0F172A", borderRadius: 2, border: "1px solid #CBD5E1" },
+                            "& .MuiInputLabel-root": { color: "#64748B" },
+                            "& .MuiSvgIcon-root": { color: "#64748B" },
                           }}>
                             <InputLabel id="rel-label">Relationship *</InputLabel>
                             <Select
@@ -1107,13 +1110,13 @@ function BeneficiaryWorkspaceContent() {
                               MenuProps={{
                                 slotProps: {
                                   paper: {
-                                    style: { backgroundColor: "#FFFFFF", color: "#FFFFFF", border: "1px solid #334155" }
+                                    style: { backgroundColor: "#FFFFFF", color: "#0F172A", border: "1px solid #CBD5E1" }
                                   }
                                 }
                               }}
                             >
                               {RELATIONSHIP_OPTIONS.map(r => (
-                                <MenuItem key={r} value={r} sx={{ "&:hover": { bgcolor: "#1E293B" } }}>
+                                <MenuItem key={r} value={r} sx={{ color: "#0F172A", "&:hover": { bgcolor: "#F1F5F9" } }}>
                                   {r}
                                 </MenuItem>
                               ))}
@@ -1124,16 +1127,16 @@ function BeneficiaryWorkspaceContent() {
                     </div>
 
                     {/* ── ACCOUNT DETAILS CARD ── */}
-                    <div className="rounded-[20px] bg-[#FFFFFF]/80 backdrop-blur-2xl border border-amber-500/20 p-5 sm:p-6 shadow-xl space-y-4">
-                      <div className="flex items-center gap-2.5 pb-2 border-b border-[#E8E2E5]">
-                        <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300">
+                    <div className="rounded-[20px] bg-[#FFFFFF] border border-slate-200 p-5 sm:p-6 shadow-sm space-y-4">
+                      <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
                           <AccountBalanceIcon sx={{ fontSize: 18 }} />
                         </div>
                         <div>
-                          <h3 className="text-sm sm:text-base font-black text-white">
+                          <h3 className="text-sm sm:text-base font-black text-slate-900">
                             Account Details
                           </h3>
-                          <p className="text-xs text-[#625B60] font-medium">
+                          <p className="text-xs text-slate-500 font-medium">
                             Enter and confirm bank account number precisely
                           </p>
                         </div>
@@ -1160,20 +1163,20 @@ function BeneficiaryWorkspaceContent() {
                                 : `${accNum.length} / 18 digits ✓ Valid length`
                             }
                             sx={{
-                              "& .MuiInputBase-root": { bgcolor: "#FFFFFF", color: "#FFFFFF", borderRadius: 2.5, border: "1px solid #1E293B" },
-                              "& .MuiInputLabel-root": { color: "#625B60" },
+                              "& .MuiInputBase-root": { bgcolor: "#FFFFFF", color: "#0F172A", borderRadius: 2, border: "1px solid #CBD5E1" },
+                              "& .MuiInputLabel-root": { color: "#64748B" },
                               "& .MuiFormHelperText-root": {
-                                color: accNum.length >= 9 ? "#FACC15" : "#64748B",
+                                color: accNum.length >= 9 ? "#059669" : "#64748B",
                                 fontWeight: accNum.length >= 9 ? 700 : 400
                               },
                             }}
                           />
                           <div className={`absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md text-[11px] font-black border pointer-events-none ${
                             accNum.length === 0
-                              ? "bg-[#FAF8F9] text-[#8A8288] border-[#E8E2E5]"
+                              ? "bg-slate-100 text-slate-500 border-slate-200"
                               : accNum.length < 9
-                              ? "bg-amber-500/20 text-amber-400 border-amber-500/40"
-                              : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : "bg-emerald-50 text-emerald-700 border-emerald-200"
                           }`}>
                             {accNum.length}<span className="opacity-60">/18</span>
                           </div>
@@ -1210,13 +1213,13 @@ function BeneficiaryWorkspaceContent() {
                                 : `${confirmAccNum.length} / 18 — does not match`
                             }
                             sx={{
-                              "& .MuiInputBase-root": { bgcolor: "#FFFFFF", color: "#FFFFFF", borderRadius: 2.5, border: "1px solid #1E293B" },
-                              "& .MuiInputLabel-root": { color: "#625B60" },
+                              "& .MuiInputBase-root": { bgcolor: "#FFFFFF", color: "#0F172A", borderRadius: 2, border: "1px solid #CBD5E1" },
+                              "& .MuiInputLabel-root": { color: "#64748B" },
                               "& .MuiFormHelperText-root": {
                                 color: duplicateError
-                                  ? "#F87171"
+                                  ? "#DC2626"
                                   : confirmAccNum === accNum && confirmAccNum.length >= 9
-                                  ? "#FACC15"
+                                  ? "#059669"
                                   : "#64748B",
                                 fontWeight: confirmAccNum === accNum && confirmAccNum.length >= 9 ? 700 : 400
                               },
@@ -1224,10 +1227,10 @@ function BeneficiaryWorkspaceContent() {
                           />
                           <div className={`absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md text-[11px] font-black border pointer-events-none ${
                             confirmAccNum.length === 0
-                              ? "bg-[#FAF8F9] text-[#8A8288] border-[#E8E2E5]"
+                              ? "bg-slate-100 text-slate-500 border-slate-200"
                               : confirmAccNum === accNum && !duplicateError
-                              ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
-                              : "bg-rose-500/20 text-rose-400 border-rose-500/40"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : "bg-rose-50 text-rose-700 border-rose-200"
                           }`}>
                             {confirmAccNum.length}<span className="opacity-60">/18</span>
                           </div>
@@ -1260,16 +1263,16 @@ function BeneficiaryWorkspaceContent() {
                     </div>
 
                     {/* ── BANK SELECTION CARD ── */}
-                    <div className="rounded-[20px] bg-[#FFFFFF]/80 backdrop-blur-2xl border border-amber-500/20 p-5 sm:p-6 shadow-xl space-y-4">
-                      <div className="flex items-center gap-2.5 pb-2 border-b border-[#E8E2E5]">
-                        <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300">
+                    <div className="rounded-[20px] bg-[#FFFFFF] border border-slate-200 p-5 sm:p-6 shadow-sm space-y-4">
+                      <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
                           <BusinessIcon sx={{ fontSize: 18 }} />
                         </div>
                         <div>
-                          <h3 className="text-sm sm:text-base font-black text-white">
+                          <h3 className="text-sm sm:text-base font-black text-slate-900">
                             Bank Selection
                           </h3>
-                          <p className="text-xs text-[#625B60] font-medium">
+                          <p className="text-xs text-slate-500 font-medium">
                             Search and select beneficiary bank
                           </p>
                         </div>
@@ -1278,9 +1281,9 @@ function BeneficiaryWorkspaceContent() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                         <div className={selectedBankObj ? "sm:col-span-1" : "sm:col-span-2"}>
                           <FormControl fullWidth size="small" sx={{
-                            "& .MuiInputBase-root": { bgcolor: "#FFFFFF", color: "#FFFFFF", borderRadius: 2.5, border: "1px solid #1E293B" },
-                            "& .MuiInputLabel-root": { color: "#625B60" },
-                            "& .MuiSvgIcon-root": { color: "#A20A3A" },
+                            "& .MuiInputBase-root": { bgcolor: "#FFFFFF", color: "#0F172A", borderRadius: 2, border: "1px solid #CBD5E1" },
+                            "& .MuiInputLabel-root": { color: "#64748B" },
+                            "& .MuiSvgIcon-root": { color: "#64748B" },
                           }}>
                             <InputLabel id="bank-select-label">Select Bank *</InputLabel>
                             <Select
@@ -1301,8 +1304,8 @@ function BeneficiaryWorkspaceContent() {
                                     style: {
                                       maxHeight: 350,
                                       backgroundColor: "#FFFFFF",
-                                      color: "#FFFFFF",
-                                      border: "1px solid #334155",
+                                      color: "#0F172A",
+                                      border: "1px solid #CBD5E1",
                                     },
                                   },
                                 },
@@ -1319,13 +1322,13 @@ function BeneficiaryWorkspaceContent() {
                                   onClick={(e) => e.stopPropagation()}
                                   onKeyDown={(e) => e.stopPropagation()}
                                   sx={{
-                                    "& .MuiInputBase-root": { bgcolor: "#1E293B", color: "#FFFFFF", borderRadius: 2 },
+                                    "& .MuiInputBase-root": { bgcolor: "#F8FAFC", color: "#0F172A", borderRadius: 2, border: "1px solid #CBD5E1" },
                                   }}
                                   slotProps={{
                                     input: {
                                       startAdornment: (
                                         <InputAdornment position="start">
-                                          <SearchIcon fontSize="small" sx={{ color: "#A20A3A" }} />
+                                          <SearchIcon fontSize="small" sx={{ color: "#64748B" }} />
                                         </InputAdornment>
                                       ),
                                     },
@@ -1333,7 +1336,7 @@ function BeneficiaryWorkspaceContent() {
                                 />
                               </ListSubheader>
 
-                              <MenuItem value="" sx={{ color: "#625B60" }}>
+                              <MenuItem value="" sx={{ color: "#64748B" }}>
                                 <em>-- Select Bank --</em>
                               </MenuItem>
                               {filteredBankOptions.map((p: any, idx: number) => (
@@ -1341,9 +1344,9 @@ function BeneficiaryWorkspaceContent() {
                                   key={p.bank_id || p.bank_code || p.bank_name || idx}
                                   value={p.bank_name}
                                   sx={{
-                                    color: "#FFFFFF",
-                                    "&:hover": { bgcolor: "#1E293B" },
-                                    "&.Mui-selected": { bgcolor: "rgba(245, 158, 11, 0.2)", color: "#FDE68A" },
+                                    color: "#0F172A",
+                                    "&:hover": { bgcolor: "#F1F5F9" },
+                                    "&.Mui-selected": { bgcolor: "#E2E8F0", color: "#0F172A" },
                                   }}
                                 >
                                   {p.bank_name} {p.short_name ? `(${p.short_name})` : ""}
@@ -1365,7 +1368,7 @@ function BeneficiaryWorkspaceContent() {
                                   readOnly: true,
                                   startAdornment: (
                                     <InputAdornment position="start">
-                                      <LockIcon fontSize="small" sx={{ color: "#A20A3A" }} />
+                                      <LockIcon fontSize="small" sx={{ color: "#64748B" }} />
                                     </InputAdornment>
                                   ),
                                   endAdornment: (
@@ -1373,7 +1376,7 @@ function BeneficiaryWorkspaceContent() {
                                       <Chip
                                         label="Auto-bound"
                                         size="small"
-                                        sx={{ height: 20, fontSize: "10px", bgcolor: "rgba(245, 158, 11, 0.2)", color: "#FDE68A", fontWeight: 800 }}
+                                        sx={{ height: 20, fontSize: "10px", bgcolor: "#ECFDF5", color: "#047857", fontWeight: 800, border: "1px solid #A7F3D0" }}
                                       />
                                     </InputAdornment>
                                   ),
@@ -1381,10 +1384,10 @@ function BeneficiaryWorkspaceContent() {
                               }}
                               helperText="Auto-assigned from Bank Master"
                               sx={{
-                                "& .MuiInputBase-root": { bgcolor: "#FFFFFF", borderRadius: 2.5, border: "1px solid #1E293B" },
-                                "& .MuiInputBase-input": { fontWeight: 800, color: "#FDE68A", cursor: "not-allowed" },
-                                "& .MuiInputLabel-root": { color: "#625B60" },
-                                "& .MuiFormHelperText-root": { color: "#625B60" },
+                                "& .MuiInputBase-root": { bgcolor: "#F8FAFC", borderRadius: 2, border: "1px solid #CBD5E1" },
+                                "& .MuiInputBase-input": { fontWeight: 800, color: "#0F172A", cursor: "not-allowed" },
+                                "& .MuiInputLabel-root": { color: "#64748B" },
+                                "& .MuiFormHelperText-root": { color: "#64748B" },
                               }}
                             />
                           </div>
@@ -1447,8 +1450,8 @@ function BeneficiaryWorkspaceContent() {
                   </div>
 
                   {/* Summary Grid */}
-                  <div className="rounded-[20px] bg-[#FFFFFF]/80 backdrop-blur-2xl border border-amber-500/20 p-5 sm:p-6 shadow-xl space-y-4">
-                    <div className="text-sm font-black text-white pb-2 border-b border-[#E8E2E5]">
+                  <div className="rounded-[20px] bg-[#FFFFFF] border border-slate-200 p-5 sm:p-6 shadow-sm space-y-4">
+                    <div className="text-sm font-black text-slate-900 pb-2 border-b border-slate-100">
                       Verification Summary
                     </div>
 
@@ -1465,9 +1468,9 @@ function BeneficiaryWorkspaceContent() {
                         { label: "Wallet Debit", value: `₹${createdBeneficiary.total_debited?.toFixed(2) || "3.54"}` },
                         { label: "Wallet Balance After", value: `₹${createdBeneficiary.wallet_balance_after?.toLocaleString("en-IN", { minimumFractionDigits: 2 }) || "—"}` },
                       ].map(({ label, value, highlight, mono }) => (
-                        <div key={label} className="p-2.5 rounded-xl bg-[#FAF8F9]/60 border border-[#E8E2E5]">
-                          <div className="text-[10px] font-bold text-[#625B60] uppercase tracking-wider mb-0.5">{label}</div>
-                          <div className={`text-xs font-black truncate ${highlight ? "text-amber-300 font-black text-sm" : "text-white"} ${mono ? "font-mono" : ""}`}>
+                        <div key={label} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">{label}</div>
+                          <div className={`text-xs font-black truncate ${highlight ? "text-emerald-700 font-black text-sm" : "text-slate-900"} ${mono ? "font-mono" : ""}`}>
                             {value || "—"}
                           </div>
                         </div>
@@ -1479,7 +1482,7 @@ function BeneficiaryWorkspaceContent() {
                       <button
                         type="button"
                         onClick={handleAddAnotherBeneficiary}
-                        className="py-3.5 px-4 rounded-xl bg-[#FAF8F9]/80 hover:bg-[#F5F2F4] border border-amber-500/30 text-amber-300 font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all"
+                        className="py-3.5 px-4 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all shadow-xs"
                       >
                         <PersonAddIcon sx={{ fontSize: 18 }} />
                         <span>+ Add Another Beneficiary</span>
@@ -1488,7 +1491,7 @@ function BeneficiaryWorkspaceContent() {
                       <button
                         type="button"
                         onClick={handleCompleteAndReturn}
-                        className="py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-yellow-300 hover:to-amber-500 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-amber-500/25 flex items-center justify-center gap-1.5 transition-all"
+                        className="py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm shadow-md shadow-emerald-600/20 flex items-center justify-center gap-1.5 transition-all"
                       >
                         <span>Transfer Funds Now (Go to DMT) →</span>
                       </button>
@@ -1502,25 +1505,25 @@ function BeneficiaryWorkspaceContent() {
         </Grid>
 
         {/* ── 8. REGISTERED BENEFICIARIES DIRECTORY TABLE ── */}
-        <div className="rounded-[24px] bg-[#FFFFFF]/80 backdrop-blur-2xl border border-amber-500/20 p-5 sm:p-6 shadow-2xl space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#E8E2E5]">
+        <div className="rounded-[24px] bg-[#FFFFFF] border border-slate-200 p-5 sm:p-6 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300">
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
                 <TableChartIcon sx={{ fontSize: 20 }} />
               </div>
               <div>
-                <h3 className="text-base font-black text-white">
+                <h3 className="text-base font-black text-slate-900">
                   Registered Beneficiaries Directory
                 </h3>
-                <p className="text-xs text-[#625B60]">
-                  Linked accounts for <span className="text-amber-300 font-bold">{activeCustomerName}</span>
+                <p className="text-xs text-slate-500">
+                  Linked accounts for <span className="text-slate-800 font-bold">{activeCustomerName}</span>
                 </p>
               </div>
             </div>
 
             <button
               onClick={() => setSavedBenModalOpen(true)}
-              className="min-h-[38px] px-3.5 py-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-black text-xs flex items-center gap-1.5 self-start sm:self-auto transition-all"
+              className="min-h-[38px] px-3.5 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center gap-1.5 self-start sm:self-auto transition-all shadow-xs"
             >
               <ListIcon sx={{ fontSize: 16 }} />
               <span>Manage / Delete</span>
@@ -1529,45 +1532,45 @@ function BeneficiaryWorkspaceContent() {
 
           {beneficiaries.length === 0 ? (
             <div className="py-8 text-center space-y-2">
-              <AccountBalanceIcon sx={{ fontSize: 40, color: "#625B60" }} />
-              <div className="text-xs font-bold text-[#625B60]">
+              <AccountBalanceIcon sx={{ fontSize: 40, color: "#94A3B8" }} />
+              <div className="text-xs font-bold text-slate-500">
                 No Beneficiaries Registered Yet
               </div>
             </div>
           ) : (
-            <TableContainer sx={{ borderRadius: 3, border: "1px solid #1E293B", overflowX: "auto" }}>
+            <TableContainer sx={{ borderRadius: 2, border: "1px solid #E2E8F0", overflowX: "auto" }}>
               <Table size="small">
-                <TableHead sx={{ bgcolor: "#FFFFFF" }}>
+                <TableHead sx={{ bgcolor: "#F8FAFC" }}>
                   <TableRow>
-                    <TableCell sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", borderBottom: "1px solid #334155" }}>BENEFICIARY</TableCell>
-                    <TableCell sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", borderBottom: "1px solid #334155" }}>BANK</TableCell>
-                    <TableCell sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", borderBottom: "1px solid #334155" }}>ACCOUNT</TableCell>
-                    <TableCell sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", borderBottom: "1px solid #334155" }}>IFSC</TableCell>
-                    <TableCell sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", borderBottom: "1px solid #334155" }}>STATUS</TableCell>
-                    <TableCell align="right" sx={{ color: "#A20A3A", fontWeight: 800, fontSize: "11px", borderBottom: "1px solid #334155" }}>ACTION</TableCell>
+                    <TableCell sx={{ color: "#475569", fontWeight: 800, fontSize: "11px", borderBottom: "1px solid #E2E8F0" }}>BENEFICIARY</TableCell>
+                    <TableCell sx={{ color: "#475569", fontWeight: 800, fontSize: "11px", borderBottom: "1px solid #E2E8F0" }}>BANK</TableCell>
+                    <TableCell sx={{ color: "#475569", fontWeight: 800, fontSize: "11px", borderBottom: "1px solid #E2E8F0" }}>ACCOUNT</TableCell>
+                    <TableCell sx={{ color: "#475569", fontWeight: 800, fontSize: "11px", borderBottom: "1px solid #E2E8F0" }}>IFSC</TableCell>
+                    <TableCell sx={{ color: "#475569", fontWeight: 800, fontSize: "11px", borderBottom: "1px solid #E2E8F0" }}>STATUS</TableCell>
+                    <TableCell align="right" sx={{ color: "#475569", fontWeight: 800, fontSize: "11px", borderBottom: "1px solid #E2E8F0" }}>ACTION</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {beneficiaries.map((b, idx) => (
-                    <TableRow key={b.id || idx} hover sx={{ "& td": { borderBottom: "1px solid #1E293B" } }}>
+                    <TableRow key={b.id || idx} hover sx={{ "& td": { borderBottom: "1px solid #F1F5F9" } }}>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-amber-500/20 text-amber-300 font-black text-xs flex items-center justify-center">
+                          <div className="w-7 h-7 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-black text-xs flex items-center justify-center">
                             {(b.name || "B").charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <div className="text-xs font-bold text-white">{b.name}</div>
-                            <div className="text-[10px] text-[#625B60]">{b.relationship || "Beneficiary"}</div>
+                            <div className="text-xs font-bold text-slate-900">{b.name}</div>
+                            <div className="text-[10px] text-slate-500">{b.relationship || "Beneficiary"}</div>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell sx={{ color: "#625B60", fontSize: "12px", fontWeight: 600 }}>{b.bankName || "Bank"}</TableCell>
-                      <TableCell sx={{ color: "#FDE68A", fontSize: "12px", fontFamily: "monospace", fontWeight: 700 }}>
+                      <TableCell sx={{ color: "#475569", fontSize: "12px", fontWeight: 600 }}>{b.bankName || "Bank"}</TableCell>
+                      <TableCell sx={{ color: "#0F172A", fontSize: "12px", fontFamily: "monospace", fontWeight: 700 }}>
                         {b.accountNumber || b.maskedAccountNumber}
                       </TableCell>
-                      <TableCell sx={{ color: "#625B60", fontSize: "12px", fontFamily: "monospace" }}>{b.ifsc || "—"}</TableCell>
+                      <TableCell sx={{ color: "#64748B", fontSize: "12px", fontFamily: "monospace" }}>{b.ifsc || "—"}</TableCell>
                       <TableCell>
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold text-[10px]">
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-[10px]">
                           VERIFIED
                         </span>
                       </TableCell>
@@ -1578,7 +1581,7 @@ function BeneficiaryWorkspaceContent() {
                               setSelectedBeneficiary(b);
                               router.push(`/retailer/dmt/transfer?customerId=${encodeURIComponent(rawId)}&beneficiaryId=${encodeURIComponent(b.id)}`);
                             }}
-                            className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-black text-[11px] border border-amber-500/40 transition-all"
+                            className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-[11px] border border-emerald-200 transition-all shadow-xs"
                           >
                             Transfer
                           </button>
@@ -1587,7 +1590,7 @@ function BeneficiaryWorkspaceContent() {
                               setTargetDeleteBen(b);
                               setDeleteDialogOpen(true);
                             }}
-                            className="p-1 rounded-lg text-[#8A8288] hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                            className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
                           >
                             <DeleteIcon sx={{ fontSize: 16 }} />
                           </button>
@@ -1616,37 +1619,36 @@ function BeneficiaryWorkspaceContent() {
         slotProps={{
           paper: {
             sx: {
-              borderRadius: 5,
+              borderRadius: 4,
               p: 0,
               bgcolor: "#FFFFFF",
-              backdropFilter: "blur(24px)",
-              color: "#FFFFFF",
-              border: "1px solid rgba(245, 158, 11, 0.35)",
-              boxShadow: "0 25px 70px rgba(41, 35, 41, 0.08)",
+              color: "#0F172A",
+              border: "1px solid #CBD5E1",
+              boxShadow: "0 20px 40px rgba(0, 0, 0, 0.1)",
             },
           },
         }}
       >
-        <div className="h-1.5 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500" />
-        <DialogTitle sx={{ fontWeight: 900, color: "#FFFFFF", pt: 2.5, px: 3 }}>
+        <div className="h-1.5 bg-emerald-600" />
+        <DialogTitle sx={{ fontWeight: 900, color: "#0F172A", pt: 2.5, px: 3 }}>
           Confirm Penny Drop Verification
         </DialogTitle>
         <DialogContent sx={{ px: 3, pb: 2 }}>
-          <p className="text-xs text-[#292329] mb-3">
-            A ₹1 penny drop will be sent to verify this account. Verification fee of <strong className="text-amber-300">₹{verificationCharge?.total?.toFixed(2) || "3.54"}</strong> will be debited.
+          <p className="text-xs text-slate-600 mb-3">
+            A ₹1 penny drop will be sent to verify this account. Verification fee of <strong className="text-emerald-700">₹{verificationCharge?.total?.toFixed(2) || "3.54"}</strong> will be debited.
           </p>
-          <div className="p-3 rounded-xl bg-[#FAF8F9]/80 border border-amber-500/30 space-y-1 text-xs">
-            <div className="font-black text-amber-300">{benName}</div>
-            <div className="text-[#625B60]">{bankName} • ••••{accNum.slice(-4)} • {ifscCode}</div>
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1 text-xs">
+            <div className="font-black text-slate-900">{benName}</div>
+            <div className="text-slate-600">{bankName} • ••••{accNum.slice(-4)} • {ifscCode}</div>
           </div>
         </DialogContent>
         <DialogActions sx={{ p: 2.5, px: 3, justifyContent: "space-between" }}>
-          <Button onClick={() => setConfirmModalOpen(false)} sx={{ color: "#625B60", fontWeight: 700 }}>
+          <Button onClick={() => setConfirmModalOpen(false)} sx={{ color: "#64748B", fontWeight: 700 }}>
             Cancel
           </Button>
           <button
             onClick={handleRunPennyDrop}
-            className="py-2 px-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-500 text-slate-950 font-black text-xs shadow-md shadow-amber-500/25 cursor-pointer"
+            className="py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md shadow-emerald-600/20 cursor-pointer"
           >
             Confirm & Debit ₹{verificationCharge?.total?.toFixed(2) || "3.54"} →
           </button>
@@ -1664,17 +1666,17 @@ function BeneficiaryWorkspaceContent() {
               borderRadius: 4,
               p: 0,
               bgcolor: "#FFFFFF",
-              color: "#FFFFFF",
-              border: "1px solid rgba(245, 158, 11, 0.3)",
+              color: "#0F172A",
+              border: "1px solid #CBD5E1",
             },
           },
         }}
       >
         <div className="p-6 text-center space-y-4">
-          <div className="w-16 h-16 rounded-full border-4 border-amber-500/20 border-t-amber-400 animate-spin mx-auto" />
+          <div className="w-16 h-16 rounded-full border-4 border-emerald-100 border-t-emerald-600 animate-spin mx-auto" />
           <div>
-            <div className="text-base font-black text-white">Verifying Bank Account…</div>
-            <div className="text-xs text-[#625B60] mt-1">Executing ₹1.00 Penny Drop & validating official name…</div>
+            <div className="text-base font-black text-slate-900">Verifying Bank Account…</div>
+            <div className="text-xs text-slate-500 mt-1">Executing ₹1.00 Penny Drop & validating official name…</div>
           </div>
         </div>
       </Dialog>
@@ -1691,7 +1693,7 @@ function BeneficiaryWorkspaceContent() {
               borderRadius: 4,
               p: 0,
               bgcolor: "#FFFFFF",
-              color: "#FFFFFF",
+              color: "#0F172A",
               border: `1px solid ${resultModalSuccess ? "rgba(16, 185, 129, 0.4)" : "rgba(239, 68, 68, 0.4)"}`,
             },
           },
@@ -1700,14 +1702,14 @@ function BeneficiaryWorkspaceContent() {
         <div className={`h-1.5 ${resultModalSuccess ? "bg-emerald-500" : "bg-rose-500"}`} />
         <div className="p-6 text-center space-y-3">
           <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${
-            resultModalSuccess ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"
+            resultModalSuccess ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
           }`}>
             {resultModalSuccess ? <CheckCircle2 className="w-6 h-6" /> : <CloseIcon />}
           </div>
-          <div className="text-base font-black text-white">
+          <div className="text-base font-black text-slate-900">
             {resultModalSuccess ? "Verification Successful" : "Verification Failed"}
           </div>
-          <p className="text-xs text-[#292329]">
+          <p className="text-xs text-slate-600">
             {resultModalSuccess
               ? `Account verified for ${benName}. Registered with bank.`
               : resultModalData?.error || "Failed to verify account. Please check details."}
@@ -1715,7 +1717,7 @@ function BeneficiaryWorkspaceContent() {
           <button
             onClick={() => setResultModalOpen(false)}
             className={`w-full py-2.5 rounded-xl font-black text-xs mt-2 ${
-              resultModalSuccess ? "bg-emerald-500 text-slate-950" : "bg-[#F5F2F4] text-[#292329]"
+              resultModalSuccess ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs" : "bg-slate-100 hover:bg-slate-200 text-slate-800"
             }`}
           >
             {resultModalSuccess ? "Continue" : "Close"}
@@ -1732,20 +1734,20 @@ function BeneficiaryWorkspaceContent() {
         slotProps={{
           paper: {
             sx: {
-              borderRadius: 5,
+              borderRadius: 4,
               p: 0,
               bgcolor: "#FFFFFF",
-              color: "#FFFFFF",
-              border: "1px solid #1E293B",
+              color: "#0F172A",
+              border: "1px solid #CBD5E1",
             },
           },
         }}
       >
-        <DialogTitle sx={{ fontWeight: 900, color: "#FFFFFF", pt: 2.5, px: 3, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span className="bg-gradient-to-r from-amber-200 to-amber-500 bg-clip-text text-transparent">
+        <DialogTitle sx={{ fontWeight: 900, color: "#0F172A", pt: 2.5, px: 3, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span className="text-slate-900 font-black">
             Active Beneficiaries ({activeCustomerName})
           </span>
-          <IconButton onClick={() => setSavedBenModalOpen(false)} sx={{ color: "#625B60" }}>
+          <IconButton onClick={() => setSavedBenModalOpen(false)} sx={{ color: "#64748B" }}>
             <CloseIcon />
           </IconButton>
         </DialogTitle>

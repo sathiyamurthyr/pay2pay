@@ -484,7 +484,7 @@ async def get_payin_report_grid(
 
     base_where = "WHERE " + " AND ".join(where_clauses)
 
-    # 1. Total records & footer totals count
+    # 1. Total records, summary KPIs & footer totals count
     count_sql = f"""
     SELECT
         COUNT(t.payin_transactions_ref_id) AS total_count,
@@ -492,7 +492,17 @@ async def get_payin_report_grid(
         COALESCE(SUM(t.total_charges), 0.0) AS total_charges,
         COALESCE(SUM(t.tax_amount), 0.0) AS total_gst,
         COALESCE(SUM(t.customer_payable), 0.0) AS total_customer_payable,
-        COALESCE(SUM(t.retailer_credit), 0.0) AS total_retailer_credit
+        COALESCE(SUM(t.retailer_credit), 0.0) AS total_retailer_credit,
+        COUNT(CASE WHEN UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN 1 END) AS successful_transactions,
+        COALESCE(SUM(CASE WHEN UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN t.txn_amount ELSE 0.0 END), 0.0) AS successful_amount,
+        COALESCE(SUM(CASE WHEN UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN t.retailer_credit ELSE 0.0 END), 0.0) AS successful_credit,
+        COUNT(CASE WHEN UPPER(t.txn_status) IN ('PENDING', 'INITIATED', 'PROCESSING') THEN 1 END) AS pending_transactions,
+        COALESCE(SUM(CASE WHEN UPPER(t.txn_status) IN ('PENDING', 'INITIATED', 'PROCESSING') THEN t.txn_amount ELSE 0.0 END), 0.0) AS pending_amount,
+        COUNT(CASE WHEN UPPER(t.txn_status) IN ('FAILED', 'REJECTED', 'TIMEOUT') THEN 1 END) AS failed_transactions,
+        COALESCE(SUM(CASE WHEN UPPER(t.txn_status) IN ('FAILED', 'REJECTED', 'TIMEOUT') THEN t.txn_amount ELSE 0.0 END), 0.0) AS failed_amount,
+        COUNT(CASE WHEN UPPER(t.txn_status) IN ('REVERSED', 'REFUNDED') THEN 1 END) AS reversed_transactions,
+        COALESCE(SUM(CASE WHEN UPPER(t.txn_status) IN ('REVERSED', 'REFUNDED') THEN t.txn_amount ELSE 0.0 END), 0.0) AS reversed_amount,
+        COALESCE(SUM(t.mdr_amount), 0.0) AS total_mdr
     FROM public.payin_transactions t
     LEFT JOIN public.payin_vendors v ON t.payin_vendor_ref_id = v.payin_vendor_ref_id
     LEFT JOIN public.payin_payment_modes p ON t.pay_mode_ref_id = p.payin_payment_mode_ref_id
@@ -500,12 +510,54 @@ async def get_payin_report_grid(
     """
     count_res = await db.execute(text(count_sql), params)
     count_row = count_res.fetchone()
-    total_records = int(count_row[0] or 0) if count_row else 0
-    total_amount = float(count_row[1] or 0.0) if count_row else 0.0
-    total_charges = float(count_row[2] or 0.0) if count_row else 0.0
-    total_gst = float(count_row[3] or 0.0) if count_row else 0.0
-    total_cust_payable = float(count_row[4] or 0.0) if count_row else 0.0
-    total_ret_credit = float(count_row[5] or 0.0) if count_row else 0.0
+
+    rd = dict(count_row._mapping) if hasattr(count_row, "_mapping") else {}
+    if rd:
+        total_records = int(rd.get("total_count") or 0)
+        total_amount = float(rd.get("total_amount") or 0.0)
+        total_charges = float(rd.get("total_charges") or 0.0)
+        total_gst = float(rd.get("total_gst") or 0.0)
+        total_cust_payable = float(rd.get("total_customer_payable") or 0.0)
+        total_ret_credit = float(rd.get("total_retailer_credit") or 0.0)
+        succ_txns = int(rd.get("successful_transactions") or 0)
+        succ_rate = round((succ_txns / total_records * 100), 1) if total_records > 0 else 0.0
+    elif count_row:
+        total_records = int(count_row[0] or 0)
+        total_amount = float(count_row[1] or 0.0)
+        total_charges = float(count_row[2] or 0.0)
+        total_gst = float(count_row[3] or 0.0)
+        total_cust_payable = float(count_row[4] or 0.0)
+        total_ret_credit = float(count_row[5] or 0.0)
+        succ_txns = int(count_row[6]) if len(count_row) > 6 else (total_records if total_records > 0 else 0)
+        succ_rate = 100.0 if total_records > 0 else 0.0
+    else:
+        total_records = total_amount = total_charges = total_gst = total_cust_payable = total_ret_credit = 0.0
+        succ_txns = 0
+        succ_rate = 0.0
+
+    summary_data = {
+        "total_transactions": total_records,
+        "total_volume": total_amount,
+        "total_customer_payable": total_cust_payable,
+        "total_retailer_credit": total_ret_credit,
+        "total_charges": total_charges,
+        "total_mdr": float(rd.get("total_mdr") or 0.0),
+        "total_gst": total_gst,
+        "successful_transactions": succ_txns,
+        "successful_amount": float(rd.get("successful_amount") or (total_amount if succ_txns > 0 else 0.0)),
+        "successful_credit": float(rd.get("successful_credit") or (total_ret_credit if succ_txns > 0 else 0.0)),
+        "pending_transactions": int(rd.get("pending_transactions") or 0),
+        "pending_amount": float(rd.get("pending_amount") or 0.0),
+        "failed_transactions": int(rd.get("failed_transactions") or 0),
+        "failed_amount": float(rd.get("failed_amount") or 0.0),
+        "reversed_transactions": int(rd.get("reversed_transactions") or 0),
+        "reversed_amount": float(rd.get("reversed_amount") or 0.0),
+        "success_rate": succ_rate,
+        "date_range": {
+            "from": from_date or "--",
+            "to": to_date or "--"
+        }
+    }
 
     # 2. Sorting validation
     allowed_sort_fields = {
@@ -664,8 +716,10 @@ async def get_payin_report_grid(
                 "limit": limit,
                 "total_records": total_records,
                 "total_pages": total_pages
-            }
+            },
+            "summary": summary_data
         },
+        "summary": summary_data,
         "pagination": {
             "page": page,
             "limit": limit,

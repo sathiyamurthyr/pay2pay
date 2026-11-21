@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useMemo, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Box,
   Typography,
@@ -21,6 +21,7 @@ import {
   IconButton,
   Divider,
   TablePagination,
+  TableSortLabel,
   Skeleton,
   Menu,
   InputAdornment,
@@ -238,6 +239,8 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
   // Pagination & Layout Controls
   const [page, setPage] = useState<number>(0);
   const [rowsPerPage, setRowsPerPage] = useState<number>(10);
+  const [sortBy, setSortBy] = useState<string>("created_at");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [density, setDensity] = useState<"compact" | "medium" | "comfortable">("medium");
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
@@ -283,24 +286,50 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
     }
   };
 
-  const executeReportFetch = useCallback(async (targetPage: number = page, targetLimit: number = rowsPerPage) => {
+  const executeReportFetch = useCallback(async (
+    targetPage: number = page,
+    targetLimit: number = rowsPerPage,
+    filterOverrides?: {
+      fromDate?: string;
+      toDate?: string;
+      tid?: string;
+      mobile?: string;
+      search?: string;
+      status?: string;
+      gateway?: string;
+      paymentMode?: string;
+    },
+    targetSortBy: string = sortBy,
+    targetSortDir: string = sortDir
+  ) => {
     setIsLoading(true);
     setHasLoaded(true);
 
     try {
+      const activeFrom = filterOverrides?.fromDate !== undefined ? filterOverrides.fromDate : fromDate;
+      const activeTo = filterOverrides?.toDate !== undefined ? filterOverrides.toDate : toDate;
+      const activeTid = filterOverrides?.tid !== undefined ? filterOverrides.tid : tidFilter;
+      const activeMobile = filterOverrides?.mobile !== undefined ? filterOverrides.mobile : mobileFilter;
+      const activeSearch = filterOverrides?.search !== undefined ? filterOverrides.search : globalSearch;
+      const activeStatus = filterOverrides?.status !== undefined ? filterOverrides.status : statusFilter;
+      const activeGateway = filterOverrides?.gateway !== undefined ? filterOverrides.gateway : gatewayFilter;
+      const activeMode = filterOverrides?.paymentMode !== undefined ? filterOverrides.paymentMode : paymentModeFilter;
+
       const q = new URLSearchParams({
         page: (targetPage + 1).toString(),
         limit: targetLimit.toString(),
       });
 
-      if (fromDate) q.append("from_date", fromDate);
-      if (toDate) q.append("to_date", toDate);
-      if (tidFilter.trim()) q.append("tid", tidFilter.trim());
-      if (mobileFilter.trim()) q.append("mobile", mobileFilter.trim());
-      if (globalSearch.trim()) q.append("search", globalSearch.trim());
-      if (statusFilter !== "ALL") q.append("status", statusFilter);
-      if (gatewayFilter !== "ALL") q.append("gateway", gatewayFilter);
-      if (paymentModeFilter !== "ALL") q.append("payment_mode", paymentModeFilter);
+      if (activeFrom) q.append("from_date", activeFrom);
+      if (activeTo) q.append("to_date", activeTo);
+      if (activeTid.trim()) q.append("tid", activeTid.trim());
+      if (activeMobile.trim()) q.append("mobile", activeMobile.trim());
+      if (activeSearch.trim()) q.append("search", activeSearch.trim());
+      if (activeStatus !== "ALL") q.append("status", activeStatus);
+      if (activeGateway !== "ALL") q.append("gateway", activeGateway);
+      if (activeMode !== "ALL") q.append("payment_mode", activeMode);
+      if (targetSortBy) q.append("sort_by", targetSortBy);
+      if (targetSortDir) q.append("sort_dir", targetSortDir);
 
       const token = typeof window !== "undefined" ? (
         localStorage.getItem("p2p_access_token") ||
@@ -317,27 +346,9 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
         headers["Authorization"] = `Bearer ${token.trim()}`;
       }
 
-      // Fetch Grid
+      // Fetch Grid: single request returning both grid rows and calculated summary metrics
       const gridUrl = `/api/v1/payin/reports/grid?${q.toString()}`;
       const res = await fetch(gridUrl, {
-        headers,
-        credentials: "include",
-        cache: "no-store",
-      });
-
-      // Fetch Summary
-      const summaryQ = new URLSearchParams();
-      if (fromDate) summaryQ.append("from_date", fromDate);
-      if (toDate) summaryQ.append("to_date", toDate);
-      if (tidFilter.trim()) summaryQ.append("tid", tidFilter.trim());
-      if (mobileFilter.trim()) summaryQ.append("mobile", mobileFilter.trim());
-      if (globalSearch.trim()) summaryQ.append("search", globalSearch.trim());
-      if (statusFilter !== "ALL") summaryQ.append("status", statusFilter);
-      if (gatewayFilter !== "ALL") summaryQ.append("gateway", gatewayFilter);
-      if (paymentModeFilter !== "ALL") summaryQ.append("payment_mode", paymentModeFilter);
-
-      const summaryUrl = `/api/v1/payin/reports/summary?${summaryQ.toString()}`;
-      const summaryRes = await fetch(summaryUrl, {
         headers,
         credentials: "include",
         cache: "no-store",
@@ -358,9 +369,8 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
           setFooterTotals(data.footer_totals);
         }
 
-        if (summaryRes.ok) {
-          const summaryJson = await summaryRes.json();
-          const d = summaryJson.data || summaryJson;
+        const d = data.summary || data.data?.summary;
+        if (d) {
           setSummary({
             total_transactions: Number(d.total_transactions ?? total),
             total_volume: Number(d.total_volume ?? 0),
@@ -394,11 +404,25 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [page, rowsPerPage, fromDate, toDate, tidFilter, mobileFilter, globalSearch, statusFilter, gatewayFilter, paymentModeFilter]);
+  }, [page, rowsPerPage, fromDate, toDate, tidFilter, mobileFilter, globalSearch, statusFilter, gatewayFilter, paymentModeFilter, sortBy, sortDir]);
+
+  // Initial load
+  useEffect(() => {
+    executeReportFetch(0, rowsPerPage);
+  }, []);
+
+  const handleSort = (field: string) => {
+    const isAsc = sortBy === field && sortDir === "asc";
+    const newDir: "asc" | "desc" = isAsc ? "desc" : "asc";
+    setSortBy(field);
+    setSortDir(newDir);
+    executeReportFetch(page, rowsPerPage, undefined, field, newDir);
+  };
 
   const handleApplyFilters = () => {
     setPage(0);
     executeReportFetch(0, rowsPerPage);
+    showToast("Filters applied.");
   };
 
   const handleRefresh = () => {
@@ -407,13 +431,28 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
   };
 
   const handleResetFilters = () => {
+    const dNow = new Date();
+    const today = `${dNow.getFullYear()}-${String(dNow.getMonth() + 1).padStart(2, "0")}-${String(dNow.getDate()).padStart(2, "0")}`;
     setGlobalSearch("");
     setTidFilter("");
     setMobileFilter("");
     setStatusFilter("ALL");
     setGatewayFilter("ALL");
     setPaymentModeFilter("ALL");
-    handleDatePreset("TODAY");
+    setActivePreset("TODAY");
+    setFromDate(today);
+    setToDate(today);
+    setPage(0);
+    executeReportFetch(0, rowsPerPage, {
+      fromDate: today,
+      toDate: today,
+      tid: "",
+      mobile: "",
+      search: "",
+      status: "ALL",
+      gateway: "ALL",
+      paymentMode: "ALL",
+    });
     showToast("Filters reset to default.");
   };
 
@@ -457,6 +496,53 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
     }
   };
 
+  const exportItemsToCsv = (itemsToExport: PayinReportItem[]) => {
+    if (!itemsToExport || itemsToExport.length === 0) {
+      showToast("No records available to export.");
+      return;
+    }
+    const headers = [
+      "TID",
+      "Amount (₹)",
+      "Charges (₹)",
+      "GST (₹)",
+      "Total Amount (₹)",
+      "Wallet Credit (₹)",
+      "MobileNo",
+      "Gateway",
+      "Method",
+      "Status",
+      "Date & Time",
+    ];
+
+    const rows = itemsToExport.map((item) => [
+      item.tid || "--",
+      Number(item.amount || 0).toFixed(2),
+      Number(item.charges || 0).toFixed(2),
+      Number(item.gst || 0).toFixed(2),
+      Number(item.total_amount || 0).toFixed(2),
+      Number(item.wallet_credit || 0).toFixed(2),
+      item.customer_mobile || "--",
+      item.gateway || "G-1",
+      item.method || "UPI",
+      (item.status || "SUCCESS").toUpperCase(),
+      item.date_time || "--",
+    ]);
+
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      [headers.join(","), ...rows.map((e) => e.map(val => `"${String(val).replace(/"/g, '""')}"`).join(","))].join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `PayIn_Report_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    showToast("PayIn CSV exported successfully.");
+  };
+
   const handleExportCsv = async () => {
     try {
       showToast("Preparing PayIn CSV export...");
@@ -480,7 +566,11 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
-      if (!res.ok) throw new Error("Export request failed");
+      if (!res.ok) {
+        exportItemsToCsv(items);
+        setExportAnchorEl(null);
+        return;
+      }
 
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
@@ -494,8 +584,9 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
       setExportAnchorEl(null);
       showToast("PayIn CSV exported successfully.");
     } catch (err) {
-      console.error("Export failed:", err);
-      showToast("Export failed. Please try again.");
+      console.warn("Backend export failed, falling back to filtered items:", err);
+      exportItemsToCsv(items);
+      setExportAnchorEl(null);
     }
   };
 
@@ -860,7 +951,225 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
         </Paper>
       </Box>
 
-      {/* ── 3. TOP MASTER TOOLBAR (SEARCH, DENSITY, EXPORT, REFRESH) ── */}
+      {/* ── 3. FILTER TOOLBAR (TOP CONTROLS: DATE RANGE, TID, MOBILE, GATEWAY, METHOD, STATUS, APPLY, RESET) ── */}
+      <Box
+        sx={{
+          mb: 2,
+          p: 1.5,
+          borderRadius: "14px",
+          bgcolor: "#FFFFFF",
+          border: "1px solid #E5E7EB",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 1.5,
+        }}
+      >
+        {/* Left Filter Buttons Group */}
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ flexWrap: "wrap" }}>
+          {/* 1. Date Range ⌄ */}
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={(e) => setDateRangeAnchorEl(e.currentTarget)}
+            startIcon={<CalendarMonthIcon sx={{ fontSize: 16, color: "#059669" }} />}
+            endIcon={<ArrowDropDownIcon sx={{ fontSize: 16 }} />}
+            sx={{
+              borderRadius: "20px",
+              height: 36,
+              px: 1.8,
+              fontSize: "12px",
+              fontWeight: 700,
+              textTransform: "none",
+              color: "#374151",
+              borderColor: activePreset !== "TODAY" ? "#059669" : "#D1D5DB",
+              bgcolor: activePreset !== "TODAY" ? "rgba(5, 150, 105, 0.05)" : "#FFFFFF",
+            }}
+          >
+            {activePreset === "TODAY"
+              ? "Date Range"
+              : activePreset === "CUSTOM"
+              ? `${fromDate || "Start"} - ${toDate || "End"}`
+              : activePreset}
+          </Button>
+
+          {/* 2. Transaction ID ⌄ */}
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={(e) => setTidAnchorEl(e.currentTarget)}
+            endIcon={<ArrowDropDownIcon sx={{ fontSize: 16 }} />}
+            sx={{
+              borderRadius: "20px",
+              height: 36,
+              px: 1.8,
+              fontSize: "12px",
+              fontWeight: 700,
+              textTransform: "none",
+              color: tidFilter ? "#059669" : "#374151",
+              borderColor: tidFilter ? "#059669" : "#D1D5DB",
+              bgcolor: tidFilter ? "rgba(5, 150, 105, 0.05)" : "#FFFFFF",
+            }}
+          >
+            {tidFilter ? `TID: ${tidFilter.slice(0, 12)}...` : "Transaction ID"}
+          </Button>
+
+          {/* 3. Mobile Number ⌄ */}
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={(e) => setMobileAnchorEl(e.currentTarget)}
+            endIcon={<ArrowDropDownIcon sx={{ fontSize: 16 }} />}
+            sx={{
+              borderRadius: "20px",
+              height: 36,
+              px: 1.8,
+              fontSize: "12px",
+              fontWeight: 700,
+              textTransform: "none",
+              color: mobileFilter ? "#059669" : "#374151",
+              borderColor: mobileFilter ? "#059669" : "#D1D5DB",
+              bgcolor: mobileFilter ? "rgba(5, 150, 105, 0.05)" : "#FFFFFF",
+            }}
+          >
+            {mobileFilter ? `Mobile: ${mobileFilter}` : "Mobile Number"}
+          </Button>
+
+          {/* 4. Gateway ⌄ */}
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={(e) => setGatewayAnchorEl(e.currentTarget)}
+            endIcon={<ArrowDropDownIcon sx={{ fontSize: 16 }} />}
+            sx={{
+              borderRadius: "20px",
+              height: 36,
+              px: 1.8,
+              fontSize: "12px",
+              fontWeight: 700,
+              textTransform: "none",
+              color: gatewayFilter !== "ALL" ? "#059669" : "#374151",
+              borderColor: gatewayFilter !== "ALL" ? "#059669" : "#D1D5DB",
+              bgcolor: gatewayFilter !== "ALL" ? "rgba(5, 150, 105, 0.05)" : "#FFFFFF",
+            }}
+          >
+            {gatewayFilter !== "ALL" ? `Gateway: ${gatewayFilter}` : "Gateway"}
+          </Button>
+
+          {/* 5. Method ⌄ */}
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={(e) => setMethodAnchorEl(e.currentTarget)}
+            endIcon={<ArrowDropDownIcon sx={{ fontSize: 16 }} />}
+            sx={{
+              borderRadius: "20px",
+              height: 36,
+              px: 1.8,
+              fontSize: "12px",
+              fontWeight: 700,
+              textTransform: "none",
+              color: paymentModeFilter !== "ALL" ? "#059669" : "#374151",
+              borderColor: paymentModeFilter !== "ALL" ? "#059669" : "#D1D5DB",
+              bgcolor: paymentModeFilter !== "ALL" ? "rgba(5, 150, 105, 0.05)" : "#FFFFFF",
+            }}
+          >
+            {paymentModeFilter !== "ALL" ? `Method: ${paymentModeFilter}` : "Method"}
+          </Button>
+
+          {/* 6. Status ⌄ */}
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={(e) => setStatusAnchorEl(e.currentTarget)}
+            endIcon={<ArrowDropDownIcon sx={{ fontSize: 16 }} />}
+            sx={{
+              borderRadius: "20px",
+              height: 36,
+              px: 1.8,
+              fontSize: "12px",
+              fontWeight: 700,
+              textTransform: "none",
+              color: statusFilter !== "ALL" ? "#059669" : "#374151",
+              borderColor: statusFilter !== "ALL" ? "#059669" : "#D1D5DB",
+              bgcolor: statusFilter !== "ALL" ? "rgba(5, 150, 105, 0.05)" : "#FFFFFF",
+            }}
+          >
+            {statusFilter !== "ALL" ? `Status: ${statusFilter}` : "Status"}
+          </Button>
+
+          {/* 7. Apply */}
+          <Button
+            size="small"
+            variant="contained"
+            onClick={handleApplyFilters}
+            disabled={isLoading}
+            sx={{
+              borderRadius: "20px",
+              height: 36,
+              px: 2.5,
+              fontSize: "12.5px",
+              fontWeight: 800,
+              textTransform: "none",
+              bgcolor: "#059669",
+              color: "#FFFFFF",
+              "&:hover": { bgcolor: "#047857" },
+            }}
+          >
+            Apply
+          </Button>
+
+          {/* 8. Reset */}
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={handleResetFilters}
+            sx={{
+              borderRadius: "20px",
+              height: 36,
+              px: 2,
+              fontSize: "12.5px",
+              fontWeight: 700,
+              textTransform: "none",
+              color: "#4B5563",
+              borderColor: "#D1D5DB",
+            }}
+          >
+            Reset
+          </Button>
+        </Stack>
+
+        {/* Right Toast Pill Notification (Matching screenshot) */}
+        {toastOpen && (
+          <Box
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 1,
+              bgcolor: "#ECFDF5",
+              border: "1px solid #10B981",
+              color: "#065F46",
+              borderRadius: "20px",
+              px: 2,
+              py: 0.7,
+              boxShadow: "0 2px 8px rgba(16, 185, 129, 0.15)",
+              animation: "fadeIn 0.2s ease-in-out",
+            }}
+          >
+            <CheckCircleIcon sx={{ fontSize: 18, color: "#10B981" }} />
+            <Typography sx={{ fontSize: "12.5px", fontWeight: 700 }}>
+              {toastMessage}
+            </Typography>
+            <IconButton size="small" onClick={() => setToastOpen(false)} sx={{ p: 0.2, ml: 0.5, color: "#065F46" }}>
+              <CloseIcon sx={{ fontSize: 14 }} />
+            </IconButton>
+          </Box>
+        )}
+      </Box>
+
+      {/* ── 4. MASTER ACTIONS TOOLBAR (SEARCH, DENSITY, EXPORT, REFRESH) ── */}
       <Paper
         elevation={0}
         sx={{
@@ -1128,13 +1437,37 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                   {/* 1. TID */}
                   {!hiddenColumns.has("tid") && (
                     <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, pl: 2, whiteSpace: "nowrap" }}>
-                      TID
+                      <TableSortLabel
+                        active={sortBy === "tid"}
+                        direction={sortBy === "tid" ? sortDir : "desc"}
+                        onClick={() => handleSort("tid")}
+                        sx={{
+                          "&.MuiTableSortLabel-root": { color: "#059669", fontWeight: 800 },
+                          "&.MuiTableSortLabel-root:hover": { color: "#047857" },
+                          "&.Mui-active": { color: "#059669" },
+                          "& .MuiTableSortLabel-icon": { color: "#059669 !important" },
+                        }}
+                      >
+                        TID
+                      </TableSortLabel>
                     </TableCell>
                   )}
                   {/* 2. Amount (₹) */}
                   {!hiddenColumns.has("amount") && (
                     <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, textAlign: "right", whiteSpace: "nowrap" }}>
-                      AMOUNT (₹)
+                      <TableSortLabel
+                        active={sortBy === "txn_amount"}
+                        direction={sortBy === "txn_amount" ? sortDir : "desc"}
+                        onClick={() => handleSort("txn_amount")}
+                        sx={{
+                          "&.MuiTableSortLabel-root": { color: "#059669", fontWeight: 800 },
+                          "&.MuiTableSortLabel-root:hover": { color: "#047857" },
+                          "&.Mui-active": { color: "#059669" },
+                          "& .MuiTableSortLabel-icon": { color: "#059669 !important" },
+                        }}
+                      >
+                        AMOUNT (₹)
+                      </TableSortLabel>
                     </TableCell>
                   )}
                   {/* 3. Charges (₹) */}
@@ -1152,13 +1485,37 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                   {/* 5. Total Amount (₹) */}
                   {!hiddenColumns.has("total_amount") && (
                     <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, textAlign: "right", whiteSpace: "nowrap" }}>
-                      TOTAL AMOUNT (₹)
+                      <TableSortLabel
+                        active={sortBy === "customer_payable"}
+                        direction={sortBy === "customer_payable" ? sortDir : "desc"}
+                        onClick={() => handleSort("customer_payable")}
+                        sx={{
+                          "&.MuiTableSortLabel-root": { color: "#059669", fontWeight: 800 },
+                          "&.MuiTableSortLabel-root:hover": { color: "#047857" },
+                          "&.Mui-active": { color: "#059669" },
+                          "& .MuiTableSortLabel-icon": { color: "#059669 !important" },
+                        }}
+                      >
+                        TOTAL AMOUNT (₹)
+                      </TableSortLabel>
                     </TableCell>
                   )}
                   {/* 6. Wallet Credit (₹) */}
                   {!hiddenColumns.has("wallet_credit") && (
                     <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, textAlign: "right", whiteSpace: "nowrap" }}>
-                      WALLET CREDIT (₹)
+                      <TableSortLabel
+                        active={sortBy === "retailer_credit"}
+                        direction={sortBy === "retailer_credit" ? sortDir : "desc"}
+                        onClick={() => handleSort("retailer_credit")}
+                        sx={{
+                          "&.MuiTableSortLabel-root": { color: "#059669", fontWeight: 800 },
+                          "&.MuiTableSortLabel-root:hover": { color: "#047857" },
+                          "&.Mui-active": { color: "#059669" },
+                          "& .MuiTableSortLabel-icon": { color: "#059669 !important" },
+                        }}
+                      >
+                        WALLET CREDIT (₹)
+                      </TableSortLabel>
                     </TableCell>
                   )}
                   {/* 7. MobileNo */}
@@ -1182,13 +1539,37 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                   {/* 10. Status */}
                   {!hiddenColumns.has("status") && (
                     <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
-                      STATUS
+                      <TableSortLabel
+                        active={sortBy === "txn_status"}
+                        direction={sortBy === "txn_status" ? sortDir : "desc"}
+                        onClick={() => handleSort("txn_status")}
+                        sx={{
+                          "&.MuiTableSortLabel-root": { color: "#059669", fontWeight: 800 },
+                          "&.MuiTableSortLabel-root:hover": { color: "#047857" },
+                          "&.Mui-active": { color: "#059669" },
+                          "& .MuiTableSortLabel-icon": { color: "#059669 !important" },
+                        }}
+                      >
+                        STATUS
+                      </TableSortLabel>
                     </TableCell>
                   )}
                   {/* 11. Date & Time */}
                   {!hiddenColumns.has("date_time") && (
                     <TableCell sx={{ color: "#059669", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", py: 1.4, whiteSpace: "nowrap" }}>
-                      DATE &amp; TIME
+                      <TableSortLabel
+                        active={sortBy === "created_at"}
+                        direction={sortBy === "created_at" ? sortDir : "desc"}
+                        onClick={() => handleSort("created_at")}
+                        sx={{
+                          "&.MuiTableSortLabel-root": { color: "#059669", fontWeight: 800 },
+                          "&.MuiTableSortLabel-root:hover": { color: "#047857" },
+                          "&.Mui-active": { color: "#059669" },
+                          "& .MuiTableSortLabel-icon": { color: "#059669 !important" },
+                        }}
+                      >
+                        DATE &amp; TIME
+                      </TableSortLabel>
                     </TableCell>
                   )}
                   {/* 12. Action */}
@@ -1521,225 +1902,7 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
         )}
       </Box>
 
-      {/* ── 6. BOTTOM FILTER TOOLBAR (MATCHING REFERENCE SCREENSHOT) ── */}
-      <Box
-        sx={{
-          mt: 2.5,
-          p: 1.5,
-          borderRadius: "14px",
-          bgcolor: "#FFFFFF",
-          border: "1px solid #E5E7EB",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: 1.5,
-        }}
-      >
-        {/* Left Filter Buttons Group */}
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ flexWrap: "wrap" }}>
-          {/* 1. Date Range ⌄ */}
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={(e) => setDateRangeAnchorEl(e.currentTarget)}
-            startIcon={<CalendarMonthIcon sx={{ fontSize: 16, color: "#059669" }} />}
-            endIcon={<ArrowDropDownIcon sx={{ fontSize: 16 }} />}
-            sx={{
-              borderRadius: "20px",
-              height: 36,
-              px: 1.8,
-              fontSize: "12px",
-              fontWeight: 700,
-              textTransform: "none",
-              color: "#374151",
-              borderColor: activePreset !== "TODAY" ? "#059669" : "#D1D5DB",
-              bgcolor: activePreset !== "TODAY" ? "rgba(5, 150, 105, 0.05)" : "#FFFFFF",
-            }}
-          >
-            {activePreset === "TODAY"
-              ? "Date Range"
-              : activePreset === "CUSTOM"
-              ? `${fromDate || "Start"} - ${toDate || "End"}`
-              : activePreset}
-          </Button>
-
-          {/* 2. Transaction ID ⌄ */}
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={(e) => setTidAnchorEl(e.currentTarget)}
-            endIcon={<ArrowDropDownIcon sx={{ fontSize: 16 }} />}
-            sx={{
-              borderRadius: "20px",
-              height: 36,
-              px: 1.8,
-              fontSize: "12px",
-              fontWeight: 700,
-              textTransform: "none",
-              color: tidFilter ? "#059669" : "#374151",
-              borderColor: tidFilter ? "#059669" : "#D1D5DB",
-              bgcolor: tidFilter ? "rgba(5, 150, 105, 0.05)" : "#FFFFFF",
-            }}
-          >
-            {tidFilter ? `TID: ${tidFilter.slice(0, 12)}...` : "Transaction ID"}
-          </Button>
-
-          {/* 3. Mobile Number ⌄ */}
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={(e) => setMobileAnchorEl(e.currentTarget)}
-            endIcon={<ArrowDropDownIcon sx={{ fontSize: 16 }} />}
-            sx={{
-              borderRadius: "20px",
-              height: 36,
-              px: 1.8,
-              fontSize: "12px",
-              fontWeight: 700,
-              textTransform: "none",
-              color: mobileFilter ? "#059669" : "#374151",
-              borderColor: mobileFilter ? "#059669" : "#D1D5DB",
-              bgcolor: mobileFilter ? "rgba(5, 150, 105, 0.05)" : "#FFFFFF",
-            }}
-          >
-            {mobileFilter ? `Mobile: ${mobileFilter}` : "Mobile Number"}
-          </Button>
-
-          {/* 4. Gateway ⌄ */}
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={(e) => setGatewayAnchorEl(e.currentTarget)}
-            endIcon={<ArrowDropDownIcon sx={{ fontSize: 16 }} />}
-            sx={{
-              borderRadius: "20px",
-              height: 36,
-              px: 1.8,
-              fontSize: "12px",
-              fontWeight: 700,
-              textTransform: "none",
-              color: gatewayFilter !== "ALL" ? "#059669" : "#374151",
-              borderColor: gatewayFilter !== "ALL" ? "#059669" : "#D1D5DB",
-              bgcolor: gatewayFilter !== "ALL" ? "rgba(5, 150, 105, 0.05)" : "#FFFFFF",
-            }}
-          >
-            {gatewayFilter !== "ALL" ? `Gateway: ${gatewayFilter}` : "Gateway"}
-          </Button>
-
-          {/* 5. Method ⌄ */}
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={(e) => setMethodAnchorEl(e.currentTarget)}
-            endIcon={<ArrowDropDownIcon sx={{ fontSize: 16 }} />}
-            sx={{
-              borderRadius: "20px",
-              height: 36,
-              px: 1.8,
-              fontSize: "12px",
-              fontWeight: 700,
-              textTransform: "none",
-              color: paymentModeFilter !== "ALL" ? "#059669" : "#374151",
-              borderColor: paymentModeFilter !== "ALL" ? "#059669" : "#D1D5DB",
-              bgcolor: paymentModeFilter !== "ALL" ? "rgba(5, 150, 105, 0.05)" : "#FFFFFF",
-            }}
-          >
-            {paymentModeFilter !== "ALL" ? `Method: ${paymentModeFilter}` : "Method"}
-          </Button>
-
-          {/* 6. Status ⌄ */}
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={(e) => setStatusAnchorEl(e.currentTarget)}
-            endIcon={<ArrowDropDownIcon sx={{ fontSize: 16 }} />}
-            sx={{
-              borderRadius: "20px",
-              height: 36,
-              px: 1.8,
-              fontSize: "12px",
-              fontWeight: 700,
-              textTransform: "none",
-              color: statusFilter !== "ALL" ? "#059669" : "#374151",
-              borderColor: statusFilter !== "ALL" ? "#059669" : "#D1D5DB",
-              bgcolor: statusFilter !== "ALL" ? "rgba(5, 150, 105, 0.05)" : "#FFFFFF",
-            }}
-          >
-            {statusFilter !== "ALL" ? `Status: ${statusFilter}` : "Status"}
-          </Button>
-
-          {/* 7. Apply */}
-          <Button
-            size="small"
-            variant="contained"
-            onClick={handleApplyFilters}
-            disabled={isLoading}
-            sx={{
-              borderRadius: "20px",
-              height: 36,
-              px: 2.5,
-              fontSize: "12.5px",
-              fontWeight: 800,
-              textTransform: "none",
-              bgcolor: "#059669",
-              color: "#FFFFFF",
-              "&:hover": { bgcolor: "#047857" },
-            }}
-          >
-            Apply
-          </Button>
-
-          {/* 8. Reset */}
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={handleResetFilters}
-            sx={{
-              borderRadius: "20px",
-              height: 36,
-              px: 2,
-              fontSize: "12.5px",
-              fontWeight: 700,
-              textTransform: "none",
-              color: "#4B5563",
-              borderColor: "#D1D5DB",
-            }}
-          >
-            Reset
-          </Button>
-        </Stack>
-
-        {/* Right Toast Pill Notification (Matching screenshot) */}
-        {toastOpen && (
-          <Box
-            sx={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 1,
-              bgcolor: "#ECFDF5",
-              border: "1px solid #10B981",
-              color: "#065F46",
-              borderRadius: "20px",
-              px: 2,
-              py: 0.7,
-              boxShadow: "0 2px 8px rgba(16, 185, 129, 0.15)",
-              animation: "fadeIn 0.2s ease-in-out",
-            }}
-          >
-            <CheckCircleIcon sx={{ fontSize: 18, color: "#10B981" }} />
-            <Typography sx={{ fontSize: "12.5px", fontWeight: 700 }}>
-              {toastMessage}
-            </Typography>
-            <IconButton size="small" onClick={() => setToastOpen(false)} sx={{ p: 0.2, ml: 0.5, color: "#065F46" }}>
-              <CloseIcon sx={{ fontSize: 14 }} />
-            </IconButton>
-          </Box>
-        )}
-      </Box>
-
-      {/* ── 7. POPUP MENUS FOR BOTTOM FILTER BUTTONS ── */}
+      {/* ── 6. POPUP MENUS FOR FILTER BUTTONS ── */}
 
       {/* Date Range Menu */}
       <Menu

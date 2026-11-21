@@ -26,6 +26,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
 import apiClient from "@/lib/api";
 import { useRetailerStore } from "@/stores/use-retailer-store";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 interface ServiceOption {
   service_type_ref_id: number;
@@ -77,13 +78,14 @@ interface MdrPreview {
 }
 
 export default function RetailerWalletTopupView() {
+  const branding = useCompanyBranding();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { wallet, syncBalance, isSyncing } = useRetailerStore();
 
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [configError, setConfigError] = useState<string | null>(null);
-  const [companyName, setCompanyName] = useState<string>("Enterprise Portal");
+  const [companyName, setCompanyName] = useState<string>(branding.display_name || "Enterprise Portal");
   const [minAmount, setMinAmount] = useState<number>(10);
   const [maxAmount, setMaxAmount] = useState<number>(500000);
   const [services, setServices] = useState<ServiceOption[]>([]);
@@ -312,7 +314,7 @@ export default function RetailerWalletTopupView() {
               Wallet Top-Up
             </Typography>
             <Typography variant="caption" sx={{ color: "text.secondary" }}>
-              Company: {companyName} • Instant Gateway Processing
+              Company: {branding.display_name || companyName} • Instant Gateway Processing
             </Typography>
           </Box>
         </Box>
