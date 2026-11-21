@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.security import decode_access_token, GlobalReceiptSecurity
 from app.core.company_resolver import resolve_request_company_ref, resolve_receipt_base_url
+from app.application.payment_method_normalizer import PaymentMethodNormalizer
 
 router = APIRouter(prefix="/reports", tags=["PayIn Report"])
 
@@ -291,8 +292,20 @@ async def get_payin_report_summary(
 
     if payment_mode_str and payment_mode_str.upper() != "ALL":
         pm = payment_mode_str.upper()
-        where_clauses.append("(p.pay_mode_code ILIKE :pm OR p.pay_mode_name ILIKE :pm)")
-        params["pm"] = f"%{pm}%"
+        if pm in ("UPI", "QR"):
+            where_clauses.append("(t.card_network = 'UPI' OR p.pay_mode_code IN ('UPI', 'UPI_INTENT', 'QR'))")
+        elif pm in ("CARD", "CREDIT_CARD", "DEBIT_CARD"):
+            where_clauses.append("(t.card_network IN ('VISA', 'MASTERCARD', 'RUPAY', 'AMEX', 'CORP') OR p.pay_mode_code IN ('CREDIT_CARD', 'DEBIT_CARD'))")
+        elif pm in ("VISA", "MASTERCARD", "RUPAY", "AMEX", "CORP"):
+            where_clauses.append("t.card_network = :pm")
+            params["pm"] = pm
+        elif pm in ("NETBANKING", "NET_BANKING", "NB"):
+            where_clauses.append("p.pay_mode_code IN ('NET_BANKING', 'NETBANKING')")
+        elif pm == "WALLET":
+            where_clauses.append("p.pay_mode_code = 'WALLET'")
+        else:
+            where_clauses.append("(t.card_network ILIKE :pm OR p.pay_mode_code ILIKE :pm OR p.pay_mode_name ILIKE :pm)")
+            params["pm"] = f"%{pm}%"
 
     if search_str:
         s = f"%{search_str}%"
@@ -468,8 +481,20 @@ async def get_payin_report_grid(
 
     if payment_mode_str and payment_mode_str.upper() != "ALL":
         pm = payment_mode_str.upper()
-        where_clauses.append("(p.pay_mode_code ILIKE :pm OR p.pay_mode_name ILIKE :pm)")
-        params["pm"] = f"%{pm}%"
+        if pm in ("UPI", "QR"):
+            where_clauses.append("(t.card_network = 'UPI' OR p.pay_mode_code IN ('UPI', 'UPI_INTENT', 'QR'))")
+        elif pm in ("CARD", "CREDIT_CARD", "DEBIT_CARD"):
+            where_clauses.append("(t.card_network IN ('VISA', 'MASTERCARD', 'RUPAY', 'AMEX', 'CORP') OR p.pay_mode_code IN ('CREDIT_CARD', 'DEBIT_CARD'))")
+        elif pm in ("VISA", "MASTERCARD", "RUPAY", "AMEX", "CORP"):
+            where_clauses.append("t.card_network = :pm")
+            params["pm"] = pm
+        elif pm in ("NETBANKING", "NET_BANKING", "NB"):
+            where_clauses.append("p.pay_mode_code IN ('NET_BANKING', 'NETBANKING')")
+        elif pm == "WALLET":
+            where_clauses.append("p.pay_mode_code = 'WALLET'")
+        else:
+            where_clauses.append("(t.card_network ILIKE :pm OR p.pay_mode_code ILIKE :pm OR p.pay_mode_name ILIKE :pm)")
+            params["pm"] = f"%{pm}%"
 
     if search_str:
         s = f"%{search_str}%"
@@ -656,6 +681,11 @@ async def get_payin_report_grid(
         })
         receipt_subdomain_url = f"{resolve_receipt_base_url(d.get('company_ref_id'), request)}/r/{receipt_tok}"
 
+        clean_method = PaymentMethodNormalizer.get_clean_method_display(
+            card_network=d.get("card_network"),
+            pay_mode_code=d.get("payment_mode")
+        )
+
         items.append({
             "s_no": s_no,
             "id": str(d.get("payin_transactions_ref_id")),
@@ -671,8 +701,8 @@ async def get_payin_report_grid(
             "company_code": d.get("company_code") or "SMSPAY",
             "gateway": gw_label,
             "vendor_name": gw_label,  # Customer-facing labels G-1 / G-2 only
-            "payment_mode": d.get("payment_mode") or "UPI",
-            "payment_mode_name": d.get("payment_mode_name") or "UPI",
+            "payment_mode": clean_method,
+            "payment_mode_name": clean_method,
             "card_network": d.get("card_network"),
             "customer_name": d.get("cust_name"),
             "customer_mobile": d.get("cust_mobile"),
@@ -688,7 +718,7 @@ async def get_payin_report_grid(
             "customer_payable": float(d.get("customer_payable") or (float(d.get("txn_amount") or 0.0) + float(d.get("total_charges") or 0.0))),
             "wallet_credit": float(d.get("retailer_credit") or d.get("txn_amount") or 0.0),
             "retailer_credit": float(d.get("retailer_credit") or d.get("txn_amount") or 0.0),
-            "method": d.get("payment_mode") or "UPI",
+            "method": clean_method,
             "status": (d.get("txn_status") or "SUCCESS").upper(),
             "provider_status": d.get("provider_status"),
             "ledger_txn_id": d.get("ledger_txn_id"),
@@ -986,8 +1016,20 @@ async def export_payin_report(
 
     if payment_mode_str and payment_mode_str.upper() != "ALL":
         pm = payment_mode_str.upper()
-        where_clauses.append("(p.pay_mode_code ILIKE :pm OR p.pay_mode_name ILIKE :pm)")
-        params["pm"] = f"%{pm}%"
+        if pm in ("UPI", "QR"):
+            where_clauses.append("(t.card_network = 'UPI' OR p.pay_mode_code IN ('UPI', 'UPI_INTENT', 'QR'))")
+        elif pm in ("CARD", "CREDIT_CARD", "DEBIT_CARD"):
+            where_clauses.append("(t.card_network IN ('VISA', 'MASTERCARD', 'RUPAY', 'AMEX', 'CORP') OR p.pay_mode_code IN ('CREDIT_CARD', 'DEBIT_CARD'))")
+        elif pm in ("VISA", "MASTERCARD", "RUPAY", "AMEX", "CORP"):
+            where_clauses.append("t.card_network = :pm")
+            params["pm"] = pm
+        elif pm in ("NETBANKING", "NET_BANKING", "NB"):
+            where_clauses.append("p.pay_mode_code IN ('NET_BANKING', 'NETBANKING')")
+        elif pm == "WALLET":
+            where_clauses.append("p.pay_mode_code = 'WALLET'")
+        else:
+            where_clauses.append("(t.card_network ILIKE :pm OR p.pay_mode_code ILIKE :pm OR p.pay_mode_name ILIKE :pm)")
+            params["pm"] = f"%{pm}%"
 
     if search_str:
         s = f"%{search_str}%"
@@ -1013,6 +1055,7 @@ async def export_payin_report(
         COALESCE(r.store_name, r.legal_name, r.owner_name, t.cust_name, 'Retailer') AS retailer_name,
         t.payin_vendor_ref_id,
         v.vendor_code,
+        t.card_network,
         COALESCE(p.pay_mode_code, 'UPI') AS payment_mode,
         t.cust_mobile,
         t.txn_amount,
@@ -1062,6 +1105,11 @@ async def export_payin_report(
         if len(mob_val) >= 10:
             mob_val = mob_val[-10:]
 
+        clean_method = PaymentMethodNormalizer.get_clean_method_display(
+            card_network=d.get("card_network"),
+            pay_mode_code=d.get("payment_mode")
+        )
+
         writer.writerow([
             d.get("tid") or "--",
             f"{money(d.get('txn_amount')):.2f}",
@@ -1071,7 +1119,7 @@ async def export_payin_report(
             f"{money(d.get('retailer_credit')):.2f}",
             mob_val,
             gw_label,
-            d.get("payment_mode") or "UPI",
+            clean_method,
             (d.get("txn_status") or "SUCCESS").upper(),
             dt_str
         ])

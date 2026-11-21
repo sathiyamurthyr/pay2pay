@@ -38,6 +38,7 @@ from app.application.payin_service import PayInService
 from app.application.payin_config_service import PayInConfigService
 from app.application.payin_routing_service import SMSPAY_COMPANY_REF_ID
 from app.application.bankme_payin_client import BankMePayInClient
+from app.application.payment_method_normalizer import PaymentMethodNormalizer
 from app.application.wallet_balance_service import WalletBalanceAdjustmentService, WalletAdjustmentDTO
 from app.core.company_resolver import resolve_return_base_url, resolve_receipt_base_url, get_company_preset
 from app.core.security import GlobalReceiptSecurity
@@ -494,53 +495,26 @@ async def get_payin_receipt(
                 retailer_ref_id=final_retailer_ref_id
             )
             if live_check.get("success") and live_check.get("status") in ("SUCCESS", "FAILED"):
-                new_st = live_check.get("status")
-                final_status = new_st
-                txn.txn_status = new_st
-                txn.provider_status = new_st
+                recon_res = await PayInService.reconcile_and_finalize_transaction(
+                    db=db,
+                    txn=txn,
+                    raw_gateway_payload=live_check,
+                    provider_status=live_check.get("status"),
+                    provider_ref_id=live_check.get("utr"),
+                    source="RECEIPT_STATUS_SYNC"
+                )
+                final_status = recon_res["status"]
+                final_mdr_amount = recon_res["mdr_amount"]
+                final_tax_amount = recon_res["tax_amount"]
+                final_total_charges = recon_res["total_charges"]
+                final_customer_payable = recon_res["customer_payable"]
+                final_retailer_credit = recon_res["retailer_credit"]
+                final_card_network = recon_res["card_network"]
+                final_ledger_txn_id = recon_res["ledger_txn_id"]
                 if live_check.get("utr"):
                     final_provider_ref = live_check.get("utr")
-                    txn.provider_ref_id = live_check.get("utr")
-                if new_st == "SUCCESS":
-                    now_utc = datetime.now(timezone.utc)
-                    txn.completed_at = now_utc
-                    final_completed_at = now_utc.isoformat()
-                await db.commit()
-
-                # Perform wallet credit if needed
-                if new_st == "SUCCESS" and not final_ledger_txn_id:
-                    try:
-                        ret_stmt = select(RetailerModel).where(
-                            RetailerModel.retailer_ref_id == final_retailer_ref_id,
-                            RetailerModel.company_ref_id == final_company_ref_id
-                        )
-                        ret_res = await db.execute(ret_stmt)
-                        ret_obj = ret_res.scalars().first()
-                        adj_dto = WalletAdjustmentDTO(
-                            user_ref_id=final_retailer_ref_id,
-                            retailer_id=str(ret_obj.public_id) if ret_obj else None,
-                            retailer_code=ret_obj.retailer_code if ret_obj else None,
-                            company_ref_id=final_company_ref_id,
-                            user_type_ref_id=2,
-                            entry_type="CREDIT",
-                            amount=final_retailer_credit,
-                            payout_amount=final_retailer_credit,
-                            charge_amount=0.0,
-                            gst_amount=0.0,
-                            service_name="PAYIN_TOPUP",
-                            wallet_type="MAIN",
-                            user_type="RETAILER",
-                            txn_id=final_tid,
-                            ref_id=final_provider_ref or final_tid,
-                            narration=f"PayIn Wallet Top-Up via BankMe (TID: {final_tid})"
-                        )
-                        adj_res = await WalletBalanceAdjustmentService.execute_wallet_balance_update(db=db, dto=adj_dto)
-                        if adj_res and adj_res.success:
-                            txn.ledger_txn_id = adj_res.txn_id
-                            final_ledger_txn_id = adj_res.txn_id
-                            await db.commit()
-                    except Exception as w_err:
-                        logger.error("Wallet credit error during receipt sync: %s", w_err)
+                if final_status == "SUCCESS":
+                    final_completed_at = datetime.now(timezone.utc).isoformat()
         except Exception as sync_err:
             logger.warning("Receipt sync warning for TID %s: %s", final_tid, sync_err)
 
@@ -566,18 +540,21 @@ async def get_payin_receipt(
         except Exception as r_err:
             logger.warning(f"Error fetching retailer details for receipt: {r_err}")
 
-    # Determine payment mode name
-    pay_mode_val = "UPI"
+    # Determine accurate normalized payment method (Never default to UPI)
+    pay_mode_code = None
     if hasattr(txn, "pay_mode_ref_id") and txn.pay_mode_ref_id:
         try:
             from app.infrastructure.db.payin_models import PayinPaymentModeModel
-            pm_stmt = select(PayinPaymentModeModel).where(PayinPaymentModeModel.payin_payment_mode_ref_id == txn.pay_mode_ref_id)
+            pm_stmt = select(PayinPaymentModeModel.pay_mode_code).where(PayinPaymentModeModel.payin_payment_mode_ref_id == txn.pay_mode_ref_id)
             pm_res = await db.execute(pm_stmt)
-            pm_obj = pm_res.scalars().first()
-            if pm_obj and pm_obj.pay_mode_name:
-                pay_mode_val = pm_obj.pay_mode_name
+            pay_mode_code = pm_res.scalar()
         except Exception as pm_err:
-            logger.warning(f"Error fetching pay mode for receipt: {pm_err}")
+            logger.warning(f"Error fetching pay mode code for receipt: {pm_err}")
+
+    pay_mode_val = PaymentMethodNormalizer.get_clean_method_display(
+        card_network=txn.card_network,
+        pay_mode_code=pay_mode_code
+    )
 
     # Determine customer-facing gateway label (G-1 or G-2 only)
     gw_label = "G-1" if (txn.payin_vendor_ref_id == 1 or final_company_ref_id == 2) else "G-2"

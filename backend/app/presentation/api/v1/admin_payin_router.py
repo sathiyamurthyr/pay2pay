@@ -1086,8 +1086,9 @@ async def get_company_card_mdr(
     v_name = gw_info["vendor_name"] if gw_info else "Provider"
     v_code = gw_info["vendor_code"] if gw_info else "PROVIDER"
 
-    # 5 standard schemes definition
+    # Standard schemes definition (Cards + UPI)
     standard_schemes = [
+        {"id": "upi", "name": "UPI", "category": "Unified Payments Interface", "card_network": "UPI", "brand_color": "#059669", "icon_text": "UPI"},
         {"id": "visa", "name": "Visa", "category": "Consumer Debit / Credit", "card_network": "VISA", "brand_color": "#1A1F71", "icon_text": "VISA"},
         {"id": "mastercard", "name": "MasterCard", "category": "Consumer Debit / Credit", "card_network": "MASTERCARD", "brand_color": "#EB001B", "icon_text": "MC"},
         {"id": "rupay", "name": "RuPay", "category": "Domestic NPCI Network", "card_network": "RUPAY", "brand_color": "#097939", "icon_text": "RUPAY"},
@@ -1204,11 +1205,11 @@ async def update_company_card_mdr(
         )
 
     net = req.card_network.strip().upper()
-    valid_networks = {"VISA", "MASTERCARD", "RUPAY", "AMEX", "CORP"}
+    valid_networks = {"VISA", "MASTERCARD", "RUPAY", "AMEX", "CORP", "UPI"}
     if net not in valid_networks:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid card network '{req.card_network}'. Supported networks: {', '.join(sorted(valid_networks))}."
+            detail=f"Invalid payment method / card network '{req.card_network}'. Supported: {', '.join(sorted(valid_networks))}."
         )
 
     if req.mdr_percent < 0 or req.mdr_percent > 50.0:
@@ -1217,9 +1218,14 @@ async def update_company_card_mdr(
             detail=f"Invalid MDR percentage {req.mdr_percent}. Must be between 0.00% and 50.00%."
         )
 
-    ct_stmt = text("SELECT payin_card_type_ref_id FROM public.payin_card_types WHERE card_network = :net LIMIT 1;")
-    ct_res = await db.execute(ct_stmt, {"net": net})
-    card_type_ref_id = ct_res.scalar()
+    card_type_ref_id = None
+    payment_mode_ref_id = None
+    if net == "UPI":
+        payment_mode_ref_id = 1
+    else:
+        ct_stmt = text("SELECT payin_card_type_ref_id FROM public.payin_card_types WHERE card_network = :net LIMIT 1;")
+        ct_res = await db.execute(ct_stmt, {"net": net})
+        card_type_ref_id = ct_res.scalar()
 
     now_utc = datetime.now(timezone.utc)
     user_email = ctx.user_email or "ADMIN"
@@ -1264,11 +1270,11 @@ async def update_company_card_mdr(
         old_val = None
         ins_stmt = text("""
             INSERT INTO public.payin_mdr_cfg (
-                company_ref_id, payin_vendor_ref_id, payin_card_type_ref_id, card_network,
+                company_ref_id, payin_vendor_ref_id, payin_payment_mode_ref_id, payin_card_type_ref_id, card_network,
                 mdr_pct, mdr_fixed, tax_pct, min_mdr, max_mdr, mdr_treatment,
                 priority, is_enabled, effective_from, created_by, updated_by, created_at, updated_at
             ) VALUES (
-                :cid, :vid, :ctid, :net,
+                :cid, :vid, :pmid, :ctid, :net,
                 :pct, 0.0, 0.18, 0.0, 5000.0, :treat,
                 100, :en, :now, :uby, :uby, :now, :now
             ) RETURNING payin_mdr_cfg_ref_id;
@@ -1276,6 +1282,7 @@ async def update_company_card_mdr(
         ins_res = await db.execute(ins_stmt, {
             "cid": target_comp,
             "vid": vendor_ref_id,
+            "pmid": payment_mode_ref_id,
             "ctid": card_type_ref_id,
             "net": net,
             "pct": new_pct_decimal,
@@ -1395,9 +1402,14 @@ async def batch_update_company_card_mdr(
                 detail=f"Invalid MDR percentage {item.mdr_percent} for {net}."
             )
 
-        ct_stmt = text("SELECT payin_card_type_ref_id FROM public.payin_card_types WHERE card_network = :net LIMIT 1;")
-        ct_res = await db.execute(ct_stmt, {"net": net})
-        card_type_ref_id = ct_res.scalar()
+        card_type_ref_id = None
+        payment_mode_ref_id = None
+        if net == "UPI":
+            payment_mode_ref_id = 1
+        else:
+            ct_stmt = text("SELECT payin_card_type_ref_id FROM public.payin_card_types WHERE card_network = :net LIMIT 1;")
+            ct_res = await db.execute(ct_stmt, {"net": net})
+            card_type_ref_id = ct_res.scalar()
 
         find_stmt = text("""
             SELECT payin_mdr_cfg_ref_id, mdr_pct, is_enabled
@@ -1439,11 +1451,11 @@ async def batch_update_company_card_mdr(
             old_val = None
             ins_stmt = text("""
                 INSERT INTO public.payin_mdr_cfg (
-                    company_ref_id, payin_vendor_ref_id, payin_card_type_ref_id, card_network,
+                    company_ref_id, payin_vendor_ref_id, payin_payment_mode_ref_id, payin_card_type_ref_id, card_network,
                     mdr_pct, mdr_fixed, tax_pct, min_mdr, max_mdr, mdr_treatment,
                     priority, is_enabled, effective_from, created_by, updated_by, created_at, updated_at
                 ) VALUES (
-                    :cid, :vid, :ctid, :net,
+                    :cid, :vid, :pmid, :ctid, :net,
                     :pct, 0.0, 0.18, 0.0, 5000.0, :treat,
                     100, :en, :now, :uby, :uby, :now, :now
                 ) RETURNING payin_mdr_cfg_ref_id;
@@ -1451,6 +1463,7 @@ async def batch_update_company_card_mdr(
             ins_res = await db.execute(ins_stmt, {
                 "cid": target_comp,
                 "vid": vendor_ref_id,
+                "pmid": payment_mode_ref_id,
                 "ctid": card_type_ref_id,
                 "net": net,
                 "pct": new_pct_decimal,

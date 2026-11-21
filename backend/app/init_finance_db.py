@@ -304,9 +304,14 @@ async def init_finance_database():
         await conn.execute(text("""
             INSERT INTO payin_payment_modes (
                 payin_payment_mode_ref_id, pay_mode_code, pay_mode_name, display_order, is_enabled, created_at, updated_at
-            ) VALUES (
-                1, 'UPI', 'Unified Payments Interface', 1, true, :now, :now
-            ) ON CONFLICT (payin_payment_mode_ref_id) DO NOTHING;
+            ) VALUES 
+                (1, 'UPI', 'Unified Payments Interface', 1, true, :now, :now),
+                (2, 'CREDIT_CARD', 'Credit Card', 2, true, :now, :now),
+                (3, 'DEBIT_CARD', 'Debit Card', 3, true, :now, :now),
+                (4, 'NET_BANKING', 'Net Banking', 4, true, :now, :now),
+                (5, 'WALLET', 'Wallet', 5, true, :now, :now),
+                (99, 'UNKNOWN', 'Pending Classification', 99, true, :now, :now)
+            ON CONFLICT (payin_payment_mode_ref_id) DO NOTHING;
         """), {"now": now_dt})
 
         await conn.execute(text("""

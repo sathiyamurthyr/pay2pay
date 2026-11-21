@@ -122,7 +122,7 @@ class PayInMdrService:
             })
             chk_row = chk_res.mappings().first()
             if not chk_row or not chk_row["is_enabled"]:
-                raise DomainException(f"Card scheme '{net_clean}' is disabled or not configured for this payment gateway.")
+                raise DomainException(f"Payment method / scheme '{net_clean}' is disabled or not configured for this payment gateway.")
 
         stmt = text("""
             SELECT 
@@ -250,29 +250,34 @@ class PayInMdrService:
                 "priority": 0
             }
 
-        # Fallback to company default configuration if PayIn is enabled for this company
-        comp_chk = await db.execute(
-            text("SELECT payin_enabled, customer_payable_policy FROM public.payin_company_cfg WHERE company_ref_id = :c_ref LIMIT 1;"),
-            {"c_ref": company_ref_id}
-        )
-        comp_cfg_row = comp_chk.mappings().first()
-        if comp_cfg_row and comp_cfg_row.get("payin_enabled"):
-            default_rate = Decimal("0.0262") if company_ref_id == 2 else Decimal("0.0250")
-            return {
-                "rule_ref_id": None,
-                "mdr_pct": default_rate,
-                "mdr_fixed": Decimal("0.00"),
-                "tax_pct": Decimal("0.1800"),
-                "min_mdr": Decimal("0.00"),
-                "max_mdr": Decimal("5000.00"),
-                "mdr_treatment": effective_treatment,
-                "customer_payable_policy": policy_code,
-                "policy_display_name": policy_name,
-                "priority": 0
-            }
+        # Fallback to company default configuration if PayIn is enabled for this company and no specific card_network was requested
+        if not card_network:
+            comp_chk = await db.execute(
+                text("SELECT payin_enabled, customer_payable_policy FROM public.payin_company_cfg WHERE company_ref_id = :c_ref LIMIT 1;"),
+                {"c_ref": company_ref_id}
+            )
+            comp_cfg_row = comp_chk.mappings().first()
+            if comp_cfg_row and comp_cfg_row.get("payin_enabled"):
+                default_rate = Decimal("0.0262") if company_ref_id == 2 else Decimal("0.0250")
+                return {
+                    "rule_ref_id": None,
+                    "mdr_pct": default_rate,
+                    "mdr_fixed": Decimal("0.00"),
+                    "tax_pct": Decimal("0.1800"),
+                    "min_mdr": Decimal("0.00"),
+                    "max_mdr": Decimal("5000.00"),
+                    "mdr_treatment": effective_treatment,
+                    "customer_payable_policy": policy_code,
+                    "policy_display_name": policy_name,
+                    "priority": 0
+                }
 
+        logger.error(
+            "CRITICAL CONFIGURATION ERROR: No applicable active MDR configuration found for Company Ref ID %s, Vendor %s, Network '%s', Mode %s. Calculation aborted.",
+            company_ref_id, vendor_ref_id, card_network, payment_mode_ref_id
+        )
         raise DomainException(
-            f"No applicable active MDR configuration found for Company Ref ID {company_ref_id} and Vendor {vendor_ref_id}."
+            f"No applicable active MDR configuration found for Company Ref ID {company_ref_id}, Vendor {vendor_ref_id}, and method '{card_network or payment_mode_ref_id or 'Base'}'. Please configure MDR in Admin suite."
         )
 
     @classmethod

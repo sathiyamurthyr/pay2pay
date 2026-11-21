@@ -22,6 +22,7 @@ from app.core.database import get_db
 from app.core.security import GlobalReceiptSecurity
 from app.core.company_resolver import resolve_receipt_base_url, get_company_preset
 from app.application.gateway_masking_service import GatewayMaskingService
+from app.application.payment_method_normalizer import PaymentMethodNormalizer
 from app.infrastructure.db.payout_workflow_models import (
     PayoutReceiptModel,
     PayoutWorkflowTransactionModel
@@ -183,9 +184,9 @@ async def get_public_receipt(
                 "utr": utr_val,
                 "gatewayRef": utr_val,
                 "rrn": utr_val,
-                "channel": payin_txn.card_network or "UPI",
-                "paymentMode": getattr(payin_txn, "card_network", None) or "UPI",
-                "paymentMethod": getattr(payin_txn, "card_network", None) or "UPI",
+                "channel": PaymentMethodNormalizer.get_clean_method_display(card_network=getattr(payin_txn, "card_network", None)),
+                "paymentMode": PaymentMethodNormalizer.get_clean_method_display(card_network=getattr(payin_txn, "card_network", None)),
+                "paymentMethod": PaymentMethodNormalizer.get_clean_method_display(card_network=getattr(payin_txn, "card_network", None)),
                 "gateway": gw_code,
                 "gatewayCode": gw_code,
                 "gatewayName": f"Gateway {gw_code}",

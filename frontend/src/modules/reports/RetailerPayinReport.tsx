@@ -524,7 +524,7 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
       Number(item.wallet_credit || 0).toFixed(2),
       item.customer_mobile || "--",
       item.gateway || "G-1",
-      item.method || "UPI",
+      item.method || item.payment_mode || "--",
       (item.status || "SUCCESS").toUpperCase(),
       item.date_time || "--",
     ]);
@@ -1755,7 +1755,7 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                         {/* 9. Method */}
                         {!hiddenColumns.has("method") && (
                           <TableCell sx={{ fontSize: "12px", color: "#374151", fontWeight: 600, whiteSpace: "nowrap" }}>
-                            {row.method || row.payment_mode || "UPI"}
+                            {row.method || row.payment_mode || "Pending Classification"}
                           </TableCell>
                         )}
 
@@ -1923,7 +1923,7 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                       Customer: <strong>{row.customer_mobile || row.mobile_no || "--"}</strong>
                     </Typography>
                     <Typography sx={{ fontSize: "11px", color: "#4B5563" }}>
-                      Gateway: <strong>{row.gateway || "G-1"}</strong> · {row.method || row.payment_mode || "UPI"}
+                      Gateway: <strong>{row.gateway || "G-1"}</strong> · {row.method || row.payment_mode || "--"}
                     </Typography>
                   </Stack>
                   <Box sx={{ mt: 1, textAlign: "right" }}>
@@ -2628,7 +2628,7 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
                 <Box>
                   <Typography sx={{ fontSize: "10.5px", color: "#6B7280" }}>Method</Typography>
                   <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#111827" }}>
-                    {selectedTxn.method || selectedTxn.payment_mode || "UPI"}
+                    {selectedTxn.method || selectedTxn.payment_mode || "--"}
                   </Typography>
                 </Box>
               </Box>
@@ -2697,7 +2697,7 @@ function generateReceiptPrintHtml(item: PayinReportItem, brand: any) {
   const retName = item.retailer_name || "Retailer Partner";
   const custMob = item.customer_mobile || item.mobile_no || "--";
   const gw = item.gateway || "G-1";
-  const method = item.method || item.payment_mode || "UPI";
+  const method = item.method || item.payment_mode || "--";
 
   return `<!DOCTYPE html>
 <html>

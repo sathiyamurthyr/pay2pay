@@ -234,6 +234,14 @@ class PayInConfigService:
 
         schemes_meta = [
             {
+                "id": "upi",
+                "name": "UPI",
+                "category": "Unified Payments Interface",
+                "card_network": "UPI",
+                "brand_color": "#059669",
+                "icon_text": "UPI"
+            },
+            {
                 "id": "visa",
                 "name": "Visa",
                 "category": "Consumer Debit / Credit",
