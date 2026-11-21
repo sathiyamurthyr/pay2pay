@@ -380,9 +380,25 @@ class PayInConfigService:
             cv_row = check_res.first()
             if cv_row:
                 cv_obj, v_obj = cv_row
-                if not cv_obj.is_enabled or cv_obj.status == "INACTIVE" or v_obj.vendor_status != "ACTIVE":
+                if v_obj.vendor_status != "ACTIVE":
+                    raise DomainException(f"Selected payment vendor '{v_obj.vendor_name}' is currently inactive or disabled.")
+                if not cv_obj.is_enabled or cv_obj.status == "INACTIVE":
                     raise DomainException(f"Selected payment gateway '{cv_obj.retailer_display_name or req_code}' is currently inactive or disabled.")
                 return v_obj
+            else:
+                # Requested vendor not mapped to this company. Check if vendor exists globally
+                v_global_stmt = select(PayinVendorModel).where(
+                    or_(
+                        func.upper(PayinVendorModel.vendor_code) == internal_code,
+                        func.upper(PayinVendorModel.vendor_code) == req_code
+                    )
+                )
+                v_global = (await db.execute(v_global_stmt)).scalars().first()
+                if v_global:
+                    if v_global.vendor_status != "ACTIVE":
+                        raise DomainException(f"Selected payment vendor '{v_global.vendor_name}' is currently inactive or disabled.")
+                    raise DomainException(f"Selected payment vendor '{v_global.vendor_name}' is not configured or enabled for your company.")
+                raise DomainException(f"Invalid or unrecognized payment gateway '{requested_vendor_code}'.")
 
         # Fallback to default active vendor for company
         stmt_def = select(PayinVendorModel).join(
