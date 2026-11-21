@@ -172,6 +172,7 @@ const ADMIN_NAV: NavCategory[] = [
       { label: "Transaction Ledger", href: "/admin/reports/transaction-ledger", icon: ScrollText },
       { label: "PayIn Report", href: "/admin/reports/payin-transactions", icon: TrendingUp, badge: "Live" },
       { label: "Payout Report", href: "/admin/reports/payout-transactions", icon: FileText },
+      { label: "GST Report", href: "/admin/reports/gst", icon: Receipt, badge: "P0" },
       { label: "Report Center", href: "/retailer/reports", icon: FileText },
       { label: "Settlement", href: "/settlement-processing/batches", icon: FileText },
       { label: "Wallet", href: "/settlement-processing/journals", icon: FileText },
@@ -340,7 +341,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
         "Administration": ["Super Distributor", "Distributor", "Retailer", "POS Machine"],
         "Configuration": ["Customer Policy", "Notifications", "Announcements"],
         "Approvals": ["KYC & Onboarding"],
-        "Reports": ["Transaction Report", "Transaction Ledger", "PayIn Report", "Payout Report", "Settlement", "Wallet", "Retailers", "Machines", "Audit", "Reconciliation"],
+        "Reports": ["Transaction Report", "Transaction Ledger", "PayIn Report", "Payout Report", "GST Report", "Settlement", "Wallet", "Retailers", "Machines", "Audit", "Reconciliation"],
       };
 
       baseNav = ADMIN_NAV.map((cat) => {
@@ -369,7 +370,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
         "Administration": ["Entity User", "Manual Top-up", "Topup Requests"],
         "Configuration": ["Payout Switch", "Wallet", "Chart of Accounts", "Transactions", "Commission", "Charges"],
         "Approvals": ["Topup Requests", "Settlement", "Wallet Adjustments"],
-        "Reports": ["Transaction Report", "Transaction Ledger", "PayIn Report", "Payout Report", "Settlement", "Wallet", "Reconciliation"],
+        "Reports": ["Transaction Report", "Transaction Ledger", "PayIn Report", "Payout Report", "GST Report", "Settlement", "Wallet", "Reconciliation"],
       };
 
       baseNav = ADMIN_NAV.map((cat) => {
