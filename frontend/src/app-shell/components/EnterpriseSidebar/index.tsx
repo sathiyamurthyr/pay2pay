@@ -195,6 +195,7 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
       items: [
         { label: "Payout Transactions", path: "/retailer/reports/payout-transactions", icon: ReceiptIcon },
         { label: "Transaction Ledger", path: "/retailer/reports/transaction-ledger", icon: MenuBookIcon, financial: true },
+        { label: "GST Report", path: "/retailer/reports/gst", icon: ReceiptIcon, badge: "P0" },
         { label: "Tax Report", path: "/retailer/reports/tax", icon: GavelIcon },
         { label: "Daily Open & Close", path: "/retailer/reports/daily-open-close", icon: DescriptionIcon, badge: "Recon" },
       ],

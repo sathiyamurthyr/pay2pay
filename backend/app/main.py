@@ -268,6 +268,7 @@ from app.presentation.api.v1 import retailer_verification_router
 from app.presentation.api.v1 import company_onboarding_router
 from app.presentation.api.v1 import admin_reports_router
 from app.presentation.api.v1 import portal_reports_router
+from app.presentation.api.v1 import gst_report_router
 from app.presentation.api.v1 import session_security_router
 from app.presentation.api.v1 import report_center_router
 from app.presentation.api.v1 import progressive_onboarding_router
@@ -295,6 +296,11 @@ app.include_router(retailer_verification_router.router, prefix=settings.API_V1_S
 app.include_router(company_onboarding_router.router, prefix=settings.API_V1_STR)
 app.include_router(admin_reports_router.router, prefix=settings.API_V1_STR)
 app.include_router(portal_reports_router.router, prefix=settings.API_V1_STR)
+
+app.include_router(gst_report_router.router, prefix=settings.API_V1_STR)
+app.include_router(gst_report_router.router, prefix="/api/v1")
+app.include_router(gst_report_router.router, prefix="/api")
+app.include_router(gst_report_router.router, prefix="")
 
 app.include_router(admin_retailer_controller.router, prefix=settings.API_V1_STR)
 app.include_router(admin_retailer_controller.router, prefix="/v1")
