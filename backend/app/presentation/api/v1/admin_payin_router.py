@@ -8,13 +8,14 @@ callbacks, and audit trails.
 import logging
 from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import text, select, func, and_, desc
+from sqlalchemy import text, select, func, and_, desc, or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 
 from datetime import datetime, timezone
 from app.core.database import get_db
 from app.application.dependencies import get_current_token_payload, get_current_user, CompanyContext, get_company_context, AdminUserModel
+from app.infrastructure.db.models import CompanyModel
 from app.infrastructure.db.payin_models import (
     PayinCompanyCfgModel, PayinVendorModel, PayinCompanyVendorModel,
     PayinServiceTypeModel, PayinPaymentModeModel, PayinCardTypeModel,
@@ -366,26 +367,504 @@ async def toggle_company_payin(
     return {"success": True, "company_ref_id": company_ref_id, "payin_enabled": cfg.payin_enabled}
 
 
+# ── ADMIN ACCESS GUARD ──
+
+def require_admin_guard(
+    payload: dict = Depends(get_current_token_payload),
+    current_user: AdminUserModel = Depends(get_current_user)
+) -> AdminUserModel:
+    token_roles = [str(r).upper() for r in (payload.get("roles") or [])]
+    user_type = str(getattr(current_user, "user_type", "") or "").upper()
+    admin_roles = {"SUPER_ADMIN", "PLATFORM_ADMIN", "OPERATIONS_ADMIN", "ROOT_ADMIN", "ADMIN", "COMPANY_ADMIN"}
+    
+    is_admin = bool(
+        any(r in admin_roles for r in token_roles)
+        or user_type in admin_roles
+    )
+    if not is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Administrative privileges required to manage payment settings."
+        )
+    return current_user
+
+
+# ── PAYMENT VENDOR MANAGEMENT DTOs ──
+
+class CreatePayinVendorRequest(BaseModel):
+    vendor_code: str = Field(..., min_length=2, max_length=50, description="Unique vendor identifier, e.g. PHONEPE")
+    vendor_name: str = Field(..., min_length=2, max_length=150, description="Full descriptive vendor name")
+    provider_name: str = Field(..., min_length=2, max_length=100, description="Provider entity name")
+    provider_type: str = Field("PAYMENT_GATEWAY", min_length=2, max_length=50, description="PAYMENT_GATEWAY, BANK, AGGREGATOR")
+    api_base_url: str = Field(..., min_length=5, max_length=255, description="Provider API base endpoint URL")
+    auth_type: str = Field("API_KEY", min_length=2, max_length=50, description="API_KEY, BEARER, BASIC, HMAC")
+    cred_ref: str = Field(..., min_length=2, max_length=255, description="Vault or environment credential key reference")
+    callback_url: Optional[str] = Field(None, max_length=255, description="Webhook/Callback URL")
+    timeout_sec: int = Field(30, ge=1, le=300, description="Timeout in seconds")
+    retry_policy: str = Field("EXPONENTIAL_BACKOFF", min_length=2, max_length=100)
+    vendor_status: str = Field("ACTIVE", description="Initial status: ACTIVE or INACTIVE")
+
+
+class UpdatePayinVendorRequest(BaseModel):
+    vendor_code: Optional[str] = Field(None, min_length=2, max_length=50)
+    vendor_name: Optional[str] = Field(None, min_length=2, max_length=150)
+    provider_name: Optional[str] = Field(None, min_length=2, max_length=100)
+    provider_type: Optional[str] = Field(None, min_length=2, max_length=50)
+    api_base_url: Optional[str] = Field(None, min_length=5, max_length=255)
+    auth_type: Optional[str] = Field(None, min_length=2, max_length=50)
+    cred_ref: Optional[str] = Field(None, min_length=2, max_length=255)
+    callback_url: Optional[str] = Field(None, max_length=255)
+    timeout_sec: Optional[int] = Field(None, ge=1, le=300)
+    retry_policy: Optional[str] = Field(None, min_length=2, max_length=100)
+    vendor_status: Optional[str] = Field(None, description="ACTIVE or INACTIVE")
+
+
+class ToggleVendorStatusRequest(BaseModel):
+    vendor_status: Optional[str] = Field(None, description="Target status: ACTIVE or INACTIVE")
+
+
+# ── PAYMENT VENDOR MASTER ENDPOINTS ──
+
 @router.get("/vendors")
-async def list_vendors(db: AsyncSession = Depends(get_db)):
-    """Lists all configured payment vendors."""
-    stmt = select(PayinVendorModel).order_by(PayinVendorModel.payin_vendor_ref_id.asc())
+async def list_vendors(
+    _admin: AdminUserModel = Depends(require_admin_guard),
+    db: AsyncSession = Depends(get_db)
+):
+    """Lists all configured payment vendors with runtime metadata and transaction counts."""
+    subq = select(
+        PayinTransactionModel.payin_vendor_ref_id,
+        func.count(PayinTransactionModel.payin_txn_ref_id).label("txn_count")
+    ).group_by(PayinTransactionModel.payin_vendor_ref_id).subquery()
+
+    stmt = select(
+        PayinVendorModel,
+        func.coalesce(subq.c.txn_count, 0).label("txn_count")
+    ).outerjoin(
+        subq,
+        PayinVendorModel.payin_vendor_ref_id == subq.c.payin_vendor_ref_id
+    ).order_by(
+        PayinVendorModel.payin_vendor_ref_id.asc()
+    )
     res = await db.execute(stmt)
-    vendors = res.scalars().all()
+    rows = res.all()
+
+    vendor_list = []
+    for v, txn_cnt in rows:
+        vendor_list.append({
+            "payin_vendor_ref_id": v.payin_vendor_ref_id,
+            "vendor_code": v.vendor_code,
+            "vendor_name": v.vendor_name,
+            "provider_name": v.provider_name,
+            "provider_type": v.provider_type,
+            "api_base_url": v.api_base_url,
+            "auth_type": v.auth_type,
+            "cred_ref": v.cred_ref,
+            "callback_url": v.callback_url,
+            "timeout_sec": v.timeout_sec,
+            "retry_policy": v.retry_policy,
+            "vendor_status": v.vendor_status,
+            "created_by": v.created_by,
+            "updated_by": v.updated_by,
+            "created_at": v.created_at.isoformat() if v.created_at else None,
+            "updated_at": v.updated_at.isoformat() if v.updated_at else None,
+            "txn_count": int(txn_cnt or 0)
+        })
+
     return {
         "success": True,
-        "vendors": [
-            {
-                "payin_vendor_ref_id": v.payin_vendor_ref_id,
-                "vendor_code": v.vendor_code,
-                "vendor_name": v.vendor_name,
-                "provider_name": v.provider_name,
-                "provider_type": v.provider_type,
-                "api_base_url": v.api_base_url,
-                "vendor_status": v.vendor_status,
-                "timeout_sec": v.timeout_sec
-            } for v in vendors
-        ]
+        "vendors": vendor_list,
+        "data": vendor_list,
+        "total": len(vendor_list)
+    }
+
+
+@router.get("/vendors/{vendor_ref_id}")
+async def get_vendor_detail(
+    vendor_ref_id: int,
+    _admin: AdminUserModel = Depends(require_admin_guard),
+    db: AsyncSession = Depends(get_db)
+):
+    """Retrieves full details for a single payment vendor."""
+    stmt = select(PayinVendorModel).where(PayinVendorModel.payin_vendor_ref_id == vendor_ref_id)
+    vendor = (await db.execute(stmt)).scalars().first()
+    if not vendor:
+        raise HTTPException(status_code=404, detail=f"Payment vendor Ref #{vendor_ref_id} not found.")
+
+    txn_count = (await db.execute(
+        select(func.count(PayinTransactionModel.payin_txn_ref_id)).where(
+            PayinTransactionModel.payin_vendor_ref_id == vendor_ref_id
+        )
+    )).scalar() or 0
+
+    return {
+        "success": True,
+        "vendor": {
+            "payin_vendor_ref_id": vendor.payin_vendor_ref_id,
+            "vendor_code": vendor.vendor_code,
+            "vendor_name": vendor.vendor_name,
+            "provider_name": vendor.provider_name,
+            "provider_type": vendor.provider_type,
+            "api_base_url": vendor.api_base_url,
+            "auth_type": vendor.auth_type,
+            "cred_ref": vendor.cred_ref,
+            "callback_url": vendor.callback_url,
+            "timeout_sec": vendor.timeout_sec,
+            "retry_policy": vendor.retry_policy,
+            "vendor_status": vendor.vendor_status,
+            "created_by": vendor.created_by,
+            "updated_by": vendor.updated_by,
+            "created_at": vendor.created_at.isoformat() if vendor.created_at else None,
+            "updated_at": vendor.updated_at.isoformat() if vendor.updated_at else None,
+            "txn_count": int(txn_count)
+        }
+    }
+
+
+@router.post("/vendors", status_code=status.HTTP_201_CREATED)
+async def create_vendor(
+    req: CreatePayinVendorRequest,
+    _admin: AdminUserModel = Depends(require_admin_guard),
+    ctx: CompanyContext = Depends(get_company_context),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Creates a new Payment Vendor in payin_vendors, prevents duplicate codes,
+    and maps default company gateway configs with full audit logging.
+    """
+    code_clean = req.vendor_code.strip().upper()
+    if not code_clean:
+        raise HTTPException(status_code=400, detail="Vendor code cannot be empty.")
+
+    # Check duplicate vendor code
+    dup_stmt = select(PayinVendorModel).where(func.upper(PayinVendorModel.vendor_code) == code_clean)
+    dup = (await db.execute(dup_stmt)).scalars().first()
+    if dup:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Vendor code '{code_clean}' already exists (#{dup.payin_vendor_ref_id} - {dup.vendor_name})."
+        )
+
+    status_clean = (req.vendor_status or "ACTIVE").strip().upper()
+    if status_clean not in ("ACTIVE", "INACTIVE"):
+        raise HTTPException(status_code=400, detail="Invalid vendor status. Must be ACTIVE or INACTIVE.")
+
+    new_vendor = PayinVendorModel(
+        vendor_code=code_clean,
+        vendor_name=req.vendor_name.strip(),
+        provider_name=req.provider_name.strip(),
+        provider_type=req.provider_type.strip().upper(),
+        api_base_url=req.api_base_url.strip(),
+        auth_type=req.auth_type.strip().upper(),
+        cred_ref=req.cred_ref.strip(),
+        callback_url=req.callback_url.strip() if req.callback_url else None,
+        timeout_sec=req.timeout_sec or 30,
+        retry_policy=req.retry_policy.strip(),
+        vendor_status=status_clean,
+        created_by=ctx.user_email,
+        updated_by=ctx.user_email
+    )
+    db.add(new_vendor)
+    await db.flush()
+
+    # Map to active companies in payin_company_vendors
+    comp_stmt = select(CompanyModel.company_ref_id).where(CompanyModel.status == "ACTIVE")
+    active_companies = (await db.execute(comp_stmt)).scalars().all()
+    if not active_companies:
+        active_companies = [1, 2]
+
+    for c_id in active_companies:
+        existing_cvs = (await db.execute(
+            select(PayinCompanyVendorModel).where(PayinCompanyVendorModel.company_ref_id == c_id)
+        )).scalars().all()
+        next_order = len(existing_cvs) + 1
+        gw_code = f"G-{next_order}"
+
+        cv_mapping = PayinCompanyVendorModel(
+            company_ref_id=c_id,
+            payin_vendor_ref_id=new_vendor.payin_vendor_ref_id,
+            gateway_code=gw_code,
+            retailer_display_name=f"Gateway {gw_code}",
+            description=f"Payment processing via {new_vendor.vendor_name}.",
+            display_order=next_order,
+            status=status_clean,
+            is_enabled=(status_clean == "ACTIVE"),
+            vendor_priority=next_order,
+            is_default=False,
+            updated_by=ctx.user_email
+        )
+        db.add(cv_mapping)
+
+    # Record Audit Log
+    db.add(PayinAuditLogModel(
+        company_ref_id=ctx.company_ref_id or 1,
+        actor_ref_id=getattr(ctx.user, "admin_user_ref_id", None) or getattr(ctx.user, "id", None),
+        action_type="CREATE_PAYIN_VENDOR",
+        entity_type="payin_vendors",
+        entity_ref_id=new_vendor.payin_vendor_ref_id,
+        old_value=None,
+        new_value={
+            "vendor_code": new_vendor.vendor_code,
+            "vendor_name": new_vendor.vendor_name,
+            "provider_name": new_vendor.provider_name,
+            "provider_type": new_vendor.provider_type,
+            "api_base_url": new_vendor.api_base_url,
+            "vendor_status": new_vendor.vendor_status
+        },
+        created_at=datetime.now(timezone.utc)
+    ))
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": f"Payment vendor '{new_vendor.vendor_name}' ({new_vendor.vendor_code}) created successfully.",
+        "vendor": {
+            "payin_vendor_ref_id": new_vendor.payin_vendor_ref_id,
+            "vendor_code": new_vendor.vendor_code,
+            "vendor_name": new_vendor.vendor_name,
+            "provider_name": new_vendor.provider_name,
+            "provider_type": new_vendor.provider_type,
+            "api_base_url": new_vendor.api_base_url,
+            "auth_type": new_vendor.auth_type,
+            "cred_ref": new_vendor.cred_ref,
+            "callback_url": new_vendor.callback_url,
+            "timeout_sec": new_vendor.timeout_sec,
+            "retry_policy": new_vendor.retry_policy,
+            "vendor_status": new_vendor.vendor_status,
+            "created_by": new_vendor.created_by,
+            "updated_by": new_vendor.updated_by,
+            "created_at": new_vendor.created_at.isoformat() if new_vendor.created_at else None,
+            "updated_at": new_vendor.updated_at.isoformat() if new_vendor.updated_at else None,
+            "txn_count": 0
+        }
+    }
+
+
+@router.put("/vendors/{vendor_ref_id}")
+@router.post("/vendors/{vendor_ref_id}")
+async def update_vendor(
+    vendor_ref_id: int,
+    req: UpdatePayinVendorRequest,
+    _admin: AdminUserModel = Depends(require_admin_guard),
+    ctx: CompanyContext = Depends(get_company_context),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Updates an existing vendor's configuration.
+    Preserves relational integrity by locking vendor_code if transactions exist.
+    Cascades status changes to company-level mappings.
+    """
+    stmt = select(PayinVendorModel).where(PayinVendorModel.payin_vendor_ref_id == vendor_ref_id)
+    vendor = (await db.execute(stmt)).scalars().first()
+    if not vendor:
+        raise HTTPException(status_code=404, detail=f"Payment vendor Ref #{vendor_ref_id} not found.")
+
+    old_val = {
+        "vendor_code": vendor.vendor_code,
+        "vendor_name": vendor.vendor_name,
+        "provider_name": vendor.provider_name,
+        "provider_type": vendor.provider_type,
+        "api_base_url": vendor.api_base_url,
+        "auth_type": vendor.auth_type,
+        "cred_ref": vendor.cred_ref,
+        "callback_url": vendor.callback_url,
+        "timeout_sec": vendor.timeout_sec,
+        "retry_policy": vendor.retry_policy,
+        "vendor_status": vendor.vendor_status
+    }
+
+    # Validate vendor_code modification
+    if req.vendor_code is not None and req.vendor_code.strip():
+        new_code = req.vendor_code.strip().upper()
+        if new_code != vendor.vendor_code:
+            txn_count = (await db.execute(
+                select(func.count(PayinTransactionModel.payin_txn_ref_id)).where(
+                    PayinTransactionModel.payin_vendor_ref_id == vendor_ref_id
+                )
+            )).scalar() or 0
+            if txn_count > 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Vendor code cannot be modified because {txn_count} transaction(s) are associated with this vendor. Primary identifier modification is prohibited to maintain relational and financial integrity."
+                )
+            dup = (await db.execute(
+                select(PayinVendorModel).where(
+                    func.upper(PayinVendorModel.vendor_code) == new_code,
+                    PayinVendorModel.payin_vendor_ref_id != vendor_ref_id
+                )
+            )).scalars().first()
+            if dup:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Vendor code '{new_code}' is already assigned to vendor #{dup.payin_vendor_ref_id} ({dup.vendor_name})."
+                )
+            vendor.vendor_code = new_code
+
+    if req.vendor_name is not None and req.vendor_name.strip():
+        vendor.vendor_name = req.vendor_name.strip()
+    if req.provider_name is not None and req.provider_name.strip():
+        vendor.provider_name = req.provider_name.strip()
+    if req.provider_type is not None and req.provider_type.strip():
+        vendor.provider_type = req.provider_type.strip().upper()
+    if req.api_base_url is not None and req.api_base_url.strip():
+        vendor.api_base_url = req.api_base_url.strip()
+    if req.auth_type is not None and req.auth_type.strip():
+        vendor.auth_type = req.auth_type.strip().upper()
+    if req.cred_ref is not None and req.cred_ref.strip():
+        vendor.cred_ref = req.cred_ref.strip()
+    if req.callback_url is not None:
+        vendor.callback_url = req.callback_url.strip() if req.callback_url.strip() else None
+    if req.timeout_sec is not None:
+        vendor.timeout_sec = req.timeout_sec
+    if req.retry_policy is not None and req.retry_policy.strip():
+        vendor.retry_policy = req.retry_policy.strip()
+
+    if req.vendor_status is not None and req.vendor_status.strip():
+        target_status = req.vendor_status.strip().upper()
+        if target_status not in ("ACTIVE", "INACTIVE"):
+            raise HTTPException(status_code=400, detail="Invalid status. Must be ACTIVE or INACTIVE.")
+        if target_status != vendor.vendor_status:
+            vendor.vendor_status = target_status
+            is_en = (target_status == "ACTIVE")
+            await db.execute(
+                update(PayinCompanyVendorModel).where(
+                    PayinCompanyVendorModel.payin_vendor_ref_id == vendor_ref_id
+                ).values(
+                    status=target_status,
+                    is_enabled=is_en,
+                    updated_by=ctx.user_email,
+                    updated_at=func.now()
+                )
+            )
+
+    vendor.updated_by = ctx.user_email
+    vendor.updated_at = datetime.now(timezone.utc)
+
+    new_val = {
+        "vendor_code": vendor.vendor_code,
+        "vendor_name": vendor.vendor_name,
+        "provider_name": vendor.provider_name,
+        "provider_type": vendor.provider_type,
+        "api_base_url": vendor.api_base_url,
+        "auth_type": vendor.auth_type,
+        "cred_ref": vendor.cred_ref,
+        "callback_url": vendor.callback_url,
+        "timeout_sec": vendor.timeout_sec,
+        "retry_policy": vendor.retry_policy,
+        "vendor_status": vendor.vendor_status
+    }
+
+    db.add(PayinAuditLogModel(
+        company_ref_id=ctx.company_ref_id or 1,
+        actor_ref_id=getattr(ctx.user, "admin_user_ref_id", None) or getattr(ctx.user, "id", None),
+        action_type="UPDATE_PAYIN_VENDOR",
+        entity_type="payin_vendors",
+        entity_ref_id=vendor_ref_id,
+        old_value=old_val,
+        new_value=new_val,
+        created_at=datetime.now(timezone.utc)
+    ))
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": f"Payment vendor '{vendor.vendor_name}' ({vendor.vendor_code}) updated successfully.",
+        "vendor": {
+            "payin_vendor_ref_id": vendor.payin_vendor_ref_id,
+            "vendor_code": vendor.vendor_code,
+            "vendor_name": vendor.vendor_name,
+            "provider_name": vendor.provider_name,
+            "provider_type": vendor.provider_type,
+            "api_base_url": vendor.api_base_url,
+            "auth_type": vendor.auth_type,
+            "cred_ref": vendor.cred_ref,
+            "callback_url": vendor.callback_url,
+            "timeout_sec": vendor.timeout_sec,
+            "retry_policy": vendor.retry_policy,
+            "vendor_status": vendor.vendor_status,
+            "created_by": vendor.created_by,
+            "updated_by": vendor.updated_by,
+            "created_at": vendor.created_at.isoformat() if vendor.created_at else None,
+            "updated_at": vendor.updated_at.isoformat() if vendor.updated_at else None
+        }
+    }
+
+
+@router.post("/vendors/{vendor_ref_id}/toggle-status")
+async def toggle_vendor_status(
+    vendor_ref_id: int,
+    req: Optional[ToggleVendorStatusRequest] = None,
+    _admin: AdminUserModel = Depends(require_admin_guard),
+    ctx: CompanyContext = Depends(get_company_context),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Explicitly activates or deactivates a payment vendor.
+    Deactivation immediately blocks retailer checkout and fails closed on new collections.
+    Cascades status update to all company vendor mappings.
+    Historical transactions, logs, and settlements remain fully preserved.
+    """
+    stmt = select(PayinVendorModel).where(PayinVendorModel.payin_vendor_ref_id == vendor_ref_id)
+    vendor = (await db.execute(stmt)).scalars().first()
+    if not vendor:
+        raise HTTPException(status_code=404, detail=f"Payment vendor Ref #{vendor_ref_id} not found.")
+
+    old_status = vendor.vendor_status
+    if req and req.vendor_status:
+        target_status = req.vendor_status.strip().upper()
+    else:
+        target_status = "INACTIVE" if old_status == "ACTIVE" else "ACTIVE"
+
+    if target_status not in ("ACTIVE", "INACTIVE"):
+        raise HTTPException(status_code=400, detail="Invalid status. Must be ACTIVE or INACTIVE.")
+
+    vendor.vendor_status = target_status
+    vendor.updated_by = ctx.user_email
+    vendor.updated_at = datetime.now(timezone.utc)
+
+    # Cascade to payin_company_vendors
+    is_en = (target_status == "ACTIVE")
+    await db.execute(
+        update(PayinCompanyVendorModel).where(
+            PayinCompanyVendorModel.payin_vendor_ref_id == vendor_ref_id
+        ).values(
+            status=target_status,
+            is_enabled=is_en,
+            updated_by=ctx.user_email,
+            updated_at=func.now()
+        )
+    )
+
+    action_label = "DEACTIVATE_PAYIN_VENDOR" if target_status == "INACTIVE" else "ACTIVATE_PAYIN_VENDOR"
+    user_msg = (
+        f"Vendor '{vendor.vendor_name}' ({vendor.vendor_code}) deactivated successfully. Retailer checkout and new PayIn collections are now blocked for this vendor."
+        if target_status == "INACTIVE" else
+        f"Vendor '{vendor.vendor_name}' ({vendor.vendor_code}) activated successfully. Vendor is now available for retailer checkout."
+    )
+
+    db.add(PayinAuditLogModel(
+        company_ref_id=ctx.company_ref_id or 1,
+        actor_ref_id=getattr(ctx.user, "admin_user_ref_id", None) or getattr(ctx.user, "id", None),
+        action_type=action_label,
+        entity_type="payin_vendors",
+        entity_ref_id=vendor_ref_id,
+        old_value={"vendor_status": old_status},
+        new_value={"vendor_status": target_status},
+        created_at=datetime.now(timezone.utc)
+    ))
+    await db.commit()
+
+    return {
+        "success": True,
+        "vendor_status": target_status,
+        "message": user_msg,
+        "vendor": {
+            "payin_vendor_ref_id": vendor.payin_vendor_ref_id,
+            "vendor_code": vendor.vendor_code,
+            "vendor_name": vendor.vendor_name,
+            "vendor_status": vendor.vendor_status,
+            "updated_by": vendor.updated_by,
+            "updated_at": vendor.updated_at.isoformat() if vendor.updated_at else None
+        }
     }
 
 
@@ -424,25 +903,6 @@ async def list_company_vendors(
 
 
 # ── PAYMENT GATEWAY DYNAMIC MANAGEMENT ──
-
-def require_admin_guard(
-    payload: dict = Depends(get_current_token_payload),
-    current_user: AdminUserModel = Depends(get_current_user)
-) -> AdminUserModel:
-    token_roles = [str(r).upper() for r in (payload.get("roles") or [])]
-    user_type = str(getattr(current_user, "user_type", "") or "").upper()
-    admin_roles = {"SUPER_ADMIN", "PLATFORM_ADMIN", "OPERATIONS_ADMIN", "ROOT_ADMIN", "ADMIN", "COMPANY_ADMIN"}
-    
-    is_admin = bool(
-        any(r in admin_roles for r in token_roles)
-        or user_type in admin_roles
-    )
-    if not is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Forbidden: Administrative privileges required to manage payment gateways."
-        )
-    return current_user
 
 
 @router.get("/gateways")
