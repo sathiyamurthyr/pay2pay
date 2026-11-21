@@ -77,14 +77,24 @@ async def record_payin_api_audit_log(
     vendor_status: Optional[str] = None,
     error_code: Optional[str] = None,
     error_message: Optional[str] = None,
-    environment: str = "sandbox"
+    environment: str = "sandbox",
+    user_type_ref_id: Optional[int] = None,
+    user_ref_id: Optional[int] = None
 ) -> None:
     """Safely persist vendor API transaction audit log into public.payin_api_logs."""
     try:
+        from app.application.user_type_service import UserTypeService
         async with AsyncSessionLocal() as session:
+            eff_user_ref = user_ref_id if user_ref_id is not None else retailer_ref_id
+            eff_user_type_ref = user_type_ref_id
+            if eff_user_type_ref is None and eff_user_ref is not None:
+                eff_user_type_ref = await UserTypeService.get_user_type_ref_id(session, "RETAILER")
+
             log_entry = PayinApiLogModel(
                 tid=tid,
                 company_ref_id=company_ref_id,
+                user_type_ref_id=eff_user_type_ref,
+                user_ref_id=eff_user_ref,
                 retailer_ref_id=retailer_ref_id,
                 vendor_ref_id=vendor_ref_id or 1,
                 vendor_name=vendor_name,
@@ -163,20 +173,23 @@ class BankMePayInClient:
         raw_digits = re.sub(r"\D", "", str(customer_mobile or ""))
         clean_mobile = raw_digits[-10:] if len(raw_digits) >= 10 else "9876543210"
 
-        # Resolve dedicated receipt base domain and encrypt transaction payload so no plain-text parameters are exposed
+        # Resolve dedicated receipt base domain and Bitly-style short URL so no plain-text parameters are exposed
         from app.core.security import GlobalReceiptSecurity
         from app.core.company_resolver import resolve_receipt_base_url
 
         receipt_base = resolve_receipt_base_url(company_ref_id=company_ref_id)
-        token_payload = {
-            "tid": tid,
-            "company_ref_id": company_ref_id,
-            "status": "PENDING",
-            "orderId": tid,
-            "ts": int(time.time())
-        }
-        encrypted_token = GlobalReceiptSecurity.encrypt_receipt_token(token_payload)
-        valid_redirect_url = f"{receipt_base}/r/{encrypted_token}"
+        if return_url and str(return_url).strip():
+            valid_redirect_url = str(return_url).strip()
+        else:
+            token_payload = {
+                "tid": tid,
+                "company_ref_id": company_ref_id,
+                "status": "PENDING",
+                "orderId": tid,
+                "ts": int(time.time())
+            }
+            encrypted_token = GlobalReceiptSecurity.encrypt_receipt_token(token_payload)
+            valid_redirect_url = f"{receipt_base}/r/{encrypted_token}"
 
         # Authoritative TID as BankMe referenceId (guarantees idempotency and unified status lookup)
         ref_id = tid

@@ -16,6 +16,7 @@ from app.core.database import get_db
 from app.core.security import decode_access_token, GlobalReceiptSecurity
 from app.core.company_resolver import resolve_request_company_ref, resolve_receipt_base_url
 from app.application.payment_method_normalizer import PaymentMethodNormalizer
+from app.application.user_type_service import UserTypeService
 
 router = APIRouter(prefix="/reports", tags=["PayIn Report"])
 
@@ -67,6 +68,10 @@ def parse_date_range(
     Supports YYYY-MM-DD, YYYY-MM, DD-MM-YYYY, ISO strings, and month names (e.g. September).
     Never defaults a September query to the current month.
     """
+    from_date = clean_str(from_date)
+    to_date = clean_str(to_date)
+    month = clean_str(month)
+
     now_ist = datetime.now(IST)
     default_year = year or now_ist.year
 
@@ -165,12 +170,19 @@ def map_gateway_label(vendor_ref: Optional[int], vendor_code: Optional[str] = No
 
 async def resolve_payin_auth_context(request: Optional[Request], db: Optional[AsyncSession] = None) -> Dict[str, Any]:
     """
-    Extracts authenticated company, retailer and role context.
+    Extracts authenticated company, user type, and user identity context.
+    Standardises transaction ownership to:
+    1. company_ref_id (BIGINT)
+    2. user_type_ref_id (BIGINT)
+    3. user_ref_id (BIGINT)
     Prevents cross-tenant / cross-company context leakage.
-    Authoritatively resolves retailer identity via database if not present in token.
+    Authoritatively resolves user type dynamically from public.user_type master.
     """
     ctx: Dict[str, Any] = {
         "company_ref_id": None,
+        "user_type_ref_id": None,
+        "user_ref_id": None,
+        "user_type_code": "RETAILER",
         "retailer_ref_id": None,
         "tenant_ref_id": None,
         "is_admin": False,
@@ -210,6 +222,26 @@ async def resolve_payin_auth_context(request: Optional[Request], db: Optional[As
             if raw_comp is not None and str(raw_comp).isdigit():
                 ctx["company_ref_id"] = int(raw_comp)
 
+            # Determine user type code and user reference ID
+            target_code = "RETAILER"
+            user_ref = None
+            if ctx["is_admin"]:
+                target_code = "ADMIN"
+                user_ref = payload.get("admin_user_ref_id") or payload.get("user_ref_id")
+            elif any(r in ("SUPER_DISTRIBUTOR", "SD", "MASTER_DISTRIBUTOR") for r in upper_roles):
+                target_code = "SD"
+                user_ref = payload.get("super_distributor_ref_id") or payload.get("user_ref_id")
+            elif any(r in ("DISTRIBUTOR", "DIST") for r in upper_roles):
+                target_code = "DISTRIBUTOR"
+                user_ref = payload.get("distributor_ref_id") or payload.get("user_ref_id")
+            else:
+                target_code = "RETAILER"
+                user_ref = payload.get("retailer_ref_id") or payload.get("user_ref_id")
+
+            ctx["user_type_code"] = target_code
+            if user_ref is not None and str(user_ref).isdigit():
+                ctx["user_ref_id"] = int(user_ref)
+
             raw_ret = payload.get("retailer_ref_id") or payload.get("user_ref_id")
             if raw_ret is not None and str(raw_ret).isdigit():
                 ctx["retailer_ref_id"] = int(raw_ret)
@@ -226,8 +258,15 @@ async def resolve_payin_auth_context(request: Optional[Request], db: Optional[As
         if ctx["company_ref_id"] is None or not ctx["is_super_admin"]:
             ctx["company_ref_id"] = domain_comp_ref
 
-    # Authoritative DB Resolution for Retailer
-    if db and not ctx["is_admin"]:
+    # Dynamically resolve user_type_ref_id from public.user_type
+    if db:
+        try:
+            ctx["user_type_ref_id"] = await UserTypeService.get_user_type_ref_id(db, ctx["user_type_code"])
+        except Exception:
+            pass
+
+    # Authoritative DB Resolution for Retailer if user_ref_id not yet resolved
+    if db and not ctx["is_admin"] and ctx["user_ref_id"] is None:
         ret_code_claim = payload.get("retailer_code") or request.headers.get("x-retailer-code") or request.cookies.get("p2p_retailer_code")
         ret_id_claim = payload.get("retailer_id") or request.headers.get("x-retailer-id") or request.cookies.get("p2p_active_retailer_id") or sub_str
         mobile_claim = payload.get("mobile") or request.headers.get("x-mobile") or request.cookies.get("p2p_mobile")
@@ -271,6 +310,7 @@ async def resolve_payin_auth_context(request: Optional[Request], db: Optional[As
 
             if ret_row:
                 ctx["retailer_ref_id"] = int(ret_row[0])
+                ctx["user_ref_id"] = int(ret_row[0])
                 if not ctx.get("tenant_ref_id") and ret_row[2]:
                     ctx["tenant_ref_id"] = int(ret_row[2])
                 if not ctx.get("company_ref_id") and ret_row[3]:
@@ -338,9 +378,21 @@ async def get_payin_report_summary(
         where_clauses.append("t.company_ref_id = :comp_ref")
         params["comp_ref"] = effective_comp
 
-    if effective_retailer is not None:
-        where_clauses.append("t.retailer_ref_id = :ret_ref")
-        params["ret_ref"] = effective_retailer
+    if not auth_ctx["is_admin"]:
+        eff_user = auth_ctx.get("user_ref_id") or auth_ctx.get("retailer_ref_id")
+        eff_user_type = auth_ctx.get("user_type_ref_id")
+        if eff_user is not None:
+            if eff_user_type is not None:
+                where_clauses.append("((t.user_ref_id = :eff_user_ref AND t.user_type_ref_id = :eff_user_type_ref) OR (t.retailer_ref_id = :eff_user_ref))")
+                params["eff_user_ref"] = eff_user
+                params["eff_user_type_ref"] = eff_user_type
+            else:
+                where_clauses.append("(t.user_ref_id = :eff_user_ref OR t.retailer_ref_id = :eff_user_ref)")
+                params["eff_user_ref"] = eff_user
+    else:
+        if effective_retailer is not None:
+            where_clauses.append("(t.user_ref_id = :ret_ref OR t.retailer_ref_id = :ret_ref)")
+            params["ret_ref"] = effective_retailer
 
     if tid_str:
         where_clauses.append("t.tid ILIKE :tid_val")
@@ -511,7 +563,9 @@ async def get_payin_report_grid(
         effective_retailer = retailer_ref_val
 
     start_dt, end_dt = parse_date_range(from_date, to_date, month=month)
-    offset = (page - 1) * limit
+    p_num = clean_int(page) or 1
+    l_num = clean_int(limit) or 10
+    offset = (p_num - 1) * l_num
 
     where_clauses = ["1=1"]
     params: Dict[str, Any] = {}
@@ -528,9 +582,21 @@ async def get_payin_report_grid(
         where_clauses.append("t.company_ref_id = :comp_ref")
         params["comp_ref"] = effective_comp
 
-    if effective_retailer is not None:
-        where_clauses.append("t.retailer_ref_id = :ret_ref")
-        params["ret_ref"] = effective_retailer
+    if not auth_ctx["is_admin"]:
+        eff_user = auth_ctx.get("user_ref_id") or auth_ctx.get("retailer_ref_id")
+        eff_user_type = auth_ctx.get("user_type_ref_id")
+        if eff_user is not None:
+            if eff_user_type is not None:
+                where_clauses.append("((t.user_ref_id = :eff_user_ref AND t.user_type_ref_id = :eff_user_type_ref) OR (t.retailer_ref_id = :eff_user_ref))")
+                params["eff_user_ref"] = eff_user
+                params["eff_user_type_ref"] = eff_user_type
+            else:
+                where_clauses.append("(t.user_ref_id = :eff_user_ref OR t.retailer_ref_id = :eff_user_ref)")
+                params["eff_user_ref"] = eff_user
+    else:
+        if effective_retailer is not None:
+            where_clauses.append("(t.user_ref_id = :ret_ref OR t.retailer_ref_id = :ret_ref)")
+            params["ret_ref"] = effective_retailer
 
     if tid_str:
         where_clauses.append("t.tid ILIKE :tid_val")
@@ -681,8 +747,10 @@ async def get_payin_report_grid(
         "retailer_credit": "t.retailer_credit",
         "txn_status": "t.txn_status",
     }
-    sort_column = allowed_sort_fields.get(sort_by, "t.created_at")
-    sort_direction = "ASC" if sort_dir.lower() == "asc" else "DESC"
+    sort_col_key = clean_str(sort_by) or "created_at"
+    sort_dir_key = clean_str(sort_dir) or "desc"
+    sort_column = allowed_sort_fields.get(sort_col_key, "t.created_at")
+    sort_direction = "ASC" if sort_dir_key.lower() == "asc" else "DESC"
 
     # 3. Query records with source joins
     data_sql = f"""
@@ -694,6 +762,10 @@ async def get_payin_report_grid(
         t.company_ref_id,
         c.company_name,
         c.company_code,
+        t.user_type_ref_id,
+        t.user_ref_id,
+        ut.user_type_name,
+        ut.user_type_code,
         t.retailer_ref_id,
         r.retailer_code,
         COALESCE(r.store_name, r.legal_name, r.owner_name, t.cust_name, 'Retailer') AS retailer_name,
@@ -724,12 +796,14 @@ async def get_payin_report_grid(
         t.provider_resp_msg,
         t.failure_reason,
         t.ledger_txn_id,
+        t.receipt_short_code,
         t.initiated_at,
         t.completed_at,
         t.created_at,
         t.updated_at
     FROM public.payin_transactions t
     JOIN public.company c ON t.company_ref_id = c.company_ref_id
+    LEFT JOIN public.user_type ut ON t.user_type_ref_id = ut.user_type_ref_id
     LEFT JOIN public.retailer r ON t.retailer_ref_id = r.retailer_ref_id
     LEFT JOIN public.payin_vendors v ON t.payin_vendor_ref_id = v.payin_vendor_ref_id
     LEFT JOIN public.payin_payment_modes p ON t.pay_mode_ref_id = p.payin_payment_mode_ref_id
@@ -737,7 +811,7 @@ async def get_payin_report_grid(
     ORDER BY {sort_column} {sort_direction}
     LIMIT :limit OFFSET :offset
     """
-    params["limit"] = limit
+    params["limit"] = l_num
     params["offset"] = offset
 
     data_res = await db.execute(text(data_sql), params)
@@ -757,15 +831,21 @@ async def get_payin_report_grid(
         updated_dt = d.get("completed_at") or d.get("updated_at")
         updated_iso = updated_dt.isoformat() if updated_dt else None
 
-        receipt_tok = GlobalReceiptSecurity.encrypt_receipt_token({
-            "tid": d.get("tid"),
-            "company_ref_id": d.get("company_ref_id"),
-            "status": (d.get("txn_status") or "SUCCESS").upper(),
-            "orderId": d.get("merchant_ref_id") or d.get("tid"),
-            "utr": d.get("provider_ref_id"),
-            "ts": int(datetime.now(timezone.utc).timestamp())
-        })
-        receipt_subdomain_url = f"{resolve_receipt_base_url(d.get('company_ref_id'), request)}/r/{receipt_tok}"
+        short_code = d.get("receipt_short_code")
+        receipt_base = resolve_receipt_base_url(d.get("company_ref_id"), request)
+        if short_code:
+            receipt_subdomain_url = f"{receipt_base}/r/{short_code}"
+            receipt_tok = short_code
+        else:
+            receipt_tok = GlobalReceiptSecurity.encrypt_receipt_token({
+                "tid": d.get("tid"),
+                "company_ref_id": d.get("company_ref_id"),
+                "status": (d.get("txn_status") or "SUCCESS").upper(),
+                "orderId": d.get("merchant_ref_id") or d.get("tid"),
+                "utr": d.get("provider_ref_id"),
+                "ts": int(datetime.now(timezone.utc).timestamp())
+            })
+            receipt_subdomain_url = f"{receipt_base}/r/{receipt_tok}"
 
         clean_method = PaymentMethodNormalizer.get_clean_method_display(
             card_network=d.get("card_network"),
@@ -780,7 +860,13 @@ async def get_payin_report_grid(
             "reference_id": d.get("merchant_ref_id") or d.get("provider_ref_id") or d.get("tid"),
             "merchant_ref_id": d.get("merchant_ref_id"),
             "provider_ref_id": d.get("provider_ref_id"),
-            "retailer_id": d.get("retailer_code") or str(d.get("retailer_ref_id")),
+            "company_ref_id": d.get("company_ref_id"),
+            "user_type_ref_id": d.get("user_type_ref_id"),
+            "user_ref_id": d.get("user_ref_id") or d.get("retailer_ref_id"),
+            "user_type_name": d.get("user_type_name") or "Retailer",
+            "user_type_code": d.get("user_type_code") or "RETAILER",
+            "retailer_ref_id": d.get("retailer_ref_id"),
+            "retailer_id": d.get("retailer_code") or str(d.get("retailer_ref_id") or d.get("user_ref_id")),
             "retailer_name": d.get("retailer_name") or "Retailer Partner",
             "company_id": str(d.get("company_ref_id")),
             "company_name": d.get("company_name") or "SMSPAY",
@@ -812,6 +898,8 @@ async def get_payin_report_grid(
             "date": date_str,
             "time": time_str,
             "date_time": f"{date_str} {time_str}",
+            "short_code": short_code or receipt_tok,
+            "short_url": receipt_subdomain_url,
             "receipt_token": receipt_tok,
             "receipt_url": receipt_subdomain_url,
             "created_at": iso_str,
@@ -820,7 +908,7 @@ async def get_payin_report_grid(
             "completed_at": updated_iso,
         })
 
-    total_pages = max(1, (total_records + limit - 1) // limit)
+    total_pages = max(1, (total_records + l_num - 1) // l_num)
 
     return {
         "success": True,
@@ -828,8 +916,8 @@ async def get_payin_report_grid(
         "data": {
             "items": items,
             "pagination": {
-                "page": page,
-                "limit": limit,
+                "page": p_num,
+                "limit": l_num,
                 "total_records": total_records,
                 "total_pages": total_pages
             },
@@ -837,8 +925,8 @@ async def get_payin_report_grid(
         },
         "summary": summary_data,
         "pagination": {
-            "page": page,
-            "limit": limit,
+            "page": p_num,
+            "limit": l_num,
             "total_records": total_records,
             "total_pages": total_pages
         },
@@ -876,6 +964,10 @@ async def get_payin_transaction_details(
         t.company_ref_id,
         c.company_name,
         c.company_code,
+        t.user_type_ref_id,
+        t.user_ref_id,
+        ut.user_type_name,
+        ut.user_type_code,
         t.retailer_ref_id,
         r.retailer_code,
         COALESCE(r.store_name, r.legal_name, r.owner_name, t.cust_name, 'Retailer') AS retailer_name,
@@ -909,12 +1001,14 @@ async def get_payin_transaction_details(
         t.idempotency_key,
         t.failure_reason,
         t.ledger_txn_id,
+        t.receipt_short_code,
         t.initiated_at,
         t.completed_at,
         t.created_at,
         t.updated_at
     FROM public.payin_transactions t
     JOIN public.company c ON t.company_ref_id = c.company_ref_id
+    LEFT JOIN public.user_type ut ON t.user_type_ref_id = ut.user_type_ref_id
     LEFT JOIN public.retailer r ON t.retailer_ref_id = r.retailer_ref_id
     LEFT JOIN public.payin_vendors v ON t.payin_vendor_ref_id = v.payin_vendor_ref_id
     LEFT JOIN public.payin_payment_modes p ON t.pay_mode_ref_id = p.payin_payment_mode_ref_id
@@ -934,23 +1028,36 @@ async def get_payin_transaction_details(
         if d.get("company_ref_id") != effective_comp:
             raise HTTPException(status_code=403, detail="Cross-company access is prohibited.")
 
-    if not auth_ctx["is_admin"] and effective_retailer is not None:
-        if d.get("retailer_ref_id") != effective_retailer:
-            raise HTTPException(status_code=403, detail="Access denied for this transaction.")
+    if not auth_ctx["is_admin"]:
+        eff_user = auth_ctx.get("user_ref_id") or auth_ctx.get("retailer_ref_id")
+        eff_user_type = auth_ctx.get("user_type_ref_id")
+        if eff_user is not None:
+            user_matches = (
+                (d.get("user_ref_id") == eff_user and (eff_user_type is None or d.get("user_type_ref_id") == eff_user_type))
+                or (d.get("retailer_ref_id") == eff_user)
+            )
+            if not user_matches:
+                raise HTTPException(status_code=403, detail="Access denied for this transaction.")
 
     gw_label = map_gateway_label(d.get("payin_vendor_ref_id"), d.get("vendor_code"))
     created_dt = d.get("created_at") or d.get("initiated_at")
     completed_dt = d.get("completed_at") or d.get("updated_at")
 
-    detail_receipt_tok = GlobalReceiptSecurity.encrypt_receipt_token({
-        "tid": d.get("tid"),
-        "company_ref_id": d.get("company_ref_id"),
-        "status": (d.get("txn_status") or "SUCCESS").upper(),
-        "orderId": d.get("merchant_ref_id") or d.get("tid"),
-        "utr": d.get("provider_ref_id"),
-        "ts": int(datetime.now(timezone.utc).timestamp())
-    })
-    detail_receipt_url = f"{resolve_receipt_base_url(d.get('company_ref_id'), request)}/r/{detail_receipt_tok}"
+    short_code = d.get("receipt_short_code")
+    detail_receipt_base = resolve_receipt_base_url(d.get("company_ref_id"), request)
+    if short_code:
+        detail_receipt_url = f"{detail_receipt_base}/r/{short_code}"
+        detail_receipt_tok = short_code
+    else:
+        detail_receipt_tok = GlobalReceiptSecurity.encrypt_receipt_token({
+            "tid": d.get("tid"),
+            "company_ref_id": d.get("company_ref_id"),
+            "status": (d.get("txn_status") or "SUCCESS").upper(),
+            "orderId": d.get("merchant_ref_id") or d.get("tid"),
+            "utr": d.get("provider_ref_id"),
+            "ts": int(datetime.now(timezone.utc).timestamp())
+        })
+        detail_receipt_url = f"{detail_receipt_base}/r/{detail_receipt_tok}"
 
     return {
         "success": True,
@@ -958,6 +1065,11 @@ async def get_payin_transaction_details(
             "id": str(d.get("payin_transactions_ref_id")),
             "tid": d.get("tid"),
             "transaction_id": d.get("tid"),
+            "company_ref_id": d.get("company_ref_id"),
+            "user_type_ref_id": d.get("user_type_ref_id"),
+            "user_ref_id": d.get("user_ref_id") or d.get("retailer_ref_id"),
+            "user_type_name": d.get("user_type_name") or "Retailer",
+            "user_type_code": d.get("user_type_code") or "RETAILER",
             "reference_id": d.get("merchant_ref_id") or d.get("provider_ref_id") or d.get("tid"),
             "merchant_ref_id": d.get("merchant_ref_id"),
             "provider_ref_id": d.get("provider_ref_id"),
@@ -999,6 +1111,8 @@ async def get_payin_transaction_details(
             "mdr_treatment": d.get("mdr_treatment"),
             "customer_payable_policy": d.get("customer_payable_policy"),
             "date_time": created_dt.astimezone(IST).strftime("%d %b %Y %I:%M %p") if created_dt else "--",
+            "short_code": short_code or detail_receipt_tok,
+            "short_url": detail_receipt_url,
             "receipt_token": detail_receipt_tok,
             "receipt_url": detail_receipt_url,
             "created_at": created_dt.isoformat() if created_dt else None,
@@ -1065,9 +1179,21 @@ async def export_payin_report(
         where_clauses.append("t.company_ref_id = :comp_ref")
         params["comp_ref"] = effective_comp
 
-    if effective_retailer is not None:
-        where_clauses.append("t.retailer_ref_id = :ret_ref")
-        params["ret_ref"] = effective_retailer
+    if not auth_ctx["is_admin"]:
+        eff_user = auth_ctx.get("user_ref_id") or auth_ctx.get("retailer_ref_id")
+        eff_user_type = auth_ctx.get("user_type_ref_id")
+        if eff_user is not None:
+            if eff_user_type is not None:
+                where_clauses.append("((t.user_ref_id = :eff_user_ref AND t.user_type_ref_id = :eff_user_type_ref) OR (t.retailer_ref_id = :eff_user_ref))")
+                params["eff_user_ref"] = eff_user
+                params["eff_user_type_ref"] = eff_user_type
+            else:
+                where_clauses.append("(t.user_ref_id = :eff_user_ref OR t.retailer_ref_id = :eff_user_ref)")
+                params["eff_user_ref"] = eff_user
+    else:
+        if effective_retailer is not None:
+            where_clauses.append("(t.user_ref_id = :ret_ref OR t.retailer_ref_id = :ret_ref)")
+            params["ret_ref"] = effective_retailer
 
     if tid_str:
         where_clauses.append("t.tid ILIKE :tid_val")
@@ -1138,7 +1264,13 @@ async def export_payin_report(
         t.tid,
         t.merchant_ref_id,
         t.provider_ref_id,
+        t.company_ref_id,
         c.company_name,
+        t.user_type_ref_id,
+        t.user_ref_id,
+        ut.user_type_name,
+        ut.user_type_code,
+        t.retailer_ref_id,
         r.retailer_code,
         COALESCE(r.store_name, r.legal_name, r.owner_name, t.cust_name, 'Retailer') AS retailer_name,
         t.payin_vendor_ref_id,
@@ -1154,10 +1286,12 @@ async def export_payin_report(
         t.customer_payable,
         t.retailer_credit,
         t.txn_status,
+        t.receipt_short_code,
         t.created_at,
         t.completed_at
     FROM public.payin_transactions t
     JOIN public.company c ON t.company_ref_id = c.company_ref_id
+    LEFT JOIN public.user_type ut ON t.user_type_ref_id = ut.user_type_ref_id
     LEFT JOIN public.retailer r ON t.retailer_ref_id = r.retailer_ref_id
     LEFT JOIN public.payin_vendors v ON t.payin_vendor_ref_id = v.payin_vendor_ref_id
     LEFT JOIN public.payin_payment_modes p ON t.pay_mode_ref_id = p.payin_payment_mode_ref_id

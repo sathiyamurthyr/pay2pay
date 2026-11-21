@@ -832,7 +832,12 @@ async def get_financial_kpis(
                 pass
         if ret_ref:
             try:
-                payin_conds.append(PayinTransactionModel.retailer_ref_id == int(ret_ref))
+                payin_conds.append(
+                    or_(
+                        PayinTransactionModel.user_ref_id == int(ret_ref),
+                        PayinTransactionModel.retailer_ref_id == int(ret_ref)
+                    )
+                )
             except (ValueError, TypeError):
                 pass
 
@@ -1054,7 +1059,12 @@ async def get_operations_kpis(
                 pass
         if ret_ref:
             try:
-                payin_base_filter.append(PayinTransactionModel.retailer_ref_id == int(ret_ref))
+                payin_base_filter.append(
+                    or_(
+                        PayinTransactionModel.user_ref_id == int(ret_ref),
+                        PayinTransactionModel.retailer_ref_id == int(ret_ref)
+                    )
+                )
             except (ValueError, TypeError):
                 pass
 

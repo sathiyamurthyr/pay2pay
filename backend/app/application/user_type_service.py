@@ -73,6 +73,43 @@ class UserTypeService:
         "SUPPORT": "Support",
     }
 
+    _db_loaded: bool = False
+
+    @classmethod
+    async def load_from_db(cls, db: AsyncSession, force: bool = False):
+        """
+        Dynamically synchronizes in-memory lookup caches directly from public.user_type.
+        Ensures the database remains the authoritative single source of truth.
+        """
+        if cls._db_loaded and not force:
+            return
+        try:
+            res = await db.execute(
+                text("""
+                    SELECT user_type_ref_id, user_type_code, user_type_name
+                    FROM public.user_type
+                    WHERE is_deleted = FALSE AND is_active = TRUE
+                """)
+            )
+            rows = res.fetchall()
+            if rows:
+                new_c2id = {}
+                new_id2c = {}
+                new_c2n = {}
+                for r in rows:
+                    ref_id = int(r[0])
+                    u_code = str(r[1]).strip().upper()
+                    u_name = str(r[2]).strip()
+                    new_c2id[u_code] = ref_id
+                    new_id2c[ref_id] = u_code
+                    new_c2n[u_code] = u_name
+                cls._code_to_ref_id.update(new_c2id)
+                cls._ref_id_to_code.update(new_id2c)
+                cls._code_to_name.update(new_c2n)
+                cls._db_loaded = True
+        except Exception:
+            pass
+
     @classmethod
     def validate_user_type(cls, user_type: Optional[str], allow_none: bool = False, allow_all: bool = False) -> Optional[str]:
         """
@@ -120,13 +157,16 @@ class UserTypeService:
     async def get_user_type_ref_id(cls, db: Optional[AsyncSession], code: str) -> Optional[int]:
         """
         Resolves the standardized BIGINT user_type_ref_id for a given user_type_code.
-        Queries database or falls back to cache.
+        Queries database as single source of truth or falls back to dynamic cache.
         """
         if not code:
             return None
         cleaned_code = str(code).strip().upper()
-        
-        # Check cache first
+
+        if db and not cls._db_loaded:
+            await cls.load_from_db(db)
+
+        # Check cache
         if cleaned_code in cls._code_to_ref_id:
             return cls._code_to_ref_id[cleaned_code]
 
@@ -146,7 +186,7 @@ class UserTypeService:
                 )
                 row = res.fetchone()
                 if row:
-                    ref_id = row[0]
+                    ref_id = int(row[0])
                     u_code = str(row[1]).upper()
                     cls._code_to_ref_id[u_code] = ref_id
                     cls._ref_id_to_code[ref_id] = u_code
@@ -163,7 +203,10 @@ class UserTypeService:
         """
         if ref_id is None:
             return None
-        
+
+        if db and not cls._db_loaded:
+            await cls.load_from_db(db)
+
         if ref_id in cls._ref_id_to_code:
             return cls._ref_id_to_code[ref_id]
 
@@ -181,7 +224,7 @@ class UserTypeService:
                 )
                 row = res.fetchone()
                 if row:
-                    r_id = row[0]
+                    r_id = int(row[0])
                     u_code = str(row[1]).upper()
                     cls._code_to_ref_id[u_code] = r_id
                     cls._ref_id_to_code[r_id] = u_code
@@ -190,6 +233,82 @@ class UserTypeService:
                 pass
 
         return cls._ref_id_to_code.get(ref_id)
+
+    @classmethod
+    async def resolve_payin_user_context(
+        cls,
+        db: AsyncSession,
+        payload: Dict[str, Any],
+        request: Optional[Any] = None
+    ) -> Dict[str, Any]:
+        """
+        Authoritatively standardises PayIn transaction ownership into the 3 core reference columns:
+        1. company_ref_id (BIGINT)
+        2. user_type_ref_id (BIGINT)
+        3. user_ref_id (BIGINT)
+
+        Role-independent: Works seamlessly for Retailer, Distributor, Super Distributor, and Admin.
+        Never hardcodes numeric user_type_ref_id.
+        """
+        roles = [str(r).upper() for r in (payload.get("roles") or [])]
+        user_type_claim = str(payload.get("user_type") or "").upper().strip()
+
+        # 1. Determine user type code
+        target_code = "RETAILER"
+        user_ref: Optional[int] = None
+
+        if any(r in ("SUPER_ADMIN", "ADMIN", "PLATFORM_ADMIN", "FINANCE", "OPERATIONS") for r in roles) or user_type_claim == "ADMIN":
+            target_code = "ADMIN"
+            user_ref = payload.get("admin_user_ref_id") or payload.get("user_ref_id")
+        elif any(r in ("SUPER_DISTRIBUTOR", "SD", "MASTER_DISTRIBUTOR") for r in roles) or user_type_claim == "SD":
+            target_code = "SD"
+            user_ref = payload.get("super_distributor_ref_id") or payload.get("user_ref_id")
+        elif any(r in ("DISTRIBUTOR", "DIST") for r in roles) or user_type_claim == "DISTRIBUTOR":
+            target_code = "DISTRIBUTOR"
+            user_ref = payload.get("distributor_ref_id") or payload.get("user_ref_id")
+        else:
+            target_code = "RETAILER"
+            user_ref = payload.get("retailer_ref_id") or payload.get("user_ref_id")
+
+        # Fallback if user_ref not explicitly found in specific claim
+        if user_ref is None:
+            user_ref = payload.get("user_ref_id") or payload.get("retailer_ref_id")
+
+        if user_ref is not None:
+            try:
+                user_ref = int(user_ref)
+            except (ValueError, TypeError):
+                user_ref = None
+
+        # 2. Dynamically resolve user_type_ref_id from public.user_type
+        user_type_ref_id = await cls.get_user_type_ref_id(db, target_code)
+
+        # 3. Resolve company_ref_id
+        comp_ref = payload.get("company_ref_id")
+        if comp_ref is not None:
+            try:
+                comp_ref = int(comp_ref)
+            except (ValueError, TypeError):
+                comp_ref = None
+
+        if comp_ref is None and request:
+            try:
+                from app.core.company_resolver import resolve_request_company_ref
+                comp_ref = resolve_request_company_ref(request)
+            except Exception:
+                pass
+
+        return {
+            "company_ref_id": comp_ref,
+            "user_type_ref_id": user_type_ref_id,
+            "user_ref_id": user_ref,
+            "user_type_code": target_code,
+            "retailer_ref_id": user_ref if target_code == "RETAILER" else None,
+            "roles": roles,
+            "tenant_ref_id": payload.get("tenant_ref_id") or 1,
+            "tenant_id": payload.get("tenant_id") or "TNT-1",
+            "sub": payload.get("sub")
+        }
 
     @classmethod
     async def list_user_types(cls, db: Optional[AsyncSession] = None) -> List[Dict[str, Any]]:

@@ -199,7 +199,7 @@ class ExistingPayInAdapter(BasePayInProviderAdapter):
             f"&am={amount:.2f}&tr={tid}&tn=PayIn+{tid}&cu=INR"
         )
         qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={upi_string}"
-        checkout_url = f"{receipt_base}/r/{encrypted_token}"
+        checkout_url = kwargs.get("return_url") or f"{receipt_base}/r/{encrypted_token}"
 
         logger.info("Existing PayIn initiated for TID=%s (Company Ref #%s)", tid, comp_ref)
         return {

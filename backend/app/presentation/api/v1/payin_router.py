@@ -51,15 +51,41 @@ router = APIRouter(prefix="/payin", tags=["Common PayIn Gateway & BankMe Integra
 def extract_auth_context(payload: Dict[str, Any], request: Request) -> Dict[str, Any]:
     """
     Extracts server-side verified company and user identity from JWT payload.
+    Standardises transaction ownership to:
+    1. company_ref_id (BIGINT)
+    2. user_type_ref_id (BIGINT)
+    3. user_ref_id (BIGINT)
     Never trusts client payload or query parameters for company authorization.
     """
     comp_ref = payload.get("company_ref_id")
     tenant_ref = payload.get("tenant_ref_id")
     comp_id = payload.get("company_id")
     tenant_id = payload.get("tenant_id")
-    ret_id = payload.get("retailer_id") or payload.get("sub")
-    ret_ref = payload.get("retailer_ref_id") or payload.get("user_ref_id")
     roles = [str(r).upper() for r in (payload.get("roles") or [])]
+    user_type_claim = str(payload.get("user_type") or "").upper().strip()
+
+    # Determine user type code and user reference ID
+    target_code = "RETAILER"
+    user_ref: Optional[int] = None
+
+    if any(r in ("SUPER_ADMIN", "ADMIN", "PLATFORM_ADMIN", "FINANCE", "OPERATIONS") for r in roles) or user_type_claim == "ADMIN":
+        target_code = "ADMIN"
+        user_ref = payload.get("admin_user_ref_id") or payload.get("user_ref_id")
+    elif any(r in ("SUPER_DISTRIBUTOR", "SD", "MASTER_DISTRIBUTOR") for r in roles) or user_type_claim == "SD":
+        target_code = "SD"
+        user_ref = payload.get("super_distributor_ref_id") or payload.get("user_ref_id")
+    elif any(r in ("DISTRIBUTOR", "DIST") for r in roles) or user_type_claim == "DISTRIBUTOR":
+        target_code = "DISTRIBUTOR"
+        user_ref = payload.get("distributor_ref_id") or payload.get("user_ref_id")
+    else:
+        target_code = "RETAILER"
+        user_ref = payload.get("retailer_ref_id") or payload.get("user_ref_id")
+
+    if user_ref is None:
+        user_ref = payload.get("user_ref_id") or payload.get("retailer_ref_id")
+
+    ret_id = payload.get("retailer_id") or payload.get("sub")
+    ret_ref = payload.get("retailer_ref_id") or user_ref
 
     # Domain fallback if testing via company-specific portal domain
     if comp_ref is None and request:
@@ -71,11 +97,16 @@ def extract_auth_context(payload: Dict[str, Any], request: Request) -> Dict[str,
         elif "pay2pay" in host:
             comp_ref = 47
 
+    raw_user_type_ref = payload.get("user_type_ref_id")
+
     return {
         "company_ref_id": int(comp_ref) if comp_ref is not None else None,
         "tenant_ref_id": int(tenant_ref) if tenant_ref is not None else 1,
         "company_id": comp_id,
         "tenant_id": tenant_id,
+        "user_ref_id": int(user_ref) if user_ref is not None else None,
+        "user_type_code": target_code,
+        "user_type_ref_id": int(raw_user_type_ref) if raw_user_type_ref is not None else None,
         "retailer_id": ret_id,
         "retailer_ref_id": int(ret_ref) if ret_ref is not None else None,
         "roles": roles,
@@ -647,22 +678,28 @@ async def get_payin_receipt_token(
     if not txn:
         raise HTTPException(status_code=404, detail="Transaction not found")
 
-    receipt_payload = {
-        "tid": txn.tid,
-        "company_ref_id": txn.company_ref_id,
-        "status": (txn.txn_status or "SUCCESS").upper(),
-        "orderId": txn.merchant_ref_id or txn.tid,
-        "utr": txn.provider_ref_id or txn.tid,
-        "ts": int(datetime.now(timezone.utc).timestamp())
-    }
-    encrypted_token = GlobalReceiptSecurity.encrypt_receipt_token(receipt_payload)
+    from app.application.receipt_short_link_service import ReceiptShortLinkService
+    short_code = getattr(txn, "receipt_short_code", None)
+    if not short_code:
+        short_code = await ReceiptShortLinkService.generate_or_get_short_code(
+            db=db,
+            tid=txn.tid,
+            company_ref_id=txn.company_ref_id,
+            user_type_ref_id=txn.user_type_ref_id,
+            user_ref_id=txn.user_ref_id,
+            payin_txn_id=txn.payin_transactions_ref_id
+        )
+
     receipt_base = resolve_receipt_base_url(txn.company_ref_id, request)
+    short_url = f"{receipt_base}/r/{short_code}"
 
     return {
         "success": True,
         "tid": txn.tid,
-        "receipt_token": encrypted_token,
-        "receipt_url": f"{receipt_base}/r/{encrypted_token}",
+        "receipt_token": short_code,
+        "short_code": short_code,
+        "short_url": short_url,
+        "receipt_url": short_url,
         "company_code": "SMSPAY" if txn.company_ref_id == 2 else ("PAY2PAY" if txn.company_ref_id == 47 else "NEAR4YOU")
     }
 
