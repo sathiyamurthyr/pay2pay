@@ -772,9 +772,7 @@ export default function RetailerPayinPage() {
         payment_mode_code: "CARD",
         vendor_code: selectedGateway.vendorCode,
         card_network: selectedCardNetwork || undefined,
-        note: "SMSPAY Retailer PayIn Top-Up",
-        return_url: origin ? `${origin}/retailer/payin/status` : undefined,
-        callback_url: origin ? `${origin}/retailer/payin/status` : undefined
+        note: "SMSPAY Retailer PayIn Top-Up"
       };
 
       const res = await apiClient.post("/api/v1/payin/collect", reqPayload);

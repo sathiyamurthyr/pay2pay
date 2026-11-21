@@ -43,7 +43,8 @@ from app.application.gateway_masking_service import GatewayMaskingService
 from app.application.bankme_payin_client import BankMePayInClient, record_payin_api_audit_log
 from app.application.transaction_reference_service import TransactionReferenceService
 from app.application.wallet_balance_service import WalletBalanceAdjustmentService, WalletAdjustmentDTO
-from app.core.company_resolver import resolve_return_base_url
+from app.core.company_resolver import resolve_return_base_url, resolve_receipt_base_url
+from app.core.security import GlobalReceiptSecurity
 from app.infrastructure.db.payin_models import (
     PayinTransactionModel, PayinCallbackLogModel, PayinServiceTypeModel,
     PayinPaymentModeModel, PayinCardTypeModel, PayinVendorModel, PayinApiLogModel
@@ -356,14 +357,20 @@ class PayInService:
                 adapter = ExistingPayInAdapter()
                 provider_code = "EXISTING"
 
-        # 9. Resolve Verified Domain Return URL & Invoke Provider Adapter
+        # 9. Resolve Verified Dedicated Receipt Base URL & Encrypt Capability Token
         req = auth_context.get("request")
-        return_base = resolve_return_base_url(
+        receipt_base = resolve_receipt_base_url(
             company_ref_id=company_ref_id,
-            request=req,
-            candidate_url=request_dto.return_url or request_dto.callback_url
+            request=req
         )
-        resolved_return_url = f"{return_base}/retailer/payin/status?referenceId={tid}"
+        encrypted_receipt_token = GlobalReceiptSecurity.encrypt_receipt_token({
+            "tid": tid,
+            "company_ref_id": company_ref_id,
+            "status": "PENDING",
+            "orderId": tid,
+            "ts": int(datetime.now(timezone.utc).timestamp())
+        })
+        resolved_return_url = f"{receipt_base}/r/{encrypted_receipt_token}"
 
         provider_resp = await adapter.initiate_payin(
             tid=tid,

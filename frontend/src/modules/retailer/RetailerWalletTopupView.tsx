@@ -233,9 +233,7 @@ export default function RetailerWalletTopupView() {
         payment_mode_code: selectedMode,
         card_type_code: selectedCard || undefined,
         vendor_code: selectedVendor || undefined,
-        note: `Wallet Top-Up via ${selectedMode}`,
-        return_url: origin ? `${origin}/retailer/payin/status` : undefined,
-        callback_url: origin ? `${origin}/retailer/payin/status` : undefined
+        note: `Wallet Top-Up via ${selectedMode}`
       });
 
       if (res.data && res.data.success) {

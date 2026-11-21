@@ -314,7 +314,7 @@ export default function PublicReceiptPage() {
           <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-4 text-red-400">
             <Lock className="w-8 h-8" />
           </div>
-          <h2 className="text-xl font-black text-white">Receipt Link Not Found</h2>
+          <h2 className="text-xl font-black text-slate-900">Receipt Link Not Found</h2>
           <p className="text-sm text-[#625B60] mt-2 max-w-md mx-auto leading-relaxed">
             The transaction receipt you are attempting to view does not exist, has expired, or access is restricted.
           </p>

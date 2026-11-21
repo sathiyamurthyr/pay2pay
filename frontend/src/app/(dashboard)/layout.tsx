@@ -161,12 +161,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   if (
-    (pathname?.startsWith("/retailer/payin/status") ||
-      pathname?.startsWith("/retailer/payin/callback") ||
-      pathname?.startsWith("/retailer/payin/checkout")) &&
-    !user
+    pathname?.startsWith("/retailer/payin/status") ||
+    pathname?.startsWith("/retailer/payin/callback") ||
+    pathname?.startsWith("/retailer/payin/checkout")
   ) {
-    return <main className="min-h-screen bg-[#0F172A] text-slate-100">{children}</main>;
+    return <main className="min-h-screen bg-[#F0F4F8] text-slate-800">{children}</main>;
   }
 
   return <RetailerLayout>{children}</RetailerLayout>;

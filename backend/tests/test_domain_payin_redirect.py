@@ -116,6 +116,7 @@ class TestBankMeClientRedirectUrl:
 
     @pytest.mark.asyncio
     async def test_bankme_redirect_url_uses_smspay_domain(self):
+        from app.core.security import GlobalReceiptSecurity
         tid = "BPAY1234567890"
 
         with patch("httpx.AsyncClient.post") as mock_post:
@@ -138,15 +139,19 @@ class TestBankMeClientRedirectUrl:
                         amount=500.0,
                         customer_name="Test Retailer",
                         customer_mobile="9876543210",
-                        company_ref_id=2,
-                        return_url="https://login.smspay.store/retailer/payin/status?referenceId=" + tid
+                        company_ref_id=2
                     )
 
-            # Check that redirectUrl sent to BankMe was on login.smspay.store
+            # Check that redirectUrl sent to BankMe was on receipt.smspay.store using encrypted token
             assert mock_post.called
             call_kwargs = mock_post.call_args[1]
             sent_payload = call_kwargs["json"]
-            assert sent_payload["redirectUrl"] == f"https://login.smspay.store/retailer/payin/status?referenceId={tid}"
+            assert sent_payload["redirectUrl"].startswith("https://receipt.smspay.store/r/")
+            token_part = sent_payload["redirectUrl"].split("/r/")[1]
+            decrypted = GlobalReceiptSecurity.decrypt_receipt_token(token_part)
+            assert decrypted is not None
+            assert decrypted["tid"] == tid
+            assert decrypted["company_ref_id"] == 2
             assert "near4you" not in sent_payload["redirectUrl"]
             assert resp["success"] is True
 
@@ -182,11 +187,11 @@ class TestBankMeClientRedirectUrl:
                             company_ref_id=2
                         )
 
-            # Despite .env having near4you.store, SMSPAY company must reject it and use smspay.store
+            # Despite .env having near4you.store, SMSPAY company must reject it and use receipt.smspay.store
             assert mock_post.called
             call_kwargs = mock_post.call_args[1]
             sent_payload = call_kwargs["json"]
-            assert sent_payload["redirectUrl"] == f"https://smspay.store/retailer/payin/status?referenceId={tid}"
+            assert sent_payload["redirectUrl"].startswith("https://receipt.smspay.store/r/")
             assert "near4you" not in sent_payload["redirectUrl"]
             assert resp["success"] is True
 

@@ -163,13 +163,20 @@ class BankMePayInClient:
         raw_digits = re.sub(r"\D", "", str(customer_mobile or ""))
         clean_mobile = raw_digits[-10:] if len(raw_digits) >= 10 else "9876543210"
 
-        # Resolve return URL dynamically using verified company domain
-        candidate = return_url or callback_url or getattr(settings, "BANKME_PAYIN_REDIRECT_BASE_URL", "")
-        # Avoid using webhook endpoints as browser return redirect URLs
-        if candidate and (candidate.endswith("/api/v1/payin/callback") or candidate.endswith("/api/v1/payin/webhook/bankme")):
-            candidate = None
-        base_domain = resolve_return_base_url(company_ref_id=company_ref_id, candidate_url=candidate)
-        valid_redirect_url = f"{base_domain}/retailer/payin/status?referenceId={tid}"
+        # Resolve dedicated receipt base domain and encrypt transaction payload so no plain-text parameters are exposed
+        from app.core.security import GlobalReceiptSecurity
+        from app.core.company_resolver import resolve_receipt_base_url
+
+        receipt_base = resolve_receipt_base_url(company_ref_id=company_ref_id)
+        token_payload = {
+            "tid": tid,
+            "company_ref_id": company_ref_id,
+            "status": "PENDING",
+            "orderId": tid,
+            "ts": int(time.time())
+        }
+        encrypted_token = GlobalReceiptSecurity.encrypt_receipt_token(token_payload)
+        valid_redirect_url = f"{receipt_base}/r/{encrypted_token}"
 
         # Authoritative TID as BankMe referenceId (guarantees idempotency and unified status lookup)
         ref_id = tid
