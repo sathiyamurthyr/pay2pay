@@ -329,3 +329,78 @@ async def test_export_payin_report_csv(mock_auth):
     assert "9025232475" in csv_text
     assert "G-1" in csv_text
     assert "PIN-20261118-001" in csv_text
+    # Retailer export must NEVER contain Admin-only fields
+    assert "ReferenceID" not in csv_text
+    assert "Retailer" not in csv_text
+    assert "Vendor" not in csv_text
+
+
+@pytest.mark.asyncio
+@patch("app.presentation.api.v1.payin_report_router.resolve_payin_auth_context", new_callable=AsyncMock)
+async def test_export_payin_report_csv_admin(mock_auth):
+    mock_auth.return_value = {
+        "company_ref_id": 2,
+        "retailer_ref_id": None,
+        "is_admin": True,
+        "is_super_admin": True,
+    }
+    req = MockRequest(headers={"host": "smspay.store"})
+    mock_db = AsyncMock()
+
+    now_dt = datetime.now(timezone.utc)
+    mock_row = MagicMock()
+    mock_row._mapping = {
+        "payin_transactions_ref_id": 101,
+        "tid": "PIN-20261118-001",
+        "merchant_ref_id": "ORD-9991",
+        "provider_ref_id": "BM-REF-8882",
+        "company_name": "SUPER REX PRODUCTS PRIVATE LIMITED",
+        "retailer_code": "SMSP-R902523",
+        "retailer_name": "Inspel Collections",
+        "payin_vendor_ref_id": 1,
+        "vendor_code": "BANKME",
+        "vendor_name": "BankMe Collections",
+        "payment_mode": "UPI",
+        "cust_mobile": "9025232475",
+        "txn_amount": 50000.00,
+        "mdr_amount": 750.00,
+        "tax_amount": 135.00,
+        "total_charges": 885.00,
+        "customer_payable": 50885.00,
+        "retailer_credit": 50000.00,
+        "txn_status": "SUCCESS",
+        "created_at": now_dt,
+        "completed_at": now_dt
+    }
+    mock_res = MagicMock()
+    mock_res.fetchall.return_value = [mock_row]
+    mock_db.execute.return_value = mock_res
+
+    response = await export_payin_report(
+        request=req,
+        from_date="2026-11-01",
+        to_date="2026-11-20",
+        portal="admin",
+        db=mock_db
+    )
+
+    assert response.status_code == 200
+    assert response.media_type == "text/csv"
+    csv_text = response.body.decode("utf-8")
+    lines = [line.strip() for line in csv_text.strip().split("\n")]
+    header = lines[0]
+    row = lines[1]
+
+    # Verify Admin-only columns are present in Header
+    assert "ReferenceID" in header
+    assert "Retailer" in header
+    assert "Vendor" in header
+    assert "TID" in header
+    assert "Gateway" in header
+
+    # Verify row values
+    assert "ORD-9991" in row
+    assert "Inspel Collections" in row
+    assert "G-1" in row
+    assert "50000.00" in row
+
