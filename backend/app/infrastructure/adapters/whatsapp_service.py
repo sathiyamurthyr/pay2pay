@@ -919,7 +919,8 @@ class WhatsAppService:
             "Content-Type": "application/json"
         }
 
-        receipt_url = f"https://receipt.sathus.in/r/{safe_token}"
+        target_domain = "smspay.store" if str(company_context).upper() == "SMSPAY" else ("pay2pay.in" if str(company_context).upper() == "PAY2PAY" else "near4you.store")
+        receipt_url = f"https://receipt.{target_domain}/r/{safe_token}"
 
         try:
             logger.info(

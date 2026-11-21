@@ -538,7 +538,7 @@ class GlobalNotificationPlatformClient:
             "receipt_token": safe_token,
             "button_param": safe_token,
             "view_id": safe_token,
-            "receipt_url": f"https://receipt.sathus.in/r/{safe_token}"
+            "receipt_url": f"https://receipt.{cfg['domain']}/r/{safe_token}"
         }
 
         logger.info(
@@ -561,7 +561,7 @@ class GlobalNotificationPlatformClient:
                 "notification_id": res.get("notification_id"),
                 "project_code": cfg["project_code"],
                 "recipient": formatted_mobile,
-                "receipt_url": f"https://receipt.sathus.in/r/{safe_token}",
+                "receipt_url": f"https://receipt.{cfg['domain']}/r/{safe_token}",
                 "data": res
             }
         except Exception as e:

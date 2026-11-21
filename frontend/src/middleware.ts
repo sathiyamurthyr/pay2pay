@@ -322,6 +322,11 @@ export function middleware(request: NextRequest) {
       pathname.startsWith("/payin/status");
 
     if (isAllowedReceiptRoute) {
+      if (pathname.startsWith("/r/") && request.nextUrl.search) {
+        // Strip any query parameters (referenceId, status, etc.) immediately at edge middleware
+        const cleanUrl = new URL(pathname, request.url);
+        return NextResponse.redirect(cleanUrl, 302);
+      }
       return applySecurityHeaders(NextResponse.next());
     }
 
@@ -415,6 +420,10 @@ export function middleware(request: NextRequest) {
 
   // If visiting another public route (like /register or /r/token), allow
   if (isPublicRoute) {
+    if (pathname.startsWith("/r/") && request.nextUrl.search) {
+      const cleanUrl = new URL(pathname, request.url);
+      return NextResponse.redirect(cleanUrl, 302);
+    }
     return applySecurityHeaders(NextResponse.next());
   }
 

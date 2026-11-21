@@ -158,7 +158,9 @@ class BankMePayInClient:
         note: Optional[str] = None,
         company_ref_id: int = 2,
         retailer_ref_id: Optional[int] = None,
-        vendor_ref_id: int = 1
+        vendor_ref_id: int = 1,
+        user_ref_id: Optional[int] = None,
+        user_type_ref_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Creates a PayIn order with BankMe API: POST /v1/payin/orders.
@@ -248,6 +250,8 @@ class BankMePayInClient:
                         tid=tid,
                         company_ref_id=company_ref_id,
                         retailer_ref_id=retailer_ref_id,
+                        user_ref_id=user_ref_id,
+                        user_type_ref_id=user_type_ref_id,
                         vendor_ref_id=vendor_ref_id,
                         vendor_name="BANKME",
                         api_type="CREATE_ORDER",
@@ -287,6 +291,8 @@ class BankMePayInClient:
                         tid=tid,
                         company_ref_id=company_ref_id,
                         retailer_ref_id=retailer_ref_id,
+                        user_ref_id=user_ref_id,
+                        user_type_ref_id=user_type_ref_id,
                         vendor_ref_id=vendor_ref_id,
                         vendor_name="BANKME",
                         api_type="CREATE_ORDER",
@@ -321,6 +327,8 @@ class BankMePayInClient:
                 tid=tid,
                 company_ref_id=company_ref_id,
                 retailer_ref_id=retailer_ref_id,
+                user_ref_id=user_ref_id,
+                user_type_ref_id=user_type_ref_id,
                 vendor_ref_id=vendor_ref_id,
                 vendor_name="BANKME",
                 api_type="CREATE_ORDER",
@@ -353,7 +361,9 @@ class BankMePayInClient:
         reference_id: Optional[str] = None,
         company_ref_id: int = 2,
         retailer_ref_id: Optional[int] = None,
-        vendor_ref_id: int = 1
+        vendor_ref_id: int = 1,
+        user_ref_id: Optional[int] = None,
+        user_type_ref_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Inquires payment status from BankMe API: GET /v1/payin/orders/{referenceId}.
@@ -406,6 +416,8 @@ class BankMePayInClient:
                         tid=tid,
                         company_ref_id=company_ref_id,
                         retailer_ref_id=retailer_ref_id,
+                        user_ref_id=user_ref_id,
+                        user_type_ref_id=user_type_ref_id,
                         vendor_ref_id=vendor_ref_id,
                         vendor_name="BANKME",
                         api_type="CHECK_STATUS",
@@ -445,6 +457,8 @@ class BankMePayInClient:
                         tid=tid,
                         company_ref_id=company_ref_id,
                         retailer_ref_id=retailer_ref_id,
+                        user_ref_id=user_ref_id,
+                        user_type_ref_id=user_type_ref_id,
                         vendor_ref_id=vendor_ref_id,
                         vendor_name="BANKME",
                         api_type="CHECK_STATUS",
@@ -471,6 +485,8 @@ class BankMePayInClient:
                 tid=tid,
                 company_ref_id=company_ref_id,
                 retailer_ref_id=retailer_ref_id,
+                user_ref_id=user_ref_id,
+                user_type_ref_id=user_type_ref_id,
                 vendor_ref_id=vendor_ref_id,
                 vendor_name="BANKME",
                 api_type="CHECK_STATUS",
