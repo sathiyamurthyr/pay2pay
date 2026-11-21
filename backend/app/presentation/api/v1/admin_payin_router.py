@@ -2019,6 +2019,11 @@ async def list_transactions(
             t.tid,
             t.company_ref_id,
             c.company_name,
+            t.user_type_ref_id,
+            t.user_ref_id,
+            ut.user_type_name,
+            ut.user_type_code,
+            t.retailer_ref_id,
             v.vendor_name,
             t.merchant_ref_id,
             t.provider_ref_id,
@@ -2038,6 +2043,7 @@ async def list_transactions(
             t.created_at
         FROM public.payin_transactions t
         JOIN public.company c ON t.company_ref_id = c.company_ref_id
+        LEFT JOIN public.user_type ut ON t.user_type_ref_id = ut.user_type_ref_id
         JOIN public.payin_vendors v ON t.payin_vendor_ref_id = v.payin_vendor_ref_id
         LEFT JOIN public.payin_service_types s ON t.svc_type_ref_id = s.payin_service_type_ref_id
         LEFT JOIN public.payin_payment_modes p ON t.pay_mode_ref_id = p.payin_payment_mode_ref_id

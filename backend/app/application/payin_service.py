@@ -43,6 +43,7 @@ from app.application.gateway_masking_service import GatewayMaskingService
 from app.application.bankme_payin_client import BankMePayInClient, record_payin_api_audit_log
 from app.application.transaction_reference_service import TransactionReferenceService
 from app.application.wallet_balance_service import WalletBalanceAdjustmentService, WalletAdjustmentDTO
+from app.application.user_type_service import UserTypeService
 from app.core.company_resolver import resolve_return_base_url, resolve_receipt_base_url
 from app.core.security import GlobalReceiptSecurity
 from app.infrastructure.db.payin_models import (
@@ -194,11 +195,12 @@ class PayInService:
         """
         Initiates a PayIn transaction according to the complete enterprise lifecycle.
         """
-        # 1. Resolve & Validate Authenticated Context
+        # 1. Resolve & Validate Authenticated Context (Three Standard Reference Columns)
         company_ref_id = auth_context.get("company_ref_id")
         tenant_id = auth_context.get("tenant_id") or DEFAULT_TENANT_ID
-        retailer_ref_id = auth_context.get("retailer_ref_id")
         user_ref_id = auth_context.get("user_ref_id")
+        user_type_ref_id = auth_context.get("user_type_ref_id")
+        user_type_code = auth_context.get("user_type_code") or "RETAILER"
 
         if company_ref_id is None:
             raise HTTPException(
@@ -207,22 +209,29 @@ class PayInService:
             )
 
         company_ref_id = int(company_ref_id)
-        valid_retailer = None
-        if retailer_ref_id is not None:
-            chk_stmt = select(RetailerModel.retailer_ref_id).where(
-                RetailerModel.retailer_ref_id == retailer_ref_id,
-                RetailerModel.company_ref_id == company_ref_id
-            )
-            valid_retailer = (await db.execute(chk_stmt)).scalar()
 
-        if not valid_retailer:
-            # Fallback to the first retailer for this company
+        # Dynamically resolve user_type_ref_id from public.user_type if not provided
+        if user_type_ref_id is None:
+            user_type_ref_id = await UserTypeService.get_user_type_ref_id(db, user_type_code)
+
+        # If user_ref_id is not provided, fallback to retailer_ref_id or lookup for retailer
+        if user_ref_id is None:
+            user_ref_id = auth_context.get("retailer_ref_id")
+
+        if user_ref_id is None and user_type_code == "RETAILER":
             r_stmt = select(RetailerModel.retailer_ref_id).where(
                 RetailerModel.company_ref_id == company_ref_id
             ).order_by(RetailerModel.retailer_ref_id.asc()).limit(1)
-            valid_retailer = (await db.execute(r_stmt)).scalar()
+            user_ref_id = (await db.execute(r_stmt)).scalar()
 
-        retailer_ref_id = valid_retailer
+        if user_ref_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot initiate PayIn: user_ref_id could not be resolved from authenticated context."
+            )
+
+        user_ref_id = int(user_ref_id)
+        effective_retailer_ref = user_ref_id if user_type_code == "RETAILER" else None
 
         # 2. Check for duplicate reference ID / Idempotency
         idempotency_key = f"{company_ref_id}:{request_dto.reference_id}"
@@ -308,8 +317,9 @@ class PayInService:
         payin_txn = PayinTransactionModel(
             tid=tid,
             company_ref_id=company_ref_id,
+            user_type_ref_id=user_type_ref_id,
             user_ref_id=user_ref_id,
-            retailer_ref_id=retailer_ref_id,
+            retailer_ref_id=effective_retailer_ref,
             payin_vendor_ref_id=vendor.payin_vendor_ref_id,
             merchant_ref_id=request_dto.reference_id,
             svc_type_ref_id=s_type.payin_service_type_ref_id if s_type else 1,
@@ -527,12 +537,22 @@ class PayInService:
             # 4. Atomic Wallet Credit if not already credited
             if not txn.ledger_txn_id:
                 try:
-                    ret_stmt = select(RetailerModel).where(
-                        RetailerModel.retailer_ref_id == txn.retailer_ref_id,
-                        RetailerModel.company_ref_id == txn.company_ref_id
-                    )
-                    ret_res = await db.execute(ret_stmt)
-                    ret_obj = ret_res.scalars().first()
+                    # Resolve user ownership from standard 3 reference columns
+                    eff_user_ref = txn.user_ref_id or txn.retailer_ref_id
+                    eff_user_type_ref = txn.user_type_ref_id
+                    if eff_user_type_ref is None:
+                        eff_user_type_ref = await UserTypeService.get_user_type_ref_id(db, "RETAILER")
+                    eff_user_type_code = await UserTypeService.get_user_type_code(db, eff_user_type_ref) or "RETAILER"
+
+                    ret_obj = None
+                    if eff_user_type_code == "RETAILER":
+                        ret_stmt = select(RetailerModel).where(
+                            RetailerModel.retailer_ref_id == eff_user_ref,
+                            RetailerModel.company_ref_id == txn.company_ref_id
+                        )
+                        ret_res = await db.execute(ret_stmt)
+                        ret_obj = ret_res.scalars().first()
+
                     credit_amt = float(txn.retailer_credit)
 
                     clean_method = PaymentMethodNormalizer.get_clean_method_display(
@@ -541,11 +561,11 @@ class PayInService:
                     )
 
                     adj_dto = WalletAdjustmentDTO(
-                        user_ref_id=txn.retailer_ref_id,
+                        user_ref_id=eff_user_ref,
                         retailer_id=str(ret_obj.public_id) if ret_obj else None,
                         retailer_code=ret_obj.retailer_code if ret_obj else None,
                         company_ref_id=txn.company_ref_id,
-                        user_type_ref_id=2,  # Retailer
+                        user_type_ref_id=eff_user_type_ref,
                         entry_type="CREDIT",
                         amount=credit_amt,
                         payout_amount=credit_amt,
@@ -553,7 +573,7 @@ class PayInService:
                         gst_amount=0.0,
                         service_name="PAYIN_TOPUP",
                         wallet_type="MAIN",
-                        user_type="RETAILER",
+                        user_type=eff_user_type_code,
                         txn_id=txn.tid,
                         ref_id=txn.provider_ref_id or txn.tid,
                         narration=f"PayIn Wallet Top-Up ({clean_method}, TID: {txn.tid})"
@@ -646,6 +666,8 @@ class PayInService:
             cb_log = PayinCallbackLogModel(
                 tid=tid,
                 company_ref_id=txn.company_ref_id,
+                user_type_ref_id=txn.user_type_ref_id,
+                user_ref_id=txn.user_ref_id or txn.retailer_ref_id,
                 payin_vendor_ref_id=txn.payin_vendor_ref_id,
                 provider_ref_id=payload.bankme_ref or payload.utr,
                 callback_event_id=payload.event,
@@ -667,6 +689,8 @@ class PayInService:
         cb_log = PayinCallbackLogModel(
             tid=tid,
             company_ref_id=txn.company_ref_id,
+            user_type_ref_id=txn.user_type_ref_id,
+            user_ref_id=txn.user_ref_id or txn.retailer_ref_id,
             payin_vendor_ref_id=txn.payin_vendor_ref_id,
             provider_ref_id=payload.bankme_ref or payload.utr,
             callback_event_id=payload.event,
@@ -697,7 +721,9 @@ class PayInService:
                 vendor_order_id=payload.orderId or payload.bankme_ref or txn.provider_ref_id,
                 vendor_reference_id=tid,
                 vendor_status=str(payload.status or "SUCCESS").upper(),
-                environment="sandbox"
+                environment="sandbox",
+                user_type_ref_id=txn.user_type_ref_id,
+                user_ref_id=txn.user_ref_id or txn.retailer_ref_id
             )
         except Exception as api_log_err:
             logger.warning("Failed to record webhook in payin_api_logs: %s", api_log_err)
@@ -995,6 +1021,8 @@ class PayInService:
             "success": True,
             "tid": txn.tid,
             "company_ref_id": txn.company_ref_id,
+            "user_type_ref_id": txn.user_type_ref_id,
+            "user_ref_id": txn.user_ref_id or txn.retailer_ref_id,
             "retailer_ref_id": txn.retailer_ref_id,
             "provider": masked_p,
             "provider_reference": txn.provider_ref_id,

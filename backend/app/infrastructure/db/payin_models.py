@@ -219,6 +219,9 @@ class PayinTransactionModel(Base):
         UniqueConstraint("tid", name="uq_payin_txn_tid"),
         UniqueConstraint("idempotency_key", name="uq_payin_txn_idempotency"),
         Index("idx_payin_txns_company", "company_ref_id"),
+        Index("idx_payin_txns_company_user", "company_ref_id", "user_type_ref_id", "user_ref_id"),
+        Index("idx_payin_txns_user_type_ref", "user_type_ref_id"),
+        Index("idx_payin_txns_user_ref", "user_ref_id"),
         Index("idx_payin_txns_retailer", "retailer_ref_id"),
         Index("idx_payin_txns_vendor", "payin_vendor_ref_id"),
         Index("idx_payin_txns_status", "txn_status"),
@@ -234,9 +237,12 @@ class PayinTransactionModel(Base):
     company_ref_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("company.company_ref_id", ondelete="RESTRICT"), nullable=False
     )
-    user_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
-    retailer_ref_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("retailer.retailer_ref_id", ondelete="RESTRICT"), nullable=False
+    user_type_ref_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger, ForeignKey("user_type.user_type_ref_id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    user_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    retailer_ref_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger, ForeignKey("retailer.retailer_ref_id", ondelete="RESTRICT"), nullable=True
     )
     distributor_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     super_distributor_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
@@ -294,6 +300,7 @@ class PayinCallbackLogModel(Base):
     """Audit log of incoming webhooks and callbacks from payment providers."""
     __tablename__ = "payin_callback_logs"
     __table_args__ = (
+        Index("idx_payin_callback_logs_company_user", "company_ref_id", "user_type_ref_id", "user_ref_id"),
         {"extend_existing": True}
     )
 
@@ -304,6 +311,10 @@ class PayinCallbackLogModel(Base):
         String(60), ForeignKey("payin_transactions.tid", ondelete="CASCADE"), nullable=False, index=True
     )
     company_ref_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    user_type_ref_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger, ForeignKey("user_type.user_type_ref_id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    user_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     payin_vendor_ref_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
     provider_ref_id: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
     callback_event_id: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
@@ -321,6 +332,7 @@ class PayinAuditLogModel(Base):
     """Audit log of administrative configuration changes and manual transaction overrides."""
     __tablename__ = "payin_audit_logs"
     __table_args__ = (
+        Index("idx_payin_audit_logs_company_user", "company_ref_id", "user_type_ref_id", "user_ref_id"),
         {"extend_existing": True}
     )
 
@@ -328,6 +340,10 @@ class PayinAuditLogModel(Base):
         BigInteger, Identity(start=1, cycle=False), primary_key=True
     )
     company_ref_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    user_type_ref_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger, ForeignKey("user_type.user_type_ref_id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    user_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     actor_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     action_type: Mapped[str] = mapped_column(String(50), nullable=False)
     entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -344,6 +360,7 @@ class PayinApiLogModel(Base):
     __table_args__ = (
         Index("idx_payin_api_logs_tid", "tid"),
         Index("idx_payin_api_logs_cmp", "company_ref_id"),
+        Index("idx_payin_api_logs_company_user", "company_ref_id", "user_type_ref_id", "user_ref_id"),
         Index("idx_payin_api_logs_vendor_order", "vendor_order_id"),
         Index("idx_payin_api_logs_vendor_ref", "vendor_reference_id"),
         Index("idx_payin_api_logs_created_at", "created_at"),
@@ -355,6 +372,10 @@ class PayinApiLogModel(Base):
     )
     tid: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     company_ref_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    user_type_ref_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger, ForeignKey("user_type.user_type_ref_id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    user_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     retailer_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     vendor_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     vendor_name: Mapped[str] = mapped_column(String(64), nullable=False)

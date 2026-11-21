@@ -77,14 +77,24 @@ async def record_payin_api_audit_log(
     vendor_status: Optional[str] = None,
     error_code: Optional[str] = None,
     error_message: Optional[str] = None,
-    environment: str = "sandbox"
+    environment: str = "sandbox",
+    user_type_ref_id: Optional[int] = None,
+    user_ref_id: Optional[int] = None
 ) -> None:
     """Safely persist vendor API transaction audit log into public.payin_api_logs."""
     try:
+        from app.application.user_type_service import UserTypeService
         async with AsyncSessionLocal() as session:
+            eff_user_ref = user_ref_id if user_ref_id is not None else retailer_ref_id
+            eff_user_type_ref = user_type_ref_id
+            if eff_user_type_ref is None and eff_user_ref is not None:
+                eff_user_type_ref = await UserTypeService.get_user_type_ref_id(session, "RETAILER")
+
             log_entry = PayinApiLogModel(
                 tid=tid,
                 company_ref_id=company_ref_id,
+                user_type_ref_id=eff_user_type_ref,
+                user_ref_id=eff_user_ref,
                 retailer_ref_id=retailer_ref_id,
                 vendor_ref_id=vendor_ref_id or 1,
                 vendor_name=vendor_name,

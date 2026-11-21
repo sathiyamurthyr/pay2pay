@@ -121,13 +121,14 @@ async def get_public_receipt(
             ret_name = payin_txn.cust_name or "Retailer Partner"
             ret_code = ""
             ret_mob = payin_txn.cust_mobile or ""
-            if payin_txn.retailer_ref_id:
+            eff_user_ref = payin_txn.user_ref_id or payin_txn.retailer_ref_id
+            if eff_user_ref:
                 try:
-                    ret_stmt = select(RetailerModel).where(RetailerModel.retailer_ref_id == payin_txn.retailer_ref_id)
+                    ret_stmt = select(RetailerModel).where(RetailerModel.retailer_ref_id == eff_user_ref)
                     ret = (await db.execute(ret_stmt)).scalars().first()
                     if ret:
                         ret_name = getattr(ret, "store_name", None) or getattr(ret, "owner_name", None) or getattr(ret, "legal_name", None) or ret_name
-                        ret_code = getattr(ret, "retailer_code", "") or f"RT{payin_txn.retailer_ref_id}"
+                        ret_code = getattr(ret, "retailer_code", "") or f"RT{eff_user_ref}"
                 except Exception as r_err:
                     logger.warning(f"[PUBLIC_RECEIPT] Retailer lookup notice for PayIn: {r_err}")
 

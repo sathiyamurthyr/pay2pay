@@ -51,15 +51,41 @@ router = APIRouter(prefix="/payin", tags=["Common PayIn Gateway & BankMe Integra
 def extract_auth_context(payload: Dict[str, Any], request: Request) -> Dict[str, Any]:
     """
     Extracts server-side verified company and user identity from JWT payload.
+    Standardises transaction ownership to:
+    1. company_ref_id (BIGINT)
+    2. user_type_ref_id (BIGINT)
+    3. user_ref_id (BIGINT)
     Never trusts client payload or query parameters for company authorization.
     """
     comp_ref = payload.get("company_ref_id")
     tenant_ref = payload.get("tenant_ref_id")
     comp_id = payload.get("company_id")
     tenant_id = payload.get("tenant_id")
-    ret_id = payload.get("retailer_id") or payload.get("sub")
-    ret_ref = payload.get("retailer_ref_id") or payload.get("user_ref_id")
     roles = [str(r).upper() for r in (payload.get("roles") or [])]
+    user_type_claim = str(payload.get("user_type") or "").upper().strip()
+
+    # Determine user type code and user reference ID
+    target_code = "RETAILER"
+    user_ref: Optional[int] = None
+
+    if any(r in ("SUPER_ADMIN", "ADMIN", "PLATFORM_ADMIN", "FINANCE", "OPERATIONS") for r in roles) or user_type_claim == "ADMIN":
+        target_code = "ADMIN"
+        user_ref = payload.get("admin_user_ref_id") or payload.get("user_ref_id")
+    elif any(r in ("SUPER_DISTRIBUTOR", "SD", "MASTER_DISTRIBUTOR") for r in roles) or user_type_claim == "SD":
+        target_code = "SD"
+        user_ref = payload.get("super_distributor_ref_id") or payload.get("user_ref_id")
+    elif any(r in ("DISTRIBUTOR", "DIST") for r in roles) or user_type_claim == "DISTRIBUTOR":
+        target_code = "DISTRIBUTOR"
+        user_ref = payload.get("distributor_ref_id") or payload.get("user_ref_id")
+    else:
+        target_code = "RETAILER"
+        user_ref = payload.get("retailer_ref_id") or payload.get("user_ref_id")
+
+    if user_ref is None:
+        user_ref = payload.get("user_ref_id") or payload.get("retailer_ref_id")
+
+    ret_id = payload.get("retailer_id") or payload.get("sub")
+    ret_ref = payload.get("retailer_ref_id") or user_ref
 
     # Domain fallback if testing via company-specific portal domain
     if comp_ref is None and request:
@@ -71,11 +97,16 @@ def extract_auth_context(payload: Dict[str, Any], request: Request) -> Dict[str,
         elif "pay2pay" in host:
             comp_ref = 47
 
+    raw_user_type_ref = payload.get("user_type_ref_id")
+
     return {
         "company_ref_id": int(comp_ref) if comp_ref is not None else None,
         "tenant_ref_id": int(tenant_ref) if tenant_ref is not None else 1,
         "company_id": comp_id,
         "tenant_id": tenant_id,
+        "user_ref_id": int(user_ref) if user_ref is not None else None,
+        "user_type_code": target_code,
+        "user_type_ref_id": int(raw_user_type_ref) if raw_user_type_ref is not None else None,
         "retailer_id": ret_id,
         "retailer_ref_id": int(ret_ref) if ret_ref is not None else None,
         "roles": roles,
