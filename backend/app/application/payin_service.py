@@ -52,6 +52,7 @@ from app.infrastructure.db.payin_models import (
     PayinPaymentModeModel, PayinCardTypeModel, PayinVendorModel, PayinApiLogModel
 )
 from app.infrastructure.db.models import RetailerWalletModel, RetailerModel
+from app.infrastructure.db.transaction_engine_models import CentralTransactionModel
 
 logger = logging.getLogger("payin_service")
 
@@ -596,7 +597,7 @@ class PayInService:
             if not txn.completed_at:
                 txn.completed_at = now_utc
 
-            # 4. Atomic Wallet Credit if not already credited
+            # 4. Atomic Two-Step Wallet Processing (CR full amount, then DR charges) if not already completed
             if not txn.ledger_txn_id:
                 try:
                     # Resolve user ownership from standard 3 reference columns
@@ -615,43 +616,158 @@ class PayInService:
                         ret_res = await db.execute(ret_stmt)
                         ret_obj = ret_res.scalars().first()
 
-                    credit_amt = float(txn.retailer_credit)
+                    full_txn_amt = round(float(txn.txn_amount), 2)
+                    mdr_amt = round(float(txn.mdr_amount or 0.0), 2)
+                    tax_amt = round(float(txn.tax_amount or 0.0), 2)
+                    total_charges_amt = round(float(txn.total_charges or (mdr_amt + tax_amt)), 2)
+                    expected_net_credit = round(float(txn.retailer_credit), 2)
+
+                    # Charges to debit from retailer wallet (if retailer bears MDR)
+                    charges_to_debit = round(full_txn_amt - expected_net_credit, 2) if expected_net_credit < full_txn_amt else 0.0
+                    dr_charge_amt = min(mdr_amt, charges_to_debit)
+                    dr_gst_amt = round(charges_to_debit - dr_charge_amt, 2)
 
                     clean_method = PaymentMethodNormalizer.get_clean_method_display(
                         card_network=txn.card_network,
                         pay_mode_code=norm.pay_mode_code
                     )
 
-                    adj_dto = WalletAdjustmentDTO(
-                        user_ref_id=eff_user_ref,
-                        retailer_id=str(ret_obj.public_id) if ret_obj else None,
-                        retailer_code=ret_obj.retailer_code if ret_obj else None,
-                        company_ref_id=txn.company_ref_id,
-                        user_type_ref_id=eff_user_type_ref,
-                        entry_type="CREDIT",
-                        amount=credit_amt,
-                        payout_amount=credit_amt,
-                        charge_amount=0.0,
-                        gst_amount=0.0,
-                        service_name="PAYIN_TOPUP",
-                        wallet_type="MAIN",
-                        user_type=eff_user_type_code,
-                        txn_id=txn.tid,
-                        ref_id=txn.provider_ref_id or txn.tid,
-                        narration=f"PayIn Wallet Top-Up ({clean_method}, TID: {txn.tid})"
+                    # Query existing ledger transactions for this TID to enforce strict idempotency
+                    ledger_stmt = select(CentralTransactionModel).where(
+                        CentralTransactionModel.txn_id == txn.tid
                     )
-                    adj_res = await WalletBalanceAdjustmentService.execute_wallet_balance_update(db=db, dto=adj_dto)
-                    if adj_res and adj_res.success:
-                        txn.ledger_txn_id = adj_res.txn_id
+                    ledger_res = await db.execute(ledger_stmt)
+                    existing_entries = ledger_res.scalars().all()
+                    existing_cr = next((e for e in existing_entries if (e.entry_type or "").upper() == "CREDIT"), None)
+                    existing_dr = next((e for e in existing_entries if (e.entry_type or "").upper() == "DEBIT"), None)
+
+                    cr_success = False
+                    cr_balance_before = None
+                    cr_balance_after = None
+                    cr_ledger_id = None
+
+                    # --- STEP 1: Existing Wallet CR (Full PayIn Amount) ---
+                    if existing_cr:
                         logger.info(
-                            "Credited ₹%.2f to retailer %s for TID %s (ledger_id=%s, source=%s)",
-                            credit_amt, txn.retailer_ref_id, txn.tid, adj_res.txn_id, source
+                            "PayIn TID %s: Existing CREDIT ledger entry found (%s). Skipping CR call.",
+                            txn.tid, getattr(existing_cr, "public_id", None) or txn.tid
                         )
+                        cr_success = True
+                        cr_balance_before = float(existing_cr.balance_before) if existing_cr.balance_before is not None else None
+                        cr_balance_after = float(existing_cr.balance_after) if existing_cr.balance_after is not None else None
+                        cr_ledger_id = existing_cr.txn_id or txn.tid
                     else:
-                        err_msg = adj_res.error_message if adj_res else "Wallet SP returned failure"
-                        logger.error("Wallet credit SP returned failure for TID %s: %s", txn.tid, err_msg)
+                        cr_dto = WalletAdjustmentDTO(
+                            user_ref_id=eff_user_ref,
+                            retailer_id=str(ret_obj.public_id) if ret_obj else None,
+                            retailer_code=ret_obj.retailer_code if ret_obj else None,
+                            company_ref_id=txn.company_ref_id,
+                            user_type_ref_id=eff_user_type_ref,
+                            entry_type="CREDIT",
+                            amount=full_txn_amt,
+                            payout_amount=full_txn_amt,
+                            charge_amount=0.0,
+                            gst_amount=0.0,
+                            service_name="PAYIN_TOPUP",
+                            wallet_type="MAIN",
+                            user_type=eff_user_type_code,
+                            txn_id=txn.tid,
+                            ref_id=txn.provider_ref_id or txn.tid,
+                            narration=f"PayIn Wallet Top-Up CR ({clean_method}, TID: {txn.tid})"
+                        )
+                        cr_res = await WalletBalanceAdjustmentService.execute_wallet_balance_update(db=db, dto=cr_dto)
+                        if cr_res and cr_res.success:
+                            cr_success = True
+                            cr_balance_before = cr_res.balance_before
+                            cr_balance_after = cr_res.balance_after
+                            cr_ledger_id = cr_res.txn_id
+                            logger.info(
+                                "PayIn TID %s: Step 1 CR succeeded - Credited full amount ₹%.2f (Bal: ₹%.2f -> ₹%.2f, source=%s)",
+                                txn.tid, full_txn_amt, cr_res.balance_before, cr_res.balance_after, source
+                            )
+                        elif cr_res and cr_res.error_code == "DUPLICATE_TRANSACTION":
+                            logger.info("PayIn TID %s: Step 1 CR already exists (DUPLICATE_TRANSACTION).", txn.tid)
+                            cr_success = True
+                            cr_ledger_id = txn.tid
+                        else:
+                            err_msg = cr_res.error_message if cr_res else "Wallet CR SP returned failure"
+                            logger.error("PayIn TID %s: Step 1 CR failed: %s. Aborting DR call.", txn.tid, err_msg)
+
+                    # --- STEP 2: Existing Wallet DR (Total Charges including GST) ---
+                    dr_success = False
+                    final_balance = cr_balance_after
+
+                    if cr_success:
+                        if charges_to_debit > 0:
+                            if existing_dr:
+                                logger.info(
+                                    "PayIn TID %s: Existing DEBIT ledger entry found (%s). Skipping DR call.",
+                                    txn.tid, getattr(existing_dr, "public_id", None) or txn.tid
+                                )
+                                dr_success = True
+                                final_balance = float(existing_dr.balance_after) if existing_dr.balance_after is not None else cr_balance_after
+                            else:
+                                dr_dto = WalletAdjustmentDTO(
+                                    user_ref_id=eff_user_ref,
+                                    retailer_id=str(ret_obj.public_id) if ret_obj else None,
+                                    retailer_code=ret_obj.retailer_code if ret_obj else None,
+                                    company_ref_id=txn.company_ref_id,
+                                    user_type_ref_id=eff_user_type_ref,
+                                    entry_type="DEBIT",
+                                    amount=charges_to_debit,
+                                    payout_amount=0.0,
+                                    charge_amount=dr_charge_amt,
+                                    gst_amount=dr_gst_amt,
+                                    service_name="PAYIN_TOPUP",
+                                    wallet_type="MAIN",
+                                    user_type=eff_user_type_code,
+                                    txn_id=txn.tid,
+                                    ref_id=txn.provider_ref_id or txn.tid,
+                                    narration=f"PayIn Top-Up Fee DR - Charges: ₹{dr_charge_amt:.2f}, GST: ₹{dr_gst_amt:.2f} (TID: {txn.tid})"
+                                )
+                                dr_res = await WalletBalanceAdjustmentService.execute_wallet_balance_update(db=db, dto=dr_dto)
+                                if dr_res and dr_res.success:
+                                    dr_success = True
+                                    final_balance = dr_res.balance_after
+                                    logger.info(
+                                        "PayIn TID %s: Step 2 DR succeeded - Debited charges ₹%.2f [Fee: ₹%.2f, GST: ₹%.2f] (Bal: ₹%.2f -> ₹%.2f)",
+                                        txn.tid, charges_to_debit, dr_charge_amt, dr_gst_amt, dr_res.balance_before, dr_res.balance_after
+                                    )
+                                elif dr_res and dr_res.error_code == "DUPLICATE_TRANSACTION":
+                                    logger.info("PayIn TID %s: Step 2 DR already exists (DUPLICATE_TRANSACTION).", txn.tid)
+                                    dr_success = True
+                                else:
+                                    err_msg = dr_res.error_message if dr_res else "Wallet DR SP returned failure"
+                                    logger.error(
+                                        "CRITICAL: PayIn TID %s: Step 2 DR failed after CR succeeded: %s. Wallet processing remains incomplete for retry.",
+                                        txn.tid, err_msg
+                                    )
+                        else:
+                            # 0 charges to debit (e.g. 0% fee or company bears MDR)
+                            dr_success = True
+                            logger.info("PayIn TID %s: No charges to debit (charges_to_debit=0.0). Step 2 DR skipped.", txn.tid)
+
+                    # --- STEP 3: Balance Integrity Verification & Completion ---
+                    if cr_success and dr_success:
+                        txn.ledger_txn_id = cr_ledger_id or txn.tid
+                        if isinstance(cr_balance_before, (int, float)) and isinstance(final_balance, (int, float)):
+                            net_impact = round(final_balance - cr_balance_before, 2)
+                            if abs(net_impact - expected_net_credit) > 0.01:
+                                logger.warning(
+                                    "PayIn TID %s balance discrepancy: net_impact=₹%.2f, expected=₹%.2f",
+                                    txn.tid, net_impact, expected_net_credit
+                                )
+                            else:
+                                logger.info(
+                                    "PayIn TID %s balance verified: Initial=₹%.2f, Post-CR=₹%.2f, Final=₹%.2f, Net Credit=₹%.2f",
+                                    txn.tid, cr_balance_before, cr_balance_after, final_balance, net_impact
+                                )
+                        logger.info(
+                            "PayIn TID %s: Two-step wallet processing complete. ledger_txn_id=%s",
+                            txn.tid, txn.ledger_txn_id
+                        )
                 except Exception as w_err:
-                    logger.error("Wallet credit exception for TID %s: %s", txn.tid, w_err)
+                    logger.error("PayIn TID %s wallet processing exception: %s", txn.tid, w_err, exc_info=True)
 
         elif eff_status in ("FAILED", "FAILURE"):
             txn.txn_status = "FAILED"

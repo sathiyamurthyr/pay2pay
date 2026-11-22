@@ -234,13 +234,21 @@ async def test_reconcile_wallet_credit_standard_columns(mock_wallet_sp):
     assert res["status"] == "SUCCESS"
     assert txn.ledger_txn_id == "LEDGER-TXN-123"
 
-    # Assert DTO passed to WalletAdjustmentService
-    mock_wallet_sp.assert_called_once()
-    passed_dto = mock_wallet_sp.call_args[1]["dto"]
-    assert passed_dto.company_ref_id == 2
-    assert passed_dto.user_type_ref_id == 2
-    assert passed_dto.user_ref_id == 10928
-    assert passed_dto.amount == 980.0
+    # Assert DTOs passed to WalletAdjustmentService (Step 1: CR 1000.0, Step 2: DR 20.0)
+    assert mock_wallet_sp.call_count == 2
+    cr_dto = mock_wallet_sp.call_args_list[0][1]["dto"]
+    assert cr_dto.entry_type == "CREDIT"
+    assert cr_dto.amount == 1000.0
+    assert cr_dto.company_ref_id == 2
+    assert cr_dto.user_type_ref_id == 2
+    assert cr_dto.user_ref_id == 10928
+
+    dr_dto = mock_wallet_sp.call_args_list[1][1]["dto"]
+    assert dr_dto.entry_type == "DEBIT"
+    assert dr_dto.amount == 20.0
+    assert dr_dto.company_ref_id == 2
+    assert dr_dto.user_type_ref_id == 2
+    assert dr_dto.user_ref_id == 10928
 
 
 @pytest.mark.asyncio
