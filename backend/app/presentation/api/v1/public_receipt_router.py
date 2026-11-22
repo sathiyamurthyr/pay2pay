@@ -102,8 +102,11 @@ async def get_public_receipt(
                 decrypted_tid = short_link_meta.get("tid")
                 expected_company_ref_id = short_link_meta.get("company_ref_id")
         except HTTPException as http_e:
-            record_failed_attempt(client_ip)
-            raise http_e
+            if http_e.status_code in (status.HTTP_403_FORBIDDEN, status.HTTP_410_GONE):
+                record_failed_attempt(client_ip)
+                raise http_e
+            # For 404, do not abort immediately; allow fallback to AES-256-GCM decrypt or direct lookups
+            logger.debug("[PUBLIC_RECEIPT] Short code %s not in short links table (404), continuing fallback", clean_token)
         except Exception as ex:
             logger.debug("[PUBLIC_RECEIPT] Short code lookup notice: %s", ex)
 
@@ -139,7 +142,7 @@ async def get_public_receipt(
     try:
         from app.infrastructure.db.payin_models import PayinTransactionModel
         payin_txn = None
-        # Strict security: PayIn transactions require an authenticated decrypted token
+        # Strict security: PayIn transactions require an authenticated decrypted token or verified short code
         if decrypted_tid:
             stmt_payin = select(PayinTransactionModel).where(
                 or_(
@@ -147,6 +150,11 @@ async def get_public_receipt(
                     PayinTransactionModel.merchant_ref_id == decrypted_tid,
                     PayinTransactionModel.provider_ref_id == decrypted_tid
                 )
+            )
+            payin_txn = (await db.execute(stmt_payin)).scalars().first()
+        elif SHORT_CODE_REGEX.match(clean_token):
+            stmt_payin = select(PayinTransactionModel).where(
+                PayinTransactionModel.receipt_short_code == clean_token
             )
             payin_txn = (await db.execute(stmt_payin)).scalars().first()
 

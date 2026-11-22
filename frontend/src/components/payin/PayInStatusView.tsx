@@ -224,6 +224,12 @@ export function PayInStatusView({
 
   const [loading, setLoading] = useState<boolean>(!initialData);
   const [receipt, setReceipt] = useState<ReceiptData | null>(initialData ? normalizeReceiptData(initialData) : null);
+  const receiptRef = useRef<ReceiptData | null>(initialData ? normalizeReceiptData(initialData) : null);
+
+  useEffect(() => {
+    receiptRef.current = receipt;
+  }, [receipt]);
+
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [pollCount, setPollCount] = useState<number>(0);
@@ -289,7 +295,7 @@ export function PayInStatusView({
           }
         }
 
-        if (!fetched && !receipt) {
+        if (!fetched && !receiptRef.current) {
           setErrorMsg("Receipt details unavailable or verification failed");
         }
       } catch (err: any) {
@@ -300,7 +306,7 @@ export function PayInStatusView({
         setIsRefreshing(false);
       }
     },
-    [refParam, statusParam, utrParam, receipt]
+    [refParam, statusParam, utrParam]
   );
 
   // Always clean URL search parameters on mount so sensitive parameters (referenceId, status, etc.) are never exposed in the browser
@@ -312,8 +318,11 @@ export function PayInStatusView({
 
   // Initial load
   useEffect(() => {
+    if (initialData && (initialData.status === "SUCCESS" || initialData.status === "FAILED")) {
+      return;
+    }
     fetchReceiptDetails(true);
-  }, [fetchReceiptDetails]);
+  }, [fetchReceiptDetails, initialData]);
 
   // Polling for pending status
   useEffect(() => {
