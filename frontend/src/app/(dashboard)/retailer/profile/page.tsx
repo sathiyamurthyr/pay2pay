@@ -69,7 +69,10 @@ import {
   Landmark,
   Check,
   FileSpreadsheet,
+  Sparkles,
+  BadgeCheck,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { retailerApi } from "@/services/retailer-api";
 import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
@@ -267,6 +270,31 @@ interface ProfileResponse {
 
 export default function RetailerProfilePage() {
   const branding = useCompanyBranding();
+  const currentHost = typeof window !== "undefined" ? window.location.hostname.toLowerCase() : "";
+  const isSmsPay =
+    branding?.company_code === "SMSPAY" ||
+    currentHost.includes("smspay");
+  const isNear4You =
+    branding?.company_code === "NEAR4YOU" ||
+    currentHost.includes("near4you");
+  const isPay2Pay =
+    branding?.company_code === "PAY2PAY" ||
+    currentHost.includes("pay2pay") ||
+    (!isSmsPay && !isNear4You);
+
+  const brandDisplayName = branding?.display_name || (isSmsPay ? "SMSPAY" : isNear4You ? "Near4You" : "Pay2Pay");
+  const brandPrimary = branding?.primary_colour || (isSmsPay ? "#059669" : isNear4You ? "#A20A3A" : "#2563EB");
+  const brandSecondary = branding?.secondary_colour || (isSmsPay ? "#047857" : isNear4You ? "#EDC11E" : "#1E40AF");
+  const brandLight = isSmsPay ? "#ECFDF5" : isNear4You ? "#FFF1F2" : "#EFF6FF";
+  const brandHover = isSmsPay ? "#047857" : isNear4You ? "#88082D" : "#1D4ED8";
+  const brandBorder = isSmsPay ? "rgba(5, 150, 105, 0.25)" : isNear4You ? "rgba(162, 10, 58, 0.25)" : "rgba(37, 99, 235, 0.25)";
+  const brandLogo =
+    isSmsPay
+      ? "/branding/smspay-mark.svg"
+      : isNear4You
+      ? (branding?.logo_url || "/branding/logo.svg")
+      : (branding?.logo_url || "/branding/pay2pay-logo.png");
+
   const defaultSupportEmail = branding.website?.includes("smspay")
     ? "support@smspay.store"
     : branding.website?.includes("pay2pay")
@@ -709,7 +737,7 @@ export default function RetailerProfilePage() {
         <Alert severity="error" sx={{ mb: 3, borderRadius: 3 }}>
           {error || "Unable to load profile information."}
         </Alert>
-        <Button variant="contained" onClick={fetchProfile} startIcon={<RefreshCw size={18} />} sx={{ bgcolor: "#2563EB" }}>
+        <Button variant="contained" onClick={fetchProfile} startIcon={<RefreshCw size={18} />} sx={{ bgcolor: brandPrimary, "&:hover": { bgcolor: brandHover } }}>
           Retry
         </Button>
       </Box>
@@ -718,66 +746,234 @@ export default function RetailerProfilePage() {
 
   return (
     <Box sx={{ maxWidth: 1400, mx: "auto", pb: 8 }}>
-      {/* ── PAGE HEADER & SUBTITLE ── */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" sx={{ fontWeight: 800, color: "#FFFFFF", letterSpacing: "-0.02em" }}>
-          Retailer Profile
-        </Typography>
-        <Typography variant="body2" sx={{ color: "#625B60", mt: 0.5 }}>
-          Manage your registered profile, KYC, bank, security, relationship manager and registered location information.
-        </Typography>
-      </Box>
-
-      {/* ── TAB BAR ── */}
-      <Paper
-        elevation={0}
-        sx={{
-          borderRadius: 3,
-          bgcolor: "#FFFFFF",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
-          mb: 3.5,
-          p: 0.5,
+      {/* ── 1. MOTIONSITES.AI CINEMATIC PROFILE HERO ── */}
+      <motion.div
+        initial={{ opacity: 0, y: -16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+        className="relative mb-6 overflow-hidden rounded-3xl border shadow-xl transition-all duration-300"
+        style={{
+          background: "linear-gradient(135deg, #0B0F19 0%, #111827 50%, #0F172A 100%)",
+          borderColor: brandBorder,
+          boxShadow: `0 20px 40px -15px rgba(0, 0, 0, 0.5), 0 0 30px -10px ${brandPrimary}25`,
         }}
       >
-        <Tabs
-          value={activeTab}
-          onChange={(_, val) => setActiveTab(val)}
-          variant="scrollable"
-          scrollButtons="auto"
-          sx={{
-            minHeight: 48,
-            "& .MuiTabs-indicator": {
-              backgroundColor: "#3B82F6",
-              height: 3,
-              borderRadius: "3px 3px 0 0",
-            },
-            "& .MuiTab-root": {
-              minHeight: 48,
-              textTransform: "none",
-              fontWeight: 600,
-              fontSize: "0.9rem",
-              color: "#625B60",
-              px: 2.2,
-              "&.Mui-selected": {
-                color: "#60A5FA",
-                fontWeight: 700,
-              },
-              "&:hover": {
-                color: "#FFFFFF",
-              },
-            },
+        {/* Specular Ambient Light Overlay */}
+        <div
+          className="absolute inset-0 pointer-events-none opacity-40"
+          style={{
+            background: `radial-gradient(circle at 85% 15%, ${brandPrimary}35 0%, transparent 60%), radial-gradient(circle at 15% 85%, ${brandSecondary}25 0%, transparent 50%)`,
           }}
+        />
+        <div
+          className="absolute inset-x-0 top-0 h-[2px] pointer-events-none"
+          style={{
+            background: `linear-gradient(90deg, transparent, ${brandPrimary}, transparent)`,
+          }}
+        />
+
+        <div className="relative z-10 p-5 sm:p-7 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+          {/* Left: Avatar + Retailer Identity Details */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 w-full lg:w-auto">
+            {/* Motion Animated Avatar */}
+            <div className="relative group shrink-0">
+              <div
+                className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl p-1 shadow-2xl transition-transform duration-300 group-hover:scale-105"
+                style={{
+                  background: `linear-gradient(135deg, ${brandPrimary} 0%, ${brandSecondary} 100%)`,
+                  boxShadow: `0 8px 24px ${brandPrimary}40`,
+                }}
+              >
+                <div className="w-full h-full rounded-[14px] overflow-hidden bg-slate-900 flex items-center justify-center border border-white/20 relative">
+                  {profile.photo?.photo_url ? (
+                    <img
+                      src={profile.photo.photo_url}
+                      alt={profile.personal.retailer_name || "Profile"}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-2xl sm:text-3xl font-black text-white">
+                      {profile.personal.retailer_name ? String(profile.personal.retailer_name).charAt(0).toUpperCase() : "R"}
+                    </span>
+                  )}
+                  {/* Photo Upload Overlay Button on Hover */}
+                  <label
+                    htmlFor="hero-avatar-upload"
+                    className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity duration-200"
+                    title="Change Profile Photo"
+                  >
+                    <Camera className="w-6 h-6 text-white drop-shadow-md" />
+                    <span className="text-[10px] font-bold text-white mt-1">Upload</span>
+                  </label>
+                  <input
+                    id="hero-avatar-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoUpload}
+                    className="hidden"
+                  />
+                </div>
+              </div>
+              {/* Online / Active Terminal Pulse Indicator */}
+              <div
+                className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-slate-900 flex items-center justify-center shadow-lg"
+                style={{ backgroundColor: "#10B981" }}
+                title="Active Retailer Terminal"
+              >
+                <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
+              </div>
+            </div>
+
+            {/* Retailer Name, Store & Badges */}
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2">
+                  <span>{profile.personal.retailer_name || "Retailer Partner"}</span>
+                </h1>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Verified Retailer</span>
+                </span>
+                <span
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider shadow-sm"
+                  style={{
+                    backgroundColor: `${brandPrimary}25`,
+                    color: brandPrimary === "#059669" ? "#34D399" : brandPrimary === "#A20A3A" ? "#FCA5A5" : "#93C5FD",
+                    border: `1px solid ${brandPrimary}50`,
+                  }}
+                >
+                  <Sparkles className="w-3 h-3" />
+                  <span>{brandDisplayName} Network</span>
+                </span>
+              </div>
+
+              <p className="text-xs sm:text-sm text-slate-300 font-medium">
+                {profile.personal.store_type || "Retailer Business"} · {profile.personal.business_category || "FinTech & Banking Correspondent"}
+              </p>
+
+              {/* Quick Interactive Meta Chips */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {/* Retailer ID Pill with Copy */}
+                <button
+                  type="button"
+                  onClick={() => handleCopy(profile.personal.retailer_id, "Retailer ID")}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/[0.07] hover:bg-white/[0.12] border border-white/15 text-slate-200 text-xs font-mono font-bold transition-all active:scale-95 cursor-pointer"
+                  title="Click to copy Retailer ID"
+                >
+                  <span className="text-slate-400 font-sans font-normal">ID:</span>
+                  <span className="text-amber-300">{profile.personal.retailer_id || "SMSP-RET"}</span>
+                  <Copy className="w-3.5 h-3.5 text-slate-400" />
+                </button>
+
+                {/* Phone Pill */}
+                {profile.contact?.mobile_raw && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/[0.05] border border-white/10 text-slate-300 text-xs font-mono">
+                    <Phone className="w-3.5 h-3.5 text-slate-400" />
+                    <span>{profile.contact.mobile_raw}</span>
+                  </span>
+                )}
+
+                {/* Email Pill */}
+                {profile.contact?.email_raw && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/[0.05] border border-white/10 text-slate-300 text-xs">
+                    <Mail className="w-3.5 h-3.5 text-slate-400" />
+                    <span className="truncate max-w-[180px] sm:max-w-none">{profile.contact.email_raw}</span>
+                  </span>
+                )}
+
+                {/* Account Status Badge */}
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-bold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>{profile.personal.status || "ACTIVE"}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Quick Action Navigation Shortcuts */}
+          <div className="flex flex-wrap lg:flex-col items-stretch gap-2.5 w-full lg:w-auto shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 lg:border-l border-white/10 lg:pl-6">
+            <button
+              type="button"
+              onClick={() => setActiveTab(1)}
+              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-200 bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 transition-all active:scale-95 cursor-pointer"
+            >
+              <Phone className="w-3.5 h-3.5 text-slate-400" />
+              <span>Edit Contact</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab(5)}
+              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-200 bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 transition-all active:scale-95 cursor-pointer"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+              <span>Security & MPIN</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab(9)}
+              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all shadow-md active:scale-95 cursor-pointer"
+              style={{
+                background: `linear-gradient(135deg, ${brandPrimary} 0%, ${brandSecondary} 100%)`,
+                boxShadow: `0 4px 12px ${brandPrimary}35`,
+              }}
+            >
+              <Building className="w-3.5 h-3.5" />
+              <span>Corporate Desk</span>
+            </button>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* ── 2. MOTIONSITES.AI ANIMATED TAB STRIP ── */}
+      <div className="relative mb-6 overflow-x-auto p-1.5 rounded-2xl bg-white border border-slate-200/90 shadow-sm scrollbar-none">
+        <div className="flex items-center gap-1.5 min-w-max">
+          {tabs.map((tab, idx) => {
+            const isActive = activeTab === idx;
+            return (
+              <motion.button
+                key={idx}
+                type="button"
+                onClick={() => setActiveTab(idx)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-[13px] font-bold transition-all duration-200 cursor-pointer select-none ${
+                  isActive
+                    ? "text-white shadow-md"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80"
+                }`}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="activeProfileTabPill"
+                    className="absolute inset-0 rounded-xl"
+                    style={{
+                      background: `linear-gradient(135deg, ${brandPrimary} 0%, ${brandSecondary} 100%)`,
+                      boxShadow: `0 4px 14px ${brandPrimary}40`,
+                    }}
+                    transition={{ type: "spring", stiffness: 420, damping: 32 }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center gap-2">
+                  {tab.icon}
+                  <span>{tab.label}</span>
+                </span>
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── 3. ANIMATED TAB PANELS ── */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -12 }}
+          transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
         >
-          {tabs.map((t, idx) => (
-            <Tab key={idx} label={t.label} icon={t.icon} iconPosition="start" />
-          ))}
-        </Tabs>
-      </Paper>
-
-      {/* ── TAB PANELS ── */}
-
-      {/* 1. PERSONAL TAB */}
-      {activeTab === 0 && (
+          {/* 1. PERSONAL TAB */}
+          {activeTab === 0 && (
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, md: 6 }}>
             <Paper elevation={0} sx={cardStyle}>
@@ -940,7 +1136,7 @@ export default function RetailerProfilePage() {
                   onClick={handleSaveContact}
                   disabled={saving}
                   startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Save size={16} />}
-                  sx={{ bgcolor: "#2563EB", fontWeight: 700, borderRadius: 2 }}
+                  sx={{ bgcolor: brandPrimary, fontWeight: 700, borderRadius: 2, "&:hover": { bgcolor: brandHover } }}
                 >
                   {saving ? "Saving..." : "Save Contact Updates"}
                 </Button>
@@ -1038,7 +1234,7 @@ export default function RetailerProfilePage() {
                         variant="contained"
                         size="small"
                         startIcon={<Mail size={13} />}
-                        sx={{ bgcolor: "#2563EB", fontWeight: 700, fontSize: "0.75rem", "&:hover": { bgcolor: "#1D4ED8" } }}
+                        sx={{ bgcolor: brandPrimary, fontWeight: 700, fontSize: "0.75rem", "&:hover": { bgcolor: brandHover } }}
                       >
                         Email
                       </Button>
@@ -1263,7 +1459,7 @@ export default function RetailerProfilePage() {
                           fileName: profile.kyc.pan?.file_name || "pan_card.pdf",
                           mimeType: profile.kyc.pan?.mime_type || undefined
                         })}
-                        sx={{ bgcolor: "#2563EB", fontWeight: 700, fontSize: "0.75rem", textTransform: "none" }}
+                        sx={{ bgcolor: brandPrimary, fontWeight: 700, fontSize: "0.75rem", textTransform: "none", "&:hover": { bgcolor: brandHover } }}
                       >
                         View
                       </Button>
@@ -1500,7 +1696,7 @@ export default function RetailerProfilePage() {
                               fileName: doc.file_name,
                               mimeType: doc.mime_type
                             })}
-                            sx={{ bgcolor: "#2563EB", fontWeight: 700, fontSize: "0.75rem", textTransform: "none", "&:hover": { bgcolor: "#1D4ED8" } }}
+                            sx={{ bgcolor: brandPrimary, fontWeight: 700, fontSize: "0.75rem", textTransform: "none", "&:hover": { bgcolor: brandHover } }}
                           >
                             View Document
                           </Button>
@@ -1641,7 +1837,7 @@ export default function RetailerProfilePage() {
                         fileName: profile.bank?.document_file_name || "bank_proof.pdf",
                         mimeType: profile.bank?.document_mime_type || undefined
                       })}
-                      sx={{ bgcolor: "#2563EB", fontWeight: 700, fontSize: "0.78rem", textTransform: "none", "&:hover": { bgcolor: "#1D4ED8" } }}
+                      sx={{ bgcolor: brandPrimary, fontWeight: 700, fontSize: "0.78rem", textTransform: "none", "&:hover": { bgcolor: brandHover } }}
                     >
                       View Proof Document
                     </Button>
@@ -2027,13 +2223,13 @@ export default function RetailerProfilePage() {
                     disabled={saving || !isPwdValid}
                     startIcon={<Lock size={16} />}
                     sx={{
-                      bgcolor: isPwdValid ? "#2563EB" : "rgba(37, 99, 235, 0.4)",
+                      bgcolor: isPwdValid ? brandPrimary : "rgba(100, 116, 139, 0.4)",
                       color: "#FFFFFF",
                       fontWeight: 700,
                       borderRadius: 2,
                       py: 1.2,
                       textTransform: "none",
-                      "&:hover": { bgcolor: "#1D4ED8" },
+                      "&:hover": { bgcolor: isPwdValid ? brandHover : "rgba(100, 116, 139, 0.4)" },
                     }}
                   >
                     {saving ? "Sending WhatsApp OTP..." : "Change Password"}
@@ -2157,13 +2353,13 @@ export default function RetailerProfilePage() {
                     disabled={saving || !isPinValid}
                     startIcon={<KeyRound size={16} />}
                     sx={{
-                      bgcolor: isPinValid ? "#2563EB" : "rgba(37, 99, 235, 0.4)",
+                      bgcolor: isPinValid ? brandPrimary : "rgba(100, 116, 139, 0.4)",
                       color: "#FFFFFF",
                       fontWeight: 700,
                       borderRadius: 2,
                       py: 1.2,
                       textTransform: "none",
-                      "&:hover": { bgcolor: "#1D4ED8" },
+                      "&:hover": { bgcolor: isPinValid ? brandHover : "rgba(100, 116, 139, 0.4)" },
                     }}
                   >
                     {saving ? "Sending WhatsApp OTP..." : "Change PIN"}
@@ -2189,11 +2385,11 @@ export default function RetailerProfilePage() {
                   sx={{
                     width: 140,
                     height: 140,
-                    bgcolor: "#2563EB",
+                    bgcolor: brandPrimary,
                     fontSize: 44,
                     fontWeight: 800,
-                    border: "3px solid #3B82F6",
-                    boxShadow: "0 10px 25px rgba(37, 99, 235, 0.35)",
+                    border: `3px solid ${brandPrimary}`,
+                    boxShadow: `0 10px 25px ${brandPrimary}40`,
                   }}
                 >
                   {profile.personal.retailer_name?.charAt(0) || "R"}
@@ -2204,7 +2400,7 @@ export default function RetailerProfilePage() {
                   variant="contained"
                   disabled={saving}
                   startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Upload size={18} />}
-                  sx={{ bgcolor: "#2563EB", fontWeight: 700, borderRadius: 2.5, px: 3 }}
+                  sx={{ bgcolor: brandPrimary, fontWeight: 700, borderRadius: 2.5, px: 3, "&:hover": { bgcolor: brandHover } }}
                 >
                   {saving ? "Uploading to B2..." : "Upload / Change Photo"}
                   <input type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={handlePhotoUpload} />
@@ -2287,7 +2483,7 @@ export default function RetailerProfilePage() {
                       href={`tel:${profile.company?.support_phone || "1800292982"}`}
                       variant="contained"
                       startIcon={<Headphones size={16} />}
-                      sx={{ bgcolor: "#2563EB", fontWeight: 700, borderRadius: 2 }}
+                      sx={{ bgcolor: brandPrimary, fontWeight: 700, borderRadius: 2, "&:hover": { bgcolor: brandHover } }}
                     >
                       Call Support ({profile.company?.support_phone || "1800 292 982"})
                     </Button>
@@ -2295,7 +2491,7 @@ export default function RetailerProfilePage() {
                       href={`mailto:${profile.company?.support_email || defaultSupportEmail}?subject=Retailer%20Account%20Assistance`}
                       variant="outlined"
                       startIcon={<Mail size={16} />}
-                      sx={{ color: "#60A5FA", borderColor: "#3B82F6", fontWeight: 700, borderRadius: 2 }}
+                      sx={{ color: brandPrimary, borderColor: brandPrimary, fontWeight: 700, borderRadius: 2 }}
                     >
                       Email Operations Desk
                     </Button>
@@ -2517,6 +2713,8 @@ export default function RetailerProfilePage() {
           </Grid>
         </Grid>
       )}
+        </motion.div>
+      </AnimatePresence>
 
       {/* ── UPDATE EMAIL OTP DIALOG ── */}
       <Dialog
@@ -2609,14 +2807,14 @@ export default function RetailerProfilePage() {
                 disabled={sendingEmailOtp || !newEmail}
                 startIcon={sendingEmailOtp ? <CircularProgress size={16} color="inherit" /> : <Mail size={16} />}
                 sx={{
-                  bgcolor: "#2563EB",
+                  bgcolor: brandPrimary,
                   color: "#FFFFFF",
                   fontWeight: 700,
                   py: 1.2,
                   borderRadius: 2.5,
                   textTransform: "none",
-                  boxShadow: "0 4px 14px rgba(37, 99, 235, 0.4)",
-                  "&:hover": { bgcolor: "#1D4ED8" },
+                  boxShadow: `0 4px 14px ${brandPrimary}40`,
+                  "&:hover": { bgcolor: brandHover },
                 }}
               >
                 {sendingEmailOtp ? "Sending Verification Code..." : "Send Verification OTP"}
@@ -2865,14 +3063,14 @@ export default function RetailerProfilePage() {
             variant="contained"
             startIcon={secOtpVerifying ? <CircularProgress size={16} color="inherit" /> : <CheckCircle2 size={16} />}
             sx={{
-              bgcolor: "#2563EB",
+              bgcolor: brandPrimary,
               color: "#FFFFFF",
               fontWeight: 700,
               textTransform: "none",
               px: 3,
               borderRadius: 2.5,
-              boxShadow: "0 4px 14px rgba(37, 99, 235, 0.4)",
-              "&:hover": { bgcolor: "#1D4ED8" },
+              boxShadow: `0 4px 14px ${brandPrimary}40`,
+              "&:hover": { bgcolor: brandHover },
             }}
           >
             {secOtpVerifying ? "Verifying & Saving..." : `Verify & Update ${secOtpAction === "PASSWORD" ? "Password" : "MPIN"}`}
@@ -2972,7 +3170,7 @@ export default function RetailerProfilePage() {
               download={selectedDoc?.fileName || "document"}
               target="_blank"
               rel="noopener noreferrer"
-              sx={{ bgcolor: "#2563EB", fontWeight: 700, textTransform: "none", "&:hover": { bgcolor: "#1D4ED8" } }}
+              sx={{ bgcolor: brandPrimary, fontWeight: 700, textTransform: "none", "&:hover": { bgcolor: brandHover } }}
             >
               Download
             </Button>
@@ -3018,6 +3216,15 @@ function DataRow({
   action?: React.ReactNode;
 }) {
   const displayVal = value !== null && value !== undefined && value !== "" ? String(value) : "—";
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyClick = () => {
+    if (onCopy) {
+      onCopy();
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    }
+  };
 
   return (
     <Box sx={rowBoxStyle}>
@@ -3028,17 +3235,26 @@ function DataRow({
         <Typography
           variant="body1"
           sx={{
-            color: isStatus ? "#16A34A" : "#0F172A",
-            fontWeight: 600,
+            color: isStatus ? "#10B981" : "#0F172A",
+            fontWeight: isStatus ? 700 : 600,
             wordBreak: "break-all",
           }}
         >
           {displayVal}
         </Typography>
         {onCopy && displayVal !== "—" && (
-          <Tooltip title="Copy to clipboard">
-            <IconButton size="small" onClick={onCopy} sx={{ color: "#60A5FA", ml: 1 }}>
-              <Copy size={16} />
+          <Tooltip title={copied ? "Copied to clipboard!" : "Copy to clipboard"}>
+            <IconButton
+              size="small"
+              onClick={handleCopyClick}
+              sx={{
+                color: copied ? "#10B981" : "#64748B",
+                ml: 1,
+                transition: "all 0.2s",
+                "&:hover": { color: "#0F172A", bgcolor: "rgba(0,0,0,0.04)" },
+              }}
+            >
+              {copied ? <Check size={15} /> : <Copy size={15} />}
             </IconButton>
           </Tooltip>
         )}
@@ -3055,7 +3271,11 @@ const cardStyle = {
   borderRadius: 3.5,
   bgcolor: "#FFFFFF",
   border: "1px solid #E2E8F0",
-  boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.05)",
+  boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04)",
+  transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+  "&:hover": {
+    boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.07), 0 8px 10px -6px rgba(0, 0, 0, 0.03)",
+  },
 };
 
 const cardTitleStyle = {
@@ -3068,15 +3288,20 @@ const cardTitleStyle = {
 const rowBoxStyle = {
   p: 1.8,
   borderRadius: 2.5,
-  bgcolor: "#FAF8F9",
-  border: "1px solid #E8E2E5",
+  bgcolor: "#F8FAFC",
+  border: "1px solid #E2E8F0",
+  transition: "all 0.15s ease",
+  "&:hover": {
+    bgcolor: "#F1F5F9",
+    borderColor: "#CBD5E1",
+  },
 };
 
 const fieldBoxStyle = {
   p: 2,
   borderRadius: 2.5,
-  bgcolor: "#FAF8F9",
-  border: "1px solid #E8E2E5",
+  bgcolor: "#F8FAFC",
+  border: "1px solid #E2E8F0",
 };
 
 const labelStyle = {
@@ -3103,16 +3328,16 @@ const inputStyle = {
       borderColor: "#D1D5DB",
     },
     "&:hover fieldset": {
-      borderColor: "#3B82F6",
+      borderColor: "#94A3B8",
     },
     "&.Mui-focused fieldset": {
-      borderColor: "#3B82F6",
+      borderColor: "#0F172A",
     },
   },
   "& .MuiInputLabel-root": {
     color: "#64748B",
     "&.Mui-focused": {
-      color: "#2563EB",
+      color: "#0F172A",
     },
   },
   "& .MuiFormHelperText-root": {
