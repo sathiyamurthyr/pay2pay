@@ -70,20 +70,17 @@ async def resolve_company_ref_by_domain(db: AsyncSession, domain_str: str) -> Op
     
     # Canonical brand identity mappings
     if "pay2pay" in clean_dom:
-        dom_part = "pay2pay.in"
-        code_guess = "PAY2PAY"
+        return 47
     elif "near4you" in clean_dom:
-        dom_part = "near4you.store"
-        code_guess = "NEAR4YOU"
+        return 1
     elif "smspay" in clean_dom:
-        dom_part = "smspay.store"
-        code_guess = "SMSPAY"
-    else:
-        dom_part = clean_dom
-        for sub in ["login.", "admin.", "retailer.", "superadmin.", "super-admin.", "sales.", "receipt.", "www.", "api.", "app."]:
-            if dom_part.startswith(sub):
-                dom_part = dom_part[len(sub):]
-        code_guess = dom_part.split(".")[0].upper()
+        return 2
+
+    dom_part = clean_dom
+    for sub in ["login.", "admin.", "retailer.", "superadmin.", "super-admin.", "sales.", "receipt.", "www.", "api.", "app."]:
+        if dom_part.startswith(sub):
+            dom_part = dom_part[len(sub):]
+    code_guess = dom_part.split(".")[0].upper()
 
     stmt = text("""
         SELECT c.company_ref_id
@@ -118,9 +115,22 @@ def resolve_brand_metadata(
     c_code = (code_hint or db_row.get("company_code") or "").upper().strip()
     h_hint = (host_hint or "").lower().strip()
 
-    is_smspay = "SMSPAY" in c_code or "smspay" in h_hint or ":4002" in h_hint
-    is_pay2pay = "PAY2PAY" in c_code or "pay2pay" in h_hint or ":3000" in h_hint or ":4003" in h_hint
-    is_near4you = "NEAR4YOU" in c_code or "near4you" in h_hint or ":4001" in h_hint
+    if "near4you" in h_hint or ":4001" in h_hint or "NEAR4YOU" in c_code:
+        is_near4you = True
+        is_smspay = False
+        is_pay2pay = False
+    elif "smspay" in h_hint or ":4002" in h_hint or "SMSPAY" in c_code:
+        is_smspay = True
+        is_near4you = False
+        is_pay2pay = False
+    elif "pay2pay" in h_hint or ":3000" in h_hint or ":4003" in h_hint or "PAY2PAY" in c_code:
+        is_pay2pay = True
+        is_smspay = False
+        is_near4you = False
+    else:
+        is_smspay = False
+        is_near4you = False
+        is_pay2pay = False
 
     if is_smspay:
         resolved_code = "SMSPAY"
@@ -129,8 +139,8 @@ def resolve_brand_metadata(
         resolved_legal = "INSPEL TECHNOLOGIES SOLUTIONS PVT"
         resolved_logo = "/branding/smspay-logo.svg"
         resolved_favicon = "/branding/smspay-favicon-32x32.png"
-        resolved_primary = "#059669"
-        resolved_secondary = "#047857"
+        resolved_primary = "#0F3B7D"
+        resolved_secondary = "#D4AF37"
     elif is_pay2pay:
         resolved_code = "PAY2PAY"
         resolved_display = "Pay2Pay"
@@ -146,7 +156,7 @@ def resolve_brand_metadata(
         resolved_name = "SATHUS TECHNOLOGY PRIVATE LIMITED"
         resolved_legal = "SATHUS TECHNOLOGY PRIVATE LIMITED"
         resolved_logo = "/branding/logo.svg"
-        resolved_favicon = "/branding/favicon.png"
+        resolved_favicon = "/branding/near4you-favicon.png"
         resolved_primary = "#A20A3A"
         resolved_secondary = "#EDC11E"
     else:
@@ -160,10 +170,15 @@ def resolve_brand_metadata(
         resolved_primary = db_row.get("primary_colour") or "#2563EB"
         resolved_secondary = db_row.get("secondary_colour") or "#1E40AF"
 
-    # Allow custom db override if present and not a cross-tenant static default
+    # Allow custom db override if present and strictly safe from cross-tenant pollution
     db_logo = db_row.get("logo_url")
-    if db_logo and not (is_smspay and ("logo" in db_logo.lower() or "smspay" in db_logo.lower())) and not (is_pay2pay and "logo.svg" in db_logo):
-        resolved_logo = db_logo
+    if db_logo:
+        if is_near4you and ("logo.svg" in db_logo or "near4you" in db_logo):
+            resolved_logo = db_logo
+        elif is_smspay and "smspay" in db_logo:
+            resolved_logo = db_logo
+        elif is_pay2pay and "pay2pay" in db_logo:
+            resolved_logo = db_logo
 
     db_fav = db_row.get("favicon_url")
     if db_fav and db_fav not in ["/favicon.ico", "/branding/favicon.png", "/branding/smspay-mark.svg"]:
