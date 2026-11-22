@@ -926,12 +926,12 @@ async def get_payout_transactions_summary(
     sql = f"""
     SELECT 
         COUNT(*) as total_count,
-        COUNT(CASE WHEN UPPER(pt.status) = 'SUCCESS' THEN 1 END) as success_count,
-        COUNT(CASE WHEN UPPER(pt.status) = 'FAILED' THEN 1 END) as failed_count,
+        COUNT(CASE WHEN UPPER(pt.status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN 1 END) as success_count,
+        COUNT(CASE WHEN UPPER(pt.status) IN ('FAILED', 'REJECTED', 'TIMEOUT') THEN 1 END) as failed_count,
         COUNT(CASE WHEN UPPER(pt.status) IN ('INITIATED', 'PENDING', 'PROCESSING') THEN 1 END) as pending_count,
-        COALESCE(SUM(t_amt.amount), 0.00) as total_volume,
-        COALESCE(SUM(t_chg.charge), 0.00) as total_charges,
-        COALESCE(SUM(t_gst.gst), 0.00) as total_gst
+        COALESCE(SUM(CASE WHEN UPPER(pt.status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN t_amt.amount ELSE 0.00 END), 0.00) as total_volume,
+        COALESCE(SUM(CASE WHEN UPPER(pt.status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN t_chg.charge ELSE 0.00 END), 0.00) as total_charges,
+        COALESCE(SUM(CASE WHEN UPPER(pt.status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN t_gst.gst ELSE 0.00 END), 0.00) as total_gst
     FROM public.payout_transaction pt
     LEFT JOIN LATERAL (
         SELECT COALESCE(SUM(t.amount), 0.00) as amount

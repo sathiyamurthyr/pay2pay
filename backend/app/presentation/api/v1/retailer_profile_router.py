@@ -624,7 +624,7 @@ async def get_retailer_profile(
     owner_name_val = ret_model.owner_name if (ret_model and ret_model.owner_name) else full_name
 
     personal_data = {
-        "retailer_name": store_name_val,
+        "retailer_name": owner_name_val or store_name_val or "Retailer Partner",
         "store_name": store_name_val,
         "owner_name": owner_name_val,
         "first_name": first_name,
@@ -963,6 +963,27 @@ async def get_retailer_profile(
         except Exception:
             pass
 
+    # 14. Build Dynamic COMPANY Contact & Support Info from authoritative CompanyModel & Domain Resolver
+    expected_comp_ref = resolve_request_company_ref(request)
+    resolved_comp_ref = expected_comp_ref or (ret_model.company_ref_id if ret_model else None) or session_company_ref_id or 1
+    preset = get_company_preset(resolved_comp_ref) or {}
+
+    c_stmt = (
+        select(CompanyModel)
+        .where(CompanyModel.company_ref_id == resolved_comp_ref)
+        .options(selectinload(CompanyModel.contacts), selectinload(CompanyModel.addresses))
+    )
+    comp = (await db.execute(c_stmt)).scalars().first()
+
+    default_name = preset.get("company_name") or "Enterprise Network"
+    default_brand = preset.get("display_name") or default_name
+    default_legal = preset.get("legal_name") or default_name
+    default_website = preset.get("website") or "https://smspay.store"
+    site_clean = default_website.replace("https://", "").replace("http://", "").strip("/")
+    default_email = preset.get("support_email") or f"support@{site_clean}"
+    default_logo = preset.get("logo_url") or "/branding/logo.svg"
+    supervisor_label = f"Zonal Head - {comp.display_name if (comp and comp.display_name) else default_brand} Enterprise Network"
+
     if distributor:
         rm_data = {
             "has_rm": True,
@@ -975,7 +996,7 @@ async def get_retailer_profile(
             "branch": f"{distributor.city} Operations Hub",
             "assigned_date": get_iso_date(distributor),
             "status": distributor.status or "ACTIVE",
-            "supervisor": "Zonal Head - Pay2Pay Enterprise Network"
+            "supervisor": supervisor_label
         }
     else:
         # Strict requirement: No fake RM if none mapped in database
@@ -990,7 +1011,7 @@ async def get_retailer_profile(
             "branch": None,
             "assigned_date": None,
             "status": None,
-            "supervisor": None
+            "supervisor": supervisor_label
         }
 
     # 13. Build Dynamic LOCATION Data
@@ -1024,25 +1045,15 @@ async def get_retailer_profile(
             "last_updated": None
         }
 
-    # 14. Build Dynamic COMPANY Contact & Support Info from authoritative CompanyModel & Domain Resolver
-    expected_comp_ref = resolve_request_company_ref(request)
-    resolved_comp_ref = expected_comp_ref or (ret_model.company_ref_id if ret_model else None) or session_company_ref_id or 1
-    preset = get_company_preset(resolved_comp_ref) or {}
-
-    c_stmt = (
-        select(CompanyModel)
-        .where(CompanyModel.company_ref_id == resolved_comp_ref)
-        .options(selectinload(CompanyModel.contacts), selectinload(CompanyModel.addresses))
+    default_hq = (
+        "INSPEL TECHNOLOGIES SOLUTIONS PVT, Corporate Operations Desk, India"
+        if resolved_comp_ref == 2
+        else (
+            "SUPER REX PRODUCTS PRIVATE LIMITED, Registered Office, India"
+            if resolved_comp_ref == 47
+            else "SATHUS TECHNOLOGY PRIVATE LIMITED, Corporate Office, India"
+        )
     )
-    comp = (await db.execute(c_stmt)).scalars().first()
-
-    default_name = preset.get("company_name") or "Enterprise Network"
-    default_brand = preset.get("display_name") or default_name
-    default_legal = preset.get("legal_name") or default_name
-    default_website = preset.get("website") or "https://smspay.store"
-    site_clean = default_website.replace("https://", "").replace("http://", "").strip("/")
-    default_email = preset.get("support_email") or f"support@{site_clean}"
-    default_logo = preset.get("logo_url") or "/branding/logo.svg"
 
     if comp:
         prim_contact = comp.contacts[0] if comp.contacts else None
@@ -1053,8 +1064,8 @@ async def get_retailer_profile(
             "company_name": comp.company_name or comp.legal_name or default_name,
             "brand_name": comp.display_name or comp.company_name or default_brand,
             "legal_name": comp.legal_name or comp.company_name or default_legal,
-            "cin": comp.cin_number or "—",
-            "gstin": comp.gst_number or "—",
+            "cin": comp.cin_number or None,
+            "gstin": comp.gst_number or None,
             "support_email": (prim_contact.support_email if prim_contact else None) or (prim_contact.email if prim_contact else None) or default_email,
             "support_phone": (prim_contact.support_phone if prim_contact else None) or (prim_contact.mobile if prim_contact else None) or "1800 292 982",
             "direct_phone": (prim_contact.mobile if prim_contact else None) or "+91 44 4892 9820",
@@ -1062,7 +1073,7 @@ async def get_retailer_profile(
             "grievance_email": (prim_contact.email if prim_contact else None) or f"grievance@{comp_site_clean}",
             "nodal_officer": f"Grievance Redressal Officer, {comp.company_name or default_name}",
             "support_hours": "Monday - Saturday | 09:00 AM - 07:00 PM IST",
-            "headquarters": f"{prim_addr.address}, {prim_addr.city}, {prim_addr.state} - {prim_addr.pincode}" if prim_addr else "Corporate Headquarters",
+            "headquarters": f"{prim_addr.address}, {prim_addr.city}, {prim_addr.state} - {prim_addr.pincode}" if prim_addr else default_hq,
             "helpdesk_url": comp_site if "/support" in comp_site else f"{comp_site.rstrip('/')}/support",
             "website_url": comp_site,
             "logo_url": default_logo
@@ -1072,8 +1083,8 @@ async def get_retailer_profile(
             "company_name": default_name,
             "brand_name": default_brand,
             "legal_name": default_legal,
-            "cin": "—",
-            "gstin": "—",
+            "cin": None,
+            "gstin": None,
             "support_email": default_email,
             "support_phone": "1800 292 982",
             "direct_phone": "—",
@@ -1081,7 +1092,7 @@ async def get_retailer_profile(
             "grievance_email": f"grievance@{site_clean}",
             "nodal_officer": f"Grievance Redressal Officer, {default_name}",
             "support_hours": "Monday - Saturday | 09:00 AM - 07:00 PM IST",
-            "headquarters": "Corporate Headquarters",
+            "headquarters": default_hq,
             "helpdesk_url": f"{default_website.rstrip('/')}/support",
             "website_url": default_website,
             "logo_url": default_logo

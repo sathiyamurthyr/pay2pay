@@ -1,7 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback, ReactNode } from "react";
 import axios from "axios";
+import { apiClient } from "@/lib/api";
 import { SessionLockScreenOverlay } from "@/components/security/SessionLockScreenOverlay";
 import { SessionWarningDialog } from "@/components/security/SessionWarningDialog";
 import { getApiBaseUrl } from "@/lib/api-config";
@@ -264,15 +265,7 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
       // Authoritative Backend Lock Status Verification on Mount (P0 Anti-Bypass)
       const verifyBackendLockStatus = async () => {
         try {
-          const baseUrl = getApiBaseUrl().replace(/\/api\/v1\/?$/, "");
-          const token = getAuthToken();
-          if (!token) return;
-
-          const res = await axios.get(`${baseUrl}/api/v1/session/status`, {
-            headers: { Authorization: `Bearer ${token}` },
-            timeout: 5000,
-          });
-
+          const res = await apiClient.get("/session/status", { timeout: 5000 });
           if (res.data?.is_locked) {
             setSessionState("LOCKED");
             const lockTime = Date.now();
@@ -466,89 +459,86 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
     return () => clearInterval(interval);
   }, [sessionState, securitySettings, isProcessingTx]);
 
-  // Explicit Lock Session Action (P0 Authoritative Backend Confirmation Before Audio)
-  const lockSession = async () => {
-    if (isPublicAuthRoute() || !hasAuthToken()) return;
+  // Explicit Lock Session Action (Immediate UI Lock + Authoritative Backend Persistence)
+  const lockSession = useCallback(async () => {
+    if (isPublicAuthRoute()) return;
+
+    const now = Date.now();
+    // 1. Immediately activate locked terminal state in UI & prevent interaction
+    setSessionState("LOCKED");
+    setLockedAt(now);
 
     try {
-      const baseUrl = getApiBaseUrl().replace(/\/api\/v1\/?$/, "");
-      const token = getAuthToken();
+      localStorage.setItem("p2p_session_locked", "true");
+      localStorage.setItem("p2p_session_locked_at", String(now));
+    } catch (e) {}
 
-      const response = await axios.post(
-        `${baseUrl}/api/v1/session/lock`,
-        {
-          reason: "Manual workstation lock",
-          browser: typeof navigator !== "undefined" ? navigator.userAgent : "WebBrowser",
-          os_name: typeof navigator !== "undefined" ? navigator.platform : "UnknownOS",
-        },
-        {
-          headers: {
-            Authorization: token ? `Bearer ${token}` : "",
-            "Content-Type": "application/json",
-          },
-          timeout: 8000,
-        }
-      );
+    // Play lock chime immediately
+    try {
+      soundSystem.playLockSound();
+    } catch (e) {}
 
-      if (response.data?.success || response.status === 200) {
-        const now = Date.now();
-        setSessionState("LOCKED");
-        setLockedAt(now);
+    logAuditEvent("SESSION_LOCKED", { timestamp: now, method: "MANUAL" });
 
-        try {
-          localStorage.setItem("p2p_session_locked", "true");
-          localStorage.setItem("p2p_session_locked_at", String(now));
-        } catch (e) {}
-
-        // Sound notification plays ONLY after backend confirms success!
-        soundSystem.playLockSound();
-        logAuditEvent("SESSION_LOCKED", { timestamp: now, method: "MANUAL" });
-
-        // Broadcast lock to other tabs
-        if (broadcastChannelRef.current) {
-          broadcastChannelRef.current.postMessage({ type: "BROADCAST_LOCK", lockedAt: now });
-        }
-      } else {
-        console.error("[SessionSecurityProvider] Lock failed: backend returned non-success", response.data);
-        soundSystem.playErrorSound();
-      }
-    } catch (err: any) {
-      console.error("[SessionSecurityProvider] Lock operation failed:", err);
-      // Under no circumstances play lock sound if operation fails or times out
-      soundSystem.playErrorSound();
+    // Broadcast lock to other tabs immediately
+    if (broadcastChannelRef.current) {
+      try {
+        broadcastChannelRef.current.postMessage({ type: "BROADCAST_LOCK", lockedAt: now });
+      } catch (e) {}
     }
-  };
+
+    // 2. Authoritative backend lock persistence using apiClient (credentials & Bearer token automatically included)
+    try {
+      await apiClient.post("/session/lock", {
+        reason: "Manual workstation lock",
+        browser: typeof navigator !== "undefined" ? navigator.userAgent : "WebBrowser",
+        os_name: typeof navigator !== "undefined" ? navigator.platform : "UnknownOS",
+      });
+    } catch (err: any) {
+      console.warn("[SessionSecurityProvider] Backend lock sync notice:", err?.message || err);
+    }
+  }, []);
+
+  // Global Keyboard Shortcut: Ctrl+L / Cmd+L to Lock Terminal Immediately
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "l" || e.key === "L" || e.code === "KeyL")) {
+        // Intercept before browser can steal focus to the address bar
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (sessionState !== "LOCKED" && !isPublicAuthRoute()) {
+          lockSession();
+        }
+      }
+    };
+
+    // Use capture: true so the keydown is caught at the highest level early
+    window.addEventListener("keydown", handleGlobalKeyDown, true);
+    return () => {
+      window.removeEventListener("keydown", handleGlobalKeyDown, true);
+    };
+  }, [sessionState, lockSession]);
 
   // Stay Active / Dismiss Inactivity Warning
-  const stayActive = () => {
+  const stayActive = useCallback(() => {
     handleUserActivity();
     setSessionState("ACTIVE");
     soundSystem.playSuccessSound();
-  };
+  }, []);
 
   // Unlock Session using 4-digit PIN
-  const unlockSession = async (pin?: string): Promise<{ success: boolean; message?: string }> => {
-    if (!pin || pin.length < 4) {
+  const unlockSession = useCallback(async (pin?: string): Promise<{ success: boolean; message?: string }> => {
+    const cleanPin = (pin || "").replace(/\D/g, "");
+    if (!cleanPin || cleanPin.length !== 4) {
       return { success: false, message: "Please enter your valid 4-digit PIN." };
     }
 
     try {
-      const baseUrl = getApiBaseUrl().replace(/\/api\/v1\/?$/, "");
-      const token = getAuthToken();
+      const response = await apiClient.post("/auth/verify-pin", { pin: cleanPin }, { timeout: 8000 });
+      const resData = response.data;
 
-      const response = await axios.post(
-        `${baseUrl}/api/v1/auth/verify-pin`,
-        { pin },
-        {
-          headers: {
-            Authorization: token ? `Bearer ${token}` : "",
-            "Content-Type": "application/json",
-          },
-          timeout: 8000,
-        }
-      );
-
-      if (response.data?.success || response.data?.valid || response.status === 200) {
+      if (resData?.success || resData?.valid || resData?.status === "UNLOCKED" || response.status === 200) {
         setSessionState("ACTIVE");
         setLockedAt(null);
         lastActivityRef.current = Date.now();
@@ -564,15 +554,22 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
 
         // Broadcast unlock to other tabs
         if (broadcastChannelRef.current) {
-          broadcastChannelRef.current.postMessage({ type: "BROADCAST_UNLOCK" });
+          try {
+            broadcastChannelRef.current.postMessage({ type: "BROADCAST_UNLOCK" });
+          } catch (e) {}
         }
 
-        return { success: true };
+        // Notify any window event listeners
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("pay2pay:terminal_lock_event", { detail: { locked: false } }));
+        }
+
+        return { success: true, message: "Session unlocked successfully." };
       } else {
         soundSystem.playErrorSound();
         return {
           success: false,
-          message: response.data?.message || response.data?.detail || "Invalid security PIN. Please try again.",
+          message: resData?.message || resData?.detail || "Invalid security PIN. Please try again.",
         };
       }
     } catch (err: any) {
@@ -583,7 +580,7 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
         "Incorrect security PIN. Access denied.";
       return { success: false, message: errorMsg };
     }
-  };
+  }, []);
 
   // Update Security Settings
   const updateSettings = async (newSettings: Partial<SecuritySettings>) => {
@@ -620,8 +617,8 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
     } catch (e) {}
   };
 
-  const isProtectedSessionLocked = sessionState === "LOCKED" && !isPublicAuthRoute() && hasAuthToken();
-  const isProtectedWarning = sessionState === "WARNING" && !isPublicAuthRoute() && hasAuthToken();
+  const isProtectedSessionLocked = sessionState === "LOCKED" && !isPublicAuthRoute();
+  const isProtectedWarning = sessionState === "WARNING" && !isPublicAuthRoute();
 
   return (
     <SessionSecurityContext.Provider

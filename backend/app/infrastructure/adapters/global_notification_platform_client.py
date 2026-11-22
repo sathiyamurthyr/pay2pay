@@ -83,7 +83,9 @@ class GlobalNotificationPlatformClient:
     """Enterprise centralized notification client with dynamic multi-tenant resolution."""
 
     def __init__(self):
-        self.base_url = getattr(settings, "NOTIFICATION_PLATFORM_URL", "http://127.0.0.1:8150")
+        url = os.getenv("NOTIFICATION_PLATFORM_URL") or getattr(settings, "NOTIFICATION_PLATFORM_URL", "http://127.0.0.1:8150")
+        self.base_url = url
+        self.fallback_url = "http://sathus_notification_api:8000"
         self.enabled = getattr(settings, "NOTIFICATION_PLATFORM_ENABLED", True)
 
     def resolve_company_code(self, company_context: Any = None) -> str:
@@ -136,12 +138,12 @@ class GlobalNotificationPlatformClient:
 
         return "PAY2PAY"
 
-    def get_client(self, company_context: Any = None) -> tuple[SathusNotificationClient, Dict[str, Any]]:
+    def get_client(self, company_context: Any = None, base_url: Optional[str] = None) -> tuple[SathusNotificationClient, Dict[str, Any]]:
         """Instantiates or returns SathusNotificationClient for the resolved company."""
         code = self.resolve_company_code(company_context)
         cfg = COMPANY_CONFIGS.get(code, COMPANY_CONFIGS["PAY2PAY"])
         api_key = getattr(settings, cfg["api_key_attr"], None) or cfg["default_key"]
-        client = SathusNotificationClient(api_key=api_key, base_url=self.base_url)
+        client = SathusNotificationClient(api_key=api_key, base_url=base_url or self.base_url)
         return client, cfg
 
     # ── EMAIL DISPATCH METHODS ────────────────────────────────────────────────
@@ -565,6 +567,32 @@ class GlobalNotificationPlatformClient:
                 "data": res
             }
         except Exception as e:
+            # If default base_url failed due to network/host, attempt docker fallback URL
+            if self.fallback_url and self.base_url != self.fallback_url:
+                try:
+                    logger.info(f"[NOTIF PLATFORM] Retrying WhatsApp with fallback URL {self.fallback_url}...")
+                    fb_client, _ = self.get_client(company_context, base_url=self.fallback_url)
+                    res = await fb_client.send_async(
+                        channel="whatsapp",
+                        recipient_phone=formatted_mobile,
+                        template_code="payin_wallet_topup_notification",
+                        variables=variables,
+                        idempotency_key=idempotency_key or f"wa_payin_{transaction_id}_{status}",
+                        timeout=8.0
+                    )
+                    self.base_url = self.fallback_url
+                    return {
+                        "status": "SUCCESS",
+                        "delivered": True,
+                        "provider": "SATHUS_NOTIFICATION_PLATFORM",
+                        "notification_id": res.get("notification_id"),
+                        "project_code": cfg["project_code"],
+                        "recipient": formatted_mobile,
+                        "receipt_url": f"https://receipt.{cfg['domain']}/r/{safe_token}",
+                        "data": res
+                    }
+                except Exception as fb_err:
+                    logger.warning(f"[NOTIF PLATFORM] Fallback retry also failed: {fb_err}")
             logger.warning(f"[NOTIF PLATFORM PAYIN WA NOTICE] Delivery to {formatted_mobile} encountered error: {e}. Falling back to Meta API.")
             return {"status": "FALLBACK_REQUIRED", "detail": str(e)}
 
@@ -580,14 +608,13 @@ class GlobalNotificationPlatformClient:
         status: str,
         receipt_token: str,
         company_context: Any = None,
-        idempotency_key: Optional[str] = None
+        idempotency_key: Optional[str] = None,
+        failure_reason: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Dispatches automated branded email notification to Retailer for wallet top-up payment confirmation.
+        Dispatches automated branded email notification to Retailer for wallet top-up payment confirmation (SUCCESS or FAILED).
+        Uses Sathus Notification Platform first, with immediate automatic fallback to Local SMTP.
         """
-        if not self.enabled:
-            return {"status": "FALLBACK_REQUIRED", "reason": "Platform disabled"}
-
         if not recipient_email or "@" not in recipient_email:
             logger.warning(f"[NOTIF PLATFORM] Skipping email: Invalid recipient email '{recipient_email}'")
             return {"status": "SKIPPED", "reason": "No valid email address"}
@@ -597,9 +624,35 @@ class GlobalNotificationPlatformClient:
         receipt_url = f"https://receipt.{cfg['domain']}/r/{safe_token}"
 
         company_display = "INSPEL TECHNOLOGIES SOLUTIONS PVT" if cfg["project_code"] == "SMSPAY" else ("SUPER REX PRODUCTS PRIVATE LIMITED" if cfg["project_code"] == "PAY2PAY" else "SATHUS TECHNOLOGY PRIVATE LIMITED")
+        brand_name = "SMSPAY" if cfg["project_code"] == "SMSPAY" else ("Pay2Pay" if cfg["project_code"] == "PAY2PAY" else "Near4You")
         primary_color = cfg.get("primary_color", "#059669")
 
-        subject = f"Wallet Top-Up {status.upper()} - {transaction_id} | {company_display}"
+        safe_status = status.upper()
+        is_success = safe_status == "SUCCESS"
+        subject = f"Wallet Top-Up {safe_status} - {transaction_id} | {company_display}"
+
+        status_color = "#16a34a" if is_success else "#dc2626"
+        card_bg = "#f0fdf4" if is_success else "#fef2f2"
+        card_border = "#bbf7d0" if is_success else "#fecaca"
+        card_title = "Total Credited Amount" if is_success else "Top-Up Payment Unsuccessful"
+        card_sub = f"₹{float(net_credit or amount):,.2f}" if is_success else f"Attempted: ₹{float(amount):,.2f}"
+
+        status_msg = (
+            f"Your wallet top-up payment has been <strong>successfully processed</strong> and your main wallet has been credited."
+            if is_success
+            else f"Your wallet top-up payment attempt could not be completed.<br><span style='color: #dc2626;'>Reason: {failure_reason or 'Payment failed or declined at gateway.'}</span>"
+        )
+
+        credit_row = (
+            f"<tr><td>Net Wallet Credit</td><td style='color: #16a34a;'>₹{float(net_credit or amount):,.2f}</td></tr>"
+            if is_success
+            else ""
+        )
+        fail_row = (
+            f"<tr><td>Failure Note</td><td style='color: #dc2626;'>{failure_reason}</td></tr>"
+            if failure_reason and not is_success
+            else ""
+        )
 
         html_body = f"""
         <!DOCTYPE html>
@@ -611,7 +664,7 @@ class GlobalNotificationPlatformClient:
             .container {{ max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }}
             .header {{ background: {primary_color}; padding: 24px; text-align: center; color: #ffffff; }}
             .content {{ padding: 28px; }}
-            .amount-card {{ background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 18px; text-align: center; margin: 20px 0; }}
+            .amount-card {{ background: {card_bg}; border: 1px solid {card_border}; border-radius: 12px; padding: 18px; text-align: center; margin: 20px 0; }}
             .table-details {{ width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 14px; }}
             .table-details td {{ padding: 10px 0; border-bottom: 1px solid #f1f5f9; }}
             .table-details td:last-child {{ text-align: right; font-weight: 600; color: #0f172a; }}
@@ -623,31 +676,32 @@ class GlobalNotificationPlatformClient:
           <div class="container">
             <div class="header">
               <h2 style="margin: 0; font-size: 20px; font-weight: 700;">{company_display}</h2>
-              <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.9;">Wallet Top-Up Confirmation</p>
+              <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.9;">Wallet Top-Up Notification</p>
             </div>
             <div class="content">
               <p style="font-size: 15px; margin-top: 0;">Hello <strong>{recipient_name}</strong>,</p>
-              <p style="font-size: 14px; color: #475569;">Your wallet top-up payment has been <strong>{status.lower()}</strong> and your main wallet has been credited.</p>
+              <p style="font-size: 14px; color: #475569;">{status_msg}</p>
               
               <div class="amount-card">
-                <div style="font-size: 12px; font-weight: 600; color: #166534; text-transform: uppercase;">Total Credited Amount</div>
-                <div style="font-size: 30px; font-weight: 800; color: #15803d; margin-top: 4px;">₹{float(net_credit or amount):,.2f}</div>
+                <div style="font-size: 12px; font-weight: 600; color: {status_color}; text-transform: uppercase;">{card_title}</div>
+                <div style="font-size: 28px; font-weight: 800; color: {status_color}; margin-top: 4px;">{card_sub}</div>
               </div>
 
               <table class="table-details">
                 <tr><td>Transaction Ref ID (TID)</td><td style="font-family: monospace;">{transaction_id}</td></tr>
                 <tr><td>Gross Payment</td><td>₹{float(amount):,.2f}</td></tr>
-                <tr><td>Net Wallet Credit</td><td style="color: #16a34a;">₹{float(net_credit or amount):,.2f}</td></tr>
+                {credit_row}
                 <tr><td>Payment Date</td><td>{payment_date}</td></tr>
                 <tr><td>Payment Mode</td><td>{payment_mode}</td></tr>
-                <tr><td>Status</td><td style="color: #16a34a;">{status.upper()}</td></tr>
+                <tr><td>Status</td><td style="color: {status_color}; font-weight: 700;">{safe_status}</td></tr>
+                {fail_row}
               </table>
 
               <a href="{receipt_url}" class="btn" target="_blank">View Official Digital Receipt</a>
               <p style="text-align: center; font-size: 12px; color: #64748b; margin-top: 8px;">Or copy link: <a href="{receipt_url}" style="color: {primary_color};">{receipt_url}</a></p>
             </div>
             <div class="footer">
-              <p style="margin: 0;">Thank you for choosing {company_display}.</p>
+              <p style="margin: 0;">Thank you for choosing {brand_name}.</p>
               <p style="margin: 4px 0 0 0;">This is an automated notification. Please do not reply to this message.</p>
             </div>
           </div>
@@ -655,30 +709,71 @@ class GlobalNotificationPlatformClient:
         </html>
         """
 
-        logger.info(f"[NOTIF PLATFORM] Sending PayIn confirmation email to {recipient_email} as {cfg['project_code']}...")
+        if self.enabled:
+            logger.info(f"[NOTIF PLATFORM] Sending PayIn notification email to {recipient_email} as {cfg['project_code']}...")
+            try:
+                res = await client.send_async(
+                    channel="email",
+                    recipient_email=recipient_email,
+                    recipient_name=recipient_name or "Retailer Partner",
+                    custom_subject=subject,
+                    custom_body=html_body,
+                    idempotency_key=idempotency_key or f"email_payin_{transaction_id}_{status}",
+                    timeout=10.0
+                )
+                return {
+                    "status": "SUCCESS",
+                    "delivered": True,
+                    "provider": "SATHUS_NOTIFICATION_PLATFORM",
+                    "notification_id": res.get("notification_id"),
+                    "project_code": cfg["project_code"],
+                    "recipient": recipient_email,
+                    "data": res
+                }
+            except Exception as e:
+                if self.fallback_url and self.base_url != self.fallback_url:
+                    try:
+                        logger.info(f"[NOTIF PLATFORM] Retrying email with fallback URL {self.fallback_url}...")
+                        fb_client, _ = self.get_client(company_context, base_url=self.fallback_url)
+                        res = await fb_client.send_async(
+                            channel="email",
+                            recipient_email=recipient_email,
+                            recipient_name=recipient_name or "Retailer Partner",
+                            custom_subject=subject,
+                            custom_body=html_body,
+                            idempotency_key=idempotency_key or f"email_payin_{transaction_id}_{status}",
+                            timeout=10.0
+                        )
+                        self.base_url = self.fallback_url
+                        return {
+                            "status": "SUCCESS",
+                            "delivered": True,
+                            "provider": "SATHUS_NOTIFICATION_PLATFORM",
+                            "notification_id": res.get("notification_id"),
+                            "project_code": cfg["project_code"],
+                            "recipient": recipient_email,
+                            "data": res
+                        }
+                    except Exception as fb_err:
+                        logger.warning(f"[NOTIF PLATFORM] Email fallback retry also failed: {fb_err}")
+                logger.warning(f"[NOTIF PLATFORM PAYIN EMAIL NOTICE] Delivery to {recipient_email} encountered error: {e}. Executing local SMTP fallback.")
 
-        try:
-            res = await client.send_async(
-                channel="email",
-                recipient_email=recipient_email,
-                recipient_name=recipient_name or "Retailer Partner",
-                custom_subject=subject,
-                custom_body=html_body,
-                idempotency_key=idempotency_key or f"email_payin_{transaction_id}_{status}",
-                timeout=10.0
-            )
-            return {
-                "status": "SUCCESS",
-                "delivered": True,
-                "provider": "SATHUS_NOTIFICATION_PLATFORM",
-                "notification_id": res.get("notification_id"),
-                "project_code": cfg["project_code"],
-                "recipient": recipient_email,
-                "data": res
-            }
-        except Exception as e:
-            logger.warning(f"[NOTIF PLATFORM PAYIN EMAIL NOTICE] Delivery to {recipient_email} encountered error: {e}. Falling back to local SMTP.")
-            return {"status": "FALLBACK_REQUIRED", "detail": str(e)}
+        # Local SMTP Fallback
+        from app.infrastructure.adapters.email_service import email_service
+        logger.info(f"[EMAIL SERVICE] Executing direct local SMTP fallback for {recipient_email} (TID {transaction_id})")
+        return await email_service.send_payin_notification_email(
+            recipient_email=recipient_email,
+            recipient_name=recipient_name,
+            transaction_id=transaction_id,
+            amount=amount,
+            net_credit=net_credit,
+            payment_mode=payment_mode,
+            payment_date=payment_date,
+            status=safe_status,
+            receipt_token=safe_token,
+            company_context=company_context,
+            failure_reason=failure_reason
+        )
 
 # Global Singleton Instance
 global_notification_platform_client = GlobalNotificationPlatformClient()

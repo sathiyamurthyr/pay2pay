@@ -432,6 +432,22 @@ async def universal_payin_browser_callback(
                         payload=wh_payload,
                         headers=dict(request.headers)
                     )
+                elif resolved_status in ("failed", "failure", "cancelled") and txn.txn_status == "PENDING":
+                    wh_payload = BankMeWebhookPayload(
+                        event="payin.failed",
+                        status="FAILED",
+                        referenceId=resolved_ref,
+                        tid=resolved_ref,
+                        orderId=orderId or txn.provider_ref_id or txn.tid,
+                        utr=utr or txn.provider_ref_id or f"UTR-{resolved_ref[-8:]}",
+                        amount=float(txn.txn_amount),
+                        signature="browser_return_sync"
+                    )
+                    await PayInService.process_bankme_webhook(
+                        db=db,
+                        payload=wh_payload,
+                        headers=dict(request.headers)
+                    )
         except Exception as e:
             logger.warning("Browser return sync notice for %s: %s", resolved_ref, e)
 

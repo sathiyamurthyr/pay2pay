@@ -20,6 +20,7 @@ import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
 import TuneIcon from "@mui/icons-material/Tune";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import { apiClient } from "@/lib/api";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 interface CompanyVendor {
   payin_company_vendor_ref_id: number;
@@ -67,6 +68,7 @@ interface MasterVendor {
 }
 
 export default function AdminPayinCompaniesPage() {
+  const { branding, domainTenant } = useCompanyBranding();
   const [companies, setCompanies] = useState<CompanyItem[]>([]);
   const [vendorCatalog, setVendorCatalog] = useState<MasterVendor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,13 +132,47 @@ export default function AdminPayinCompaniesPage() {
     try {
       setLoading(true);
       setError(null);
+      const targetCompRef = branding?.company_ref_id;
+      const headers = targetCompRef ? { "x-company-ref-id": String(targetCompRef) } : undefined;
       const [compRes, vendorRes] = await Promise.all([
-        apiClient.get("/api/v1/admin/payin/companies"),
+        apiClient.get("/api/v1/admin/payin/companies", { headers }),
         apiClient.get("/api/v1/admin/payin/vendors").catch(() => ({ data: { vendors: [] } }))
       ]);
 
       if (compRes.data && compRes.data.success) {
-        const comps: CompanyItem[] = compRes.data.companies || compRes.data.data || [];
+        let comps: CompanyItem[] = compRes.data.companies || compRes.data.data || [];
+
+        // Authoritative domain-driven company normalization
+        comps = comps.map((c) => {
+          if (c.company_ref_id === 2 || c.company_code === "SMSPAY") {
+            return {
+              ...c,
+              company_name: "INSPEL TECHNOLOGIES SOLUTIONS PVT",
+              company_code: "SMSPAY"
+            };
+          }
+          if (c.company_ref_id === 47 || c.company_code === "PAY2PAY") {
+            return {
+              ...c,
+              company_name: "SUPER REX PRODUCTS PRIVATE LIMITED",
+              company_code: "PAY2PAY"
+            };
+          }
+          if (c.company_ref_id === 1 || c.company_code === "NEAR4YOU") {
+            return {
+              ...c,
+              company_name: "SATHUS TECHNOLOGY PRIVATE LIMITED",
+              company_code: "NEAR4YOU"
+            };
+          }
+          return c;
+        });
+
+        // Filter to active tenant domain to prevent unwanted cross-company leakage
+        if (targetCompRef) {
+          comps = comps.filter((c) => c.company_ref_id === targetCompRef);
+        }
+
         setCompanies(comps);
         // Default expand all companies so vendors are readily visible
         const exp: Record<number, boolean> = {};
@@ -154,7 +190,7 @@ export default function AdminPayinCompaniesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [branding?.company_ref_id]);
 
   useEffect(() => {
     fetchCompanies();
@@ -429,6 +465,20 @@ export default function AdminPayinCompaniesPage() {
           <Typography variant="h5" fontWeight="700">
             Company PayIn Configurations
           </Typography>
+          {branding?.company_name && (
+            <Chip
+              label={branding.company_name}
+              size="small"
+              sx={{
+                fontWeight: 700,
+                bgcolor: branding.primary_colour ? `${branding.primary_colour}15` : "rgba(5, 150, 105, 0.1)",
+                color: branding.primary_colour || "#059669",
+                border: "1px solid",
+                borderColor: branding.primary_colour ? `${branding.primary_colour}40` : "rgba(5, 150, 105, 0.3)",
+                fontSize: "0.75rem"
+              }}
+            />
+          )}
         </Stack>
         <Stack direction="row" spacing={1.5}>
           <Button

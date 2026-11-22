@@ -171,7 +171,7 @@ async def init_finance_database():
                 date_key, time_key, created_date, created_by, version_no
             ) VALUES 
             (:c1_id, 1, 1, :t1_id, 'SATHUS', 'SATHUS TECHNOLOGY PVT LTD', 'SATHUS TECHNOLOGY PVT LTD', 'Sathus Technology', 'SATHUS', 'SATHUS', 'PRIVATE_LIMITED', 'ACTIVE', 'ACTIVE', true, false, :dkey, :tkey, :now, 'SYSTEM', 1),
-            (:c2_id, 2, 39, :t2_id, 'SUPERREX', 'SUPER REX PRODUCTS PRIVATE LIMITED', 'SUPER REX PRODUCTS PRIVATE LIMITED', 'Super Rex Products', 'SUPERREX', 'SUPERREX', 'PRIVATE_LIMITED', 'ACTIVE', 'ACTIVE', true, false, :dkey, :tkey, :now, 'SYSTEM', 1)
+            (:c2_id, 2, 39, :t2_id, 'SMSPAY', 'INSPEL TECHNOLOGIES SOLUTIONS PVT', 'INSPEL TECHNOLOGIES SOLUTIONS PVT', 'SMSPAY', 'SMSP', 'SMSPAY', 'PRIVATE_LIMITED', 'ACTIVE', 'ACTIVE', true, false, :dkey, :tkey, :now, 'SYSTEM', 1)
             ON CONFLICT (public_id) DO NOTHING;
         """), {
             "c1_id": comp_sathus_id, "t1_id": tenant_sathus_id,

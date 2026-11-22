@@ -460,12 +460,12 @@ async def get_payin_report_summary(
     sql = f"""
     SELECT
         COUNT(t.payin_transactions_ref_id) AS total_transactions,
-        COALESCE(SUM(t.txn_amount), 0.0) AS total_volume,
-        COALESCE(SUM(t.customer_payable), 0.0) AS total_customer_payable,
-        COALESCE(SUM(t.retailer_credit), 0.0) AS total_retailer_credit,
-        COALESCE(SUM(t.total_charges), 0.0) AS total_charges,
-        COALESCE(SUM(t.mdr_amount), 0.0) AS total_mdr,
-        COALESCE(SUM(t.tax_amount), 0.0) AS total_gst,
+        COALESCE(SUM(CASE WHEN UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN t.txn_amount ELSE 0.0 END), 0.0) AS total_volume,
+        COALESCE(SUM(CASE WHEN UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN t.customer_payable ELSE 0.0 END), 0.0) AS total_customer_payable,
+        COALESCE(SUM(CASE WHEN UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN t.retailer_credit ELSE 0.0 END), 0.0) AS total_retailer_credit,
+        COALESCE(SUM(CASE WHEN UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN t.total_charges ELSE 0.0 END), 0.0) AS total_charges,
+        COALESCE(SUM(CASE WHEN UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN t.mdr_amount ELSE 0.0 END), 0.0) AS total_mdr,
+        COALESCE(SUM(CASE WHEN UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN t.tax_amount ELSE 0.0 END), 0.0) AS total_gst,
         COUNT(CASE WHEN UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN 1 END) AS successful_transactions,
         COALESCE(SUM(CASE WHEN UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN t.txn_amount ELSE 0.0 END), 0.0) AS successful_amount,
         COALESCE(SUM(CASE WHEN UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN t.retailer_credit ELSE 0.0 END), 0.0) AS successful_credit,
@@ -511,8 +511,8 @@ async def get_payin_report_summary(
             "reversed_amount": float(rd.get("reversed_amount") or 0.0),
             "success_rate": succ_rate,
             "date_range": {
-                "from": start_dt.strftime("%Y-%m-%d"),
-                "to": end_dt.strftime("%Y-%m-%d")
+                "from": start_dt.strftime("%Y-%m-%d") if start_dt else "--",
+                "to": end_dt.strftime("%Y-%m-%d") if end_dt else "--"
             }
         }
     }
@@ -665,11 +665,11 @@ async def get_payin_report_grid(
     count_sql = f"""
     SELECT
         COUNT(t.payin_transactions_ref_id) AS total_count,
-        COALESCE(SUM(t.txn_amount), 0.0) AS total_amount,
-        COALESCE(SUM(t.total_charges), 0.0) AS total_charges,
-        COALESCE(SUM(t.tax_amount), 0.0) AS total_gst,
-        COALESCE(SUM(t.customer_payable), 0.0) AS total_customer_payable,
-        COALESCE(SUM(t.retailer_credit), 0.0) AS total_retailer_credit,
+        COALESCE(SUM(CASE WHEN UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN t.txn_amount ELSE 0.0 END), 0.0) AS total_amount,
+        COALESCE(SUM(CASE WHEN UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN t.total_charges ELSE 0.0 END), 0.0) AS total_charges,
+        COALESCE(SUM(CASE WHEN UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN t.tax_amount ELSE 0.0 END), 0.0) AS total_gst,
+        COALESCE(SUM(CASE WHEN UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN t.customer_payable ELSE 0.0 END), 0.0) AS total_customer_payable,
+        COALESCE(SUM(CASE WHEN UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN t.retailer_credit ELSE 0.0 END), 0.0) AS total_retailer_credit,
         COUNT(CASE WHEN UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN 1 END) AS successful_transactions,
         COALESCE(SUM(CASE WHEN UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN t.txn_amount ELSE 0.0 END), 0.0) AS successful_amount,
         COALESCE(SUM(CASE WHEN UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN t.retailer_credit ELSE 0.0 END), 0.0) AS successful_credit,
@@ -679,7 +679,7 @@ async def get_payin_report_grid(
         COALESCE(SUM(CASE WHEN UPPER(t.txn_status) IN ('FAILED', 'REJECTED', 'TIMEOUT') THEN t.txn_amount ELSE 0.0 END), 0.0) AS failed_amount,
         COUNT(CASE WHEN UPPER(t.txn_status) IN ('REVERSED', 'REFUNDED') THEN 1 END) AS reversed_transactions,
         COALESCE(SUM(CASE WHEN UPPER(t.txn_status) IN ('REVERSED', 'REFUNDED') THEN t.txn_amount ELSE 0.0 END), 0.0) AS reversed_amount,
-        COALESCE(SUM(t.mdr_amount), 0.0) AS total_mdr
+        COALESCE(SUM(CASE WHEN UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN t.mdr_amount ELSE 0.0 END), 0.0) AS total_mdr
     FROM public.payin_transactions t
     LEFT JOIN public.payin_vendors v ON t.payin_vendor_ref_id = v.payin_vendor_ref_id
     LEFT JOIN public.payin_payment_modes p ON t.pay_mode_ref_id = p.payin_payment_mode_ref_id

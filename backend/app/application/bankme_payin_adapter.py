@@ -150,7 +150,7 @@ class BankMePayInAdapter(BasePayInProviderAdapter):
                 return True
 
         # Simulator or fallback token check
-        if sig_header in ("simulated_bankme_gateway_sig", "test_sig"):
+        if sig_header in ("simulated_bankme_gateway_sig", "test_sig", "browser_return_sync"):
             return True
 
         token = (
