@@ -372,6 +372,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
       style={{
         minHeight: "100vh",
         minWidth: "100vw",
+        zIndex: 9999999,
       }}
     >
       {/* KEYFRAME & ANIMATION INJECTIONS */}

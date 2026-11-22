@@ -173,7 +173,8 @@ async def lock_screen_session(
         target_retailer = (await db.execute(stmt)).scalars().first()
 
     if target_retailer:
-        target_retailer.status = "LOCKED"
+        # Note: Do NOT overwrite target_retailer.status (e.g. ACTIVE) with LOCKED.
+        # Terminal lock is managed authoritatively via mpin_locked.
         target_retailer.mpin_locked = True
         target_retailer.mpin_locked_at = now_utc
         target_retailer.updated_date = now_utc

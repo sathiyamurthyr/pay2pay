@@ -387,9 +387,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       const resolvedRetailer = personal.retailer_name || personal.store_name || fallbackOwner || "Retailer Store";
       const resolvedCode = personal.retailer_id || personal.application_reference || fallbackCode || "";
       const photoUrl = photo.photo_url || currentOutlet.avatar || currentOutlet.photo_url || "";
-      const approvalStatus = personal.status === "ACTIVE" ? "ACTIVE" : (currentOutlet.approvalStatus || "ACTIVE");
+      const isStatusActiveOrLocked = personal.status === "ACTIVE" || personal.status === "APPROVED" || personal.status === "LOCKED";
+      const approvalStatus = isStatusActiveOrLocked ? "APPROVED" : (currentOutlet.approvalStatus || "APPROVED");
 
-      const targetStatus = approvalStatus === "ACTIVE" ? "APPROVED" : "PENDING";
+      const targetStatus = approvalStatus === "APPROVED" || approvalStatus === "ACTIVE" ? "APPROVED" : "PENDING";
       if (currentOutlet.approvalStatus !== targetStatus) {
         useRetailerStore.getState().setApprovalStatus?.(targetStatus);
       }
@@ -527,13 +528,14 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   // Global Lock Screen Keyboard Shortcut (Ctrl+L / Cmd+L)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "l") {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "l" || e.key === "L" || e.code === "KeyL")) {
         e.preventDefault();
+        e.stopPropagation();
         lockSession();
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [lockSession]);
 
   // Global Universal Search Keyboard Shortcut (Ctrl+K / Cmd+K)
@@ -1932,7 +1934,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <Typography variant="caption" sx={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>Account Approval</Typography>
                   {(() => {
-                    const statusVal = profileDetails.approval_status || outlet.approvalStatus || (isApproved ? "APPROVED" : "PENDING");
+                    const rawStatus = profileDetails.approval_status || outlet.approvalStatus || (isApproved ? "APPROVED" : "PENDING");
+                    const statusVal = rawStatus.toUpperCase() === "LOCKED" ? "APPROVED" : rawStatus;
                     const isAppr = statusVal.toUpperCase() === "ACTIVE" || statusVal.toUpperCase() === "APPROVED";
                     return (
                       <Chip
