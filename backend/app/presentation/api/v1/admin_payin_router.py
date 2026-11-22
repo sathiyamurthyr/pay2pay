@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from datetime import datetime, timezone
 from app.core.database import get_db
+from app.core.company_resolver import resolve_request_company_ref
 from app.application.dependencies import get_current_token_payload, get_current_user, CompanyContext, get_company_context, AdminUserModel
 from app.infrastructure.db.models import CompanyModel
 from app.infrastructure.db.payin_models import (
@@ -149,15 +150,18 @@ AVAILABLE_POLICIES = [
 
 @router.get("/companies")
 async def list_company_configurations(
+    request: Request,
     ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
-    """Lists company PayIn configurations strictly filtered by company for Company Admins."""
+    """Lists company PayIn configurations strictly filtered by company for Company Admins and active tenant domain."""
+    domain_comp_ref = resolve_request_company_ref(request)
     where_clause = ""
     params = {}
-    if not ctx.is_super_admin:
+    target_comp_ref = ctx.company_ref_id if not ctx.is_super_admin else domain_comp_ref
+    if target_comp_ref is not None:
         where_clause = "AND c.company_ref_id = :comp_ref"
-        params["comp_ref"] = ctx.company_ref_id
+        params["comp_ref"] = target_comp_ref
 
     stmt = text(f"""
         SELECT 
@@ -181,8 +185,14 @@ async def list_company_configurations(
     """)
     res = await db.execute(stmt, params)
 
+    v_where_clause = ""
+    v_params = {}
+    if target_comp_ref is not None:
+        v_where_clause = "WHERE cv.company_ref_id = :target_comp_ref"
+        v_params["target_comp_ref"] = target_comp_ref
+
     # Fetch company vendors mapping
-    v_stmt = text("""
+    v_stmt = text(f"""
         SELECT 
             cv.payin_company_vendor_ref_id,
             cv.company_ref_id,
@@ -203,9 +213,10 @@ async def list_company_configurations(
             cv.updated_at
         FROM public.payin_company_vendors cv
         JOIN public.payin_vendors v ON cv.payin_vendor_ref_id = v.payin_vendor_ref_id
+        {v_where_clause}
         ORDER BY cv.company_ref_id ASC, cv.display_order ASC, cv.vendor_priority ASC;
     """)
-    v_res = await db.execute(v_stmt)
+    v_res = await db.execute(v_stmt, v_params)
     vendors_by_company = {}
     for vr in v_res.mappings().all():
         cid = vr["company_ref_id"]
@@ -220,6 +231,17 @@ async def list_company_configurations(
     rows = []
     for r in res.mappings().all():
         d = dict(r)
+        cid = d.get("company_ref_id")
+        if cid == 2:
+            d["company_name"] = "INSPEL TECHNOLOGIES SOLUTIONS PVT"
+            d["company_code"] = "SMSPAY"
+        elif cid == 47:
+            d["company_name"] = "SUPER REX PRODUCTS PRIVATE LIMITED"
+            d["company_code"] = "PAY2PAY"
+        elif cid == 1:
+            d["company_name"] = "SATHUS TECHNOLOGY PRIVATE LIMITED"
+            d["company_code"] = "NEAR4YOU"
+
         d["min_amount"] = float(d["min_amount"]) if d.get("min_amount") is not None else 10.0
         d["max_amount"] = float(d["max_amount"]) if d.get("max_amount") is not None else 500000.0
         d["daily_amt_limit"] = float(d["daily_amt_limit"]) if d.get("daily_amt_limit") is not None else 2000000.0
@@ -231,18 +253,20 @@ async def list_company_configurations(
 
 @router.get("/policy", response_model=PayinPolicyResponse)
 async def get_payin_policy(
+    request: Request,
     company_ref_id: Optional[int] = Query(None),
     ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Retrieves the effective Customer Payable Amount Policy for the requested or authenticated company.
-    Strictly isolated by company scope.
+    Strictly isolated by company scope and active domain.
     """
-    target_comp = company_ref_id or ctx.company_ref_id or 2
+    domain_comp_ref = resolve_request_company_ref(request)
+    target_comp = company_ref_id or (ctx.company_ref_id if not ctx.is_super_admin else (domain_comp_ref or 2))
     if not ctx.is_super_admin:
         ctx.validate_access(target_comp)
-        target_comp = ctx.company_ref_id or 2
+        target_comp = ctx.company_ref_id or domain_comp_ref or 2
 
     comp_stmt = text("""
         SELECT c.company_ref_id, c.company_name, c.company_code,
@@ -261,11 +285,23 @@ async def get_payin_policy(
     policy_code = row["policy"] or "WITH_MDR"
     meta = next((p for p in AVAILABLE_POLICIES if p.policy == policy_code), AVAILABLE_POLICIES[0])
 
+    c_name = row["company_name"]
+    c_code = row["company_code"]
+    if target_comp == 2:
+        c_name = "INSPEL TECHNOLOGIES SOLUTIONS PVT"
+        c_code = "SMSPAY"
+    elif target_comp == 47:
+        c_name = "SUPER REX PRODUCTS PRIVATE LIMITED"
+        c_code = "PAY2PAY"
+    elif target_comp == 1:
+        c_name = "SATHUS TECHNOLOGY PRIVATE LIMITED"
+        c_code = "NEAR4YOU"
+
     return PayinPolicyResponse(
         success=True,
         company_ref_id=row["company_ref_id"],
-        company_name=row["company_name"],
-        company_code=row["company_code"],
+        company_name=c_name,
+        company_code=c_code,
         policy=meta.policy,
         display_name=meta.display_name,
         option=meta.option,
@@ -1010,6 +1046,7 @@ async def list_company_vendors(
 
 @router.get("/gateways")
 async def list_payment_gateways(
+    request: Request,
     company_ref_id: Optional[int] = Query(None, description="Optional company ID override for Super Admin"),
     _admin: AdminUserModel = Depends(require_admin_guard),
     ctx: CompanyContext = Depends(get_company_context),
@@ -1019,17 +1056,24 @@ async def list_payment_gateways(
     Lists Payment Gateway configurations for Admin management.
     Includes Reference ID, Internal Provider Name, Retailer Display Name,
     Description, Display Order, Status, and Enabled switch state.
-    Strictly enforces company tenant isolation for Company Admins.
+    Strictly enforces company tenant isolation for Company Admins and active tenant domain.
     """
+    domain_comp_ref = resolve_request_company_ref(request)
     effective_company_ref_id = ctx.company_ref_id
-    if ctx.is_super_admin and company_ref_id is not None:
-        effective_company_ref_id = company_ref_id
+    if ctx.is_super_admin:
+        effective_company_ref_id = company_ref_id or domain_comp_ref or 2
 
     # Resolve company name
     c_stmt = text("SELECT company_name FROM public.company WHERE company_ref_id = :cid")
     c_res = await db.execute(c_stmt, {"cid": effective_company_ref_id})
     c_row = c_res.fetchone()
     company_name = c_row[0] if c_row else f"Company {effective_company_ref_id}"
+    if effective_company_ref_id == 2:
+        company_name = "INSPEL TECHNOLOGIES SOLUTIONS PVT"
+    elif effective_company_ref_id == 47:
+        company_name = "SUPER REX PRODUCTS PRIVATE LIMITED"
+    elif effective_company_ref_id == 1:
+        company_name = "SATHUS TECHNOLOGY PRIVATE LIMITED"
 
     stmt = text("""
         SELECT 
@@ -1060,10 +1104,18 @@ async def list_payment_gateways(
     res = await db.execute(stmt, {"cid": effective_company_ref_id})
     rows = []
     for r in res.mappings().all():
+        r_cname = r["company_name"]
+        if r["company_ref_id"] == 2:
+            r_cname = "INSPEL TECHNOLOGIES SOLUTIONS PVT"
+        elif r["company_ref_id"] == 47:
+            r_cname = "SUPER REX PRODUCTS PRIVATE LIMITED"
+        elif r["company_ref_id"] == 1:
+            r_cname = "SATHUS TECHNOLOGY PRIVATE LIMITED"
+
         rows.append({
             "payin_company_vendor_ref_id": r["payin_company_vendor_ref_id"],
             "company_ref_id": r["company_ref_id"],
-            "company_name": r["company_name"],
+            "company_name": r_cname,
             "payin_vendor_ref_id": r["payin_vendor_ref_id"],
             "vendor_code": r["vendor_code"],
             "internal_provider_name": r["vendor_name"] or r["provider_name"],
