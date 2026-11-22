@@ -1,6 +1,9 @@
 # Python
 backend/venv/
 backend/.pytest_cache/
+backend/.secrets/
+.secrets/
+sathus-global-security/
 __pycache__/
 **/__pycache__/**
 *.pyc

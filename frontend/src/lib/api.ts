@@ -1,5 +1,6 @@
 import axios from "axios";
 import { getApiBaseUrl } from "./api-config";
+import { attachApiPayloadSecurity } from "./api-payload-crypto";
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -216,5 +217,8 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// Attach transparent End-to-End API Payload Encryption and Decryption
+attachApiPayloadSecurity(apiClient);
 
 export default apiClient;

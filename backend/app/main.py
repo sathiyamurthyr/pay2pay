@@ -71,7 +71,11 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
     allow_headers=["*"],
+    expose_headers=["x-sathus-encrypted", "x-sathus-nonce", "x-sathus-timestamp"],
 )
+
+from app.core.api_payload_security_middleware import ApiPayloadSecurityMiddleware, get_server_public_key
+app.add_middleware(ApiPayloadSecurityMiddleware)
 
 from app.core.enterprise_api_logging_middleware import EnterpriseApiLoggingMiddleware
 app.add_middleware(EnterpriseApiLoggingMiddleware)
@@ -566,3 +570,11 @@ async def health_check():
         "search_endpoint": "/customers/?query=",
         "version": settings.VERSION
     }
+
+@app.get("/api/v1/security/public-key", tags=["Security Handshake"])
+@app.get("/api/v1/public-key", tags=["Security Handshake"])
+@app.get("/security/public-key", tags=["Security Handshake"])
+def get_security_public_key_endpoint():
+    """Returns the RSA public key and application parameters for over-the-wire payload encryption."""
+    return get_server_public_key()
+
