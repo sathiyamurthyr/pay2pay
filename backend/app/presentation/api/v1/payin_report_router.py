@@ -511,8 +511,8 @@ async def get_payin_report_summary(
             "reversed_amount": float(rd.get("reversed_amount") or 0.0),
             "success_rate": succ_rate,
             "date_range": {
-                "from": start_dt.strftime("%Y-%m-%d"),
-                "to": end_dt.strftime("%Y-%m-%d")
+                "from": start_dt.strftime("%Y-%m-%d") if start_dt else "--",
+                "to": end_dt.strftime("%Y-%m-%d") if end_dt else "--"
             }
         }
     }
