@@ -314,23 +314,30 @@ export const RetailerTransactionReport: React.FC = () => {
             const clBal = Number(r.closing_bal ?? r.cls_bal ?? r.current_balance ?? 0);
             const entry = (r.entry || r.entry_type || r.cr_dr || r.type || "").toUpperCase();
             const isCredit = entry === "CR" || entry === "CREDIT" || (r.cr_amt || r.cr || 0) > 0 || (clBal > opBal && amt > 0);
-            if (isCredit) {
-              totCr += (r.cr_amt || r.cr || amt);
-            } else {
-              totDr += (r.dr_amt || r.dr || amt);
+            const isSuccess = ["SUCCESS", "COMPLETED", "SETTLED"].includes((r.status || "").toUpperCase());
+            if (isSuccess) {
+              if (isCredit) {
+                totCr += (r.cr_amt || r.cr || amt);
+              } else {
+                totDr += (r.dr_amt || r.dr || amt);
+              }
+              totVol += amt;
+              succCount++;
             }
-            totVol += amt;
-            if ((r.status || "").toUpperCase() === "SUCCESS") succCount++;
           });
+          const failedCount = rawItems.filter((r: any) => ["FAILED", "REJECTED", "TIMEOUT"].includes((r.status || "").toUpperCase())).length;
+          const pendingCount = rawItems.filter((r: any) => ["PENDING", "PROCESSING", "INITIATED"].includes((r.status || "").toUpperCase())).length;
+          const reversedCount = rawItems.filter((r: any) => ["REVERSED", "REFUNDED"].includes((r.status || "").toUpperCase())).length;
           setSummary({
             total_transactions: total,
             total_volume: totVol,
             total_credit: totCr,
             total_debit: totDr,
             successful_transactions: succCount,
-            pending_transactions: 0,
-            failed_transactions: total - succCount,
-            reversed_transactions: 0,
+            pending_transactions: pendingCount,
+            failed_transactions: failedCount,
+            reversed_transactions: reversedCount,
+            success_rate: total > 0 ? Math.round((succCount / total) * 100) : 0,
           });
         }
         setLastUpdatedTime(new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }));
@@ -1028,7 +1035,7 @@ export const RetailerTransactionReport: React.FC = () => {
   };
 
   const successPercent = useMemo(() => {
-    if (!summary?.total_transactions) return 100;
+    if (!summary?.total_transactions || summary.total_transactions === 0) return 0;
     return Math.round(((summary.successful_transactions || 0) / summary.total_transactions) * 100);
   }, [summary]);
 
@@ -1201,7 +1208,7 @@ export const RetailerTransactionReport: React.FC = () => {
             </Typography>
           )}
           <Typography sx={{ color: "#64748B", fontSize: "12px", fontWeight: 500 }}>
-            {summary?.total_transactions ?? totalRecords ?? 0} Transactions
+            {summary?.successful_transactions ?? 0} Completed Successfully ({summary?.total_transactions ?? totalRecords ?? 0} Total)
           </Typography>
         </Paper>
 

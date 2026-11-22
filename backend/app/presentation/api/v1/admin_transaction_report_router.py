@@ -304,13 +304,13 @@ def build_admin_transactions_query(
     {cte_sql}
     SELECT
         COUNT(*) AS total_count,
-        COALESCE(SUM(amount), 0) AS total_amount,
-        COALESCE(SUM(cr), 0) AS total_cr,
-        COALESCE(SUM(dr), 0) AS total_dr,
-        COALESCE(SUM(CASE WHEN UPPER(status) = 'SUCCESS' THEN 1 ELSE 0 END), 0) AS successful_count,
+        COALESCE(SUM(CASE WHEN UPPER(status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN amount ELSE 0 END), 0) AS total_amount,
+        COALESCE(SUM(CASE WHEN UPPER(status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN cr ELSE 0 END), 0) AS total_cr,
+        COALESCE(SUM(CASE WHEN UPPER(status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN dr ELSE 0 END), 0) AS total_dr,
+        COALESCE(SUM(CASE WHEN UPPER(status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN 1 ELSE 0 END), 0) AS successful_count,
         COALESCE(SUM(CASE WHEN UPPER(status) IN ('PENDING', 'PROCESSING', 'INITIATED') THEN 1 ELSE 0 END), 0) AS pending_count,
-        COALESCE(SUM(CASE WHEN UPPER(status) IN ('FAILED', 'REJECTED') THEN 1 ELSE 0 END), 0) AS failed_count,
-        COALESCE(SUM(CASE WHEN UPPER(status) = 'REVERSED' THEN 1 ELSE 0 END), 0) AS reversed_count
+        COALESCE(SUM(CASE WHEN UPPER(status) IN ('FAILED', 'REJECTED', 'TIMEOUT') THEN 1 ELSE 0 END), 0) AS failed_count,
+        COALESCE(SUM(CASE WHEN UPPER(status) IN ('REVERSED', 'REFUNDED') THEN 1 ELSE 0 END), 0) AS reversed_count
     FROM unified_txns u
     WHERE {where_clause}
     """

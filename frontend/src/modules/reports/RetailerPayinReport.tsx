@@ -868,7 +868,7 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
             </Typography>
           )}
           <Typography sx={{ color: "#6B7280", fontSize: "11.5px", fontWeight: 600 }}>
-            {summary?.total_transactions ?? 0} PayIn Transactions
+            {summary?.successful_transactions ?? 0} Completed Successfully ({summary?.total_transactions ?? 0} Total)
           </Typography>
         </Paper>
 
@@ -972,7 +972,7 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
             </Typography>
           )}
           <Typography sx={{ color: "#6B7280", fontSize: "11.5px", fontWeight: 600 }}>
-            {summary?.successful_transactions ?? 0} Settled · {summary?.pending_transactions ?? 0} Pending · {summary?.failed_transactions ?? 0} Failed
+            {summary?.successful_transactions ?? 0} Completed Successfully · {summary?.failed_transactions ?? 0} Failed · {summary?.pending_transactions ?? 0} Pending
           </Typography>
         </Paper>
       </Box>

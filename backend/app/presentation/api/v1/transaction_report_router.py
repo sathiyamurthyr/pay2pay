@@ -585,12 +585,12 @@ async def get_transaction_report(
     summary_sql = f"""
     SELECT 
         COUNT(*) AS total_transactions,
-        COALESCE(SUM(t.amount), 0.0) AS total_volume,
-        COALESCE(SUM(CASE WHEN UPPER(t.entry_type) IN ('CREDIT', 'CR') THEN t.amount ELSE 0.0 END), 0.0) AS total_credit,
-        COALESCE(SUM(CASE WHEN UPPER(t.entry_type) IN ('DEBIT', 'DR') THEN t.amount ELSE 0.0 END), 0.0) AS total_debit,
-        COALESCE(SUM(CASE WHEN UPPER(t.status) = 'SUCCESS' THEN 1 ELSE 0 END), 0) AS successful_transactions,
+        COALESCE(SUM(CASE WHEN UPPER(t.status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN t.amount ELSE 0.0 END), 0.0) AS total_volume,
+        COALESCE(SUM(CASE WHEN UPPER(t.status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') AND UPPER(t.entry_type) IN ('CREDIT', 'CR') THEN t.amount ELSE 0.0 END), 0.0) AS total_credit,
+        COALESCE(SUM(CASE WHEN UPPER(t.status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') AND UPPER(t.entry_type) IN ('DEBIT', 'DR') THEN t.amount ELSE 0.0 END), 0.0) AS total_debit,
+        COALESCE(SUM(CASE WHEN UPPER(t.status) IN ('SUCCESS', 'COMPLETED', 'SETTLED') THEN 1 ELSE 0 END), 0) AS successful_transactions,
         COALESCE(SUM(CASE WHEN UPPER(t.status) IN ('PENDING', 'PROCESSING', 'INITIATED') THEN 1 ELSE 0 END), 0) AS pending_transactions,
-        COALESCE(SUM(CASE WHEN UPPER(t.status) = 'FAILED' THEN 1 ELSE 0 END), 0) AS failed_transactions,
+        COALESCE(SUM(CASE WHEN UPPER(t.status) IN ('FAILED', 'REJECTED', 'TIMEOUT') THEN 1 ELSE 0 END), 0) AS failed_transactions,
         COALESCE(SUM(CASE WHEN UPPER(t.status) IN ('REVERSED', 'REFUNDED') THEN 1 ELSE 0 END), 0) AS reversed_transactions
     FROM public.transactions t
     LEFT JOIN public.retailer ret ON (ret.retailer_ref_id = t.user_ref_id AND t.user_type_ref_id = 2)
@@ -602,16 +602,19 @@ async def get_transaction_report(
     summary_row = summary_res.fetchone()
     total_records = int(summary_row[0] if summary_row else 0)
     total_pages = math.ceil(total_records / limit) if total_records > 0 else 0
+    succ_txns = int(summary_row[4] if summary_row else 0)
+    succ_rate = round((succ_txns / total_records * 100), 1) if total_records > 0 else 0.0
 
     summary_data = {
         "total_transactions": total_records,
         "total_volume": round_curr(summary_row[1] if summary_row else 0),
         "total_credit": round_curr(summary_row[2] if summary_row else 0),
         "total_debit": round_curr(summary_row[3] if summary_row else 0),
-        "successful_transactions": int(summary_row[4] if summary_row else 0),
+        "successful_transactions": succ_txns,
         "pending_transactions": int(summary_row[5] if summary_row else 0),
         "failed_transactions": int(summary_row[6] if summary_row else 0),
         "reversed_transactions": int(summary_row[7] if summary_row else 0),
+        "success_rate": succ_rate,
     }
 
     if total_records == 0:

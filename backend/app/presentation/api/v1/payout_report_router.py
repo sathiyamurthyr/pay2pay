@@ -220,8 +220,8 @@ async def get_retailer_payout_summary(
     tx_sql = """
     SELECT 
         COUNT(transactions_ref_id) AS total_count,
-        COALESCE(SUM(amount), 0) AS total_amount,
-        COALESCE(SUM(amount), 0) AS total_debit,
+        COALESCE(SUM(CASE WHEN UPPER(status) IN ('SUCCESS', 'SETTLED', 'COMPLETED') THEN amount ELSE 0 END), 0) AS total_amount,
+        COALESCE(SUM(CASE WHEN UPPER(status) IN ('SUCCESS', 'SETTLED', 'COMPLETED') THEN amount ELSE 0 END), 0) AS total_debit,
         0.0 AS total_commission,
         0.0 AS total_gst,
         0.0 AS total_tds,
@@ -267,11 +267,11 @@ async def get_retailer_payout_summary(
     ep_summary_sql = """
     SELECT 
         COUNT(id) AS total_count,
-        COALESCE(SUM(amount), 0) AS total_amount,
-        COALESCE(SUM(net_debit), 0) AS total_debit,
-        COALESCE(SUM(commission), 0) AS total_commission,
-        COALESCE(SUM(gst_amount), 0) AS total_gst,
-        COALESCE(SUM(tds_amount), 0) AS total_tds,
+        COALESCE(SUM(CASE WHEN UPPER(status::text) IN ('SUCCESS', 'SETTLED', 'COMPLETED') THEN amount ELSE 0 END), 0) AS total_amount,
+        COALESCE(SUM(CASE WHEN UPPER(status::text) IN ('SUCCESS', 'SETTLED', 'COMPLETED') THEN net_debit ELSE 0 END), 0) AS total_debit,
+        COALESCE(SUM(CASE WHEN UPPER(status::text) IN ('SUCCESS', 'SETTLED', 'COMPLETED') THEN commission ELSE 0 END), 0) AS total_commission,
+        COALESCE(SUM(CASE WHEN UPPER(status::text) IN ('SUCCESS', 'SETTLED', 'COMPLETED') THEN gst_amount ELSE 0 END), 0) AS total_gst,
+        COALESCE(SUM(CASE WHEN UPPER(status::text) IN ('SUCCESS', 'SETTLED', 'COMPLETED') THEN tds_amount ELSE 0 END), 0) AS total_tds,
         COUNT(CASE WHEN UPPER(status::text) IN ('SUCCESS', 'SETTLED', 'COMPLETED') THEN 1 END) AS success_count,
         COALESCE(SUM(CASE WHEN UPPER(status::text) IN ('SUCCESS', 'SETTLED', 'COMPLETED') THEN amount ELSE 0 END), 0) AS success_amount,
         COUNT(CASE WHEN UPPER(status::text) IN ('PENDING', 'PROCESSING', 'INITIATED') THEN 1 END) AS pending_count,
@@ -310,9 +310,9 @@ async def get_retailer_payout_summary(
     pw_sql = """
     SELECT 
         COUNT(id) AS total_count,
-        COALESCE(SUM(amount), 0) AS total_amount,
-        COALESCE(SUM(net_debit), 0) AS total_debit,
-        COALESCE(SUM(commission), 0) AS total_commission,
+        COALESCE(SUM(CASE WHEN UPPER(status) IN ('SUCCESS', 'SETTLED', 'COMPLETED') THEN amount ELSE 0 END), 0) AS total_amount,
+        COALESCE(SUM(CASE WHEN UPPER(status) IN ('SUCCESS', 'SETTLED', 'COMPLETED') THEN net_debit ELSE 0 END), 0) AS total_debit,
+        COALESCE(SUM(CASE WHEN UPPER(status) IN ('SUCCESS', 'SETTLED', 'COMPLETED') THEN commission ELSE 0 END), 0) AS total_commission,
         COUNT(CASE WHEN UPPER(status) IN ('SUCCESS', 'SETTLED', 'COMPLETED') THEN 1 END) AS success_count,
         COALESCE(SUM(CASE WHEN UPPER(status) IN ('SUCCESS', 'SETTLED', 'COMPLETED') THEN amount ELSE 0 END), 0) AS success_amount,
         COUNT(CASE WHEN UPPER(status) IN ('PENDING', 'PROCESSING', 'INITIATED') THEN 1 END) AS pending_count,
