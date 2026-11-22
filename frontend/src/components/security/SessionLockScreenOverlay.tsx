@@ -19,6 +19,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { resolvePortalRoute } from "@/lib/portal-resolver";
 import { BlurHashCanvas } from "@/components/ui/blurhash-canvas";
 import { KNOWN_BLURHASHES } from "@/lib/blurhash";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 // Curated Collection of 4K FinTech, Architectural & Deep Abstract Wallpapers with BlurHashes
 const CURATED_4K_WALLPAPERS = [
@@ -88,6 +89,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
   const { sessionState, unlockSession, lockedAt } = useSessionSecurity();
   const { walletData } = useWalletSync();
   const { effectiveTheme } = useTheme();
+  const branding = useCompanyBranding();
 
   const [mounted, setMounted] = useState<boolean>(false);
   const [pin, setPin] = useState<string>("");
@@ -219,7 +221,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
     hour12: true,
   });
 
-  // Dynamic Company & Retailer Metadata from authenticated session
+  // Dynamic Company & Retailer Metadata from authenticated session and tenant branding
   let savedUserInfo: any = null;
   if (typeof window !== "undefined") {
     try {
@@ -228,7 +230,35 @@ export const SessionLockScreenOverlay: React.FC = () => {
     } catch {}
   }
 
-  const companyName = (walletData as any)?.company_name || savedUserInfo?.company_name || "";
+  const currentHost = typeof window !== "undefined" ? window.location.hostname.toLowerCase() : "";
+  const isSmsPay =
+    branding?.company_code === "SMSPAY" ||
+    currentHost.includes("smspay");
+  const isNear4You =
+    branding?.company_code === "NEAR4YOU" ||
+    currentHost.includes("near4you");
+  const isPay2Pay =
+    branding?.company_code === "PAY2PAY" ||
+    currentHost.includes("pay2pay") ||
+    (!isSmsPay && !isNear4You);
+
+  const brandDisplayName = branding?.display_name || (isSmsPay ? "SMSPAY" : isNear4You ? "Near4You" : "Pay2Pay");
+  const brandMonogram = branding?.short_name || (isSmsPay ? "SMSP" : isNear4You ? "N4U" : "P2P");
+  const brandPrimary = branding?.primary_colour || (isSmsPay ? "#059669" : isNear4You ? "#A20A3A" : "#2563EB");
+  const brandSecondary = branding?.secondary_colour || (isSmsPay ? "#047857" : isNear4You ? "#EDC11E" : "#1E40AF");
+  const brandLogo =
+    isSmsPay
+      ? "/branding/smspay-mark.svg"
+      : isNear4You
+      ? (branding?.logo_url || "/branding/logo.svg")
+      : (branding?.logo_url || "/branding/pay2pay-logo.png");
+
+  const companyName =
+    (walletData as any)?.company_name ||
+    savedUserInfo?.company_name ||
+    branding?.company_name ||
+    branding?.display_name ||
+    "Enterprise Portal";
   const retailerName = (walletData as any)?.owner_name || (walletData as any)?.retailer_name || savedUserInfo?.full_name || savedUserInfo?.name || "";
   const retailerCode = (walletData as any)?.retailer_code || savedUserInfo?.retailer_code || (typeof window !== "undefined" ? localStorage.getItem("p2p_active_retailer_id") : null) || "";
   const currentWallpaper = CURATED_4K_WALLPAPERS[currentWallpaperIndex] || CURATED_4K_WALLPAPERS[0];
@@ -368,7 +398,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
   const overlayContent = (
     <div
       id="pay2pay-session-lockscreen-root"
-      className="fixed inset-0 z-[9999999] flex flex-col items-center justify-center p-4 sm:p-6 select-none overflow-y-auto overflow-x-hidden bg-[#FFFFFF]/95 backdrop-blur-xl transition-all duration-300"
+      className="fixed inset-0 z-[9999999] flex flex-col items-center justify-center p-4 sm:p-6 select-none overflow-y-auto overflow-x-hidden bg-[#080B11]/95 backdrop-blur-xl transition-all duration-300"
       style={{
         minHeight: "100vh",
         minWidth: "100vw",
@@ -403,7 +433,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
       `}</style>
 
       {/* ── 1. DYNAMIC 4K WALLPAPER BACKGROUND WITH BLURHASH PLACEHOLDER ── */}
-      <div className="absolute inset-0 z-0 bg-[#FFFFFF] overflow-hidden pointer-events-none">
+      <div className="absolute inset-0 z-0 bg-[#080B11] overflow-hidden pointer-events-none">
         {/* Instant 0ms BlurHash Canvas Placeholder */}
         <div className="absolute inset-0 z-0 transform scale-110 filter blur-[10px] opacity-75 transition-opacity duration-1000">
           <BlurHashCanvas
@@ -427,32 +457,32 @@ export const SessionLockScreenOverlay: React.FC = () => {
           />
         )}
 
-        {/* Dark Vignette & Near4You Ambient Gold Glass Overlay */}
-        <div className="absolute inset-0 z-10 bg-gradient-to-b from-[#FFFFFF]/90 via-[#FFFFFF]/80 to-[#FFFFFF]/95 backdrop-blur-[10px]" />
+        {/* Dark Vignette & Ambient Gold Glass Overlay */}
+        <div className="absolute inset-0 z-10 bg-gradient-to-b from-[#080B11]/85 via-[#0B0F19]/75 to-[#080B11]/90 backdrop-blur-[10px]" />
         <div
           className="absolute inset-0 z-10 pointer-events-none opacity-40"
           style={{
-            background: "radial-gradient(circle at 50% 30%, rgba(245, 158, 11, 0.12) 0%, transparent 65%)",
+            background: "radial-gradient(circle at 50% 30%, rgba(245, 158, 11, 0.15) 0%, transparent 65%)",
           }}
         />
       </div>
 
       {/* ── 2. WALLPAPER INFO & SWITCHER BADGE (TOP-RIGHT) ── */}
       <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-30 flex items-center gap-2">
-        <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FFFFFF]/85 border border-amber-500/20 text-white/90 text-[11px] backdrop-blur-xl shadow-lg shadow-black/40">
-          <ImageIcon className="w-3.5 h-3.5 text-amber-400" />
-          <span className="font-semibold">{currentWallpaper.title}</span>
-          <span className="text-white/30">·</span>
-          <span className="text-white/60">{currentWallpaper.location}</span>
+        <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#0B0F19]/90 border border-amber-500/30 text-slate-200 text-[11px] backdrop-blur-xl shadow-lg shadow-black/60">
+          <ImageIcon className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+          <span className="font-semibold text-white">{currentWallpaper.title}</span>
+          <span className="text-slate-500">·</span>
+          <span className="text-slate-300 font-medium">{currentWallpaper.location}</span>
         </div>
         <button
           type="button"
           onClick={handleNextWallpaper}
           title="Change 4K Wallpaper"
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 to-amber-600/30 hover:from-amber-500/30 hover:to-amber-600/40 border border-amber-400/40 text-amber-200 hover:text-amber-100 text-xs font-bold backdrop-blur-xl transition-all shadow-lg shadow-amber-500/10 active:scale-95 cursor-pointer"
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#0B0F19]/90 hover:bg-slate-800/90 border border-amber-400/60 hover:border-amber-300 text-amber-300 hover:text-amber-100 text-xs font-bold backdrop-blur-xl transition-all shadow-lg shadow-black/60 active:scale-95 cursor-pointer"
         >
-          <RefreshCw className={`w-3.5 h-3.5 text-amber-400 transition-transform duration-500 ${isRotating ? "rotate-180" : ""}`} />
-          <span className="hidden sm:inline">Change Wallpaper</span>
+          <RefreshCw className={`w-3.5 h-3.5 text-amber-400 transition-transform duration-500 shrink-0 ${isRotating ? "rotate-180" : ""}`} />
+          <span className="hidden sm:inline font-bold">Change Wallpaper</span>
         </button>
       </div>
 
@@ -485,7 +515,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
           </h1>
 
           {/* 2. Enter your 4-digit Security PIN Subtitle */}
-          <p className="text-xs sm:text-[13px] font-medium text-[#292329] mt-1">
+          <p className="text-xs sm:text-[13px] font-medium text-slate-300 mt-1">
             Enter your 4-digit PIN to resume your session
           </p>
         </div>
@@ -502,7 +532,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
                   className={`w-3.5 h-3.5 rounded-full border transition-all duration-200 ${
                     isFilled
                       ? "bg-gradient-to-br from-[#FEF08A] to-[#F59E0B] border-[#FEF08A] scale-110 shadow-lg shadow-amber-500/60 ring-2 ring-amber-400/30"
-                      : "bg-[#FFFFFF] border-white/25"
+                      : "bg-white/10 border-white/30"
                   }`}
                 />
               );
@@ -532,7 +562,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
                 border: failedAttempts > 0 ? "1.5px solid rgba(245, 158, 11, 0.6)" : "1.5px solid rgba(245, 158, 11, 0.35)",
                 color: "#FFFFFF",
               }}
-              className="w-full h-12 px-4 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/40 rounded-xl text-center text-lg font-mono font-black tracking-[0.45em] outline-none transition-all placeholder:tracking-normal placeholder:font-sans placeholder:font-semibold placeholder:text-[#625B60] placeholder:text-xs shadow-inner"
+              className="w-full h-12 px-4 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/40 rounded-xl text-center text-lg font-mono font-black tracking-[0.45em] outline-none transition-all placeholder:tracking-normal placeholder:font-sans placeholder:font-semibold placeholder:text-slate-400 placeholder:text-xs shadow-inner"
             />
           </div>
 
@@ -550,9 +580,9 @@ export const SessionLockScreenOverlay: React.FC = () => {
               type="button"
               onClick={handleLogout}
               title="Terminate session and return to login"
-              className="w-full h-12 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 border bg-white/[0.04] hover:bg-rose-500/15 text-[#292329] hover:text-rose-200 border-white/10 hover:border-rose-500/40 active:scale-[0.98] cursor-pointer shadow-md backdrop-blur-md"
+              className="w-full h-12 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 border bg-slate-800/80 hover:bg-rose-950/40 text-slate-100 hover:text-rose-200 border-slate-700/80 hover:border-rose-500/60 active:scale-[0.98] cursor-pointer shadow-md backdrop-blur-md"
             >
-              <LogOut className="w-4 h-4 text-[#625B60] shrink-0" />
+              <LogOut className="w-4 h-4 text-rose-400 shrink-0" />
               <span>LOGOUT</span>
             </button>
 
@@ -565,8 +595,8 @@ export const SessionLockScreenOverlay: React.FC = () => {
               }}
               className={`w-full h-12 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 border ${
                 pin.length === 4 && !isLoading
-                  ? "bg-gradient-to-r from-[#FEF08A] via-[#FBBF24] to-[#D97706] text-[#FFFFFF] border-amber-300 hover:from-[#FEF08A] hover:via-[#F59E0B] hover:to-[#B45309] active:scale-[0.98] cursor-pointer shadow-lg"
-                  : "bg-[#FFFFFF]/80 text-[#8A8288] border-white/10 opacity-60 cursor-not-allowed"
+                  ? "bg-gradient-to-r from-[#FEF08A] via-[#FBBF24] to-[#D97706] text-slate-950 border-amber-300 hover:from-[#FEF08A] hover:via-[#F59E0B] hover:to-[#B45309] active:scale-[0.98] cursor-pointer shadow-lg"
+                  : "bg-slate-800/60 text-slate-400 border-slate-700/60 opacity-60 cursor-not-allowed"
               }`}
             >
               {isLoading ? (
@@ -600,12 +630,33 @@ export const SessionLockScreenOverlay: React.FC = () => {
               boxShadow: "0 4px 16px rgba(0, 0, 0, 0.25)",
             }}
           >
-            {/* Left: P2P Branding & Store Name */}
+            {/* Left: Dynamic Domain Branding & Store Name */}
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl p-0.5 bg-gradient-to-br from-amber-400/60 to-amber-600/60 shadow-md shadow-amber-500/20 shrink-0">
-                <div className="w-full h-full rounded-[10px] flex items-center justify-center bg-[#FFFFFF]/95 border border-amber-400/40">
-                  <span className="text-xs font-black tracking-tighter gold-gradient-text">
-                    N4U
+              <div
+                className="w-9 h-9 rounded-xl p-0.5 shadow-md shrink-0 flex items-center justify-center"
+                style={{
+                  background: `linear-gradient(135deg, ${brandPrimary} 0%, ${brandSecondary} 100%)`,
+                  boxShadow: `0 2px 10px ${brandPrimary}40`,
+                }}
+              >
+                <div className="w-full h-full rounded-[10px] flex items-center justify-center bg-white/95 border border-white/40 overflow-hidden p-0.5">
+                  {brandLogo ? (
+                    <img
+                      src={brandLogo}
+                      alt={brandDisplayName}
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLElement).style.display = "none";
+                        const fallback = e.currentTarget.parentElement?.querySelector(".brand-monogram-fallback");
+                        if (fallback) (fallback as HTMLElement).style.display = "flex";
+                      }}
+                    />
+                  ) : null}
+                  <span
+                    className={`brand-monogram-fallback ${brandLogo ? "hidden" : "flex"} text-[11px] font-black tracking-tight`}
+                    style={{ color: brandPrimary }}
+                  >
+                    {brandMonogram}
                   </span>
                 </div>
               </div>
@@ -616,7 +667,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
                   </h2>
                   <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />
                 </div>
-                <p className="text-[9.5px] font-bold tracking-widest uppercase text-[#625B60] truncate">
+                <p className="text-[9.5px] font-bold tracking-widest uppercase text-slate-300 truncate">
                   RETAILER BUSINESS PORTAL
                 </p>
               </div>
@@ -624,7 +675,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
 
             {/* Right: Retailer Profile Pill (Retailer Name & Retailer ID) */}
             <div className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-white/[0.04] border border-white/10 shrink-0">
-              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#FEF08A] to-[#F59E0B] flex items-center justify-center text-[#FFFFFF] font-black text-[10px] shrink-0 shadow-sm shadow-amber-500/30">
+              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#FEF08A] to-[#F59E0B] flex items-center justify-center text-slate-950 font-black text-[10px] shrink-0 shadow-sm shadow-amber-500/30">
                 {retailerName ? String(retailerName).charAt(0).toUpperCase() : "S"}
               </div>
               <div className="text-right">
@@ -645,10 +696,10 @@ export const SessionLockScreenOverlay: React.FC = () => {
               className="rounded-xl px-3 py-2 flex flex-col justify-center"
               style={{
                 backgroundColor: "rgba(255, 255, 255, 0.02)",
-                border: "1px solid #E8E2E5",
+                border: "1px solid rgba(255, 255, 255, 0.12)",
               }}
             >
-              <span className="text-[9.5px] font-semibold uppercase tracking-wider text-[#625B60] truncate">
+              <span className="text-[9.5px] font-semibold uppercase tracking-wider text-slate-300 truncate">
                 {formattedDate}
               </span>
               <span className="text-sm font-mono font-black tracking-wider text-amber-300 mt-0.5">
@@ -664,7 +715,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
                 border: "1px solid rgba(245, 158, 11, 0.2)",
               }}
             >
-              <div className="flex items-center gap-1 text-[9.5px] font-semibold text-[#625B60]">
+              <div className="flex items-center gap-1 text-[9.5px] font-semibold text-amber-200/90">
                 <Clock className="w-3 h-3 text-amber-400 shrink-0" />
                 <span>Locked Duration</span>
               </div>
@@ -679,17 +730,17 @@ export const SessionLockScreenOverlay: React.FC = () => {
             className={`p-2.5 rounded-xl text-xs transition-all backdrop-blur-md flex flex-col gap-1 border ${
               failedAttempts > 0
                 ? "bg-amber-500/10 border-amber-500/40 text-amber-200 shadow-sm"
-                : "bg-white/[0.02] border-white/8 text-[#625B60]"
+                : "bg-slate-800/40 border-slate-700/60 text-slate-300"
             }`}
           >
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 min-w-0">
-                <ShieldAlert className={`w-3.5 h-3.5 shrink-0 ${failedAttempts > 0 ? "text-amber-400" : "text-amber-400/80"}`} />
+                <ShieldAlert className={`w-3.5 h-3.5 shrink-0 ${failedAttempts > 0 ? "text-amber-400" : "text-amber-400/90"}`} />
                 <span className="font-bold text-[11px] leading-tight">
                   {failedAttempts > 0 ? (
                     <span className="text-amber-300 font-bold">Incorrect Security PIN</span>
                   ) : (
-                    <span className="text-[#292329] font-semibold">Security Notice</span>
+                    <span className="text-amber-300 font-bold">Security Notice</span>
                   )}
                 </span>
               </div>
@@ -701,7 +752,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
               )}
             </div>
 
-            <p className={`text-[10.5px] leading-relaxed ${failedAttempts > 0 ? "text-amber-200/90 font-medium" : "text-[#625B60]"}`}>
+            <p className={`text-[10.5px] leading-relaxed ${failedAttempts > 0 ? "text-amber-200/90 font-medium" : "text-slate-300 font-normal"}`}>
               For your security, session auto-logs out after 3 incorrect PIN attempts.
             </p>
 
@@ -713,17 +764,17 @@ export const SessionLockScreenOverlay: React.FC = () => {
           </div>
 
           {/* 4. 256-Bit Encrypted & Switch Account Link */}
-          <div className="pt-2 border-t border-white/8 flex items-center justify-between text-xs font-semibold text-[#625B60]">
+          <div className="pt-2 border-t border-white/10 flex items-center justify-between text-xs font-semibold">
             <span className="flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="text-[#292329] font-bold text-[11px]">256-Bit Encrypted</span>
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span className="text-slate-200 font-bold text-[11px]">256-Bit Encrypted</span>
             </span>
             <button
               type="button"
               onClick={handleLogout}
               className="text-amber-400 hover:text-amber-300 font-bold text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer"
             >
-              <LogOut className="w-3.5 h-3.5" />
+              <LogOut className="w-3.5 h-3.5 shrink-0" />
               <span>Switch Account</span>
             </button>
           </div>
