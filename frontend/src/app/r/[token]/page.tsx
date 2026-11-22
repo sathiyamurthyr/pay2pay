@@ -23,10 +23,15 @@ import {
 } from "lucide-react";
 import { PayInStatusView } from "@/components/payin/PayInStatusView";
 import { resolveReceiptDomain } from "@/lib/receipt-security";
+import { useCompanyBranding, getInitialBrandingByHostname, COMPANY_PRESETS } from "@/hooks/useCompanyBranding";
 
 export default function PublicReceiptPage() {
   const params = useParams();
   const token = (params?.token as string) || "P2P-A61E08C4";
+
+  const initialBranding = getInitialBrandingByHostname();
+  const { branding } = useCompanyBranding();
+  const activeBranding = branding || initialBranding;
 
   const [copied, setCopied] = useState(false);
   const [verified, setVerified] = useState(true);
@@ -41,9 +46,9 @@ export default function PublicReceiptPage() {
   const [isPayinReceipt, setIsPayinReceipt] = useState(false);
   const [payinData, setPayinData] = useState<any>(null);
   const [receiptData, setReceiptData] = useState({
-    companyName: "SUPER REX PRODUCTS PRIVATE LIMITED",
-    brandName: "Near4You",
-    brandTagline: "Enterprise Domestic Money Transfer (DMT) · Authorized Network",
+    companyName: initialBranding?.company_name || "",
+    brandName: initialBranding?.display_name || "",
+    brandTagline: `${initialBranding?.display_name || "Payment"} Enterprise Digital Receipt Portal`,
     certifications: "NPCI IMPS Switch Certified · ISO 27001:2022 · 256-Bit SSL Encrypted",
     status: "SUCCESS",
     statusText: "TRANSACTION SUCCESSFUL · REAL-TIME CBS SETTLED",
@@ -53,17 +58,17 @@ export default function PublicReceiptPage() {
     charges: 20.0,
     gst: 4.0,
     totalPaid: 124.0,
-    transactionId: "UPAY010926181100073",
-    utr: "TEST-UTR168549591403",
+    transactionId: "",
+    utr: "N/A",
     receiptToken: token,
     channel: "IMPS",
-    date: "01 Sep 2026, 06:14 PM",
-    retailerName: "Sathiya Murthy",
-    retailerMobile: "+91 76669426",
-    beneficiaryName: "Sathiya Murthy R",
-    beneficiaryBank: "IDBI Bank",
-    beneficiaryIfsc: "IBKL0000630",
-    beneficiaryAccount: "0630104000156974",
+    date: "",
+    retailerName: "",
+    retailerMobile: "",
+    beneficiaryName: "",
+    beneficiaryBank: "",
+    beneficiaryIfsc: "",
+    beneficiaryAccount: "",
     signature: `SIG-SHA256-${token.replace("P2P-", "")}982A1B7C`,
     proofSlipUrl: "",
   });
@@ -82,8 +87,10 @@ export default function PublicReceiptPage() {
       if (!token) return;
       try {
         setLoading(true);
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
-        const res = await fetch(`${apiBase}/api/v1/public/receipt/${encodeURIComponent(token)}`);
+        const rawBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/api\/v1\/?$/, "");
+        const apiPath = `/api/v1/public/receipt/${encodeURIComponent(token)}`;
+        const endpoint = rawBase ? `${rawBase}${apiPath}` : apiPath;
+        const res = await fetch(endpoint);
         if (res.ok) {
           const data = await res.json();
           if (isMounted && data && data.valid) {
@@ -98,7 +105,7 @@ export default function PublicReceiptPage() {
             }
 
             // 1. Detect if the visitor came from an Admin notification link
-            // Admin template 1043386768499813 sends: ?source=admin_approval (or ?target=admin)
+            // Admin template sends: ?source=admin_approval (or ?target=admin)
             const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
             const adminQuery = Boolean(
               searchParams && (
@@ -127,11 +134,6 @@ export default function PublicReceiptPage() {
             setIsTopup(isTopupReq);
             setIsPendingApproval(reqIsPending);
 
-            const adminBase = process.env.NEXT_PUBLIC_ADMIN_PORTAL_URL || "https://admin.near4you.store";
-            const reqId = data.topupRequestId || data.transactionId || token;
-            const targetApprovalUrl = data.adminApprovalUrl || `${adminBase}/operations/topup-requests?requestId=${encodeURIComponent(reqId)}`;
-            setAdminApprovalUrl(targetApprovalUrl);
-
             const isSmspay = (data.brandName || "").toLowerCase().includes("smspay") || (data.companyCode || "").includes("SMSPAY") || (typeof window !== "undefined" && window.location.hostname.includes("smspay"));
             const isNear4you = (data.brandName || "").toLowerCase().includes("near4you") || (data.companyCode || "").includes("NEAR4YOU") || (typeof window !== "undefined" && window.location.hostname.includes("near4you"));
             const fallbackCompName = isSmspay
@@ -140,11 +142,20 @@ export default function PublicReceiptPage() {
               ? "SATHUS TECHNOLOGY PRIVATE LIMITED"
               : "SUPER REX PRODUCTS PRIVATE LIMITED";
             const fallbackBrandName = isSmspay ? "SMSPAY" : isNear4you ? "Near4You" : "Pay2Pay";
+            const defaultAdminUrl = isSmspay
+              ? "https://admin.smspay.store"
+              : isNear4you
+              ? "https://admin.near4you.store"
+              : "https://admin.pay2pay.in";
+            const adminBase = process.env.NEXT_PUBLIC_ADMIN_PORTAL_URL || defaultAdminUrl;
+            const reqId = data.topupRequestId || data.transactionId || token;
+            const targetApprovalUrl = data.adminApprovalUrl || `${adminBase}/operations/topup-requests?requestId=${encodeURIComponent(reqId)}`;
+            setAdminApprovalUrl(targetApprovalUrl);
 
             setReceiptData({
-              companyName: data.companyName || fallbackCompName,
-              brandName: data.brandName || fallbackBrandName,
-              brandTagline: data.brandTagline || "Enterprise Domestic Money Transfer (DMT) · Authorized Network",
+              companyName: data.companyName || activeBranding?.company_name || fallbackCompName,
+              brandName: data.brandName || activeBranding?.display_name || fallbackBrandName,
+              brandTagline: data.brandTagline || `${data.brandName || activeBranding?.display_name || fallbackBrandName} Digital Payments · Instant Verification Switch`,
               certifications: data.certifications || "NPCI IMPS Switch Certified · ISO 27001:2022 · 256-Bit SSL Encrypted",
               status: data.status || "SUCCESS",
               statusText: data.statusText || "TRANSACTION SUCCESSFUL · REAL-TIME CBS SETTLED",
@@ -159,7 +170,7 @@ export default function PublicReceiptPage() {
               receiptToken: data.receiptToken || token,
               channel: data.channel || "IMPS",
               date: data.date || "",
-              retailerName: data.retailerName || "Near4You Retailer",
+              retailerName: data.retailerName || `${data.brandName || activeBranding?.display_name || "Partner"} Retailer`,
               retailerMobile: data.retailerMobile || "",
               beneficiaryName: data.beneficiaryName || "Beneficiary",
               beneficiaryBank: data.beneficiaryBank || "",
@@ -192,7 +203,7 @@ export default function PublicReceiptPage() {
     return () => {
       isMounted = false;
     };
-  }, [token]);
+  }, [token, activeBranding]);
 
   // Auto-redirect effect to Admin Approval Console ONLY for Admin alert with pending request:
   // 1. Retailer raised topup request (isTopup is true)
@@ -236,7 +247,7 @@ export default function PublicReceiptPage() {
   };
 
   const handleShareWhatsApp = () => {
-    const brand = receiptData.brandName || "Payment";
+    const brand = receiptData.brandName || activeBranding?.display_name || "Payment";
     const receiptBase = resolveReceiptDomain(undefined, brand);
     const shareText = `*${brand} Official Transaction Receipt*\n\n` +
       `*Status:* SUCCESS (Real-Time CBS Settled)\n` +
@@ -284,16 +295,24 @@ export default function PublicReceiptPage() {
       <header className="w-full max-w-xl flex items-center justify-between py-3 mb-4 border-b border-amber-500/20 no-print">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 p-0.5 shadow-lg shadow-amber-500/20 flex items-center justify-center">
-            <div className="w-full h-full bg-[#FFFFFF] rounded-[10px] flex items-center justify-center">
-              <span className="text-sm font-black tracking-tighter bg-gradient-to-r from-[#FEF08A] to-[#F59E0B] bg-clip-text text-transparent">
-                P2P
-              </span>
+            <div className="w-full h-full bg-[#FFFFFF] rounded-[10px] flex items-center justify-center overflow-hidden">
+              {activeBranding?.logo_url ? (
+                <img
+                  src={activeBranding.logo_url}
+                  alt={activeBranding.display_name}
+                  className="w-7 h-7 object-contain"
+                />
+              ) : (
+                <span className="text-sm font-black tracking-tighter bg-gradient-to-r from-[#FEF08A] to-[#F59E0B] bg-clip-text text-transparent">
+                  {activeBranding?.short_name || "P2P"}
+                </span>
+              )}
             </div>
           </div>
           <div>
             <div className="flex items-center gap-1.5">
               <span className="font-black text-base tracking-tight bg-gradient-to-r from-[#FEF08A] via-[#FBBF24] to-[#F59E0B] bg-clip-text text-transparent">
-                {receiptData.brandName || "Payment"}
+                {receiptData.brandName || activeBranding?.display_name || "Payment"}
               </span>
               <span className="text-xs px-1.5 py-0.5 rounded bg-blue-500/20 border border-blue-400/40 text-blue-300 font-bold">
                 Enterprise
@@ -330,7 +349,7 @@ export default function PublicReceiptPage() {
             Token: {token}
           </div>
           <p className="text-xs text-[#8A8288] mt-4">
-            If you recently initiated this transaction, please check your WhatsApp notification or contact Near4You Support.
+            If you recently initiated this transaction, please check your WhatsApp notification or contact {activeBranding?.display_name || receiptData.brandName || "Customer"} Support.
           </p>
         </main>
       ) : loading ? (
@@ -643,7 +662,7 @@ export default function PublicReceiptPage() {
               {receiptData.signature}
             </p>
             <p className="text-[9px] text-[#625B60] mt-0.5">
-              Powered by Near4You Core Banking & DirectSwitch Engine
+              Powered by {receiptData.brandName || activeBranding?.display_name || "Core Banking"} DirectSwitch Engine
             </p>
           </div>
         </div>
@@ -709,7 +728,7 @@ export default function PublicReceiptPage() {
       {/* ── FOOTER COPYRIGHT ── */}
       <footer className="mt-6 text-center text-xs text-[#8A8288] no-print space-y-1">
         <p className="font-bold text-[#625B60]">
-          © {new Date().getFullYear()} Near4You Technologies. All rights reserved.
+          © {new Date().getFullYear()} {receiptData.companyName || activeBranding?.company_name || activeBranding?.display_name || "Technologies"}. All rights reserved.
         </p>
         <p className="text-[11px]">
           Enterprise Payment Infrastructure · ISO 27001 Certified · PCI-DSS Compliant

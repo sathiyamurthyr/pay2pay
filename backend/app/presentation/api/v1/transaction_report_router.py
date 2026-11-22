@@ -140,7 +140,7 @@ async def resolve_auth_context(request: Request, db: AsyncSession) -> AuthContex
         ctx.user_type_ref_id = await UserTypeService.get_user_type_ref_id(db, "RM")
         try:
             rm_q = await db.execute(text("""
-                SELECT regional_manager_ref_id, public_id 
+                SELECT id, public_id 
                 FROM public.regional_manager 
                 WHERE public_id::text = :sub OR mobile = :sub OR email = :sub
                 LIMIT 1;
@@ -853,15 +853,96 @@ async def get_transaction_dynamic_details(
         FROM public.transactions t
         LEFT JOIN public.retailer r ON r.retailer_ref_id = t.retailer_ref_id
         LEFT JOIN public.company c ON (c.company_ref_id = t.company_ref_id OR c.company_ref_id = r.company_ref_id)
-        LEFT JOIN public.company_branding cb ON (cb.company_id = c.public_id OR cb.company_ref_id = c.company_ref_id)
+        LEFT JOIN public.company_branding cb ON cb.company_id = c.public_id
         LEFT JOIN public.distributor d ON d.distributor_ref_id = t.distributor_ref_id
         LEFT JOIN public.super_distributor sd ON sd.super_distributor_ref_id = t.super_distributor_ref_id
-        LEFT JOIN public.regional_manager rm ON rm.regional_manager_ref_id = t.regional_manager_ref_id
+        LEFT JOIN public.regional_manager rm ON (rm.id = t.regional_manager_ref_id OR rm.public_id = t.rm_id)
         WHERE t.txn_id = :txn_id OR t.ref_id = :txn_id
         ORDER BY t.created_at ASC, t.transactions_ref_id ASC;
     """), {"txn_id": txn_id.strip()})
 
     rows = [dict(r._mapping) for r in res.fetchall()]
+
+    # Fallback Tier 0: Check payin_transactions
+    if not rows:
+        try:
+            pt_fallback_res = await db.execute(text("""
+                SELECT 
+                    pt.tid as transaction_number,
+                    pt.provider_ref_id as ref_id,
+                    pt.txn_status as status,
+                    pt.failure_reason,
+                    pt.txn_amount,
+                    pt.mdr_amount,
+                    pt.tax_amount,
+                    pt.total_charges,
+                    pt.retailer_credit,
+                    pt.card_network,
+                    pt.cust_name,
+                    pt.cust_mobile,
+                    pt.receipt_short_code,
+                    pt.retailer_ref_id,
+                    pt.company_ref_id,
+                    pt.created_at,
+                    pt.completed_at,
+                    pv.vendor_name,
+                    pv.vendor_code,
+                    ppm.pay_mode_name,
+                    pct.card_type_name,
+                    r.retailer_code,
+                    COALESCE(r.store_name, r.owner_name) AS resolved_retailer_name,
+                    COALESCE(comp.display_name, comp.company_name, comp.legal_name, 'Pay2Pay') AS resolved_company_name,
+                    COALESCE(comp.legal_name, comp.company_name, 'SUPER REX PRODUCTS PRIVATE LIMITED') AS resolved_legal_name,
+                    COALESCE(comp.company_code, 'P2P') AS resolved_company_code,
+                    COALESCE(cb.logo_url, '/branding/logo.png') AS resolved_logo_url
+                FROM public.payin_transactions pt
+                LEFT JOIN public.payin_vendors pv ON pv.payin_vendor_ref_id = pt.payin_vendor_ref_id
+                LEFT JOIN public.payin_payment_modes ppm ON ppm.payin_payment_mode_ref_id = pt.pay_mode_ref_id
+                LEFT JOIN public.payin_card_types pct ON pct.payin_card_type_ref_id = pt.card_type_ref_id
+                LEFT JOIN public.retailer r ON r.retailer_ref_id = pt.retailer_ref_id
+                LEFT JOIN public.company comp ON comp.company_ref_id = pt.company_ref_id
+                LEFT JOIN public.company_branding cb ON cb.company_id = comp.public_id
+                WHERE pt.tid = :txn_id OR pt.ledger_txn_id = :txn_id OR pt.provider_ref_id = :txn_id OR pt.merchant_ref_id = :txn_id
+                ORDER BY pt.payin_transactions_ref_id DESC LIMIT 1;
+            """), {"txn_id": txn_id.strip()})
+            pt_fb_row = pt_fallback_res.fetchone()
+            if pt_fb_row:
+                p = dict(pt_fb_row._mapping)
+                credit_amt = Decimal(str(p.get("retailer_credit") or p.get("txn_amount") or 0))
+                wl_res = await db.execute(text("""
+                    SELECT balance_before, balance_after 
+                    FROM public.wallet_ledger 
+                    WHERE reference_id = :tid 
+                    ORDER BY id DESC LIMIT 1;
+                """), {"tid": p.get("transaction_number")})
+                wl_row = wl_res.fetchone()
+                w_before = Decimal(str(wl_row.balance_before)) if wl_row and wl_row.balance_before is not None else Decimal("0.00")
+                w_after = Decimal(str(wl_row.balance_after)) if wl_row and wl_row.balance_after is not None else w_before + credit_amt
+                base_dt = p.get("completed_at") or p.get("created_at") or datetime.now(timezone.utc)
+                rows = [{
+                    "txn_id": p.get("transaction_number"),
+                    "ref_id": p.get("ref_id") or p.get("transaction_number"),
+                    "service_name": "PAYIN_TOPUP",
+                    "wallet_type": "MAIN",
+                    "entry_type": "CREDIT",
+                    "amount": credit_amt,
+                    "balance_before": w_before,
+                    "balance_after": w_after,
+                    "status": p.get("status") or "SUCCESS",
+                    "narration": f"PayIn Wallet Top-Up ({p.get('card_network') or p.get('pay_mode_name') or 'CARD'}, TID: {p.get('transaction_number')})",
+                    "created_at": base_dt,
+                    "updated_at": p.get("completed_at") or base_dt,
+                    "retailer_ref_id": p.get("retailer_ref_id"),
+                    "company_ref_id": p.get("company_ref_id"),
+                    "resolved_retailer_name": p.get("resolved_retailer_name"),
+                    "retailer_code": p.get("retailer_code"),
+                    "resolved_company_name": p.get("resolved_company_name"),
+                    "resolved_legal_name": p.get("resolved_legal_name"),
+                    "resolved_company_code": p.get("resolved_company_code"),
+                    "resolved_logo_url": p.get("resolved_logo_url"),
+                }]
+        except Exception as e:
+            logger.warning(f"Error checking payin fallback for {txn_id}: {e}")
 
     # Fallback Tier 1: Check enterprise_payout_transactions
     if not rows:
@@ -887,7 +968,7 @@ async def get_transaction_dynamic_details(
             FROM public.enterprise_payout_transactions ept
             LEFT JOIN public.retailer r ON (r.retailer_ref_id = ept.retailer_ref_id OR r.public_id = ept.retailer_id)
             LEFT JOIN public.company comp ON (comp.company_ref_id = ept.company_ref_id OR comp.public_id = ept.company_id)
-            LEFT JOIN public.company_branding cb ON (cb.company_ref_id = ept.company_ref_id OR cb.company_id = comp.public_id)
+            LEFT JOIN public.company_branding cb ON cb.company_id = comp.public_id
             LEFT JOIN public.customer c ON (c.customer_ref_id = ept.customer_ref_id OR c.public_id = ept.customer_id)
             LEFT JOIN public.beneficiary b ON (b.public_id = ept.beneficiary_id)
             LEFT JOIN public.beneficiary_master bm ON (bm.beneficiary_master_ref_id = ept.beneficiary_master_ref_id OR bm.public_id = ept.beneficiary_id)
@@ -997,7 +1078,7 @@ async def get_transaction_dynamic_details(
             FROM public.payout_transaction pt
             LEFT JOIN public.retailer r ON (r.retailer_ref_id = pt.retailer_ref_id OR r.public_id = pt.retailer_id)
             LEFT JOIN public.company comp ON (comp.company_ref_id = pt.company_ref_id OR comp.public_id = pt.company_id)
-            LEFT JOIN public.company_branding cb ON (cb.company_ref_id = pt.company_ref_id OR cb.company_id = comp.public_id)
+            LEFT JOIN public.company_branding cb ON cb.company_id = comp.public_id
             WHERE (pt.transaction_number = :txn_id OR pt.gateway_reference = :txn_id OR pt.bank_reference = :txn_id OR pt.utr_number = :txn_id)
             ORDER BY pt.id DESC LIMIT 1;
         """), {"txn_id": txn_id.strip()})
@@ -1174,8 +1255,86 @@ async def get_transaction_dynamic_details(
     vendor_api_status_val = None
     vendor_api_response_val = None
 
+    # Service Table: PAYIN
+    if "PAYIN" in service_code:
+        try:
+            pt_res = await db.execute(text("""
+                SELECT pt.*,
+                       pv.vendor_code, pv.vendor_name,
+                       ppm.pay_mode_code, ppm.pay_mode_name,
+                       pct.card_type_code, pct.card_type_name,
+                       pst.svc_code, pst.svc_name
+                FROM public.payin_transactions pt
+                LEFT JOIN public.payin_vendors pv ON pv.payin_vendor_ref_id = pt.payin_vendor_ref_id
+                LEFT JOIN public.payin_payment_modes ppm ON ppm.payin_payment_mode_ref_id = pt.pay_mode_ref_id
+                LEFT JOIN public.payin_card_types pct ON pct.payin_card_type_ref_id = pt.card_type_ref_id
+                LEFT JOIN public.payin_service_types pst ON pst.payin_service_type_ref_id = pt.svc_type_ref_id
+                WHERE (pt.tid = :txn_id OR pt.ledger_txn_id = :txn_id OR pt.provider_ref_id = :txn_id OR pt.merchant_ref_id = :txn_id)
+                  AND (CAST(:retailer_ref_id AS BIGINT) IS NULL OR pt.retailer_ref_id = CAST(:retailer_ref_id AS BIGINT))
+                  AND (CAST(:company_ref_id AS BIGINT) IS NULL OR pt.company_ref_id = CAST(:company_ref_id AS BIGINT))
+                ORDER BY pt.payin_transactions_ref_id DESC
+                LIMIT 1;
+            """), {
+                "txn_id": txn_id.strip(),
+                "retailer_ref_id": auth_ctx.retailer_ref_id if auth_ctx.user_type == "RETAILER" else None,
+                "company_ref_id": auth_ctx.company_ref_id if auth_ctx.company_ref_id else None,
+            })
+            pt_row = pt_res.fetchone()
+            if pt_row:
+                pt = dict(pt_row._mapping)
+                p_gross = Decimal(str(pt.get("txn_amount") or 0))
+                p_mdr = Decimal(str(pt.get("mdr_amount") or 0))
+                p_tax = Decimal(str(pt.get("tax_amount") or 0))
+                p_tot_chg = Decimal(str(pt.get("total_charges") or (p_mdr + p_tax)))
+                p_credit = Decimal(str(pt.get("retailer_credit") or (p_gross - p_tot_chg)))
+
+                base_amt = p_gross
+                charge_amt = p_mdr
+                gst_amt = p_tax
+                tot_credit = p_credit
+
+                short_code = pt.get("receipt_short_code")
+                receipt_url = f"https://receipt.smspay.store/r/{short_code}" if short_code else None
+
+                service_details = {
+                    "base_amount": round_curr(p_gross),
+                    "charges": round_curr(p_mdr),
+                    "gst": round_curr(p_tax),
+                    "total_charges": round_curr(p_tot_chg),
+                    "wallet_credit": round_curr(p_credit),
+                    "customer_payable": round_curr(pt.get("customer_payable") or p_gross),
+                    "payment_mode": pt.get("pay_mode_name") or pt.get("pay_mode_code") or (pt.get("request_ref") or {}).get("payment_mode") or "CARD",
+                    "card_type": pt.get("card_type_name") or pt.get("card_type_code"),
+                    "card_network": pt.get("card_network") or (pt.get("request_ref") or {}).get("card_network"),
+                    "gateway": pt.get("vendor_name") or pt.get("vendor_code") or "BankMe",
+                    "vendor_code": pt.get("vendor_code"),
+                    "provider_ref": pt.get("provider_ref_id"),
+                    "merchant_ref": pt.get("merchant_ref_id"),
+                    "receipt_short_code": short_code,
+                    "receipt_url": receipt_url,
+                    "customer_name": pt.get("cust_name"),
+                    "customer_mobile": pt.get("cust_mobile"),
+                    "failure_reason": pt.get("failure_reason"),
+                }
+                if pt.get("cust_name"):
+                    customer_info["customer"] = pt.get("cust_name")
+                if pt.get("cust_mobile"):
+                    customer_info["customer_mobile"] = pt.get("cust_mobile")
+                if pt.get("provider_ref_id"):
+                    processing_info["utr"] = pt.get("provider_ref_id")
+                if pt.get("merchant_ref_id"):
+                    processing_info["rrn"] = pt.get("merchant_ref_id")
+                processing_info["gateway"] = pt.get("vendor_name") or pt.get("vendor_code") or "BankMe"
+                processing_info["channel"] = pt.get("pay_mode_name") or "CARD"
+                if pt.get("card_network"):
+                    processing_info["card_network"] = pt.get("card_network")
+                if pt.get("failure_reason"):
+                    service_details["failure_reason"] = pt.get("failure_reason")
+        except Exception as e:
+            logger.warning(f"Error loading PayIn details for {txn_id}: {e}")
+
     # Service Table: PAYOUT
-    if "PAYOUT" in service_code:
+    elif "PAYOUT" in service_code:
         try:
             # Tier 1: Check public.payout_transaction with ordering and scoping
             pt_res = await db.execute(text("""
@@ -1195,7 +1354,7 @@ async def get_transaction_dynamic_details(
                 LEFT JOIN public.beneficiary_bank_account bba ON bba.beneficiary_master_ref_id = pt.beneficiary_master_ref_id
                 LEFT JOIN public.customer c ON c.customer_ref_id = pt.customer_ref_id
                 LEFT JOIN public.company comp ON comp.company_ref_id = pt.company_ref_id
-                LEFT JOIN public.company_branding cb ON (cb.company_ref_id = pt.company_ref_id OR cb.company_id = comp.public_id)
+                LEFT JOIN public.company_branding cb ON cb.company_id = comp.public_id
                 WHERE (pt.transaction_number = :txn_id OR pt.gateway_reference = :txn_id OR pt.bank_reference = :txn_id OR pt.utr_number = :txn_id)
                   AND (CAST(:retailer_ref_id AS BIGINT) IS NULL OR pt.retailer_ref_id = CAST(:retailer_ref_id AS BIGINT))
                   AND (CAST(:company_ref_id AS BIGINT) IS NULL OR pt.company_ref_id = CAST(:company_ref_id AS BIGINT))
@@ -1245,7 +1404,7 @@ async def get_transaction_dynamic_details(
                     FROM public.enterprise_payout_transactions ept
                     LEFT JOIN public.retailer r ON (r.retailer_ref_id = ept.retailer_ref_id OR r.public_id = ept.retailer_id)
                     LEFT JOIN public.company comp ON (comp.company_ref_id = ept.company_ref_id OR comp.public_id = ept.company_id)
-                    LEFT JOIN public.company_branding cb ON (cb.company_ref_id = ept.company_ref_id OR cb.company_id = comp.public_id)
+                    LEFT JOIN public.company_branding cb ON cb.company_id = comp.public_id
                     LEFT JOIN public.customer c ON (c.customer_ref_id = ept.customer_ref_id OR c.public_id = ept.customer_id)
                     LEFT JOIN public.beneficiary b ON (b.public_id = ept.beneficiary_id)
                     LEFT JOIN public.beneficiary_master bm ON (bm.beneficiary_master_ref_id = ept.beneficiary_master_ref_id OR bm.public_id = ept.beneficiary_id)
@@ -1463,12 +1622,13 @@ async def get_transaction_dynamic_details(
 
     # 8. Status & Comments Resolution
     final_status = (payout_db_status or primary.get("status") or "SUCCESS").upper()
+    svc_display = service_raw.replace("_", " ").title()
     if final_status in ["FAILED", "REJECTED"]:
-        comments = "Payout failed - wallet reversed"
+        comments = service_details.get("failure_reason") or f"{svc_display} transaction failed"
     elif final_status in ["PENDING", "PROCESSING", "INITIATED"]:
-        comments = "Payout processing in progress"
+        comments = f"{svc_display} processing in progress"
     else:
-        comments = "Payout successful"
+        comments = primary.get("narration") or f"{svc_display} successful"
 
     # 9. Beneficiary & Customer & Vendor Object Construction (Strict Section 18 Schema)
     raw_acc = service_details.get("account") or None
@@ -1483,17 +1643,20 @@ async def get_transaction_dynamic_details(
             return "XXXXXX" + s
         return "XXXXXX" + s[-4:]
 
+    has_beneficiary = bool(service_details.get("beneficiary") or raw_acc or "PAYOUT" in service_code or "DMT" in service_code)
     beneficiary_obj = {
         "name": service_details.get("beneficiary") or primary.get("resolved_retailer_name") or "Not Available",
         "account": format_masked_acc(raw_acc),
         "bank": service_details.get("bank") or "Not Available",
         "ifsc": service_details.get("ifsc") or "Not Available",
-    }
+    } if has_beneficiary else None
 
+    cust_name_val = customer_info.get("customer") or party.get("customer")
+    cust_mob_val = customer_info.get("customer_mobile") or party.get("customer_mobile")
     customer_obj = {
-        "name": customer_info.get("customer") or party.get("customer") or "Not Available",
-        "mobile": customer_info.get("customer_mobile") or party.get("customer_mobile") or "Not Available",
-    }
+        "name": cust_name_val or "Not Available",
+        "mobile": cust_mob_val or "Not Available",
+    } if (cust_name_val or cust_mob_val) else None
 
     company_name_val = primary.get("resolved_company_name") or "Pay2Pay Fintech"
     company_logo_val = primary.get("resolved_logo_url") or "/branding/logo.png"
@@ -1549,15 +1712,15 @@ async def get_transaction_dynamic_details(
                 "gst": round_curr(gst_amt),
                 "commission": round_curr(comm_amt),
                 "tds": round_curr(tds_amt),
-                "total_debit": round_curr(tot_debit if tot_debit > 0 else (base_amt + charge_amt + gst_amt)),
-                "total_credit": round_curr(tot_credit),
-                "net_amount": round_curr(tot_debit if tot_debit > 0 else tot_credit),
+                "total_debit": round_curr(Decimal("0.00") if (primary.get("entry_type") or "").upper() in ("CREDIT", "CR") else (tot_debit if tot_debit > 0 else (base_amt + charge_amt + gst_amt))),
+                "total_credit": round_curr(tot_credit if (primary.get("entry_type") or "").upper() in ("CREDIT", "CR") else Decimal("0.00")),
+                "net_amount": round_curr(tot_credit if (primary.get("entry_type") or "").upper() in ("CREDIT", "CR") else (tot_debit if tot_debit > 0 else base_amt)),
             },
             "wallet": {
                 "wallet": (primary.get("wallet_type") or "MAIN").upper(),
                 "opening_balance": round_curr(opening_balance) if opening_balance is not None else 0.0,
-                "credit": round_curr(tot_credit),
-                "debit": round_curr(tot_debit),
+                "credit": round_curr(tot_credit if (primary.get("entry_type") or "").upper() in ("CREDIT", "CR") else Decimal("0.00")),
+                "debit": round_curr(tot_debit if (primary.get("entry_type") or "").upper() not in ("CREDIT", "CR") else Decimal("0.00")),
                 "closing_balance": round_curr(closing_balance) if closing_balance is not None else 0.0,
             },
             "vendor": vendor_obj,

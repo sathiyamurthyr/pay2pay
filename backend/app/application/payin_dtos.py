@@ -161,6 +161,8 @@ class VendorOptionItem(BaseModel):
     badge_color: Optional[str] = "#10B981"
     is_active: Optional[bool] = True
     is_enabled: Optional[bool] = True
+    min_amount: Optional[float] = 10.00
+    max_amount: Optional[float] = 500000.00
     supported_methods: List[str] = ["CREDIT_CARD", "DEBIT_CARD", "UPI", "NET_BANKING"]
 
 
@@ -178,6 +180,8 @@ class GatewayConfigItemResponse(BaseModel):
     status: str
     is_enabled: bool
     is_default: bool
+    min_amount: Optional[float] = 10.00
+    max_amount: Optional[float] = 500000.00
     updated_by: str
     updated_at: str
 
@@ -188,6 +192,8 @@ class UpdateGatewayConfigRequest(BaseModel):
     display_order: Optional[int] = Field(None, ge=1, le=100)
     status: Optional[str] = Field(None, pattern="^(ACTIVE|INACTIVE)$")
     is_enabled: Optional[bool] = None
+    min_amount: Optional[float] = None
+    max_amount: Optional[float] = None
 
 
 class CreateGatewayConfigRequest(BaseModel):
@@ -199,6 +205,8 @@ class CreateGatewayConfigRequest(BaseModel):
     display_order: Optional[int] = Field(1, ge=1, le=100)
     status: Optional[str] = Field("ACTIVE", pattern="^(ACTIVE|INACTIVE)$")
     is_enabled: Optional[bool] = True
+    min_amount: Optional[float] = 10.00
+    max_amount: Optional[float] = 500000.00
 
 
 class PayInOptionsResponse(BaseModel):
