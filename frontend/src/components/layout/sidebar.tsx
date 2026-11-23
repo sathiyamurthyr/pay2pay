@@ -355,7 +355,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
         "Main": ["Dashboard"],
         "Administration": ["Organization", "RM", "Super Distributor", "Distributor", "Retailer", "POS Machine"],
         "Approvals": ["KYC & Onboarding"],
-        "Reports": ["Transaction Report", "Retailers", "Machines"],
+        "Reports": ["Transaction Report", "Transaction Ledger", "PayIn Report", "Payout Report", "GST Report", "Retailers", "Machines"],
       };
 
       baseNav = ADMIN_NAV.map((cat) => {
@@ -384,7 +384,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
         "Main": ["Dashboard"],
         "Configuration": ["Customer Policy", "Beneficiary Policy", "Risk", "AML", "Security"],
         "Approvals": ["KYC & Onboarding", "High Value"],
-        "Reports": ["Transaction Report", "Audit"],
+        "Reports": ["Transaction Report", "Audit", "GST Report"],
       };
 
       baseNav = ADMIN_NAV.map((cat) => {

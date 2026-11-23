@@ -670,6 +670,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         { label: "PayIn Report", path: "/retailer/reports/payin-transactions", icon: AssessmentIcon, parentServiceCode: "PAYIN" },
         { label: "Payout Report", path: "/retailer/reports/payout-transactions", icon: ReceiptLongIcon, parentServiceCode: "DMT" },
         { label: "Transactions", path: "/retailer/reports/transactions", icon: AssessmentIcon },
+        { label: "GST Report", path: "/retailer/reports/gst", icon: ReceiptIcon },
         { label: "Settlement", path: "/retailer/reports/settlement", icon: PointOfSaleIcon, parentServiceCode: "POS_TOPUP" },
       ],
     },
