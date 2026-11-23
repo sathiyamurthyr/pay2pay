@@ -64,8 +64,19 @@ async def resolve_gst_auth_context(request: Request, db: AsyncSession) -> Dict[s
             roles = [roles]
         upper_roles = [str(r).upper() for r in roles]
 
+        user_type_ref = payload.get("user_type_ref_id")
+        user_type_str = str(payload.get("user_type") or "").upper()
+        role_str = str(payload.get("role") or "").upper()
+        if role_str and role_str not in upper_roles:
+            upper_roles.append(role_str)
+
         is_super = any("SUPER_ADMIN" in r for r in upper_roles) or payload.get("is_super_admin") is True
-        is_adm = is_super or any(r in ("ADMIN", "PLATFORM_ADMIN", "OPS_ADMIN", "FINANCE", "COMPANY_ADMIN") for r in upper_roles)
+        is_adm = (
+            is_super
+            or user_type_ref == 1
+            or user_type_str == "ADMIN"
+            or any(r in ("ADMIN", "SUPER_ADMIN", "PLATFORM_ADMIN", "OPS_ADMIN", "FINANCE", "COMPANY_ADMIN", "COMPLIANCE_OFFICER") for r in upper_roles)
+        )
 
         ctx["is_super_admin"] = is_super
         ctx["is_admin"] = is_adm
