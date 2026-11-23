@@ -368,8 +368,13 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/api/public") ||
     pathname === "/403";
 
-  // Handle logout parameter on login page: /login?logout=true or /login?reason=...
-  const isLogoutQuery = request.nextUrl.searchParams.has("logout") || request.nextUrl.searchParams.get("reason") === "session_terminated";
+  // Handle logout or session expiration parameter on login page: /login?logout=true or /login?reason=...
+  const isLogoutQuery =
+    request.nextUrl.searchParams.has("logout") ||
+    request.nextUrl.searchParams.has("reason") ||
+    request.nextUrl.searchParams.get("reason") === "session_terminated" ||
+    request.nextUrl.searchParams.get("reason") === "session_expired";
+
   if (isLoginRoute && isLogoutQuery) {
     const res = NextResponse.next();
     const allCookieNames = [
@@ -396,7 +401,7 @@ export function middleware(request: NextRequest) {
 
   // ── Port Enforced Login Redirection ──
   if (isLoginRoute) {
-    if (isAuthenticated) {
+    if (isAuthenticated && !isLogoutQuery) {
       return applySecurityHeaders(
         NextResponse.redirect(new URL(portalConfig.dashboard, request.url))
       );

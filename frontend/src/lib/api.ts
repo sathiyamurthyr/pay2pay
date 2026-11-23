@@ -159,7 +159,22 @@ apiClient.interceptors.response.use(
         return Promise.reject(error);
       }
 
-      // For all other genuine session/token expiry 401s, clear cookies and session storage
+      // Non-critical auxiliary endpoints that should NEVER log out the user or trigger redirect loops
+      const skipRedirect = Boolean(error.config?.headers?.["x-skip-auth-redirect"]);
+      const isAuxiliaryEndpoint =
+        skipRedirect ||
+        url.includes("/favorites") ||
+        url.includes("/admin/favorites") ||
+        url.includes("/branding") ||
+        url.includes("/notifications") ||
+        url.includes("/public-key") ||
+        url.includes("/soundbox");
+
+      if (isAuxiliaryEndpoint) {
+        return Promise.reject(error);
+      }
+
+      // For genuine session/token expiry 401s, clear cookies and session storage
       if (typeof document !== "undefined") {
         const cookieNames = [
           "p2p_access_token",
@@ -167,6 +182,13 @@ apiClient.interceptors.response.use(
           "pay2pay_auth_token",
           "p2p_sales_token",
           "pay2pay_sales_token",
+          "p2p_admin_token",
+          "p2p_retailer_token",
+          "p2p_super_admin_token",
+          "p2p_sd_token",
+          "p2p_dist_token",
+          "p2p_token",
+          "pay2pay_token",
           "p2p_user_role",
           "pay2pay_user_role",
           "p2p_session_locked",
@@ -185,15 +207,27 @@ apiClient.interceptors.response.use(
 
       if (typeof localStorage !== "undefined") {
         try {
-          localStorage.removeItem("p2p_access_token");
-          localStorage.removeItem("pay2pay_access_token");
-          localStorage.removeItem("pay2pay_auth_token");
-          localStorage.removeItem("p2p_sales_token");
-          localStorage.removeItem("pay2pay_sales_token");
-          localStorage.removeItem("p2p_session_locked");
-          localStorage.removeItem("p2p_session_locked_at");
-          localStorage.removeItem("p2p_session_last_active");
-          localStorage.removeItem("p2p_session_start_time");
+          const lsKeys = [
+            "p2p_access_token",
+            "pay2pay_access_token",
+            "pay2pay_auth_token",
+            "p2p_sales_token",
+            "pay2pay_sales_token",
+            "p2p_admin_token",
+            "p2p_retailer_token",
+            "p2p_super_admin_token",
+            "p2p_sd_token",
+            "p2p_dist_token",
+            "token",
+            "access_token",
+            "user_info",
+            "pay2pay_user_data",
+            "p2p_session_locked",
+            "p2p_session_locked_at",
+            "p2p_session_last_active",
+            "p2p_session_start_time"
+          ];
+          lsKeys.forEach((k) => localStorage.removeItem(k));
         } catch {}
       }
 
@@ -203,7 +237,21 @@ apiClient.interceptors.response.use(
         } catch {}
       }
 
-      if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
+      if (typeof window !== "undefined") {
+        if (window.location.pathname.includes("/login")) {
+          return Promise.reject(error);
+        }
+
+        // Prevent rapid redirect loops (debounce 10s)
+        const now = Date.now();
+        const lastRedirect = Number(window.sessionStorage?.getItem("p2p_last_401_redirect") || 0);
+        if (now - lastRedirect < 10000) {
+          return Promise.reject(error);
+        }
+        try {
+          window.sessionStorage?.setItem("p2p_last_401_redirect", String(now));
+        } catch {}
+
         const currentPath = window.location.pathname;
         let loginPath = "/retailer/login";
         if (currentPath.startsWith("/admin")) loginPath = "/admin/login";

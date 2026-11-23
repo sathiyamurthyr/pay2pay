@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { getApiBaseUrl } from "@/lib/api-config";
+import { apiClient } from "@/lib/api";
 import {
   X,
   CheckCircle2,
@@ -61,20 +61,16 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
     setSubmitting(true);
 
     try {
-      const res = await fetch(`${getApiBaseUrl()}/admin/verification/requests/${targetId}/action`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: actionType,
-          admin_id: "ADM-COMPLIANCE-01",
-          remarks: remarks.trim(),
-          admin_role: "SENIOR_COMPLIANCE_OFFICER"
-        })
+      const res = await apiClient.post(`/admin/verification/requests/${targetId}/action`, {
+        action: actionType,
+        admin_id: "ADM-COMPLIANCE-01",
+        remarks: remarks.trim(),
+        admin_role: "SENIOR_COMPLIANCE_OFFICER"
       });
-      const data = await res.json();
+      const data = res.data || {};
       setSubmitting(false);
 
-      if (res.ok && data.status === "SUCCESS") {
+      if (data.status === "SUCCESS") {
         setActionType(null);
         onRefresh();
         onClose();
@@ -83,7 +79,8 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
       }
     } catch (err: any) {
       setSubmitting(false);
-      setErrorMsg(err?.message || "Network or server communication error. Please try again.");
+      const errData = err.response?.data;
+      setErrorMsg(errData?.detail || errData?.message || err?.message || "Failed to process verification decision.");
     }
   };
 

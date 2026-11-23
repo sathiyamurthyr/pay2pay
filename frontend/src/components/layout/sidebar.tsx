@@ -266,12 +266,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
   const fetchFavorites = async () => {
     try {
       setLoadingFavorites(true);
-      const res = await api.get("/api/v1/admin/favorites");
+      const res = await api.get("/api/v1/admin/favorites", {
+        headers: { "x-skip-auth-redirect": "true" },
+      });
       if (res.data?.favorites && Array.isArray(res.data.favorites)) {
         setFavorites(res.data.favorites);
       }
-    } catch (e) {
-      console.error("Failed to load admin favorites from DB", e);
+    } catch {
+      // Graceful fallback: do not interrupt admin navigation
+      setFavorites([]);
     } finally {
       setLoadingFavorites(false);
     }
