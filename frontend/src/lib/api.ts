@@ -21,16 +21,20 @@ apiClient.interceptors.request.use(
     if (typeof window !== "undefined") {
       const port = window.location.port;
       const path = window.location.pathname;
+      const host = window.location.hostname.toLowerCase();
+      const isAdminHost = host.startsWith("admin.") || host.includes("admin.smspay.store") || host.includes("admin.near4you.store") || host.includes("admin.pay2pay.in");
+      const isSuperAdminHost = port === "4003" || host.startsWith("super-admin.") || host.startsWith("superadmin.");
+      const isRetailerHost = host.startsWith("retailer.");
 
       let portTokenKey: string | null = null;
       let portUserKey: string | null = null;
-      if (port === "4001" || path.startsWith("/retailer")) {
+      if (port === "4001" || isRetailerHost || path.startsWith("/retailer")) {
         portTokenKey = "p2p_retailer_token";
         portUserKey = "p2p_retailer_user";
-      } else if (port === "4002" || path.startsWith("/admin")) {
+      } else if (port === "4002" || isAdminHost || path.startsWith("/admin")) {
         portTokenKey = "p2p_admin_token";
         portUserKey = "p2p_admin_user";
-      } else if (port === "4003" || path.startsWith("/super-admin")) {
+      } else if (isSuperAdminHost || path.startsWith("/super-admin")) {
         portTokenKey = "p2p_super_admin_token";
         portUserKey = "p2p_super_admin_user";
       }
@@ -253,11 +257,15 @@ apiClient.interceptors.response.use(
         } catch {}
 
         const currentPath = window.location.pathname;
+        const host = window.location.hostname.toLowerCase();
+        const isAdminHost = host.startsWith("admin.") || host.includes("admin.smspay.store") || host.includes("admin.near4you.store") || host.includes("admin.pay2pay.in");
+        const isSuperAdminHost = window.location.port === "4003" || host.startsWith("super-admin.") || host.startsWith("superadmin.");
+
         let loginPath = "/retailer/login";
-        if (currentPath.startsWith("/admin")) loginPath = "/admin/login";
+        if (isAdminHost || currentPath.startsWith("/admin")) loginPath = "/admin/login";
+        else if (isSuperAdminHost || currentPath.startsWith("/super-admin")) loginPath = "/super-admin/login";
         else if (currentPath.startsWith("/sd")) loginPath = "/sd/login";
         else if (currentPath.startsWith("/dist")) loginPath = "/dist/login";
-        else if (currentPath.startsWith("/super-admin")) loginPath = "/super-admin/login";
 
         window.location.replace(`${loginPath}?reason=session_expired&redirect=${encodeURIComponent(currentPath)}`);
       }

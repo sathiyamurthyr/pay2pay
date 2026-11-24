@@ -89,6 +89,22 @@ function getJwtClaims(token?: string | null): Record<string, any> | null {
   }
 }
 
+/**
+ * Validates token presence, structural integrity, and expiration time
+ */
+function isTokenValid(token?: string | null): boolean {
+  if (!token || typeof token !== "string" || token.trim().length < 10) return false;
+  const claims = getJwtClaims(token);
+  if (!claims) return false;
+  if (claims.exp && typeof claims.exp === "number") {
+    // Treat as expired if exp is in the past (with 5-second skew window)
+    if (claims.exp * 1000 <= Date.now() - 5000) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = request.headers.get("host") || "";
@@ -146,14 +162,17 @@ export function middleware(request: NextRequest) {
   if (forcedPortal) {
     if (isRetailerHost) {
       // Retailer portal preference
-      token = request.cookies.get("p2p_retailer_token")?.value;
+      const rawCandidate = request.cookies.get("p2p_retailer_token")?.value;
+      if (rawCandidate && isTokenValid(rawCandidate)) {
+        token = rawCandidate;
+      }
       if (!token) {
         const candidate =
           request.cookies.get("p2p_token")?.value ||
           request.cookies.get("p2p_access_token")?.value ||
           request.cookies.get("pay2pay_access_token")?.value ||
           request.cookies.get("access_token")?.value;
-        if (candidate) {
+        if (candidate && isTokenValid(candidate)) {
           const claims = getJwtClaims(candidate);
           const cRole = normalizeUserRole(Array.isArray(claims?.roles) ? claims.roles[0] : claims?.role);
           const cType = Number(claims?.user_type_ref_id);
@@ -164,17 +183,20 @@ export function middleware(request: NextRequest) {
         }
       }
       resolvedRole = "RETAILER";
-      isAuthenticated = Boolean(token && token.trim().length > 10);
+      isAuthenticated = Boolean(token && isTokenValid(token));
     } else if (isAdminHost) {
       // Admin portal preference
-      token = request.cookies.get("p2p_admin_token")?.value;
+      const rawCandidate = request.cookies.get("p2p_admin_token")?.value;
+      if (rawCandidate && isTokenValid(rawCandidate)) {
+        token = rawCandidate;
+      }
       if (!token) {
         const candidate =
           request.cookies.get("p2p_token")?.value ||
           request.cookies.get("p2p_access_token")?.value ||
           request.cookies.get("pay2pay_access_token")?.value ||
           request.cookies.get("access_token")?.value;
-        if (candidate) {
+        if (candidate && isTokenValid(candidate)) {
           const claims = getJwtClaims(candidate);
           const cRole = normalizeUserRole(Array.isArray(claims?.roles) ? claims.roles[0] : claims?.role);
           const cType = Number(claims?.user_type_ref_id);
@@ -186,17 +208,20 @@ export function middleware(request: NextRequest) {
       const claims = getJwtClaims(token);
       const cRole = normalizeUserRole(Array.isArray(claims?.roles) ? claims.roles[0] : claims?.role);
       resolvedRole = cRole === "SUPER_ADMIN" ? "SUPER_ADMIN" : "ADMIN";
-      isAuthenticated = Boolean(token && token.trim().length > 10);
+      isAuthenticated = Boolean(token && isTokenValid(token));
     } else if (isSuperAdminHost) {
       // Super Admin portal preference
-      token = request.cookies.get("p2p_super_admin_token")?.value;
+      const rawCandidate = request.cookies.get("p2p_super_admin_token")?.value;
+      if (rawCandidate && isTokenValid(rawCandidate)) {
+        token = rawCandidate;
+      }
       if (!token) {
         const candidate =
           request.cookies.get("p2p_token")?.value ||
           request.cookies.get("p2p_access_token")?.value ||
           request.cookies.get("pay2pay_access_token")?.value ||
           request.cookies.get("access_token")?.value;
-        if (candidate) {
+        if (candidate && isTokenValid(candidate)) {
           const claims = getJwtClaims(candidate);
           const cRole = normalizeUserRole(Array.isArray(claims?.roles) ? claims.roles[0] : claims?.role);
           const cType = Number(claims?.user_type_ref_id);
@@ -206,11 +231,11 @@ export function middleware(request: NextRequest) {
         }
       }
       resolvedRole = "SUPER_ADMIN";
-      isAuthenticated = Boolean(token && token.trim().length > 10);
+      isAuthenticated = Boolean(token && isTokenValid(token));
     }
   } else {
     // Generic fallback (e.g. port 3000 or production domain without port)
-    token =
+    const rawCandidate =
       request.cookies.get("p2p_token")?.value ||
       request.cookies.get("pay2pay_token")?.value ||
       request.cookies.get("p2p_access_token")?.value ||
@@ -222,7 +247,11 @@ export function middleware(request: NextRequest) {
       request.cookies.get("token")?.value ||
       request.headers.get("authorization");
 
-    isAuthenticated = Boolean(token && token.trim().length > 10);
+    if (rawCandidate && isTokenValid(rawCandidate)) {
+      token = rawCandidate;
+    }
+
+    isAuthenticated = Boolean(token && isTokenValid(token));
 
     const jwtClaims = getJwtClaims(token);
     const jwtUserType = jwtClaims?.user_type_ref_id;
@@ -376,7 +405,15 @@ export function middleware(request: NextRequest) {
     request.nextUrl.searchParams.get("reason") === "session_expired";
 
   if (isLoginRoute && isLogoutQuery) {
-    const res = NextResponse.next();
+    const targetLogin = forcedPortal ? forcedPortal.login : pathname;
+    let res: NextResponse;
+    if (pathname !== targetLogin) {
+      const dest = new URL(targetLogin, request.url);
+      dest.search = request.nextUrl.search;
+      res = NextResponse.redirect(dest);
+    } else {
+      res = NextResponse.next();
+    }
     const allCookieNames = [
       "p2p_token", "pay2pay_token", "p2p_access_token", "pay2pay_access_token", "pay2pay_auth_token",
       "p2p_sales_token", "pay2pay_sales_token", "p2p_retailer_token", "p2p_dist_token", "p2p_sd_token", "p2p_admin_token", "p2p_super_admin_token",
@@ -410,8 +447,10 @@ export function middleware(request: NextRequest) {
     if (forcedPortal) {
       // If user navigated to generic /login or wrong portal login, direct to this port's login
       if (pathname !== forcedPortal.login) {
+        const dest = new URL(forcedPortal.login, request.url);
+        dest.search = request.nextUrl.search;
         return applySecurityHeaders(
-          NextResponse.redirect(new URL(forcedPortal.login, request.url))
+          NextResponse.redirect(dest)
         );
       }
     }

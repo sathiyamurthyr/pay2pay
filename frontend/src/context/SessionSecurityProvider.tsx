@@ -52,12 +52,17 @@ export const getAuthToken = (): string | null => {
   try {
     const port = window.location.port;
     const path = window.location.pathname;
+    const host = window.location.hostname.toLowerCase();
+    const isAdminHost = host.startsWith("admin.") || host.includes("admin.smspay.store") || host.includes("admin.near4you.store") || host.includes("admin.pay2pay.in");
+    const isSuperAdminHost = port === "4003" || host.startsWith("super-admin.") || host.startsWith("superadmin.");
+    const isRetailerHost = host.startsWith("retailer.");
+
     let portTokenKey: string | null = null;
-    if (port === "4001" || path.startsWith("/retailer")) {
+    if (port === "4001" || isRetailerHost || path.startsWith("/retailer")) {
       portTokenKey = "p2p_retailer_token";
-    } else if (port === "4002" || path.startsWith("/admin")) {
+    } else if (port === "4002" || isAdminHost || path.startsWith("/admin")) {
       portTokenKey = "p2p_admin_token";
-    } else if (port === "4003" || path.startsWith("/super-admin")) {
+    } else if (isSuperAdminHost || path.startsWith("/super-admin")) {
       portTokenKey = "p2p_super_admin_token";
     }
 
@@ -176,6 +181,13 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
       "pay2pay_auth_token",
       "p2p_sales_token",
       "pay2pay_sales_token",
+      "p2p_admin_token",
+      "p2p_retailer_token",
+      "p2p_super_admin_token",
+      "p2p_sd_token",
+      "p2p_dist_token",
+      "p2p_token",
+      "pay2pay_token",
       "p2p_user_role",
       "pay2pay_user_role",
       "p2p_session_locked",
@@ -198,6 +210,15 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
       localStorage.removeItem("pay2pay_auth_token");
       localStorage.removeItem("p2p_sales_token");
       localStorage.removeItem("pay2pay_sales_token");
+      localStorage.removeItem("p2p_admin_token");
+      localStorage.removeItem("p2p_retailer_token");
+      localStorage.removeItem("p2p_super_admin_token");
+      localStorage.removeItem("p2p_sd_token");
+      localStorage.removeItem("p2p_dist_token");
+      localStorage.removeItem("p2p_token");
+      localStorage.removeItem("pay2pay_token");
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("token");
       localStorage.removeItem("p2p_session_locked");
       localStorage.removeItem("p2p_session_locked_at");
       localStorage.removeItem("p2p_session_last_active");
@@ -211,11 +232,15 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
     logAuditEvent("SESSION_TERMINATED", { reason });
 
     const currentPath = window.location.pathname;
+    const host = window.location.hostname.toLowerCase();
+    const isAdminHost = host.startsWith("admin.") || host.includes("admin.smspay.store") || host.includes("admin.near4you.store") || host.includes("admin.pay2pay.in");
+    const isSuperAdminHost = window.location.port === "4003" || host.startsWith("super-admin.") || host.startsWith("superadmin.");
+
     let loginPath = "/retailer/login";
-    if (currentPath.startsWith("/admin")) loginPath = "/admin/login";
+    if (isAdminHost || currentPath.startsWith("/admin")) loginPath = "/admin/login";
+    else if (isSuperAdminHost || currentPath.startsWith("/super-admin")) loginPath = "/super-admin/login";
     else if (currentPath.startsWith("/sd")) loginPath = "/sd/login";
     else if (currentPath.startsWith("/dist")) loginPath = "/dist/login";
-    else if (currentPath.startsWith("/super-admin")) loginPath = "/super-admin/login";
 
     window.location.replace(`${loginPath}?reason=${reason}&redirect=${encodeURIComponent(currentPath)}`);
   };
