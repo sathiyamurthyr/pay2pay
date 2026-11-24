@@ -27,6 +27,7 @@ class PaginatedResponse(BaseModel):
 
 # Authentication DTOs
 class LoginRequest(BaseModel):
+    identifier: Optional[str] = Field(default=None)
     email_or_username: Optional[str] = Field(default=None)
     username: Optional[str] = Field(default=None)
     mobile_number: Optional[str] = Field(default=None)
@@ -38,7 +39,8 @@ class LoginRequest(BaseModel):
 
     def get_identifier(self) -> str:
         return (
-            self.email_or_username
+            self.identifier
+            or self.email_or_username
             or self.mobile_number
             or self.username
             or self.phone

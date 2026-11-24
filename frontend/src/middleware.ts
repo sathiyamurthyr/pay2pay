@@ -186,12 +186,15 @@ export function middleware(request: NextRequest) {
       isAuthenticated = Boolean(token && isTokenValid(token));
     } else if (isAdminHost) {
       // Admin portal preference
-      const rawCandidate = request.cookies.get("p2p_admin_token")?.value;
+      const rawCandidate =
+        request.cookies.get("p2p_admin_token")?.value ||
+        request.cookies.get("p2p_super_admin_token")?.value;
       if (rawCandidate && isTokenValid(rawCandidate)) {
         token = rawCandidate;
       }
       if (!token) {
         const candidate =
+          request.cookies.get("p2p_super_admin_token")?.value ||
           request.cookies.get("p2p_token")?.value ||
           request.cookies.get("p2p_access_token")?.value ||
           request.cookies.get("pay2pay_access_token")?.value ||

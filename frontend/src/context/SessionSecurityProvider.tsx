@@ -232,6 +232,20 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
       sessionStorage.clear();
     } catch (e) {}
 
+    if (typeof window !== "undefined") {
+      const p = window.location.pathname.toLowerCase();
+      const s = window.location.search.toLowerCase();
+      if (
+        p.includes("/login") ||
+        p.includes("/register") ||
+        p.includes("/logout") ||
+        s.includes("reason=") ||
+        s.includes("logout")
+      ) {
+        return;
+      }
+    }
+
     soundSystem.playWarningSound();
     logAuditEvent("SESSION_TERMINATED", { reason });
 

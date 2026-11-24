@@ -500,9 +500,14 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       if (authoritativeRole === "SUPER_ADMIN" || currentPort === "4003") {
         document.cookie = `p2p_super_admin_token=${validToken}; path=/; SameSite=Lax${cookieDuration}`;
         document.cookie = `p2p_user_role_4003=SUPER_ADMIN; path=/; SameSite=Lax${cookieDuration}`;
+        // Ensure SUPER_ADMIN has full administrative authority across all /admin routes as well
+        document.cookie = `p2p_admin_token=${validToken}; path=/; SameSite=Lax${cookieDuration}`;
+        document.cookie = `p2p_user_role_4002=ADMIN; path=/; SameSite=Lax${cookieDuration}`;
         try {
           localStorage.setItem("p2p_super_admin_token", validToken);
           localStorage.setItem("p2p_super_admin_user", JSON.stringify(normalizedUser));
+          localStorage.setItem("p2p_admin_token", validToken);
+          localStorage.setItem("p2p_admin_user", JSON.stringify(normalizedUser));
         } catch {}
       }
 
