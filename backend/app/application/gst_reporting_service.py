@@ -91,7 +91,7 @@ def parse_financial_month(
 
     start_year = cur_start_yr
     if fy_str:
-        cleaned = fy_str.upper().replace("FY", "").strip()
+        cleaned = fy_str.upper().replace("FY", "").replace("–", "-").replace("—", "-").strip()
         if "-" in cleaned:
             parts = cleaned.split("-")
             try:
@@ -353,7 +353,7 @@ class GstReportingService:
                 SELECT 
                     pt.payin_transactions_ref_id::text AS id,
                     pt.tid AS txn_id,
-                    COALESCE(pt.request_ref, pt.idempotency_key, pt.response_ref, pt.tid) AS ref_id,
+                    COALESCE(pt.merchant_ref_id, pt.provider_ref_id, pt.idempotency_key, pt.tid) AS ref_id,
                     pt.retailer_ref_id,
                     COALESCE(r.retailer_code, 'SMSP-R' || pt.retailer_ref_id::text) AS retailer_code,
                     COALESCE(r.store_name, r.owner_name, 'Retailer ' || pt.retailer_ref_id::text) AS retailer_name,
@@ -365,7 +365,7 @@ class GstReportingService:
                     COALESCE(pt.txn_amount, 0.0) AS txn_amount,
                     COALESCE(pt.mdr_amount, 0.0) AS taxable_value,
                     18.00 AS gst_rate,
-                    COALESCE(pt.tax_amount, 0.0) AS total_gst,
+                    COALESCE(NULLIF(pt.tax_amount, 0.0), ROUND(pt.mdr_amount * 0.18, 2), 0.0) AS total_gst,
                     COALESCE(pt.total_charges, pt.mdr_amount + pt.tax_amount, 0.0) AS service_charges,
                     UPPER(COALESCE(pt.txn_status, 'PENDING')) AS txn_status,
                     ra.state AS recipient_state
@@ -380,6 +380,7 @@ class GstReportingService:
                 res_payin = await db.execute(q_payin, params)
                 payin_rows = res_payin.mappings().fetchall()
             except Exception as e:
+                await db.rollback()
                 print(f"[GST Error] PayIn query failed: {e}")
                 payin_rows = []
 
@@ -396,7 +397,7 @@ class GstReportingService:
                 payout_where.append("(r.retailer_ref_id = :ret_id OR ept.retailer_id::text = :ret_id::text)")
                 params["ret_id"] = int(retailer_id)
             if status_filter != "ALL":
-                payout_where.append("UPPER(ept.status) = :stat")
+                payout_where.append("UPPER(ept.status::text) = :stat")
                 params["stat"] = status_filter
 
             q_payout = text(f"""
@@ -417,7 +418,7 @@ class GstReportingService:
                     18.00 AS gst_rate,
                     COALESCE(ept.gst_amount, 0.0) AS total_gst,
                     COALESCE(ept.charges + ept.gst_amount, 0.0) AS service_charges,
-                    UPPER(COALESCE(ept.status, 'PENDING')) AS txn_status,
+                    UPPER(COALESCE(ept.status::text, 'PENDING')) AS txn_status,
                     ra.state AS recipient_state
                 FROM public.enterprise_payout_transactions ept
                 LEFT JOIN public.retailer r ON (r.public_id = ept.retailer_id OR r.retailer_ref_id::text = ept.retailer_id::text)
@@ -430,6 +431,7 @@ class GstReportingService:
                 res_payout = await db.execute(q_payout, params)
                 payout_rows = res_payout.mappings().fetchall()
             except Exception as e:
+                await db.rollback()
                 print(f"[GST Error] PayOut query failed: {e}")
                 payout_rows = []
 
@@ -446,7 +448,7 @@ class GstReportingService:
                 dmt_where.append("(r.retailer_ref_id = :ret_id OR dmt.retailer_id::text = :ret_id::text)")
                 params["ret_id"] = int(retailer_id)
             if status_filter != "ALL":
-                dmt_where.append("UPPER(dmt.transaction_status) = :stat")
+                dmt_where.append("UPPER(dmt.transaction_status::text) = :stat")
                 params["stat"] = status_filter
 
             q_dmt = text(f"""
@@ -467,7 +469,7 @@ class GstReportingService:
                     18.00 AS gst_rate,
                     COALESCE(dmt.gst_amount, 0.0) AS total_gst,
                     COALESCE(dmt.service_charge + dmt.gst_amount, 0.0) AS service_charges,
-                    UPPER(COALESCE(dmt.transaction_status, 'PENDING')) AS txn_status,
+                    UPPER(COALESCE(dmt.transaction_status::text, 'PENDING')) AS txn_status,
                     ra.state AS recipient_state
                 FROM public.dmt_transaction dmt
                 LEFT JOIN public.retailer r ON (r.public_id = dmt.retailer_id OR r.retailer_ref_id::text = dmt.retailer_id::text)
@@ -480,6 +482,7 @@ class GstReportingService:
                 res_dmt = await db.execute(q_dmt, params)
                 dmt_rows = res_dmt.mappings().fetchall()
             except Exception as e:
+                await db.rollback()
                 print(f"[GST Error] DMT query failed: {e}")
                 dmt_rows = []
 
@@ -496,7 +499,7 @@ class GstReportingService:
                 aeps_where.append("(r.retailer_ref_id = :ret_id OR aeps.retailer_id::text = :ret_id::text)")
                 params["ret_id"] = int(retailer_id)
             if status_filter != "ALL":
-                aeps_where.append("UPPER(aeps.transaction_status) = :stat")
+                aeps_where.append("UPPER(aeps.transaction_status::text) = :stat")
                 params["stat"] = status_filter
 
             q_aeps = text(f"""
@@ -517,7 +520,7 @@ class GstReportingService:
                     18.00 AS gst_rate,
                     COALESCE(aeps.gst_amount, 0.0) AS total_gst,
                     COALESCE(aeps.service_charge + aeps.gst_amount, 0.0) AS service_charges,
-                    UPPER(COALESCE(aeps.transaction_status, 'PENDING')) AS txn_status,
+                    UPPER(COALESCE(aeps.transaction_status::text, 'PENDING')) AS txn_status,
                     ra.state AS recipient_state
                 FROM public.aeps_transaction aeps
                 LEFT JOIN public.retailer r ON (r.public_id = aeps.retailer_id OR r.retailer_ref_id::text = aeps.retailer_id::text)
@@ -530,6 +533,7 @@ class GstReportingService:
                 res_aeps = await db.execute(q_aeps, params)
                 aeps_rows = res_aeps.mappings().fetchall()
             except Exception as e:
+                await db.rollback()
                 print(f"[GST Error] AEPS query failed: {e}")
                 aeps_rows = []
 
@@ -556,7 +560,7 @@ class GstReportingService:
                 led_where.append("t.retailer_ref_id = :ret_id")
                 params["ret_id"] = int(retailer_id)
             if status_filter != "ALL":
-                led_where.append("UPPER(t.status) = :stat")
+                led_where.append("UPPER(t.status::text) = :stat")
                 params["stat"] = status_filter
 
             q_led = text(f"""
@@ -585,7 +589,7 @@ class GstReportingService:
                     18.00 AS gst_rate,
                     0.00 AS total_gst,
                     0.00 AS service_charges,
-                    UPPER(COALESCE(t.status, 'SUCCESS')) AS txn_status,
+                    UPPER(COALESCE(t.status::text, 'SUCCESS')) AS txn_status,
                     ra.state AS recipient_state
                 FROM public.transactions t
                 LEFT JOIN public.retailer r ON r.retailer_ref_id = t.retailer_ref_id
@@ -598,6 +602,7 @@ class GstReportingService:
                 res_led = await db.execute(q_led, params)
                 ledger_rows = res_led.mappings().fetchall()
             except Exception as e:
+                await db.rollback()
                 print(f"[GST Error] Ledger query failed: {e}")
                 ledger_rows = []
 

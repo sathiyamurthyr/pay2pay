@@ -70,8 +70,8 @@ export const COMPANY_PRESETS: Record<string, CompanyBrandingData> = {
     short_name: "SMSP",
     logo_url: "/branding/smspay-logo.svg",
     favicon_url: "/branding/smspay-favicon-32x32.png",
-    primary_colour: "#059669",
-    secondary_colour: "#047857",
+    primary_colour: "#0F3B7D",
+    secondary_colour: "#D4AF37",
     website: "https://smspay.store",
     domains: ["smspay.store", "login.smspay.store", "admin.smspay.store", "receipt.smspay.store", "smspay.in", "login.smspay.in", "admin.smspay.in", "receipt.smspay.in"],
   },
@@ -280,20 +280,32 @@ export function useCompanyBranding() {
             }
           }
 
-          if (data.company_code === "NEAR4YOU" || (data.company_name && data.company_name.replace(/\s+/g, "").toUpperCase() === "NEAR4YOU")) {
+          if (canonical.company_code === "NEAR4YOU" || data.company_code === "NEAR4YOU" || (data.company_name && data.company_name.replace(/\s+/g, "").toUpperCase() === "NEAR4YOU")) {
             data.display_name = "Near4You";
             data.company_name = "SATHUS TECHNOLOGY PRIVATE LIMITED";
             data.legal_name = "SATHUS TECHNOLOGY PRIVATE LIMITED";
+            data.logo_url = "/branding/logo.svg";
+            data.favicon_url = "/branding/near4you-favicon.png";
+            data.primary_colour = "#A20A3A";
+            data.secondary_colour = "#EDC11E";
           }
-          if (data.company_code === "PAY2PAY" || (data.company_name && data.company_name.replace(/\s+/g, "").toUpperCase() === "PAY2PAY")) {
+          if (canonical.company_code === "PAY2PAY" || data.company_code === "PAY2PAY" || (data.company_name && data.company_name.replace(/\s+/g, "").toUpperCase() === "PAY2PAY")) {
             data.display_name = "Pay2Pay";
             data.company_name = "SUPER REX PRODUCTS PRIVATE LIMITED";
             data.legal_name = "SUPER REX PRODUCTS PRIVATE LIMITED";
+            data.logo_url = "/branding/pay2pay-logo.png";
+            data.favicon_url = "/branding/pay2pay-favicon.png";
+            data.primary_colour = "#2563EB";
+            data.secondary_colour = "#1E40AF";
           }
-          if (data.company_code === "SMSPAY" || (data.company_name && data.company_name.replace(/\s+/g, "").toUpperCase() === "SMSPAY")) {
+          if (canonical.company_code === "SMSPAY" || data.company_code === "SMSPAY" || (data.company_name && data.company_name.replace(/\s+/g, "").toUpperCase() === "SMSPAY")) {
             data.display_name = "SMSPAY";
             data.company_name = "INSPEL TECHNOLOGIES SOLUTIONS PVT";
             data.legal_name = "INSPEL TECHNOLOGIES SOLUTIONS PVT";
+            data.logo_url = "/branding/smspay-logo.svg";
+            data.favicon_url = "/branding/smspay-favicon-32x32.png";
+            data.primary_colour = "#0F3B7D";
+            data.secondary_colour = "#D4AF37";
           }
 
           setBranding(data);

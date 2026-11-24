@@ -62,15 +62,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Check for valid session cookie or localStorage token
       const port = typeof window !== "undefined" ? window.location.port : "";
       const path = typeof window !== "undefined" ? window.location.pathname : "";
+      const host = typeof window !== "undefined" ? window.location.hostname.toLowerCase() : "";
+      const isAdminHost = host.startsWith("admin.") || host.includes("admin.smspay.store") || host.includes("admin.near4you.store") || host.includes("admin.pay2pay.in");
+      const isSuperAdminHost = port === "4003" || host.startsWith("super-admin.") || host.startsWith("superadmin.");
+      const isRetailerHost = host.startsWith("retailer.");
+
       let portTokenKey: string | null = null;
       let portRole: UserRole | null = null;
-      if (port === "4001" || path.startsWith("/retailer")) {
+      if (port === "4001" || isRetailerHost || path.startsWith("/retailer")) {
         portTokenKey = "p2p_retailer_token";
         portRole = "RETAILER";
-      } else if (port === "4002" || path.startsWith("/admin")) {
+      } else if (port === "4002" || isAdminHost || path.startsWith("/admin")) {
         portTokenKey = "p2p_admin_token";
         portRole = "PLATFORM_ADMIN";
-      } else if (port === "4003" || path.startsWith("/super-admin")) {
+      } else if (isSuperAdminHost || path.startsWith("/super-admin")) {
         portTokenKey = "p2p_super_admin_token";
         portRole = "SUPER_ADMIN";
       }
@@ -224,8 +229,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const compRef = temp.company_ref_id;
             const compCode = (temp.company_code || "").toUpperCase();
             const isMismatch =
-              (isSmspay && (compRef === 47 || compCode === "PAY2PAY" || (temp.retailer_code && String(temp.retailer_code).startsWith("P2P-")))) ||
-              (isPay2pay && (compRef === 2 || compCode === "SMSPAY" || (temp.retailer_code && String(temp.retailer_code).startsWith("SMSP-"))));
+              (isSmspay && (compRef === 47 || compRef === 1 || compCode === "PAY2PAY" || compCode === "NEAR4YOU" || (temp.retailer_code && (String(temp.retailer_code).startsWith("P2P-") || String(temp.retailer_code).startsWith("N4U-"))))) ||
+              (isNear4you && (compRef === 47 || compRef === 2 || compCode === "PAY2PAY" || compCode === "SMSPAY" || (temp.retailer_code && (String(temp.retailer_code).startsWith("P2P-") || String(temp.retailer_code).startsWith("SMSP-"))))) ||
+              (isPay2pay && (compRef === 2 || compRef === 1 || compCode === "SMSPAY" || compCode === "NEAR4YOU" || (temp.retailer_code && (String(temp.retailer_code).startsWith("SMSP-") || String(temp.retailer_code).startsWith("N4U-")))));
 
             if (!isMismatch) {
               parsed = temp;

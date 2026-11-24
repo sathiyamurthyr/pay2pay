@@ -36,6 +36,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     if (!user) {
       // Check if session token exists in cookie or localStorage before kicking user out
+      let hasToken = false;
       if (typeof document !== "undefined") {
         const cookies = document.cookie || "";
         const hasCookie =
@@ -44,6 +45,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           cookies.includes("pay2pay_auth_token=") ||
           cookies.includes("p2p_sales_token=") ||
           cookies.includes("pay2pay_sales_token=") ||
+          cookies.includes("p2p_admin_token=") ||
+          cookies.includes("p2p_retailer_token=") ||
+          cookies.includes("p2p_super_admin_token=") ||
           cookies.includes("access_token=") ||
           cookies.includes("token=");
         const hasLs =
@@ -51,10 +55,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           localStorage.getItem("pay2pay_access_token") ||
           localStorage.getItem("pay2pay_auth_token") ||
           localStorage.getItem("p2p_sales_token") ||
+          localStorage.getItem("p2p_admin_token") ||
+          localStorage.getItem("p2p_retailer_token") ||
+          localStorage.getItem("p2p_super_admin_token") ||
           localStorage.getItem("access_token") ||
           localStorage.getItem("token"));
         if (hasCookie || hasLs) {
           // Session is recovering or hydrating, do NOT redirect to login
+          hasToken = true;
           return;
         }
       }
@@ -127,6 +135,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     isAdminDomain ||
     pathname?.startsWith("/super-admin") ||
     pathname?.startsWith("/admin") ||
+    pathname?.startsWith("/approvals") ||
+    pathname?.startsWith("/companies") ||
+    pathname?.startsWith("/organization") ||
+    pathname?.startsWith("/retailers") ||
+    pathname?.startsWith("/settlements") ||
+    pathname?.startsWith("/configuration") ||
+    pathname?.startsWith("/financial-config") ||
+    pathname?.startsWith("/bpm") ||
+    pathname?.startsWith("/roles") ||
+    pathname?.startsWith("/settings") ||
+    pathname?.startsWith("/payouts") ||
     pathname?.startsWith("/wallet-ledger") ||
     pathname?.startsWith("/announcements") ||
     pathname?.startsWith("/operations") ||
@@ -137,7 +156,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     pathname?.startsWith("/policies") ||
     pathname?.startsWith("/developer") ||
     pathname?.startsWith("/reporting") ||
-    pathname === "/dashboard"
+    pathname === "/dashboard" ||
+    pathname === "/admin-dashboard"
   );
 
   const isSuperAdminOrAdminUser = Boolean(
@@ -145,6 +165,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     user?.roles?.includes("PLATFORM_ADMIN") ||
     user?.roles?.includes("ADMIN")
   );
+
+  // If unauthenticated and still redirecting, display clean loading skeleton to avoid firing protected child component queries
+  if (!user && !authLoading && mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (isAdminOrSuperAdminRoute || (isSuperAdminOrAdminUser && !pathname?.startsWith("/retailer"))) {
     return (
