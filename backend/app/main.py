@@ -574,7 +574,7 @@ async def health_check():
 @app.get("/api/v1/security/public-key", tags=["Security Handshake"])
 @app.get("/api/v1/public-key", tags=["Security Handshake"])
 @app.get("/security/public-key", tags=["Security Handshake"])
-def get_security_public_key_endpoint():
-    """Returns the RSA public key and application parameters for over-the-wire payload encryption."""
-    return get_server_public_key()
+def get_security_public_key_endpoint(request: Request):
+    """Returns the RSA public key and application parameters for over-the-wire payload encryption with domain-aware app_id."""
+    return get_server_public_key(request)
 

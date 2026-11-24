@@ -15,9 +15,9 @@ class SessionAuditLogModel(BaseEntity, EnterpriseBaseMixin):
 
     retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     event_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)  # SESSION_LOCKED | TIMEOUT_WARNING | UNLOCK_SUCCESS | UNLOCK_FAILED | LOGOUT | SWITCH_USER
-    device_info: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    browser: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    os_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    device_info: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    browser: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    os_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
     details: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     logged_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)

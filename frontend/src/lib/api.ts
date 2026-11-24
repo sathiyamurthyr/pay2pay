@@ -164,17 +164,27 @@ apiClient.interceptors.response.use(
       }
 
       // Non-critical auxiliary endpoints that should NEVER log out the user or trigger redirect loops
-      const skipRedirect = Boolean(error.config?.headers?.["x-skip-auth-redirect"]);
+      const skipRedirect = Boolean(
+        error.config?.headers?.["x-skip-auth-redirect"] ||
+        (typeof error.config?.headers?.get === "function" && error.config.headers.get("x-skip-auth-redirect"))
+      );
       const isAuxiliaryEndpoint =
         skipRedirect ||
         url.includes("/favorites") ||
         url.includes("/admin/favorites") ||
+        url.includes("/admin/verification") ||
+        url.includes("/verification") ||
         url.includes("/branding") ||
         url.includes("/notifications") ||
         url.includes("/public-key") ||
         url.includes("/soundbox");
 
       if (isAuxiliaryEndpoint) {
+        return Promise.reject(error);
+      }
+
+      // If not an explicit token expiry, do NOT wipe session or redirect to prevent loops on role-guarded endpoints
+      if (!isExplicitTokenExpiry) {
         return Promise.reject(error);
       }
 

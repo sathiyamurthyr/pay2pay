@@ -248,8 +248,8 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
   // Initialize & Check Lock Persistence on Mount (Prevents Bypass via Refresh / URL Navigate)
   useEffect(() => {
     if (typeof window !== "undefined") {
-      // On public login/auth pages or if user has no token, NEVER lock
-      if (isPublicAuthRoute() || !hasAuthToken()) {
+      // On public login/auth pages, NEVER lock and clear lock flags
+      if (isPublicAuthRoute()) {
         try {
           localStorage.removeItem("p2p_session_locked");
           localStorage.removeItem("p2p_session_locked_at");
@@ -259,9 +259,15 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
         return;
       }
 
-      // Check if JWT token is expired on mount
       const currentToken = getAuthToken();
-      if (currentToken && isJwtExpired(currentToken)) {
+      if (!currentToken) {
+        setSessionState("ACTIVE");
+        setLockedAt(null);
+        return;
+      }
+
+      // Check if JWT token is expired on mount
+      if (isJwtExpired(currentToken)) {
         terminateSessionAndRedirect("session_expired");
         return;
       }

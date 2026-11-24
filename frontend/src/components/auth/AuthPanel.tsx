@@ -318,8 +318,13 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
   const refreshCaptcha = () => fetchCaptcha();
 
   useEffect(() => {
-    // If arriving from logout, flush any client storage & cookies
-    if (typeof window !== "undefined" && window.location.search.includes("logout")) {
+    // If arriving from logout or session expiration, flush any client storage & cookies
+    if (
+      typeof window !== "undefined" &&
+      (window.location.search.includes("logout") ||
+       window.location.search.includes("session_expired") ||
+       window.location.search.includes("reason="))
+    ) {
       try {
         localStorage.clear();
         sessionStorage.clear();
