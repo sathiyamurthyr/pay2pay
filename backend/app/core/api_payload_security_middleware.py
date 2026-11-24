@@ -115,11 +115,12 @@ def resolve_app_id_from_request(request: Optional[Request] = None, explicit_app_
         if hdr_app and str(hdr_app).strip().upper() in ("NEAR4YOU", "SMSPAY", "PAY2PAY"):
             return str(hdr_app).strip().upper()
 
+        forwarded = (request.headers.get("x-forwarded-host") or "").lower()
         host = (request.headers.get("host") or "").lower()
         origin = (request.headers.get("origin") or "").lower()
         referer = (request.headers.get("referer") or "").lower()
 
-        combined = f"{host} {origin} {referer}"
+        combined = f"{forwarded} {host} {origin} {referer}"
         if "near4you" in combined:
             return "NEAR4YOU"
         if "smspay" in combined:
@@ -272,7 +273,7 @@ class ApiPayloadSecurityMiddleware(BaseHTTPMiddleware):
         encrypted_key_hdr = request.headers.get("x-sathus-encrypted-key")
         nonce_hdr = request.headers.get("x-sathus-nonce")
         timestamp_hdr = request.headers.get("x-sathus-timestamp")
-        app_id_hdr = request.headers.get("x-sathus-app-id", self.app_id)
+        app_id_hdr = request.headers.get("x-sathus-app-id")
         encrypt_response_hdr = request.headers.get("x-sathus-encrypt-response")
 
         body_envelope = None

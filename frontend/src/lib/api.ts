@@ -87,6 +87,8 @@ apiClient.interceptors.request.use(
             ]
           : [
               "p2p_retailer_token",
+              "p2p_admin_token",
+              "p2p_super_admin_token",
               "p2p_token",
               "pay2pay_token",
               "p2p_access_token",
@@ -170,171 +172,13 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Interceptor for 401 Unauthorized handling
+// Interceptor for response handling: gracefully reject errors without wiping cookies or triggering reload loops
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
-      const url = String(error.config?.url || "");
-      const errorData = error.response?.data;
-      const errorDetail = String(
-        typeof errorData === "string"
-          ? errorData
-          : errorData?.detail || errorData?.message || ""
-      ).toLowerCase();
-
-      // Check if this error is explicitly a token/session expiry or missing auth
-      const isExplicitTokenExpiry =
-        errorDetail.includes("token has expired") ||
-        errorDetail.includes("token expired") ||
-        errorDetail.includes("jwt expired") ||
-        errorDetail.includes("invalid token") ||
-        errorDetail.includes("not authenticated") ||
-        errorDetail.includes("could not validate credentials") ||
-        errorDetail.includes("session expired") ||
-        errorDetail.includes("token_expired");
-
-      // Check if this is a transactional wrong-PIN/MPIN attempt inside a modal dialog
-      const isTransactionalPinError =
-        !isExplicitTokenExpiry &&
-        (url.includes("/mpin/verify") || url.includes("/verify-pin") || url.includes("/unlock")) &&
-        (errorDetail.includes("pin") || errorDetail.includes("mpin") || errorDetail.includes("wrong") || errorDetail.includes("incorrect"));
-
-      if (isTransactionalPinError) {
-        // User entered a wrong transaction MPIN: do NOT wipe session
-        return Promise.reject(error);
-      }
-
-      // Non-critical auxiliary endpoints that should NEVER log out the user or trigger redirect loops
-      const skipRedirect = Boolean(
-        error.config?.headers?.["x-skip-auth-redirect"] ||
-        (typeof error.config?.headers?.get === "function" && error.config.headers.get("x-skip-auth-redirect"))
-      );
-      const isAuxiliaryEndpoint =
-        skipRedirect ||
-        url.includes("/favorites") ||
-        url.includes("/admin/favorites") ||
-        url.includes("/admin/verification") ||
-        url.includes("/verification") ||
-        url.includes("/requests") ||
-        url.includes("/menus") ||
-        url.includes("/branding") ||
-        url.includes("/notifications") ||
-        url.includes("/public-key") ||
-        url.includes("/soundbox") ||
-        url.includes("/session") ||
-        url.includes("/security") ||
-        url.includes("/announcements");
-
-      if (isAuxiliaryEndpoint) {
-        return Promise.reject(error);
-      }
-
-      // If not an explicit token expiry, do NOT wipe session or redirect to prevent loops on role-guarded endpoints
-      if (!isExplicitTokenExpiry) {
-        return Promise.reject(error);
-      }
-
-      // If already on a login/auth page or query already has reason=, NEVER wipe or redirect
-      if (typeof window !== "undefined") {
-        const p = window.location.pathname.toLowerCase();
-        const s = window.location.search.toLowerCase();
-        if (
-          p.includes("/login") ||
-          p.includes("/register") ||
-          p.includes("/logout") ||
-          s.includes("reason=") ||
-          s.includes("logout")
-        ) {
-          return Promise.reject(error);
-        }
-
-        // Module-level debounce: NEVER redirect twice within 15 seconds
-        const now = Date.now();
-        if (now - globalLast401RedirectTime < 15000) {
-          return Promise.reject(error);
-        }
-        globalLast401RedirectTime = now;
-      }
-
-      // For genuine session/token expiry 401s, clear cookies and session storage
-      if (typeof document !== "undefined") {
-        const cookieNames = [
-          "p2p_access_token",
-          "pay2pay_access_token",
-          "pay2pay_auth_token",
-          "p2p_sales_token",
-          "pay2pay_sales_token",
-          "p2p_admin_token",
-          "p2p_retailer_token",
-          "p2p_super_admin_token",
-          "p2p_sd_token",
-          "p2p_dist_token",
-          "p2p_token",
-          "pay2pay_token",
-          "p2p_user_role",
-          "pay2pay_user_role",
-          "p2p_session_locked",
-          "p2p_session_id",
-          "p2p_destination",
-          "token",
-          "access_token",
-        ];
-        cookieNames.forEach((name) => {
-          document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
-          try {
-            document.cookie = `${name}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
-          } catch {}
-        });
-      }
-
-      if (typeof localStorage !== "undefined") {
-        try {
-          const lsKeys = [
-            "p2p_access_token",
-            "pay2pay_access_token",
-            "pay2pay_auth_token",
-            "p2p_sales_token",
-            "pay2pay_sales_token",
-            "p2p_admin_token",
-            "p2p_retailer_token",
-            "p2p_super_admin_token",
-            "p2p_sd_token",
-            "p2p_dist_token",
-            "token",
-            "access_token",
-            "user_info",
-            "pay2pay_user_data",
-            "p2p_session_locked",
-            "p2p_session_locked_at",
-            "p2p_session_last_active",
-            "p2p_session_start_time"
-          ];
-          lsKeys.forEach((k) => localStorage.removeItem(k));
-        } catch {}
-      }
-
-      if (typeof sessionStorage !== "undefined") {
-        try {
-          sessionStorage.clear();
-        } catch {}
-      }
-
-      if (typeof window !== "undefined") {
-        const currentPath = window.location.pathname;
-        const host = window.location.hostname.toLowerCase();
-        const isAdminHost = host.startsWith("admin.") || host.includes("admin.smspay.store") || host.includes("admin.near4you.store") || host.includes("admin.pay2pay.in");
-        const isSuperAdminHost = window.location.port === "4003" || host.startsWith("super-admin.") || host.startsWith("superadmin.");
-
-        let loginPath = "/retailer/login";
-        if (isAdminHost || currentPath.startsWith("/admin")) loginPath = "/admin/login";
-        else if (isSuperAdminHost || currentPath.startsWith("/super-admin")) loginPath = "/super-admin/login";
-        else if (currentPath.startsWith("/sd")) loginPath = "/sd/login";
-        else if (currentPath.startsWith("/dist")) loginPath = "/dist/login";
-
-        window.location.replace(`${loginPath}?reason=session_expired&redirect=${encodeURIComponent(currentPath)}`);
-      }
-    }
+    // Critical: NEVER wipe cookies or localStorage and NEVER trigger window.location.replace here.
+    // In Next.js SPA architecture, route protection is enforced at the navigation boundary by middleware.ts.
+    // Client-side API calls must cleanly reject so that UI components show appropriate feedback without infinite auto-reload loops.
     return Promise.reject(error);
   }
 );

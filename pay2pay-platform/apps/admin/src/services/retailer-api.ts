@@ -90,34 +90,7 @@ apiClient.interceptors.response.use(
         return Promise.reject(error);
       }
 
-      if (typeof window !== "undefined") {
-        const isAuthPage =
-          window.location.pathname.includes("/login") ||
-          window.location.pathname.includes("/register");
-
-        if (!isAuthPage) {
-          const cookieNames = [
-            "p2p_access_token",
-            "pay2pay_access_token",
-            "pay2pay_auth_token",
-            "p2p_user_role",
-            "pay2pay_user_role",
-            "p2p_session_locked",
-            "p2p_session_id",
-            "token",
-            "access_token",
-          ];
-          cookieNames.forEach((name) => {
-            document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
-            try {
-              document.cookie = `${name}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
-            } catch {}
-          });
-
-          const currentPath = window.location.pathname;
-          window.location.replace(`/retailer/login?reason=session_expired&redirect=${encodeURIComponent(currentPath)}`);
-        }
-      }
+      return Promise.reject(error);
     }
     return Promise.reject(error);
   }

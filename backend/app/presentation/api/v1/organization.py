@@ -13,6 +13,7 @@ from app.application.dtos import (
 )
 from app.application.services import OrganizationManagementService
 from app.application.dependencies import get_current_user, get_current_tenant_id, require_permission
+from app.core.domain_resolver import get_domain_context, DomainCompanyContext
 from app.infrastructure.db.models import AdminUserModel
 
 router = APIRouter(prefix="/organization", tags=["Organization & Hierarchy Management (EPIC-003)"])
@@ -141,13 +142,23 @@ async def list_super_distributors(
     page_size: int = Query(20, ge=1, le=100),
     tenant_id: Optional[uuid.UUID] = Query(None),
     default_tenant_id: uuid.UUID = Depends(get_current_tenant_id),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    is_admin = check_is_platform_admin(current_user)
-    target_tenant_id = tenant_id if tenant_id else (None if is_admin else default_tenant_id)
+    is_super = (getattr(current_user, "user_type", "") or "").upper() == "SUPER_ADMIN"
+    if is_super and tenant_id:
+        target_tenant_id = tenant_id
+    elif domain_ctx.tenant_id:
+        try:
+            target_tenant_id = uuid.UUID(domain_ctx.tenant_id)
+        except Exception:
+            target_tenant_id = default_tenant_id
+    else:
+        target_tenant_id = default_tenant_id
+
     sds, total = await OrganizationManagementService.list_super_distributors(
-        db, target_tenant_id, search=search, status=status, page=page, page_size=page_size, is_platform_admin=is_admin
+        db, target_tenant_id, search=search, status=status, page=page, page_size=page_size, is_platform_admin=False
     )
     items = [
         {
@@ -250,13 +261,23 @@ async def list_distributors(
     page_size: int = Query(20, ge=1, le=100),
     tenant_id: Optional[uuid.UUID] = Query(None),
     default_tenant_id: uuid.UUID = Depends(get_current_tenant_id),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    is_admin = check_is_platform_admin(current_user)
-    target_tenant_id = tenant_id if tenant_id else (None if is_admin else default_tenant_id)
+    is_super = (getattr(current_user, "user_type", "") or "").upper() == "SUPER_ADMIN"
+    if is_super and tenant_id:
+        target_tenant_id = tenant_id
+    elif domain_ctx.tenant_id:
+        try:
+            target_tenant_id = uuid.UUID(domain_ctx.tenant_id)
+        except Exception:
+            target_tenant_id = default_tenant_id
+    else:
+        target_tenant_id = default_tenant_id
+
     dists, total = await OrganizationManagementService.list_distributors(
-        db, target_tenant_id, search=search, status=status, page=page, page_size=page_size, is_platform_admin=is_admin
+        db, target_tenant_id, search=search, status=status, page=page, page_size=page_size, is_platform_admin=False
     )
     items = [
         {

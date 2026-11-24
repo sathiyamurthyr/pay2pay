@@ -14,6 +14,7 @@ from sqlalchemy import select, and_, or_, update, delete
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
+from app.core.domain_resolver import get_domain_context, DomainCompanyContext
 from app.infrastructure.db.models import AnnouncementModel, AnnouncementImageModel
 from app.application.storage_service import BackblazeStorageService, B2_BUCKET_NAME
 
@@ -111,14 +112,28 @@ class ImageReorderPayload(BaseModel):
 @router.get("/active", summary="Fetch active announcements for dashboard popup")
 async def get_active_announcements(
     audience: Optional[str] = "RETAILER",
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Fetches currently active, valid announcements within start_at and end_at bounds
-    filtered for the target audience (e.g. RETAILER, ALL_RETAILERS, ALL).
+    filtered for the target audience and strictly isolated to the domain company context.
     """
     now = datetime.now(timezone.utc)
     audience_variants = ["ALL", "ALL_RETAILERS", audience.upper() if audience else "RETAILER"]
+
+    # Scope to active domain company
+    domain_comp_uuid = uuid.UUID(f"00000000-0000-0000-0000-{domain_ctx.cmp_ref_id:012d}")
+    company_cond = or_(
+        AnnouncementModel.company_id == domain_comp_uuid,
+        AnnouncementModel.company_id == None
+    )
+    if domain_ctx.tenant_id:
+        try:
+            t_uuid = uuid.UUID(domain_ctx.tenant_id)
+            company_cond = or_(company_cond, AnnouncementModel.tenant_id == t_uuid)
+        except Exception:
+            pass
 
     stmt = (
         select(AnnouncementModel)
@@ -130,7 +145,8 @@ async def get_active_announcements(
                 AnnouncementModel.is_deleted == False,
                 or_(AnnouncementModel.start_at == None, AnnouncementModel.start_at <= now),
                 or_(AnnouncementModel.end_at == None, AnnouncementModel.end_at >= now),
-                AnnouncementModel.audience.in_(audience_variants)
+                AnnouncementModel.audience.in_(audience_variants),
+                company_cond
             )
         )
         .order_by(AnnouncementModel.priority.desc(), AnnouncementModel.created_date.desc())

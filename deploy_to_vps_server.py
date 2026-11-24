@@ -19,16 +19,16 @@ SSH_PORT = "55002"
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-def ensure_frontend_built(force_build: bool = False):
+def ensure_frontend_built(force_build: bool = True):
     """Ensures Next.js standalone build exists; builds automatically if absent or requested."""
     if force_build or not STANDALONE_DIR.exists():
         print(f"\n⚙️ Running clean Next.js build in {FRONTEND_DIR}...")
-        if force_build and STANDALONE_DIR.exists():
+        if STANDALONE_DIR.exists():
             shutil.rmtree(STANDALONE_DIR, ignore_errors=True)
         subprocess.run(["npm", "run", "build"], cwd=str(FRONTEND_DIR), shell=True, check=True)
         print("✅ Next.js build completed successfully.")
 
-def prepare_and_package_frontend(force_build: bool = False):
+def prepare_and_package_frontend(force_build: bool = True):
     print("\n📦 1. Preparing standalone assets...")
     ensure_frontend_built(force_build=force_build)
 
@@ -151,11 +151,12 @@ sudo mkdir -p "$DEPLOY_DIR/frontend" "$DEPLOY_DIR/backend"
 
 if [ -f /tmp/near4you_frontend_update.tar.gz ]; then
     echo '=== 1. Extracting Updated Frontend ==='
+    sudo rm -rf "$DEPLOY_DIR/frontend/.next" "$DEPLOY_DIR/frontend/apps/retailer/.next"
     sudo tar --no-same-owner --no-same-permissions -xzf /tmp/near4you_frontend_update.tar.gz -C "$DEPLOY_DIR/frontend/"
     sudo rm -f /tmp/near4you_frontend_update.tar.gz
     echo '=== 2. Rebuilding Frontend Container ==='
     cd "$DEPLOY_DIR"
-    sudo docker compose build frontend
+    sudo docker compose build --no-cache frontend
     sudo docker compose up -d --force-recreate frontend
 fi
 

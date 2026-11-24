@@ -38,17 +38,45 @@ async def get_current_token_payload(
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1].strip()
         else:
-            token = (
-                request.cookies.get("p2p_retailer_token")
-                or request.cookies.get("p2p_admin_token")
-                or request.cookies.get("p2p_super_admin_token")
-                or request.cookies.get("p2p_access_token")
-                or request.cookies.get("pay2pay_access_token")
-                or request.cookies.get("pay2pay_auth_token")
-                or request.cookies.get("access_token")
-                or request.cookies.get("token")
-                or request.cookies.get("p2p_token")
-            )
+            req_path = request.url.path.lower()
+            req_host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").lower()
+            is_admin_req = req_path.startswith("/admin") or req_path.startswith("/api/v1/admin") or "admin." in req_host
+            is_super_admin_req = req_path.startswith("/super-admin") or req_path.startswith("/api/v1/super-admin") or "super-admin." in req_host or "superadmin." in req_host
+
+            if is_super_admin_req:
+                token = (
+                    request.cookies.get("p2p_super_admin_token")
+                    or request.cookies.get("p2p_admin_token")
+                    or request.cookies.get("p2p_access_token")
+                    or request.cookies.get("pay2pay_access_token")
+                    or request.cookies.get("access_token")
+                    or request.cookies.get("token")
+                    or request.cookies.get("p2p_token")
+                )
+            elif is_admin_req:
+                token = (
+                    request.cookies.get("p2p_admin_token")
+                    or request.cookies.get("p2p_super_admin_token")
+                    or request.cookies.get("p2p_access_token")
+                    or request.cookies.get("pay2pay_access_token")
+                    or request.cookies.get("access_token")
+                    or request.cookies.get("token")
+                    or request.cookies.get("p2p_token")
+                )
+            else:
+                token = (
+                    request.cookies.get("p2p_admin_token")
+                    or request.cookies.get("p2p_super_admin_token")
+                    or request.cookies.get("p2p_retailer_token")
+                    or request.cookies.get("p2p_dist_token")
+                    or request.cookies.get("p2p_sd_token")
+                    or request.cookies.get("p2p_access_token")
+                    or request.cookies.get("pay2pay_access_token")
+                    or request.cookies.get("pay2pay_auth_token")
+                    or request.cookies.get("access_token")
+                    or request.cookies.get("token")
+                    or request.cookies.get("p2p_token")
+                )
 
     if not token:
         raise UnauthorizedException("Authentication credentials were not provided")

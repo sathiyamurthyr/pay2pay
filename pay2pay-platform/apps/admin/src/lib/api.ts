@@ -125,9 +125,9 @@ apiClient.interceptors.response.use(
         });
       }
 
-      if (typeof window !== "undefined") {
-        window.location.replace(`/admin/login?reason=session_expired&redirect=${encodeURIComponent(window.location.pathname)}`);
-      }
+      // Critical: In SPA architecture, NEVER trigger window.location.replace on background 401s.
+      // Auto-redirecting causes fatal reload loops on background/auxiliary API calls.
+      return Promise.reject(error);
     }
     return Promise.reject(error);
   }

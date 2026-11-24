@@ -92,57 +92,7 @@ apiClient.interceptors.response.use(
         return Promise.reject(error);
       }
 
-      // For all other genuine session/token expiry 401s, clear cookies and session storage
-      if (typeof window !== "undefined") {
-        const isAuthPage =
-          window.location.pathname.includes("/login") ||
-          window.location.pathname.includes("/register");
-
-        if (!isAuthPage) {
-          const cookieNames = [
-            "p2p_access_token",
-            "pay2pay_access_token",
-            "pay2pay_auth_token",
-            "p2p_sales_token",
-            "pay2pay_sales_token",
-            "p2p_user_role",
-            "pay2pay_user_role",
-            "p2p_session_locked",
-            "p2p_session_id",
-            "p2p_destination",
-            "token",
-            "access_token",
-          ];
-          cookieNames.forEach((name) => {
-            document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
-            try {
-              document.cookie = `${name}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
-            } catch {}
-          });
-
-          try {
-            localStorage.removeItem("p2p_access_token");
-            localStorage.removeItem("pay2pay_access_token");
-            localStorage.removeItem("pay2pay_auth_token");
-            localStorage.removeItem("p2p_sales_token");
-            localStorage.removeItem("pay2pay_sales_token");
-            localStorage.removeItem("p2p_session_locked");
-            localStorage.removeItem("p2p_session_locked_at");
-            localStorage.removeItem("p2p_session_last_active");
-            localStorage.removeItem("p2p_session_start_time");
-            sessionStorage.clear();
-          } catch {}
-
-          const currentPath = window.location.pathname;
-          let loginPath = "/retailer/login";
-          if (currentPath.startsWith("/admin")) loginPath = "/admin/login";
-          else if (currentPath.startsWith("/sd")) loginPath = "/sd/login";
-          else if (currentPath.startsWith("/dist")) loginPath = "/dist/login";
-          else if (currentPath.startsWith("/super-admin")) loginPath = "/super-admin/login";
-
-          window.location.replace(`${loginPath}?reason=session_expired&redirect=${encodeURIComponent(currentPath)}`);
-        }
-      }
+      return Promise.reject(error);
     }
     return Promise.reject(error);
   }

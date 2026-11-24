@@ -38,6 +38,8 @@ export const MAX_INACTIVITY_LOGOUT_MS = 15 * 60 * 1000;     // 15 Minutes Inacti
 export const AUTO_LOCK_IDLE_MS = 5 * 60 * 1000;             // 5 Minutes Idle Screen Lock
 export const WARNING_LEAD_MS = 60 * 1000;                   // 60 Seconds Inactivity Warning Window
 
+let globalLastSecurityRedirect = 0;
+
 const DEFAULT_SETTINGS: SecuritySettings = {
   auto_lock_enabled: true,
   idle_timeout_minutes: 5,
@@ -244,6 +246,11 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
       ) {
         return;
       }
+      const now = Date.now();
+      if (now - globalLastSecurityRedirect < 15000) {
+        return;
+      }
+      globalLastSecurityRedirect = now;
     }
 
     soundSystem.playWarningSound();

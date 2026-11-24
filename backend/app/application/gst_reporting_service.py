@@ -243,13 +243,25 @@ class GstReportingService:
         companies = []
         retailers = []
 
-        # If admin, fetch active companies and retailers
+        # If admin, fetch active companies and retailers strictly scoped to the domain company
         if auth_ctx.get("is_admin"):
-            c_res = await db.execute(text("""
-                SELECT company_ref_id, company_code, company_name, COALESCE(legal_name, company_name)
-                FROM public.company
-                ORDER BY company_ref_id ASC;
-            """))
+            domain_cmp = auth_ctx.get("domain_cmp_ref_id") or auth_ctx.get("company_ref_id")
+            is_super = auth_ctx.get("is_super_admin") is True
+
+            if is_super and not domain_cmp:
+                c_res = await db.execute(text("""
+                    SELECT company_ref_id, company_code, company_name, COALESCE(legal_name, company_name)
+                    FROM public.company
+                    ORDER BY company_ref_id ASC;
+                """))
+            else:
+                c_res = await db.execute(text("""
+                    SELECT company_ref_id, company_code, company_name, COALESCE(legal_name, company_name)
+                    FROM public.company
+                    WHERE company_ref_id = :comp_id
+                    ORDER BY company_ref_id ASC;
+                """), {"comp_id": domain_cmp})
+
             for r in c_res.fetchall():
                 companies.append({
                     "id": r[0],
@@ -257,13 +269,23 @@ class GstReportingService:
                     "name": r[3] or r[2]
                 })
 
-            r_res = await db.execute(text("""
-                SELECT r.retailer_ref_id, r.retailer_code, COALESCE(r.store_name, r.owner_name, r.retailer_code), r.company_ref_id
-                FROM public.retailer r
-                WHERE r.is_active = TRUE
-                ORDER BY r.retailer_ref_id ASC
-                LIMIT 200;
-            """))
+            if is_super and not domain_cmp:
+                r_res = await db.execute(text("""
+                    SELECT r.retailer_ref_id, r.retailer_code, COALESCE(r.store_name, r.owner_name, r.retailer_code), r.company_ref_id
+                    FROM public.retailer r
+                    WHERE r.is_active = TRUE
+                    ORDER BY r.retailer_ref_id ASC
+                    LIMIT 200;
+                """))
+            else:
+                r_res = await db.execute(text("""
+                    SELECT r.retailer_ref_id, r.retailer_code, COALESCE(r.store_name, r.owner_name, r.retailer_code), r.company_ref_id
+                    FROM public.retailer r
+                    WHERE r.is_active = TRUE AND r.company_ref_id = :comp_id
+                    ORDER BY r.retailer_ref_id ASC
+                    LIMIT 200;
+                """), {"comp_id": domain_cmp})
+
             for r in r_res.fetchall():
                 retailers.append({
                     "id": r[0],

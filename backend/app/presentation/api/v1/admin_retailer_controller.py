@@ -14,6 +14,7 @@ from app.infrastructure.db.session_security_models import (
     SessionAuditLogModel, RetailerSecuritySettingsModel, UserSecuritySettingsModel
 )
 from app.application.dependencies import get_current_user, get_current_tenant_id
+from app.core.domain_resolver import get_domain_context, DomainCompanyContext
 
 
 async def require_admin_user(
@@ -99,8 +100,11 @@ async def list_retailers_for_controller(
     status: Optional[str] = Query(None, description="ACTIVE, PENDING, REJECTED, SUSPENDED"),
     state: Optional[str] = Query(None, description="Filter by state"),
     search: Optional[str] = Query(None, description="Search by name, mobile, code, pan"),
+    super_distributor_ref_id: Optional[int] = Query(None, description="Filter by super distributor"),
+    distributor_ref_id: Optional[int] = Query(None, description="Filter by distributor"),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     offset = (page - 1) * limit
@@ -115,6 +119,13 @@ async def list_retailers_for_controller(
     )
     
     conditions = [RetailerModel.is_deleted == False]
+    # Enforce active domain company isolation
+    conditions.append(RetailerModel.company_ref_id == domain_ctx.cmp_ref_id)
+
+    if super_distributor_ref_id:
+        conditions.append(RetailerModel.super_distributor_ref_id == super_distributor_ref_id)
+    if distributor_ref_id:
+        conditions.append(RetailerModel.distributor_ref_id == distributor_ref_id)
     if status:
         conditions.append(RetailerModel.status == status.upper())
     if search:

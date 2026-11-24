@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import decode_access_token
+from app.core.domain_resolver import resolve_domain_context
 from app.application.gst_reporting_service import GstReportingService
 
 router = APIRouter(prefix="/reports/gst", tags=["Enterprise GST Reports"])
@@ -20,12 +21,15 @@ async def resolve_gst_auth_context(request: Request, db: AsyncSession) -> Dict[s
     Extracts authenticated user context, roles, and enforces tenant scoping.
     Prevents cross-retailer and cross-company context leakage.
     """
+    domain_ctx = await resolve_domain_context(request, db)
     ctx: Dict[str, Any] = {
-        "company_ref_id": None,
+        "company_ref_id": domain_ctx.cmp_ref_id,
         "retailer_ref_id": None,
         "is_admin": False,
         "is_super_admin": False,
         "user_id": None,
+        "domain_ctx": domain_ctx,
+        "domain_cmp_ref_id": domain_ctx.cmp_ref_id,
     }
 
     token = None
@@ -82,8 +86,11 @@ async def resolve_gst_auth_context(request: Request, db: AsyncSession) -> Dict[s
         ctx["is_admin"] = is_adm
 
         raw_comp = payload.get("company_ref_id")
-        if raw_comp is not None and str(raw_comp).isdigit():
+        if is_super and raw_comp is not None and str(raw_comp).isdigit():
             ctx["company_ref_id"] = int(raw_comp)
+        elif not is_super:
+            # Strictly enforce active domain's company reference ID for standard admin and retailer
+            ctx["company_ref_id"] = domain_ctx.cmp_ref_id
 
         raw_ret = payload.get("retailer_ref_id") or payload.get("user_ref_id")
         if raw_ret is not None and str(raw_ret).isdigit():

@@ -135,15 +135,24 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         pathname.startsWith("/retailer/payin/callback") ||
         pathname.startsWith("/retailer/payin/checkout");
       if (!isAuthPage) {
-        // Double check cookies before redirecting to avoid false positives on reload
+        // Double check cookies and localStorage before redirecting to avoid false positives on reload
         const cks = typeof document !== "undefined" ? document.cookie : "";
+        const lsHasToken = typeof localStorage !== "undefined" && Boolean(
+          localStorage.getItem("p2p_retailer_token") ||
+          localStorage.getItem("p2p_access_token") ||
+          localStorage.getItem("pay2pay_access_token") ||
+          localStorage.getItem("token")
+        );
         if (
+          !lsHasToken &&
+          !cks.includes("p2p_retailer_token=") &&
           !cks.includes("p2p_access_token=") &&
           !cks.includes("pay2pay_access_token=") &&
           !cks.includes("pay2pay_auth_token=") &&
+          !cks.includes("p2p_token=") &&
           !cks.includes("access_token=")
         ) {
-          window.location.replace(`/retailer/login?redirect=${encodeURIComponent(pathname)}`);
+          router.replace(`/retailer/login?redirect=${encodeURIComponent(pathname)}`);
         }
       }
     } else {
