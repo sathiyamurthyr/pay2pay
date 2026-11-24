@@ -15,11 +15,8 @@ from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.domain_resolver import get_domain_context, DomainCompanyContext
-from app.infrastructure.db.models import AnnouncementModel, AnnouncementImageModel
+from app.infrastructure.db.models import AnnouncementModel, AnnouncementImageModel, CompanyModel
 from app.application.storage_service import BackblazeStorageService, B2_BUCKET_NAME
-
-DEFAULT_TENANT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
-DEFAULT_COMPANY_ID = uuid.UUID("00000000-0000-0000-0000-000000000002")
 
 router = APIRouter(prefix="/announcements", tags=["Enterprise Announcements"])
 
@@ -46,6 +43,7 @@ class AnnouncementImageResponse(BaseModel):
 class AnnouncementResponse(BaseModel):
     id: str
     announcement_code: str
+    company_ref_id: Optional[int]
     title: str
     message: str
     links: List[Dict[str, Any]]
@@ -66,6 +64,7 @@ class AnnouncementCreatePayload(BaseModel):
     header: Optional[str] = None
     message: Optional[str] = Field(None, example="Get latest update on our official channel.")
     body: Optional[str] = None
+    company_ref_id: Optional[int] = None
     image_url: Optional[str] = None
     image_urls: Optional[List[str]] = None
     images: Optional[List[Any]] = None
@@ -84,6 +83,7 @@ class AnnouncementUpdatePayload(BaseModel):
     header: Optional[str] = None
     message: Optional[str] = None
     body: Optional[str] = None
+    company_ref_id: Optional[int] = None
     image_url: Optional[str] = None
     image_urls: Optional[List[str]] = None
     images: Optional[List[Any]] = None
@@ -106,6 +106,16 @@ class ImageReorderPayload(BaseModel):
     orderings: List[ImageReorderItem]
 
 
+async def _resolve_company_entities(cmp_ref_id: int, db: AsyncSession) -> tuple[Optional[uuid.UUID], Optional[uuid.UUID]]:
+    """Resolves (company_public_id, tenant_id) from company_ref_id."""
+    cmp_stmt = select(CompanyModel).where(CompanyModel.company_ref_id == cmp_ref_id)
+    cmp_obj = (await db.execute(cmp_stmt)).scalars().first()
+    if cmp_obj:
+        return cmp_obj.public_id, cmp_obj.tenant_id
+    synth_uuid = uuid.UUID(f"00000000-0000-0000-0000-{cmp_ref_id:012d}")
+    return synth_uuid, None
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. RETAILER & DASHBOARD CONSUMER ENDPOINTS (READ-ONLY)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -118,22 +128,21 @@ async def get_active_announcements(
     """
     Fetches currently active, valid announcements within start_at and end_at bounds
     filtered for the target audience and strictly isolated to the domain company context.
+    NEVER allows cross-company fallbacks or global leaks.
     """
     now = datetime.now(timezone.utc)
     audience_variants = ["ALL", "ALL_RETAILERS", audience.upper() if audience else "RETAILER"]
 
-    # Scope to active domain company
-    domain_comp_uuid = uuid.UUID(f"00000000-0000-0000-0000-{domain_ctx.cmp_ref_id:012d}")
-    company_cond = or_(
-        AnnouncementModel.company_id == domain_comp_uuid,
-        AnnouncementModel.company_id == None
-    )
-    if domain_ctx.tenant_id:
-        try:
-            t_uuid = uuid.UUID(domain_ctx.tenant_id)
-            company_cond = or_(company_cond, AnnouncementModel.tenant_id == t_uuid)
-        except Exception:
-            pass
+    # Strictly scope to active domain company
+    cmp_public_id, cmp_tenant_id = await _resolve_company_entities(domain_ctx.cmp_ref_id, db)
+    synth_uuid = uuid.UUID(f"00000000-0000-0000-0000-{domain_ctx.cmp_ref_id:012d}")
+
+    company_conditions = [
+        AnnouncementModel.company_ref_id == domain_ctx.cmp_ref_id
+    ]
+    if cmp_public_id:
+        company_conditions.append(AnnouncementModel.company_id == cmp_public_id)
+    company_conditions.append(AnnouncementModel.company_id == synth_uuid)
 
     stmt = (
         select(AnnouncementModel)
@@ -146,7 +155,7 @@ async def get_active_announcements(
                 or_(AnnouncementModel.start_at == None, AnnouncementModel.start_at <= now),
                 or_(AnnouncementModel.end_at == None, AnnouncementModel.end_at >= now),
                 AnnouncementModel.audience.in_(audience_variants),
-                company_cond
+                or_(*company_conditions)
             )
         )
         .order_by(AnnouncementModel.priority.desc(), AnnouncementModel.created_date.desc())
@@ -160,7 +169,12 @@ async def get_active_announcements(
         img_list = []
         for img in sorted(a.images, key=lambda x: x.display_order):
             if not img.is_deleted and img.is_active:
-                if img.image_url and (img.image_url.startswith("/uploads") or img.image_url.startswith("http://") or img.image_url.startswith("https://") or img.image_url.startswith("data:")):
+                if img.image_url and (
+                    img.image_url.startswith("/uploads")
+                    or img.image_url.startswith("http://")
+                    or img.image_url.startswith("https://")
+                    or img.image_url.startswith("data:")
+                ):
                     full_img_url = img.image_url
                 else:
                     full_img_url = BackblazeStorageService.get_download_url(img.b2_object_key) or img.image_url
@@ -178,6 +192,7 @@ async def get_active_announcements(
         announcements_data.append({
             "id": str(a.public_id),
             "announcement_code": a.announcement_code,
+            "company_ref_id": a.company_ref_id or domain_ctx.cmp_ref_id,
             "title": a.title,
             "header": a.title,
             "message": a.content,
@@ -199,6 +214,8 @@ async def get_active_announcements(
     return {
         "success": True,
         "status": "SUCCESS",
+        "company_ref_id": domain_ctx.cmp_ref_id,
+        "app_id": domain_ctx.company_code,
         "count": len(announcements_data),
         "data": announcements_data
     }
@@ -208,12 +225,30 @@ async def get_active_announcements(
 # 2. ADMIN ANNOUNCEMENT MANAGEMENT ENDPOINTS
 # ─────────────────────────────────────────────────────────────────────────────
 @router.get("/admin/list", summary="Admin: List all announcements with full metadata")
-async def admin_list_announcements(db: AsyncSession = Depends(get_db)):
-    """Admin endpoint to list all announcements including drafts, inactive, and active items."""
+async def admin_list_announcements(
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
+    db: AsyncSession = Depends(get_db)
+):
+    """Admin endpoint to list all announcements scoped strictly to active domain company."""
+    cmp_public_id, _ = await _resolve_company_entities(domain_ctx.cmp_ref_id, db)
+    synth_uuid = uuid.UUID(f"00000000-0000-0000-0000-{domain_ctx.cmp_ref_id:012d}")
+
+    company_conditions = [
+        AnnouncementModel.company_ref_id == domain_ctx.cmp_ref_id
+    ]
+    if cmp_public_id:
+        company_conditions.append(AnnouncementModel.company_id == cmp_public_id)
+    company_conditions.append(AnnouncementModel.company_id == synth_uuid)
+
     stmt = (
         select(AnnouncementModel)
         .options(selectinload(AnnouncementModel.images))
-        .where(AnnouncementModel.is_deleted == False)
+        .where(
+            and_(
+                AnnouncementModel.is_deleted == False,
+                or_(*company_conditions)
+            )
+        )
         .order_by(AnnouncementModel.priority.desc(), AnnouncementModel.created_date.desc())
     )
     results = (await db.execute(stmt)).scalars().all()
@@ -223,7 +258,12 @@ async def admin_list_announcements(db: AsyncSession = Depends(get_db)):
         img_list = []
         for img in sorted(a.images, key=lambda x: x.display_order):
             if not img.is_deleted:
-                if img.image_url and (img.image_url.startswith("/uploads") or img.image_url.startswith("http://") or img.image_url.startswith("https://") or img.image_url.startswith("data:")):
+                if img.image_url and (
+                    img.image_url.startswith("/uploads")
+                    or img.image_url.startswith("http://")
+                    or img.image_url.startswith("https://")
+                    or img.image_url.startswith("data:")
+                ):
                     full_img_url = img.image_url
                 else:
                     full_img_url = BackblazeStorageService.get_download_url(img.b2_object_key) or img.image_url
@@ -241,6 +281,7 @@ async def admin_list_announcements(db: AsyncSession = Depends(get_db)):
         announcements_data.append({
             "id": str(a.public_id),
             "announcement_code": a.announcement_code,
+            "company_ref_id": a.company_ref_id or domain_ctx.cmp_ref_id,
             "title": a.title,
             "header": a.title,
             "message": a.content,
@@ -262,6 +303,8 @@ async def admin_list_announcements(db: AsyncSession = Depends(get_db)):
     return {
         "success": True,
         "status": "SUCCESS",
+        "company_ref_id": domain_ctx.cmp_ref_id,
+        "app_id": domain_ctx.company_code,
         "data": announcements_data
     }
 
@@ -269,9 +312,18 @@ async def admin_list_announcements(db: AsyncSession = Depends(get_db)):
 @router.post("/admin/create", summary="Admin: Create new announcement")
 async def admin_create_announcement(
     payload: AnnouncementCreatePayload,
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
-    """Admin endpoint to create a new announcement with links, audience, priority, and images."""
+    """Admin endpoint to create a new announcement bound to the active domain company context."""
+    target_cmp_ref_id = payload.company_ref_id or domain_ctx.cmp_ref_id
+    cmp_public_id, cmp_tenant_id = await _resolve_company_entities(target_cmp_ref_id, db)
+
+    effective_tenant_id = cmp_tenant_id or (
+        uuid.UUID(domain_ctx.tenant_id) if domain_ctx.tenant_id else uuid.UUID("00000000-0000-0000-0000-000000000001")
+    )
+    effective_company_id = cmp_public_id or uuid.UUID(f"00000000-0000-0000-0000-{target_cmp_ref_id:012d}")
+
     code = f"ANN-{datetime.now().year}-{uuid.uuid4().hex[:6].upper()}"
     pub_id = uuid.uuid4()
 
@@ -280,8 +332,9 @@ async def admin_create_announcement(
     resolved_content = (payload.message or payload.body or "").strip()
 
     ann = AnnouncementModel(
-        tenant_id=DEFAULT_TENANT_ID,
-        company_id=DEFAULT_COMPANY_ID,
+        tenant_id=effective_tenant_id,
+        company_id=effective_company_id,
+        company_ref_id=target_cmp_ref_id,
         public_id=pub_id,
         announcement_code=code,
         title=resolved_title,
@@ -318,6 +371,7 @@ async def admin_create_announcement(
         ann_img = AnnouncementImageModel(
             tenant_id=ann.tenant_id,
             company_id=ann.company_id,
+            company_ref_id=target_cmp_ref_id,
             public_id=img_pub_id,
             announcement_id=ann.public_id,
             b2_object_key=u if not u.startswith("/uploads") else f"local_{img_pub_id.hex[:8]}",
@@ -337,10 +391,11 @@ async def admin_create_announcement(
     return {
         "success": True,
         "status": "SUCCESS",
-        "message": f"Announcement {code} created successfully.",
+        "message": f"Announcement {code} created successfully for company {target_cmp_ref_id}.",
         "data": {
             "id": str(pub_id),
             "announcement_code": code,
+            "company_ref_id": target_cmp_ref_id,
             "title": ann.title,
             "image_url": img_candidates[0] if img_candidates else None,
             "is_active": ann.is_active
@@ -353,19 +408,31 @@ async def admin_create_announcement(
 async def admin_update_announcement(
     announcement_id: str,
     payload: AnnouncementUpdatePayload,
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
-    """Admin endpoint to edit announcement title, content, links, status, dates, and images."""
+    """Admin endpoint to edit announcement with company isolation validation."""
     try:
         ann_uuid = uuid.UUID(announcement_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid announcement ID format.")
 
-    stmt = select(AnnouncementModel).options(selectinload(AnnouncementModel.images)).where(and_(AnnouncementModel.public_id == ann_uuid, AnnouncementModel.is_deleted == False))
+    stmt = (
+        select(AnnouncementModel)
+        .options(selectinload(AnnouncementModel.images))
+        .where(and_(AnnouncementModel.public_id == ann_uuid, AnnouncementModel.is_deleted == False))
+    )
     ann = (await db.execute(stmt)).scalars().first()
 
     if not ann:
         raise HTTPException(status_code=404, detail="Announcement not found.")
+
+    # Validate company isolation
+    if ann.company_ref_id is not None and ann.company_ref_id != domain_ctx.cmp_ref_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden: You cannot modify announcements belonging to another company."
+        )
 
     if payload.title is not None or payload.header is not None:
         ann.title = (payload.title or payload.header or ann.title).strip()
@@ -392,13 +459,13 @@ async def admin_update_announcement(
 
     if payload.image_url is not None:
         if isinstance(payload.image_url, str) and payload.image_url.strip():
-            # Update or add image
             img_url = payload.image_url.strip()
             active_imgs = [img for img in (ann.images or []) if not img.is_deleted]
             if active_imgs:
                 active_imgs[0].image_url = img_url
                 active_imgs[0].is_active = True
                 active_imgs[0].is_deleted = False
+                active_imgs[0].company_ref_id = ann.company_ref_id or domain_ctx.cmp_ref_id
                 if img_url.startswith("/uploads"):
                     active_imgs[0].b2_bucket = "local"
             else:
@@ -406,6 +473,7 @@ async def admin_update_announcement(
                 ann_img = AnnouncementImageModel(
                     tenant_id=ann.tenant_id,
                     company_id=ann.company_id,
+                    company_ref_id=ann.company_ref_id or domain_ctx.cmp_ref_id,
                     public_id=img_pub_id,
                     announcement_id=ann.public_id,
                     b2_object_key=img_url if not img_url.startswith("/uploads") else f"local_{img_pub_id.hex[:8]}",
@@ -420,7 +488,6 @@ async def admin_update_announcement(
                 )
                 db.add(ann_img)
         elif isinstance(payload.image_url, str) and payload.image_url.strip() == "":
-            # Explicit removal of image
             for img in (ann.images or []):
                 img.is_active = False
                 img.is_deleted = True
@@ -439,6 +506,7 @@ async def admin_update_announcement(
         "data": {
             "id": str(ann.public_id),
             "announcement_code": ann.announcement_code,
+            "company_ref_id": ann.company_ref_id,
             "title": ann.title,
             "image_url": top_img_url,
             "is_active": ann.is_active,
@@ -450,9 +518,10 @@ async def admin_update_announcement(
 @router.post("/admin/{announcement_id}/toggle", summary="Admin: Toggle announcement active status")
 async def admin_toggle_announcement(
     announcement_id: str,
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
-    """Admin endpoint to easily toggle announcement active/inactive status."""
+    """Admin endpoint to toggle announcement active/inactive status."""
     try:
         ann_uuid = uuid.UUID(announcement_id)
     except ValueError:
@@ -463,6 +532,9 @@ async def admin_toggle_announcement(
 
     if not ann:
         raise HTTPException(status_code=404, detail="Announcement not found.")
+
+    if ann.company_ref_id is not None and ann.company_ref_id != domain_ctx.cmp_ref_id:
+        raise HTTPException(status_code=403, detail="Forbidden: You cannot modify announcements belonging to another company.")
 
     ann.is_active = not ann.is_active
     ann.status = "ACTIVE" if ann.is_active else "INACTIVE"
@@ -477,6 +549,7 @@ async def admin_toggle_announcement(
         "data": {
             "id": str(ann.public_id),
             "announcement_code": ann.announcement_code,
+            "company_ref_id": ann.company_ref_id,
             "title": ann.title,
             "is_active": ann.is_active,
             "status": ann.status
@@ -487,6 +560,7 @@ async def admin_toggle_announcement(
 @router.post("/admin/{announcement_id}/enable", summary="Admin: Enable announcement")
 async def admin_enable_announcement(
     announcement_id: str,
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     """Admin endpoint to enable announcement."""
@@ -501,6 +575,9 @@ async def admin_enable_announcement(
     if not ann:
         raise HTTPException(status_code=404, detail="Announcement not found.")
 
+    if ann.company_ref_id is not None and ann.company_ref_id != domain_ctx.cmp_ref_id:
+        raise HTTPException(status_code=403, detail="Forbidden: You cannot modify announcements belonging to another company.")
+
     ann.is_active = True
     ann.status = "ACTIVE"
     ann.updated_date = datetime.now(timezone.utc)
@@ -514,6 +591,7 @@ async def admin_enable_announcement(
         "data": {
             "id": str(ann.public_id),
             "announcement_code": ann.announcement_code,
+            "company_ref_id": ann.company_ref_id,
             "title": ann.title,
             "is_active": True,
             "status": "ACTIVE"
@@ -524,6 +602,7 @@ async def admin_enable_announcement(
 @router.post("/admin/{announcement_id}/disable", summary="Admin: Disable announcement")
 async def admin_disable_announcement(
     announcement_id: str,
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     """Admin endpoint to disable announcement."""
@@ -538,6 +617,9 @@ async def admin_disable_announcement(
     if not ann:
         raise HTTPException(status_code=404, detail="Announcement not found.")
 
+    if ann.company_ref_id is not None and ann.company_ref_id != domain_ctx.cmp_ref_id:
+        raise HTTPException(status_code=403, detail="Forbidden: You cannot modify announcements belonging to another company.")
+
     ann.is_active = False
     ann.status = "INACTIVE"
     ann.updated_date = datetime.now(timezone.utc)
@@ -551,6 +633,7 @@ async def admin_disable_announcement(
         "data": {
             "id": str(ann.public_id),
             "announcement_code": ann.announcement_code,
+            "company_ref_id": ann.company_ref_id,
             "title": ann.title,
             "is_active": False,
             "status": "INACTIVE"
@@ -561,6 +644,7 @@ async def admin_disable_announcement(
 @router.delete("/admin/{announcement_id}", summary="Admin: Deactivate / Delete announcement")
 async def admin_delete_announcement(
     announcement_id: str,
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     """Admin endpoint to soft-delete an announcement."""
@@ -574,6 +658,9 @@ async def admin_delete_announcement(
 
     if not ann:
         raise HTTPException(status_code=404, detail="Announcement not found.")
+
+    if ann.company_ref_id is not None and ann.company_ref_id != domain_ctx.cmp_ref_id:
+        raise HTTPException(status_code=403, detail="Forbidden: You cannot delete announcements belonging to another company.")
 
     ann.is_deleted = True
     ann.is_active = False
@@ -627,6 +714,7 @@ async def admin_upload_announcement_image_standalone(
     file: UploadFile = File(...),
     announcement_id: Optional[str] = Form(None),
     display_order: int = Form(1),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -663,6 +751,7 @@ async def admin_upload_announcement_image_standalone(
                 ann_img = AnnouncementImageModel(
                     tenant_id=ann.tenant_id,
                     company_id=ann.company_id,
+                    company_ref_id=ann.company_ref_id or domain_ctx.cmp_ref_id,
                     public_id=img_pub_id,
                     announcement_id=ann.public_id,
                     b2_object_key=b2_key,
@@ -702,6 +791,7 @@ async def admin_upload_announcement_image(
     announcement_id: str,
     file: UploadFile = File(...),
     display_order: int = Form(1),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -718,6 +808,9 @@ async def admin_upload_announcement_image(
     if not ann:
         raise HTTPException(status_code=404, detail="Announcement not found.")
 
+    if ann.company_ref_id is not None and ann.company_ref_id != domain_ctx.cmp_ref_id:
+        raise HTTPException(status_code=403, detail="Forbidden: You cannot modify announcements belonging to another company.")
+
     file_bytes = await file.read()
     if not file_bytes:
         raise HTTPException(status_code=400, detail="Empty file uploaded.")
@@ -732,6 +825,7 @@ async def admin_upload_announcement_image(
     ann_img = AnnouncementImageModel(
         tenant_id=ann.tenant_id,
         company_id=ann.company_id,
+        company_ref_id=ann.company_ref_id or domain_ctx.cmp_ref_id,
         public_id=img_pub_id,
         announcement_id=ann.public_id,
         b2_object_key=b2_key,
@@ -767,9 +861,23 @@ async def admin_upload_announcement_image(
 async def admin_reorder_announcement_images(
     announcement_id: str,
     payload: ImageReorderPayload,
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     """Admin endpoint to reorder images by display_order."""
+    try:
+        ann_uuid = uuid.UUID(announcement_id)
+        stmt = select(AnnouncementModel).where(and_(AnnouncementModel.public_id == ann_uuid, AnnouncementModel.is_deleted == False))
+        ann = (await db.execute(stmt)).scalars().first()
+        if not ann:
+            raise HTTPException(status_code=404, detail="Announcement not found.")
+        if ann.company_ref_id is not None and ann.company_ref_id != domain_ctx.cmp_ref_id:
+            raise HTTPException(status_code=403, detail="Forbidden: You cannot modify announcements belonging to another company.")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid announcement ID format.")
+
     for item in payload.orderings:
         try:
             img_uuid = uuid.UUID(item.image_id)
@@ -794,16 +902,25 @@ async def admin_reorder_announcement_images(
 async def admin_delete_announcement_image(
     announcement_id: str,
     image_id: str,
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     """Admin endpoint to remove an image from an announcement."""
     try:
+        ann_uuid = uuid.UUID(announcement_id)
         img_uuid = uuid.UUID(image_id)
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid image ID format.")
+        raise HTTPException(status_code=400, detail="Invalid ID format.")
 
-    stmt = select(AnnouncementImageModel).where(and_(AnnouncementImageModel.public_id == img_uuid, AnnouncementImageModel.is_deleted == False))
-    img = (await db.execute(stmt)).scalars().first()
+    stmt = select(AnnouncementModel).where(and_(AnnouncementModel.public_id == ann_uuid, AnnouncementModel.is_deleted == False))
+    ann = (await db.execute(stmt)).scalars().first()
+    if not ann:
+        raise HTTPException(status_code=404, detail="Announcement not found.")
+    if ann.company_ref_id is not None and ann.company_ref_id != domain_ctx.cmp_ref_id:
+        raise HTTPException(status_code=403, detail="Forbidden: You cannot modify announcements belonging to another company.")
+
+    stmt_img = select(AnnouncementImageModel).where(and_(AnnouncementImageModel.public_id == img_uuid, AnnouncementImageModel.is_deleted == False))
+    img = (await db.execute(stmt_img)).scalars().first()
 
     if not img:
         raise HTTPException(status_code=404, detail="Announcement image not found.")

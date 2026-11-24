@@ -11,6 +11,8 @@ import {
   MessageCircle,
   Sparkles,
 } from "lucide-react";
+import api from "@/lib/api";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 interface AnnouncementLink {
   label: string;
@@ -20,6 +22,7 @@ interface AnnouncementLink {
 
 interface Announcement {
   id: string;
+  company_ref_id?: number | null;
   header: string;
   body: string;
   image_url?: string | null;
@@ -74,23 +77,32 @@ function AnnouncementBannerImage({
 
 /**
  * DashboardAnnouncementModal:
- * Fetches active announcements on dashboard mount and displays them every time
- * the dashboard page is loaded or refreshed.
+ * Fetches active announcements on dashboard mount and displays them strictly scoped
+ * to the authenticated domain company. Completely isolated across Near4You, SMSPay & Pay2Pay.
  */
 export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
   audience = "RETAILER",
 }) => {
+  const { branding } = useCompanyBranding();
+  const companyCode = branding?.company_code || "PAY2PAY";
+  const cmpRefId = branding?.company_ref_id || (companyCode === "NEAR4YOU" ? 1 : companyCode === "SMSPAY" ? 2 : 47);
+
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [current, setCurrent] = useState(0);
   const [visible, setVisible] = useState(false);
+
+  const cacheKey = `p2p_announcements_seen_${companyCode}_${audience}`;
 
   const dismissCurrent = useCallback(() => {
     if (current + 1 < announcements.length) {
       setCurrent((c) => c + 1);
     } else {
+      try {
+        sessionStorage.setItem(cacheKey, Date.now().toString());
+      } catch {}
       setVisible(false);
     }
-  }, [announcements, current]);
+  }, [announcements, current, cacheKey]);
 
   const goToPrev = () => {
     if (current > 0) setCurrent((c) => c - 1);
@@ -106,20 +118,39 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
       try {
         let items: any[] = [];
 
-        // 1. Try active announcements endpoint
+        // 1. Try authenticated active announcements endpoint with automatic header attachment
         try {
-          const res1 = await fetch(`/api/v1/announcements/active?audience=${audience}`);
-          if (res1.ok) {
-            const json1 = await res1.json();
-            items = json1.data || (Array.isArray(json1) ? json1 : []);
+          const res1 = await api.get(`/api/v1/announcements/active?audience=${encodeURIComponent(audience)}`);
+          if (res1) {
+            items = res1.data || (Array.isArray(res1) ? res1 : []);
           }
-        } catch {}
+        } catch {
+          // Fallback to fetch with explicit domain company app-id
+          try {
+            const resFetch = await fetch(`/api/v1/announcements/active?audience=${encodeURIComponent(audience)}`, {
+              headers: {
+                "x-sathus-app-id": companyCode,
+              },
+              credentials: "include",
+            });
+            if (resFetch.ok) {
+              const jsonFetch = await resFetch.json();
+              items = jsonFetch.data || (Array.isArray(jsonFetch) ? jsonFetch : []);
+            }
+          } catch {}
+        }
 
-        // 2. Fallback to notifications/announcements
+        // 2. Secondary fallback
         if (items.length === 0) {
           try {
             const res2 = await fetch(
-              `/api/v1/notifications/announcements?audience=${audience}&active=true&limit=5`
+              `/api/v1/notifications/announcements?audience=${encodeURIComponent(audience)}&active=true&limit=5`,
+              {
+                headers: {
+                  "x-sathus-app-id": companyCode,
+                },
+                credentials: "include",
+              }
             );
             if (res2.ok) {
               const json2 = await res2.json();
@@ -130,8 +161,16 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
 
         if (!Array.isArray(items) || items.length === 0) return;
 
+        // Strict company isolation defense-in-depth: Filter out any mismatch
+        const companyFiltered = items.filter((raw: any) => {
+          if (raw.company_ref_id && cmpRefId && raw.company_ref_id !== cmpRefId) {
+            return false;
+          }
+          return true;
+        });
+
         // Map items to normalized schema
-        const normalized: Announcement[] = items.map((raw: any) => {
+        const normalized: Announcement[] = companyFiltered.map((raw: any) => {
           const allImgs: string[] = [];
           if (raw.image_url) allImgs.push(raw.image_url);
           if (Array.isArray(raw.images)) {
@@ -145,6 +184,7 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
 
           return {
             id: String(raw.id || raw.public_id || raw.announcement_code || Math.random()),
+            company_ref_id: raw.company_ref_id,
             header: raw.header || raw.title || "Important Update",
             body: raw.body || raw.message || raw.content || "",
             image_url: topImg,
@@ -169,7 +209,7 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
         setCurrent(0);
         setTimeout(() => {
           if (!cancelled) setVisible(true);
-        }, 500);
+        }, 400);
       } catch {
         // Non-critical UI
       }
@@ -179,7 +219,7 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
     return () => {
       cancelled = true;
     };
-  }, [audience]);
+  }, [audience, companyCode, cmpRefId]);
 
   if (!visible || announcements.length === 0) return null;
   const item = announcements[current];
