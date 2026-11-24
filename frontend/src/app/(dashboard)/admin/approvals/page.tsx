@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { apiClient } from "@/lib/api";
 import { CashfreePanVerifier } from "@/components/ui/cashfree-verifier";
 import {
   CheckCircle2,
@@ -81,9 +82,9 @@ export default function AdminApprovalsPage() {
 
       // Fetch live registrations from backend PostgreSQL database
       const [sdRes, distRes, verifRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/organization/super-distributors`).then(r => r.ok ? r.json() : { items: [] }).catch(() => ({ items: [] })),
-        fetch(`${API_BASE_URL}/organization/distributors`).then(r => r.ok ? r.json() : { items: [] }).catch(() => ({ items: [] })),
-        fetch(`${API_BASE_URL}/admin/verification/requests?status_tab=ALL&page_size=100`).then(r => r.ok ? r.json() : { items: [] }).catch(() => ({ items: [] })),
+        apiClient.get("/organization/super-distributors", { headers: { "x-skip-auth-redirect": "true" } }).then(r => r.data || { items: [] }).catch(() => ({ items: [] })),
+        apiClient.get("/organization/distributors", { headers: { "x-skip-auth-redirect": "true" } }).then(r => r.data || { items: [] }).catch(() => ({ items: [] })),
+        apiClient.get("/admin/verification/requests?status_tab=ALL&page_size=100", { headers: { "x-skip-auth-redirect": "true" } }).then(r => r.data || { items: [] }).catch(() => ({ items: [] })),
       ]);
 
       setSdList(sdRes.items || []);
@@ -111,20 +112,12 @@ export default function AdminApprovalsPage() {
     try {
       const verifId = selectedItem.verification_id || selectedItem.public_id;
 
-      const res = await fetch(`${API_BASE_URL}/admin/verification/requests/${verifId}/action`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: newStatus,
-          admin_id: "ADM-SYSTEM",
-          remarks: actionRemarks || `Verification status updated to ${newStatus} by Admin`,
-          admin_role: "COMPLIANCE_OFFICER"
-        }),
+      const res = await apiClient.post(`/admin/verification/requests/${verifId}/action`, {
+        action: newStatus,
+        admin_id: "ADM-SYSTEM",
+        remarks: actionRemarks || `Verification status updated to ${newStatus} by Admin`,
+        admin_role: "COMPLIANCE_OFFICER"
       });
-
-      if (!res.ok) {
-        throw new Error("Failed to update status in backend DB");
-      }
 
       const targetName = selectedItem.retailer_name || selectedItem.business_name || selectedItem.shop_name || "Partner";
 
@@ -137,7 +130,7 @@ export default function AdminApprovalsPage() {
 
       fetchData();
     } catch (err: any) {
-      showToast(err.message || "Failed to update status in database. Please check backend.");
+      showToast(err.response?.data?.detail || err.message || "Failed to update status in database. Please check backend.");
     } finally {
       setActionLoading(false);
     }
@@ -149,10 +142,11 @@ export default function AdminApprovalsPage() {
     const verifId = item.verification_id || item.public_id || item.registration_id || item.id;
     if (verifId) {
       try {
-        const res = await fetch(`${API_BASE_URL}/admin/verification/requests/${verifId}`);
-        if (res.ok) {
-          const detail = await res.json();
-          if (detail.status === "SUCCESS" && detail.media) {
+        const res = await apiClient.get(`/admin/verification/requests/${verifId}`, {
+          headers: { "x-skip-auth-redirect": "true" }
+        });
+        const detail = res.data;
+        if (detail?.status === "SUCCESS" && detail.media) {
             setSelectedItem((prev: any) => ({
               ...prev,
               ...detail.verification,
@@ -167,7 +161,6 @@ export default function AdminApprovalsPage() {
               selfie_url: detail.media.selfie_url,
               script_text: detail.media.script_text,
             }));
-          }
         }
       } catch (err) {
         console.error("Error fetching verification details:", err);

@@ -40,38 +40,53 @@ apiClient.interceptors.request.use(
       }
 
       const cookies = document.cookie.split("; ");
-      let cookieToken: string | null = null;
+      let token: string | null = null;
 
+      // 1. Check portal-specific token first
       if (portTokenKey) {
         const specificCookie = cookies.find((row) => row.startsWith(`${portTokenKey}=`));
         if (specificCookie) {
-          cookieToken = specificCookie.split("=")[1];
+          const val = specificCookie.split("=")[1]?.trim();
+          if (val && val.length > 10) token = val;
+        }
+        if (!token) {
+          const ls = localStorage.getItem(portTokenKey)?.trim();
+          if (ls && ls.length > 10) token = ls;
         }
       }
 
-      if (!cookieToken) {
-        const tokenCookie = cookies.find((row) =>
-          row.startsWith("p2p_access_token=") ||
-          row.startsWith("pay2pay_access_token=") ||
-          row.startsWith("pay2pay_auth_token=") ||
-          row.startsWith("p2p_sales_token=") ||
-          row.startsWith("pay2pay_sales_token=") ||
-          row.startsWith("access_token=") ||
-          row.startsWith("token=")
-        );
-        cookieToken = tokenCookie ? tokenCookie.split("=")[1] : null;
-      }
+      // 2. Comprehensive fallback across all known token keys
+      if (!token) {
+        const candidateKeys = [
+          "p2p_admin_token",
+          "p2p_retailer_token",
+          "p2p_super_admin_token",
+          "p2p_access_token",
+          "pay2pay_access_token",
+          "pay2pay_auth_token",
+          "p2p_sales_token",
+          "pay2pay_sales_token",
+          "access_token",
+          "token",
+          "p2p_token",
+        ];
 
-      const token =
-        cookieToken ||
-        (portTokenKey ? localStorage.getItem(portTokenKey) : null) ||
-        localStorage.getItem("p2p_access_token") ||
-        localStorage.getItem("pay2pay_access_token") ||
-        localStorage.getItem("pay2pay_auth_token") ||
-        localStorage.getItem("p2p_sales_token") ||
-        localStorage.getItem("pay2pay_sales_token") ||
-        localStorage.getItem("access_token") ||
-        localStorage.getItem("token");
+        for (const k of candidateKeys) {
+          const c = cookies.find((row) => row.startsWith(`${k}=`));
+          if (c) {
+            const v = c.split("=")[1]?.trim();
+            if (v && v.length > 10) {
+              token = v;
+              break;
+            }
+          }
+          const ls = localStorage.getItem(k)?.trim();
+          if (ls && ls.length > 10) {
+            token = ls;
+            break;
+          }
+        }
+      }
 
       if (token && token.trim().length > 10) {
         config.headers.Authorization = `Bearer ${token.trim()}`;
@@ -174,10 +189,14 @@ apiClient.interceptors.response.use(
         url.includes("/admin/favorites") ||
         url.includes("/admin/verification") ||
         url.includes("/verification") ||
+        url.includes("/requests") ||
+        url.includes("/menus") ||
         url.includes("/branding") ||
         url.includes("/notifications") ||
         url.includes("/public-key") ||
-        url.includes("/soundbox");
+        url.includes("/soundbox") ||
+        url.includes("/session/status") ||
+        url.includes("/security/status");
 
       if (isAuxiliaryEndpoint) {
         return Promise.reject(error);
@@ -186,6 +205,14 @@ apiClient.interceptors.response.use(
       // If not an explicit token expiry, do NOT wipe session or redirect to prevent loops on role-guarded endpoints
       if (!isExplicitTokenExpiry) {
         return Promise.reject(error);
+      }
+
+      // If already on a login/auth page, NEVER wipe or redirect
+      if (typeof window !== "undefined") {
+        const p = window.location.pathname.toLowerCase();
+        if (p.includes("/login") || p.includes("/register") || p.includes("/logout")) {
+          return Promise.reject(error);
+        }
       }
 
       // For genuine session/token expiry 401s, clear cookies and session storage

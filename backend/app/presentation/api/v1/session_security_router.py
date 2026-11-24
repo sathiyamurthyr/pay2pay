@@ -148,6 +148,24 @@ async def lock_screen_session(
     Persists locked state directly to RetailerModel and UserSecuritySettingsModel,
     preventing any transaction or session operations until verified unlock.
     """
+    # For Admin and Super Admin roles, do not apply retailer point-of-sale PIN terminal locks
+    roles = [str(r).upper() for r in (payload.get("roles") or [])]
+    if payload.get("role"):
+        roles.append(str(payload.get("role")).upper())
+    is_admin = (
+        payload.get("is_super_admin") is True
+        or payload.get("user_type_ref_id") == 1
+        or any(r in ("ADMIN", "SUPER_ADMIN", "PLATFORM_ADMIN", "OPS_ADMIN", "FINANCE", "COMPANY_ADMIN", "COMPLIANCE_OFFICER") for r in roles)
+    )
+    if is_admin:
+        return {
+            "success": True,
+            "is_locked": False,
+            "status": "ACTIVE",
+            "mpin_locked": False,
+            "reason": None
+        }
+
     user_sub = str(payload.get("sub") or "").strip()
     retailer_claim = str(payload.get("retailer_id") or payload.get("retailer_code") or "").strip()
     tenant_sub = payload.get("tenant_id")
@@ -236,6 +254,24 @@ async def get_session_lock_status(
     """
     Returns authoritative backend lock state. Prevents lock bypass on browser refresh.
     """
+    # For Admin and Super Admin roles, do not apply retailer point-of-sale PIN terminal locks
+    roles = [str(r).upper() for r in (payload.get("roles") or [])]
+    if payload.get("role"):
+        roles.append(str(payload.get("role")).upper())
+    is_admin = (
+        payload.get("is_super_admin") is True
+        or payload.get("user_type_ref_id") == 1
+        or any(r in ("ADMIN", "SUPER_ADMIN", "PLATFORM_ADMIN", "OPS_ADMIN", "FINANCE", "COMPANY_ADMIN", "COMPLIANCE_OFFICER") for r in roles)
+    )
+    if is_admin:
+        return {
+            "success": True,
+            "is_locked": False,
+            "status": "ACTIVE",
+            "mpin_locked": False,
+            "reason": None
+        }
+
     user_sub = str(payload.get("sub") or "").strip()
     retailer_claim = str(payload.get("retailer_id") or payload.get("retailer_code") or "").strip()
 
@@ -310,6 +346,24 @@ async def unlock_screen_session(
         )
 
     # 1. Resolve authenticated user context from token payload
+    # For Admin and Super Admin roles, do not apply retailer point-of-sale PIN terminal locks
+    roles = [str(r).upper() for r in (payload.get("roles") or [])]
+    if payload.get("role"):
+        roles.append(str(payload.get("role")).upper())
+    is_admin = (
+        payload.get("is_super_admin") is True
+        or payload.get("user_type_ref_id") == 1
+        or any(r in ("ADMIN", "SUPER_ADMIN", "PLATFORM_ADMIN", "OPS_ADMIN", "FINANCE", "COMPANY_ADMIN", "COMPLIANCE_OFFICER") for r in roles)
+    )
+    if is_admin:
+        return {
+            "success": True,
+            "is_locked": False,
+            "status": "ACTIVE",
+            "mpin_locked": False,
+            "reason": None
+        }
+
     user_sub = str(payload.get("sub") or "").strip()
     user_role = (payload.get("role") or "RETAILER").upper()
     mobile = payload.get("mobile_number") or payload.get("mobile") or payload.get("phone")

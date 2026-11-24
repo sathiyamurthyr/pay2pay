@@ -33,7 +33,7 @@ class LoginRequest(BaseModel):
     phone: Optional[str] = Field(default=None)
     mobile: Optional[str] = Field(default=None)
     email: Optional[str] = Field(default=None)
-    password: str = Field(..., min_length=4)
+    password: str = Field(..., min_length=1)
     mfa_code: Optional[str] = Field(default=None)
 
     def get_identifier(self) -> str:

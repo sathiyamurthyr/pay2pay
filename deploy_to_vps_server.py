@@ -22,7 +22,9 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 def ensure_frontend_built(force_build: bool = False):
     """Ensures Next.js standalone build exists; builds automatically if absent or requested."""
     if force_build or not STANDALONE_DIR.exists():
-        print(f"\n⚙️ Standalone build not found or rebuild requested. Running Next.js build in {FRONTEND_DIR}...")
+        print(f"\n⚙️ Running clean Next.js build in {FRONTEND_DIR}...")
+        if force_build and STANDALONE_DIR.exists():
+            shutil.rmtree(STANDALONE_DIR, ignore_errors=True)
         subprocess.run(["npm", "run", "build"], cwd=str(FRONTEND_DIR), shell=True, check=True)
         print("✅ Next.js build completed successfully.")
 

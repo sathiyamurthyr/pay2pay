@@ -771,12 +771,31 @@ class GstReportingService:
             diff = round_cur(total_gst - calc_sum)
             total_sgst = round_cur(total_sgst + diff)
 
+        comp_name = DEFAULT_COMPANY_LEGAL_NAME
+        comp_gstin = DEFAULT_COMPANY_GSTIN
+        comp_state = DEFAULT_COMPANY_STATE
+        if company_id:
+            try:
+                comp_q = await db.execute(text("""
+                    SELECT COALESCE(legal_name, company_name), gst_number
+                    FROM public.company
+                    WHERE company_ref_id = :comp_ref OR public_id::text = :comp_id
+                    LIMIT 1;
+                """), {"comp_ref": int(company_id) if str(company_id).isdigit() else 0, "comp_id": str(company_id)})
+                c_row = comp_q.fetchone()
+                if c_row and c_row[0]:
+                    comp_name = c_row[0]
+                    if c_row[1]:
+                        comp_gstin = c_row[1]
+            except Exception:
+                pass
+
         summary = {
             "financial_year": fy_label,
             "period": month_label,
-            "company_name": DEFAULT_COMPANY_LEGAL_NAME,
-            "company_gstin": DEFAULT_COMPANY_GSTIN,
-            "company_state": DEFAULT_COMPANY_STATE,
+            "company_name": comp_name,
+            "company_gstin": comp_gstin,
+            "company_state": comp_state,
             "total_transactions": total_txns_count,
             "total_taxable_value": total_taxable_value,
             "total_cgst": total_cgst,

@@ -256,6 +256,17 @@ class AuthService:
                     subject=str(auth_user.user_id),
                     tenant_id=str(auth_user.tenant_id or "547aa7bb-a790-4fe2-bd5b-27214ed176c8")
                 )
+                try:
+                    from app.infrastructure.db.auth_models import UserSecuritySettingsModel
+                    sec_stmt = select(UserSecuritySettingsModel).where(UserSecuritySettingsModel.user_id == auth_user.user_id)
+                    sec_obj = (await db.execute(sec_stmt)).scalars().first()
+                    if sec_obj:
+                        sec_obj.locked_until = None
+                        sec_obj.failed_attempt_count = 0
+                        await db.commit()
+                except Exception:
+                    pass
+
                 return TokenResponse(
                     access_token=access_token,
                     refresh_token=refresh_token,
@@ -300,6 +311,18 @@ class AuthService:
 
         # Update last login time
         user.last_login_at = datetime.now(timezone.utc)
+
+        # Reset any user security settings lock on successful credential login
+        try:
+            from app.infrastructure.db.auth_models import UserSecuritySettingsModel
+            sec_stmt = select(UserSecuritySettingsModel).where(UserSecuritySettingsModel.user_id == user.public_id)
+            sec_obj = (await db.execute(sec_stmt)).scalars().first()
+            if sec_obj:
+                sec_obj.locked_until = None
+                sec_obj.failed_attempt_count = 0
+                await db.commit()
+        except Exception:
+            pass
 
         roles = [ur.role.code for ur in user.user_roles if ur.role]
         if not roles and user.user_type:

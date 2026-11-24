@@ -68,39 +68,43 @@ export const getAuthToken = (): string | null => {
 
     if (portTokenKey) {
       const specificLs = localStorage.getItem(portTokenKey);
-      if (specificLs && specificLs.trim() !== "") return specificLs.trim();
+      if (specificLs && specificLs.trim() !== "" && !isJwtExpired(specificLs)) return specificLs.trim();
 
       const cookies = document.cookie.split("; ");
       const specificCookie = cookies.find((row) => row.startsWith(`${portTokenKey}=`));
       if (specificCookie) {
         const val = specificCookie.split("=")[1]?.trim();
-        if (val) return val;
+        if (val && !isJwtExpired(val)) return val;
       }
     }
 
-    const lsToken =
-      localStorage.getItem("p2p_access_token") ||
-      localStorage.getItem("pay2pay_access_token") ||
-      localStorage.getItem("pay2pay_auth_token") ||
-      localStorage.getItem("p2p_sales_token") ||
-      localStorage.getItem("pay2pay_sales_token") ||
-      localStorage.getItem("access_token") ||
-      localStorage.getItem("token");
-    if (lsToken && lsToken.trim() !== "") return lsToken.trim();
+    // Comprehensive scan: find any valid non-expired token
+    const candidateKeys = [
+      "p2p_admin_token",
+      "p2p_retailer_token",
+      "p2p_super_admin_token",
+      "p2p_access_token",
+      "pay2pay_access_token",
+      "pay2pay_auth_token",
+      "p2p_sales_token",
+      "pay2pay_sales_token",
+      "access_token",
+      "token",
+      "p2p_token",
+    ];
 
     const cookies = document.cookie.split("; ");
-    for (const c of cookies) {
-      if (
-        c.startsWith("p2p_access_token=") ||
-        c.startsWith("pay2pay_access_token=") ||
-        c.startsWith("pay2pay_auth_token=") ||
-        c.startsWith("p2p_sales_token=") ||
-        c.startsWith("pay2pay_sales_token=") ||
-        c.startsWith("access_token=") ||
-        c.startsWith("token=")
-      ) {
-        const val = c.split("=")[1]?.trim();
-        if (val) return val;
+    for (const k of candidateKeys) {
+      const lsVal = localStorage.getItem(k)?.trim();
+      if (lsVal && lsVal.length > 10 && !isJwtExpired(lsVal)) {
+        return lsVal;
+      }
+      const cMatch = cookies.find((row) => row.startsWith(`${k}=`));
+      if (cMatch) {
+        const cVal = cMatch.split("=")[1]?.trim();
+        if (cVal && cVal.length > 10 && !isJwtExpired(cVal)) {
+          return cVal;
+        }
       }
     }
     return null;
@@ -304,6 +308,13 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
             try {
               localStorage.setItem("p2p_session_locked", "true");
               localStorage.setItem("p2p_session_locked_at", String(lockTime));
+            } catch (e) {}
+          } else if (res.data?.is_locked === false) {
+            setSessionState("ACTIVE");
+            setLockedAt(null);
+            try {
+              localStorage.removeItem("p2p_session_locked");
+              localStorage.removeItem("p2p_session_locked_at");
             } catch (e) {}
           }
         } catch (err) {
