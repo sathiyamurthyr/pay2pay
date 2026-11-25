@@ -153,20 +153,24 @@ async def get_authenticated_company_branding(
     company_id_uuid = None
     retailer_ref_id = None
 
-    # 1. Resolve by explicit domain/company query parameter or hostname first (Domain-driven dynamic branding)
-    target_domain = company or domain or request.query_params.get("company") or request.query_params.get("domain")
+    # 1. Resolve authoritatively from incoming HTTP hostname first (never let ?company= or ?domain= spoof production host)
     host_header = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
     clean_h = extract_clean_domain(host_header)
     port_h = host_header.split(":")[1] if ":" in host_header else ""
-    if not target_domain:
-        if clean_h and clean_h not in ["localhost", "127.0.0.1", "0.0.0.0"]:
-            target_domain = clean_h
-        elif port_h == "4002":
-            target_domain = "smspay.store"
-        elif port_h == "4001":
-            target_domain = "near4you.store"
-        elif port_h in ["3000", "4003"]:
-            target_domain = "pay2pay.in"
+    is_local_host = not clean_h or clean_h in ["localhost", "127.0.0.1", "0.0.0.0"]
+
+    target_domain = None
+    if not is_local_host:
+        target_domain = clean_h
+    else:
+        target_domain = domain or request.query_params.get("domain")
+        if not target_domain:
+            if port_h == "4002":
+                target_domain = "smspay.store"
+            elif port_h == "4001":
+                target_domain = "near4you.store"
+            elif port_h in ["3000", "4003"]:
+                target_domain = "pay2pay.in"
 
     domain_was_specified = bool(target_domain and target_domain.lower() not in ["localhost", "127.0.0.1", "0.0.0.0"])
 
@@ -184,6 +188,25 @@ async def get_authenticated_company_branding(
                     "code": "UNMAPPED_DOMAIN",
                     "message": f"Domain '{target_domain}' is not mapped to any registered company identity.",
                     "domain": target_domain,
+                    "correlation_id": corr_id
+                }
+            )
+    elif is_local_host and (company or request.query_params.get("company")):
+        company_param = (company or request.query_params.get("company") or "").strip().upper()
+        c_row = (await db.execute(
+            text("SELECT company_ref_id FROM public.company WHERE UPPER(company_code) = :cc AND is_active = true AND is_deleted = false LIMIT 1;"),
+            {"cc": company_param}
+        )).fetchone()
+        if c_row:
+            company_ref_id = int(c_row[0])
+        else:
+            corr_id = str(uuid.uuid4())
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "code": "UNMAPPED_DOMAIN",
+                    "message": f"Company '{company_param}' is not mapped to any registered company identity.",
+                    "domain": company_param,
                     "correlation_id": corr_id
                 }
             )
@@ -326,11 +349,10 @@ async def get_authenticated_company_branding(
         except Exception:
             domains_list = []
 
-    brand_hint = (company or "").upper().strip()
-    host_hint = domain or target_domain or clean_h or host_header or ""
+    host_hint = target_domain or clean_h or host_header or ""
 
     brand_meta = resolve_brand_metadata(
-        code_hint=brand_hint or d.get("company_code"),
+        code_hint=d.get("company_code"),
         host_hint=host_hint,
         db_row=d
     )

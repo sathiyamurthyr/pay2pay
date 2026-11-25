@@ -242,17 +242,10 @@ export function useCompanyBranding() {
       }
 
       const queryParams = new URLSearchParams();
-      if (canonical.company_code === "PAY2PAY") {
-        queryParams.set("domain", "pay2pay.in");
-        queryParams.set("company", "PAY2PAY");
-      } else if (canonical.company_code === "NEAR4YOU") {
-        queryParams.set("domain", "near4you.store");
-        queryParams.set("company", "NEAR4YOU");
-      } else if (canonical.company_code === "SMSPAY") {
-        queryParams.set("domain", "smspay.store");
-        queryParams.set("company", "SMSPAY");
-      } else if (host && host !== "localhost" && host !== "127.0.0.1") {
+      if (host && host !== "localhost" && host !== "127.0.0.1" && host !== "0.0.0.0") {
         queryParams.set("domain", host);
+      } else if (canonical.company_code) {
+        queryParams.set("company", canonical.company_code);
       }
 
       const endpoint = `/api/v1/companies/branding?${queryParams.toString()}`;
