@@ -119,14 +119,15 @@ export const applyThemeTokensToDOM = (
  */
 export const createMuiThemeForEffectiveTheme = (
   _effectiveTheme: EffectiveTheme = "light",
-  branding: CompanyBrandingData = getInitialBrandingByHostname()
+  branding: CompanyBrandingData | null = getInitialBrandingByHostname()
 ): Theme => {
-  const isNear4You = branding.company_code === "NEAR4YOU";
-  const isPay2Pay = branding.company_code === "PAY2PAY";
-  const isSmsPay = branding.company_code === "SMSPAY";
+  const code = branding?.company_code || "";
+  const isNear4You = code === "NEAR4YOU";
+  const isPay2Pay = code === "PAY2PAY";
+  const isSmsPay = code === "SMSPAY";
 
-  const primary = branding.primary_colour || (isPay2Pay ? "#2563EB" : isSmsPay ? "#059669" : "#A20A3A");
-  const secondary = branding.secondary_colour || (isPay2Pay ? "#1E40AF" : isSmsPay ? "#047857" : "#EDC11E");
+  const primary = branding?.primary_colour || (isNear4You ? "#A20A3A" : isSmsPay ? "#0F3B7D" : "#2563EB");
+  const secondary = branding?.secondary_colour || (isNear4You ? "#EDC11E" : isSmsPay ? "#D4AF37" : "#1E40AF");
 
   return createTheme({
     palette: {
@@ -220,7 +221,7 @@ export const CustomThemeProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [effectiveTheme, setEffectiveTheme] = useState<EffectiveTheme>(() =>
     resolveEffectiveTheme(getStoredThemeMode(), DEFAULT_TIMEZONE)
   );
-  const [branding, setBranding] = useState<CompanyBrandingData>(() => getInitialBrandingByHostname());
+  const [branding, setBranding] = useState<CompanyBrandingData | null>(() => getInitialBrandingByHostname());
 
   // Sync DOM tokens synchronously on mount and when effectiveTheme updates
   useEffect(() => {

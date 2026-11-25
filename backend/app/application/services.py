@@ -1975,12 +1975,19 @@ class OrganizationManagementService:
         status: Optional[str] = None,
         page: int = 1,
         page_size: int = 20,
-        is_platform_admin: bool = False
+        is_platform_admin: bool = False,
+        company_ref_id: Optional[int] = None,
+        company_id: Optional[uuid.UUID] = None,
     ) -> Tuple[List[SuperDistributorModel], int]:
         stmt = select(SuperDistributorModel).where(
             SuperDistributorModel.is_deleted == False
         )
-        if tenant_id and not is_platform_admin:
+        if company_ref_id is not None and not is_platform_admin:
+            if company_id is not None:
+                stmt = stmt.where(or_(SuperDistributorModel.company_ref_id == company_ref_id, SuperDistributorModel.company_id == company_id))
+            else:
+                stmt = stmt.where(SuperDistributorModel.company_ref_id == company_ref_id)
+        elif tenant_id and not is_platform_admin:
             stmt = stmt.where(SuperDistributorModel.tenant_id == tenant_id)
         if status:
             stmt = stmt.where(SuperDistributorModel.status == status.upper())
@@ -2187,12 +2194,19 @@ class OrganizationManagementService:
         status: Optional[str] = None,
         page: int = 1,
         page_size: int = 20,
-        is_platform_admin: bool = False
+        is_platform_admin: bool = False,
+        company_ref_id: Optional[int] = None,
+        company_id: Optional[uuid.UUID] = None,
     ) -> Tuple[List[DistributorModel], int]:
         stmt = select(DistributorModel).where(
             DistributorModel.is_deleted == False
         )
-        if tenant_id and not is_platform_admin:
+        if company_ref_id is not None and not is_platform_admin:
+            if company_id is not None:
+                stmt = stmt.where(or_(DistributorModel.company_ref_id == company_ref_id, DistributorModel.company_id == company_id))
+            else:
+                stmt = stmt.where(DistributorModel.company_ref_id == company_ref_id)
+        elif tenant_id and not is_platform_admin:
             stmt = stmt.where(DistributorModel.tenant_id == tenant_id)
         if status:
             stmt = stmt.where(DistributorModel.status == status.upper())
@@ -3694,20 +3708,30 @@ class RetailerManagementService:
         return retailer
 
     @staticmethod
-    async def get_dashboard_metrics(db: AsyncSession, tenant_id: uuid.UUID) -> RetailerDashboardMetricsResponse:
-        total_stmt = select(func.count(RetailerModel.id)).where(RetailerModel.tenant_id == tenant_id, RetailerModel.is_deleted == False)
+    async def get_dashboard_metrics(db: AsyncSession, tenant_id: uuid.UUID, company_ref_id: Optional[int] = None) -> RetailerDashboardMetricsResponse:
+        base_filters = [RetailerModel.is_deleted == False]
+        if company_ref_id is not None:
+            base_filters.append(RetailerModel.company_ref_id == company_ref_id)
+        else:
+            base_filters.append(RetailerModel.tenant_id == tenant_id)
+
+        total_stmt = select(func.count(RetailerModel.id)).where(*base_filters)
         total_retailers = (await db.execute(total_stmt)).scalar() or 0
 
-        active_stmt = select(func.count(RetailerModel.id)).where(RetailerModel.tenant_id == tenant_id, RetailerModel.status == "ACTIVE", RetailerModel.is_deleted == False)
+        active_stmt = select(func.count(RetailerModel.id)).where(*base_filters, RetailerModel.status == "ACTIVE")
         active_retailers = (await db.execute(active_stmt)).scalar() or 0
 
-        pending_stmt = select(func.count(RetailerModel.id)).where(RetailerModel.tenant_id == tenant_id, RetailerModel.status == "PENDING_APPROVAL", RetailerModel.is_deleted == False)
+        pending_stmt = select(func.count(RetailerModel.id)).where(*base_filters, RetailerModel.status == "PENDING_APPROVAL")
         pending_kyc = (await db.execute(pending_stmt)).scalar() or 0
 
-        suspended_stmt = select(func.count(RetailerModel.id)).where(RetailerModel.tenant_id == tenant_id, RetailerModel.status == "SUSPENDED", RetailerModel.is_deleted == False)
+        suspended_stmt = select(func.count(RetailerModel.id)).where(*base_filters, RetailerModel.status == "SUSPENDED")
         suspended_retailers = (await db.execute(suspended_stmt)).scalar() or 0
 
-        wallet_stmt = select(func.sum(RetailerWalletModel.wallet_balance)).where(RetailerWalletModel.tenant_id == tenant_id, RetailerWalletModel.is_deleted == False)
+        wallet_stmt = (
+            select(func.sum(RetailerWalletModel.wallet_balance))
+            .join(RetailerModel, RetailerWalletModel.retailer_id == RetailerModel.public_id)
+            .where(*base_filters, RetailerWalletModel.is_deleted == False)
+        )
         total_wallet_balance = (await db.execute(wallet_stmt)).scalar() or 0.0
 
         growth_chart = [
@@ -3745,22 +3769,32 @@ class RetailerManagementService:
         )
 
     @staticmethod
-    async def get_hierarchy_options(db: AsyncSession, tenant_id: uuid.UUID) -> Dict[str, Any]:
+    async def get_hierarchy_options(db: AsyncSession, tenant_id: uuid.UUID, company_ref_id: Optional[int] = None) -> Dict[str, Any]:
         """
-        Returns structured organization hierarchy options for retailer mapping:
-        Companies (Pay2Pay, DailyTrans, etc.) -> RMs -> SDs -> Distributors
+        Returns structured organization hierarchy options scoped to the active company.
         """
-        comp_stmt = select(CompanyModel).where(CompanyModel.is_deleted == False).order_by(CompanyModel.company_name.asc())
+        comp_stmt = select(CompanyModel).where(CompanyModel.is_deleted == False)
+        if company_ref_id is not None:
+            comp_stmt = comp_stmt.where(CompanyModel.company_ref_id == company_ref_id)
+        comp_stmt = comp_stmt.order_by(CompanyModel.company_name.asc())
         companies = (await db.execute(comp_stmt)).scalars().all()
 
-        rm_stmt = select(RegionalManagerModel).where(RegionalManagerModel.is_deleted == False).order_by(RegionalManagerModel.full_name.asc())
-        rms = (await db.execute(rm_stmt)).scalars().all()
+        target_company_ids = [c.public_id for c in companies]
 
-        sd_stmt = select(SuperDistributorModel).where(SuperDistributorModel.is_deleted == False).order_by(SuperDistributorModel.business_name.asc())
-        sds = (await db.execute(sd_stmt)).scalars().all()
+        rm_stmt = select(RegionalManagerModel).where(RegionalManagerModel.is_deleted == False)
+        if company_ref_id is not None and target_company_ids:
+            rm_stmt = rm_stmt.where(RegionalManagerModel.company_id.in_(target_company_ids))
+        rms = (await db.execute(rm_stmt.order_by(RegionalManagerModel.full_name.asc()))).scalars().all()
 
-        dist_stmt = select(DistributorModel).where(DistributorModel.is_deleted == False).order_by(DistributorModel.business_name.asc())
-        dists = (await db.execute(dist_stmt)).scalars().all()
+        sd_stmt = select(SuperDistributorModel).where(SuperDistributorModel.is_deleted == False)
+        if company_ref_id is not None:
+            sd_stmt = sd_stmt.where(or_(SuperDistributorModel.company_ref_id == company_ref_id, SuperDistributorModel.company_id.in_(target_company_ids)))
+        sds = (await db.execute(sd_stmt.order_by(SuperDistributorModel.business_name.asc()))).scalars().all()
+
+        dist_stmt = select(DistributorModel).where(DistributorModel.is_deleted == False)
+        if company_ref_id is not None:
+            dist_stmt = dist_stmt.where(or_(DistributorModel.company_ref_id == company_ref_id, DistributorModel.company_id.in_(target_company_ids)))
+        dists = (await db.execute(dist_stmt.order_by(DistributorModel.business_name.asc()))).scalars().all()
 
         comp_list = []
         for c in companies:
@@ -3772,7 +3806,7 @@ class RetailerManagementService:
                     "email": r.email,
                     "mobile": r.mobile
                 }
-                for r in rms if r.company_id == c.public_id or r.tenant_id == c.tenant_id
+                for r in rms if r.company_id == c.public_id
             ]
             c_sds = [
                 {
@@ -3784,7 +3818,7 @@ class RetailerManagementService:
                     "mobile": s.mobile,
                     "mapped_rm_id": str(s.mapped_rm_id) if s.mapped_rm_id else None
                 }
-                for s in sds if s.company_id == c.public_id or s.tenant_id == c.tenant_id
+                for s in sds if s.company_id == c.public_id or getattr(s, "company_ref_id", None) == c.company_ref_id
             ]
             c_dists = [
                 {
@@ -3796,7 +3830,7 @@ class RetailerManagementService:
                     "mobile": d.mobile,
                     "mapped_super_distributor_id": str(d.mapped_super_distributor_id) if d.mapped_super_distributor_id else None
                 }
-                for d in dists if d.company_id == c.public_id or d.tenant_id == c.tenant_id
+                for d in dists if d.company_id == c.public_id or getattr(d, "company_ref_id", None) == c.company_ref_id
             ]
             comp_list.append({
                 "public_id": str(c.public_id),

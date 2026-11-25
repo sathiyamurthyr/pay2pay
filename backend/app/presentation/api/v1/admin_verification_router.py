@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.application.verification_service import VerificationService
-from app.application.dependencies import get_current_user
+from app.application.dependencies import get_current_user, CompanyContext, get_company_context
 from app.infrastructure.db.models import AdminUserModel
 from fastapi import status
 
@@ -109,16 +109,23 @@ async def list_requests(
     is_business: Optional[bool] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
+    comp_ref = ctx.company_ref_id if not ctx.is_super_admin else None
     return await VerificationService.list_verification_requests(
-        db, status_tab=status_tab, search=search, state=state, is_business=is_business, page=page, page_size=page_size
+        db, status_tab=status_tab, search=search, state=state, is_business=is_business, page=page, page_size=page_size, company_ref_id=comp_ref
     )
 
 
 @router.get("/requests/{verification_id}")
-async def get_request_detail(verification_id: str, db: AsyncSession = Depends(get_db)):
-    res = await VerificationService.get_verification_detail(db, verification_id)
+async def get_request_detail(
+    verification_id: str,
+    ctx: CompanyContext = Depends(get_company_context),
+    db: AsyncSession = Depends(get_db)
+):
+    comp_ref = ctx.company_ref_id if not ctx.is_super_admin else None
+    res = await VerificationService.get_verification_detail(db, verification_id, company_ref_id=comp_ref)
     if res.get("status") == "ERROR":
         raise HTTPException(status_code=404, detail=res["message"])
     return res
@@ -130,6 +137,7 @@ async def perform_action(
     payload: ActionPayload,
     request: Request,
     current_admin: AdminUserModel = Depends(require_admin_user),
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
     ip = request.client.host if request.client else "127.0.0.1"
@@ -137,6 +145,7 @@ async def perform_action(
 
     authenticated_admin_id = getattr(current_admin, "username", None) or getattr(current_admin, "email", None) or payload.admin_id
     authenticated_admin_role = getattr(current_admin, "user_type", None) or "COMPLIANCE_OFFICER"
+    comp_ref = ctx.company_ref_id if not ctx.is_super_admin else None
 
     res = await VerificationService.perform_verification_action(
         db,
@@ -146,7 +155,8 @@ async def perform_action(
         remarks=payload.remarks,
         admin_role=authenticated_admin_role,
         ip_address=ip,
-        browser=browser
+        browser=browser,
+        company_ref_id=comp_ref,
     )
     if res.get("status") == "ERROR":
         raise HTTPException(status_code=400, detail=res["message"])

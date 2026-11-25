@@ -236,6 +236,7 @@ class VerificationService:
 
                 new_verif = RetailerVerificationModel(
                     tenant_id=r.tenant_id or DEFAULT_TENANT_ID,
+                    company_id=r.company_id,
                     public_id=verif_pub_id,
                     registration_id=reg_id,
                     retailer_id=r.retailer_code or f"RET-{r.id}",
@@ -279,12 +280,28 @@ class VerificationService:
         state: Optional[str] = None,
         is_business: Optional[bool] = None,
         page: int = 1,
-        page_size: int = 20
+        page_size: int = 20,
+        company_ref_id: Optional[int] = None,
     ) -> Dict[str, Any]:
-        """Admin Verification Dashboard request listing with filters & pagination."""
+        """Admin Verification Dashboard request listing with filters, pagination, and company isolation."""
         await VerificationService.sync_retailers_to_verifications(db)
 
         query = select(RetailerVerificationModel)
+        comp_filter_cond = None
+        if company_ref_id is not None:
+            from app.infrastructure.db.models import RetailerModel, CompanyModel
+            c_row = (await db.execute(select(CompanyModel.public_id).where(CompanyModel.company_ref_id == company_ref_id))).first()
+            r_codes = [r[0] for r in (await db.execute(select(RetailerModel.retailer_code).where(RetailerModel.company_ref_id == company_ref_id, RetailerModel.is_deleted == False))).all() if r[0]]
+            sub_conds = []
+            if c_row and c_row[0]:
+                sub_conds.append(RetailerVerificationModel.company_id == c_row[0])
+            if r_codes:
+                sub_conds.append(RetailerVerificationModel.retailer_id.in_(r_codes))
+            if sub_conds:
+                comp_filter_cond = or_(*sub_conds)
+                query = query.where(comp_filter_cond)
+            else:
+                query = query.where(RetailerVerificationModel.id == -1)
 
         # Tab Filter
         if status_tab and status_tab != "ALL":
@@ -330,13 +347,16 @@ class VerificationService:
         )
         unread_notifications = notif_q.scalar() or 0
 
-        # Aggregate status counts for all tabs
-        status_counts_q = await db.execute(
-            select(
-                RetailerVerificationModel.verification_status,
-                func.count(RetailerVerificationModel.id)
-            ).group_by(RetailerVerificationModel.verification_status)
+        # Aggregate status counts for all tabs (scoped to company when provided)
+        sc_stmt = select(
+            RetailerVerificationModel.verification_status,
+            func.count(RetailerVerificationModel.id)
         )
+        if comp_filter_cond is not None:
+            sc_stmt = sc_stmt.where(comp_filter_cond)
+        elif company_ref_id is not None:
+            sc_stmt = sc_stmt.where(RetailerVerificationModel.id == -1)
+        status_counts_q = await db.execute(sc_stmt.group_by(RetailerVerificationModel.verification_status))
         status_counts = {row[0]: row[1] for row in status_counts_q.all()}
 
         return {
@@ -372,7 +392,7 @@ class VerificationService:
         }
 
     @staticmethod
-    async def get_verification_detail(db: AsyncSession, verification_id: str) -> Dict[str, Any]:
+    async def get_verification_detail(db: AsyncSession, verification_id: str, company_ref_id: Optional[int] = None) -> Dict[str, Any]:
         """Comprehensive Retailer 360 Verification Details."""
         clean_id = str(verification_id).strip()
         conds = []
@@ -396,6 +416,13 @@ class VerificationService:
             select(RetailerVerificationModel).where(or_(*conds)).order_by(desc(RetailerVerificationModel.created_date))
         )
         verif = q.scalars().first()
+
+        if verif and company_ref_id is not None:
+            from app.infrastructure.db.models import RetailerModel, CompanyModel
+            c_row = (await db.execute(select(CompanyModel.public_id).where(CompanyModel.company_ref_id == company_ref_id))).first()
+            r_codes = {r[0] for r in (await db.execute(select(RetailerModel.retailer_code).where(RetailerModel.company_ref_id == company_ref_id, RetailerModel.is_deleted == False))).all() if r[0]}
+            if not ((c_row and verif.company_id == c_row[0]) or (verif.retailer_id in r_codes)):
+                return {"status": "ERROR", "message": "Forbidden: Verification record belongs to another company."}
         
         # Fallback: Check RegistrationDraftModel if not in RetailerVerificationModel
         if not verif:
@@ -970,7 +997,8 @@ class VerificationService:
         remarks: str,
         admin_role: str = "COMPLIANCE_OFFICER",
         ip_address: Optional[str] = "127.0.0.1",
-        browser: Optional[str] = "Chrome 122.0"
+        browser: Optional[str] = "Chrome 122.0",
+        company_ref_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Performs admin action with mandatory remarks and immutable audit trail."""
 
@@ -1001,6 +1029,13 @@ class VerificationService:
             select(RetailerVerificationModel).where(or_(*conds)).order_by(desc(RetailerVerificationModel.created_date))
         )
         verif = q.scalars().first()
+
+        if verif and company_ref_id is not None:
+            from app.infrastructure.db.models import RetailerModel, CompanyModel
+            c_row = (await db.execute(select(CompanyModel.public_id).where(CompanyModel.company_ref_id == company_ref_id))).first()
+            r_codes = {r[0] for r in (await db.execute(select(RetailerModel.retailer_code).where(RetailerModel.company_ref_id == company_ref_id, RetailerModel.is_deleted == False))).all() if r[0]}
+            if not ((c_row and verif.company_id == c_row[0]) or (verif.retailer_id in r_codes)):
+                return {"status": "ERROR", "message": "Forbidden: Verification record belongs to another company."}
 
         # Fallback if not found in RetailerVerificationModel, check RegistrationDraftModel
         if not verif:
@@ -1405,7 +1440,7 @@ class VerificationService:
         }
 
     @staticmethod
-    async def get_retailer_status(db: AsyncSession, identifier: str) -> Dict[str, Any]:
+    async def get_retailer_status(db: AsyncSession, identifier: str, company_ref_id: Optional[int] = None) -> Dict[str, Any]:
         """Fetches current verification status for Retailer Dashboard adaptation."""
 
         clean_id = str(identifier).strip()
@@ -1427,6 +1462,13 @@ class VerificationService:
             select(RetailerVerificationModel).where(or_(*conds)).order_by(desc(RetailerVerificationModel.created_date))
         )
         verif = q.scalars().first()
+
+        if verif and company_ref_id is not None:
+            from app.infrastructure.db.models import RetailerModel, CompanyModel
+            c_row = (await db.execute(select(CompanyModel.public_id).where(CompanyModel.company_ref_id == company_ref_id))).first()
+            r_codes = {r[0] for r in (await db.execute(select(RetailerModel.retailer_code).where(RetailerModel.company_ref_id == company_ref_id, RetailerModel.is_deleted == False))).all() if r[0]}
+            if not ((c_row and verif.company_id == c_row[0]) or (verif.retailer_id in r_codes)):
+                return {"status": "ERROR", "message": "Forbidden: Verification record belongs to another company."}
         if not verif:
             return {
                 "verification_status": "PENDING",

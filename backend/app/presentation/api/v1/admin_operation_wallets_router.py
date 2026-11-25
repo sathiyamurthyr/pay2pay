@@ -9,7 +9,11 @@ from sqlalchemy import text, select, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.application.dependencies import get_current_user, get_current_tenant_id, require_admin_user
+from app.application.dependencies import (
+    get_current_user, get_current_tenant_id, require_admin_user,
+    CompanyContext, get_company_context
+)
+from app.core.domain_resolver import get_domain_context, DomainCompanyContext
 from app.infrastructure.db.models import AdminUserModel, AdminServiceVendorWalletModel
 
 router = APIRouter(
@@ -30,12 +34,15 @@ async def get_admin_operation_wallets(
     vendor: Optional[str] = Query(None, description="Filter by vendor name or code (e.g. Utkal)"),
     tenant_id: uuid.UUID = Depends(get_current_tenant_id),
     current_user: AdminUserModel = Depends(get_current_user),
+    ctx: CompanyContext = Depends(get_company_context),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Returns the list of dynamic Admin Service + Vendor Operation Wallets (e.g., Payout + Utkal, Recharge + Utkal).
     Uses Stored Procedure public.sp_get_admin_service_vendor_wallets with fallback.
     """
+    domain_comp_uuid = uuid.UUID(domain_ctx.company_id) if domain_ctx.company_id else None
     try:
         sp_query = text("""
             SELECT id, public_id, tenant_id, company_id, service_code, service_name,
@@ -65,15 +72,27 @@ async def get_admin_operation_wallets(
                 "updated_date": r.updated_date.isoformat() if r.updated_date else None
             }
             for r in rows
+            if ctx.is_super_admin or not domain_comp_uuid or not getattr(r, "company_id", None) or str(r.company_id) == str(domain_comp_uuid)
         ]
         return {"success": True, "items": items, "total": len(items)}
     except Exception as sp_err:
+        await db.rollback()
         print(f"[OPERATION WALLETS ROUTER WARNING] SP error: {sp_err}. Falling back to ORM query.")
 
     # ORM Fallback
+    from sqlalchemy import or_
     stmt = select(AdminServiceVendorWalletModel).where(
+        AdminServiceVendorWalletModel.tenant_id == tenant_id,
         AdminServiceVendorWalletModel.is_deleted == False
-    ).order_by(
+    )
+    if not ctx.is_super_admin and domain_comp_uuid:
+        stmt = stmt.where(
+            or_(
+                AdminServiceVendorWalletModel.company_id == domain_comp_uuid,
+                AdminServiceVendorWalletModel.company_id.is_(None),
+            )
+        )
+    stmt = stmt.order_by(
         case(
             (
                 (AdminServiceVendorWalletModel.service_code.ilike("%PAYOUT%")) &
@@ -126,6 +145,8 @@ async def get_admin_operation_wallet_detail(
     wallet_id: str,
     tenant_id: uuid.UUID = Depends(get_current_tenant_id),
     current_user: AdminUserModel = Depends(get_current_user),
+    ctx: CompanyContext = Depends(get_company_context),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -138,12 +159,15 @@ async def get_admin_operation_wallet_detail(
 
     stmt = select(AdminServiceVendorWalletModel).where(
         AdminServiceVendorWalletModel.public_id == w_uuid,
+        AdminServiceVendorWalletModel.tenant_id == tenant_id,
         AdminServiceVendorWalletModel.is_deleted == False
     )
     res = await db.execute(stmt)
     w = res.scalars().first()
     if not w:
         raise HTTPException(status_code=404, detail="Admin operation wallet not found.")
+    if not ctx.is_super_admin and domain_ctx.company_id and w.company_id and str(w.company_id) != str(domain_ctx.company_id):
+        raise HTTPException(status_code=403, detail="Operation wallet does not belong to the active company domain.")
 
     return {
         "success": True,
@@ -171,6 +195,8 @@ async def topup_admin_operation_wallet(
     req: AdminWalletTopupRequest,
     tenant_id: uuid.UUID = Depends(get_current_tenant_id),
     current_user: AdminUserModel = Depends(get_current_user),
+    ctx: CompanyContext = Depends(get_company_context),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -182,7 +208,19 @@ async def topup_admin_operation_wallet(
     except Exception:
         raise HTTPException(status_code=400, detail=f"Invalid wallet ID format: '{wallet_id}'")
 
-    admin_email = getattr(current_user, "email", "admin@pay2pay.in") or "admin@pay2pay.in"
+    w_check = (await db.execute(
+        select(AdminServiceVendorWalletModel).where(
+            AdminServiceVendorWalletModel.public_id == w_uuid,
+            AdminServiceVendorWalletModel.tenant_id == tenant_id,
+            AdminServiceVendorWalletModel.is_deleted == False
+        )
+    )).scalars().first()
+    if not w_check:
+        raise HTTPException(status_code=404, detail="Admin operation wallet not found.")
+    if not ctx.is_super_admin and domain_ctx.company_id and w_check.company_id and str(w_check.company_id) != str(domain_ctx.company_id):
+        raise HTTPException(status_code=403, detail="Operation wallet does not belong to the active company domain.")
+
+    admin_email = getattr(current_user, "email", None) or getattr(current_user, "username", None) or "system-admin"
 
     try:
         sp_query = text("SELECT public.sp_topup_admin_service_vendor_wallet(:wallet_id, :amount, :email, :remarks);")

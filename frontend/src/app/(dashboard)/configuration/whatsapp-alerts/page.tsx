@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import api from "@/lib/api";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 import {
   MessageSquare,
   ShieldCheck,
@@ -89,6 +90,7 @@ interface WhatsAppConfig {
 }
 
 export default function WhatsAppAlertsConfigurationPage() {
+  const branding = useCompanyBranding();
   const [activeTab, setActiveTab] = useState<"admin" | "retailer">("admin");
   const [config, setConfig] = useState<WhatsAppConfig>({
     is_enabled: true,
@@ -97,12 +99,12 @@ export default function WhatsAppAlertsConfigurationPage() {
     phone_number_id: "497102120160245",
     admin_phone_numbers: "7013914767",
     language_code: "en",
-    button_base_url: "https://receipt.near4you.store/r/",
+    button_base_url: "",
     retailer_alert_enabled: true,
     retailer_template_id: "1586618753193150",
     retailer_template_name: "topup_status_retailer",
     retailer_language_code: "en",
-    retailer_button_base_url: "https://receipt.near4you.store/r/",
+    retailer_button_base_url: "",
   });
 
   const [loading, setLoading] = useState<boolean>(true);
@@ -1381,8 +1383,8 @@ export default function WhatsAppAlertsConfigurationPage() {
                     </div>
 
                     <div className="text-[10px] text-[#8A8288] pt-1.5 border-t border-slate-100 space-y-0.5">
-                      <p>Thank you for using Near4You.</p>
-                      <p className="font-semibold text-slate-700">SUPER REX PRODUCTS PRIVATE LIMITED</p>
+                      <p>Thank you for using {branding.display_name || branding.company_name || "our platform"}.</p>
+                      <p className="font-semibold text-slate-700">{branding.company_name || branding.legal_name || branding.display_name || ""}</p>
                     </div>
 
                     <div className="flex items-center justify-end gap-1 text-[9px] text-[#625B60] mt-1">

@@ -737,6 +737,48 @@ async def login_with_password(
         logger.warning(f"admin_user table check: {e}")
         admin_user = None
 
+    req_portal = (payload.portal_role or "").strip().upper()
+    origin_header = request.headers.get("origin", "").lower()
+    referer_header = request.headers.get("referer", "").lower()
+    host_header = request.headers.get("host", "").lower()
+
+    is_super_distributor_portal = (
+        req_portal in ("SUPER_DISTRIBUTOR", "MASTER_DISTRIBUTOR", "SD", "MSD")
+        or "sd." in origin_header
+        or "sd." in referer_header
+        or "/sd/" in referer_header
+        or referer_header.endswith("/sd")
+        or "sd." in host_header
+        or "super-distributor." in origin_header
+        or "super-distributor." in referer_header
+        or "super-distributor." in host_header
+        or "master-distributor." in origin_header
+    )
+
+    is_distributor_portal = (
+        req_portal in ("DIST", "DISTRIBUTOR")
+        or "dist." in origin_header
+        or "dist." in referer_header
+        or "/dist/" in referer_header
+        or referer_header.endswith("/dist")
+        or "dist." in host_header
+        or "distributor." in origin_header
+        or "distributor." in host_header
+    )
+
+    is_admin_portal = (
+        req_portal in ("ADMIN", "SUPER_ADMIN", "PLATFORM_ADMIN")
+        or "admin." in origin_header
+        or "admin." in referer_header
+        or "/admin/" in referer_header
+        or referer_header.endswith("/admin")
+        or "/super-admin" in referer_header
+        or "admin." in host_header
+        or "super-admin." in host_header
+        or ":4002" in host_header
+        or ":4003" in host_header
+    )
+
     # 2. Check if user is in auth_user or retailer table strictly scoped to domain company
     existing_retailer = None
     auth_user = None
@@ -778,50 +820,7 @@ async def login_with_password(
     except Exception:
         pass
 
-    req_portal = (payload.portal_role or "").strip().upper()
-    origin_header = request.headers.get("origin", "").lower()
-    referer_header = request.headers.get("referer", "").lower()
-    host_header = request.headers.get("host", "").lower()
-
     auth_role = (getattr(auth_user, "role", "") or "").strip().upper() if auth_user else ""
-
-    # ── SUPER DISTRIBUTOR (MASTER DISTRIBUTOR) PORTAL DETECTION ──────────────
-    is_super_distributor_portal = (
-        req_portal in ("SUPER_DISTRIBUTOR", "MASTER_DISTRIBUTOR", "SD", "MSD")
-        or "sd." in origin_header
-        or "sd." in referer_header
-        or "/sd/" in referer_header
-        or referer_header.endswith("/sd")
-        or "sd." in host_header
-        or "super-distributor." in origin_header
-        or "super-distributor." in referer_header
-        or "super-distributor." in host_header
-        or "master-distributor." in origin_header
-    )
-
-    is_distributor_portal = (
-        req_portal in ("DIST", "DISTRIBUTOR")
-        or "dist." in origin_header
-        or "dist." in referer_header
-        or "/dist/" in referer_header
-        or referer_header.endswith("/dist")
-        or "dist." in host_header
-        or "distributor." in origin_header
-        or "distributor." in host_header
-    )
-
-    is_admin_portal = (
-        req_portal in ("ADMIN", "SUPER_ADMIN", "PLATFORM_ADMIN")
-        or "admin." in origin_header
-        or "admin." in referer_header
-        or "/admin/" in referer_header
-        or referer_header.endswith("/admin")
-        or "/super-admin" in referer_header
-        or "admin." in host_header
-        or "super-admin." in host_header
-        or ":4002" in host_header
-        or ":4003" in host_header
-    )
 
     is_retailer_portal = (
         req_portal in ("RETAILER", "MERCHANT")
@@ -1547,19 +1546,43 @@ async def login_with_password(
         ten_ref_id = getattr(existing_retailer, "tenant_ref_id", None) or (getattr(admin_user, "tenant_ref_id", None) if admin_user else 1)
 
         is_super = False
+        is_super_admin_host = "superadmin." in host_header or "super-admin." in host_header or req_portal == "SUPER_ADMIN"
         if is_admin and admin_user:
             admin_comp_ref = getattr(admin_user, "company_ref_id", None)
-            if admin_comp_ref is not None:
-                # User belongs to a specific company -> STRICT COMPANY ADMIN
+            is_root_super = (
+                admin_user.username == "admin"
+                or getattr(admin_user, "user_type", "") == "SUPER_ADMIN"
+                or getattr(admin_user, "role", "") == "SUPER_ADMIN"
+            )
+            if is_super_admin_host and is_root_super and admin_comp_ref is None:
+                is_super = True
+                comp_ref_id = None
+                user_roles = ["SUPER_ADMIN", "PLATFORM_ADMIN"]
+                auth_role_name = "SUPER_ADMIN"
+                dash_url = "/super-admin/dashboard"
+            elif is_super_admin_host and is_root_super:
+                is_super = True
+                comp_ref_id = None
+                user_roles = ["SUPER_ADMIN", "PLATFORM_ADMIN"]
+                auth_role_name = "SUPER_ADMIN"
+                dash_url = "/super-admin/dashboard"
+            elif admin_comp_ref is not None:
+                # Company-bound Admin -> validate strictly against active domain company
                 comp_ref_id = int(admin_comp_ref)
+                if expected_company_ref_id and comp_ref_id != expected_company_ref_id:
+                    comp_row = (await db.execute(text("SELECT company_name FROM public.company WHERE company_ref_id = :cid LIMIT 1"), {"cid": expected_company_ref_id})).first()
+                    portal_name = comp_row[0] if comp_row else "this"
+                    raise HTTPException(
+                        status_code=401,
+                        detail=f"Access denied: Admin account does not belong to {portal_name} portal."
+                    )
                 is_super = False
                 user_roles = ["ADMIN"]
                 auth_role_name = "ADMIN"
                 dash_url = "/admin/dashboard"
             else:
-                # No company bound: check if platform Super Admin
-                is_super = bool(admin_user.username == "admin" or getattr(admin_user, "user_type", "") == "PLATFORM_ADMIN" or getattr(admin_user, "role", "") == "SUPER_ADMIN")
-                comp_ref_id = None
+                is_super = is_root_super
+                comp_ref_id = None if is_super else expected_company_ref_id
                 user_roles = ["SUPER_ADMIN", "PLATFORM_ADMIN"] if is_super else ["ADMIN"]
                 auth_role_name = "SUPER_ADMIN" if is_super else "ADMIN"
                 dash_url = "/super-admin/dashboard" if is_super else "/admin/dashboard"
@@ -1617,7 +1640,28 @@ async def login_with_password(
 
         if is_admin:
             admin_full_name = admin_user.full_name if admin_user and admin_user.full_name else ("Platform Super Admin" if is_super else "Company Admin")
-            email = admin_user.email if admin_user and admin_user.email else "admin@pay2pay.com"
+            email = admin_user.email if admin_user and admin_user.email else ""
+
+            # Authoritative company metadata from public.company
+            effective_comp_ref = comp_ref_id or expected_company_ref_id
+            comp_meta_name = None
+            comp_meta_legal = None
+            comp_meta_code = None
+            if effective_comp_ref:
+                try:
+                    crow = (await db.execute(text(
+                        "SELECT company_name, legal_name, company_code, public_id, tenant_id FROM public.company WHERE company_ref_id = :cid LIMIT 1"
+                    ), {"cid": effective_comp_ref})).first()
+                    if crow:
+                        comp_meta_name = crow[0]
+                        comp_meta_legal = crow[1] or crow[0]
+                        comp_meta_code = crow[2]
+                        if crow[3]:
+                            company_str = str(crow[3])
+                        if crow[4]:
+                            tenant_str = str(crow[4])
+                except Exception:
+                    pass
 
             admin_trusted_dev = await process_remember_and_trust_device(
                 db=db,
@@ -1683,6 +1727,9 @@ async def login_with_password(
                         "user_type": "PLATFORM_ADMIN" if is_super else "COMPANY_ADMIN",
                         "tenant_id": tenant_str,
                         "company_id": company_str,
+                        "company_name": comp_meta_name,
+                        "legal_name": comp_meta_legal,
+                        "company_code": comp_meta_code,
                         "approve_status": True,
                         "active_status": True,
                         "is_super_admin": is_super

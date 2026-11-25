@@ -193,40 +193,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
   const { user } = useAuth();
   const branding = useCompanyBranding();
 
-  // Dynamic Company Branding Resolution (SMSPAY, Near4You, Pay2Pay)
+  // Authoritative Dynamic Company Branding Resolution from public.company
   const brandInfo = useMemo(() => {
-    const raw = (branding.company_code || branding.company_name || branding.display_name || "").toUpperCase();
-    if (raw.includes("SMSPAY")) {
-      return {
-        name: "SMSPAY",
-        portal: "SMSPAY Portal",
-        logo: branding.logo_url || "/branding/smspay-logo.svg",
-        primary: branding.primary_colour || "#059669",
-        secondary: branding.secondary_colour || "#047857",
-      };
-    }
-    if (raw.includes("NEAR4YOU") || raw.includes("NEAR 4 YOU")) {
-      return {
-        name: "Near4You",
-        portal: "Near4You Portal",
-        logo: branding.logo_url || "/branding/logo.svg",
-        primary: branding.primary_colour || "#A20A3A",
-        secondary: branding.secondary_colour || "#EDC11E",
-      };
-    }
-    if (raw.includes("PAY2PAY")) {
-      return {
-        name: "Pay2Pay",
-        portal: "Pay2Pay Portal",
-        logo: branding.logo_url || "/branding/pay2pay-logo.png",
-        primary: branding.primary_colour || "#2563EB",
-        secondary: branding.secondary_colour || "#1E40AF",
-      };
-    }
-    const fallbackName = branding?.display_name || branding?.company_name || "FinTech";
+    const dispName = branding?.display_name || branding?.company_name || "Enterprise";
     return {
-      name: fallbackName,
-      portal: `${fallbackName} Portal`,
+      name: dispName,
+      portal: branding?.company_name || `${dispName} Admin`,
       logo: branding?.logo_url || "/branding/logo.svg",
       primary: branding?.primary_colour || "#2563EB",
       secondary: branding?.secondary_colour || "#1E40AF",

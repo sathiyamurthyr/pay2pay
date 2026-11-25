@@ -499,13 +499,15 @@ class CompanyContext:
 
 
 async def get_company_context(
+    request: Request,
     payload: dict = Depends(get_current_token_payload),
     current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> CompanyContext:
     """
     FastAPI dependency that extracts and validates the multi-tenant company boundary
-    from the server-side authenticated user and JWT claims.
+    from the server-side authenticated user, JWT claims, and active domain context.
+    Enforces strict isolation: a company-scoped token cannot access another company's domain.
     """
     token_roles = [str(r).upper() for r in (payload.get("roles") or [])]
     user_roles = [ur.role.code.upper() for ur in getattr(current_user, "user_roles", []) or [] if ur.role]
@@ -535,16 +537,26 @@ async def get_company_context(
                 comp_ref = int(r_res)
 
     is_super = False
-    # A user is ONLY Super Admin if:
-    # 1. They have NO company_ref_id assigned (they do NOT belong to any specific company tenant), AND
-    # 2. They possess SUPER_ADMIN role or is the root platform 'admin' user.
+    # Platform Super Admin check (root superadmin portal / unbound super admin)
+    user_type_up = (getattr(current_user, "user_type", "") or "").upper()
     if comp_ref is None:
-        if "SUPER_ADMIN" in all_roles or "SUPERADMIN" in all_roles or current_user.username == "admin" or payload.get("is_super_admin") is True:
+        if "SUPER_ADMIN" in all_roles or "SUPERADMIN" in all_roles or user_type_up == "SUPER_ADMIN" or current_user.username == "admin" or payload.get("is_super_admin") is True:
             is_super = True
 
     if not is_super and comp_ref is None:
-        # Default fallback safety for non-superadmin users
-        comp_ref = 1
+        raise ForbiddenException("Company context could not be resolved for this user session.")
+
+    # Validate user's company against active request domain (fail closed on cross-domain token use)
+    if request is not None:
+        from app.core.domain_resolver import resolve_domain_context, extract_host
+        host = extract_host(request)
+        if host and host not in ("localhost", "127.0.0.1", "0.0.0.0", "backend", "near4you-retailer-backend", "testserver"):
+            domain_ctx = await resolve_domain_context(request, db)
+            is_super_portal = "superadmin." in host or "super-admin." in host
+            if not is_super and not is_super_portal and comp_ref != domain_ctx.cmp_ref_id:
+                raise ForbiddenException(
+                    f"Access denied: Authenticated company ({comp_ref}) does not match active domain company ({domain_ctx.company_code})."
+                )
 
     return CompanyContext(
         company_ref_id=comp_ref,
@@ -556,6 +568,7 @@ async def get_company_context(
 
 
 async def get_optional_company_context(
+    request: Request,
     payload: dict = Depends(get_optional_token_payload),
     user: Optional[AdminUserModel] = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db)
@@ -563,6 +576,6 @@ async def get_optional_company_context(
     if not payload or not user:
         return None
     try:
-        return await get_company_context(payload, user, db)
+        return await get_company_context(request, payload, user, db)
     except Exception:
         return None

@@ -1310,7 +1310,7 @@ export default function AdminTransactionReport() {
                       {/* Company */}
                       <TableCell sx={{ color: "#F8FAFC", fontWeight: 600, fontSize: "12px", borderColor: "rgba(255,255,255,0.05)" }}>
                         <Chip
-                          label={row.company_name || "Pay2Pay"}
+                          label={row.company_name || "—"}
                           size="small"
                           sx={{
                             bgcolor: "rgba(56, 189, 248, 0.08)",

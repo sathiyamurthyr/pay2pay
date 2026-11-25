@@ -84,7 +84,7 @@ export const COMPANY_PRESETS: Record<string, CompanyBrandingData> = {
  */
 export function getInitialBrandingByHostname(): CompanyBrandingData | null {
   if (typeof window === "undefined") {
-    return COMPANY_PRESETS.PAY2PAY;
+    return null;
   }
 
   const host = window.location.hostname.toLowerCase();
@@ -272,48 +272,16 @@ export function useCompanyBranding() {
           const data: CompanyBrandingData = json.data;
 
           // Cross-domain brand safety validation
-          if (canonical.company_code && data.company_code && data.company_code !== canonical.company_code) {
-            if (data.company_code === "SUPERREX" && ["SMSPAY", "PAY2PAY", "NEAR4YOU"].includes(canonical.company_code)) {
-              data.company_code = canonical.company_code;
-            } else {
-              throw new Error(`Cross-domain brand mismatch: Expected ${canonical.company_code}, received ${data.company_code}`);
-            }
-          }
-
-          if (canonical.company_code === "NEAR4YOU" || data.company_code === "NEAR4YOU" || (data.company_name && data.company_name.replace(/\s+/g, "").toUpperCase() === "NEAR4YOU")) {
-            data.display_name = "Near4You";
-            data.company_name = "SATHUS TECHNOLOGY PRIVATE LIMITED";
-            data.legal_name = "SATHUS TECHNOLOGY PRIVATE LIMITED";
-            data.logo_url = "/branding/logo.svg";
-            data.favicon_url = "/branding/near4you-favicon.png";
-            data.primary_colour = "#A20A3A";
-            data.secondary_colour = "#EDC11E";
-          }
-          if (canonical.company_code === "PAY2PAY" || data.company_code === "PAY2PAY" || (data.company_name && data.company_name.replace(/\s+/g, "").toUpperCase() === "PAY2PAY")) {
-            data.display_name = "Pay2Pay";
-            data.company_name = "SUPER REX PRODUCTS PRIVATE LIMITED";
-            data.legal_name = "SUPER REX PRODUCTS PRIVATE LIMITED";
-            data.logo_url = "/branding/pay2pay-logo.png";
-            data.favicon_url = "/branding/pay2pay-favicon.png";
-            data.primary_colour = "#2563EB";
-            data.secondary_colour = "#1E40AF";
-          }
-          if (canonical.company_code === "SMSPAY" || data.company_code === "SMSPAY" || (data.company_name && data.company_name.replace(/\s+/g, "").toUpperCase() === "SMSPAY")) {
-            data.display_name = "SMSPAY";
-            data.company_name = "INSPEL TECHNOLOGIES SOLUTIONS PVT";
-            data.legal_name = "INSPEL TECHNOLOGIES SOLUTIONS PVT";
-            data.logo_url = "/branding/smspay-logo.svg";
-            data.favicon_url = "/branding/smspay-favicon-32x32.png";
-            data.primary_colour = "#0F3B7D";
-            data.secondary_colour = "#D4AF37";
+          if (canonical?.company_code && data.company_code && data.company_code !== canonical.company_code) {
+            throw new Error(`Cross-domain brand mismatch: Expected ${canonical.company_code}, received ${data.company_code}`);
           }
 
           setBranding(data);
           setStatus("RESOLVED");
           setError(null);
 
-          // Store in tenant-scoped session cache
-          if (typeof window !== "undefined") {
+          // Store in company-scoped session cache
+          if (typeof window !== "undefined" && data.company_code) {
             sessionStorage.setItem(`p2p_cached_branding_${data.company_code}`, JSON.stringify(data));
           }
 
@@ -386,6 +354,14 @@ export function useCompanyBranding() {
   }, [fetchBranding]);
 
   return {
+    company_code: branding?.company_code || "",
+    company_name: branding?.company_name || "",
+    legal_name: branding?.legal_name || "",
+    display_name: branding?.display_name || "",
+    logo_url: branding?.logo_url || "",
+    favicon_url: branding?.favicon_url || "",
+    primary_colour: branding?.primary_colour || "",
+    secondary_colour: branding?.secondary_colour || "",
     ...branding,
     branding,
     status,

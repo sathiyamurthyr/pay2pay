@@ -21,13 +21,15 @@ import logging
 from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any, Tuple
-from fastapi import APIRouter, Depends, Query, HTTPException, status, Request
+from fastapi import APIRouter, Depends, Query, HTTPException, status as http_status, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.domain_resolver import get_domain_context, DomainCompanyContext
+from app.application.dependencies import CompanyContext, get_company_context
 
 logger = logging.getLogger(__name__)
 
@@ -204,8 +206,8 @@ def build_admin_transactions_query(
             COALESCE(t.narration, '') AS narration,
             t.tenant_id,
             t.company_id,
-            COALESCE(c.company_name, 'Pay2Pay') AS company_name,
-            COALESCE(c.company_code, 'P2P') AS company_code,
+            COALESCE(c.company_name, '') AS company_name,
+            COALESCE(c.company_code, '') AS company_code,
             t.retailer_id,
             t.dist_id,
             t.sd_id,
@@ -237,54 +239,6 @@ def build_admin_transactions_query(
         LEFT JOIN company c ON t.company_id = c.public_id
         LEFT JOIN retailer r ON t.retailer_id = r.public_id
         LEFT JOIN retailer_verifications rv ON (r.retailer_code = rv.retailer_id OR r.public_id::text = rv.retailer_id)
-
-        UNION ALL
-
-        -- 2. Standalone Ledger entries (e.g. Direct Admin manual allocations not in transactions table)
-        SELECT
-            l.public_id,
-            l.transaction_reference AS txn_id,
-            l.transaction_reference AS ref_id,
-            'MANUAL_ADJUSTMENT' AS service_name,
-            'MAIN' AS wallet_type,
-            'RETAILER' AS user_type,
-            UPPER(l.entry_type) AS entry_type,
-            COALESCE(l.amount::float, 0.0) AS amount,
-            COALESCE(l.balance_before::float, 0.0) AS balance_before,
-            COALESCE(l.balance_after::float, 0.0) AS balance_after,
-            CASE WHEN UPPER(l.entry_type) = 'CREDIT' THEN COALESCE(l.amount::float, 0.0) ELSE 0.0 END AS cr,
-            CASE WHEN UPPER(l.entry_type) = 'DEBIT' THEN COALESCE(l.amount::float, 0.0) ELSE 0.0 END AS dr,
-            'SUCCESS' AS status,
-            COALESCE(l.narration, 'Direct Ledger Top-up') AS narration,
-            l.tenant_id,
-            r2.company_id AS company_id,
-            COALESCE(c2.company_name, 'Pay2Pay') AS company_name,
-            COALESCE(c2.company_code, 'P2P') AS company_code,
-            r2.public_id AS retailer_id,
-            NULL::uuid AS dist_id,
-            NULL::uuid AS sd_id,
-            NULL::uuid AS rm_id,
-            NULL::uuid AS vendor_id,
-            'Admin Portal' AS vendor_name,
-            l.transaction_reference AS service_ref,
-            '—' AS vendor_ref,
-            'ADMIN_TOPUP' AS transaction_source,
-            COALESCE(r2.store_name, r2.owner_name, 'Retailer Wallet') AS user_name,
-            COALESCE(r2.retailer_code, r2.public_id::text, l.account_number) AS user_code,
-            COALESCE(rv2.mobile_number, '—') AS user_mobile,
-            COALESCE(r2.public_id::text, l.account_number) AS user_id,
-            'ADMIN' AS created_by,
-            'ADMIN' AS updated_by,
-            l.created_at,
-            l.created_at AS updated_at
-        FROM transaction_ledger_entries l
-        LEFT JOIN retailer r2 ON (l.account_number = r2.public_id::text OR l.account_number = r2.retailer_code)
-        LEFT JOIN retailer_verifications rv2 ON (r2.retailer_code = rv2.retailer_id OR r2.public_id::text = rv2.retailer_id)
-        LEFT JOIN company c2 ON r2.company_id = c2.public_id
-        WHERE l.account_type = 'RETAILER_WALLET'
-          AND NOT EXISTS (
-              SELECT 1 FROM transactions t2 WHERE t2.public_id = l.transaction_id OR t2.txn_id = l.transaction_reference
-          )
     )
     """
 
@@ -342,14 +296,19 @@ async def get_admin_transaction_report(
     sort_order: str = Query("desc"),
     page: int = Query(1, ge=1),
     limit: int = Query(25, ge=1, le=100),
+    ctx: CompanyContext = Depends(get_company_context),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Returns server-side paginated, sorted, and filtered transaction records across all entities.
+    Returns server-side paginated, sorted, and filtered transaction records strictly scoped to authenticated company.
     """
+    effective_company_id = company_id
+    if not ctx.is_super_admin:
+        effective_company_id = domain_ctx.company_code or (str(domain_ctx.company_id) if domain_ctx.company_id else None)
     offset = (page - 1) * limit
     final_sql, count_sql, params = build_admin_transactions_query(
-        company_id=company_id,
+        company_id=effective_company_id,
         user_type=user_type,
         user_id=user_id,
         vendor_name=vendor_name,
@@ -406,8 +365,8 @@ async def get_admin_transaction_report(
                 "date_time": formatted_dt,
                 "created_at": iso_dt,
                 "company_id": str(d.get("company_id") or ""),
-                "company_name": d.get("company_name") or "Pay2Pay",
-                "company_code": d.get("company_code") or "P2P",
+                "company_name": d.get("company_name") or "",
+                "company_code": d.get("company_code") or "",
                 "user_id": d.get("user_id") or "—",
                 "user_name": d.get("user_name") or "—",
                 "user_code": d.get("user_code") or "—",
@@ -446,7 +405,7 @@ async def get_admin_transaction_report(
     except Exception as e:
         logger.error(f"Error fetching admin transaction report: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={"success": False, "message": f"Failed to retrieve transaction report: {str(e)}"}
         )
 
@@ -466,13 +425,18 @@ async def get_admin_transaction_summary(
     min_amount: Optional[float] = Query(None),
     max_amount: Optional[float] = Query(None),
     search: Optional[str] = Query(None),
+    ctx: CompanyContext = Depends(get_company_context),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Returns dynamically calculated financial summary metrics based on the active filters.
+    Returns dynamically calculated financial summary metrics based on active filters and company isolation.
     """
+    effective_company_id = company_id
+    if not ctx.is_super_admin:
+        effective_company_id = domain_ctx.company_code or (str(domain_ctx.company_id) if domain_ctx.company_id else None)
     _, count_sql, params = build_admin_transactions_query(
-        company_id=company_id,
+        company_id=effective_company_id,
         user_type=user_type,
         user_id=user_id,
         vendor_name=vendor_name,
@@ -512,19 +476,30 @@ async def get_admin_transaction_summary(
     except Exception as e:
         logger.error(f"Error calculating admin transaction summary: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={"success": False, "message": f"Failed to calculate summary: {str(e)}"}
         )
 
 
 @router.get("/filters")
-async def get_admin_transaction_filter_options(db: AsyncSession = Depends(get_db)):
+async def get_admin_transaction_filter_options(
+    ctx: CompanyContext = Depends(get_company_context),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
+    db: AsyncSession = Depends(get_db)
+):
     """
-    Dynamically loads available companies, user types, services, vendors, sources, and statuses from database.
+    Dynamically loads available companies, user types, services, vendors, sources, and statuses scoped by company.
     """
     try:
+        comp_ref = ctx.company_ref_id if not ctx.is_super_admin else None
         # Companies
-        comp_res = await db.execute(text("SELECT public_id, company_name, company_code FROM company ORDER BY company_name"))
+        if comp_ref is not None:
+            comp_res = await db.execute(
+                text("SELECT public_id, company_name, company_code FROM company WHERE company_ref_id = :cid ORDER BY company_name"),
+                {"cid": comp_ref}
+            )
+        else:
+            comp_res = await db.execute(text("SELECT public_id, company_name, company_code FROM company ORDER BY company_name"))
         companies = [{"id": str(r[0]), "name": r[1], "code": r[2]} for r in comp_res.fetchall()]
 
         # User Types
@@ -574,7 +549,7 @@ async def get_admin_transaction_filter_options(db: AsyncSession = Depends(get_db
     except Exception as e:
         logger.error(f"Error fetching filter options: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={"success": False, "message": f"Failed to load filter options: {str(e)}"}
         )
 
@@ -582,22 +557,33 @@ async def get_admin_transaction_filter_options(db: AsyncSession = Depends(get_db
 @router.get("/users")
 async def search_admin_report_users(
     q: str = Query("", min_length=1),
+    ctx: CompanyContext = Depends(get_company_context),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Dynamic user search across retailers, distributors, super distributors, and companies.
+    Dynamic user search scoped strictly to the authenticated company.
     """
     clean_q = f"%{q.strip()}%"
+    comp_ref = ctx.company_ref_id if not ctx.is_super_admin else None
     results = []
 
     try:
-        # Search retailers
-        ret_res = await db.execute(text("""
-            SELECT public_id, retailer_code, store_name, owner_name 
-            FROM retailer 
-            WHERE store_name ILIKE :q OR owner_name ILIKE :q OR retailer_code ILIKE :q
-            LIMIT 10
-        """), {"q": clean_q})
+        # Search retailers scoped to company
+        if comp_ref is not None:
+            ret_res = await db.execute(text("""
+                SELECT public_id, retailer_code, store_name, owner_name 
+                FROM retailer 
+                WHERE company_ref_id = :cid AND (store_name ILIKE :q OR owner_name ILIKE :q OR retailer_code ILIKE :q)
+                LIMIT 10
+            """), {"q": clean_q, "cid": comp_ref})
+        else:
+            ret_res = await db.execute(text("""
+                SELECT public_id, retailer_code, store_name, owner_name 
+                FROM retailer 
+                WHERE store_name ILIKE :q OR owner_name ILIKE :q OR retailer_code ILIKE :q
+                LIMIT 10
+            """), {"q": clean_q})
         for r in ret_res.fetchall():
             results.append({
                 "id": str(r[0]),
@@ -608,13 +594,21 @@ async def search_admin_report_users(
                 "display_label": f"{r[2] or r[3]} ({r[1]}) - Retailer"
             })
 
-        # Search companies
-        comp_res = await db.execute(text("""
-            SELECT public_id, company_code, company_name 
-            FROM company 
-            WHERE company_name ILIKE :q OR company_code ILIKE :q
-            LIMIT 5
-        """), {"q": clean_q})
+        # Search companies scoped to company
+        if comp_ref is not None:
+            comp_res = await db.execute(text("""
+                SELECT public_id, company_code, company_name 
+                FROM company 
+                WHERE company_ref_id = :cid AND (company_name ILIKE :q OR company_code ILIKE :q)
+                LIMIT 5
+            """), {"q": clean_q, "cid": comp_ref})
+        else:
+            comp_res = await db.execute(text("""
+                SELECT public_id, company_code, company_name 
+                FROM company 
+                WHERE company_name ILIKE :q OR company_code ILIKE :q
+                LIMIT 5
+            """), {"q": clean_q})
         for r in comp_res.fetchall():
             results.append({
                 "id": str(r[0]),
@@ -651,13 +645,18 @@ async def export_admin_transactions_csv(
     search: Optional[str] = Query(None),
     sort_by: str = Query("created_at"),
     sort_order: str = Query("desc"),
+    ctx: CompanyContext = Depends(get_company_context),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Streams CSV containing only matching transactions based on active filters.
+    Streams CSV containing only matching transactions scoped to authenticated company.
     """
+    effective_company_id = company_id
+    if not ctx.is_super_admin:
+        effective_company_id = domain_ctx.company_code or (str(domain_ctx.company_id) if domain_ctx.company_id else None)
     final_sql, _, params = build_admin_transactions_query(
-        company_id=company_id,
+        company_id=effective_company_id,
         user_type=user_type,
         user_id=user_id,
         vendor_name=vendor_name,
@@ -751,7 +750,7 @@ async def export_admin_transactions_csv(
     except Exception as e:
         logger.error(f"Error exporting admin transactions: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={"success": False, "message": f"Failed to export CSV: {str(e)}"}
         )
 
@@ -759,6 +758,8 @@ async def export_admin_transactions_csv(
 @router.get("/{txn_id}")
 async def get_admin_transaction_detail(
     txn_id: str,
+    ctx: CompanyContext = Depends(get_company_context),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -784,79 +785,14 @@ async def get_admin_transaction_detail(
         
         row = txn_res.fetchone()
         if not row:
-            # Fallback to transaction_ledger_entries
-            ledg_res = await db.execute(text("""
-                SELECT 
-                    l.*,
-                    r.store_name,
-                    r.owner_name,
-                    r.retailer_code,
-                    c.company_name,
-                    c.company_code
-                FROM transaction_ledger_entries l
-                LEFT JOIN retailer r ON (l.account_number = r.public_id::text OR l.account_number = r.retailer_code)
-                LEFT JOIN company c ON r.company_id = c.public_id
-                WHERE l.transaction_reference = :txn_id OR l.public_id::text = :txn_id
-                LIMIT 1
-            """), {"txn_id": txn_id})
-            ledg_row = ledg_res.fetchone()
-            if not ledg_row:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail={"success": False, "message": f"Transaction '{txn_id}' not found in records."}
-                )
-            
-            d = dict(ledg_row._mapping)
-            dt_val = d.get("created_at")
-            formatted_dt = dt_val.astimezone(IST).strftime("%d-%b-%Y %I:%M:%S %p") if isinstance(dt_val, datetime) else str(dt_val or "")
-            
-            return {
-                "success": True,
-                "data": {
-                    "txn_id": d.get("transaction_reference"),
-                    "ref_id": d.get("transaction_reference"),
-                    "service_name": "MANUAL_ADJUSTMENT",
-                    "transaction_source": "ADMIN_TOPUP",
-                    "entry_type": (d.get("entry_type") or "CREDIT").upper(),
-                    "amount": format_currency_val(d.get("amount")),
-                    "balance_before": format_currency_val(d.get("balance_before")),
-                    "balance_after": format_currency_val(d.get("balance_after")),
-                    "status": "SUCCESS",
-                    "narration": d.get("narration") or "Admin Direct Allocation",
-                    "date_time": formatted_dt,
-                    "created_at": formatted_dt,
-                    "created_by": "ADMIN",
-                    "company_name": d.get("company_name") or "Pay2Pay",
-                    "company_code": d.get("company_code") or "P2P",
-                    "user_name": d.get("store_name") or d.get("owner_name") or "Retailer Wallet",
-                    "user_code": d.get("retailer_code") or d.get("account_number") or "—",
-                    "user_mobile": "—",
-                    "user_type": "RETAILER",
-                    "vendor_name": "Admin Portal",
-                    "vendor_reference": "—",
-                    "service_reference": d.get("transaction_reference"),
-                    "audit_trail": [
-                        {
-                            "step": 1,
-                            "action": "TRANSACTION_CREATED",
-                            "status": "INITIATED",
-                            "description": "Transaction initiated via Admin Ledger",
-                            "timestamp": formatted_dt,
-                            "actor": "ADMIN"
-                        },
-                        {
-                            "step": 2,
-                            "action": "WALLET_CREDITED",
-                            "status": "SUCCESS",
-                            "description": f"Wallet credited with ₹{format_currency_val(d.get('amount'))}",
-                            "timestamp": formatted_dt,
-                            "actor": "SYSTEM"
-                        }
-                    ]
-                }
-            }
+            raise HTTPException(
+                status_code=http_http_status.HTTP_404_NOT_FOUND,
+                detail={"success": False, "message": f"Transaction '{txn_id}' not found in records."}
+            )
 
         d = dict(row._mapping)
+        if not ctx.is_super_admin and domain_ctx.company_id and d.get("company_id") and str(d.get("company_id")) != str(domain_ctx.company_id):
+            raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail="Forbidden: Transaction belongs to another company.")
         dt_val = d.get("created_at")
         formatted_dt = dt_val.astimezone(IST).strftime("%d-%b-%Y %I:%M:%S %p") if isinstance(dt_val, datetime) else str(dt_val or "")
 
@@ -959,8 +895,8 @@ async def get_admin_transaction_detail(
                 "date_time": formatted_dt,
                 "created_at": formatted_dt,
                 "created_by": str(d.get("created_by") or "SYSTEM"),
-                "company_name": d.get("company_name") or "Pay2Pay",
-                "company_code": d.get("company_code") or "P2P",
+                "company_name": d.get("company_name") or domain_ctx.company_name or "",
+                "company_code": d.get("company_code") or domain_ctx.company_code or "",
                 "user_name": d.get("retailer_name") or d.get("store_name") or d.get("owner_name") or "Retailer",
                 "user_code": d.get("retailer_code") or "—",
                 "user_mobile": "—",
@@ -977,6 +913,6 @@ async def get_admin_transaction_detail(
     except Exception as e:
         logger.error(f"Error loading transaction details for {txn_id}: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={"success": False, "message": f"Failed to load transaction details: {str(e)}"}
         )

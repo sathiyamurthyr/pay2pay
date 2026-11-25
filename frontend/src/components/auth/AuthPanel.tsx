@@ -193,9 +193,11 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 }) => {
   const router = useRouter();
 
-  const normalizedRole: "RETAILER" | "SD" | "DIST" | "COMMON" =
+  const normalizedRole: "RETAILER" | "SD" | "DIST" | "ADMIN" | "COMMON" =
     portalRole === "COMMON"
       ? "COMMON"
+      : portalRole === "ADMIN"
+      ? "ADMIN"
       : portalRole === "RETAILER"
       ? "RETAILER"
       : portalRole === "SD" || portalRole === "SUPER_DISTRIBUTOR"
@@ -205,24 +207,29 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
   const { display_name, company_name, legal_name, logo_url, primary_colour, secondary_colour } = useCompanyBranding();
   const brandPrimary = primary_colour || "#A20A3A";
   const brandSecondary = secondary_colour || "#EDC11E";
+  const portalBrandLabel = display_name || company_name || "";
 
   const portalTitle =
-    normalizedRole === "COMMON"
-      ? `${display_name || "FinTech"} Unified Portal`
+    normalizedRole === "ADMIN"
+      ? `${portalBrandLabel ? portalBrandLabel + " " : ""}Admin Portal`
+      : normalizedRole === "COMMON"
+      ? `${portalBrandLabel ? portalBrandLabel + " " : ""}Unified Portal`
       : normalizedRole === "RETAILER"
-      ? `${display_name || "FinTech"} Retailer Portal`
+      ? `${portalBrandLabel ? portalBrandLabel + " " : ""}Retailer Portal`
       : normalizedRole === "SD"
-      ? `${display_name || "FinTech"} SD Portal`
-      : `${display_name || "FinTech"} Distributor Portal`;
+      ? `${portalBrandLabel ? portalBrandLabel + " " : ""}SD Portal`
+      : `${portalBrandLabel ? portalBrandLabel + " " : ""}Distributor Portal`;
 
   const portalSubtitle =
-    normalizedRole === "COMMON"
+    normalizedRole === "ADMIN"
+      ? `Sign in to ${company_name || portalBrandLabel || "Enterprise"} Administration & Control Center`
+      : normalizedRole === "COMMON"
       ? "Sign in to access your Retailer, Distributor, or Super Distributor Workspace"
       : normalizedRole === "RETAILER"
-      ? `Access your ${display_name || "FinTech"} Retailer Business Workstation`
+      ? `Access your ${portalBrandLabel || "Business"} Retailer Workstation`
       : normalizedRole === "SD"
-      ? `Access your ${display_name || "FinTech"} Super Distributor Workspace`
-      : `Access your ${display_name || "FinTech"} Distributor Workspace`;
+      ? `Access your ${portalBrandLabel || "Business"} Super Distributor Workspace`
+      : `Access your ${portalBrandLabel || "Business"} Distributor Workspace`;
 
   const portalRegisterUrl =
     normalizedRole === "COMMON" || normalizedRole === "RETAILER"
@@ -232,9 +239,9 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       : "/dist/onboarding";
 
   const portalDashboardUrl =
-    normalizedRole === "COMMON"
-      ? "/retailer/dashboard"
-      : normalizedRole === "RETAILER"
+    normalizedRole === "ADMIN"
+      ? "/admin/dashboard"
+      : normalizedRole === "COMMON" || normalizedRole === "RETAILER"
       ? "/retailer/dashboard"
       : normalizedRole === "SD"
       ? "/sd/dashboard"
@@ -1586,21 +1593,23 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             </div>
           )}
 
-          {/* ── Register Link ── */}
-          <div className={`mt-5 pt-4 border-t flex items-center justify-between text-sm ${
-            darkMode ? "border-[#E8E2E5]" : "border-slate-200"
-          }`}>
-            <span className={`font-medium ${darkMode ? "text-[#625B60]" : "text-[#8A8288]"}`}>
-              New Partner?
-            </span>
-            <Link
-              href={portalRegisterUrl}
-              className="font-bold transition-colors hover:underline"
-              style={{ color: brandPrimary }}
-            >
-              {t.registerAccount}
-            </Link>
-          </div>
+          {/* ── Register Link (hidden for Admin Portal) ── */}
+          {normalizedRole !== "ADMIN" && (
+            <div className={`mt-5 pt-4 border-t flex items-center justify-between text-sm ${
+              darkMode ? "border-[#E8E2E5]" : "border-slate-200"
+            }`}>
+              <span className={`font-medium ${darkMode ? "text-[#625B60]" : "text-[#8A8288]"}`}>
+                New Partner?
+              </span>
+              <Link
+                href={portalRegisterUrl}
+                className="font-bold transition-colors hover:underline"
+                style={{ color: brandPrimary }}
+              >
+                {t.registerAccount}
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* ── Footer Links ── */}

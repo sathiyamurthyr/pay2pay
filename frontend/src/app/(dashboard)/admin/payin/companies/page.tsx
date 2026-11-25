@@ -142,32 +142,6 @@ export default function AdminPayinCompaniesPage() {
       if (compRes.data && compRes.data.success) {
         let comps: CompanyItem[] = compRes.data.companies || compRes.data.data || [];
 
-        // Authoritative domain-driven company normalization
-        comps = comps.map((c) => {
-          if (c.company_ref_id === 2 || c.company_code === "SMSPAY") {
-            return {
-              ...c,
-              company_name: "INSPEL TECHNOLOGIES SOLUTIONS PVT",
-              company_code: "SMSPAY"
-            };
-          }
-          if (c.company_ref_id === 47 || c.company_code === "PAY2PAY") {
-            return {
-              ...c,
-              company_name: "SUPER REX PRODUCTS PRIVATE LIMITED",
-              company_code: "PAY2PAY"
-            };
-          }
-          if (c.company_ref_id === 1 || c.company_code === "NEAR4YOU") {
-            return {
-              ...c,
-              company_name: "SATHUS TECHNOLOGY PRIVATE LIMITED",
-              company_code: "NEAR4YOU"
-            };
-          }
-          return c;
-        });
-
         // Filter to active tenant domain to prevent unwanted cross-company leakage
         if (targetCompRef) {
           comps = comps.filter((c) => c.company_ref_id === targetCompRef);

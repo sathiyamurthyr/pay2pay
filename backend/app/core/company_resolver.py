@@ -55,59 +55,60 @@ COMPANY_REF_TO_CODE = {
 def resolve_request_company_ref(request: Optional[Request]) -> Optional[int]:
     """
     Authoritative domain-driven company reference resolver.
-    Returns:
-      2 for SMSPAY
-      47 for PAY2PAY
-      1 for NEAR4YOU
-      or None if unknown/unspecified
+    Production request hostname (x-forwarded-host / host) always takes priority over
+    client headers/query parameters to prevent cross-company spoofing.
     """
     if request is None:
         return None
 
-    try:
-        # 1. Custom domain / tenant isolation headers
-        x_comp_ref = request.headers.get("x-company-ref-id")
-        if x_comp_ref:
-            try:
-                return int(x_comp_ref)
-            except ValueError:
-                pass
-        x_comp = (request.headers.get("x-domain") or request.headers.get("x-company-code") or "").lower()
-        if "smspay" in x_comp:
-            return 2
-        if "pay2pay" in x_comp:
-            return 47
-        if "near4you" in x_comp:
-            return 1
+    # 1. Authoritative incoming HTTP Host / X-Forwarded-Host header
+    raw_host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").split(",")[0].strip().lower()
+    if "smspay" in raw_host or ":4002" in raw_host:
+        return 2
+    if "pay2pay" in raw_host or ":4003" in raw_host:
+        return 47
+    if "near4you" in raw_host or ":4001" in raw_host:
+        return 1
 
-        # 2. Explicit query parameters (tested by E2E suites & direct API calls)
-        q_dom = (request.query_params.get("domain") or request.query_params.get("company") or "").lower()
-        if "smspay" in q_dom:
-            return 2
-        if "pay2pay" in q_dom:
-            return 47
-        if "near4you" in q_dom:
-            return 1
-        comp_ref_param = request.query_params.get("company_ref_id")
-        if comp_ref_param:
-            try:
-                return int(comp_ref_param)
-            except ValueError:
-                pass
-    except Exception:
-        pass
+    clean_host = raw_host.split(":")[0]
+    is_local = clean_host in ("", "localhost", "127.0.0.1", "0.0.0.0", "backend", "near4you-retailer-backend")
 
-    # 2. Host, X-Forwarded-Host, Origin, Referer headers
-    host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").lower()
+    if is_local:
+        try:
+            # Localhost/internal-only query & header resolution
+            x_comp = (request.headers.get("x-domain") or request.headers.get("x-company-code") or "").lower()
+            if "smspay" in x_comp:
+                return 2
+            if "pay2pay" in x_comp:
+                return 47
+            if "near4you" in x_comp:
+                return 1
+
+            q_dom = (request.query_params.get("domain") or request.query_params.get("company") or "").lower()
+            if "smspay" in q_dom:
+                return 2
+            if "pay2pay" in q_dom:
+                return 47
+            if "near4you" in q_dom:
+                return 1
+
+            x_comp_ref = request.headers.get("x-company-ref-id") or request.query_params.get("company_ref_id")
+            if x_comp_ref:
+                try:
+                    return int(x_comp_ref)
+                except ValueError:
+                    pass
+        except Exception:
+            pass
+
+    # Fallback origin/referer inspection for local proxy hops
     origin = (request.headers.get("origin") or "").lower()
     referer = (request.headers.get("referer") or "").lower()
-    all_headers_str = f"{host} {origin} {referer}"
-
-    if "smspay" in all_headers_str or ":4002" in all_headers_str:
+    if "smspay" in origin or "smspay" in referer:
         return 2
-    if "pay2pay" in all_headers_str or ":3000" in all_headers_str or ":4003" in all_headers_str:
+    if "pay2pay" in origin or "pay2pay" in referer:
         return 47
-    if "near4you" in all_headers_str or ":4001" in all_headers_str:
+    if "near4you" in origin or "near4you" in referer:
         return 1
 
     return None
