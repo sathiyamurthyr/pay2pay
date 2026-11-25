@@ -20,6 +20,7 @@ import app.infrastructure.db.registration_models  # Registration Draft & KYC tab
 import app.infrastructure.db.session_security_models  # Session security & PIN authentication tables
 import app.infrastructure.db.upi_vendor_models  # UPI Vendor Configuration & Audit models
 import app.infrastructure.db.crypto_models  # Retailer Encrypted Records & Envelope tables
+import app.infrastructure.db.company_profile_models  # Admin Company Profile Management tables
 from app.presentation.api.v1 import beneficiary_verification
 from app.presentation.api.v1 import enterprise_payout_execution_router
 from app.presentation.api.v1 import payout_report_router
@@ -138,10 +139,13 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(tenants.router, prefix=settings.API_V1_STR)
-from app.presentation.api.v1 import company_branding_router
+from app.presentation.api.v1 import company_branding_router, company_profile_router
 app.include_router(company_branding_router.router, prefix=settings.API_V1_STR)
 app.include_router(company_branding_router.router, prefix="/api")
 app.include_router(company_branding_router.router, prefix="")
+app.include_router(company_profile_router.router, prefix=settings.API_V1_STR)
+app.include_router(company_profile_router.router, prefix="/api")
+app.include_router(company_profile_router.router, prefix="")
 app.include_router(companies.router, prefix=settings.API_V1_STR)
 app.include_router(users.router, prefix=settings.API_V1_STR)
 app.include_router(roles.router, prefix=settings.API_V1_STR)

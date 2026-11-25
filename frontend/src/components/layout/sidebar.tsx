@@ -10,7 +10,7 @@ import {
   Sliders, UploadCloud, Cpu, BookOpen, Wallet, Scale, Send, BarChart3, Activity,
   Ticket, Landmark, GitMerge, CheckSquare, Bell, Zap, Fingerprint, Volume2, Music,
   Globe, Sparkles, Search, X, PanelLeftClose, PanelLeftOpen, AlertTriangle, Layers,
-  Megaphone, Terminal, Star, Pin, MessageSquare
+  Megaphone, Terminal, Star, Pin, MessageSquare, Briefcase
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth";
@@ -86,6 +86,7 @@ const ADMIN_NAV: NavCategory[] = [
     category: "Administration",
     items: [
       { label: "Company", href: "/companies", icon: Building2 },
+      { label: "Company Profile", href: "/admin/company-profile", icon: Briefcase, badge: "Live" },
       { label: "Organization", href: "/organization", icon: Network },
       { label: "RM", href: "/organization/transfers", icon: UserCircle },
       { label: "Super Distributor", href: "/retailers", icon: Store },

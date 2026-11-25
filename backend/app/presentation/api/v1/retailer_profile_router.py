@@ -1049,48 +1049,77 @@ async def get_retailer_profile(
 
     default_hq = f"{default_legal}, India"
 
-    if comp:
-        prim_contact = comp.contacts[0] if comp.contacts else None
-        prim_addr = comp.addresses[0] if comp.addresses else None
-        comp_site = comp.website or default_website
-        comp_site_clean = comp_site.replace("https://", "").replace("http://", "").strip("/")
-        company_data = {
-            "company_name": comp.company_name or comp.legal_name or default_name,
-            "brand_name": comp.display_name or comp.company_name or default_brand,
-            "legal_name": comp.legal_name or comp.company_name or default_legal,
-            "cin": comp.cin_number or None,
-            "gstin": comp.gst_number or None,
-            "support_email": (prim_contact.support_email if prim_contact else None) or (prim_contact.email if prim_contact else None) or default_email,
-            "support_phone": (prim_contact.support_phone if prim_contact else None) or (prim_contact.mobile if prim_contact else None) or "1800 292 982",
-            "direct_phone": (prim_contact.mobile if prim_contact else None) or "+91 44 4892 9820",
-            "whatsapp_number": (prim_contact.mobile if prim_contact else None) or "+91 70139 14767",
-            "grievance_email": (prim_contact.email if prim_contact else None) or f"grievance@{comp_site_clean}",
-            "nodal_officer": f"Grievance Redressal Officer, {comp.company_name or default_name}",
-            "support_hours": "Monday - Saturday | 09:00 AM - 07:00 PM IST",
-            "headquarters": f"{prim_addr.address}, {prim_addr.city}, {prim_addr.state} - {prim_addr.pincode}" if prim_addr else default_hq,
-            "helpdesk_url": comp_site if "/support" in comp_site else f"{comp_site.rstrip('/')}/support",
-            "website_url": comp_site,
-            "logo_url": default_logo
-        }
-    else:
-        company_data = {
-            "company_name": default_name,
-            "brand_name": default_brand,
-            "legal_name": default_legal,
-            "cin": None,
-            "gstin": None,
-            "support_email": default_email,
-            "support_phone": "1800 292 982",
-            "direct_phone": "—",
-            "whatsapp_number": "—",
-            "grievance_email": f"grievance@{site_clean}",
-            "nodal_officer": f"Grievance Redressal Officer, {default_name}",
-            "support_hours": "Monday - Saturday | 09:00 AM - 07:00 PM IST",
-            "headquarters": default_hq,
-            "helpdesk_url": f"{default_website.rstrip('/')}/support",
-            "website_url": default_website,
-            "logo_url": default_logo
-        }
+    company_data = None
+    if resolved_comp_ref:
+        try:
+            from app.presentation.api.v1.company_profile_router import get_company_profile_data
+            company_data = await get_company_profile_data(db, int(resolved_comp_ref))
+        except Exception as e_cp:
+            logger.warning(f"CompanyProfile lookup notice for ref {resolved_comp_ref}: {e_cp}")
+
+    if not company_data:
+        if comp:
+            prim_contact = comp.contacts[0] if comp.contacts else None
+            prim_addr = comp.addresses[0] if comp.addresses else None
+            comp_site = comp.website or default_website
+            comp_site_clean = comp_site.replace("https://", "").replace("http://", "").strip("/")
+            company_data = {
+                "company_ref_id": comp.company_ref_id,
+                "company_code": comp.company_code,
+                "company_name": comp.company_name or comp.legal_name or default_name,
+                "company_legal_name": comp.legal_name or comp.company_name or default_legal,
+                "brand_name": comp.display_name or comp.company_name or default_brand,
+                "legal_name": comp.legal_name or comp.company_name or default_legal,
+                "operating_partner_info": f"Official Operating Partner & Enterprise FinTech Network: {comp.display_name or comp.company_name or default_brand}",
+                "corporate_portal_url": comp_site,
+                "regulatory_status_badge": "RBI / NPCI Authorized",
+                "entity_badge": "Registered Corporate",
+                "business_entity_type": "Private Limited Company",
+                "industry_sector": comp.industry or "FinTech, Payments & Banking Correspondent Network",
+                "operating_status": "ACTIVE & REGULATED" if comp.is_active else comp.status,
+                "cin": comp.cin_number or None,
+                "cin_number": comp.cin_number or None,
+                "gstin": comp.gst_number or None,
+                "support_email": (prim_contact.support_email if prim_contact else None) or (prim_contact.email if prim_contact else None) or default_email,
+                "support_phone": (prim_contact.support_phone if prim_contact else None) or (prim_contact.mobile if prim_contact else None),
+                "support_helpline": (prim_contact.support_phone if prim_contact else None) or (prim_contact.mobile if prim_contact else None),
+                "direct_phone": (prim_contact.mobile if prim_contact else None),
+                "direct_operations_line": (prim_contact.mobile if prim_contact else None),
+                "whatsapp_number": (prim_contact.mobile if prim_contact else None),
+                "grievance_email": (prim_contact.email if prim_contact else None) or (f"grievance@{comp_site_clean}" if comp_site_clean else None),
+                "grievance_escalation_email": (prim_contact.email if prim_contact else None) or (f"grievance@{comp_site_clean}" if comp_site_clean else None),
+                "nodal_officer": f"Grievance Redressal Officer, {comp.company_name or default_name}",
+                "support_hours": None,
+                "operating_hours": None,
+                "headquarters": f"{prim_addr.address}, {prim_addr.city}, {prim_addr.state} - {prim_addr.pincode}" if prim_addr else default_hq,
+                "registered_office_address": f"{prim_addr.address}, {prim_addr.city}, {prim_addr.state} - {prim_addr.pincode}" if prim_addr else default_hq,
+                "helpdesk_url": comp_site if "/support" in comp_site else f"{comp_site.rstrip('/')}/support",
+                "website_url": comp_site,
+                "official_website_url": comp_site,
+                "logo_url": default_logo,
+            }
+        else:
+            company_data = {
+                "company_name": default_name,
+                "company_legal_name": default_legal,
+                "brand_name": default_brand,
+                "legal_name": default_legal,
+                "cin": None,
+                "gstin": None,
+                "support_email": default_email,
+                "support_phone": None,
+                "direct_phone": None,
+                "whatsapp_number": None,
+                "grievance_email": f"grievance@{site_clean}" if site_clean else None,
+                "nodal_officer": f"Grievance Redressal Officer, {default_name}",
+                "support_hours": None,
+                "headquarters": default_hq,
+                "helpdesk_url": f"{default_website.rstrip('/')}/support" if default_website else None,
+                "website_url": default_website,
+                "corporate_portal_url": default_website,
+                "official_website_url": default_website,
+                "logo_url": default_logo,
+            }
 
     return {
         "success": True,
