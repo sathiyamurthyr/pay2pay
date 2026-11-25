@@ -945,8 +945,12 @@ async def get_retailer_profile(
     elif addr_record and addr_record.shop_photo_url:
         photo_raw_url = addr_record.shop_photo_url
 
-    # Direct static file URL from database or proxy fallback
-    photo_display_url = photo_raw_url if (photo_raw_url and (photo_raw_url.startswith("/uploads/") or photo_raw_url.startswith("http://") or photo_raw_url.startswith("https://"))) else (f"/api/v1/retailer/profile/photo-image?retailer_id={reg_id}" if (photo_raw_url or reg_id) else None)
+    # Direct static file URL from database or proxy fallback (only when a stored photo exists)
+    photo_display_url = (
+        photo_raw_url
+        if (photo_raw_url and (photo_raw_url.startswith("/uploads/") or photo_raw_url.startswith("http://") or photo_raw_url.startswith("https://")))
+        else (f"/api/v1/retailer/profile/photo-image?retailer_id={reg_id}" if photo_raw_url and reg_id else None)
+    )
 
     photo_data = {
         "photo_url": photo_display_url,

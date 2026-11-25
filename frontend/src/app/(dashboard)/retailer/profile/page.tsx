@@ -313,6 +313,7 @@ export default function RetailerProfilePage() {
   const defaultWebsiteUrl = branding?.website || "";
   const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [avatarError, setAvatarError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -533,6 +534,7 @@ export default function RetailerProfilePage() {
       ]);
       const companyProfileData = compRes?.data?.data || null;
       if (data) {
+        setAvatarError(false);
         const mergedProfile = companyProfileData
           ? { ...data, company: { ...(data.company || {}), ...companyProfileData } }
           : data;
@@ -735,7 +737,7 @@ export default function RetailerProfilePage() {
   if (loading) {
     return (
       <Box sx={{ minHeight: "75vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2 }}>
-        <CircularProgress size={48} sx={{ color: "#3B82F6" }} />
+        <CircularProgress size={48} sx={{ color: brandPrimary }} />
         <Typography variant="body1" sx={{ color: "#625B60", fontWeight: 600 }}>
           Loading profile...
         </Typography>
@@ -756,56 +758,68 @@ export default function RetailerProfilePage() {
     );
   }
 
+  const resolvedCompanyLogo = profile.company?.logo_url || brandLogo || brandMark;
+  const resolvedCompanyBrand = profile.company?.brand_name || brandDisplayName;
+  const resolvedCompanyLegal = profile.company?.company_legal_name || profile.company?.company_name || brandCompanyName;
+  const resolvedCompanyWebsite = profile.company?.official_website_url || profile.company?.website_url || defaultWebsiteUrl;
+
   return (
     <Box sx={{ maxWidth: 1400, mx: "auto", pb: 8 }}>
-      {/* ── 1. MOTIONSITES.AI CINEMATIC PROFILE HERO ── */}
+      {/* ── 1. DOMAIN-BRANDED ENTERPRISE PROFILE HERO ── */}
       <motion.div
         initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
         className="relative mb-6 overflow-hidden rounded-3xl border shadow-xl transition-all duration-300"
         style={{
-          background: "linear-gradient(135deg, #0B0F19 0%, #111827 50%, #0F172A 100%)",
+          background: `linear-gradient(115deg, ${brandPrimary} 0%, ${brandPrimary} 60%, ${brandSecondary} 100%)`,
           borderColor: brandBorder,
-          boxShadow: `0 20px 40px -15px rgba(0, 0, 0, 0.5), 0 0 30px -10px ${brandPrimary}25`,
+          boxShadow: `0 18px 36px -14px ${brandPrimary}55`,
         }}
       >
-        {/* Specular Ambient Light Overlay */}
+        {/* Crisp readability depth overlay */}
         <div
-          className="absolute inset-0 pointer-events-none opacity-40"
+          className="absolute inset-0 pointer-events-none"
           style={{
-            background: `radial-gradient(circle at 85% 15%, ${brandPrimary}35 0%, transparent 60%), radial-gradient(circle at 15% 85%, ${brandSecondary}25 0%, transparent 50%)`,
+            background: "linear-gradient(120deg, rgba(15, 23, 42, 0.28) 0%, rgba(15, 23, 42, 0.16) 55%, rgba(15, 23, 42, 0.32) 100%)",
           }}
         />
         <div
           className="absolute inset-x-0 top-0 h-[2px] pointer-events-none"
           style={{
-            background: `linear-gradient(90deg, transparent, ${brandPrimary}, transparent)`,
+            background: `linear-gradient(90deg, transparent, #FFFFFF88, transparent)`,
           }}
         />
 
         <div className="relative z-10 p-5 sm:p-7 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
           {/* Left: Avatar + Retailer Identity Details */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 w-full lg:w-auto">
-            {/* Motion Animated Avatar */}
+            {/* Animated Profile Avatar */}
             <div className="relative group shrink-0">
               <div
-                className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl p-1 shadow-2xl transition-transform duration-300 group-hover:scale-105"
+                className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl p-1 shadow-2xl transition-transform duration-300 group-hover:scale-105 bg-white/25 backdrop-blur-sm"
                 style={{
-                  background: `linear-gradient(135deg, ${brandPrimary} 0%, ${brandSecondary} 100%)`,
-                  boxShadow: `0 8px 24px ${brandPrimary}40`,
+                  border: "1.5px solid rgba(255, 255, 255, 0.55)",
                 }}
               >
-                <div className="w-full h-full rounded-[14px] overflow-hidden bg-slate-900 flex items-center justify-center border border-white/20 relative">
-                  {profile.photo?.photo_url ? (
+                <div
+                  className="w-full h-full rounded-[14px] overflow-hidden flex items-center justify-center relative"
+                  style={{ backgroundColor: "rgba(15, 23, 42, 0.65)" }}
+                >
+                  {profile.photo?.photo_url && !avatarError ? (
                     <img
                       src={profile.photo.photo_url}
                       alt={profile.personal.owner_name || profile.personal.retailer_name || "Profile"}
                       className="w-full h-full object-cover"
+                      onError={() => setAvatarError(true)}
                     />
                   ) : (
-                    <span className="text-2xl sm:text-3xl font-black text-white">
-                      {profile.personal.owner_name ? String(profile.personal.owner_name).charAt(0).toUpperCase() : (profile.personal.retailer_name ? String(profile.personal.retailer_name).charAt(0).toUpperCase() : "R")}
+                    <span className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                      {profile.personal.owner_name
+                        ? String(profile.personal.owner_name).charAt(0).toUpperCase()
+                        : profile.personal.retailer_name
+                        ? String(profile.personal.retailer_name).charAt(0).toUpperCase()
+                        : "R"}
                     </span>
                   )}
                   {/* Photo Upload Overlay Button on Hover */}
@@ -828,8 +842,8 @@ export default function RetailerProfilePage() {
               </div>
               {/* Online / Active Terminal Pulse Indicator */}
               <div
-                className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-slate-900 flex items-center justify-center shadow-lg"
-                style={{ backgroundColor: "#10B981" }}
+                className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center shadow-lg"
+                style={{ backgroundColor: "#16A34A" }}
                 title="Active Retailer Terminal"
               >
                 <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
@@ -839,35 +853,31 @@ export default function RetailerProfilePage() {
             {/* Retailer Name, Store & Badges */}
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white drop-shadow-xs flex items-center gap-2">
                   <span>{profile.personal.owner_name || profile.personal.retailer_name || "Retailer Partner"}</span>
                 </h1>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-950/60 text-emerald-200 border border-emerald-400/40 shadow-sm">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Verified Retailer</span>
                 </span>
                 <span
-                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider shadow-sm bg-white/[0.08] border border-white/20"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider shadow-sm bg-slate-950/45 border border-white/25 text-white"
                 >
-                  <img
-                    src={brandLogo}
-                    alt={brandDisplayName}
-                    className="w-4 h-4 object-contain rounded"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src = brandMark;
-                    }}
-                  />
-                  <span
-                    style={{
-                      color: brandPrimary === "#059669" ? "#34D399" : brandPrimary === "#A20A3A" ? "#FCA5A5" : "#93C5FD",
-                    }}
-                  >
-                    {brandDisplayName} Network
+                  <span className="w-4 h-4 rounded bg-white p-0.5 flex items-center justify-center shrink-0">
+                    <img
+                      src={resolvedCompanyLogo}
+                      alt={resolvedCompanyBrand}
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = brandMark;
+                      }}
+                    />
                   </span>
+                  <span>{resolvedCompanyBrand} Network</span>
                 </span>
               </div>
 
-              <p className="text-xs sm:text-sm text-slate-300 font-medium">
+              <p className="text-xs sm:text-sm text-white/90 font-medium">
                 {profile.personal.store_name ? `${profile.personal.store_name} · ` : ""}{profile.personal.store_type || "Retailer Business"} · {profile.personal.business_category || "FinTech & Banking Correspondent"}
               </p>
 
@@ -877,32 +887,32 @@ export default function RetailerProfilePage() {
                 <button
                   type="button"
                   onClick={() => handleCopy(profile.personal.retailer_id, "Retailer ID")}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/[0.07] hover:bg-white/[0.12] border border-white/15 text-slate-200 text-xs font-mono font-bold transition-all active:scale-95 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-950/40 hover:bg-slate-950/55 border border-white/25 text-white text-xs font-mono font-bold transition-all active:scale-95 cursor-pointer"
                   title="Click to copy Retailer ID"
                 >
-                  <span className="text-slate-400 font-sans font-normal">ID:</span>
-                  <span className="text-amber-300">{profile.personal.retailer_id || "SMSP-RET"}</span>
-                  <Copy className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-white/75 font-sans font-normal">ID:</span>
+                  <span className="text-amber-200">{profile.personal.retailer_id || "RET"}</span>
+                  <Copy className="w-3.5 h-3.5 text-white/75" />
                 </button>
 
                 {/* Phone Pill */}
                 {profile.contact?.mobile_raw && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/[0.05] border border-white/10 text-slate-300 text-xs font-mono">
-                    <Phone className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-950/35 border border-white/20 text-white text-xs font-mono">
+                    <Phone className="w-3.5 h-3.5 text-white/80" />
                     <span>{profile.contact.mobile_raw}</span>
                   </span>
                 )}
 
                 {/* Email Pill */}
                 {profile.contact?.email_raw && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/[0.05] border border-white/10 text-slate-300 text-xs">
-                    <Mail className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-950/35 border border-white/20 text-white text-xs">
+                    <Mail className="w-3.5 h-3.5 text-white/80" />
                     <span className="truncate max-w-[180px] sm:max-w-none">{profile.contact.email_raw}</span>
                   </span>
                 )}
 
                 {/* Account Status Badge */}
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-bold">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-950/55 border border-emerald-400/40 text-emerald-200 text-[11px] font-bold">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   <span>{profile.personal.status || "ACTIVE"}</span>
                 </span>
@@ -911,11 +921,11 @@ export default function RetailerProfilePage() {
           </div>
 
           {/* Middle: Dedicated Enterprise Brand Badge Card */}
-          <div className="hidden xl:flex items-center gap-3.5 px-4 py-2.5 rounded-2xl bg-white/[0.07] backdrop-blur-md border border-white/15 shadow-inner">
+          <div className="hidden xl:flex items-center gap-3.5 px-4 py-2.5 rounded-2xl bg-slate-950/40 backdrop-blur-md border border-white/25 shadow-inner">
             <div className="w-12 h-12 rounded-xl bg-white p-1.5 flex items-center justify-center shrink-0 shadow-md">
               <img
-                src={profile.company?.logo_url || brandLogo}
-                alt={profile.company?.brand_name || brandDisplayName}
+                src={resolvedCompanyLogo}
+                alt={resolvedCompanyBrand}
                 className="w-full h-full object-contain"
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).src = brandMark;
@@ -924,48 +934,45 @@ export default function RetailerProfilePage() {
             </div>
             <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="text-sm font-black text-white tracking-tight">{profile.company?.brand_name || brandDisplayName}</span>
-                <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                <span className="text-sm font-black text-white tracking-tight">{resolvedCompanyBrand}</span>
+                <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-500/25 text-emerald-200 border border-emerald-400/40">
                   Official
                 </span>
               </div>
-              <span className="text-[11px] font-semibold text-slate-300 truncate max-w-[200px]">
-                {profile.company?.company_legal_name || profile.company?.company_name || brandCompanyName}
+              <span className="text-[11px] font-semibold text-white/90 truncate max-w-[200px]">
+                {resolvedCompanyLegal}
               </span>
-              {(profile.company?.official_website_url || profile.company?.website_url || defaultWebsiteUrl) && (
-                <span className="text-[10px] text-slate-400 font-mono">
-                  {(profile.company?.official_website_url || profile.company?.website_url || defaultWebsiteUrl).replace(/^https?:\/\//, "")}
+              {resolvedCompanyWebsite && (
+                <span className="text-[10px] text-white/75 font-mono">
+                  {resolvedCompanyWebsite.replace(/^https?:\/\//, "")}
                 </span>
               )}
             </div>
           </div>
 
           {/* Right: Quick Action Navigation Shortcuts */}
-          <div className="flex flex-wrap lg:flex-col items-stretch gap-2.5 w-full lg:w-auto shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 lg:border-l border-white/10 lg:pl-6">
+          <div className="flex flex-wrap lg:flex-col items-stretch gap-2.5 w-full lg:w-auto shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 lg:border-l border-white/20 lg:pl-6">
             <button
               type="button"
               onClick={() => setActiveTab(1)}
-              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-200 bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 transition-all active:scale-95 cursor-pointer"
+              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-950/35 hover:bg-slate-950/55 border border-white/25 transition-all active:scale-95 cursor-pointer"
             >
-              <Phone className="w-3.5 h-3.5 text-slate-400" />
+              <Phone className="w-3.5 h-3.5 text-white/85" />
               <span>Edit Contact</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab(5)}
-              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-200 bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 transition-all active:scale-95 cursor-pointer"
+              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-950/35 hover:bg-slate-950/55 border border-white/25 transition-all active:scale-95 cursor-pointer"
             >
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-300" />
               <span>Security & MPIN</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab(9)}
-              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all shadow-md active:scale-95 cursor-pointer"
-              style={{
-                background: `linear-gradient(135deg, ${brandPrimary} 0%, ${brandSecondary} 100%)`,
-                boxShadow: `0 4px 12px ${brandPrimary}35`,
-              }}
+              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold bg-white hover:bg-white/90 transition-all shadow-md active:scale-95 cursor-pointer"
+              style={{ color: brandPrimary }}
             >
               <Building className="w-3.5 h-3.5" />
               <span>Corporate Desk</span>
@@ -1136,8 +1143,8 @@ export default function RetailerProfilePage() {
                         onClick={handleOpenEmailModal}
                         startIcon={<Mail size={13} />}
                         sx={{
-                          borderColor: "rgba(59, 130, 246, 0.4)",
-                          color: "#60A5FA",
+                          borderColor: brandBorder,
+                          color: brandPrimary,
                           fontSize: "0.75rem",
                           fontWeight: 700,
                           py: 0.3,
@@ -1145,8 +1152,8 @@ export default function RetailerProfilePage() {
                           borderRadius: 1.5,
                           textTransform: "none",
                           "&:hover": {
-                            borderColor: "#3B82F6",
-                            bgcolor: "rgba(59, 130, 246, 0.1)",
+                            borderColor: brandPrimary,
+                            bgcolor: brandLight,
                           },
                         }}
                       >
@@ -1421,8 +1428,8 @@ export default function RetailerProfilePage() {
                 COMMUNICATION ADDRESS
               </Typography>
               {profile.address.same_as_permanent ? (
-                <Box sx={{ p: 3, textAlign: "center", bgcolor: "rgba(255, 255, 255, 0.02)", borderRadius: 2.5, border: "1px dashed rgba(255, 255, 255, 0.15)" }}>
-                  <ShieldCheck size={36} color="#3B82F6" style={{ margin: "0 auto 8px" }} />
+                <Box sx={{ p: 3, textAlign: "center", bgcolor: "rgba(255, 255, 255, 0.02)", borderRadius: 2.5, border: `1px dashed ${brandBorder}` }}>
+                  <ShieldCheck size={36} color={brandPrimary} style={{ margin: "0 auto 8px" }} />
                   <Typography variant="body1" sx={{ color: "#292329", fontWeight: 700 }}>
                     Same as Permanent Address
                   </Typography>
@@ -2437,7 +2444,12 @@ export default function RetailerProfilePage() {
               </Typography>
               <Stack spacing={3} alignItems="center">
                 <Avatar
-                  src={profile.photo.photo_url || ""}
+                  src={!avatarError && profile.photo.photo_url ? profile.photo.photo_url : undefined}
+                  slotProps={{
+                    img: {
+                      onError: () => setAvatarError(true),
+                    },
+                  }}
                   sx={{
                     width: 140,
                     height: 140,
@@ -2448,7 +2460,7 @@ export default function RetailerProfilePage() {
                     boxShadow: `0 10px 25px ${brandPrimary}40`,
                   }}
                 >
-                  {profile.personal.retailer_name?.charAt(0) || "R"}
+                  {(profile.personal.owner_name || profile.personal.retailer_name || "R").charAt(0).toUpperCase()}
                 </Avatar>
 
                 <Button
