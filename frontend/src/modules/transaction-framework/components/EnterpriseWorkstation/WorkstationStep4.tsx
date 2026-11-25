@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRetailerStore } from "@/stores/use-retailer-store";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
+import { getPublicReceiptUrl } from "@/lib/receipt-security";
 import {
   Box,
   Typography,
@@ -84,6 +86,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   onBack,
   onAuthorize,
 }) => {
+  const branding = useCompanyBranding();
   const { wallet } = useRetailerStore();
   const currentWalletBalance = typeof wallet?.mainBalance === "number" ? wallet.mainBalance : (typeof (wallet as any)?.availableBalance === "number" ? (wallet as any).availableBalance : (typeof customer?.walletBalance === "number" ? customer.walletBalance : 0));
   const walletBalance = currentWalletBalance;
@@ -529,8 +532,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
       if (typeof window !== "undefined") {
         try {
           const snapshot = {
-            companyName: typeof window !== "undefined" && window.location.hostname.includes("smspay") ? "INSPEL TECHNOLOGIES SOLUTIONS PVT" : (typeof window !== "undefined" && window.location.hostname.includes("near4you") ? "SATHUS TECHNOLOGY PRIVATE LIMITED" : "SUPER REX PRODUCTS PRIVATE LIMITED"),
-            brandName: typeof window !== "undefined" && window.location.hostname.includes("smspay") ? "SMSPAY" : (typeof window !== "undefined" && window.location.hostname.includes("near4you") ? "Near4You" : "Pay2Pay"),
+            companyName: branding.company_name || branding.legal_name || "",
+            brandName: branding.display_name || branding.company_name || "",
             brandTagline: "Enterprise Domestic Money Transfer (DMT) · Authorized Network",
             certifications: "NPCI IMPS Switch Certified · ISO 27001:2022 · 256-Bit SSL Encrypted",
             status: "SUCCESS",
@@ -651,7 +654,9 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   const displayBeneIfsc = beneficiary?.ifsc || "";
   const liveToken = (liveFinResult as any)?.receiptToken || (liveFinResult as any)?.receipt_token || shareRecord?.receiptToken || (liveFinResult?.transactionId ? `P2P-${liveFinResult.transactionId.slice(-8).toUpperCase()}` : "P2P-69439E2E");
 
-  const publicShareUrl = shareRecord ? ReceiptShare.getPublicReceiptUrl(shareRecord.receiptToken) : `https://receipt.near4you.store/r/${liveToken}`;
+  const publicShareUrl = shareRecord
+    ? ReceiptShare.getPublicReceiptUrl(shareRecord.receiptToken)
+    : getPublicReceiptUrl(liveToken, undefined, branding.company_code);
   const liveUtr = liveFinResult?.utr || liveFinResult?.bankRef || liveFinResult?.referenceNo || utr || "UTR-" + (activeTxId || "202608221849");
 
   const [shareToast, setShareToast] = useState<{ open: boolean; message: string; severity: "success" | "info" | "warning" }>({
@@ -661,7 +666,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   });
 
   const receiptImagePayload: ReceiptDataForImage = {
-    companyName: "SUPER REX PRODUCTS PRIVATE LIMITED",
+    companyName: branding.legal_name || branding.company_name || "",
     companyTagline: "Enterprise Domestic Money Transfer (DMT) · Authorized Payment Network",
     receiptToken: liveToken,
     transactionId: activeTxId || liveFinResult?.transactionId || "TXN-85472190",
@@ -1704,7 +1709,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     userSelect: "none",
                   }}
                 >
-                  Near 4 You Enterprise
+                  {branding.company_name || branding.display_name || "Enterprise"}
                 </Box>
 
                 <Box sx={{ overflow: "hidden", position: "relative", zIndex: 1 }}>
@@ -1712,10 +1717,10 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                   <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "flex-start", mb: 0.75 }}>
                     <Box>
                       <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-                        <Typography sx={{ fontWeight: 900, color: "#A20A3A", fontSize: "15px", letterSpacing: "-0.3px" }}>
-                          Near 4 You Enterprise
+                        <Typography sx={{ fontWeight: 900, color: branding.primary_colour || "#1E293B", fontSize: "15px", letterSpacing: "-0.3px" }}>
+                          {branding.company_name || branding.display_name || "Enterprise"}
                         </Typography>
-                        <Tooltip title="Digitally Verified by Near4You Verification Engine">
+                        <Tooltip title={`Digitally Verified by ${branding.display_name || "Platform"} Verification Engine`}>
                           <Chip
                             icon={<VerifiedUserIcon sx={{ fontSize: "12px !important", color: "#16A34A" }} />}
                             label="Verified"
@@ -1902,7 +1907,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           {verificationResult?.isValid ? (
             <Paper elevation={0} sx={{ p: 2, borderRadius: "10px", bgcolor: "rgba(34, 197, 94, 0.15)", border: "1px solid #16A34A", color: "#FFFFFF", mb: 2 }}>
               <VerifiedUserIcon sx={{ fontSize: 44, color: "#4ADE80", mb: 0.5 }} />
-              <Typography sx={{ fontWeight: 900, fontSize: "16px", color: "#4ADE80" }}>Verified by Near4You</Typography>
+              <Typography sx={{ fontWeight: 900, fontSize: "16px", color: "#4ADE80" }}>Verified by {branding.display_name || "Platform"}</Typography>
               <Typography sx={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.8)", mt: 0.5 }}>
                 {verificationResult.message}
               </Typography>
@@ -2229,18 +2234,20 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                   overflow: "hidden",
                 }}
               >
-                <Box
-                  component="img"
-                  src="/branding/logo.svg"
-                  alt="Near 4 You"
-                  onError={(e: any) => {
-                    e.currentTarget.style.display = "none";
-                    if (e.currentTarget.nextSibling) {
-                      e.currentTarget.nextSibling.style.display = "flex";
-                    }
-                  }}
-                  sx={{ width: "100%", height: "100%", objectFit: "contain" }}
-                />
+                {branding.logo_url ? (
+                  <Box
+                    component="img"
+                    src={branding.logo_url}
+                    alt={branding.display_name || "Company Logo"}
+                    onError={(e: any) => {
+                      e.currentTarget.style.display = "none";
+                      if (e.currentTarget.nextSibling) {
+                        e.currentTarget.nextSibling.style.display = "flex";
+                      }
+                    }}
+                    sx={{ width: "100%", height: "100%", objectFit: "contain" }}
+                  />
+                ) : null}
                 <Box
                   sx={{
                     display: "none",
@@ -2457,10 +2464,10 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                   Scan to Verify Online Receipt
                 </Typography>
                 <Typography sx={{ fontSize: "10px", color: "#2563EB", fontFamily: "monospace" }}>
-                  receipt.near4you.store/r/{liveToken}
+                  {publicShareUrl.replace(/^https?:\/\//, "")}
                 </Typography>
                 <Typography sx={{ fontSize: "9px", color: "#625B60" }}>
-                  🔒 Non-Repudiable Digital Signature · Near4You Core Switch
+                  🔒 Non-Repudiable Digital Signature · {branding.display_name || "Platform"} Core Switch
                 </Typography>
               </Box>
             </Stack>

@@ -278,7 +278,7 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
   const processing = details?.processing;
   const audit = details?.audit;
 
-  const companyLogo = details?.company?.logo || details?.company?.logo_url || branding.logo_url || "/branding/logo.svg";
+  const companyLogo = details?.company?.logo || details?.company?.logo_url || branding.logo_url || "";
   const companyName = branding.display_name || details?.company?.name || branding.company_name || "";
   const companyLegalName = branding.legal_name || branding.company_name || details?.company?.legal_name || "";
 

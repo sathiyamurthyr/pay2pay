@@ -270,7 +270,7 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
             >
               <Box
                 component="img"
-                src={branding.logo_url || "/branding/logo.svg"}
+                src={branding.logo_url || ""}
                 alt={branding.display_name || "Platform"}
                 sx={{
                   width: "100%",

@@ -88,7 +88,7 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
           setData({
             company: {
               company_name: branding.company_name || branding.display_name || "",
-              company_logo_url: branding.logo_url || "/branding/logo.svg",
+              company_logo_url: branding.logo_url || "",
               support_email: supportMail,
               support_phone: "",
               whatsapp_number: "",

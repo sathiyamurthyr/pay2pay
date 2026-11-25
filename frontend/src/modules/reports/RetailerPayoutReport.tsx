@@ -497,7 +497,7 @@ export const RetailerPayoutReport: React.FC = () => {
     const bankName = t.bank || t.bank_name || "N/A";
     const mode = t.mode || t.payment_mode || "IMPS";
 
-    const compLogo = branding.logo_url || "/branding/logo.svg";
+    const compLogo = branding.logo_url || "";
     const compName = branding.company_name || branding.legal_name || "";
     const compLegal = branding.legal_name || compName;
     const retailerShop = outlet?.name || "";
@@ -2564,7 +2564,7 @@ export const RetailerPayoutReport: React.FC = () => {
                   <Stack direction="row" alignItems="center" spacing={1.5}>
                     <Box
                       component="img"
-                      src={branding.logo_url || "/branding/logo.svg"}
+                      src={branding.logo_url || ""}
                       alt={branding.display_name || branding.company_name || "Company Logo"}
                       onError={(e: any) => {
                         e.currentTarget.style.display = "none";

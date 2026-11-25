@@ -7,8 +7,8 @@ import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 export const AnimatedAuroraBackground: React.FC<{ darkMode?: boolean }> = ({ darkMode = true }) => {
   const shouldReduceMotion = useReducedMotion();
   const { primary_colour, secondary_colour } = useCompanyBranding();
-  const brandPrimary = primary_colour || "#A20A3A";
-  const brandSecondary = secondary_colour || "#EDC11E";
+  const brandPrimary = primary_colour || "#1E293B";
+  const brandSecondary = secondary_colour || "#334155";
 
   // Floating currency & FinTech symbols data
   const PARTICLES = [

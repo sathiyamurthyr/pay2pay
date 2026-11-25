@@ -199,9 +199,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
     return {
       name: dispName,
       portal: branding?.company_name || `${dispName} Admin`,
-      logo: branding?.logo_url || "/branding/logo.svg",
-      primary: branding?.primary_colour || "#2563EB",
-      secondary: branding?.secondary_colour || "#1E40AF",
+      logo: branding?.logo_url || "",
+      primary: branding?.primary_colour || "#1E293B",
+      secondary: branding?.secondary_colour || "#334155",
     };
   }, [branding]);
   const [isCollapsed, setIsCollapsed] = useState(alwaysExpanded ? false : true);

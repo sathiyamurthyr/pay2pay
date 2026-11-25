@@ -1,23 +1,20 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import { COMPANY_PRESETS, resolveBrandingByHost } from "@/lib/company-branding";
+import type { CompanyBrandingData } from "@/lib/company-branding";
 
-export interface CompanyBrandingData {
-  company_id?: string | null;
-  company_ref_id?: number;
-  tenant_ref_id?: number;
-  company_code: string;
-  company_name: string;
-  legal_name: string;
-  display_name: string;
-  short_name?: string;
-  logo_url: string;
-  favicon_url?: string;
-  primary_colour?: string;
-  secondary_colour?: string;
-  website?: string;
-  domains?: string[];
-}
+export { COMPANY_PRESETS, resolveBrandingByHost };
+export type { CompanyBrandingData };
+
+const CompanyBrandingHostContext = createContext<string>("");
+
+export const CompanyBrandingProvider: React.FC<{ initialHost?: string; children: React.ReactNode }> = ({
+  initialHost = "",
+  children,
+}) => {
+  return React.createElement(CompanyBrandingHostContext.Provider, { value: initialHost }, children);
+};
 
 export type BrandingStatus = "RESOLVED" | "LOADING" | "DOMAIN_ERROR" | "COMPANY_ERROR" | "BRANDING_ERROR";
 
@@ -29,137 +26,36 @@ export interface BrandingError {
   domain?: string;
 }
 
-export const COMPANY_PRESETS: Record<string, CompanyBrandingData> = {
-  NEAR4YOU: {
-    company_ref_id: 1,
-    tenant_ref_id: 1,
-    company_code: "NEAR4YOU",
-    company_name: "SATHUS TECHNOLOGY PRIVATE LIMITED",
-    legal_name: "SATHUS TECHNOLOGY PRIVATE LIMITED",
-    display_name: "Near4You",
-    short_name: "N4U",
-    logo_url: "/branding/logo.svg",
-    favicon_url: "/branding/near4you-favicon.png",
-    primary_colour: "#A20A3A",
-    secondary_colour: "#EDC11E",
-    website: "https://near4you.store",
-    domains: ["near4you.store", "login.near4you.store", "admin.near4you.store", "receipt.near4you.store", "near4you.in", "admin.near4you.in", "receipt.near4you.in"],
-  },
-  PAY2PAY: {
-    company_ref_id: 47,
-    tenant_ref_id: 1,
-    company_code: "PAY2PAY",
-    company_name: "SUPER REX PRODUCTS PRIVATE LIMITED",
-    legal_name: "SUPER REX PRODUCTS PRIVATE LIMITED",
-    display_name: "Pay2Pay",
-    short_name: "P2P",
-    logo_url: "/branding/pay2pay-logo.png",
-    favicon_url: "/branding/pay2pay-favicon.png",
-    primary_colour: "#2563EB",
-    secondary_colour: "#1E40AF",
-    website: "https://pay2pay.in",
-    domains: ["pay2pay.in", "login.pay2pay.in", "admin.pay2pay.in", "receipt.pay2pay.in", "pay2pay.com", "admin.pay2pay.com"],
-  },
-  SMSPAY: {
-    company_ref_id: 2,
-    tenant_ref_id: 1,
-    company_code: "SMSPAY",
-    company_name: "INSPEL TECHNOLOGIES SOLUTIONS PVT",
-    legal_name: "INSPEL TECHNOLOGIES SOLUTIONS PVT",
-    display_name: "SMSPAY",
-    short_name: "SMSP",
-    logo_url: "/branding/smspay-logo.svg",
-    favicon_url: "/branding/smspay-favicon-32x32.png",
-    primary_colour: "#0F3B7D",
-    secondary_colour: "#D4AF37",
-    website: "https://smspay.store",
-    domains: ["smspay.store", "login.smspay.store", "admin.smspay.store", "receipt.smspay.store", "smspay.in", "login.smspay.in", "admin.smspay.in", "receipt.smspay.in"],
-  },
-};
-
 /**
  * Resolves application identity strictly using the verified canonical hostname and port.
- * Never allows stale localStorage or other domain contexts to leak branding across domains.
+ * Works on both SSR (using CompanyBrandingProvider initialHost) and browser.
  * Returns null if the domain is unmapped/unknown to prevent silent cross-company fallback.
  */
-export function getInitialBrandingByHostname(): CompanyBrandingData | null {
-  if (typeof window === "undefined") {
-    return null;
+export function getInitialBrandingByHostname(ssrHost?: string): CompanyBrandingData | null {
+  if (typeof window !== "undefined") {
+    return resolveBrandingByHost(window.location.host, window.location.search);
   }
-
-  const host = window.location.hostname.toLowerCase();
-  const port = window.location.port;
-
-  // 1. Explicit Query Parameter check for simulated / testing contexts
-  try {
-    const searchParams = new URLSearchParams(window.location.search);
-    const domainParam = (searchParams.get("domain") || searchParams.get("host") || "").toLowerCase();
-    const companyParam = (searchParams.get("company") || "").toLowerCase();
-
-    if (domainParam === "unknown.com" || companyParam === "unknown" || companyParam === "invalid") {
-      return null;
-    }
-    if (domainParam.includes("pay2pay") || companyParam.includes("pay2pay")) return COMPANY_PRESETS.PAY2PAY;
-    if (domainParam.includes("near4you") || companyParam.includes("near4you")) return COMPANY_PRESETS.NEAR4YOU;
-    if (domainParam.includes("smspay") || companyParam.includes("smspay")) return COMPANY_PRESETS.SMSPAY;
-  } catch {}
-
-  // 2. Production Canonical Domains (Highest Authority - Strict Domain Isolation)
-  if (
-    host.includes("pay2pay") ||
-    host.endsWith("pay2pay.in") ||
-    host.endsWith("pay2pay.com")
-  ) {
-    return COMPANY_PRESETS.PAY2PAY;
+  if (ssrHost) {
+    return resolveBrandingByHost(ssrHost);
   }
-  if (
-    host.includes("near4you") ||
-    host.endsWith("near4you.store") ||
-    host.endsWith("near4you.in")
-  ) {
-    return COMPANY_PRESETS.NEAR4YOU;
-  }
-  if (
-    host.includes("smspay") ||
-    host.endsWith("smspay.store") ||
-    host.endsWith("smspay.in")
-  ) {
-    return COMPANY_PRESETS.SMSPAY;
-  }
-
-  // 3. Localhost Dedicated Port Resolution
-  if (host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0") {
-    if (port === "3000" || port === "4003") {
-      return COMPANY_PRESETS.PAY2PAY;
-    }
-    if (port === "4001") {
-      return COMPANY_PRESETS.NEAR4YOU;
-    }
-    if (port === "4002") {
-      return COMPANY_PRESETS.SMSPAY;
-    }
-    // Generic local dev default on base port
-    return COMPANY_PRESETS.PAY2PAY;
-  }
-
-  // 4. Any other unmapped public host: FAIL CLOSED!
   return null;
 }
 
 export function useCompanyBranding() {
-  const initial = getInitialBrandingByHostname();
+  const ssrHost = useContext(CompanyBrandingHostContext);
+  const initial = getInitialBrandingByHostname(ssrHost);
   const [branding, setBranding] = useState<CompanyBrandingData | null>(initial);
   const [status, setStatus] = useState<BrandingStatus>(initial ? "RESOLVED" : "DOMAIN_ERROR");
   const [error, setError] = useState<BrandingError | null>(
     initial
       ? null
       : {
-          code: "UNMAPPED_DOMAIN",
-          message: `Application Identity Configuration Error: Hostname '${typeof window !== "undefined" ? window.location.hostname : ""}' is not mapped to any registered company identity.`,
-          domain: typeof window !== "undefined" ? window.location.hostname : "",
-          isRetryable: true,
-          correlationId: `cid-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
-        }
+        code: "UNMAPPED_DOMAIN",
+        message: `Application Identity Configuration Error: Hostname '${typeof window !== "undefined" ? window.location.hostname : ssrHost}' is not mapped to any registered company identity.`,
+        domain: typeof window !== "undefined" ? window.location.hostname : ssrHost,
+        isRetryable: true,
+        correlationId: `cid-init-dom`
+      }
   );
   const [isLoading, setIsLoading] = useState<boolean>(!initial);
   const isFetchingRef = useRef<boolean>(false);
@@ -176,7 +72,7 @@ export function useCompanyBranding() {
         sessionStorage.removeItem("p2p_cached_branding_host");
       }
       sessionStorage.setItem("p2p_last_hostname", curHost);
-    } catch {}
+    } catch { }
   }, []);
 
   const fetchBranding = useCallback(async (isRetry = false) => {
@@ -220,20 +116,20 @@ export function useCompanyBranding() {
               applyBrandingTokens(cachedData);
               return;
             }
-          } catch {}
+          } catch { }
         }
       }
 
       const token =
         typeof window !== "undefined"
           ? localStorage.getItem("p2p_admin_token") ||
-            localStorage.getItem("p2p_super_admin_token") ||
-            localStorage.getItem("p2p_retailer_token") ||
-            localStorage.getItem("p2p_access_token") ||
-            localStorage.getItem("accessToken") ||
-            localStorage.getItem("token") ||
-            localStorage.getItem("auth_token") ||
-            localStorage.getItem("pay2pay_access_token")
+          localStorage.getItem("p2p_super_admin_token") ||
+          localStorage.getItem("p2p_retailer_token") ||
+          localStorage.getItem("p2p_access_token") ||
+          localStorage.getItem("accessToken") ||
+          localStorage.getItem("token") ||
+          localStorage.getItem("auth_token") ||
+          localStorage.getItem("pay2pay_access_token")
           : null;
 
       const headers: Record<string, string> = {};
@@ -431,8 +327,8 @@ function applyBrandingTokens(data: CompanyBrandingData) {
     const appleUrl = data.company_code === "SMSPAY"
       ? "/branding/smspay-icon-192.png"
       : data.company_code === "PAY2PAY"
-      ? "/branding/pay2pay-icon-192.png"
-      : "/branding/near4you-favicon.png";
+        ? "/branding/pay2pay-icon-192.png"
+        : "/branding/near4you-favicon.png";
     if (appleIcon) {
       appleIcon.href = appleUrl;
     }

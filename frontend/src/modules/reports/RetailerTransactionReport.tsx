@@ -612,7 +612,7 @@ export const RetailerTransactionReport: React.FC = () => {
     const service = t.service || d?.transaction?.service || "General";
     const narration = getTransactionComments(t);
 
-    const compLogo = branding?.logo_url || "/branding/logo.svg";
+    const compLogo = branding?.logo_url || "";
     const compName = branding?.company_name || branding?.legal_name || "Enterprise Operations";
     const compLegal = branding?.legal_name || compName;
     const retailerShop = outlet?.name || "Authorized Retail Center";

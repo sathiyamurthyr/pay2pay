@@ -283,7 +283,7 @@ export default function RetailerProfilePage() {
   const brandLight = isSmsPay ? "#ECFDF5" : isNear4You ? "#FFF1F2" : "#EFF6FF";
   const brandHover = brandSecondary;
   const brandBorder = `${brandPrimary}40`;
-  const brandLogo = branding?.logo_url || "/branding/logo.svg";
+  const brandLogo = branding?.logo_url || "";
   const brandMark = branding?.favicon_url || "/branding/favicon.png";
 
   const cleanHost = typeof window !== "undefined" ? window.location.hostname.replace(/^(login|admin|retailer)\./, "") : "";
