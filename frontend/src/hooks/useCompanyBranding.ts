@@ -7,7 +7,7 @@ import type { CompanyBrandingData } from "@/lib/company-branding";
 export { COMPANY_PRESETS, resolveBrandingByHost };
 export type { CompanyBrandingData };
 
-const CompanyBrandingHostContext = createContext<string>("");
+export const CompanyBrandingHostContext = createContext<string>("");
 
 export const CompanyBrandingProvider: React.FC<{ initialHost?: string; children: React.ReactNode }> = ({
   initialHost = "",
@@ -273,16 +273,38 @@ function applyBrandingTokens(data: CompanyBrandingData) {
   if (data.primary_colour) {
     root.style.setProperty("--brand-primary", data.primary_colour);
     root.style.setProperty("--accent", data.primary_colour);
+    root.style.setProperty("--info", data.primary_colour);
+    root.style.setProperty("--ent-primary", data.primary_colour);
+    root.style.setProperty("--ent-primary-text", data.primary_colour);
+    root.style.setProperty("--ent-primary-light", `${data.primary_colour}14`);
+    root.style.setProperty("--ent-sidebar-active", data.primary_colour);
+    root.style.setProperty("--ent-sidebar-active-bg", `${data.primary_colour}14`);
+    root.style.setProperty("--ent-sidebar-category", data.primary_colour);
+    root.style.setProperty("--ent-info", data.primary_colour);
+    root.style.setProperty("--ent-info-text", data.primary_colour);
+    root.style.setProperty("--ent-purple-text", data.primary_colour);
+    root.style.setProperty("--p2p-primary-color", data.primary_colour);
   }
   if (data.secondary_colour) {
     root.style.setProperty("--brand-secondary", data.secondary_colour);
+    root.style.setProperty("--accent-hover", data.secondary_colour);
     root.style.setProperty("--accent-gold", data.secondary_colour);
+    root.style.setProperty("--accent-orange", data.secondary_colour);
+    root.style.setProperty("--ent-primary-hover", data.secondary_colour);
+  }
+  if (data.primary_colour && data.secondary_colour) {
+    root.style.setProperty("--gradient-rich", `linear-gradient(135deg, ${data.primary_colour} 0%, ${data.secondary_colour} 100%)`);
+    root.style.setProperty("--gradient-rich-h", `linear-gradient(to right, ${data.primary_colour} 0%, ${data.secondary_colour} 100%)`);
   }
 
   root.style.setProperty("--text-primary", isNear4You ? "#292329" : "#0F172A");
   root.style.setProperty("--text-secondary", isNear4You ? "#625B60" : "#334155");
   root.style.setProperty("--border", isNear4You ? "#E8E2E5" : "#E2E8F0");
   root.setAttribute("data-company", data.company_code);
+
+  try {
+    window.dispatchEvent(new CustomEvent("p2p_branding_updated", { detail: data }));
+  } catch {}
 
   if (data.display_name && !document.title.includes(data.display_name)) {
     document.title = `${data.display_name} - FinTech Platform`;

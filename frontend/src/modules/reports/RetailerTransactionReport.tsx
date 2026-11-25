@@ -200,8 +200,20 @@ export const getTransactionComments = (row: TransactionReportItem): string => {
 
 export const RetailerTransactionReport: React.FC = () => {
   const branding = useCompanyBranding();
-  const brandPrimary = branding?.primary_color || "#059669";
-  const brandSecondary = branding?.secondary_color || "#10B981";
+  const brandPrimary =
+    branding?.primary_colour ||
+    (branding?.company_code === "NEAR4YOU"
+      ? "#A20A3A"
+      : branding?.company_code === "PAY2PAY"
+      ? "#2563EB"
+      : "#0F3B7D");
+  const brandSecondary =
+    branding?.secondary_colour ||
+    (branding?.company_code === "NEAR4YOU"
+      ? "#EDC11E"
+      : branding?.company_code === "PAY2PAY"
+      ? "#1E40AF"
+      : "#D4AF37");
   const { outlet } = useRetailerStore();
 
   // State: Authoritative Data

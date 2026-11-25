@@ -199,17 +199,11 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   const appSubtitle = `${appName} Operations`;
   const appLogo = branding?.logo_url || (isPay2Pay ? "/branding/pay2pay-logo.png" : isNear4You ? "/branding/logo.svg" : "/branding/smspay-logo.svg");
 
-  const brandPrimary = branding?.primary_colour || (isPay2Pay ? "#2563EB" : isNear4You ? "#A20A3A" : "#059669");
-  const brandSecondary = branding?.secondary_colour || (isPay2Pay ? "#1E40AF" : isNear4You ? "#85072F" : "#047857");
-  const brandLight = isPay2Pay ? "#EFF6FF" : isNear4You ? "#FFF0F4" : "#ECFDF5";
+  const brandPrimary = branding?.primary_colour || (isPay2Pay ? "#2563EB" : isNear4You ? "#A20A3A" : "#0F3B7D");
+  const brandSecondary = branding?.secondary_colour || (isPay2Pay ? "#1E40AF" : isNear4You ? "#EDC11E" : "#D4AF37");
+  const brandLight = `${brandPrimary}12`;
 
-  const headerGradient = isPay2Pay
-    ? "linear-gradient(110deg, #0F172A 0%, #2563EB 60%, #38BDF8 100%)"
-    : isNear4You
-    ? "linear-gradient(110deg, #6B0525 0%, #A20A3A 60%, #EDC11E 100%)"
-    : isSmsPay
-    ? "linear-gradient(110deg, #102A43 0%, #1D4ED8 65%, #0D9488 100%)"
-    : `linear-gradient(110deg, ${brandSecondary} 0%, ${brandPrimary} 65%, #0D9488 100%)`;
+  const headerGradient = `linear-gradient(110deg, ${brandPrimary} 0%, ${brandPrimary} 55%, ${brandSecondary} 100%)`;
 
   const [lockedModalItem, setLockedModalItem] = useState<{ label: string; path: string } | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -1366,8 +1360,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             sx={{
               width: 40,
               height: 40,
-              border: "3px solid #FFF0F4",
-              borderTopColor: "#A20A3A",
+              border: `3px solid ${brandLight}`,
+              borderTopColor: brandPrimary,
               borderRadius: "50%",
               animation: "spin 0.8s linear infinite",
               "@keyframes spin": {
@@ -1433,9 +1427,9 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 size="small"
                 sx={{
                   p: { xs: 0.5, sm: 0.75 },
-                  color: isSmsPay ? "#FFFFFF" : brandPrimary,
+                  color: isFinancialApp ? "#FFFFFF" : brandPrimary,
                   "&:hover": {
-                    backgroundColor: isSmsPay ? "rgba(255, 255, 255, 0.15)" : brandLight,
+                    backgroundColor: isFinancialApp ? "rgba(255, 255, 255, 0.15)" : brandLight,
                   },
                 }}
               >
@@ -1519,7 +1513,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 transition: "all 0.2s ease",
                 "&:hover": {
                   backgroundColor: isFinancialApp ? "rgba(255, 255, 255, 0.20)" : "#FFFFFF",
-                  borderColor: isFinancialApp ? "#38BDF8" : brandPrimary,
+                  borderColor: isFinancialApp ? "rgba(255, 255, 255, 0.7)" : brandPrimary,
                 },
               }}
             >
@@ -1577,12 +1571,12 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   px: 1.5,
                   height: 32,
                   display: { xs: "none", lg: "inline-flex" },
-                  backgroundColor: soundboxEnabled ? "#059669" : "#64748B",
+                  backgroundColor: soundboxEnabled ? brandPrimary : "#64748B",
                   color: "#FFFFFF",
-                  border: "none",
-                  boxShadow: soundboxEnabled ? "0 2px 4px rgba(5, 150, 105, 0.2)" : "none",
+                  border: "1.5px solid rgba(255, 255, 255, 0.5)",
+                  boxShadow: soundboxEnabled ? "0 2px 6px rgba(15, 23, 42, 0.25)" : "none",
                   "&:hover": {
-                    backgroundColor: soundboxEnabled ? "#047857" : "#475569",
+                    backgroundColor: soundboxEnabled ? brandSecondary : "#475569",
                     boxShadow: "none",
                   },
                 }}
@@ -1598,8 +1592,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 px: { xs: 0.8, sm: 1.4 },
                 py: 0.3,
                 borderRadius: "20px",
-                bgcolor: isFinancialApp ? "rgba(255, 255, 255, 0.15)" : "#ECFDF5",
-                border: isFinancialApp ? "1px solid rgba(255, 255, 255, 0.25)" : "1px solid #A7F3D0",
+                bgcolor: isFinancialApp ? "rgba(255, 255, 255, 0.15)" : brandLight,
+                border: isFinancialApp ? "1px solid rgba(255, 255, 255, 0.28)" : `1px solid ${brandPrimary}33`,
                 backdropFilter: "none",
                 display: "flex",
                 alignItems: "center",
@@ -1609,8 +1603,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 boxShadow: "0 1px 3px rgba(0, 0, 0, 0.04)",
                 transition: "all 0.25s ease",
                 "&:hover": {
-                  bgcolor: isFinancialApp ? "rgba(255, 255, 255, 0.22)" : "#D1FAE5",
-                  borderColor: isFinancialApp ? "#38BDF8" : "#059669",
+                  bgcolor: isFinancialApp ? "rgba(255, 255, 255, 0.22)" : brandLight,
+                  borderColor: isFinancialApp ? "#FFFFFF" : brandPrimary,
                 },
               }}
             >
@@ -1633,22 +1627,22 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                       width: { xs: 22, sm: 24 },
                       height: { xs: 22, sm: 24 },
                       borderRadius: "50%",
-                      bgcolor: isFinancialApp ? "rgba(255, 255, 255, 0.2)" : "rgba(5, 150, 105, 0.12)",
-                      border: isFinancialApp ? "1px solid rgba(255, 255, 255, 0.3)" : "1px solid rgba(5, 150, 105, 0.25)",
+                      bgcolor: isFinancialApp ? "rgba(255, 255, 255, 0.2)" : `${brandPrimary}1F`,
+                      border: isFinancialApp ? "1px solid rgba(255, 255, 255, 0.3)" : `1px solid ${brandPrimary}40`,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       flexShrink: 0,
                     }}
                   >
-                    <AccountBalanceWalletIcon sx={{ color: isFinancialApp ? "#FFFFFF" : "#059669", fontSize: { xs: 12, sm: 14 } }} />
+                    <AccountBalanceWalletIcon sx={{ color: isFinancialApp ? "#FFFFFF" : brandPrimary, fontSize: { xs: 12, sm: 14 } }} />
                   </Box>
 
                   <Typography
                     variant="subtitle1"
                     sx={{
                       fontWeight: 800,
-                      color: isFinancialApp ? "#FFFFFF" : "#059669",
+                      color: isFinancialApp ? "#FFFFFF" : brandPrimary,
                       fontSize: { xs: "12px", sm: "14px" },
                       lineHeight: 1.1,
                       letterSpacing: "-0.2px",
@@ -1659,7 +1653,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                     ₹{(wallet?.mainBalance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Typography>
 
-                  <KeyboardArrowDownIcon sx={{ color: isFinancialApp ? "rgba(255, 255, 255, 0.7)" : "#059669", fontSize: 16 }} />
+                  <KeyboardArrowDownIcon sx={{ color: isFinancialApp ? "rgba(255, 255, 255, 0.8)" : brandPrimary, fontSize: 16 }} />
                 </Box>
               </Tooltip>
 
@@ -1673,10 +1667,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   disabled={isSyncing}
                   sx={{
                     p: 0.2,
-                    color: isFinancialApp ? "#A7F3D0" : "#059669",
+                    color: isFinancialApp ? "#FFFFFF" : brandPrimary,
                     borderRadius: "50%",
                     "&:hover": {
-                      bgcolor: isFinancialApp ? "rgba(255, 255, 255, 0.2)" : "rgba(5, 150, 105, 0.15)",
+                      bgcolor: isFinancialApp ? "rgba(255, 255, 255, 0.2)" : `${brandPrimary}24`,
                     },
                   }}
                 >
@@ -1699,9 +1693,11 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   onClick={(e) => setKpiThemeAnchor(e.currentTarget)}
                   size="small"
                   sx={{
-                    p: 0.75,
-                    color: isSmsPay ? "rgba(255, 255, 255, 0.85)" : "#64748B",
-                    "&:hover": { color: "#FFFFFF", bgcolor: isSmsPay ? "rgba(255, 255, 255, 0.15)" : "#F1F5F9" },
+                    p: 0.7,
+                    color: isFinancialApp ? "#FFFFFF" : "#64748B",
+                    bgcolor: isFinancialApp ? "rgba(15, 23, 42, 0.22)" : "transparent",
+                    border: isFinancialApp ? "1px solid rgba(255, 255, 255, 0.25)" : "none",
+                    "&:hover": { color: "#FFFFFF", bgcolor: isFinancialApp ? "rgba(15, 23, 42, 0.36)" : brandPrimary },
                   }}
                 >
                   <PaletteIcon sx={{ fontSize: 20 }} />
@@ -1757,10 +1753,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                       alignItems: "center",
                       justifyContent: "space-between",
                       bgcolor: isSelected
-                        ? "#FFF0F4"
+                        ? brandLight
                         : "transparent",
                       color: isSelected
-                        ? "#A20A3A"
+                        ? brandPrimary
                         : "#292329",
                       "&:hover": {
                         bgcolor: "#FAF8F9",
@@ -1787,11 +1783,13 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   onClick={lockSession}
                   size="small"
                   sx={{
-                    color: isSmsPay ? "rgba(255, 255, 255, 0.85)" : effectiveTheme === "dark" ? "#94A3B8" : "#64748B",
-                    p: 0.75,
+                    color: isFinancialApp ? "#FFFFFF" : effectiveTheme === "dark" ? "#94A3B8" : "#64748B",
+                    bgcolor: isFinancialApp ? "rgba(15, 23, 42, 0.22)" : "transparent",
+                    border: isFinancialApp ? "1px solid rgba(255, 255, 255, 0.25)" : "none",
+                    p: 0.7,
                     "&:hover": {
-                      color: "#F59E0B",
-                      backgroundColor: isSmsPay ? "rgba(255, 255, 255, 0.15)" : effectiveTheme === "dark" ? "rgba(245, 158, 11, 0.15)" : "rgba(245, 158, 11, 0.1)",
+                      color: "#FFFFFF",
+                      backgroundColor: isFinancialApp ? "rgba(15, 23, 42, 0.36)" : "rgba(245, 158, 11, 0.12)",
                     },
                   }}
                 >
@@ -1806,14 +1804,14 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 <Avatar
                   src={profileDetails.photo_url || outlet.avatar || undefined}
                   sx={{
-                    bgcolor: "#059669",
+                    bgcolor: brandPrimary,
                     color: "#FFFFFF",
                     width: { xs: 30, sm: 34 },
                     height: { xs: 30, sm: 34 },
                     fontWeight: 800,
                     fontSize: { xs: "0.75rem", sm: "0.85rem" },
                     border: "2px solid #FFFFFF",
-                    boxShadow: "0 2px 6px rgba(5, 150, 105, 0.4)",
+                    boxShadow: `0 2px 6px ${brandPrimary}55`,
                   }}
                 >
                   {(profileDetails.owner_name || profileDetails.retailer_name || outlet.ownerName || outlet.name || "S").charAt(0).toUpperCase()}
@@ -2199,7 +2197,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   href="/register/submitted"
                   size="small"
                   variant="contained"
-                  sx={{ bgcolor: "#EDC11E", color: "#FFFFFF", fontWeight: 800, textTransform: "none", fontSize: "12px", "&:hover": { bgcolor: "#D4A915" } }}
+                  sx={{ bgcolor: brandSecondary, color: "#FFFFFF", fontWeight: 800, textTransform: "none", fontSize: "12px", "&:hover": { bgcolor: brandPrimary } }}
                 >
                   Check KYC Status
                 </Button>
@@ -2207,7 +2205,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   size="small"
                   variant="outlined"
                   onClick={() => openContactSupportModal()}
-                  sx={{ borderColor: "#E8E2E5", color: "#292329", fontWeight: 800, textTransform: "none", fontSize: "12px", "&:hover": { borderColor: "#A20A3A", bgcolor: "#FFF0F4" } }}
+                  sx={{ borderColor: "#E8E2E5", color: "#292329", fontWeight: 800, textTransform: "none", fontSize: "12px", "&:hover": { borderColor: brandPrimary, bgcolor: brandLight } }}
                 >
                   Contact Admin Support
                 </Button>
@@ -2264,7 +2262,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 </Typography>
               </Stack>
               <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-                <LockIcon sx={{ fontSize: 14, color: "#EDC11E" }} />
+                <LockIcon sx={{ fontSize: 14, color: brandSecondary }} />
                 <Typography variant="caption" sx={{ fontWeight: 700, color: "#292329", fontSize: "12px" }}>
                   NPCI & BBPS Certified
                 </Typography>
@@ -2303,7 +2301,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       }}
     >
       <Box sx={{ textCenter: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
-        <Box sx={{ w: 14, h: 14, p: 1.5, borderRadius: "50%", bgcolor: "#FFF8DC", border: "2px solid #FFF3C4", color: "#EDC11E", mb: 2, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Box sx={{ w: 14, h: 14, p: 1.5, borderRadius: "50%", bgcolor: brandLight, border: `2px solid ${brandSecondary}55`, color: brandSecondary, mb: 2, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <LockIcon sx={{ fontSize: 32 }} />
         </Box>
         <Typography variant="h6" sx={{ fontWeight: 900, color: "#292329", textAlign: "center" }}>
@@ -2320,7 +2318,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             onClick={() => setLockedModalItem(null)}
             variant="contained"
             fullWidth
-            sx={{ bgcolor: "#A20A3A", color: "#FFF", fontWeight: 800, borderRadius: "12px", height: 44, textTransform: "none", fontSize: "13px", "&:hover": { bgcolor: "#85072F" } }}
+            sx={{ bgcolor: brandPrimary, color: "#FFF", fontWeight: 800, borderRadius: "12px", height: 44, textTransform: "none", fontSize: "13px", "&:hover": { bgcolor: brandSecondary } }}
           >
             Check Application & KYC Status
           </Button>
@@ -2331,7 +2329,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             }}
             variant="outlined"
             fullWidth
-            sx={{ borderColor: "#E8E2E5", color: "#292329", fontWeight: 800, borderRadius: "12px", height: 44, textTransform: "none", fontSize: "13px", "&:hover": { borderColor: "#A20A3A", bgcolor: "#FFF0F4" } }}
+            sx={{ borderColor: "#E8E2E5", color: "#292329", fontWeight: 800, borderRadius: "12px", height: 44, textTransform: "none", fontSize: "13px", "&:hover": { borderColor: brandPrimary, bgcolor: brandLight } }}
           >
             Contact Admin Support
           </Button>

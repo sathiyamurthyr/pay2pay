@@ -18,6 +18,7 @@ import ErrorIcon from "@mui/icons-material/Error";
 import InfoIcon from "@mui/icons-material/Info";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { soundSystem } from "@/lib/audio-engine";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 export interface NotificationItem {
   id: string;
@@ -36,6 +37,8 @@ export const NotificationCenter: React.FC<{
   tenantId?: string;
   refreshIntervalMs?: number;
 }> = ({ userId, tenantId, refreshIntervalMs = 20000 }) => {
+  const branding = useCompanyBranding();
+  const brandPrimary = branding?.primary_colour || "#0F3B7D";
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
@@ -293,7 +296,7 @@ export const NotificationCenter: React.FC<{
             width: 10,
             height: 10,
             borderRadius: "50%",
-            bgcolor: "#A20A3A",
+            bgcolor: brandPrimary,
             boxShadow: "0 0 10px #FBBF24, 0 0 20px rgba(251,191,36,0.4)",
             flexShrink: 0,
             mt: "3px",
@@ -345,10 +348,14 @@ export const NotificationCenter: React.FC<{
       {/* ── Bell Button ── */}
       <IconButton
         onClick={handleOpen}
+        size="small"
         sx={{
-          color: unreadCount > 0 ? "#FBBF24" : (notifications.length > 0 ? "#FDE047" : "#94A3B8"),
+          color: "#FFFFFF",
+          bgcolor: "rgba(15, 23, 42, 0.22)",
+          border: "1px solid rgba(255, 255, 255, 0.25)",
+          p: 0.7,
           transition: "all 0.2s ease-in-out",
-          "&:hover": { color: "#292329", backgroundColor: "rgba(255, 255, 255, 0.08)" },
+          "&:hover": { color: "#FFFFFF", backgroundColor: "rgba(15, 23, 42, 0.36)" },
         }}
       >
         <Badge

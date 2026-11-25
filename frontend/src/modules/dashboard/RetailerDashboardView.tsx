@@ -381,17 +381,14 @@ export const RetailerDashboardView: React.FC = () => {
   const isNear4You = branding?.company_code === "NEAR4YOU";
   const isSmsPay = branding?.company_code === "SMSPAY";
 
-  const brandPrimary = branding?.primary_colour || (isPay2Pay ? "#2563EB" : isNear4You ? "#A20A3A" : "#059669");
-  const brandSecondary = branding?.secondary_colour || (isPay2Pay ? "#1E40AF" : isNear4You ? "#EDC11E" : "#047857");
-  const brandLight = isPay2Pay ? "#EFF6FF" : isNear4You ? "#FFF0F4" : "#ECFDF5";
+  const brandPrimary = branding?.primary_colour || (isPay2Pay ? "#2563EB" : isNear4You ? "#A20A3A" : "#0F3B7D");
+  const brandSecondary = branding?.secondary_colour || (isPay2Pay ? "#1E40AF" : isNear4You ? "#EDC11E" : "#D4AF37");
+  const brandLight = `${brandPrimary}12`;
   const brandName = branding?.display_name || branding?.company_name || "FinTech Platform";
 
   const walletGradient = useMemo(() => {
-    if (isPay2Pay) return "linear-gradient(135deg, #1E40AF 0%, #2563EB 60%, #0D9488 100%)";
-    if (isNear4You) return "linear-gradient(135deg, #A20A3A 0%, #6B0525 60%, #B8860B 100%)";
-    if (isSmsPay) return "linear-gradient(135deg, #065F46 0%, #059669 60%, #0D9488 100%)";
-    return `linear-gradient(135deg, ${brandSecondary} 0%, ${brandPrimary} 60%, #0D9488 100%)`;
-  }, [isPay2Pay, isNear4You, isSmsPay, brandPrimary, brandSecondary]);
+    return `linear-gradient(135deg, ${brandPrimary} 0%, ${brandSecondary} 100%)`;
+  }, [brandPrimary, brandSecondary]);
 
   // Network State
   const [isOnline, setIsOnline] = useState<boolean>(true);
@@ -1829,9 +1826,9 @@ export const RetailerDashboardView: React.FC = () => {
             sx={{
               p: { xs: 2.5, sm: 3 },
               borderRadius: "20px",
-              background: "linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 50%, #F0FDF4 100%)",
-              border: "1px solid #A7F3D0",
-              boxShadow: "0 2px 10px rgba(5,150,105,0.06)",
+              background: `linear-gradient(135deg, ${brandLight} 0%, ${brandPrimary}18 55%, ${brandSecondary}22 100%)`,
+              border: `1px solid ${brandPrimary}35`,
+              boxShadow: `0 2px 10px ${brandPrimary}12`,
               width: "100%",
               height: "100%",
               position: "relative",
@@ -1849,21 +1846,21 @@ export const RetailerDashboardView: React.FC = () => {
                     width: 56,
                     height: 42,
                     borderRadius: "10px",
-                    bgcolor: "#059669",
+                    bgcolor: brandPrimary,
                     color: "#FFFFFF",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    boxShadow: "0 4px 12px rgba(5,150,105,0.25)",
+                    boxShadow: `0 4px 12px ${brandPrimary}40`,
                     position: "relative",
                     overflow: "hidden",
                     flexShrink: 0,
                   }}
                 >
-                  <Box sx={{ position: "absolute", top: 4, left: 6, width: 8, height: 6, bgcolor: "#34D399", borderRadius: "2px" }} />
-                  <Box sx={{ position: "absolute", right: 6, width: 14, height: 10, bgcolor: "#10B981", borderRadius: "3px", border: "1.5px solid #FFFFFF" }} />
+                  <Box sx={{ position: "absolute", top: 4, left: 6, width: 8, height: 6, bgcolor: brandSecondary, borderRadius: "2px" }} />
+                  <Box sx={{ position: "absolute", right: 6, width: 14, height: 10, bgcolor: `${brandSecondary}CC`, borderRadius: "3px", border: "1.5px solid #FFFFFF" }} />
                 </Box>
-                <Typography sx={{ color: "#065F46", fontSize: "14px", fontWeight: 700, lineHeight: 1.4 }}>
+                <Typography sx={{ color: "#0F172A", fontSize: "14px", fontWeight: 700, lineHeight: 1.4 }}>
                   Manage your wallet, view transactions and download statements.
                 </Typography>
               </Box>
@@ -1883,12 +1880,12 @@ export const RetailerDashboardView: React.FC = () => {
                     fontSize: "13px",
                     fontWeight: 800,
                     borderRadius: "9999px",
-                    backgroundColor: "#059669",
+                    backgroundColor: brandPrimary,
                     color: "#FFFFFF",
-                    boxShadow: "0 4px 14px rgba(5,150,105,0.25)",
+                    boxShadow: `0 4px 14px ${brandPrimary}40`,
                     "&:hover": {
-                      backgroundColor: "#047857",
-                      boxShadow: "0 6px 18px rgba(5,150,105,0.35)",
+                      backgroundColor: brandSecondary,
+                      boxShadow: `0 6px 18px ${brandPrimary}55`,
                     },
                     textTransform: "none",
                   }}
@@ -1906,12 +1903,12 @@ export const RetailerDashboardView: React.FC = () => {
                     fontSize: "13px",
                     fontWeight: 700,
                     borderRadius: "9999px",
-                    borderColor: "#059669",
-                    color: "#059669",
-                    backgroundColor: "rgba(255, 255, 255, 0.7)",
+                    borderColor: brandPrimary,
+                    color: brandPrimary,
+                    backgroundColor: "rgba(255, 255, 255, 0.85)",
                     "&:hover": {
-                      borderColor: "#047857",
-                      backgroundColor: "#ECFDF5",
+                      borderColor: brandSecondary,
+                      backgroundColor: brandLight,
                     },
                     textTransform: "none",
                   }}
@@ -1922,7 +1919,7 @@ export const RetailerDashboardView: React.FC = () => {
             </Box>
 
             {/* Subtle corner wave */}
-            <DualCurveSwoosh primaryColor="#059669" secondaryColor="#6EE7B7" />
+            <DualCurveSwoosh primaryColor={brandPrimary} secondaryColor={brandSecondary} />
           </Paper>
         </Grid>
       </Grid>

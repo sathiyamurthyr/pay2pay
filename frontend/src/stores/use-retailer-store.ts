@@ -75,9 +75,12 @@ export const applyThemeToDocument = (_themeId: KpiTheme) => {
   if (typeof window === "undefined") return;
   const config = DEFAULT_WHITE_THEME;
   const root = document.documentElement;
+  const activePrimary =
+    getComputedStyle(root).getPropertyValue("--brand-primary").trim() ||
+    config.primaryColor;
   root.style.setProperty("--p2p-header-bg", config.headerBg);
   root.style.setProperty("--p2p-header-text", config.headerText);
-  root.style.setProperty("--p2p-primary-color", config.primaryColor);
+  root.style.setProperty("--p2p-primary-color", activePrimary);
   root.style.setProperty("--p2p-page-bg", config.pageBg);
   root.style.setProperty("--p2p-card-bg", config.cardBg);
   root.style.setProperty("--p2p-card-border", config.cardBorder);
