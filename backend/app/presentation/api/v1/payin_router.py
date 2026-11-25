@@ -40,7 +40,12 @@ from app.application.payin_routing_service import SMSPAY_COMPANY_REF_ID
 from app.application.bankme_payin_client import BankMePayInClient
 from app.application.payment_method_normalizer import PaymentMethodNormalizer
 from app.application.wallet_balance_service import WalletBalanceAdjustmentService, WalletAdjustmentDTO
-from app.core.company_resolver import resolve_return_base_url, resolve_receipt_base_url, get_company_preset
+from app.core.company_resolver import (
+    resolve_return_base_url,
+    resolve_receipt_base_url,
+    resolve_request_company_ref,
+    get_company_preset,
+)
 from app.core.security import GlobalReceiptSecurity
 
 logger = logging.getLogger("payin_router")
@@ -87,15 +92,21 @@ def extract_auth_context(payload: Dict[str, Any], request: Request) -> Dict[str,
     ret_id = payload.get("retailer_id") or payload.get("sub")
     ret_ref = payload.get("retailer_ref_id") or user_ref
 
-    # Domain fallback if testing via company-specific portal domain
-    if comp_ref is None and request:
-        host = request.headers.get("host", "").lower()
-        if "smspay" in host:
-            comp_ref = SMSPAY_COMPANY_REF_ID
-        elif "near4you" in host:
-            comp_ref = 1
-        elif "pay2pay" in host:
-            comp_ref = 47
+    # Enforce authoritative domain-to-token company isolation
+    dom_comp = resolve_request_company_ref(request) if request else None
+    if dom_comp is not None:
+        if comp_ref is not None and int(comp_ref) != int(dom_comp):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: Authenticated company does not match active domain."
+            )
+        comp_ref = dom_comp
+
+    if comp_ref is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Unable to resolve authorized company context for PayIn."
+        )
 
     raw_user_type_ref = payload.get("user_type_ref_id")
 
@@ -129,7 +140,7 @@ async def get_payin_options(
     configured specifically for the authenticated retailer's company.
     """
     auth_ctx = extract_auth_context(payload, request)
-    c_ref = auth_ctx.get("company_ref_id") or SMSPAY_COMPANY_REF_ID
+    c_ref = auth_ctx["company_ref_id"]
     role = (auth_ctx.get("roles") or ["RETAILER"])[0] if auth_ctx.get("roles") else "RETAILER"
     return await PayInConfigService.get_retailer_payin_options(db=db, company_ref_id=c_ref, role=role)
 
@@ -148,11 +159,14 @@ async def get_payin_gateways(
     Vendor names are strictly masked to generic gateway identifiers (e.g. Gateway G-1, Gateway G-2).
     """
     auth_ctx = extract_auth_context(payload, request)
-    c_ref = auth_ctx.get("company_ref_id") or SMSPAY_COMPANY_REF_ID
+    c_ref = auth_ctx["company_ref_id"]
     role = (auth_ctx.get("roles") or ["RETAILER"])[0] if auth_ctx.get("roles") else "RETAILER"
     options = await PayInConfigService.get_retailer_payin_options(db=db, company_ref_id=c_ref, role=role)
+    service_down = len(options.vendors) == 0
     return {
-        "success": True,
+        "success": not service_down,
+        "service_down": service_down,
+        "message": "Service is down: No active PayIn API is configured for your company." if service_down else "OK",
         "company_ref_id": c_ref,
         "company_name": options.company_name,
         "gateways": [
@@ -192,13 +206,18 @@ async def get_payin_card_schemes(
     Returns only active, enabled card types when active_only=True.
     """
     auth_ctx = extract_auth_context(payload, request)
-    c_ref = auth_ctx.get("company_ref_id") or SMSPAY_COMPANY_REF_ID
-    return await PayInConfigService.get_card_schemes_mdr(
-        db=db,
-        company_ref_id=c_ref,
-        vendor_code=vendor_code,
-        active_only=active_only
-    )
+    c_ref = auth_ctx["company_ref_id"]
+    try:
+        return await PayInConfigService.get_card_schemes_mdr(
+            db=db,
+            company_ref_id=c_ref,
+            vendor_code=vendor_code,
+            active_only=active_only
+        )
+    except HTTPException as exc:
+        if exc.status_code == status.HTTP_503_SERVICE_UNAVAILABLE:
+            return []
+        raise
 
 
 @router.post(
@@ -217,7 +236,7 @@ async def preview_mdr_charges(
     retailer credit, and company liability based on the active dynamic MDR rules.
     """
     auth_ctx = extract_auth_context(payload, request)
-    c_ref = auth_ctx.get("company_ref_id") or SMSPAY_COMPANY_REF_ID
+    c_ref = auth_ctx["company_ref_id"]
     role = (auth_ctx.get("roles") or ["RETAILER"])[0] if auth_ctx.get("roles") else "RETAILER"
     return await PayInService.calculate_preview(
         db=db,
@@ -750,6 +769,7 @@ async def get_payin_receipt_token(
     receipt_base = resolve_receipt_base_url(txn.company_ref_id, request)
     short_url = f"{receipt_base}/r/{short_code}"
 
+    preset = get_company_preset(txn.company_ref_id) or {}
     return {
         "success": True,
         "tid": txn.tid,
@@ -757,7 +777,7 @@ async def get_payin_receipt_token(
         "short_code": short_code,
         "short_url": short_url,
         "receipt_url": short_url,
-        "company_code": "SMSPAY" if txn.company_ref_id == 2 else ("PAY2PAY" if txn.company_ref_id == 47 else "NEAR4YOU")
+        "company_code": preset.get("company_code") or ""
     }
 
 

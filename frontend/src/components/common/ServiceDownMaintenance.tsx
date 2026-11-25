@@ -198,6 +198,15 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
   const [isChecking, setIsChecking] = useState<boolean>(false);
 
   const t = TRANSLATIONS[currentLang] || TRANSLATIONS.en;
+  const serviceLabel = service === "DMT" ? "DMT" : service;
+  const displayHeadline =
+    currentLang === "en" && service !== "DMT"
+      ? `${serviceLabel} Service Temporarily Down`
+      : t.serviceDown;
+  const displayDescription =
+    currentLang === "en" && service !== "DMT"
+      ? `${serviceLabel} service is currently unavailable for your organization because no active payment gateway API is configured. Please check back later or contact support.`
+      : t.description;
 
   const handleCheckStatus = async () => {
     if (!onRetry) return;
@@ -468,7 +477,7 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
               mb: 1.5,
             }}
           >
-            {t.serviceDown}
+            {displayHeadline}
           </Typography>
 
           {/* Subtitle / Description (Multi-Language) */}
@@ -482,7 +491,7 @@ export const ServiceDownMaintenance: React.FC<ServiceDownMaintenanceProps> = ({
               mb: 3.5,
             }}
           >
-            {t.description}
+            {displayDescription}
           </Typography>
 
           {/* ── 3 TELEMETRY CARDS (Status, Security, Support) ── */}
