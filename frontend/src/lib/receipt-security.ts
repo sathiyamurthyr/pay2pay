@@ -48,7 +48,11 @@ export function resolveReceiptDomain(originOrHost?: string, companyCode?: string
     normalizedCompany === "SMSPAY" ||
     normalizedCompany === "SMS_PAY"
   ) {
-    return "https://receipt.smspay.store";
+    if (host) {
+    const proto = protocol.startsWith("http") ? protocol : "https:";
+    return `${proto}//${host}`;
+  }
+  return "";
   }
 
   if (
@@ -67,7 +71,11 @@ export function resolveReceiptDomain(originOrHost?: string, companyCode?: string
     return "https://receipt.near4you.store";
   }
 
-  return "https://receipt.smspay.store";
+  if (host) {
+    const proto = protocol.startsWith("http") ? protocol : "https:";
+    return `${proto}//${host}`;
+  }
+  return "";
 }
 
 /**

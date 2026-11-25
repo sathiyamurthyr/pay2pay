@@ -965,22 +965,24 @@ async def get_retailer_profile(
 
     # 14. Build Dynamic COMPANY Contact & Support Info from authoritative CompanyModel & Domain Resolver
     expected_comp_ref = resolve_request_company_ref(request)
-    resolved_comp_ref = expected_comp_ref or (ret_model.company_ref_id if ret_model else None) or session_company_ref_id or 1
+    resolved_comp_ref = expected_comp_ref or (ret_model.company_ref_id if ret_model else None) or session_company_ref_id
     preset = get_company_preset(resolved_comp_ref) or {}
 
-    c_stmt = (
-        select(CompanyModel)
-        .where(CompanyModel.company_ref_id == resolved_comp_ref)
-        .options(selectinload(CompanyModel.contacts), selectinload(CompanyModel.addresses))
-    )
-    comp = (await db.execute(c_stmt)).scalars().first()
+    comp = None
+    if resolved_comp_ref:
+        c_stmt = (
+            select(CompanyModel)
+            .where(CompanyModel.company_ref_id == resolved_comp_ref)
+            .options(selectinload(CompanyModel.contacts), selectinload(CompanyModel.addresses))
+        )
+        comp = (await db.execute(c_stmt)).scalars().first()
 
     default_name = preset.get("company_name") or "Enterprise Network"
     default_brand = preset.get("display_name") or default_name
     default_legal = preset.get("legal_name") or default_name
-    default_website = preset.get("website") or "https://smspay.store"
+    default_website = preset.get("website") or ""
     site_clean = default_website.replace("https://", "").replace("http://", "").strip("/")
-    default_email = preset.get("support_email") or f"support@{site_clean}"
+    default_email = preset.get("support_email") or (f"support@{site_clean}" if site_clean else "")
     default_logo = preset.get("logo_url") or "/branding/logo.svg"
     supervisor_label = f"Zonal Head - {comp.display_name if (comp and comp.display_name) else default_brand} Enterprise Network"
 
@@ -1045,15 +1047,7 @@ async def get_retailer_profile(
             "last_updated": None
         }
 
-    default_hq = (
-        "INSPEL TECHNOLOGIES SOLUTIONS PVT, Corporate Operations Desk, India"
-        if resolved_comp_ref == 2
-        else (
-            "SUPER REX PRODUCTS PRIVATE LIMITED, Registered Office, India"
-            if resolved_comp_ref == 47
-            else "SATHUS TECHNOLOGY PRIVATE LIMITED, Corporate Office, India"
-        )
-    )
+    default_hq = f"{default_legal}, India"
 
     if comp:
         prim_contact = comp.contacts[0] if comp.contacts else None

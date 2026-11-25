@@ -938,8 +938,8 @@ async def login_with_password(
                 sd_ref_id = sd_record["super_distributor_ref_id"]
                 sd_code = sd_record["super_distributor_code"]
                 sd_full_name = sd_record["full_name"]
-                sd_business_name = sd_record["business_name"] or "Pay2Pay Master Distributor"
-                sd_email = sd_record["email"] or f"{clean_mobile}@pay2pay.in"
+                sd_business_name = sd_record["business_name"] or "Master Distributor"
+                sd_email = sd_record["email"] or ""
                 sd_tenant_str = str(sd_record["tenant_id"])
                 sd_company_str = str(sd_record["company_id"])
                 sd_ten_ref_id = sd_record["tenant_ref_id"] or 1
@@ -1178,8 +1178,8 @@ async def login_with_password(
                 dist_ref_id = distributor_record["distributor_ref_id"]
                 dist_code = distributor_record["distributor_code"]
                 dist_full_name = distributor_record["full_name"]
-                dist_business_name = distributor_record["business_name"] or "Pay2Pay Distributor"
-                dist_email = distributor_record["email"] or f"{clean_mobile}@pay2pay.in"
+                dist_business_name = distributor_record["business_name"] or "Distributor"
+                dist_email = distributor_record["email"] or ""
                 tenant_str = str(distributor_record["tenant_id"])
                 company_str = str(distributor_record["company_id"])
                 ten_ref_id = distributor_record["tenant_ref_id"] or 1
@@ -2784,8 +2784,8 @@ async def get_account_status(
             "updated_at": retailer_record.updated_date.isoformat() if retailer_record and retailer_record.updated_date else None,
             "support_contact": {
                 "phone": "+91 80000 00000",
-                "email": "support@pay2pay.in",
-                "desk": "Pay2Pay Compliance & Verification Desk"
+                "email": (get_company_preset(resolve_request_company_ref(request)) or {}).get("support_email", "support@platform.local"),
+                "desk": f"{(get_company_preset(resolve_request_company_ref(request)) or {}).get('display_name', 'Platform')} Compliance & Verification Desk"
             }
         }
     }

@@ -2,16 +2,17 @@ import { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from "axios"
 import { getApiBaseUrl } from "./api-config";
 
 const PROTOCOL_VERSION = "1.0";
-const DEFAULT_APP_ID = "PAY2PAY";
+const DEFAULT_APP_ID = "PLATFORM";
 const REQUEST_INFO = new TextEncoder().encode("sathus:crypto:request:v1");
 const RESPONSE_INFO = new TextEncoder().encode("sathus:crypto:response:v1");
 
 export function getDomainAppId(): string {
-  if (typeof window === "undefined") return "PAY2PAY";
+  if (typeof window === "undefined") return DEFAULT_APP_ID;
   const host = window.location.hostname.toLowerCase();
   if (host.includes("near4you")) return "NEAR4YOU";
   if (host.includes("smspay")) return "SMSPAY";
-  return "PAY2PAY";
+  if (host.includes("pay2pay")) return "PAY2PAY";
+  return DEFAULT_APP_ID;
 }
 
 export interface CachedServerPublicKey {
@@ -80,7 +81,7 @@ export async function fetchServerPublicKey(): Promise<CachedServerPublicKey | nu
     const saved = sessionStorage.getItem(cacheKey);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (parsed.public_key_pem) {
+      if (parsed.public_key_pem && parsed.app_id === domainAppId) {
         memoryCachedPublicKey = parsed;
         return memoryCachedPublicKey;
       }
@@ -338,7 +339,7 @@ export function attachApiPayloadSecurity(axiosInstance: AxiosInstance): AxiosIns
       config._sathusSession = session;
 
       const domainAppId = getDomainAppId();
-      const activeAppId = (serverKeyInfo.app_id || domainAppId).toUpperCase();
+      const activeAppId = domainAppId !== DEFAULT_APP_ID ? domainAppId : (serverKeyInfo.app_id || domainAppId).toUpperCase();
 
       // Always inject standard encryption negotiation headers
       config.headers = config.headers || {};

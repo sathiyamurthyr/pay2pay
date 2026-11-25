@@ -256,4 +256,4 @@ def resolve_receipt_base_url(
         elif req_ref == 1:
             return "https://receipt.near4you.store"
 
-    return "https://receipt.smspay.store"
+    return ""

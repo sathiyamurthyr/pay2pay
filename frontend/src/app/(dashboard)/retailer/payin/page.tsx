@@ -765,14 +765,14 @@ export default function RetailerPayinPage() {
       // 2. Call backend PayIn initiation API (Authoritative Admin Configuration)
       const reqPayload = {
         amount: calculations.topupAmount,
-        customer_name: "Sathus Retailer 3",
+        customer_name: cleanMobile || "Retailer Partner",
         customer_mobile: cleanMobile,
         reference_id: uniqueRef,
         payment_mode: "CARD",
         payment_mode_code: "CARD",
         vendor_code: selectedGateway.vendorCode,
         card_network: selectedCardNetwork || undefined,
-        note: "SMSPAY Retailer PayIn Top-Up"
+        note: `${branding.display_name || branding.company_code || "Retailer"} PayIn Top-Up`
       };
 
       const res = await apiClient.post("/api/v1/payin/collect", reqPayload);

@@ -27,10 +27,12 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import LockIcon from "@mui/icons-material/Lock";
 import apiClient from "@/lib/api";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 function BankMeCheckoutContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const branding = useCompanyBranding();
 
   const tid = searchParams.get("tid") || "BPAY-DEMO-001";
   const order = searchParams.get("order") || `BM-${Date.now().toString().slice(-6)}`;
@@ -43,8 +45,10 @@ function BankMeCheckoutContent() {
   const [resultState, setResultState] = useState<"IDLE" | "SUCCESS" | "FAILED">("IDLE");
   const [statusMessage, setStatusMessage] = useState("");
 
-  const upiVpa = "smspay.collection@icici";
-  const upiString = `upi://pay?pa=${upiVpa}&pn=SMSPay+Enterprises&am=${amount.toFixed(2)}&tr=${tid}&tn=PayIn+${tid}&cu=INR`;
+  const brandSlug = (branding.company_code || "platform").toLowerCase();
+  const brandLabel = encodeURIComponent(branding.display_name || branding.company_name || "Enterprise");
+  const upiVpa = `${brandSlug}.collection@icici`;
+  const upiString = `upi://pay?pa=${upiVpa}&pn=${brandLabel}&am=${amount.toFixed(2)}&tr=${tid}&tn=PayIn+${tid}&cu=INR`;
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=${encodeURIComponent(upiString)}`;
 
   const handleCopyUpi = () => {

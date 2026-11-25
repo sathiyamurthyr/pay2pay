@@ -272,55 +272,25 @@ interface ProfileResponse {
 
 export default function RetailerProfilePage() {
   const branding = useCompanyBranding();
-  const currentHost = typeof window !== "undefined" ? window.location.hostname.toLowerCase() : "";
-  const isSmsPay =
-    branding?.company_code === "SMSPAY" ||
-    currentHost.includes("smspay");
-  const isNear4You =
-    branding?.company_code === "NEAR4YOU" ||
-    currentHost.includes("near4you");
-  const isPay2Pay =
-    branding?.company_code === "PAY2PAY" ||
-    currentHost.includes("pay2pay") ||
-    (!isSmsPay && !isNear4You);
+  const isSmsPay = branding?.company_code === "SMSPAY";
+  const isNear4You = branding?.company_code === "NEAR4YOU";
+  const isPay2Pay = branding?.company_code === "PAY2PAY";
 
-  const brandDisplayName = branding?.display_name || (isSmsPay ? "SMSPAY" : isNear4You ? "Near4You" : "Pay2Pay");
-  const brandCompanyName = branding?.company_name || (isSmsPay ? "INSPEL TECHNOLOGIES SOLUTIONS PVT" : isNear4You ? "SATHUS TECHNOLOGY PRIVATE LIMITED" : "SUPER REX PRODUCTS PRIVATE LIMITED");
-  const brandPrimary = branding?.primary_colour || (isSmsPay ? "#059669" : isNear4You ? "#A20A3A" : "#2563EB");
-  const brandSecondary = branding?.secondary_colour || (isSmsPay ? "#047857" : isNear4You ? "#EDC11E" : "#1E40AF");
+  const brandDisplayName = branding?.display_name || branding?.company_name || "";
+  const brandCompanyName = branding?.company_name || branding?.legal_name || "";
+  const brandPrimary = branding?.primary_colour || "#0F3B7D";
+  const brandSecondary = branding?.secondary_colour || "#1E40AF";
   const brandLight = isSmsPay ? "#ECFDF5" : isNear4You ? "#FFF1F2" : "#EFF6FF";
-  const brandHover = isSmsPay ? "#047857" : isNear4You ? "#88082D" : "#1D4ED8";
-  const brandBorder = isSmsPay ? "rgba(5, 150, 105, 0.25)" : isNear4You ? "rgba(162, 10, 58, 0.25)" : "rgba(37, 99, 235, 0.25)";
-  const brandLogo =
-    branding?.logo_url ||
-    (isSmsPay
-      ? "/branding/smspay-logo.svg"
-      : isNear4You
-      ? "/branding/logo.svg"
-      : "/branding/pay2pay-logo.png");
-  const brandMark =
-    isSmsPay
-      ? "/branding/smspay-mark.svg"
-      : isNear4You
-      ? "/branding/near4you-favicon-32x32.png"
-      : "/branding/pay2pay-favicon-32x32.png";
+  const brandHover = brandSecondary;
+  const brandBorder = `${brandPrimary}40`;
+  const brandLogo = branding?.logo_url || "/branding/logo.svg";
+  const brandMark = branding?.favicon_url || "/branding/favicon.png";
 
-  const defaultSupportEmail = isSmsPay
-    ? "support@smspay.store"
-    : isPay2Pay
-    ? "support@pay2pay.in"
-    : "support@near4you.store";
-  const defaultGrievanceEmail = isSmsPay
-    ? "grievance@smspay.store"
-    : isPay2Pay
-    ? "grievance@pay2pay.in"
-    : "grievance@near4you.store";
-  const defaultWebsiteUrl = branding?.website || (isSmsPay ? "https://smspay.store" : isPay2Pay ? "https://pay2pay.in" : "https://near4you.store");
-  const defaultHeadquarters = isSmsPay
-    ? "INSPEL TECHNOLOGIES SOLUTIONS PVT, Corporate Operations Desk, India"
-    : isPay2Pay
-    ? "SUPER REX PRODUCTS PRIVATE LIMITED, Registered Office, India"
-    : "SATHUS TECHNOLOGY PRIVATE LIMITED, Corporate Office, India";
+  const cleanHost = typeof window !== "undefined" ? window.location.hostname.replace(/^(login|admin|retailer)\./, "") : "";
+  const defaultSupportEmail = cleanHost ? `support@${cleanHost}` : "";
+  const defaultGrievanceEmail = cleanHost ? `grievance@${cleanHost}` : "";
+  const defaultWebsiteUrl = branding?.website || (typeof window !== "undefined" ? window.location.origin : "");
+  const defaultHeadquarters = brandCompanyName ? `${brandCompanyName}, Registered Corporate Office, India` : "";
   const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

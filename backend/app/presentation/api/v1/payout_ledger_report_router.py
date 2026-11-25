@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import decode_access_token
+from app.core.company_resolver import resolve_request_company_ref
 from app.infrastructure.db.models import RetailerModel, RetailerContactModel, AdminUserModel
 
 router = APIRouter(prefix="/reports", tags=["Retailer Payout Report"])
@@ -102,6 +103,7 @@ async def resolve_report_retailer(
 
     ret_uuid = None
     ret_code = None
+    comp_ref = None
     t_uuid = parse_uuid_or_none(tenant_id)
     c_uuid = parse_uuid_or_none(company_id)
     is_admin = False
@@ -109,6 +111,15 @@ async def resolve_report_retailer(
     roles = token_payload.get("roles") or []
     if isinstance(roles, list) and any(r in ("SUPER_ADMIN", "PLATFORM_ADMIN", "ADMIN") for r in roles):
         is_admin = True
+
+    domain_comp_ref = resolve_request_company_ref(request) if request else None
+    token_comp_ref = token_payload.get("company_ref_id")
+    if domain_comp_ref is not None and not is_admin and token_comp_ref is not None:
+        if int(token_comp_ref) != int(domain_comp_ref):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access Denied: Token company does not match active domain."
+            )
 
     target_id = retailer_id or token_payload.get("retailer_id") or token_payload.get("registration_id")
     target_uuid = parse_uuid_or_none(target_id)
@@ -124,9 +135,12 @@ async def resolve_report_retailer(
             stmt = stmt.where(RetailerModel.tenant_id == t_uuid)
         if c_uuid:
             stmt = stmt.where(RetailerModel.company_id == c_uuid)
+        if domain_comp_ref is not None and not is_admin:
+            stmt = stmt.where(RetailerModel.company_ref_id == int(domain_comp_ref))
         ret_row = (await db.execute(stmt)).scalars().first()
         if ret_row:
             ret_code = ret_row.retailer_code
+            comp_ref = ret_row.company_ref_id
             if not t_uuid and ret_row.tenant_id:
                 t_uuid = ret_row.tenant_id
             if not c_uuid and ret_row.company_id:
@@ -134,13 +148,17 @@ async def resolve_report_retailer(
 
     # 2. If target code provided (e.g. RET-08A9A0)
     elif target_id and target_id not in ("ALL", "DEFAULT", "RET-PENDING"):
-        ret_row = (await db.execute(select(RetailerModel).where(
+        stmt2 = select(RetailerModel).where(
             or_(RetailerModel.retailer_code == target_id, RetailerModel.retailer_code.ilike(f"%{target_id}%")),
             RetailerModel.is_deleted == False
-        ))).scalars().first()
+        )
+        if domain_comp_ref is not None and not is_admin:
+            stmt2 = stmt2.where(RetailerModel.company_ref_id == int(domain_comp_ref))
+        ret_row = (await db.execute(stmt2)).scalars().first()
         if ret_row:
             ret_uuid = ret_row.public_id
             ret_code = ret_row.retailer_code
+            comp_ref = ret_row.company_ref_id
             if not t_uuid and ret_row.tenant_id:
                 t_uuid = ret_row.tenant_id
             if not c_uuid and ret_row.company_id:
@@ -152,10 +170,14 @@ async def resolve_report_retailer(
     if not ret_uuid and token_payload.get("sub"):
         sub_uuid = parse_uuid_or_none(str(token_payload.get("sub")))
         if sub_uuid:
-            ret_row = (await db.execute(select(RetailerModel).where(RetailerModel.public_id == sub_uuid, RetailerModel.is_deleted == False))).scalars().first()
+            stmt3 = select(RetailerModel).where(RetailerModel.public_id == sub_uuid, RetailerModel.is_deleted == False)
+            if domain_comp_ref is not None and not is_admin:
+                stmt3 = stmt3.where(RetailerModel.company_ref_id == int(domain_comp_ref))
+            ret_row = (await db.execute(stmt3)).scalars().first()
             if ret_row:
                 ret_uuid = ret_row.public_id
                 ret_code = ret_row.retailer_code
+                comp_ref = ret_row.company_ref_id
                 if not t_uuid and ret_row.tenant_id:
                     t_uuid = ret_row.tenant_id
                 if not c_uuid and ret_row.company_id:
@@ -166,20 +188,25 @@ async def resolve_report_retailer(
         clean_mob = re.sub(r"\D", "", str(token_payload.get("mobile")))[-10:]
         if len(clean_mob) == 10:
             mob_vars = [clean_mob, f"+91{clean_mob}", f"91{clean_mob}"]
-            ret_row = (await db.execute(
+            stmt4 = (
                 select(RetailerModel)
                 .join(RetailerContactModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
                 .where(RetailerContactModel.mobile.in_(mob_vars), RetailerModel.is_deleted == False)
-            )).scalars().first()
+            )
+            if domain_comp_ref is not None and not is_admin:
+                stmt4 = stmt4.where(RetailerModel.company_ref_id == int(domain_comp_ref))
+            ret_row = (await db.execute(stmt4)).scalars().first()
             if ret_row:
                 ret_uuid = ret_row.public_id
                 ret_code = ret_row.retailer_code
+                comp_ref = ret_row.company_ref_id
 
     return {
         "retailer_uuid": ret_uuid,
         "retailer_code": ret_code,
         "tenant_uuid": t_uuid,
         "company_uuid": c_uuid,
+        "company_ref_id": comp_ref or domain_comp_ref or (int(token_comp_ref) if token_comp_ref is not None else None),
         "is_admin": is_admin
     }
 
@@ -242,9 +269,15 @@ async def get_retailer_payout_summary(
         tx_params["tenant_scope"] = t_uuid
         tx_params["tenant_ref_id_scope"] = ctx.get("tenant_ref_id", 1)
     if c_uuid := ctx.get("company_uuid"):
-        tx_sql += " AND (company_id = :company_scope OR company_ref_id = :company_ref_id_scope)"
+        if ctx.get("company_ref_id") is not None:
+            tx_sql += " AND (company_id = :company_scope OR company_ref_id = :company_ref_id_scope)"
+            tx_params["company_ref_id_scope"] = ctx["company_ref_id"]
+        else:
+            tx_sql += " AND company_id = :company_scope"
         tx_params["company_scope"] = c_uuid
-        tx_params["company_ref_id_scope"] = ctx.get("company_ref_id", 1)
+    elif ctx.get("company_ref_id") is not None:
+        tx_sql += " AND company_ref_id = :company_ref_id_scope"
+        tx_params["company_ref_id_scope"] = ctx["company_ref_id"]
 
     if ret_uuid:
         tx_sql += " AND (retailer_id = :ret_uuid OR retailer_id::text = :ret_uuid_str OR retailer_ref_id = :ret_ref_id"
@@ -470,9 +503,15 @@ async def fetch_payout_report_dataset(
         params["tenant_scope"] = ctx["tenant_uuid"]
         params["tenant_ref_id_scope"] = ctx.get("tenant_ref_id", 1)
     if ctx.get("company_uuid"):
-        central_sql += " AND (t.company_id = :company_scope OR t.company_ref_id = :company_ref_id_scope)"
+        if ctx.get("company_ref_id") is not None:
+            central_sql += " AND (t.company_id = :company_scope OR t.company_ref_id = :company_ref_id_scope)"
+            params["company_ref_id_scope"] = ctx["company_ref_id"]
+        else:
+            central_sql += " AND t.company_id = :company_scope"
         params["company_scope"] = ctx["company_uuid"]
-        params["company_ref_id_scope"] = ctx.get("company_ref_id", 1)
+    elif ctx.get("company_ref_id") is not None:
+        central_sql += " AND t.company_ref_id = :company_ref_id_scope"
+        params["company_ref_id_scope"] = ctx["company_ref_id"]
 
     if ret_uuid:
         central_sql += " AND (t.retailer_id = :ret_uuid OR t.retailer_id::text = :ret_uuid_str OR t.retailer_ref_id = :ret_ref_id"
@@ -893,9 +932,9 @@ async def fetch_payout_report_dataset(
     # Resolve dynamic company branding for report
     comp_sql = """
         SELECT 
-            COALESCE(c.display_name, c.company_name, c.legal_name, 'Pay2Pay') AS company_name,
-            COALESCE(c.legal_name, c.company_name, 'SUPER REX PRODUCTS PRIVATE LIMITED') AS legal_name,
-            COALESCE(c.company_code, 'P2P') AS company_code,
+            COALESCE(c.display_name, c.company_name, c.legal_name, '') AS company_name,
+            COALESCE(c.legal_name, c.company_name, '') AS legal_name,
+            COALESCE(c.company_code, '') AS company_code,
             COALESCE(cb.logo_url, '/branding/logo.png') AS logo_url
         FROM public.company c
         LEFT JOIN public.company_branding cb ON (cb.company_id = c.public_id OR cb.company_ref_id = c.company_ref_id)
@@ -1210,7 +1249,8 @@ async def export_retailer_payout_report(
     if dataset.get("meta", {}).get("total_records", 0) > 5000:
         raise HTTPException(status_code=413, detail="Export exceeds the 5000-record limit. Apply filters and export again.")
     today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    file_base = f"Pay2Pay_Payout_Report_{today_str}"
+    comp_label = (dataset.get("company", {}) or {}).get("company_code") or "Company"
+    file_base = f"{comp_label}_Payout_Report_{today_str}"
 
     output = io.StringIO()
     writer = csv.writer(output)

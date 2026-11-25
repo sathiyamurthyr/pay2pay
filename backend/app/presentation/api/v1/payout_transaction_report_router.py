@@ -32,6 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import decode_access_token
+from app.core.company_resolver import resolve_request_company_ref
 from app.infrastructure.db.models import AdminUserModel, RetailerModel
 from app.application.user_type_service import UserTypeService
 
@@ -247,23 +248,32 @@ async def resolve_auth_context(request: Request, db: AsyncSession) -> AuthContex
     ret_id_claim = payload.get("retailer_id") or sub_str
     mobile_claim = payload.get("mobile")
 
+    domain_comp_ref = resolve_request_company_ref(request)
+    if domain_comp_ref is not None and ctx.company_ref_id is not None and int(ctx.company_ref_id) != int(domain_comp_ref):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access Denied: Retailer token company does not match active domain."
+        )
+
     try:
         ret_q = await db.execute(text("""
             SELECT r.retailer_ref_id, r.public_id, r.tenant_ref_id, r.company_ref_id, r.regional_manager_ref_id 
             FROM public.retailer r
             LEFT JOIN public.retailer_contact rc ON rc.retailer_id = r.public_id
-            WHERE r.public_id::text = CAST(:sub AS VARCHAR) 
+            WHERE (r.public_id::text = CAST(:sub AS VARCHAR) 
                OR r.retailer_code = CAST(:sub AS VARCHAR)
                OR (CAST(:ret_code AS VARCHAR) IS NOT NULL AND r.retailer_code = CAST(:ret_code AS VARCHAR))
                OR (CAST(:ret_id AS VARCHAR) IS NOT NULL AND r.public_id::text = CAST(:ret_id AS VARCHAR))
-               OR (CAST(:mobile AS VARCHAR) IS NOT NULL AND (rc.mobile = CAST(:mobile AS VARCHAR) OR rc.mobile = '91' || CAST(:mobile AS VARCHAR) OR rc.mobile = '+91' || CAST(:mobile AS VARCHAR)))
+               OR (CAST(:mobile AS VARCHAR) IS NOT NULL AND (rc.mobile = CAST(:mobile AS VARCHAR) OR rc.mobile = '91' || CAST(:mobile AS VARCHAR) OR rc.mobile = '+91' || CAST(:mobile AS VARCHAR))))
+              AND (CAST(:domain_comp AS BIGINT) IS NULL OR r.company_ref_id = CAST(:domain_comp AS BIGINT))
             ORDER BY (CASE WHEN r.status = 'ACTIVE' THEN 1 ELSE 2 END), r.is_active DESC
             LIMIT 1;
         """), {
             "sub": str(sub_str) if sub_str else "",
             "ret_code": str(ret_code_claim) if ret_code_claim else None,
             "ret_id": str(ret_id_claim) if ret_id_claim else None,
-            "mobile": str(mobile_claim) if mobile_claim else None
+            "mobile": str(mobile_claim) if mobile_claim else None,
+            "domain_comp": domain_comp_ref,
         })
         ret_row = ret_q.fetchone()
         if ret_row:
@@ -275,12 +285,14 @@ async def resolve_auth_context(request: Request, db: AsyncSession) -> AuthContex
             if not ctx.tenant_ref_id:
                 ctx.tenant_ref_id = ret_row[2]
             if not ctx.company_ref_id:
-                ctx.company_ref_id = ret_row[3]
+                ctx.company_ref_id = domain_comp_ref or ret_row[3]
             ctx.regional_manager_ref_id = ret_row[4]
             return ctx
     except Exception as e:
         logger.warning(f"Error resolving retailer context: {e}")
 
+    if domain_comp_ref is not None and not ctx.company_ref_id:
+        ctx.company_ref_id = domain_comp_ref
     ctx.user_type = "RETAILER"
     ctx.user_type_ref_id = await UserTypeService.get_user_type_ref_id(db, "RETAILER")
     return ctx
@@ -547,15 +559,15 @@ async def get_payout_transactions_report(
                     logger.warning(f"Error resolving retailer for retailer user: {e}")
         if retailer_ref_id is None:
             retailer_ref_id = -1
-        # For RETAILERS, do NOT restrict by company_ref_id! Payout transactions may be assigned to different internal companies while belonging to this retailer.
-        company_ref_id = None
+        # Enforce strict domain company isolation for retailers as well
+        company_ref_id = resolve_request_company_ref(request) or auth_ctx.company_ref_id
 
     from_date_parsed = start_dt.strftime("%Y-%m-%d")
     to_date_parsed = end_dt.strftime("%Y-%m-%d")
 
     # Dynamic Count Query for optimal index scanning
     where_clauses = [
-        "COALESCE(pt.tenant_ref_id, r.tenant_ref_id, 1) = :tenant_ref_id",
+        "COALESCE(pt.tenant_ref_id, r.tenant_ref_id) = :tenant_ref_id",
         "(pt.is_deleted IS NULL OR pt.is_deleted = FALSE)",
         "(pt.is_active IS NULL OR pt.is_active = TRUE)",
         "pt.created_date >= :start_dt",
@@ -568,7 +580,7 @@ async def get_payout_transactions_report(
     }
 
     if company_ref_id is not None:
-        where_clauses.append("COALESCE(pt.company_ref_id, r.company_ref_id, 1) = :company_ref_id")
+        where_clauses.append("COALESCE(pt.company_ref_id, r.company_ref_id) = :company_ref_id")
         count_params["company_ref_id"] = company_ref_id
 
     if retailer_ref_id is not None:
@@ -631,7 +643,7 @@ async def get_payout_transactions_report(
         ORDER BY bba_sub.is_primary DESC, bba_sub.created_date DESC
         LIMIT 1
     ) bba ON true
-    LEFT JOIN public.customer cu ON cu.customer_ref_id = pt.customer_ref_id
+    LEFT JOIN public.customer cu ON cu.public_id = pt.customer_id
     LEFT JOIN public.company c ON c.company_ref_id = pt.company_ref_id
     WHERE {" AND ".join(where_clauses)};
     """
@@ -876,7 +888,7 @@ async def get_payout_transactions_summary(
         end_dt = datetime(now_ist.year, now_ist.month, now_ist.day, 23, 59, 59, microsecond=999999, tzinfo=IST).astimezone(timezone.utc)
 
     if auth_ctx.user_type == "RETAILER":
-        company_ref_id = None
+        company_ref_id = resolve_request_company_ref(request) or auth_ctx.company_ref_id
         if retailer_ref_id is None:
             lookup_val = (retailer_id and str(retailer_id).strip()) or auth_ctx.retailer_id or auth_ctx.user_id
             if lookup_val:

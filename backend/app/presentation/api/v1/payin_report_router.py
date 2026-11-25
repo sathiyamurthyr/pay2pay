@@ -252,9 +252,14 @@ async def resolve_payin_auth_context(request: Optional[Request], db: Optional[As
         except Exception:
             pass
 
-    # Authoritative domain fallback if company not determined by token
+    # Authoritative domain validation & resolution
     domain_comp_ref = resolve_request_company_ref(request)
     if domain_comp_ref is not None:
+        if not ctx["is_super_admin"] and ctx["company_ref_id"] is not None and int(ctx["company_ref_id"]) != int(domain_comp_ref):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access Denied: Authenticated company ({ctx['company_ref_id']}) does not match active domain."
+            )
         if ctx["company_ref_id"] is None or not ctx["is_super_admin"]:
             ctx["company_ref_id"] = domain_comp_ref
 
@@ -869,8 +874,8 @@ async def get_payin_report_grid(
             "retailer_id": d.get("retailer_code") or str(d.get("retailer_ref_id") or d.get("user_ref_id")),
             "retailer_name": d.get("retailer_name") or "Retailer Partner",
             "company_id": str(d.get("company_ref_id")),
-            "company_name": d.get("company_name") or "SMSPAY",
-            "company_code": d.get("company_code") or "SMSPAY",
+            "company_name": d.get("company_name") or "",
+            "company_code": d.get("company_code") or "",
             "gateway": gw_label,
             "vendor_name": gw_label,  # Customer-facing labels G-1 / G-2 only
             "payment_mode": clean_method,

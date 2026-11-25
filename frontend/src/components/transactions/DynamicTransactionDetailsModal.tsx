@@ -279,8 +279,8 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
   const audit = details?.audit;
 
   const companyLogo = details?.company?.logo || details?.company?.logo_url || branding.logo_url || "/branding/logo.svg";
-  const companyName = branding.display_name || details?.company?.name || "Pay2Pay";
-  const companyLegalName = branding.legal_name || branding.company_name || details?.company?.legal_name || "SUPER REX PRODUCTS PRIVATE LIMITED";
+  const companyName = branding.display_name || details?.company?.name || branding.company_name || "";
+  const companyLegalName = branding.legal_name || branding.company_name || details?.company?.legal_name || "";
 
   const serviceRaw = (txn?.service || "PAYOUT").toUpperCase();
   const serviceStyle = SERVICE_COLORS[serviceRaw] || {
@@ -302,7 +302,7 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
 
   const handleShare = () => {
     if (!details) return;
-    const shareText = `Near 4 You Transaction Details\nTxn ID: ${txn?.txn_id}\nService: ${txn?.service}\nStatus: ${txn?.status}\nPayout Amount: ₹${(financial?.amount ?? txn?.amount ?? 0).toFixed(2)}\nTotal Debit: ₹${(financial?.total_debit ?? 0).toFixed(2)}\nBeneficiary: ${beneficiary?.name || "N/A"} (${beneficiary?.account || "N/A"})\nDate: ${txn?.date_time}`;
+    const shareText = `${companyName || "FinTech"} Transaction Details\nTxn ID: ${txn?.txn_id}\nService: ${txn?.service}\nStatus: ${txn?.status}\nPayout Amount: ₹${(financial?.amount ?? txn?.amount ?? 0).toFixed(2)}\nTotal Debit: ₹${(financial?.total_debit ?? 0).toFixed(2)}\nBeneficiary: ${beneficiary?.name || "N/A"} (${beneficiary?.account || "N/A"})\nDate: ${txn?.date_time}`;
     copyToClipboard(shareText, "Transaction summary");
   };
 

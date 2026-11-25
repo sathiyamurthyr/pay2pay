@@ -81,19 +81,26 @@ def _resolve_user_ref(user_ref_id: Optional[str], current_user: Optional[Any], t
 
 
 def _resolve_company_ref_id(current_user: Optional[Any], token_payload: Optional[dict], request: Optional[Request] = None) -> Optional[int]:
-    """Resolves authenticated company_ref_id strictly."""
+    """Resolves authenticated company_ref_id strictly from active domain and validates against token/user."""
+    dom_comp = resolve_request_company_ref(request) if request else None
+    tok_comp: Optional[int] = None
     if current_user and hasattr(current_user, "company_ref_id") and current_user.company_ref_id:
-        return current_user.company_ref_id
-    if token_payload and token_payload.get("company_ref_id"):
         try:
-            return int(token_payload["company_ref_id"])
+            tok_comp = int(current_user.company_ref_id)
         except (ValueError, TypeError):
-            pass
-    if request:
-        comp_ref = resolve_request_company_ref(request)
-        if comp_ref:
-            return comp_ref
-    return 47  # Default Pay2Pay
+            tok_comp = None
+    elif token_payload and token_payload.get("company_ref_id"):
+        try:
+            tok_comp = int(token_payload["company_ref_id"])
+        except (ValueError, TypeError):
+            tok_comp = None
+
+    if dom_comp and tok_comp and dom_comp != tok_comp:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: Authenticated company does not match active domain company."
+        )
+    return dom_comp or tok_comp
 
 
 async def _is_menu_enabled_for_company(db: AsyncSession, company_ref_id: Optional[int], menu_href: str) -> bool:

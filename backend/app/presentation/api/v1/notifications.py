@@ -139,60 +139,6 @@ async def get_recent_notifications(
         except Exception as orm_err:
             print("[notifications.py] ORM query error:", orm_err)
 
-    # 3. If database has 0 notifications, seed live starter notifications
-    if not formatted_data:
-        default_items = [
-            UserNotificationAlertModel(
-                user_id=u_uuid,
-                tenant_id=t_uuid,
-                notification_type="CREDIT",
-                title="Wallet Top-Up Credited",
-                message="Your retailer main wallet balance is active: ₹2,46,000.00.",
-                amount=246000.00,
-                reference_number="WAL-20260816-LIVE",
-                status="SUCCESS",
-                is_read=False
-            ),
-            UserNotificationAlertModel(
-                user_id=u_uuid,
-                tenant_id=t_uuid,
-                notification_type="APPROVAL",
-                title="Retailer Account Active",
-                message="Retailer Outlet RET-10928 (Sathus Pay Store) is verified and approved.",
-                reference_number="KYC-RET-10928",
-                status="SUCCESS",
-                is_read=False
-            ),
-            UserNotificationAlertModel(
-                user_id=u_uuid,
-                tenant_id=t_uuid,
-                notification_type="SYSTEM",
-                title="DMT & AEPS Engines Online",
-                message="Instant domestic money transfers and biometric banking services are fully operational.",
-                reference_number="SYS-DMT-OK",
-                status="INFO",
-                is_read=False
-            )
-        ]
-        try:
-            db.add_all(default_items)
-            await db.commit()
-            for item in default_items:
-                c_iso = datetime.now(timezone.utc).isoformat()
-                formatted_data.append({
-                    "id": str(item.public_id),
-                    "type": item.notification_type,
-                    "title": item.title,
-                    "message": item.message,
-                    "amount": float(item.amount) if item.amount is not None else None,
-                    "reference": item.reference_number,
-                    "status": item.status,
-                    "is_read": bool(item.is_read),
-                    "created_at": c_iso
-                })
-        except Exception:
-            await db.rollback()
-
     unread_count = len([x for x in formatted_data if not x.get("is_read")])
 
     return {

@@ -31,6 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import decode_access_token
+from app.core.company_resolver import resolve_request_company_ref, get_company_preset
 from app.application.user_type_service import UserTypeService
 
 logger = logging.getLogger(__name__)
@@ -224,7 +225,6 @@ async def resolve_auth_context(request: Request, db: AsyncSession) -> AuthContex
 
         if not ret_row:
             # Fallback for single active retailer on domain company
-            from app.core.company_resolver import resolve_request_company_ref
             dom_comp_ref = resolve_request_company_ref(request) or ctx.company_ref_id
             if dom_comp_ref:
                 comp_q = await db.execute(text("""
@@ -248,10 +248,24 @@ async def resolve_auth_context(request: Request, db: AsyncSession) -> AuthContex
             if not ctx.company_ref_id:
                 ctx.company_ref_id = ret_row[3]
             ctx.regional_manager_ref_id = ret_row[4]
+            dom_comp = resolve_request_company_ref(request)
+            if dom_comp and ctx.company_ref_id and int(dom_comp) != int(ctx.company_ref_id):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail={"success": False, "error_code": "FORBIDDEN", "message": "Access denied: Authenticated company does not match active domain."}
+                )
             return ctx
+    except HTTPException:
+        raise
     except Exception as e:
         logger.warning(f"Error resolving retailer context: {e}")
 
+    dom_comp = resolve_request_company_ref(request)
+    if dom_comp and ctx.company_ref_id and int(dom_comp) != int(ctx.company_ref_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"success": False, "error_code": "FORBIDDEN", "message": "Access denied: Authenticated company does not match active domain."}
+        )
     ctx.user_type = "RETAILER"
     ctx.user_type_ref_id = await UserTypeService.get_user_type_ref_id(db, "RETAILER")
     return ctx
@@ -712,7 +726,7 @@ async def get_transaction_report(
             "description": m.get("description") or "",
             "date_time": formatted_dt,
             "status": (m.get("status") or "SUCCESS").upper(),
-            "company": m.get("company") or "Pay2Pay",
+            "company": m.get("company") or "",
             "retailer": m.get("retailer") or "Retailer",
             "distributor": m.get("distributor") or "",
             "sd": m.get("sd") or "",
@@ -846,9 +860,9 @@ async def get_transaction_dynamic_details(
             t.regional_manager_ref_id,
             r.retailer_code,
             COALESCE(t.retailer_name, r.store_name, r.owner_name) AS resolved_retailer_name,
-            COALESCE(c.display_name, c.company_name, c.legal_name, 'Pay2Pay') AS resolved_company_name,
-            COALESCE(c.legal_name, c.company_name, 'SUPER REX PRODUCTS PRIVATE LIMITED') AS resolved_legal_name,
-            COALESCE(c.company_code, 'P2P') AS resolved_company_code,
+            COALESCE(c.display_name, c.company_name, c.legal_name, '') AS resolved_company_name,
+            COALESCE(c.legal_name, c.company_name, '') AS resolved_legal_name,
+            COALESCE(c.company_code, '') AS resolved_company_code,
             COALESCE(cb.logo_url, '/branding/logo.png') AS resolved_logo_url,
             COALESCE(t.dist_name, d.business_name, d.owner_name) AS resolved_dist_name,
             COALESCE(t.sd_name, sd.business_name, sd.owner_name) AS resolved_sd_name,
@@ -894,9 +908,9 @@ async def get_transaction_dynamic_details(
                     pct.card_type_name,
                     r.retailer_code,
                     COALESCE(r.store_name, r.owner_name) AS resolved_retailer_name,
-                    COALESCE(comp.display_name, comp.company_name, comp.legal_name, 'Pay2Pay') AS resolved_company_name,
-                    COALESCE(comp.legal_name, comp.company_name, 'SUPER REX PRODUCTS PRIVATE LIMITED') AS resolved_legal_name,
-                    COALESCE(comp.company_code, 'P2P') AS resolved_company_code,
+                    COALESCE(comp.display_name, comp.company_name, comp.legal_name, '') AS resolved_company_name,
+                    COALESCE(comp.legal_name, comp.company_name, '') AS resolved_legal_name,
+                    COALESCE(comp.company_code, '') AS resolved_company_code,
                     COALESCE(cb.logo_url, '/branding/logo.png') AS resolved_logo_url
                 FROM public.payin_transactions pt
                 LEFT JOIN public.payin_vendors pv ON pv.payin_vendor_ref_id = pt.payin_vendor_ref_id
@@ -955,12 +969,12 @@ async def get_transaction_dynamic_details(
                 ept.mode, ept.status, ept.status_description as error_message, ept.vendor_name,
                 ept.amount, ept.charges, ept.commission, ept.gst_amount, ept.tds_amount, ept.net_debit,
                 ept.wallet_before, ept.wallet_after,
-                ept.retailer_ref_id, ept.company_ref_id, ept.tenant_ref_id, ept.initiated_at, ept.completed_at, ept.created_date, ept.updated_date,
+                r.retailer_ref_id, comp.company_ref_id, r.tenant_ref_id, ept.initiated_at, ept.completed_at, ept.created_date, ept.updated_date,
                 r.retailer_code,
                 COALESCE(r.store_name, r.owner_name) AS resolved_retailer_name,
-                COALESCE(comp.display_name, comp.company_name, comp.legal_name, 'Pay2Pay') AS resolved_company_name,
-                COALESCE(comp.legal_name, comp.company_name, 'SUPER REX PRODUCTS PRIVATE LIMITED') AS resolved_legal_name,
-                COALESCE(comp.company_code, 'P2P') AS resolved_company_code,
+                COALESCE(comp.display_name, comp.company_name, comp.legal_name, '') AS resolved_company_name,
+                COALESCE(comp.legal_name, comp.company_name, '') AS resolved_legal_name,
+                COALESCE(comp.company_code, '') AS resolved_company_code,
                 COALESCE(cb.logo_url, '/branding/logo.png') AS resolved_logo_url,
                 COALESCE(b.full_name, bm.account_holder_name, bba.account_holder_name) as beneficiary_name,
                 COALESCE(bba.account_number, bm.account_number) as account_number,
@@ -969,13 +983,13 @@ async def get_transaction_dynamic_details(
                 COALESCE(c.full_name, c.first_name) as customer_name,
                 c.mobile_number as customer_mobile
             FROM public.enterprise_payout_transactions ept
-            LEFT JOIN public.retailer r ON (r.retailer_ref_id = ept.retailer_ref_id OR r.public_id = ept.retailer_id)
-            LEFT JOIN public.company comp ON (comp.company_ref_id = ept.company_ref_id OR comp.public_id = ept.company_id)
+            LEFT JOIN public.retailer r ON r.public_id = ept.retailer_id
+            LEFT JOIN public.company comp ON comp.public_id = ept.company_id
             LEFT JOIN public.company_branding cb ON cb.company_id = comp.public_id
-            LEFT JOIN public.customer c ON (c.customer_ref_id = ept.customer_ref_id OR c.public_id = ept.customer_id)
-            LEFT JOIN public.beneficiary b ON (b.public_id = ept.beneficiary_id)
-            LEFT JOIN public.beneficiary_master bm ON (bm.beneficiary_master_ref_id = ept.beneficiary_master_ref_id OR bm.public_id = ept.beneficiary_id)
-            LEFT JOIN public.beneficiary_bank_account bba ON (bba.beneficiary_id = ept.beneficiary_id OR bba.beneficiary_master_ref_id = ept.beneficiary_master_ref_id)
+            LEFT JOIN public.customer c ON c.public_id = ept.customer_id
+            LEFT JOIN public.beneficiary b ON b.public_id = ept.beneficiary_id
+            LEFT JOIN public.beneficiary_master bm ON bm.public_id = ept.beneficiary_id
+            LEFT JOIN public.beneficiary_bank_account bba ON bba.beneficiary_id = ept.beneficiary_id
             WHERE ept.transaction_number = :txn_id OR ept.vendor_ref = :txn_id OR ept.utr_number = :txn_id
             ORDER BY ept.id DESC LIMIT 1;
         """), {"txn_id": txn_id.strip()})
@@ -1074,9 +1088,9 @@ async def get_transaction_dynamic_details(
                 pt.retailer_ref_id, pt.company_ref_id, pt.tenant_ref_id, pt.created_date, pt.updated_date,
                 r.retailer_code,
                 COALESCE(r.store_name, r.owner_name) AS resolved_retailer_name,
-                COALESCE(comp.display_name, comp.company_name, comp.legal_name, 'Pay2Pay') AS resolved_company_name,
-                COALESCE(comp.legal_name, comp.company_name, 'SUPER REX PRODUCTS PRIVATE LIMITED') AS resolved_legal_name,
-                COALESCE(comp.company_code, 'P2P') AS resolved_company_code,
+                COALESCE(comp.display_name, comp.company_name, comp.legal_name, '') AS resolved_company_name,
+                COALESCE(comp.legal_name, comp.company_name, '') AS resolved_legal_name,
+                COALESCE(comp.company_code, '') AS resolved_company_code,
                 COALESCE(cb.logo_url, '/branding/logo.png') AS resolved_logo_url
             FROM public.payout_transaction pt
             LEFT JOIN public.retailer r ON (r.retailer_ref_id = pt.retailer_ref_id OR r.public_id = pt.retailer_id)
@@ -1123,6 +1137,7 @@ async def get_transaction_dynamic_details(
             dmt_direct_row = dmt_direct.fetchone()
             if dmt_direct_row:
                 d_map = dict(dmt_direct_row._mapping)
+                d_preset = get_company_preset(d_map.get("company_ref_id")) or {}
                 rows = [{
                     "txn_id": d_map.get("transaction_number"),
                     "ref_id": d_map.get("reference_number") or d_map.get("transaction_number"),
@@ -1139,10 +1154,10 @@ async def get_transaction_dynamic_details(
                     "retailer_ref_id": d_map.get("retailer_ref_id"),
                     "company_ref_id": d_map.get("company_ref_id"),
                     "resolved_retailer_name": "Retailer",
-                    "resolved_company_name": "Pay2Pay",
-                    "resolved_legal_name": "SUPER REX PRODUCTS PRIVATE LIMITED",
-                    "resolved_company_code": "P2P",
-                    "resolved_logo_url": "/branding/logo.png",
+                    "resolved_company_name": d_preset.get("display_name") or d_preset.get("company_name") or "",
+                    "resolved_legal_name": d_preset.get("legal_name") or d_preset.get("company_name") or "",
+                    "resolved_company_code": d_preset.get("company_code") or "",
+                    "resolved_logo_url": d_preset.get("logo_url") or "/branding/logo.png",
                 }]
         except Exception:
             pass
@@ -1248,7 +1263,7 @@ async def get_transaction_dynamic_details(
         "api_status": "SUCCESS" if (primary.get("status") or "").upper() == "SUCCESS" else primary.get("status"),
         "api_response_code": "00" if (primary.get("status") or "").upper() == "SUCCESS" else "99",
         "channel": "SYSTEM",
-        "gateway": "PAY2PAY SYSTEM",
+        "gateway": "SYSTEM",
         "utr": None,
         "rrn": None,
     }
@@ -1405,13 +1420,13 @@ async def get_transaction_dynamic_details(
                            c.mobile_number as customer_mobile,
                            comp.display_name as company_name, cb.logo_url as company_logo
                     FROM public.enterprise_payout_transactions ept
-                    LEFT JOIN public.retailer r ON (r.retailer_ref_id = ept.retailer_ref_id OR r.public_id = ept.retailer_id)
-                    LEFT JOIN public.company comp ON (comp.company_ref_id = ept.company_ref_id OR comp.public_id = ept.company_id)
+                    LEFT JOIN public.retailer r ON r.public_id = ept.retailer_id
+                    LEFT JOIN public.company comp ON comp.public_id = ept.company_id
                     LEFT JOIN public.company_branding cb ON cb.company_id = comp.public_id
-                    LEFT JOIN public.customer c ON (c.customer_ref_id = ept.customer_ref_id OR c.public_id = ept.customer_id)
-                    LEFT JOIN public.beneficiary b ON (b.public_id = ept.beneficiary_id)
-                    LEFT JOIN public.beneficiary_master bm ON (bm.beneficiary_master_ref_id = ept.beneficiary_master_ref_id OR bm.public_id = ept.beneficiary_id)
-                    LEFT JOIN public.beneficiary_bank_account bba ON (bba.beneficiary_id = ept.beneficiary_id OR bba.beneficiary_master_ref_id = ept.beneficiary_master_ref_id)
+                    LEFT JOIN public.customer c ON c.public_id = ept.customer_id
+                    LEFT JOIN public.beneficiary b ON b.public_id = ept.beneficiary_id
+                    LEFT JOIN public.beneficiary_master bm ON bm.public_id = ept.beneficiary_id
+                    LEFT JOIN public.beneficiary_bank_account bba ON bba.beneficiary_id = ept.beneficiary_id
                     WHERE ept.transaction_number = :txn_id OR ept.vendor_ref = :txn_id OR ept.utr_number = :txn_id
                     ORDER BY ept.id DESC
                     LIMIT 1;
@@ -1661,7 +1676,7 @@ async def get_transaction_dynamic_details(
         "mobile": cust_mob_val or "Not Available",
     } if (cust_name_val or cust_mob_val) else None
 
-    company_name_val = primary.get("resolved_company_name") or "Pay2Pay Fintech"
+    company_name_val = primary.get("resolved_company_name") or ""
     company_logo_val = primary.get("resolved_logo_url") or "/branding/logo.png"
 
     company_obj = {
@@ -1669,8 +1684,8 @@ async def get_transaction_dynamic_details(
         "logo": company_logo_val,
         "company_name": company_name_val,
         "logo_url": company_logo_val,
-        "legal_name": primary.get("resolved_legal_name") or "SUPER REX PRODUCTS PRIVATE LIMITED",
-        "company_code": primary.get("resolved_company_code") or "P2P",
+        "legal_name": primary.get("resolved_legal_name") or "",
+        "company_code": primary.get("resolved_company_code") or "",
     }
 
     # 10. Role-Based Vendor / API Section (ADMIN & CRM only)

@@ -84,14 +84,14 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
   audience = "RETAILER",
 }) => {
   const { branding } = useCompanyBranding();
-  const companyCode = branding?.company_code || "PAY2PAY";
-  const cmpRefId = branding?.company_ref_id || (companyCode === "NEAR4YOU" ? 1 : companyCode === "SMSPAY" ? 2 : 47);
+  const companyCode = branding?.company_code || "";
+  const cmpRefId = branding?.company_ref_id;
 
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [current, setCurrent] = useState(0);
   const [visible, setVisible] = useState(false);
 
-  const cacheKey = `p2p_announcements_seen_${companyCode}_${audience}`;
+  const cacheKey = `p2p_announcements_seen_${companyCode || "UNRESOLVED"}_${audience}`;
 
   const dismissCurrent = useCallback(() => {
     if (current + 1 < announcements.length) {
@@ -113,19 +113,19 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
   };
 
   useEffect(() => {
+    if (!companyCode || !cmpRefId) return;
     let cancelled = false;
     const fetchData = async () => {
       try {
         let items: any[] = [];
 
-        // 1. Try authenticated active announcements endpoint with automatic header attachment
+        // 1. Fetch active announcements scoped strictly to authenticated domain company
         try {
           const res1 = await api.get(`/api/v1/announcements/active?audience=${encodeURIComponent(audience)}`);
           if (res1) {
             items = res1.data || (Array.isArray(res1) ? res1 : []);
           }
         } catch {
-          // Fallback to fetch with explicit domain company app-id
           try {
             const resFetch = await fetch(`/api/v1/announcements/active?audience=${encodeURIComponent(audience)}`, {
               headers: {
@@ -136,25 +136,6 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
             if (resFetch.ok) {
               const jsonFetch = await resFetch.json();
               items = jsonFetch.data || (Array.isArray(jsonFetch) ? jsonFetch : []);
-            }
-          } catch {}
-        }
-
-        // 2. Secondary fallback
-        if (items.length === 0) {
-          try {
-            const res2 = await fetch(
-              `/api/v1/notifications/announcements?audience=${encodeURIComponent(audience)}&active=true&limit=5`,
-              {
-                headers: {
-                  "x-sathus-app-id": companyCode,
-                },
-                credentials: "include",
-              }
-            );
-            if (res2.ok) {
-              const json2 = await res2.json();
-              items = json2.data || (Array.isArray(json2) ? json2 : []);
             }
           } catch {}
         }

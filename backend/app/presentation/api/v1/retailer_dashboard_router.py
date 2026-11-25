@@ -20,7 +20,7 @@ from app.infrastructure.db.enterprise_payout_models import (
     EnterprisePayoutTransactionModel, PayoutDoubleEntryLedgerModel, PayoutTransactionStatus
 )
 from app.infrastructure.db.swipe_settlement_models import SwipeMachineSettlementModel, SwipeSettlementStatus
-from app.core.company_resolver import resolve_request_company_ref, get_company_preset
+from app.core.company_resolver import resolve_request_company_ref, get_company_preset, resolve_return_base_url
 
 router = APIRouter(prefix="/dashboard/retailer", tags=["Retailer Dashboard & Analytics"])
 
@@ -375,8 +375,8 @@ async def resolve_retailer_context(
         "user_ref_id": getattr(ret_model, "retailer_ref_id", None) or eff_ref_id,
         "user_type_ref_id": eff_type_id,
         "retailer_ref_id": getattr(ret_model, "retailer_ref_id", None) or eff_ref_id,
-        "tenant_ref_id": eff_tenant_ref or 1,
-        "company_ref_id": eff_company_ref or 1,
+        "tenant_ref_id": eff_tenant_ref,
+        "company_ref_id": eff_company_ref,
         "tenant_id": final_tenant_id,
         "company_id": final_company_id,
         "is_approved": approve_status,
@@ -1410,11 +1410,12 @@ async def get_collection_link(
 ):
     ctx = await resolve_retailer_context(request, retailer_id, tenant_id, db=db)
     r_code = ctx["retailer_id"]
+    base_url = resolve_return_base_url(ctx.get("company_ref_id"), request).rstrip("/")
     return {
         "status": "SUCCESS",
         "retailer_id": r_code,
         "payment_link_id": f"PL-{r_code}",
-        "payment_link": f"https://pay2pay.in/pay/{r_code}",
+        "payment_link": f"{base_url}/pay/{r_code}",
         "status": "ACTIVE" if ctx["is_approved"] else "PENDING",
         "created_at": datetime.now(timezone.utc).isoformat()
     }

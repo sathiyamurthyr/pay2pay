@@ -82,30 +82,26 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
           setLoading(false);
         })
         .catch(() => {
-          // Fallback dynamic structure if server offline
-          const supportMail = branding.company_code === "SMSPAY"
-            ? "support@smspay.store"
-            : branding.company_code === "NEAR4YOU"
-            ? "support@near4you.store"
-            : "support@pay2pay.in";
+          const hostClean = typeof window !== "undefined" ? window.location.hostname.replace(/^(login|admin|retailer)\./, "") : "";
+          const supportMail = hostClean ? `support@${hostClean}` : "";
 
           setData({
             company: {
-              company_name: branding.company_name || branding.display_name || "FinTech Platform",
+              company_name: branding.company_name || branding.display_name || "",
               company_logo_url: branding.logo_url || "/branding/logo.svg",
               support_email: supportMail,
-              support_phone: "+91 1800 292 982",
-              whatsapp_number: "+91 70139 14767",
+              support_phone: "",
+              whatsapp_number: "",
               support_hours: "Monday - Saturday | 09:00 AM - 07:00 PM IST",
               live_chat_enabled: true,
-              support_url: branding.website || "https://pay2pay.in"
+              support_url: branding.website || (typeof window !== "undefined" ? window.location.origin : "")
             },
             application_details: {
-              application_id: "APP-REG-A7110CFE2B",
-              retailer_name: "Sathiya Murthy",
-              mobile_number: "+91 7013914767",
+              application_id: regId || "",
+              retailer_name: "",
+              mobile_number: mob || "",
               verification_status: "UNDER_REVIEW",
-              submission_date: "August 09, 2026 07:30 PM IST"
+              submission_date: ""
             },
             admin_remarks: "No remarks available.",
             faqs: [
@@ -163,13 +159,18 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
   const appDetails = data?.application_details;
   const company = data?.company;
 
-  const rawWhatsappMsg = `Hello,\n\nMy retailer account is currently under verification.\n\nApplication ID:\n${appDetails?.application_id || "APP-PENDING"}\n\nRetailer Name:\n${appDetails?.retailer_name || "Retailer"}\n\nRegistered Mobile:\n${appDetails?.mobile_number || "+91 7013914767"}\n\nPlease help me with my verification status.`;
+  const rawWhatsappMsg = `Hello,\n\nMy retailer account is currently under verification.\n\nApplication ID:\n${appDetails?.application_id || "APP-PENDING"}\n\nRetailer Name:\n${appDetails?.retailer_name || "Retailer"}\n\nRegistered Mobile:\n${appDetails?.mobile_number || "N/A"}\n\nPlease help me with my verification status.`;
 
-  const cleanWhatsappNum = (company?.whatsapp_number || "+91 7013914767").replace(/\D/g, "");
-  const whatsappUrl = `https://wa.me/${cleanWhatsappNum}?text=${encodeURIComponent(rawWhatsappMsg)}`;
+  const cleanWhatsappNum = (company?.whatsapp_number || "").replace(/\D/g, "");
+  const whatsappUrl = cleanWhatsappNum
+    ? `https://wa.me/${cleanWhatsappNum}?text=${encodeURIComponent(rawWhatsappMsg)}`
+    : "#";
 
-  const cleanPhoneNum = (company?.support_phone || "+91 1800 292 982").replace(/[^\d+]/g, "");
-  const mailToUrl = `mailto:${company?.support_email || "support@near4you.store"}?subject=${encodeURIComponent(`Verification Help: ${appDetails?.application_id || "Retailer Account"}`)}&body=${encodeURIComponent(rawWhatsappMsg)}`;
+  const cleanPhoneNum = (company?.support_phone || "").replace(/[^\d+]/g, "");
+  const fallbackSupportEmail = typeof window !== "undefined" ? `support@${window.location.hostname.replace(/^(login|admin|api)\./, "")}` : "";
+  const mailToUrl = (company?.support_email || fallbackSupportEmail)
+    ? `mailto:${company?.support_email || fallbackSupportEmail}?subject=${encodeURIComponent(`Verification Help: ${appDetails?.application_id || "Retailer Account"}`)}&body=${encodeURIComponent(rawWhatsappMsg)}`
+    : "#";
 
   return createPortal(
     <AnimatePresence>
@@ -325,7 +326,7 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
                           </div>
                           <div>
                             <p className="text-[11px] font-bold text-[#625B60]">WhatsApp Instant Support</p>
-                            <p className="text-xs font-extrabold text-[#292329] font-mono">{company?.whatsapp_number || "+91 70139 14767"}</p>
+                            <p className="text-xs font-extrabold text-[#292329] font-mono">{company?.whatsapp_number || ""}</p>
                           </div>
                         </div>
                         <a

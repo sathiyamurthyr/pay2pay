@@ -33,7 +33,7 @@ class EmailService:
         self.smtp_username = smtp_username if smtp_username is not None else getattr(settings, "SMTP_USERNAME", "")
         self.smtp_password = smtp_password if smtp_password is not None else getattr(settings, "SMTP_PASSWORD", "")
         self.from_email = from_email if from_email is not None else getattr(settings, "SMTP_FROM_EMAIL", "")
-        self.from_name = from_name if from_name is not None else getattr(settings, "SMTP_FROM_NAME", "Pay2Pay Enterprise")
+        self.from_name = from_name if from_name is not None else getattr(settings, "SMTP_FROM_NAME", "FinTech Platform")
 
     def _build_otp_html(self, otp_code: str, recipient_email: str) -> str:
         return f"""
@@ -60,7 +60,7 @@ class EmailService:
         <body>
           <div class="container">
             <div class="header">
-              <div class="logo">Pay2Pay</div>
+              <div class="logo">{self.from_name or "FinTech Platform"}</div>
               <div class="sub-logo">Enterprise Retailer Platform</div>
             </div>
             <div class="content">
@@ -71,12 +71,12 @@ class EmailService:
                 <div class="expiry">⏱ Valid for 10 minutes</div>
               </div>
               <div class="security-note">
-                <strong>🔒 Security Reminder:</strong> Pay2Pay staff will never ask for your verification code, password, or MPIN over call or chat. Do not share this code with anyone.
+                <strong>🔒 Security Reminder:</strong> Staff will never ask for your verification code, password, or MPIN over call or chat. Do not share this code with anyone.
               </div>
             </div>
             <div class="footer">
-              &copy; 2021 SUPER REX PRODUCTS PRIVATE LIMITED. All rights reserved.<br>
-              Pay2Pay Retailer Portal
+              &copy; {datetime.now(timezone.utc).year} {self.from_name or "FinTech Platform"}. All rights reserved.<br>
+              Retailer Portal
             </div>
           </div>
         </body>
@@ -115,24 +115,23 @@ class EmailService:
         smtp_username = self.smtp_username if self.smtp_username is not None else getattr(settings, "SMTP_USERNAME", "")
         smtp_password = self.smtp_password if self.smtp_password is not None else getattr(settings, "SMTP_PASSWORD", "")
         from_email = self.from_email if self.from_email is not None else (getattr(settings, "SMTP_FROM_EMAIL", "") or smtp_username)
-        from_name = self.from_name if self.from_name is not None else getattr(settings, "SMTP_FROM_NAME", "Pay2Pay Enterprise")
+        from_name = self.from_name if self.from_name is not None else getattr(settings, "SMTP_FROM_NAME", "FinTech Platform")
 
         if smtp_password:
             # Gmail App passwords may contain spaces for readability - strip them for SMTP auth
             smtp_password = smtp_password.strip()
 
         msg = MIMEMultipart("alternative")
-        msg["Subject"] = f"{otp_code} is your Pay2Pay Email Verification Code"
+        msg["Subject"] = f"{otp_code} is your Email Verification Code"
         msg["From"] = f"{from_name} <{from_email}>"
         msg["To"] = recipient_email
 
         plain_text = (
-            f"Your Pay2Pay Email Verification Code is: {otp_code}\n\n"
+            f"Your Email Verification Code is: {otp_code}\n\n"
             f"This code is valid for 10 minutes.\n"
             f"Please do not share this code with anyone.\n\n"
             f"Regards,\n"
-            f"{from_name}\n"
-            f"SUPER REX PRODUCTS PRIVATE LIMITED"
+            f"{from_name}"
         )
         msg.attach(MIMEText(plain_text, "plain"))
         html_content = self._build_otp_html(otp_code, recipient_email)
@@ -249,22 +248,22 @@ class EmailService:
         smtp_username = self.smtp_username if self.smtp_username is not None else getattr(settings, "SMTP_USERNAME", "")
         smtp_password = self.smtp_password if self.smtp_password is not None else getattr(settings, "SMTP_PASSWORD", "")
         from_email = self.from_email if self.from_email is not None else getattr(settings, "SMTP_FROM_EMAIL", "") or smtp_username
-        from_name = self.from_name if self.from_name is not None else getattr(settings, "SMTP_FROM_NAME", "Pay2Pay Enterprise")
+        from_name = self.from_name if self.from_name is not None else getattr(settings, "SMTP_FROM_NAME", "FinTech Platform")
+        brand_name = from_name or "FinTech Platform"
 
         if smtp_password:
             smtp_password = smtp_password.strip()
 
-        subject = "Reset Your Pay2Pay Password"
+        subject = f"Reset Your {brand_name} Password"
         plain_text = (
             f"Hello,\n\n"
-            f"We received a request to reset the password for your Pay2Pay account.\n\n"
+            f"We received a request to reset the password for your {brand_name} account.\n\n"
             f"Please click or visit the secure link below to create a new password:\n"
             f"{reset_link}\n\n"
             f"⏱ This link is valid for 30 minutes.\n\n"
             f"If you did not request this change, you can safely ignore this email.\n\n"
             f"Regards,\n"
-            f"Pay2Pay Security Team\n"
-            f"SUPER REX PRODUCTS PRIVATE LIMITED"
+            f"{brand_name} Security Team"
         )
         html_content = f"""
         <!DOCTYPE html>
@@ -287,14 +286,14 @@ class EmailService:
         <body>
           <div class="container">
             <div class="header">
-              <div class="logo">Pay2Pay</div>
+              <div class="logo">{brand_name}</div>
               <div class="sub-logo">Enterprise Security Team</div>
             </div>
             <div class="content">
-              <div class="title">Reset Your Pay2Pay Password</div>
+              <div class="title">Reset Your {brand_name} Password</div>
               <p style="font-size: 14px; color: #cbd5e1;">Hello,</p>
               <p style="font-size: 14px; color: #cbd5e1; line-height: 1.6;">
-                We received a request to reset the password for your Pay2Pay account.
+                We received a request to reset the password for your {brand_name} account.
               </p>
               <p style="font-size: 14px; color: #cbd5e1; line-height: 1.6;">
                 Click the secure button below to create a new password:
@@ -310,11 +309,11 @@ class EmailService:
               </div>
               <p style="font-size: 13px; color: #94a3b8; margin-top: 24px;">
                 Regards,<br>
-                <strong style="color: #f8fafc;">Pay2Pay Security Team</strong>
+                <strong style="color: #f8fafc;">{brand_name} Security Team</strong>
               </p>
             </div>
             <div class="footer">
-              &copy; 2021 SUPER REX PRODUCTS PRIVATE LIMITED. All rights reserved.
+              &copy; {brand_name}. All rights reserved.
             </div>
           </div>
         </body>
@@ -482,7 +481,7 @@ class EmailService:
           <div class="container">
             <div class="header">
               <div class="badge">✓ Payment Verified</div>
-              <div class="logo">Pay2Pay Enterprise</div>
+              <div class="logo">{payload.get("company_name") or self.from_name or "FinTech Platform"}</div>
               <div class="sub-logo">Wallet Credit Confirmation</div>
             </div>
             <div class="content">
@@ -534,8 +533,8 @@ class EmailService:
               </div>
             </div>
             <div class="footer">
-              &copy; 2026 SUPER REX PRODUCTS PRIVATE LIMITED All rights reserved.<br>
-              Need help? Contact support at <a href="mailto:support@pay2pay.in" style="color: #38bdf8; text-decoration: none;">support@pay2pay.in</a>
+              &copy; {payload.get("company_name") or self.from_name or "FinTech Platform"} All rights reserved.<br>
+              Need help? Contact support at <a href="mailto:{payload.get('support_email') or self.from_email or 'support@localhost'}" style="color: #38bdf8; text-decoration: none;">{payload.get('support_email') or self.from_email or 'Support'}</a>
             </div>
           </div>
         </body>
@@ -579,7 +578,7 @@ class EmailService:
         smtp_username = self.smtp_username if self.smtp_username is not None else getattr(settings, "SMTP_USERNAME", "")
         smtp_password = self.smtp_password if self.smtp_password is not None else getattr(settings, "SMTP_PASSWORD", "")
         from_email = self.from_email if self.from_email is not None else (getattr(settings, "SMTP_FROM_EMAIL", "") or smtp_username)
-        from_name = self.from_name if self.from_name is not None else getattr(settings, "SMTP_FROM_NAME", "Pay2Pay Enterprise")
+        from_name = self.from_name if self.from_name is not None else getattr(settings, "SMTP_FROM_NAME", "FinTech Platform")
 
         if smtp_password:
             smtp_password = smtp_password.strip()
@@ -696,13 +695,13 @@ class EmailService:
         smtp_port = self.smtp_port if self.smtp_port is not None else getattr(settings, "SMTP_PORT", 587)
         smtp_username = self.smtp_username if self.smtp_username is not None else getattr(settings, "SMTP_USERNAME", "")
         smtp_password = self.smtp_password if self.smtp_password is not None else getattr(settings, "SMTP_PASSWORD", "")
-        from_email = self.from_email or getattr(settings, "SMTP_FROM_EMAIL", "") or smtp_username or "statements@pay2pay.in"
-        from_name = self.from_name or getattr(settings, "SMTP_FROM_NAME", "Pay2Pay")
+        from_email = self.from_email or getattr(settings, "SMTP_FROM_EMAIL", "") or smtp_username
+        from_name = self.from_name or getattr(settings, "SMTP_FROM_NAME", "FinTech Platform")
 
         if smtp_password:
             smtp_password = smtp_password.strip()
 
-        subject = f"Pay2Pay Account Statement – {statement_date_str}"
+        subject = f"{from_name} Account Statement – {statement_date_str}"
 
         # Build password instruction blocks for plain text and HTML
         pwd_box_html = ""
@@ -756,10 +755,12 @@ Example: {example_val}
               </div>
             """
 
+        brand_label = from_name or "FinTech Platform"
+
         # Plain text exact body
         plain_body = f"""Dear {recipient_name},
 
-Please find attached your Pay2Pay Account Statement for {statement_date_str}.
+Please find attached your {brand_label} Account Statement for {statement_date_str}.
 
 Opening Balance: ₹{opening_balance:,.2f}
 Total Credit: ₹{total_credit:,.2f}
@@ -769,8 +770,7 @@ Closing Balance: ₹{closing_balance:,.2f}
 This is a system-generated statement.
 
 Regards,
-Pay2Pay
-SUPER REX PRODUCTS PRIVATE LIMITED
+{brand_label}
 """
 
         # HTML styled body
@@ -799,14 +799,13 @@ SUPER REX PRODUCTS PRIVATE LIMITED
         <body>
           <div class="card">
             <div class="header">
-              <div class="logo">PAY2PAY</div>
-              <div class="company">SUPER REX PRODUCTS PRIVATE LIMITED</div>
+              <div class="logo">{brand_label.upper()}</div>
               <div style="font-size: 12px; color: #38bdf8; margin-top: 6px; font-weight: bold;">ACCOUNT STATEMENT</div>
             </div>
             <div class="body-content">
               <div class="greeting">Dear {recipient_name},</div>
               <div class="intro">
-                Please find attached your Pay2Pay Account Statement for <strong>{statement_date_str}</strong>.
+                Please find attached your {brand_label} Account Statement for <strong>{statement_date_str}</strong>.
               </div>
               <div class="summary-box">
                 <div class="summary-row">
@@ -831,8 +830,7 @@ SUPER REX PRODUCTS PRIVATE LIMITED
             </div>
             <div class="footer">
               Regards,<br>
-              <strong>Pay2Pay</strong><br>
-              SUPER REX PRODUCTS PRIVATE LIMITED
+              <strong>{brand_label}</strong>
             </div>
           </div>
         </body>
@@ -973,23 +971,29 @@ SUPER REX PRODUCTS PRIVATE LIMITED
         if not recipient_email or "@" not in recipient_email:
             return {"status": "ERROR", "delivered": False, "message": "Invalid recipient email address."}
 
-        # Company branding determination
-        comp_str = str(company_context or "").upper()
-        if "SMSPAY" in comp_str or comp_str == "2":
-            company_display = "INSPEL TECHNOLOGIES SOLUTIONS PVT"
-            brand_name = "SMSPAY"
-            primary_color = "#059669"
-            domain = "smspay.store"
-        elif "NEAR4YOU" in comp_str or comp_str == "1":
-            company_display = "SATHUS TECHNOLOGY PRIVATE LIMITED"
-            brand_name = "Near4You"
-            primary_color = "#A20A3A"
-            domain = "near4you.store"
+        from app.core.company_resolver import get_company_preset
+
+        comp_str = str(company_context or "").strip().upper()
+        preset = None
+        if comp_str.isdigit():
+            preset = get_company_preset(int(comp_str))
         else:
-            company_display = "SUPER REX PRODUCTS PRIVATE LIMITED"
-            brand_name = "Pay2Pay Enterprise"
-            primary_color = "#2563EB"
-            domain = "pay2pay.in"
+            for cid in (1, 2, 47):
+                cand = get_company_preset(cid)
+                if cand and cand.get("company_code", "").upper() in comp_str:
+                    preset = cand
+                    break
+
+        if preset:
+            company_display = preset.get("company_name") or preset.get("display_name") or "FinTech Platform"
+            brand_name = preset.get("display_name") or preset.get("company_code") or "FinTech Platform"
+            primary_color = "#059669" if brand_name.upper() == "SMSPAY" else ("#A20A3A" if "NEAR4YOU" in brand_name.upper() else "#2563EB")
+            domain = (preset.get("website") or "").replace("https://", "").replace("http://", "").strip("/")
+        else:
+            company_display = self.from_name or "FinTech Platform"
+            brand_name = self.from_name or "FinTech Platform"
+            primary_color = "#1E293B"
+            domain = ""
 
         smtp_server = self.smtp_server if self.smtp_server is not None else getattr(settings, "SMTP_SERVER", "smtp.gmail.com")
         smtp_port = self.smtp_port if self.smtp_port is not None else getattr(settings, "SMTP_PORT", 587)
