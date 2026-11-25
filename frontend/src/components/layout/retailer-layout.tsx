@@ -309,22 +309,35 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const [refreshErrorToast, setRefreshErrorToast] = useState<string | null>(null);
 
-  // Restore last known wallet balance strictly scoped to active retailer
+  // Restore last known wallet balance strictly scoped to active retailer / domain after hydration
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
+        const host = window.location.hostname.toLowerCase();
+        const port = window.location.port;
+        const domainScope = host.includes("smspay") || port === "4002"
+          ? "smspay"
+          : host.includes("near4you") || port === "4001"
+          ? "near4you"
+          : host.includes("pay2pay") || port === "3000" || port === "4003"
+          ? "pay2pay"
+          : "default";
         const activeCode = localStorage.getItem("p2p_active_retailer_code");
-        if (activeCode) {
-          const savedBal = localStorage.getItem(`p2p_cached_wallet_balance_${activeCode}`);
-          const savedAvail = localStorage.getItem(`p2p_cached_available_balance_${activeCode}`);
-          if (savedBal && !isNaN(Number(savedBal))) {
-            const bal = Number(savedBal);
-            const avail = savedAvail && !isNaN(Number(savedAvail)) ? Number(savedAvail) : bal;
-            useRetailerStore.getState().updateWallet({
-              mainBalance: bal,
-              availableBalance: avail,
-            });
-          }
+        const savedBal =
+          (activeCode && (localStorage.getItem(`p2p_cached_wallet_balance_${activeCode}`) || sessionStorage.getItem(`p2p_cached_wallet_balance_${activeCode}`))) ||
+          localStorage.getItem(`p2p_cached_wallet_balance_${domainScope}`) ||
+          sessionStorage.getItem(`p2p_cached_wallet_balance_${domainScope}`);
+        const savedAvail =
+          (activeCode && (localStorage.getItem(`p2p_cached_available_balance_${activeCode}`) || sessionStorage.getItem(`p2p_cached_available_balance_${activeCode}`))) ||
+          localStorage.getItem(`p2p_cached_available_balance_${domainScope}`) ||
+          sessionStorage.getItem(`p2p_cached_available_balance_${domainScope}`);
+        if (savedBal && !isNaN(Number(savedBal))) {
+          const bal = Number(savedBal);
+          const avail = savedAvail && !isNaN(Number(savedAvail)) ? Number(savedAvail) : bal;
+          useRetailerStore.getState().updateWallet({
+            mainBalance: bal,
+            availableBalance: avail,
+          });
         }
       } catch {}
     }
@@ -430,7 +443,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     hasInitializedRef.current = true;
     fetchProfileDetails();
     // Authoritative balance sync on mount so header and popup immediately show live wallet balance
-    useRetailerStore.getState().syncBalance?.();
+    useRetailerStore.getState().syncBalance?.(true);
   }, []);
 
   // Synchronize profile and notification if manual wallet refresh occurs
@@ -1633,7 +1646,6 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
 
                   <Typography
                     variant="subtitle1"
-                    suppressHydrationWarning
                     sx={{
                       fontWeight: 800,
                       color: isFinancialApp ? "#FFFFFF" : "#059669",
@@ -1656,7 +1668,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   size="small"
                   onClick={(e) => {
                     e.stopPropagation();
-                    syncBalance();
+                    syncBalance(true);
                   }}
                   disabled={isSyncing}
                   sx={{
@@ -1898,10 +1910,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   WALLET BALANCE
                 </Typography>
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <Typography variant="h5" suppressHydrationWarning sx={{ fontSize: "22px", fontWeight: 800, color: brandPrimary, fontFamily: "monospace", lineHeight: 1.1 }}>
+                  <Typography variant="h5" sx={{ fontSize: "22px", fontWeight: 800, color: brandPrimary, fontFamily: "monospace", lineHeight: 1.1 }}>
                     ₹{(wallet?.mainBalance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Typography>
-                  <IconButton size="small" onClick={() => syncBalance()} disabled={isSyncing} sx={{ p: 0.25 }}>
+                  <IconButton size="small" onClick={() => syncBalance(true)} disabled={isSyncing} sx={{ p: 0.25 }}>
                     <RefreshIcon sx={{ fontSize: 16, color: brandPrimary, animation: isSyncing ? "spin 1s linear infinite" : "none" }} />
                   </IconButton>
                 </Box>
