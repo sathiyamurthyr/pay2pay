@@ -60,7 +60,7 @@ export const AmountInWords: React.FC<{ amount: number }> = ({ amount }) => {
     <Box sx={{ mt: 1, minHeight: 24, display: "flex", alignItems: "center" }}>
       <Typography
         sx={{
-          color: "#FDE68A",
+          color: "var(--brand-primary, #0F3B7D)",
           fontWeight: 600,
           fontSize: "13.5px",
           fontStyle: "italic",

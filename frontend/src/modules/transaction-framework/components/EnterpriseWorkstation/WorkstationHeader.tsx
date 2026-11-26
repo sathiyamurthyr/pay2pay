@@ -16,10 +16,9 @@ export const WorkstationHeader: React.FC<WorkstationHeaderProps> = ({ walletBala
       sx={{
         height: 64, // Exact 64px Fixed Height
         px: { xs: 2, sm: 3 },
-        bgcolor: "rgba(8, 11, 17, 0.95)",
-        backdropFilter: "blur(24px)",
-        borderBottom: "1px solid rgba(245, 158, 11, 0.2)",
-        boxShadow: "0 4px 20px rgba(0, 0, 0, 0.6)",
+        bgcolor: "var(--surface, #FFFFFF)",
+        borderBottom: "1px solid var(--brand-border, #E2E8F0)",
+        boxShadow: "0 4px 16px rgba(15, 23, 42, 0.05)",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
@@ -30,7 +29,7 @@ export const WorkstationHeader: React.FC<WorkstationHeaderProps> = ({ walletBala
     >
       {/* Left: Hamburger & Page Title */}
       <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-        <IconButton size="small" sx={{ color: "rgba(255, 255, 255, 0.8)", "&:hover": { color: "#FDE68A", bgcolor: "rgba(245, 158, 11, 0.1)" } }}>
+        <IconButton size="small" sx={{ color: "var(--text-secondary, #334155)", "&:hover": { color: "var(--brand-primary, #0F3B7D)", bgcolor: "var(--brand-surface, #EFF6FF)" } }}>
           <MenuIcon />
         </IconButton>
 
@@ -39,9 +38,7 @@ export const WorkstationHeader: React.FC<WorkstationHeaderProps> = ({ walletBala
             fontWeight: 900,
             fontSize: { xs: "18px", sm: "22px" },
             letterSpacing: "-0.3px",
-            background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
+            color: "var(--brand-primary, #0F3B7D)",
           }}
         >
           Money Transfer (DMT)
@@ -56,9 +53,9 @@ export const WorkstationHeader: React.FC<WorkstationHeaderProps> = ({ walletBala
             px: 0.5,
             fontSize: "10px",
             fontWeight: 800,
-            bgcolor: "rgba(37, 99, 235, 0.15)",
-            color: "#60A5FA",
-            border: "1px solid rgba(96, 165, 250, 0.35)",
+            bgcolor: "var(--brand-surface, #EFF6FF)",
+            color: "var(--brand-primary, #0F3B7D)",
+            border: "1px solid var(--brand-border, rgba(15, 59, 125, 0.25))",
           }}
         />
       </Stack>
@@ -66,36 +63,35 @@ export const WorkstationHeader: React.FC<WorkstationHeaderProps> = ({ walletBala
       {/* Right: Wallet Balance, Notifications & Profile */}
       <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
         <Chip
-          icon={<AccountBalanceWalletIcon sx={{ "&&": { color: "#A20A3A", fontSize: 16 } }} />}
+          icon={<AccountBalanceWalletIcon sx={{ "&&": { color: "var(--brand-primary, #0F3B7D)", fontSize: 16 } }} />}
           label={`₹${walletBalance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           size="small"
           sx={{
-            bgcolor: "rgba(245, 158, 11, 0.12)",
-            border: "1px solid rgba(245, 158, 11, 0.35)",
-            color: "#FDE68A",
+            bgcolor: "var(--brand-surface, #EFF6FF)",
+            border: "1px solid var(--brand-border, rgba(15, 59, 125, 0.25))",
+            color: "var(--brand-primary, #0F3B7D)",
             fontWeight: 900,
             fontSize: { xs: "12px", sm: "13.5px" },
             height: 32,
             px: 1,
             borderRadius: "8px",
-            boxShadow: "0 0 14px rgba(245, 158, 11, 0.2)",
           }}
         />
 
-        <IconButton size="small" sx={{ color: "rgba(255, 255, 255, 0.8)", "&:hover": { color: "#FDE68A", bgcolor: "rgba(245, 158, 11, 0.1)" } }}>
+        <IconButton size="small" sx={{ color: "var(--text-secondary, #334155)", "&:hover": { color: "var(--brand-primary, #0F3B7D)", bgcolor: "var(--brand-surface, #EFF6FF)" } }}>
           <NotificationsIcon />
         </IconButton>
 
         <Avatar
           sx={{
-            background: "linear-gradient(135deg, #1E293B 0%, #FFFFFF 100%)",
-            border: "2px solid #F59E0B",
-            color: "#FDE68A",
+            background: "var(--brand-gradient, linear-gradient(135deg, #0F3B7D 0%, #D4AF37 100%))",
+            border: "2px solid #FFFFFF",
+            color: "#FFFFFF",
             width: 34,
             height: 34,
             fontWeight: 900,
             fontSize: "14px",
-            boxShadow: "0 0 10px rgba(245, 158, 11, 0.35)",
+            boxShadow: "0 2px 8px rgba(15, 23, 42, 0.14)",
           }}
         >
           S

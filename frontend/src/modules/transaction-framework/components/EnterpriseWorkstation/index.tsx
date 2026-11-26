@@ -93,8 +93,8 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
       sx={{
         width: "100%",
         minHeight: "calc(100vh - 56px)",
-        bgcolor: "#FFFFFF",
-        color: "#FFFFFF",
+        bgcolor: "var(--background-secondary, #F8FAFC)",
+        color: "var(--text-primary, #0F172A)",
         overflowY: "auto",
         overflowX: "hidden",
         display: "flex",

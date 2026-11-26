@@ -61,7 +61,7 @@ export const TransactionLayout: React.FC<TransactionLayoutProps> = ({ service })
           justifyContent: "center",
         }}
       >
-        <CircularProgress sx={{ color: "#EAB308" }} size={40} />
+        <CircularProgress sx={{ color: "var(--brand-primary, #0F3B7D)" }} size={40} />
       </Box>
     );
   }

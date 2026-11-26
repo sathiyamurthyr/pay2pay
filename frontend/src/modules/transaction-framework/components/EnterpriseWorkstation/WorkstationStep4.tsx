@@ -764,10 +764,9 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           mb: 2.5,
           p: { xs: 1.5, sm: 2 },
           borderRadius: "18px",
-          bgcolor: "rgba(11, 15, 25, 0.85)",
-          backdropFilter: "blur(24px)",
-          border: "1px solid rgba(245, 158, 11, 0.25)",
-          boxShadow: "0 10px 30px -5px rgba(0, 0, 0, 0.6), 0 0 15px rgba(245, 158, 11, 0.08)",
+          bgcolor: "var(--surface, #FFFFFF)",
+          border: "1px solid var(--brand-border, #E2E8F0)",
+          boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -780,16 +779,16 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             size="small"
             aria-label="Menu"
             sx={{
-              color: "rgba(255, 255, 255, 0.85)",
-              bgcolor: "rgba(255, 255, 255, 0.06)",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
+              color: "var(--text-secondary, #334155)",
+              bgcolor: "var(--background-secondary, #F8FAFC)",
+              border: "1px solid var(--border, #E2E8F0)",
               borderRadius: "10px",
               p: 0.75,
               transition: "all 0.15s ease",
               "&:hover": {
-                bgcolor: "rgba(245, 158, 11, 0.15)",
-                borderColor: "rgba(245, 158, 11, 0.4)",
-                color: "#FDE68A",
+                bgcolor: "var(--brand-surface, #EFF6FF)",
+                borderColor: "var(--brand-primary, #0F3B7D)",
+                color: "var(--brand-primary, #0F3B7D)",
               },
             }}
           >
@@ -802,9 +801,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                   fontWeight: 900,
                   fontSize: { xs: "16px", sm: "18px" },
                   letterSpacing: "-0.3px",
-                  background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
+                  color: "var(--brand-primary, #0F3B7D)",
                 }}
               >
                 DMT
@@ -816,13 +813,13 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                   height: 18,
                   fontSize: "9px",
                   fontWeight: 800,
-                  bgcolor: "rgba(59, 130, 246, 0.15)",
-                  color: "#60A5FA",
-                  border: "1px solid rgba(59, 130, 246, 0.3)",
+                  bgcolor: "var(--brand-surface, #EFF6FF)",
+                  color: "var(--brand-primary, #0F3B7D)",
+                  border: "1px solid var(--brand-border, rgba(15, 59, 125, 0.25))",
                 }}
               />
             </Stack>
-            <Typography sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: { xs: "10.5px", sm: "11.5px" }, fontWeight: 600 }}>
+            <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: { xs: "10.5px", sm: "11.5px" }, fontWeight: 600 }}>
               Transaction Authorization
             </Typography>
           </Box>
@@ -830,7 +827,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
         {/* Right: Wallet Balance Pill + Refresh + Notification + Avatar */}
         <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-          {/* Gold Glass Wallet Pill */}
+          {/* Brand Wallet Pill */}
           <Box
             sx={{
               display: "flex",
@@ -839,22 +836,18 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               px: { xs: 1.5, sm: 2 },
               py: 0.75,
               borderRadius: "999px",
-              bgcolor: "rgba(245, 158, 11, 0.1)",
-              border: "1px solid rgba(245, 158, 11, 0.4)",
-              boxShadow: "0 0 16px rgba(245, 158, 11, 0.2)",
-              animation: "pulseGlow 3s infinite ease-in-out",
+              bgcolor: "var(--brand-surface, #EFF6FF)",
+              border: "1px solid var(--brand-border, rgba(15, 59, 125, 0.25))",
             }}
           >
-            <Typography sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "10px", fontWeight: 700, display: { xs: "none", sm: "inline" } }}>
+            <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "10px", fontWeight: 700, display: { xs: "none", sm: "inline" } }}>
               WALLET:
             </Typography>
             <Typography
               sx={{
                 fontWeight: 900,
                 fontSize: { xs: "12.5px", sm: "14px" },
-                background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
+                color: "var(--brand-primary, #0F3B7D)",
               }}
             >
               ₹{(animatedWallet ?? currentWalletBalance ?? 0).toLocaleString()}
@@ -867,14 +860,15 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             aria-label="Refresh Balance"
             onClick={() => useRetailerStore.getState().syncBalance?.()}
             sx={{
-              color: "#A20A3A",
-              bgcolor: "rgba(245, 158, 11, 0.12)",
-              border: "1px solid rgba(245, 158, 11, 0.3)",
+              color: "var(--brand-primary, #0F3B7D)",
+              bgcolor: "var(--brand-surface, #EFF6FF)",
+              border: "1px solid var(--brand-border, rgba(15, 59, 125, 0.25))",
               borderRadius: "10px",
               p: 0.75,
               transition: "all 0.15s ease",
               "&:hover": {
-                bgcolor: "rgba(245, 158, 11, 0.25)",
+                bgcolor: "var(--brand-primary, #0F3B7D)",
+                color: "#FFFFFF",
                 transform: "rotate(45deg)",
               },
             }}
@@ -887,13 +881,13 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             size="small"
             aria-label="Notifications"
             sx={{
-              color: "rgba(255, 255, 255, 0.75)",
-              bgcolor: "rgba(255, 255, 255, 0.06)",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
+              color: "var(--text-secondary, #334155)",
+              bgcolor: "var(--background-secondary, #F8FAFC)",
+              border: "1px solid var(--border, #E2E8F0)",
               borderRadius: "10px",
               p: 0.75,
               position: "relative",
-              "&:hover": { bgcolor: "rgba(255, 255, 255, 0.12)", color: "#FFFFFF" },
+              "&:hover": { bgcolor: "var(--brand-surface, #EFF6FF)", color: "var(--brand-primary, #0F3B7D)" },
             }}
           >
             <Box component="span" sx={{ fontSize: 14 }}>🔔</Box>
@@ -905,8 +899,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 width: 6,
                 height: 6,
                 borderRadius: "50%",
-                bgcolor: "#F59E0B",
-                boxShadow: "0 0 6px #F59E0B",
+                bgcolor: "var(--brand-secondary, #D4AF37)",
               }}
             />
           </IconButton>
@@ -917,15 +910,15 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               width: 32,
               height: 32,
               borderRadius: "50%",
-              bgcolor: "rgba(245, 158, 11, 0.18)",
-              border: "1.5px solid rgba(245, 158, 11, 0.7)",
+              background: "var(--brand-gradient, linear-gradient(135deg, #0F3B7D 0%, #D4AF37 100%))",
+              border: "1.5px solid #FFFFFF",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               fontWeight: 900,
               fontSize: "12px",
-              color: "#FDE68A",
-              boxShadow: "0 0 12px rgba(245, 158, 11, 0.3)",
+              color: "#FFFFFF",
+              boxShadow: "0 2px 8px rgba(15, 23, 42, 0.14)",
             }}
           >
             {(customer?.name || "S")[0].toUpperCase()}
@@ -933,25 +926,32 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
         </Stack>
       </Box>
 
-      {/* ── 2. MAIN WORKSTATION GLASS CARD ── */}
+      {/* ── 2. MAIN WORKSTATION CARD ── */}
       <Paper
         elevation={0}
         sx={{
           width: "100%",
           borderRadius: "24px",
-          bgcolor: viewState === "SUCCESS_RECEIPT" ? "rgba(10, 15, 26, 0.95)" : "rgba(11, 15, 25, 0.85)",
-          backgroundImage: viewState === "SUCCESS_RECEIPT"
-            ? "radial-gradient(circle at 50% 20%, rgba(34, 197, 94, 0.15), transparent 70%)"
-            : "radial-gradient(circle at 50% 0%, rgba(245, 158, 11, 0.06), transparent 60%)",
-          backdropFilter: "blur(24px)",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
-          boxShadow: "0 25px 60px -15px rgba(0, 0, 0, 0.8)",
+          bgcolor: "var(--background-secondary, #F8FAFC)",
+          border: "1px solid var(--brand-border, #E2E8F0)",
+          boxShadow: "0 14px 36px rgba(15, 23, 42, 0.06)",
           p: { xs: 2, sm: 3 },
           boxSizing: "border-box",
           overflow: "hidden",
           position: "relative",
         }}
       >
+        {/* Dynamic Brand Accent Top Strip */}
+        <Box
+          sx={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: "3px",
+            background: "var(--brand-gradient, linear-gradient(135deg, #0F3B7D 0%, #D4AF37 100%))",
+          }}
+        />
         {/* CANVAS CONFETTI OVERLAY */}
         {viewState === "SUCCESS_RECEIPT" && (
           <canvas
@@ -986,9 +986,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               p: { xs: 2, sm: 2.5 },
               borderRadius: "18px",
               bgcolor: "#FFFFFF",
-              backdropFilter: "blur(16px)",
-              border: "1px solid rgba(245, 158, 11, 0.18)",
-              boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)",
+              border: "1px solid var(--brand-border, #E2E8F0)",
+              boxShadow: "0 8px 24px rgba(15, 23, 42, 0.05)",
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
@@ -1003,8 +1002,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     width: 8,
                     height: 8,
                     borderRadius: "50%",
-                    bgcolor: "#F59E0B",
-                    boxShadow: "0 0 8px #F59E0B",
+                    bgcolor: "var(--brand-primary, #0F3B7D)",
                   }}
                 />
                 <Typography
@@ -1013,9 +1011,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     fontSize: "12px",
                     letterSpacing: "0.08em",
                     textTransform: "uppercase",
-                    background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 100%)",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
+                    color: "var(--brand-primary, #0F3B7D)",
                   }}
                 >
                   TRANSACTION SUMMARY & LIVE BALANCES
@@ -1026,39 +1022,37 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               <Stack spacing={1.25}>
                 {/* 1. Customer */}
                 <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.55)", fontSize: "12px", fontWeight: 600 }}>Customer</Typography>
+                  <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "12px", fontWeight: 600 }}>Customer</Typography>
                   <Typography
                     sx={{
                       fontWeight: 900,
                       fontSize: "13.5px",
-                      background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 100%)",
-                      WebkitBackgroundClip: "text",
-                      WebkitTextFillColor: "transparent",
+                      color: "var(--brand-primary, #0F3B7D)",
                     }}
                   >
-                    {customer?.name || "Sathya Moorthy"}
+                    {customer?.name || "Customer"}
                   </Typography>
                 </Stack>
 
                 {/* 2. Beneficiary */}
                 <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.55)", fontSize: "12px", fontWeight: 600 }}>Beneficiary</Typography>
-                  <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13px" }}>
+                  <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "12px", fontWeight: 600 }}>Beneficiary</Typography>
+                  <Typography sx={{ fontWeight: 800, color: "var(--text-primary, #0F172A)", fontSize: "13px" }}>
                     {displayBeneName}
                   </Typography>
                 </Stack>
 
                 {/* 3. Transaction Mode */}
                 <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.55)", fontSize: "12px", fontWeight: 600 }}>Transaction Mode</Typography>
+                  <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "12px", fontWeight: 600 }}>Transaction Mode</Typography>
                   <Box
                     sx={{
                       px: 1.5,
                       py: 0.25,
                       borderRadius: "999px",
-                      bgcolor: "rgba(59, 130, 246, 0.15)",
-                      border: "1px solid rgba(59, 130, 246, 0.35)",
-                      color: "#60A5FA",
+                      bgcolor: "var(--brand-surface, #EFF6FF)",
+                      border: "1px solid var(--brand-border, rgba(15, 59, 125, 0.25))",
+                      color: "var(--brand-primary, #0F3B7D)",
                       fontSize: "11px",
                       fontWeight: 900,
                       letterSpacing: "0.05em",
@@ -1070,48 +1064,47 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
                 {/* 4. Bank */}
                 <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.55)", fontSize: "12px", fontWeight: 600 }}>Bank</Typography>
-                  <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "12.5px" }}>
+                  <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "12px", fontWeight: 600 }}>Bank</Typography>
+                  <Typography sx={{ fontWeight: 800, color: "var(--brand-primary, #0F3B7D)", fontSize: "12.5px" }}>
                     {displayBeneBank}
                   </Typography>
                 </Stack>
 
                 {/* 5. Account */}
                 <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.55)", fontSize: "12px", fontWeight: 600 }}>Account</Typography>
-                  <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontFamily: "monospace", fontSize: "12.5px", letterSpacing: "0.05em" }}>
+                  <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "12px", fontWeight: 600 }}>Account</Typography>
+                  <Typography sx={{ fontWeight: 800, color: "var(--text-primary, #0F172A)", fontFamily: "monospace", fontSize: "12.5px", letterSpacing: "0.05em" }}>
                     {displayBeneAccount}
                   </Typography>
                 </Stack>
 
-                <Divider sx={{ borderColor: "#E8E2E5", my: 0.5 }} />
+                <Divider sx={{ borderColor: "var(--border, #E2E8F0)", my: 0.5 }} />
 
-                {/* 6. Wallet Balance (Gold) */}
+                {/* 6. Wallet Balance */}
                 <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "12px", fontWeight: 600 }}>Wallet Balance</Typography>
+                  <Typography sx={{ color: "var(--text-secondary, #334155)", fontSize: "12px", fontWeight: 600 }}>Wallet Balance</Typography>
                   <Typography
                     sx={{
                       fontWeight: 900,
                       fontSize: "14px",
-                      color: viewState === "SUCCESS_RECEIPT" ? "#4ADE80" : "#FBBF24",
-                      textShadow: "0 0 10px rgba(245, 158, 11, 0.3)",
+                      color: viewState === "SUCCESS_RECEIPT" ? "#15803D" : "var(--brand-primary, #0F3B7D)",
                     }}
                   >
                     ₹{(animatedWallet ?? currentWalletBalance ?? 0).toLocaleString()}
                   </Typography>
                 </Stack>
 
-                {/* 7. Monthly Remaining Limit (Blue) */}
+                {/* 7. Monthly Remaining Limit */}
                 <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "12px", fontWeight: 600 }}>Monthly Remaining Limit</Typography>
-                  <Typography sx={{ fontWeight: 900, color: "#60A5FA", fontSize: "13.5px" }}>
+                  <Typography sx={{ color: "var(--text-secondary, #334155)", fontSize: "12px", fontWeight: 600 }}>Monthly Remaining Limit</Typography>
+                  <Typography sx={{ fontWeight: 900, color: "var(--brand-primary, #0F3B7D)", fontSize: "13.5px" }}>
                     ₹{(animatedLimit ?? beneficiary?.monthlyRemaining ?? 0).toLocaleString()}
                   </Typography>
                 </Stack>
 
-                <Divider sx={{ borderColor: "rgba(245, 158, 11, 0.2)", my: 0.5 }} />
+                <Divider sx={{ borderColor: "var(--border, #E2E8F0)", my: 0.5 }} />
 
-                {/* 8. TOTAL AMOUNT PAID (Large Gold Gradient) */}
+                {/* 8. TOTAL AMOUNT PAID */}
                 <Stack
                   direction="row"
                   sx={{
@@ -1119,15 +1112,15 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     alignItems: "center",
                     p: 1.25,
                     borderRadius: "12px",
-                    bgcolor: "rgba(245, 158, 11, 0.06)",
-                    border: "1px solid rgba(245, 158, 11, 0.25)",
+                    bgcolor: "var(--brand-surface, #EFF6FF)",
+                    border: "1px solid var(--brand-border, rgba(15, 59, 125, 0.25))",
                   }}
                 >
                   <Box>
-                    <Typography sx={{ color: "rgba(255, 255, 255, 0.8)", fontWeight: 800, fontSize: "11px", letterSpacing: "0.05em" }}>
+                    <Typography sx={{ color: "var(--text-primary, #0F172A)", fontWeight: 800, fontSize: "11px", letterSpacing: "0.05em" }}>
                       TOTAL AMOUNT PAID
                     </Typography>
-                    <Typography sx={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "9.5px" }}>
+                    <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "9.5px" }}>
                       Includes charges & GST
                     </Typography>
                   </Box>
@@ -1135,10 +1128,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     sx={{
                       fontWeight: 900,
                       fontSize: "19px",
-                      background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
-                      WebkitBackgroundClip: "text",
-                      WebkitTextFillColor: "transparent",
-                      filter: "drop-shadow(0 2px 8px rgba(245, 158, 11, 0.4))",
+                      color: "var(--brand-primary, #0F3B7D)",
                     }}
                   >
                     ₹{(totalAmountPaid ?? 0).toLocaleString()}
@@ -1153,9 +1143,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 mt: 2,
                 p: 1.25,
                 borderRadius: "12px",
-                bgcolor: viewState === "SUCCESS_RECEIPT" ? "rgba(34, 197, 94, 0.15)" : "rgba(16, 185, 129, 0.1)",
-                border: "1px solid rgba(16, 185, 129, 0.35)",
-                boxShadow: "0 0 20px rgba(16, 185, 129, 0.12)",
+                bgcolor: "#F0FDF4",
+                border: "1px solid #86EFAC",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -1170,15 +1159,15 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     width: 10,
                     height: 10,
                     borderRadius: "50%",
-                    bgcolor: "#10B981",
+                    bgcolor: "#16A34A",
                     opacity: 0.75,
                     animation: "ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite",
                   }}
                 />
-                <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "#34D399" }} />
+                <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "#16A34A" }} />
               </Box>
 
-              <Typography sx={{ color: "#34D399", fontWeight: 800, fontSize: "11.5px", textAlign: "center" }}>
+              <Typography sx={{ color: "#166534", fontWeight: 800, fontSize: "11.5px", textAlign: "center" }}>
                 {viewState === "SUCCESS_RECEIPT"
                   ? `SETTLED SUCCESSFULLY · UTR: ${utr}`
                   : `Ready to Execute · Mode: ${transactionMode} · ETA: 1.2 sec · Route: HDFC DirectSwitch`}
@@ -1193,9 +1182,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               p: { xs: 2, sm: 2.5 },
               borderRadius: "18px",
               bgcolor: "#FFFFFF",
-              backdropFilter: "blur(20px)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              boxShadow: "0 10px 30px rgba(0, 0, 0, 0.4)",
+              border: "1px solid var(--brand-border, #E2E8F0)",
+              boxShadow: "0 8px 24px rgba(15, 23, 42, 0.05)",
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
@@ -1214,14 +1202,12 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                         fontWeight: 900,
                         fontSize: { xs: "18px", sm: "20px" },
                         mb: 0.5,
-                        background: "linear-gradient(135deg, #FFFFFF 0%, #E2E8F0 50%, #94A3B8 100%)",
-                        WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent",
+                        color: "var(--brand-primary, #0F3B7D)",
                       }}
                     >
                       Operator PIN Authorization
                     </Typography>
-                    <Typography sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "12px", maxWidth: 360, mx: "auto" }}>
+                    <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "12px", maxWidth: 360, mx: "auto" }}>
                       Enter your secure 4-digit Operator PIN to authorize this transaction.
                     </Typography>
                   </Box>
@@ -1233,10 +1219,9 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                         p: 1.25,
                         mb: 2,
                         borderRadius: "12px",
-                        bgcolor: "rgba(239, 68, 68, 0.15)",
-                        border: "1px solid rgba(239, 68, 68, 0.5)",
-                        boxShadow: "0 0 20px rgba(239, 68, 68, 0.25)",
-                        color: "#FCA5A5",
+                        bgcolor: "#FEF2F2",
+                        border: "1px solid #FECACA",
+                        color: "#991B1B",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
@@ -1258,14 +1243,14 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                           Supervisor Override
                         </Button>
                       ) : (
-                        <IconButton size="small" onClick={() => setErrorMessage(null)} sx={{ color: "rgba(255,255,255,0.6)", p: 0.5 }}>
+                        <IconButton size="small" onClick={() => setErrorMessage(null)} sx={{ color: "#991B1B", p: 0.5 }}>
                           ✕
                         </IconButton>
                       )}
                     </Box>
                   )}
 
-                  {/* 4 LARGE GLOWING PIN INPUT BOXES */}
+                  {/* 4 LARGE PIN INPUT BOXES */}
                   {(() => {
                     const activeInputIdx = pinDigits.findIndex((d) => d === "");
                     const currentFocusIdx = activeInputIdx !== -1 ? activeInputIdx : pinLength - 1;
@@ -1297,29 +1282,27 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                                 height: { xs: 54, sm: 60 },
                                 borderRadius: "16px",
                                 bgcolor: digit
-                                  ? "rgba(245, 158, 11, 0.18)"
+                                  ? "var(--brand-surface, #EFF6FF)"
                                   : isFocusedBox
-                                  ? "rgba(245, 158, 11, 0.1)"
-                                  : "#FFFFFF",
+                                  ? "var(--brand-surface, #EFF6FF)"
+                                  : "#F8FAFC",
                                 border: errorMessage
-                                  ? "2px solid #EF4444"
+                                  ? "2px solid #DC2626"
                                   : isFocusedBox
-                                  ? "2px solid #F59E0B"
+                                  ? "2px solid var(--brand-primary, #0F3B7D)"
                                   : digit
-                                  ? "2px solid rgba(245, 158, 11, 0.7)"
-                                  : "1px solid rgba(255, 255, 255, 0.15)",
+                                  ? "2px solid var(--brand-border, #0F3B7D)"
+                                  : "1.5px solid #CBD5E1",
                                 boxShadow: errorMessage
-                                  ? "0 0 24px rgba(239, 68, 68, 0.6)"
+                                  ? "0 0 0 3px rgba(220, 38, 38, 0.14)"
                                   : isFocusedBox
-                                  ? "0 0 24px rgba(245, 158, 11, 0.5)"
-                                  : digit
-                                  ? "0 0 16px rgba(245, 158, 11, 0.3)"
+                                  ? "0 0 0 3px var(--grid-search-focus-shadow, rgba(15, 59, 125, 0.14))"
                                   : "none",
                                 transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
-                                color: "#FDE68A",
+                                color: "var(--brand-primary, #0F3B7D)",
                                 fontSize: digit ? "30px" : "20px",
                                 fontWeight: 900,
                                 cursor: "pointer",
@@ -1327,7 +1310,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                                 transform: isFocusedBox ? "scale(1.06)" : "scale(1)",
                               }}
                             >
-                              {displayChar || (isFocusedBox && <Box sx={{ width: 2.5, height: 24, bgcolor: "#F59E0B", borderRadius: "1px", animation: "blink 1s infinite", boxShadow: "0 0 8px #F59E0B" }} />)}
+                              {displayChar || (isFocusedBox && <Box sx={{ width: 2.5, height: 24, bgcolor: "var(--brand-primary, #0F3B7D)", borderRadius: "1px", animation: "blink 1s infinite" }} />)}
                               <input
                                 ref={(el) => {
                                   inputRefs.current[idx] = el;
@@ -1350,13 +1333,13 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     <Typography
                       onClick={() => setSupervisorModalOpen(true)}
                       sx={{
-                        color: "rgba(245, 158, 11, 0.8)",
+                        color: "var(--brand-primary, #0F3B7D)",
                         fontSize: "11.5px",
                         fontWeight: 700,
                         cursor: "pointer",
                         display: "inline-block",
                         transition: "all 0.15s ease",
-                        "&:hover": { color: "#A20A3A", textDecoration: "underline" },
+                        "&:hover": { textDecoration: "underline", opacity: 0.85 },
                       }}
                     >
                       Forgot PIN? (Contact Supervisor)
@@ -1410,18 +1393,17 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                             height: { xs: 54, sm: 58 },
                             borderRadius: "16px",
                             bgcolor: isClear
-                              ? "rgba(239, 68, 68, 0.08)"
+                              ? "#FEF2F2"
                               : isBack
-                              ? "rgba(245, 158, 11, 0.08)"
-                              : "rgba(20, 29, 47, 0.7)",
+                              ? "var(--brand-surface, #EFF6FF)"
+                              : "#F8FAFC",
                             border: isClear
-                              ? "1px solid rgba(239, 68, 68, 0.3)"
+                              ? "1px solid #FECACA"
                               : isBack
-                              ? "1px solid rgba(245, 158, 11, 0.3)"
-                              : "1px solid rgba(255, 255, 255, 0.1)",
-                            backdropFilter: "blur(12px)",
-                            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
-                            color: isClear ? "#EF4444" : isBack ? "#FDE68A" : "#FFFFFF",
+                              ? "1px solid var(--brand-border, #CBD5E1)"
+                              : "1px solid #E2E8F0",
+                            boxShadow: "0 2px 6px rgba(15, 23, 42, 0.04)",
+                            color: isClear ? "#DC2626" : isBack ? "var(--brand-primary, #0F3B7D)" : "var(--text-primary, #0F172A)",
                             display: "flex",
                             flexDirection: "column",
                             alignItems: "center",
@@ -1430,28 +1412,26 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                             minWidth: 0,
                             transition: "all 0.12s cubic-bezier(0.4, 0, 0.2, 1)",
                             "&:hover": {
-                              bgcolor: "rgba(245, 158, 11, 0.18)",
-                              borderColor: "rgba(245, 158, 11, 0.5)",
+                              bgcolor: isClear ? "#FEE2E2" : "var(--brand-surface, #EFF6FF)",
+                              borderColor: isClear ? "#EF4444" : "var(--brand-primary, #0F3B7D)",
                               transform: "translateY(-1px)",
-                              boxShadow: "0 6px 16px rgba(245, 158, 11, 0.25)",
                             },
                             "&:active": {
-                              bgcolor: "rgba(245, 158, 11, 0.35)",
-                              borderColor: "#F59E0B",
+                              bgcolor: "var(--brand-primary, #0F3B7D)",
+                              color: "#FFFFFF",
                               transform: "scale(0.95)",
-                              boxShadow: "0 0 16px rgba(245, 158, 11, 0.4)",
                             },
                           }}
                         >
                           {isClear ? (
-                            <Typography sx={{ fontSize: "12px", fontWeight: 900, color: "#EF4444" }}>Clear</Typography>
+                            <Typography sx={{ fontSize: "12px", fontWeight: 900, color: "#DC2626" }}>Clear</Typography>
                           ) : isBack ? (
                             <Typography sx={{ fontSize: "20px", fontWeight: 900 }}>⌫</Typography>
                           ) : (
                             <>
                               <Typography sx={{ fontSize: "20px", fontWeight: 900, lineHeight: 1 }}>{btn.digit}</Typography>
                               {btn.sub && (
-                                <Typography sx={{ fontSize: "8.5px", fontWeight: 700, color: "rgba(255, 255, 255, 0.4)", letterSpacing: "0.1em", mt: 0.25 }}>
+                                <Typography sx={{ fontSize: "8.5px", fontWeight: 700, color: "#64748B", letterSpacing: "0.1em", mt: 0.25 }}>
                                   {btn.sub}
                                 </Typography>
                               )}
@@ -1475,15 +1455,13 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                       borderRadius: "14px",
                       fontWeight: 800,
                       fontSize: "13px",
-                      color: "rgba(255, 255, 255, 0.8)",
-                      borderColor: "rgba(255, 255, 255, 0.18)",
-                      bgcolor: "rgba(255, 255, 255, 0.03)",
-                      backdropFilter: "blur(8px)",
+                      color: "var(--brand-primary, #0F3B7D)",
+                      borderColor: "var(--brand-border, #CBD5E1)",
+                      bgcolor: "var(--brand-surface, #EFF6FF)",
                       transition: "all 0.15s ease",
                       "&:hover": {
-                        borderColor: "rgba(245, 158, 11, 0.5)",
-                        bgcolor: "rgba(245, 158, 11, 0.1)",
-                        color: "#FDE68A",
+                        borderColor: "var(--brand-primary, #0F3B7D)",
+                        bgcolor: "#FFFFFF",
                         transform: "translateY(-1px)",
                       },
                     }}
@@ -1517,9 +1495,9 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 sx={{
                   p: 2.5,
                   borderRadius: "12px",
-                  bgcolor: "rgba(245, 158, 11, 0.1)",
-                  border: "1px solid #F59E0B",
-                  color: "#FFFFFF",
+                  bgcolor: "#FFFBEB",
+                  border: "1px solid #FDE68A",
+                  color: "var(--text-primary, #0F172A)",
                   display: "flex",
                   flexDirection: "column",
                   justifyContent: "space-between",
@@ -1528,35 +1506,35 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               >
                 <Box>
                   <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 1.5 }}>
-                    <SyncIcon sx={{ color: "#A20A3A", fontSize: 32, animation: "spin 1.5s linear infinite" }} />
+                    <SyncIcon sx={{ color: "#D97706", fontSize: 32, animation: "spin 1.5s linear infinite" }} />
                     <Box>
-                      <Typography sx={{ fontWeight: 900, color: "#A20A3A", fontSize: "18px" }}>
+                      <Typography sx={{ fontWeight: 900, color: "#92400E", fontSize: "18px" }}>
                         🟡 Bank Response Pending
                       </Typography>
-                      <Typography sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "12.5px" }}>
+                      <Typography sx={{ color: "#78350F", fontSize: "12.5px" }}>
                         Your transaction has been submitted successfully. The bank is still processing it.
                       </Typography>
                     </Box>
                   </Stack>
 
-                  <Divider sx={{ borderColor: "rgba(245, 158, 11, 0.2)", my: 1.5 }} />
+                  <Divider sx={{ borderColor: "#FDE68A", my: 1.5 }} />
 
-                  <Stack spacing={1} sx={{ bgcolor: "rgba(0, 0, 0, 0.2)", p: 1.5, borderRadius: "8px" }}>
+                  <Stack spacing={1} sx={{ bgcolor: "#FFFFFF", border: "1px solid #FDE68A", p: 1.5, borderRadius: "8px" }}>
                     <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                      <Typography sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "12px" }}>Reference Number</Typography>
-                      <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontFamily: "monospace", fontSize: "13px" }}>{activeTxRef}</Typography>
+                      <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "12px" }}>Reference Number</Typography>
+                      <Typography sx={{ fontWeight: 800, color: "var(--brand-primary, #0F3B7D)", fontFamily: "monospace", fontSize: "13px" }}>{activeTxRef}</Typography>
                     </Stack>
                     <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                      <Typography sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "12px" }}>Status</Typography>
-                      <Chip label="PENDING" size="small" sx={{ height: 20, fontSize: "10px", fontWeight: 900, bgcolor: "#F59E0B", color: "#1E293B" }} />
+                      <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "12px" }}>Status</Typography>
+                      <Chip label="PENDING" size="small" sx={{ height: 20, fontSize: "10px", fontWeight: 900, bgcolor: "#FEF3C7", color: "#92400E", border: "1px solid #FCD34D" }} />
                     </Stack>
                     <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                      <Typography sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "12px" }}>Amount Sent</Typography>
-                      <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13px" }}>₹{amount.toLocaleString()}</Typography>
+                      <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "12px" }}>Amount Sent</Typography>
+                      <Typography sx={{ fontWeight: 800, color: "var(--text-primary, #0F172A)", fontSize: "13px" }}>₹{amount.toLocaleString()}</Typography>
                     </Stack>
                   </Stack>
 
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "11.5px", mt: 2, fontStyle: "italic" }}>
+                  <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "11.5px", mt: 2, fontStyle: "italic" }}>
                     Background status checks have started. You will be notified automatically once completed.
                   </Typography>
                 </Box>
@@ -1567,7 +1545,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     onClick={() => {
                       if (onBack) onBack();
                     }}
-                    sx={{ flex: 1, minWidth: "140px", height: 42, bgcolor: "#2563EB", fontWeight: 800 }}
+                    sx={{ flex: 1, minWidth: "140px", height: 42, background: "var(--brand-gradient)", color: "#FFFFFF", fontWeight: 800 }}
                   >
                     Transfer Again (Same Customer)
                   </Button>
@@ -1576,7 +1554,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     onClick={() => {
                       if (onAuthorize) onAuthorize();
                     }}
-                    sx={{ flex: 1, minWidth: "140px", height: 42, borderColor: "#E8E2E5", color: "#FFFFFF", fontWeight: 800 }}
+                    sx={{ flex: 1, minWidth: "140px", height: 42, borderColor: "var(--brand-border, #CBD5E1)", color: "var(--brand-primary, #0F3B7D)", bgcolor: "#FFFFFF", fontWeight: 800 }}
                   >
                     🏠 Home / DMT Console
                   </Button>
@@ -1591,9 +1569,9 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 sx={{
                   p: 2.5,
                   borderRadius: "12px",
-                  bgcolor: "rgba(239, 68, 68, 0.1)",
-                  border: "1px solid #EF4444",
-                  color: "#FFFFFF",
+                  bgcolor: "#FEF2F2",
+                  border: "1px solid #FECACA",
+                  color: "var(--text-primary, #0F172A)",
                   display: "flex",
                   flexDirection: "column",
                   justifyContent: "space-between",
@@ -1602,39 +1580,39 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               >
                 <Box>
                   <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 1.5 }}>
-                    <GppBadIcon sx={{ color: "#EF4444", fontSize: 32 }} />
+                    <GppBadIcon sx={{ color: "#DC2626", fontSize: 32 }} />
                     <Box>
-                      <Typography sx={{ fontWeight: 900, color: "#EF4444", fontSize: "18px" }}>
+                      <Typography sx={{ fontWeight: 900, color: "#991B1B", fontSize: "18px" }}>
                         ❌ Transaction Failed
                       </Typography>
-                      <Typography sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "12.5px" }}>
+                      <Typography sx={{ color: "#7F1D1D", fontSize: "12.5px" }}>
                         The transaction could not be completed. If any amount was debited, it will be automatically refunded.
                       </Typography>
                     </Box>
                   </Stack>
 
-                  <Divider sx={{ borderColor: "rgba(239, 68, 68, 0.2)", my: 1.5 }} />
+                  <Divider sx={{ borderColor: "#FECACA", my: 1.5 }} />
 
-                  <Stack spacing={1} sx={{ bgcolor: "rgba(0, 0, 0, 0.2)", p: 1.5, borderRadius: "8px", mb: 2 }}>
+                  <Stack spacing={1} sx={{ bgcolor: "#FFFFFF", border: "1px solid #FECACA", p: 1.5, borderRadius: "8px", mb: 2 }}>
                     <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                      <Typography sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "12px" }}>Reference Number</Typography>
-                      <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontFamily: "monospace", fontSize: "13px" }}>{activeTxRef}</Typography>
+                      <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "12px" }}>Reference Number</Typography>
+                      <Typography sx={{ fontWeight: 800, color: "var(--brand-primary, #0F3B7D)", fontFamily: "monospace", fontSize: "13px" }}>{activeTxRef}</Typography>
                     </Stack>
                     <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                      <Typography sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "12px" }}>Status</Typography>
-                      <Chip label="FAILED" size="small" sx={{ height: 20, fontSize: "10px", fontWeight: 900, bgcolor: "#EF4444", color: "#FFFFFF" }} />
+                      <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "12px" }}>Status</Typography>
+                      <Chip label="FAILED" size="small" sx={{ height: 20, fontSize: "10px", fontWeight: 900, bgcolor: "#DC2626", color: "#FFFFFF" }} />
                     </Stack>
                   </Stack>
 
                   {/* AUTOMATIC REVERSAL TIMELINE */}
-                  <Box sx={{ bgcolor: "rgba(34, 197, 94, 0.08)", p: 1.5, borderRadius: "8px", border: "1px solid rgba(34, 197, 94, 0.2)" }}>
-                    <Typography sx={{ color: "#4ADE80", fontWeight: 900, fontSize: "12.5px", mb: 1 }}>
+                  <Box sx={{ bgcolor: "#F0FDF4", p: 1.5, borderRadius: "8px", border: "1px solid #86EFAC" }}>
+                    <Typography sx={{ color: "#166534", fontWeight: 900, fontSize: "12.5px", mb: 1 }}>
                       ✅ Refund Completed Successfully
                     </Typography>
                     <Stack spacing={0.5}>
-                      <Typography sx={{ fontSize: "11.5px", color: "rgba(255,255,255,0.8)" }}>✓ Wallet Refunded (₹{totalAmountPaid.toLocaleString()})</Typography>
-                      <Typography sx={{ fontSize: "11.5px", color: "rgba(255,255,255,0.8)" }}>✓ Double Entry Ledger Reversed</Typography>
-                      <Typography sx={{ fontSize: "11.5px", color: "rgba(255,255,255,0.8)" }}>✓ Beneficiary Limits Restored</Typography>
+                      <Typography sx={{ fontSize: "11.5px", color: "#15803D" }}>✓ Wallet Refunded (₹{totalAmountPaid.toLocaleString()})</Typography>
+                      <Typography sx={{ fontSize: "11.5px", color: "#15803D" }}>✓ Double Entry Ledger Reversed</Typography>
+                      <Typography sx={{ fontSize: "11.5px", color: "#15803D" }}>✓ Beneficiary Limits Restored</Typography>
                     </Stack>
                   </Box>
                 </Box>
@@ -1647,7 +1625,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                       setPinDigits(Array(pinLength).fill(""));
                       setIsReversing(false);
                     }}
-                    sx={{ flex: 1, minWidth: "120px", height: 42, bgcolor: "#2563EB", fontWeight: 800 }}
+                    sx={{ flex: 1, minWidth: "120px", height: 42, background: "var(--brand-gradient)", color: "#FFFFFF", fontWeight: 800 }}
                   >
                     🔄 Try Again
                   </Button>
@@ -1656,7 +1634,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     onClick={() => {
                       if (onBack) onBack();
                     }}
-                    sx={{ flex: 1, minWidth: "140px", height: 42, borderColor: "#E8E2E5", color: "#FFFFFF", fontWeight: 800 }}
+                    sx={{ flex: 1, minWidth: "140px", height: 42, borderColor: "var(--brand-border, #CBD5E1)", color: "var(--brand-primary, #0F3B7D)", bgcolor: "#FFFFFF", fontWeight: 800 }}
                   >
                     Change Beneficiary
                   </Button>
@@ -1665,7 +1643,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     onClick={() => {
                       if (onAuthorize) onAuthorize();
                     }}
-                    sx={{ flex: 1, minWidth: "140px", height: 42, borderColor: "#E8E2E5", color: "#FFFFFF", fontWeight: 800 }}
+                    sx={{ flex: 1, minWidth: "140px", height: 42, borderColor: "var(--brand-border, #CBD5E1)", color: "var(--text-secondary, #334155)", bgcolor: "#FFFFFF", fontWeight: 800 }}
                   >
                     🏠 Home / DMT Console
                   </Button>
@@ -1900,30 +1878,30 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
       {/* DIGITAL RECEIPT VERIFICATION INSPECTOR MODAL (EPIC-037) */}
       <Dialog open={verifyModalOpen} onClose={() => setVerifyModalOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ bgcolor: "#FFFFFF", color: "#FFFFFF", fontWeight: 900, display: "flex", alignItems: "center", gap: 1 }}>
-          <SecurityIcon sx={{ color: "#4ADE80" }} /> Digital Receipt Verification
+        <DialogTitle sx={{ bgcolor: "#FFFFFF", color: "var(--text-primary, #0F172A)", fontWeight: 900, display: "flex", alignItems: "center", gap: 1 }}>
+          <SecurityIcon sx={{ color: "#16A34A" }} /> Digital Receipt Verification
         </DialogTitle>
         <DialogContent sx={{ bgcolor: "#FFFFFF", pt: 2, textAlign: "center" }}>
           {verificationResult?.isValid ? (
-            <Paper elevation={0} sx={{ p: 2, borderRadius: "10px", bgcolor: "rgba(34, 197, 94, 0.15)", border: "1px solid #16A34A", color: "#FFFFFF", mb: 2 }}>
-              <VerifiedUserIcon sx={{ fontSize: 44, color: "#4ADE80", mb: 0.5 }} />
-              <Typography sx={{ fontWeight: 900, fontSize: "16px", color: "#4ADE80" }}>Verified by {branding.display_name || "Platform"}</Typography>
-              <Typography sx={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.8)", mt: 0.5 }}>
+            <Paper elevation={0} sx={{ p: 2, borderRadius: "10px", bgcolor: "#F0FDF4", border: "1px solid #86EFAC", color: "#166534", mb: 2 }}>
+              <VerifiedUserIcon sx={{ fontSize: 44, color: "#16A34A", mb: 0.5 }} />
+              <Typography sx={{ fontWeight: 900, fontSize: "16px", color: "#166534" }}>Verified by {branding.display_name || "Platform"}</Typography>
+              <Typography sx={{ fontSize: "12px", color: "#15803D", mt: 0.5 }}>
                 {verificationResult.message}
               </Typography>
-              <Divider sx={{ my: 1, borderColor: "rgba(255, 255, 255, 0.1)" }} />
-              <Typography sx={{ fontSize: "10.5px", color: "rgba(255, 255, 255, 0.6)", fontFamily: "monospace" }}>
+              <Divider sx={{ my: 1, borderColor: "#BBF7D0" }} />
+              <Typography sx={{ fontSize: "10.5px", color: "#475569", fontFamily: "monospace" }}>
                 Signature: {shareRecord?.receiptSignature || "SIG-SHA256-4F8A9B2C"}
               </Typography>
-              <Typography sx={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.5)", mt: 0.25 }}>
+              <Typography sx={{ fontSize: "10px", color: "#64748B", mt: 0.25 }}>
                 Verification Time: {verificationResult.verifiedAt}
               </Typography>
             </Paper>
           ) : (
-            <Paper elevation={0} sx={{ p: 2, borderRadius: "10px", bgcolor: "rgba(239, 68, 68, 0.15)", border: "1px solid #EF4444", color: "#FFFFFF", mb: 2 }}>
-              <GppBadIcon sx={{ fontSize: 44, color: "#EF4444", mb: 0.5 }} />
-              <Typography sx={{ fontWeight: 900, fontSize: "16px", color: "#EF4444" }}>Receipt Invalid / Tampered</Typography>
-              <Typography sx={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.8)", mt: 0.5 }}>
+            <Paper elevation={0} sx={{ p: 2, borderRadius: "10px", bgcolor: "#FEF2F2", border: "1px solid #FECACA", color: "#991B1B", mb: 2 }}>
+              <GppBadIcon sx={{ fontSize: 44, color: "#DC2626", mb: 0.5 }} />
+              <Typography sx={{ fontWeight: 900, fontSize: "16px", color: "#991B1B" }}>Receipt Invalid / Tampered</Typography>
+              <Typography sx={{ fontSize: "12px", color: "#7F1D1D", mt: 0.5 }}>
                 {verificationResult?.message || "Possible Tampering Detected"}
               </Typography>
             </Paper>
@@ -1935,7 +1913,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               variant="contained"
               onClick={triggerVerificationCheck}
               startIcon={<SyncIcon />}
-              sx={{ bgcolor: "#2563EB", fontWeight: 800 }}
+              sx={{ background: "var(--brand-gradient)", color: "#FFFFFF", fontWeight: 800 }}
             >
               Refresh Verification
             </Button>
@@ -1945,14 +1923,14 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               variant="outlined"
               onClick={copyShareUrlToClipboard}
               startIcon={<ContentCopyIcon />}
-              sx={{ color: "#FFFFFF", borderColor: "#E8E2E5" }}
+              sx={{ color: "var(--brand-primary, #0F3B7D)", borderColor: "var(--brand-border, #CBD5E1)" }}
             >
               {copiedLink ? "Link Copied!" : "Copy Verification URL"}
             </Button>
           </Stack>
         </DialogContent>
         <DialogActions sx={{ bgcolor: "#FFFFFF", p: 2 }}>
-          <Button onClick={() => setVerifyModalOpen(false)} sx={{ color: "rgba(255, 255, 255, 0.6)" }}>
+          <Button onClick={() => setVerifyModalOpen(false)} sx={{ color: "var(--text-muted, #64748B)" }}>
             Close
           </Button>
         </DialogActions>
@@ -2028,15 +2006,15 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
       {/* SUPERVISOR LOCKOUT OVERRIDE MODAL */}
       <Dialog open={supervisorModalOpen} onClose={() => setSupervisorModalOpen(false)}>
-        <DialogTitle sx={{ bgcolor: "#FFFFFF", color: "#FFFFFF", fontWeight: 900 }}>
+        <DialogTitle sx={{ bgcolor: "#FFFFFF", color: "var(--text-primary, #0F172A)", fontWeight: 900 }}>
           🔒 Supervisor Lockout Override
         </DialogTitle>
         <DialogContent sx={{ bgcolor: "#FFFFFF", pt: 2 }}>
-          <Typography sx={{ color: "rgba(255, 255, 255, 0.75)", fontSize: "13px", mb: 2 }}>
+          <Typography sx={{ color: "var(--text-secondary, #334155)", fontSize: "13px", mb: 2 }}>
             Terminal security lockout requires Senior Supervisor PIN authorization.
           </Typography>
           {supervisorError && (
-            <Typography sx={{ color: "#EF4444", fontSize: "12px", mb: 1, fontWeight: 700 }}>
+            <Typography sx={{ color: "#DC2626", fontSize: "12px", mb: 1, fontWeight: 700 }}>
               {supervisorError}
             </Typography>
           )}
@@ -2048,16 +2026,16 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             onChange={(e) => setSupervisorPin(e.target.value)}
             slotProps={{
               input: {
-                sx: { color: "#FFFFFF", bgcolor: "rgba(255, 255, 255, 0.08)", borderRadius: "8px" },
+                sx: { color: "var(--text-primary, #0F172A)", bgcolor: "#F8FAFC", borderRadius: "8px" },
               },
             }}
           />
         </DialogContent>
         <DialogActions sx={{ bgcolor: "#FFFFFF", p: 2 }}>
-          <Button onClick={() => setSupervisorModalOpen(false)} sx={{ color: "rgba(255, 255, 255, 0.6)" }}>
+          <Button onClick={() => setSupervisorModalOpen(false)} sx={{ color: "var(--text-muted, #64748B)" }}>
             Cancel
           </Button>
-          <Button variant="contained" onClick={handleSupervisorUnlock} sx={{ bgcolor: "#2563EB", fontWeight: 900 }}>
+          <Button variant="contained" onClick={handleSupervisorUnlock} sx={{ background: "var(--brand-gradient)", color: "#FFFFFF", fontWeight: 900 }}>
             Unlock Terminal
           </Button>
         </DialogActions>
@@ -2073,10 +2051,9 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           paper: {
             sx: {
               bgcolor: "#FFFFFF",
-              backgroundImage: "radial-gradient(ellipse at 50% 0%, rgba(37, 99, 235, 0.16), transparent 70%)",
               borderRadius: "20px",
-              border: "1px solid rgba(59, 130, 246, 0.3)",
-              boxShadow: "0 25px 70px rgba(0, 0, 0, 0.85)",
+              border: "1px solid var(--brand-border, #E2E8F0)",
+              boxShadow: "0 20px 50px rgba(15, 23, 42, 0.25)",
               maxHeight: "92vh",
               overflow: "hidden",
               display: "flex",
@@ -2088,8 +2065,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
         <DialogTitle
           sx={{
             bgcolor: "#FFFFFF",
-            borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-            color: "#FFFFFF",
+            borderBottom: "1px solid var(--border, #E2E8F0)",
+            color: "var(--text-primary, #0F172A)",
             p: 2,
             px: 2.5,
             display: "flex",
@@ -2103,23 +2080,23 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 width: 32,
                 height: 32,
                 borderRadius: "8px",
-                bgcolor: "#2563EB",
+                background: "var(--brand-gradient)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 fontWeight: 900,
                 fontSize: "12px",
                 color: "#FFFFFF",
-                boxShadow: "0 2px 8px rgba(37, 99, 235, 0.4)",
+                boxShadow: "0 2px 8px rgba(15, 23, 42, 0.14)",
               }}
             >
-              P2P
+              {(branding.company_code || branding.display_name || "BM").slice(0, 3).toUpperCase()}
             </Box>
             <Box>
-              <Typography sx={{ fontWeight: 900, fontSize: "14px", color: "#FFFFFF" }}>
+              <Typography sx={{ fontWeight: 900, fontSize: "14px", color: "var(--text-primary, #0F172A)" }}>
                 Enterprise Receipt Share Portal
               </Typography>
-              <Typography sx={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.6)" }}>
+              <Typography sx={{ fontSize: "10px", color: "var(--text-muted, #64748B)" }}>
                 Verified NPCI Core Banking DMT Receipt
               </Typography>
             </Box>
@@ -2128,8 +2105,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           <IconButton
             onClick={() => setShareModalOpen(false)}
             sx={{
-              color: "rgba(255, 255, 255, 0.6)",
-              "&:hover": { color: "#FFFFFF", bgcolor: "rgba(255, 255, 255, 0.1)" },
+              color: "#64748B",
+              "&:hover": { color: "var(--brand-primary, #0F3B7D)", bgcolor: "var(--brand-surface, #EFF6FF)" },
             }}
           >
             <ArrowBackIcon sx={{ transform: "rotate(90deg)", fontSize: 18 }} />
@@ -2138,13 +2115,13 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
         <DialogContent
           sx={{
-            bgcolor: "transparent",
+            bgcolor: "#F8FAFC",
             p: 2.5,
             pt: 2,
             overflowY: "auto",
             "&::-webkit-scrollbar": { width: "6px" },
             "&::-webkit-scrollbar-track": { bgcolor: "transparent" },
-            "&::-webkit-scrollbar-thumb": { bgcolor: "rgba(255, 255, 255, 0.15)", borderRadius: "10px" },
+            "&::-webkit-scrollbar-thumb": { bgcolor: "#CBD5E1", borderRadius: "10px" },
           }}
         >
           {/* Public Receipt Share Link Card */}
@@ -2155,18 +2132,18 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               px: 1.75,
               mb: 2,
               borderRadius: "10px",
-              bgcolor: "rgba(37, 99, 235, 0.08)",
-              border: "1px solid rgba(59, 130, 246, 0.25)",
+              bgcolor: "var(--brand-surface, #EFF6FF)",
+              border: "1px solid var(--brand-border, #CBD5E1)",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
             }}
           >
             <Stack direction="row" spacing={1} sx={{ alignItems: "center", minWidth: 0, mr: 1 }}>
-              <VerifiedUserIcon sx={{ color: "#4ADE80", fontSize: 16, flexShrink: 0 }} />
+              <VerifiedUserIcon sx={{ color: "#16A34A", fontSize: 16, flexShrink: 0 }} />
               <Typography
                 sx={{
-                  color: "#93C5FD",
+                  color: "var(--brand-primary, #0F3B7D)",
                   fontFamily: "monospace",
                   fontSize: "11px",
                   fontWeight: 700,
@@ -2188,7 +2165,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                   height: 28,
                   fontSize: "10.5px",
                   fontWeight: 800,
-                  bgcolor: copiedLink ? "#16A34A" : "#2563EB",
+                  bgcolor: copiedLink ? "#16A34A" : "var(--brand-primary, #0F3B7D)",
                   textTransform: "none",
                   borderRadius: "6px",
                   px: 1.5,
@@ -2207,9 +2184,9 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               p: 2.5,
               borderRadius: "16px",
               bgcolor: "#FFFFFF",
-              color: "#FFFFFF",
+              color: "#0F172A",
               textAlign: "left",
-              boxShadow: "0 10px 30px rgba(0, 0, 0, 0.3)",
+              boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
               mb: 2.5,
               position: "relative",
               overflow: "hidden",
@@ -2250,11 +2227,11 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 ) : null}
                 <Box
                   sx={{
-                    display: "none",
+                    display: branding.logo_url ? "none" : "flex",
                     width: "100%",
                     height: "100%",
                     borderRadius: "8px",
-                    background: "linear-gradient(135deg, #A20A3A 0%, #85072F 100%)",
+                    background: "var(--brand-gradient)",
                     alignItems: "center",
                     justifyContent: "center",
                     color: "#FFFFFF",
@@ -2262,14 +2239,14 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     fontSize: "14px",
                   }}
                 >
-                  n4u
+                  {(branding.company_code || branding.display_name || "CP").slice(0, 3).toUpperCase()}
                 </Box>
               </Box>
 
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                  <Typography sx={{ fontWeight: 900, fontSize: "16px", color: "#FFFFFF", letterSpacing: "-0.3px", lineHeight: 1.2 }}>
-                    Near 4 You
+                  <Typography sx={{ fontWeight: 900, fontSize: "16px", color: "#0F172A", letterSpacing: "-0.3px", lineHeight: 1.2 }}>
+                    {branding.display_name || "Authorized Platform"}
                   </Typography>
                   <Chip
                     label="Official"
@@ -2278,19 +2255,19 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                       height: 18,
                       fontSize: "9px",
                       fontWeight: 800,
-                      bgcolor: "rgba(37, 99, 235, 0.12)",
-                      color: "#1D4ED8",
-                      border: "1px solid rgba(37, 99, 235, 0.25)",
+                      bgcolor: "var(--brand-surface, #EFF6FF)",
+                      color: "var(--brand-primary, #0F3B7D)",
+                      border: "1px solid var(--brand-border, rgba(15, 59, 125, 0.25))",
                     }}
                   />
                 </Stack>
                 <Typography sx={{ fontWeight: 800, fontSize: "12px", color: "#334155", mt: 0.25 }}>
-                  SUPER REX PRODUCTS PRIVATE LIMITED
+                  {branding.company_name || branding.display_name || "Authorized Payment Network"}
                 </Typography>
-                <Typography sx={{ fontWeight: 700, fontSize: "10.5px", color: "#2563EB" }}>
+                <Typography sx={{ fontWeight: 700, fontSize: "10.5px", color: "var(--brand-primary, #0F3B7D)" }}>
                   Enterprise Domestic Money Transfer (DMT) · Authorized Network
                 </Typography>
-                <Typography sx={{ fontSize: "9px", color: "#625B60" }}>
+                <Typography sx={{ fontSize: "9px", color: "#64748B" }}>
                   NPCI IMPS Switch Certified · ISO 27001:2022 · 256-Bit SSL Encrypted
                 </Typography>
               </Box>
@@ -2317,10 +2294,10 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
             {/* Big Amount Hero */}
             <Box sx={{ textAlign: "center", my: 1 }}>
-              <Typography sx={{ fontWeight: 900, fontSize: "28px", color: "#FFFFFF", lineHeight: 1.1 }}>
+              <Typography sx={{ fontWeight: 900, fontSize: "28px", color: "#0F172A", lineHeight: 1.1 }}>
                 ₹{amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </Typography>
-              <Typography sx={{ fontSize: "10.5px", color: "#625B60", fontWeight: 700, mt: 0.25 }}>
+              <Typography sx={{ fontSize: "10.5px", color: "#64748B", fontWeight: 700, mt: 0.25 }}>
                 Amount Credited to Beneficiary Account
               </Typography>
             </Box>
@@ -2330,7 +2307,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               elevation={0}
               sx={{
                 p: 1.5,
-                bgcolor: "#292329",
+                bgcolor: "#F8FAFC",
                 border: "1px solid #E2E8F0",
                 borderRadius: "10px",
                 my: 1.5,
@@ -2338,26 +2315,26 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             >
               <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
                 <Box>
-                  <Typography sx={{ fontSize: "10px", color: "#625B60", fontWeight: 600 }}>TRANSACTION ID</Typography>
-                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#FFFFFF", fontFamily: "monospace" }}>
+                  <Typography sx={{ fontSize: "10px", color: "#64748B", fontWeight: 600 }}>TRANSACTION ID</Typography>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#0F172A", fontFamily: "monospace" }}>
                     {activeTxId || txnId}
                   </Typography>
                 </Box>
                 <Box>
-                  <Typography sx={{ fontSize: "10px", color: "#625B60", fontWeight: 600 }}>BANK UTR / RRN</Typography>
-                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#FFFFFF", fontFamily: "monospace" }}>
+                  <Typography sx={{ fontSize: "10px", color: "#64748B", fontWeight: 600 }}>BANK UTR / RRN</Typography>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#0F172A", fontFamily: "monospace" }}>
                     {liveUtr}
                   </Typography>
                 </Box>
                 <Box>
-                  <Typography sx={{ fontSize: "10px", color: "#625B60", fontWeight: 600 }}>RECEIPT TOKEN</Typography>
-                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#2563EB", fontFamily: "monospace" }}>
+                  <Typography sx={{ fontSize: "10px", color: "#64748B", fontWeight: 600 }}>RECEIPT TOKEN</Typography>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "var(--brand-primary, #0F3B7D)", fontFamily: "monospace" }}>
                     {liveToken}
                   </Typography>
                 </Box>
                 <Box>
-                  <Typography sx={{ fontSize: "10px", color: "#625B60", fontWeight: 600 }}>CHANNEL & DATE</Typography>
-                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#FFFFFF" }}>
+                  <Typography sx={{ fontSize: "10px", color: "#64748B", fontWeight: 600 }}>CHANNEL & DATE</Typography>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#0F172A" }}>
                     {transactionMode || "IMPS"} · {new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
                   </Typography>
                 </Box>
@@ -2376,10 +2353,10 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               }}
             >
               <Box sx={{ mb: 1 }}>
-                <Typography sx={{ fontSize: "10px", fontWeight: 800, color: "#2563EB", textTransform: "uppercase" }}>
+                <Typography sx={{ fontSize: "10px", fontWeight: 800, color: "var(--brand-primary, #0F3B7D)", textTransform: "uppercase" }}>
                   Retailer / Sender
                 </Typography>
-                <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#FFFFFF" }}>
+                <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#0F172A" }}>
                   {displayRetailerName} ({displayRetailerMobile})
                 </Typography>
               </Box>
@@ -2390,13 +2367,13 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 <Typography sx={{ fontSize: "10px", fontWeight: 800, color: "#16A34A", textTransform: "uppercase" }}>
                   Beneficiary Account Details
                 </Typography>
-                <Typography sx={{ fontSize: "12.5px", fontWeight: 800, color: "#FFFFFF" }}>
+                <Typography sx={{ fontSize: "12.5px", fontWeight: 800, color: "#0F172A" }}>
                   {displayBeneName}
                 </Typography>
                 <Typography sx={{ fontSize: "11px", color: "#475569" }}>
                   Bank: {displayBeneBank} · IFSC: {displayBeneIfsc || "N/A"}
                 </Typography>
-                <Typography sx={{ fontSize: "11.5px", fontWeight: 800, color: "#FFFFFF", fontFamily: "monospace" }}>
+                <Typography sx={{ fontSize: "11.5px", fontWeight: 800, color: "#0F172A", fontFamily: "monospace" }}>
                   A/C: {displayBeneAccount || "0630104000156974"}
                 </Typography>
               </Box>
@@ -2407,7 +2384,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               elevation={0}
               sx={{
                 p: 1.5,
-                bgcolor: "#292329",
+                bgcolor: "#F8FAFC",
                 border: "1px solid #E2E8F0",
                 borderRadius: "10px",
                 mb: 1.5,
@@ -2415,20 +2392,20 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             >
               <Stack spacing={0.5}>
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                  <Typography sx={{ fontSize: "11px", color: "#625B60" }}>Transfer Amount</Typography>
-                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#FFFFFF" }}>
+                  <Typography sx={{ fontSize: "11px", color: "#64748B" }}>Transfer Amount</Typography>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#0F172A" }}>
                     ₹{amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </Typography>
                 </Stack>
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                  <Typography sx={{ fontSize: "11px", color: "#625B60" }}>Convenience Fee</Typography>
-                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#FFFFFF" }}>
+                  <Typography sx={{ fontSize: "11px", color: "#64748B" }}>Convenience Fee</Typography>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#0F172A" }}>
                     ₹{charges.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </Typography>
                 </Stack>
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                  <Typography sx={{ fontSize: "11px", color: "#625B60" }}>GST (0%)</Typography>
-                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#FFFFFF" }}>
+                  <Typography sx={{ fontSize: "11px", color: "#64748B" }}>GST (0%)</Typography>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#0F172A" }}>
                     ₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </Typography>
                 </Stack>
@@ -2436,8 +2413,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 <Divider sx={{ my: 0.5, borderColor: "#CBD5E1" }} />
 
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                  <Typography sx={{ fontSize: "12px", fontWeight: 900, color: "#1D4ED8" }}>TOTAL PAID</Typography>
-                  <Typography sx={{ fontSize: "12.5px", fontWeight: 900, color: "#1D4ED8" }}>
+                  <Typography sx={{ fontSize: "12px", fontWeight: 900, color: "var(--brand-primary, #0F3B7D)" }}>TOTAL PAID</Typography>
+                  <Typography sx={{ fontSize: "12.5px", fontWeight: 900, color: "var(--brand-primary, #0F3B7D)" }}>
                     ₹{totalAmountPaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </Typography>
                 </Stack>
@@ -2457,16 +2434,16 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                   justifyContent: "center",
                 }}
               >
-                <QrCode2Icon sx={{ fontSize: 52, color: "#FFFFFF" }} />
+                <QrCode2Icon sx={{ fontSize: 52, color: "#0F172A" }} />
               </Box>
               <Box>
-                <Typography sx={{ fontSize: "11px", fontWeight: 800, color: "#FFFFFF" }}>
+                <Typography sx={{ fontSize: "11px", fontWeight: 800, color: "#0F172A" }}>
                   Scan to Verify Online Receipt
                 </Typography>
-                <Typography sx={{ fontSize: "10px", color: "#2563EB", fontFamily: "monospace" }}>
+                <Typography sx={{ fontSize: "10px", color: "var(--brand-primary, #0F3B7D)", fontFamily: "monospace" }}>
                   {publicShareUrl.replace(/^https?:\/\//, "")}
                 </Typography>
-                <Typography sx={{ fontSize: "9px", color: "#625B60" }}>
+                <Typography sx={{ fontSize: "9px", color: "#64748B" }}>
                   🔒 Non-Repudiable Digital Signature · {branding.display_name || "Platform"} Core Switch
                 </Typography>
               </Box>
@@ -2480,12 +2457,12 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               p: 2,
               borderRadius: "14px",
               bgcolor: "#FFFFFF",
-              border: "1px solid rgba(59, 130, 246, 0.25)",
+              border: "1px solid var(--brand-border, #E2E8F0)",
             }}
           >
             <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1.5 }}>
-              <PhotoCameraIcon sx={{ color: "#38BDF8", fontSize: 18 }} />
-              <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#FFFFFF", letterSpacing: "0.04em" }}>
+              <PhotoCameraIcon sx={{ color: "var(--brand-primary, #0F3B7D)", fontSize: 18 }} />
+              <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#0F172A", letterSpacing: "0.04em" }}>
                 SHARE RECEIPT AS IMAGE (EXPORTS HIGH-RES PNG)
               </Typography>
             </Stack>
@@ -2535,8 +2512,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 startIcon={<DownloadIcon sx={{ fontSize: 18 }} />}
                 onClick={() => handleShareApp("download")}
                 sx={{
-                  bgcolor: "#2563EB",
-                  "&:hover": { bgcolor: "#1D4ED8" },
+                  bgcolor: "var(--brand-primary, #0F3B7D)",
+                  "&:hover": { filter: "brightness(1.08)" },
                   color: "#FFFFFF",
                   fontWeight: 800,
                   fontSize: "11.5px",
@@ -2575,9 +2552,9 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               startIcon={<ShareIcon sx={{ fontSize: 16 }} />}
               onClick={() => handleShareApp("system")}
               sx={{
-                color: "#38BDF8",
-                borderColor: "rgba(56, 189, 248, 0.4)",
-                "&:hover": { borderColor: "#38BDF8", bgcolor: "rgba(56, 189, 248, 0.08)" },
+                color: "var(--brand-primary, #0F3B7D)",
+                borderColor: "var(--brand-border, #CBD5E1)",
+                "&:hover": { borderColor: "var(--brand-primary, #0F3B7D)", bgcolor: "var(--brand-surface, #EFF6FF)" },
                 fontWeight: 800,
                 fontSize: "11px",
                 borderRadius: "8px",
@@ -2590,15 +2567,15 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           </Paper>
         </DialogContent>
 
-        <DialogActions sx={{ bgcolor: "#FFFFFF", borderTop: "1px solid #E8E2E5", p: 1.5, px: 2.5 }}>
+        <DialogActions sx={{ bgcolor: "#FFFFFF", borderTop: "1px solid #E2E8F0", p: 1.5, px: 2.5 }}>
           <Button
             onClick={() => setShareModalOpen(false)}
             sx={{
-              color: "rgba(255, 255, 255, 0.75)",
+              color: "#64748B",
               fontWeight: 800,
               fontSize: "12px",
               textTransform: "none",
-              "&:hover": { color: "#FFFFFF" },
+              "&:hover": { color: "#0F172A" },
             }}
           >
             Close Portal
@@ -2617,7 +2594,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           onClose={() => setShareToast({ ...shareToast, open: false })}
           severity={shareToast.severity}
           variant="filled"
-          sx={{ width: "100%", fontWeight: 700, borderRadius: "10px", boxShadow: "0 8px 24px rgba(41, 35, 41, 0.06)" }}
+          sx={{ width: "100%", fontWeight: 700, borderRadius: "10px", boxShadow: "0 8px 24px rgba(15, 23, 42, 0.12)" }}
         >
           {shareToast.message}
         </Alert>
@@ -2633,16 +2610,16 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           paper: {
             sx: {
               bgcolor: "#FFFFFF",
-              border: "1px solid #EF4444",
+              border: "1px solid #FECACA",
               borderRadius: "16px",
-              color: "#FFFFFF",
-              boxShadow: "0 0 30px rgba(239, 68, 68, 0.3)",
+              color: "#0F172A",
+              boxShadow: "0 14px 36px rgba(15, 23, 42, 0.16)",
             },
           },
         }}
       >
-        <DialogTitle sx={{ fontWeight: 900, display: "flex", alignItems: "center", gap: 1, color: "#F87171" }}>
-          <GppBadIcon sx={{ color: "#EF4444", fontSize: 28 }} /> Payout Authorization Alert
+        <DialogTitle sx={{ fontWeight: 900, display: "flex", alignItems: "center", gap: 1, color: "#991B1B" }}>
+          <GppBadIcon sx={{ color: "#DC2626", fontSize: 28 }} /> Payout Authorization Alert
         </DialogTitle>
         <DialogContent sx={{ pt: 1, textAlign: "center" }}>
           <Paper
@@ -2650,19 +2627,19 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             sx={{
               p: 2,
               borderRadius: "12px",
-              bgcolor: "rgba(239, 68, 68, 0.12)",
-              border: "1px solid rgba(239, 68, 68, 0.3)",
+              bgcolor: "#FEF2F2",
+              border: "1px solid #FECACA",
               mb: 2,
               textAlign: "left",
             }}
           >
-            <Typography sx={{ fontWeight: 800, color: "#F87171", fontSize: "14px", mb: 0.5 }}>
+            <Typography sx={{ fontWeight: 800, color: "#991B1B", fontSize: "14px", mb: 0.5 }}>
               Transaction Failed
             </Typography>
-            <Typography sx={{ color: "rgba(255, 255, 255, 0.9)", fontSize: "12.5px", lineHeight: 1.4 }}>
+            <Typography sx={{ color: "#7F1D1D", fontSize: "12.5px", lineHeight: 1.4 }}>
               {errorMessage || "Unable to authorize payout transaction at this time."}
             </Typography>
-            <Typography sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "11px", mt: 1 }}>
+            <Typography sx={{ color: "#64748B", fontSize: "11px", mt: 1 }}>
               🛡️ No funds were debited from your wallet. Your balance remains safe.
             </Typography>
           </Paper>
@@ -2684,8 +2661,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 borderRadius: "10px",
                 fontWeight: 900,
                 fontSize: "13px",
-                bgcolor: "#2563EB",
-                "&:hover": { bgcolor: "#1D4ED8" },
+                background: "var(--brand-gradient)",
+                color: "#FFFFFF",
               }}
             >
               Retry PIN Entry
@@ -2703,8 +2680,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 borderRadius: "10px",
                 fontWeight: 800,
                 fontSize: "12.5px",
-                color: "#FFFFFF",
-                borderColor: "#E8E2E5",
+                color: "var(--brand-primary, #0F3B7D)",
+                borderColor: "var(--brand-border, #CBD5E1)",
               }}
             >
               Change Beneficiary / Amount
@@ -2713,7 +2690,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
         </DialogContent>
       </Dialog>
 
-      {/* ── 5. COMPACT FLOATING GLASS VALIDATION TOAST (ABOVE BOTTOM NAV) ── */}
+      {/* ── 5. COMPACT FLOATING VALIDATION TOAST (ABOVE BOTTOM NAV) ── */}
       {errorMessage && (
         <Box
           sx={{
@@ -2732,10 +2709,9 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             sx={{
               p: 1.5,
               borderRadius: "16px",
-              bgcolor: "rgba(26, 10, 15, 0.95)",
-              backdropFilter: "blur(24px)",
-              border: "1px solid rgba(239, 68, 68, 0.6)",
-              boxShadow: "0 12px 35px rgba(41, 35, 41, 0.08), 0 0 20px rgba(239, 68, 68, 0.3)",
+              bgcolor: "#FEF2F2",
+              border: "1px solid #FECACA",
+              boxShadow: "0 12px 30px rgba(15, 23, 42, 0.14)",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
@@ -2748,24 +2724,23 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                   width: 32,
                   height: 32,
                   borderRadius: "10px",
-                  bgcolor: "rgba(239, 68, 68, 0.2)",
-                  border: "1px solid rgba(239, 68, 68, 0.5)",
+                  bgcolor: "#FEE2E2",
+                  border: "1px solid #FCA5A5",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   fontSize: "15px",
-                  color: "#EF4444",
+                  color: "#DC2626",
                   flexShrink: 0,
-                  boxShadow: "0 0 10px rgba(239, 68, 68, 0.3)",
                 }}
               >
                 ⚠️
               </Box>
               <Box sx={{ minWidth: 0 }}>
-                <Typography sx={{ fontSize: "11px", fontWeight: 800, color: "#FCA5A5", lineHeight: 1.2, letterSpacing: "0.02em" }}>
+                <Typography sx={{ fontSize: "11px", fontWeight: 800, color: "#991B1B", lineHeight: 1.2, letterSpacing: "0.02em" }}>
                   {attemptsLeft <= 1 ? "Security Alert · Final Attempt" : "Validation Alert · 2 Issues"}
                 </Typography>
-                <Typography sx={{ fontSize: "12px", color: "#FFFFFF", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", mt: 0.25 }}>
+                <Typography sx={{ fontSize: "12px", color: "#7F1D1D", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", mt: 0.25 }}>
                   {errorMessage}
                 </Typography>
               </Box>
@@ -2776,12 +2751,12 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               aria-label="Dismiss error"
               onClick={() => setErrorMessage(null)}
               sx={{
-                color: "rgba(255, 255, 255, 0.7)",
+                color: "#991B1B",
                 p: 0.6,
                 borderRadius: "8px",
-                bgcolor: "rgba(255, 255, 255, 0.08)",
-                border: "1px solid rgba(255, 255, 255, 0.12)",
-                "&:hover": { bgcolor: "rgba(255, 255, 255, 0.2)", color: "#FFFFFF" },
+                bgcolor: "#FEE2E2",
+                border: "1px solid #FECACA",
+                "&:hover": { bgcolor: "#FECACA" },
               }}
             >
               ✕
@@ -2790,7 +2765,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
         </Box>
       )}
 
-      {/* ── 6. MOBILE BOTTOM NAVIGATION & ELEVATED GOLD FAB DOCK ── */}
+      {/* ── 6. MOBILE BOTTOM NAVIGATION & ELEVATED BRAND FAB DOCK ── */}
       <Box
         sx={{
           display: { xs: "block", md: "none" },
@@ -2799,10 +2774,9 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           left: 0,
           right: 0,
           zIndex: 40,
-          bgcolor: "rgba(8, 11, 17, 0.95)",
-          backdropFilter: "blur(24px)",
-          borderTop: "1px solid rgba(245, 158, 11, 0.25)",
-          boxShadow: "0 -10px 30px rgba(41, 35, 41, 0.08)",
+          bgcolor: "#FFFFFF",
+          borderTop: "1px solid var(--brand-border, #E2E8F0)",
+          boxShadow: "0 -8px 24px rgba(15, 23, 42, 0.08)",
           px: 1,
           pt: 1,
           pb: "calc(10px + env(safe-area-inset-bottom, 0px))",
@@ -2830,18 +2804,18 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               justifyContent: "center",
               cursor: "pointer",
               py: 0.5,
-              opacity: 0.6,
+              opacity: 0.75,
               transition: "all 0.15s ease",
-              "&:hover": { opacity: 1, color: "#FDE68A" },
+              "&:hover": { opacity: 1, color: "var(--brand-primary, #0F3B7D)" },
             }}
           >
             <Box component="span" sx={{ fontSize: 18 }}>🏠</Box>
-            <Typography sx={{ fontSize: "9.5px", fontWeight: 700, color: "#625B60", mt: 0.25 }}>
+            <Typography sx={{ fontSize: "9.5px", fontWeight: 700, color: "#475569", mt: 0.25 }}>
               Dashboard
             </Typography>
           </Box>
 
-          {/* 2. Transfer (ACTIVE WITH GOLD GLOW) */}
+          {/* 2. Transfer (ACTIVE) */}
           <Box
             sx={{
               display: "flex",
@@ -2853,7 +2827,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               position: "relative",
             }}
           >
-            {/* Gold Active Top Indicator */}
+            {/* Brand Active Top Indicator */}
             <Box
               sx={{
                 position: "absolute",
@@ -2861,20 +2835,17 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 width: 28,
                 height: 3,
                 borderRadius: "999px",
-                background: "linear-gradient(90deg, #FDE68A, #F59E0B)",
-                boxShadow: "0 0 10px #F59E0B",
+                background: "var(--brand-gradient)",
               }}
             />
-            <Box component="span" sx={{ fontSize: 18, filter: "drop-shadow(0 0 6px rgba(245, 158, 11, 0.7))" }}>
+            <Box component="span" sx={{ fontSize: 18, color: "var(--brand-primary, #0F3B7D)" }}>
               ⇄
             </Box>
             <Typography
               sx={{
                 fontSize: "10px",
                 fontWeight: 900,
-                background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
+                color: "var(--brand-primary, #0F3B7D)",
                 mt: 0.25,
               }}
             >
@@ -2882,7 +2853,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             </Typography>
           </Box>
 
-          {/* 3. Central Elevated Gold FAB (+) */}
+          {/* 3. Central Elevated Brand FAB (+) */}
           <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
             <Box
               onClick={() => {
@@ -2895,9 +2866,9 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 width: 52,
                 height: 52,
                 borderRadius: "50%",
-                background: "linear-gradient(135deg, #FEF08A 0%, #F59E0B 50%, #D97706 100%)",
+                background: "var(--brand-gradient)",
                 border: "3px solid #FFFFFF",
-                boxShadow: "0 0 24px rgba(245, 158, 11, 0.55), 0 8px 16px rgba(41, 35, 41, 0.06)",
+                boxShadow: "0 8px 20px rgba(15, 23, 42, 0.22)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -2905,11 +2876,9 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 fontWeight: 900,
                 fontSize: "26px",
                 cursor: "pointer",
-                animation: "pulseGlow 3s infinite ease-in-out",
                 transition: "all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)",
                 "&:hover": {
                   transform: "scale(1.1)",
-                  boxShadow: "0 0 32px rgba(245, 158, 11, 0.75)",
                 },
                 "&:active": {
                   transform: "scale(0.94)",
@@ -2929,13 +2898,13 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               justifyContent: "center",
               cursor: "pointer",
               py: 0.5,
-              opacity: 0.6,
+              opacity: 0.75,
               transition: "all 0.15s ease",
-              "&:hover": { opacity: 1, color: "#FDE68A" },
+              "&:hover": { opacity: 1, color: "var(--brand-primary, #0F3B7D)" },
             }}
           >
             <Box component="span" sx={{ fontSize: 18 }}>💳</Box>
-            <Typography sx={{ fontSize: "9.5px", fontWeight: 700, color: "#625B60", mt: 0.25 }}>
+            <Typography sx={{ fontSize: "9.5px", fontWeight: 700, color: "#475569", mt: 0.25 }}>
               Wallet
             </Typography>
           </Box>
@@ -2949,13 +2918,13 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               justifyContent: "center",
               cursor: "pointer",
               py: 0.5,
-              opacity: 0.6,
+              opacity: 0.75,
               transition: "all 0.15s ease",
-              "&:hover": { opacity: 1, color: "#FDE68A" },
+              "&:hover": { opacity: 1, color: "var(--brand-primary, #0F3B7D)" },
             }}
           >
             <Box component="span" sx={{ fontSize: 18 }}>👤</Box>
-            <Typography sx={{ fontSize: "9.5px", fontWeight: 700, color: "#625B60", mt: 0.25 }}>
+            <Typography sx={{ fontSize: "9.5px", fontWeight: 700, color: "#475569", mt: 0.25 }}>
               Profile
             </Typography>
           </Box>

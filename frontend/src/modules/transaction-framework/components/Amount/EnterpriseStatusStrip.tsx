@@ -58,17 +58,17 @@ export const EnterpriseStatusStrip: React.FC<EnterpriseStatusStripProps> = ({
 
   // ── Colour tokens ──────────────────────────────────────────────────────────
   const getBgColor = () => {
-    if (limitLoadFailed || isBeneficiaryBlocked) return "rgba(245, 158, 11, 0.15)";
-    if (isExhausted) return "rgba(239, 68, 68, 0.15)";
-    if (isLowLimit)  return "rgba(245, 158, 11, 0.15)";
-    return "rgba(34, 197, 94, 0.12)";
+    if (limitLoadFailed || isBeneficiaryBlocked) return "#FEF3C7";
+    if (isExhausted) return "#FEE2E2";
+    if (isLowLimit) return "#FEF3C7";
+    return "#F0FDF4";
   };
 
   const getBorderColor = () => {
-    if (limitLoadFailed || isBeneficiaryBlocked) return "rgba(245, 158, 11, 0.4)";
-    if (isExhausted) return "rgba(239, 68, 68, 0.4)";
-    if (isLowLimit)  return "rgba(245, 158, 11, 0.4)";
-    return "rgba(34, 197, 94, 0.35)";
+    if (limitLoadFailed || isBeneficiaryBlocked) return "#FCD34D";
+    if (isExhausted) return "#FECACA";
+    if (isLowLimit) return "#FCD34D";
+    return "#86EFAC";
   };
 
   // ── Render label ───────────────────────────────────────────────────────────
@@ -76,8 +76,8 @@ export const EnterpriseStatusStrip: React.FC<EnterpriseStatusStripProps> = ({
     if (limitLoadFailed) {
       return (
         <>
-          <InfoOutlinedIcon sx={{ color: "#F59E0B", fontSize: 18 }} />
-          <Typography sx={{ fontWeight: 800, color: "#A20A3A", fontSize: "12.5px" }}>
+          <InfoOutlinedIcon sx={{ color: "#D97706", fontSize: 18 }} />
+          <Typography sx={{ fontWeight: 800, color: "#92400E", fontSize: "12.5px" }}>
             ⚠ Unable to load beneficiary limits
           </Typography>
         </>
@@ -86,8 +86,8 @@ export const EnterpriseStatusStrip: React.FC<EnterpriseStatusStripProps> = ({
     if (isBeneficiaryBlocked) {
       return (
         <>
-          <ErrorIcon sx={{ color: "#EF4444", fontSize: 18 }} />
-          <Typography sx={{ fontWeight: 800, color: "#FF6B6B", fontSize: "12.5px" }}>
+          <ErrorIcon sx={{ color: "#DC2626", fontSize: 18 }} />
+          <Typography sx={{ fontWeight: 800, color: "#991B1B", fontSize: "12.5px" }}>
             ❌ Beneficiary is Inactive / Blocked
           </Typography>
         </>
@@ -99,8 +99,8 @@ export const EnterpriseStatusStrip: React.FC<EnterpriseStatusStripProps> = ({
         : `Monthly Limit Exhausted (₹${monthlyRemaining.toLocaleString()} left)`;
       return (
         <>
-          <ErrorIcon sx={{ color: "#EF4444", fontSize: 18 }} />
-          <Typography sx={{ fontWeight: 800, color: "#FF6B6B", fontSize: "12.5px" }}>
+          <ErrorIcon sx={{ color: "#DC2626", fontSize: 18 }} />
+          <Typography sx={{ fontWeight: 800, color: "#991B1B", fontSize: "12.5px" }}>
             ❌ {label}
           </Typography>
         </>
@@ -109,8 +109,8 @@ export const EnterpriseStatusStrip: React.FC<EnterpriseStatusStripProps> = ({
     if (isLowLimit) {
       return (
         <>
-          <WarningAmberIcon sx={{ color: "#F59E0B", fontSize: 18 }} />
-          <Typography sx={{ fontWeight: 800, color: "#A20A3A", fontSize: "12.5px" }}>
+          <WarningAmberIcon sx={{ color: "#D97706", fontSize: 18 }} />
+          <Typography sx={{ fontWeight: 800, color: "#92400E", fontSize: "12.5px" }}>
             ⚠ Low Limit — ₹{monthlyRemaining.toLocaleString()} monthly remaining
           </Typography>
         </>
@@ -118,8 +118,8 @@ export const EnterpriseStatusStrip: React.FC<EnterpriseStatusStripProps> = ({
     }
     return (
       <>
-        <CheckCircleIcon sx={{ color: "#4ADE80", fontSize: 18 }} />
-        <Typography sx={{ fontWeight: 800, color: "#4ADE80", fontSize: "12.5px" }}>
+        <CheckCircleIcon sx={{ color: "#16A34A", fontSize: 18 }} />
+        <Typography sx={{ fontWeight: 800, color: "#166534", fontSize: "12.5px" }}>
           ✔ Beneficiary Monthly Left ₹{monthlyRemaining.toLocaleString()}
         </Typography>
       </>
