@@ -272,6 +272,8 @@ function applyBrandingTokens(data: CompanyBrandingData) {
 
   if (data.primary_colour) {
     root.style.setProperty("--brand-primary", data.primary_colour);
+    root.style.setProperty("--brand-surface", `${data.primary_colour}12`);
+    root.style.setProperty("--brand-border", `${data.primary_colour}40`);
     root.style.setProperty("--accent", data.primary_colour);
     root.style.setProperty("--info", data.primary_colour);
     root.style.setProperty("--ent-primary", data.primary_colour);
@@ -284,6 +286,9 @@ function applyBrandingTokens(data: CompanyBrandingData) {
     root.style.setProperty("--ent-info-text", data.primary_colour);
     root.style.setProperty("--ent-purple-text", data.primary_colour);
     root.style.setProperty("--p2p-primary-color", data.primary_colour);
+    root.style.setProperty("--grid-primary", data.primary_colour);
+    root.style.setProperty("--grid-search-focus-border", data.primary_colour);
+    root.style.setProperty("--grid-search-focus-shadow", `${data.primary_colour}28`);
   }
   if (data.secondary_colour) {
     root.style.setProperty("--brand-secondary", data.secondary_colour);
@@ -291,9 +296,12 @@ function applyBrandingTokens(data: CompanyBrandingData) {
     root.style.setProperty("--accent-gold", data.secondary_colour);
     root.style.setProperty("--accent-orange", data.secondary_colour);
     root.style.setProperty("--ent-primary-hover", data.secondary_colour);
+    root.style.setProperty("--grid-primary-hover", data.secondary_colour);
   }
   if (data.primary_colour && data.secondary_colour) {
-    root.style.setProperty("--gradient-rich", `linear-gradient(135deg, ${data.primary_colour} 0%, ${data.secondary_colour} 100%)`);
+    const richGrad = `linear-gradient(135deg, ${data.primary_colour} 0%, ${data.secondary_colour} 100%)`;
+    root.style.setProperty("--brand-gradient", richGrad);
+    root.style.setProperty("--gradient-rich", richGrad);
     root.style.setProperty("--gradient-rich-h", `linear-gradient(to right, ${data.primary_colour} 0%, ${data.secondary_colour} 100%)`);
   }
 

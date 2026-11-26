@@ -6,82 +6,89 @@
 
 @layer base {
   :root {
-    /* ── Near4You Brand Design Tokens (Burgundy + Gold) ──────── */
-    --color-burgundy: #A20A3A;
-    --color-burgundy-dark: #85072F;
-    --color-burgundy-deep: #6B0525;
-    --color-burgundy-warm: #C42555;
-    --color-burgundy-light: #FFF0F4;
-    --color-burgundy-muted: #C42555;
-    --color-gold: #EDC11E;
-    --color-gold-dark: #D4A915;
+    /* ── Dynamic Company / Domain Brand Tokens (overridden by [data-company] & runtime branding) ── */
+    --brand-primary: #0F3B7D;
+    --brand-secondary: #D4AF37;
+    --brand-gradient: linear-gradient(135deg, #0F3B7D 0%, #164E9E 58%, #B89124 100%);
+    --brand-surface: #EFF6FF;
+    --brand-border: rgba(15, 59, 125, 0.25);
+
+    /* ── Brand Palette Legacy Tokens (dynamically tied to active brand tokens) ── */
+    --color-burgundy: var(--brand-primary);
+    --color-burgundy-dark: var(--brand-secondary);
+    --color-burgundy-deep: var(--brand-primary);
+    --color-burgundy-warm: var(--brand-primary);
+    --color-burgundy-light: var(--brand-surface);
+    --color-burgundy-muted: var(--brand-secondary);
+    --color-gold: var(--brand-secondary);
+    --color-gold-dark: var(--brand-secondary);
     --color-gold-light: #FFF3C4;
     --color-gold-subtle: #FFF8DC;
-    --color-orange: #EDC11E;
-    --color-orange-dark: #D4A915;
-    --color-orange-light: #FFF8DC;
+    --color-orange: var(--brand-secondary);
+    --color-orange-dark: var(--brand-secondary);
+    --color-orange-light: var(--brand-surface);
     --color-orange-soft: #FFF3C4;
-    --gradient-rich: linear-gradient(135deg, #A20A3A 0%, #EDC11E 100%);
-    --gradient-rich-h: linear-gradient(to right, #A20A3A 0%, #EDC11E 100%);
-    --gradient-soft: linear-gradient(135deg, #A20A3A 0%, #FFF3C4 100%);
-    --gradient-deep: linear-gradient(135deg, #6B0525 0%, #EDC11E 100%);
-    --gradient-warm: linear-gradient(135deg, #C42555 0%, #EDC11E 100%);
-    --gradient-subtle: linear-gradient(135deg, #FFF0F4 0%, #FFF8DC 100%);
-    --color-text-primary: #292329;
-    --color-text-secondary: #625B60;
-    --color-border: #E8E2E5;
-    --color-border-dark: #D8D0D4;
-    --color-surface-subtle: #FAF8F9;
+    --gradient-rich: var(--brand-gradient);
+    --gradient-rich-h: linear-gradient(to right, var(--brand-primary) 0%, var(--brand-secondary) 100%);
+    --gradient-soft: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-surface) 100%);
+    --gradient-deep: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
+    --gradient-warm: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
+    --gradient-subtle: linear-gradient(135deg, var(--brand-surface) 0%, #FFFFFF 100%);
+    --color-text-primary: #0F172A;
+    --color-text-secondary: #334155;
+    --color-border: #E2E8F0;
+    --color-border-dark: #CBD5E1;
+    --color-surface-subtle: #F8FAFC;
 
     /* ── Centralized Semantic Design Tokens (Strict White System) ── */
     --background-primary: #FFFFFF;
-    --background-secondary: #FAF8F9;
+    --background-secondary: #F8FAFC;
     --surface: #FFFFFF;
     --surface-elevated: #FFFFFF;
-    --border: #E8E2E5;
-    --border-strong: #D8D0D4;
-    --text-primary: #292329;
-    --text-secondary: #625B60;
-    --text-muted: #8A8288;
-    --accent: #A20A3A;
-    --accent-hover: #85072F;
-    --accent-gold: #EDC11E;
-    --accent-orange: #EDC11E;
+    --border: #E2E8F0;
+    --border-strong: #CBD5E1;
+    --text-primary: #0F172A;
+    --text-secondary: #334155;
+    --text-muted: #64748B;
+    --accent: var(--brand-primary);
+    --accent-hover: var(--brand-secondary);
+    --accent-gold: var(--brand-secondary);
+    --accent-orange: var(--brand-secondary);
     --success: #16A34A;
     --warning: #F59E0B;
     --danger: #DC2626;
-    --info: #A20A3A;
+    --info: var(--brand-primary);
 
-    /* Brand Primary: Near4You Burgundy (Primary) & Orange (Accent) */
-    --ent-primary: #A20A3A;
-    --ent-primary-hover: #85072F;
-    --ent-primary-light: #FFF0F4;
-    --ent-primary-text: #A20A3A;
+    /* Brand Primary */
+    --ent-primary: var(--brand-primary);
+    --ent-primary-hover: var(--brand-secondary);
+    --ent-primary-light: var(--brand-surface);
+    --ent-primary-text: var(--brand-primary);
 
     /* Sidebar - Strict White */
     --ent-sidebar-bg: #FFFFFF;
-    --ent-sidebar-bg2: #FAF8F9;
-    --ent-sidebar-text: #292329;
-    --ent-sidebar-text-muted: #8A8288;
-    --ent-sidebar-active-bg: #FFF0F4;
-    --ent-sidebar-active: #A20A3A;
-    --ent-sidebar-border: #E8E2E5;
-    --ent-sidebar-category: #A20A3A;
-    --ent-sidebar-hover: #FAF8F9;
+    --ent-sidebar-bg2: #F8FAFC;
+    --ent-sidebar-text: #0F172A;
+    --ent-sidebar-text-muted: #64748B;
+    --ent-sidebar-active-bg: var(--brand-surface);
+    --ent-sidebar-active: var(--brand-primary);
+    --ent-sidebar-border: #E2E8F0;
+    --ent-sidebar-category: var(--brand-primary);
+    --ent-sidebar-hover: #F8FAFC;
 
     /* Page & Surface */
     --ent-bg: #FFFFFF;
     --ent-surface: #FFFFFF;
-    --ent-surface-alt: #FAF8F9;
-    --ent-border: #E8E2E5;
-    --ent-divider: #E8E2E5;
+    --ent-surface-alt: #F8FAFC;
+    --ent-border: #E2E8F0;
+    --ent-divider: #E2E8F0;
     --radius: 0.5rem;
 
     /* Typography */
-    --ent-text-primary: #292329;
-    --ent-text-secondary: #625B60;
-    --ent-text-muted: #8A8288;
-    --ent-text-disabled: #B8B0B6;
+    --ent-text-primary: #0F172A;
+    --ent-text-secondary: #334155;
+    --ent-text-muted: #64748B;
+    --ent-text-disabled: #94A3B8;
 
     /* Semantic Status */
     --ent-success: #16A34A;
@@ -99,95 +106,120 @@
     --ent-error-border: #FECACA;
     --ent-error-text: #991B1B;
 
-    --ent-info: #A20A3A;
-    --ent-info-bg: #FFF0F4;
-    --ent-info-border: #E8E2E5;
-    --ent-info-text: #A20A3A;
+    --ent-info: var(--brand-primary);
+    --ent-info-bg: var(--brand-surface);
+    --ent-info-border: #E2E8F0;
+    --ent-info-text: var(--brand-primary);
 
-    --ent-purple-bg: #FFF0F4;
-    --ent-purple-border: #E8E2E5;
-    --ent-purple-text: #A20A3A;
+    --ent-purple-bg: var(--brand-surface);
+    --ent-purple-border: #E2E8F0;
+    --ent-purple-text: var(--brand-primary);
 
     /* Grid / Table Tokens - Strict White System */
     --grid-page-bg: #FFFFFF;
     --grid-bg: #FFFFFF;
-    --grid-header-bg: #FAF8F9;
-    --grid-header-border: #E8E2E5;
-    --grid-header-text: #292329;
+    --grid-header-bg: #F8FAFC;
+    --grid-header-border: #E2E8F0;
+    --grid-header-text: #0F172A;
     --grid-row-odd: #FFFFFF;
-    --grid-row-even: #FAF8F9;
-    --grid-row-hover: #FFF0F4;
-    --grid-row-selected: #FFF0F4;
-    --grid-row-focused: #FFF0F4;
+    --grid-row-even: #F8FAFC;
+    --grid-row-hover: var(--brand-surface);
+    --grid-row-selected: var(--brand-surface);
+    --grid-row-focused: var(--brand-surface);
     --grid-row-editing: #FFF8DC;
-    --grid-outer-border: #E8E2E5;
-    --grid-col-border: #E8E2E5;
-    --grid-row-border: #E8E2E5;
-    --grid-text-primary: #292329;
-    --grid-text-secondary: #625B60;
-    --grid-text-muted: #8A8288;
-    --grid-text-disabled: #B8B0B6;
-    --grid-search-border: #E8E2E5;
-    --grid-search-focus-border: #A20A3A;
+    --grid-outer-border: #E2E8F0;
+    --grid-col-border: #E2E8F0;
+    --grid-row-border: #E2E8F0;
+    --grid-text-primary: #0F172A;
+    --grid-text-secondary: #334155;
+    --grid-text-muted: #64748B;
+    --grid-text-disabled: #94A3B8;
+    --grid-search-border: #E2E8F0;
+    --grid-search-focus-border: var(--brand-primary);
+    --grid-search-focus-shadow: rgba(15, 59, 125, 0.16);
+    --grid-primary: var(--brand-primary);
+    --grid-primary-hover: var(--brand-secondary);
+  }
+
+  /* ── SMSPay Domain Theme (Navy & Gold) ── */
+  :root[data-company="SMSPAY"] {
+    --brand-primary: #0F3B7D;
+    --brand-secondary: #D4AF37;
+    --brand-gradient: linear-gradient(135deg, #0F3B7D 0%, #164E9E 58%, #B89124 100%);
+    --brand-surface: #EFF6FF;
+    --brand-border: rgba(15, 59, 125, 0.28);
+    --grid-search-focus-shadow: rgba(15, 59, 125, 0.16);
+  }
+
+  /* ── Near4You Domain Theme (Burgundy & Gold) ── */
+  :root[data-company="NEAR4YOU"] {
+    --brand-primary: #A20A3A;
+    --brand-secondary: #EDC11E;
+    --brand-gradient: linear-gradient(135deg, #A20A3A 0%, #85072F 58%, #D4A915 100%);
+    --brand-surface: #FFF0F4;
+    --brand-border: rgba(162, 10, 58, 0.25);
+    --color-text-primary: #292329;
+    --color-text-secondary: #625B60;
+    --color-border: #E8E2E5;
+    --color-border-dark: #D8D0D4;
+    --color-surface-subtle: #FAF8F9;
+    --text-primary: #292329;
+    --text-secondary: #625B60;
+    --text-muted: #8A8288;
+    --border: #E8E2E5;
+    --border-strong: #D8D0D4;
+    --ent-text-primary: #292329;
+    --ent-text-secondary: #625B60;
+    --ent-border: #E8E2E5;
     --grid-search-focus-shadow: rgba(162, 10, 58, 0.15);
-    --grid-primary: #A20A3A;
-    --grid-primary-hover: #85072F;
+  }
+
+  /* ── Pay2Pay Domain Theme (Royal Blue) ── */
+  :root[data-company="PAY2PAY"] {
+    --brand-primary: #2563EB;
+    --brand-secondary: #1E40AF;
+    --brand-gradient: linear-gradient(135deg, #2563EB 0%, #1D4ED8 58%, #1E3A8A 100%);
+    --brand-surface: #EFF6FF;
+    --brand-border: rgba(37, 99, 235, 0.25);
+    --grid-search-focus-shadow: rgba(37, 99, 235, 0.16);
   }
 
   :root[data-theme="light"] {
     --background-primary: #FFFFFF;
-    --background-secondary: #FAF8F9;
     --surface: #FFFFFF;
     --surface-elevated: #FFFFFF;
-    --border: #E8E2E5;
-    --border-strong: #D8D0D4;
-    --text-primary: #292329;
-    --text-secondary: #625B60;
-    --text-muted: #8A8288;
-    --accent: #A20A3A;
-    --accent-hover: #85072F;
+    --accent: var(--brand-primary);
+    --accent-hover: var(--brand-secondary);
     --success: #16A34A;
     --warning: #D97706;
     --danger: #DC2626;
-    --info: #A20A3A;
+    --info: var(--brand-primary);
     --ent-bg: #FFFFFF;
     --ent-surface: #FFFFFF;
-    --ent-border: #E8E2E5;
-    --ent-text-primary: #292329;
-    --ent-text-secondary: #625B60;
   }
 
   :root[data-theme="dark"] {
     --background-primary: #FFFFFF;
-    --background-secondary: #FAF8F9;
     --surface: #FFFFFF;
     --surface-elevated: #FFFFFF;
-    --border: #E8E2E5;
-    --border-strong: #D8D0D4;
-    --text-primary: #292329;
-    --text-secondary: #625B60;
-    --text-muted: #8A8288;
-    --accent: #A20A3A;
-    --accent-hover: #85072F;
+    --accent: var(--brand-primary);
+    --accent-hover: var(--brand-secondary);
     --success: #16A34A;
     --warning: #F59E0B;
     --danger: #DC2626;
-    --info: #A20A3A;
+    --info: var(--brand-primary);
     --ent-bg: #FFFFFF;
     --ent-surface: #FFFFFF;
-    --ent-border: #E8E2E5;
-    --ent-text-primary: #292329;
-    --ent-text-secondary: #625B60;
   }
 }
 
-/* Near4You Custom Brand Utility Classes */
+/* Dynamic Company Brand Utility Classes */
 .bg-gradient-brand {
-  background: linear-gradient(135deg, #A20A3A 0%, #85072F 100%);
+  background: var(--brand-gradient, linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%));
 }
 
 .text-gradient-brand {
-  background: linear-gradient(135deg, #A20A3A 0%, #D4A915 100%);
+  background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -199,9 +231,9 @@
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 600;
-  background-color: #FFF0F4;
-  color: #A20A3A;
-  border: 1px solid rgba(162, 10, 58, 0.2);
+  background-color: var(--brand-surface);
+  color: var(--brand-primary);
+  border: 1px solid var(--brand-border);
 }
 
 .brand-badge-orange {
@@ -211,9 +243,9 @@
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 600;
-  background-color: #FFF8DC;
-  color: #D4A915;
-  border: 1px solid rgba(212, 169, 21, 0.2);
+  background-color: var(--brand-surface);
+  color: var(--brand-secondary);
+  border: 1px solid var(--brand-border);
 }
 
 .glass-card {

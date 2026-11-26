@@ -116,8 +116,25 @@ export default async function RootLayout({
   const htmlStyle: React.CSSProperties = {
     overflowX: "hidden",
     maxWidth: "100vw",
-    ...(ssrBranding?.primary_colour ? ({ "--brand-primary": ssrBranding.primary_colour, "--accent": ssrBranding.primary_colour } as React.CSSProperties) : {}),
-    ...(ssrBranding?.secondary_colour ? ({ "--brand-secondary": ssrBranding.secondary_colour, "--accent-gold": ssrBranding.secondary_colour } as React.CSSProperties) : {}),
+    ...(ssrBranding?.primary_colour
+      ? ({
+          "--brand-primary": ssrBranding.primary_colour,
+          "--brand-surface": `${ssrBranding.primary_colour}12`,
+          "--brand-border": `${ssrBranding.primary_colour}40`,
+          "--accent": ssrBranding.primary_colour,
+        } as React.CSSProperties)
+      : {}),
+    ...(ssrBranding?.secondary_colour
+      ? ({
+          "--brand-secondary": ssrBranding.secondary_colour,
+          "--accent-gold": ssrBranding.secondary_colour,
+        } as React.CSSProperties)
+      : {}),
+    ...(ssrBranding?.primary_colour && ssrBranding?.secondary_colour
+      ? ({
+          "--brand-gradient": `linear-gradient(135deg, ${ssrBranding.primary_colour} 0%, ${ssrBranding.secondary_colour} 100%)`,
+        } as React.CSSProperties)
+      : {}),
   };
 
   return (

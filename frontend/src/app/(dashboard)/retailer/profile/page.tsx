@@ -303,13 +303,23 @@ export default function RetailerProfilePage() {
 
   const brandDisplayName = branding?.display_name || branding?.company_name || "";
   const brandCompanyName = branding?.company_name || branding?.legal_name || "";
-  const brandPrimary = branding?.primary_colour || "#0F3B7D";
-  const brandSecondary = branding?.secondary_colour || "#1E40AF";
+  const brandPrimary =
+    branding?.primary_colour ||
+    (isNear4You ? "#A20A3A" : isPay2Pay ? "#2563EB" : "#0F3B7D");
+  const brandSecondary =
+    branding?.secondary_colour ||
+    (isNear4You ? "#EDC11E" : isPay2Pay ? "#1E40AF" : "#D4AF37");
   const brandLight = `${brandPrimary}12`;
   const brandHover = brandSecondary;
   const brandBorder = `${brandPrimary}40`;
   const brandLogo = branding?.logo_url || "";
-  const brandMark = branding?.favicon_url || "/branding/favicon.png";
+  const brandMark =
+    branding?.favicon_url ||
+    (isSmsPay
+      ? "/branding/smspay-favicon-32x32.png"
+      : isNear4You
+      ? "/branding/near4you-favicon.png"
+      : "/branding/pay2pay-favicon.png");
   const defaultWebsiteUrl = branding?.website || "";
   const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -778,10 +788,22 @@ export default function RetailerProfilePage() {
     );
   }
 
-  const resolvedCompanyLogo = profile.company?.logo_url || brandLogo || brandMark;
+  const normalizeAssetUrl = (u?: string | null) => {
+    if (!u || typeof u !== "string") return "";
+    const trimmed = u.trim();
+    if (!trimmed) return "";
+    if (trimmed.startsWith("uploads/")) return `/${trimmed}`;
+    return trimmed;
+  };
+  const resolvedCompanyLogo = normalizeAssetUrl(profile.company?.logo_url) || normalizeAssetUrl(brandLogo) || brandMark;
   const resolvedCompanyBrand = profile.company?.brand_name || brandDisplayName;
   const resolvedCompanyLegal = profile.company?.company_legal_name || profile.company?.company_name || brandCompanyName;
   const resolvedCompanyWebsite = profile.company?.official_website_url || profile.company?.website_url || defaultWebsiteUrl;
+  const siteHostClean = resolvedCompanyWebsite ? resolvedCompanyWebsite.replace(/^https?:\/\//, "").replace(/\/.*$/, "") : "";
+  const defaultSupportEmail = profile.company?.support_email || (siteHostClean ? `support@${siteHostClean}` : "");
+  const defaultGrievanceEmail = profile.company?.grievance_escalation_email || profile.company?.grievance_email || (siteHostClean ? `grievance@${siteHostClean}` : "");
+  const defaultHeadquarters = profile.company?.registered_office_address || profile.company?.headquarters || (resolvedCompanyLegal ? `${resolvedCompanyLegal}, India` : "");
+  const resolvedProfilePhoto = normalizeAssetUrl(profile.photo?.photo_url);
 
   return (
     <Box sx={{ maxWidth: 1400, mx: "auto", pb: 8 }}>
@@ -792,8 +814,8 @@ export default function RetailerProfilePage() {
         transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
         className="relative mb-6 overflow-hidden rounded-3xl border shadow-xl transition-all duration-300"
         style={{
-          background: `linear-gradient(115deg, ${brandPrimary} 0%, ${brandPrimary} 60%, ${brandSecondary} 100%)`,
-          borderColor: brandBorder,
+          background: `var(--brand-gradient, linear-gradient(115deg, var(--brand-primary, ${brandPrimary}) 0%, var(--brand-primary, ${brandPrimary}) 60%, var(--brand-secondary, ${brandSecondary}) 100%))`,
+          borderColor: `var(--brand-border, ${brandBorder})`,
           boxShadow: `0 18px 36px -14px ${brandPrimary}55`,
         }}
       >
@@ -826,9 +848,9 @@ export default function RetailerProfilePage() {
                   className="w-full h-full rounded-[14px] overflow-hidden flex items-center justify-center relative"
                   style={{ backgroundColor: "rgba(15, 23, 42, 0.65)" }}
                 >
-                  {profile.photo?.photo_url && !avatarError ? (
+                  {resolvedProfilePhoto && !avatarError ? (
                     <img
-                      src={profile.photo.photo_url}
+                      src={resolvedProfilePhoto}
                       alt={profile.personal.owner_name || profile.personal.retailer_name || "Profile"}
                       className="w-full h-full object-cover"
                       onError={() => setAvatarError(true)}
@@ -1229,68 +1251,85 @@ export default function RetailerProfilePage() {
               elevation={0}
               sx={{
                 ...cardStyle,
-                background: "linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.92) 100%)",
-                border: `1px solid ${brandBorder}`,
-                boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)",
+                position: "relative",
+                overflow: "hidden",
+                background: `var(--brand-gradient, linear-gradient(125deg, var(--brand-primary, ${brandPrimary}) 0%, var(--brand-primary, ${brandPrimary}) 62%, var(--brand-secondary, ${brandSecondary}) 100%))`,
+                border: `1.5px solid var(--brand-border, ${brandBorder})`,
+                boxShadow: `0 16px 36px -14px ${brandPrimary}55`,
               }}
             >
+              <Box
+                sx={{
+                  position: "absolute",
+                  inset: 0,
+                  pointerEvents: "none",
+                  background: "linear-gradient(135deg, rgba(15, 23, 42, 0.34) 0%, rgba(15, 23, 42, 0.22) 60%, rgba(15, 23, 42, 0.38) 100%)",
+                }}
+              />
+              <Box sx={{ position: "relative", zIndex: 1 }}>
               <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", sm: "center" }} sx={{ mb: 3 }} spacing={2}>
                 <Box>
                   <Stack direction="row" alignItems="center" spacing={2}>
-                    <Box sx={{ width: 48, height: 48, p: 0.75, bgcolor: "#FFFFFF", borderRadius: 2.5, border: "1px solid rgba(255, 255, 255, 0.25)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(0,0,0,0.2)", flexShrink: 0 }}>
+                    <Box sx={{ width: 52, height: 52, p: 0.75, bgcolor: "#FFFFFF", borderRadius: 2.5, border: "1.5px solid rgba(255, 255, 255, 0.45)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px rgba(0,0,0,0.22)", flexShrink: 0 }}>
                       <img
-                        src={brandLogo}
-                        alt={brandDisplayName}
+                        src={resolvedCompanyLogo}
+                        alt={resolvedCompanyBrand}
                         style={{ width: "100%", height: "100%", objectFit: "contain" }}
-                        onError={(e) => { (e.currentTarget as HTMLImageElement).src = brandMark; }}
+                        onError={(e) => {
+                          const img = e.currentTarget as HTMLImageElement;
+                          if (!img.dataset.fallbackApplied) {
+                            img.dataset.fallbackApplied = "1";
+                            img.src = brandMark;
+                          }
+                        }}
                       />
                     </Box>
                     <Box>
                       <Typography variant="h6" sx={{ fontWeight: 800, color: "#FFFFFF", letterSpacing: "-0.01em" }}>
-                        {profile.company?.company_name || brandCompanyName}
+                        {resolvedCompanyLegal}
                       </Typography>
-                      <Typography variant="caption" sx={{ color: "#94A3B8", display: "block" }}>
-                        {brandDisplayName} Corporate Headquarters & Official Merchant Support Helpdesk
+                      <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.85)", display: "block", fontWeight: 500 }}>
+                        {resolvedCompanyBrand} Corporate Headquarters & Official Merchant Support Helpdesk
                       </Typography>
                     </Box>
                   </Stack>
                 </Box>
 
                 <Chip
-                  icon={<ShieldCheck size={14} color="#22C55E" />}
-                  label="NPCI / RBI Authorized FinTech"
+                  icon={<ShieldCheck size={14} color="#4ADE80" />}
+                  label={profile.company?.regulatory_status_badge || "NPCI / RBI Authorized FinTech"}
                   size="small"
-                  sx={{ bgcolor: "rgba(34, 197, 94, 0.15)", color: "#4ADE80", fontWeight: 700, border: "1px solid rgba(34, 197, 94, 0.3)" }}
+                  sx={{ bgcolor: "rgba(15, 23, 42, 0.45)", color: "#86EFAC", fontWeight: 700, border: "1px solid rgba(74, 222, 128, 0.4)" }}
                 />
               </Stack>
 
               <Grid container spacing={2.5}>
                 {/* Toll Free Helpline */}
                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Box sx={{ p: 2.2, bgcolor: "rgba(255, 255, 255, 0.05)", borderRadius: 2.5, border: "1px solid rgba(255, 255, 255, 0.1)" }}>
+                  <Box sx={{ p: 2.2, bgcolor: "rgba(15, 23, 42, 0.34)", backdropFilter: "blur(8px)", borderRadius: 2.5, border: "1px solid rgba(255, 255, 255, 0.2)" }}>
                     <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-                      <Headphones size={18} color="#38BDF8" />
-                      <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+                      <Headphones size={18} color="#FFFFFF" />
+                      <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.78)", fontWeight: 700, textTransform: "uppercase" }}>
                         Support Helpline
                       </Typography>
                     </Stack>
                     <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: 800 }}>
-                      {profile.company?.support_phone || "1800 292 982"}
+                      {profile.company?.support_helpline || profile.company?.support_phone || "1800 292 982"}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", mb: 1.5 }}>
+                    <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.72)", display: "block", mb: 1.5 }}>
                       Toll-Free & Direct Line
                     </Typography>
                     <Stack direction="row" spacing={1}>
                       <Button
-                        href={`tel:${profile.company?.support_phone || "1800292982"}`}
+                        href={`tel:${(profile.company?.support_helpline || profile.company?.support_phone || "1800292982").replace(/\s+/g, "")}`}
                         variant="contained"
                         size="small"
                         startIcon={<PhoneCall size={13} />}
-                        sx={{ bgcolor: "#0284C7", fontWeight: 700, fontSize: "0.75rem", "&:hover": { bgcolor: "#0369A1" } }}
+                        sx={{ bgcolor: "#FFFFFF", color: `var(--brand-primary, ${brandPrimary})`, fontWeight: 800, fontSize: "0.75rem", "&:hover": { bgcolor: "rgba(255, 255, 255, 0.9)" } }}
                       >
                         Call
                       </Button>
-                      <IconButton size="small" onClick={() => handleCopy(profile.company?.support_phone || "1800 292 982", "Support Phone")} sx={{ color: "#94A3B8" }}>
+                      <IconButton size="small" onClick={() => handleCopy(profile.company?.support_helpline || profile.company?.support_phone || "1800 292 982", "Support Phone")} sx={{ color: "rgba(255, 255, 255, 0.85)" }}>
                         <Copy size={15} />
                       </IconButton>
                     </Stack>
@@ -1299,17 +1338,17 @@ export default function RetailerProfilePage() {
 
                 {/* Official Support Email */}
                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Box sx={{ p: 2.2, bgcolor: "rgba(255, 255, 255, 0.05)", borderRadius: 2.5, border: "1px solid rgba(255, 255, 255, 0.1)" }}>
+                  <Box sx={{ p: 2.2, bgcolor: "rgba(15, 23, 42, 0.34)", backdropFilter: "blur(8px)", borderRadius: 2.5, border: "1px solid rgba(255, 255, 255, 0.2)" }}>
                     <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-                      <Mail size={18} color="#60A5FA" />
-                      <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+                      <Mail size={18} color="#FFFFFF" />
+                      <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.78)", fontWeight: 700, textTransform: "uppercase" }}>
                         Support Desk Email
                       </Typography>
                     </Stack>
-                    <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: 800 }}>
+                    <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: 800, wordBreak: "break-word" }}>
                       {profile.company?.support_email || defaultSupportEmail}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", mb: 1.5 }}>
+                    <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.72)", display: "block", mb: 1.5 }}>
                       24/7 Ticketing Response
                     </Typography>
                     <Stack direction="row" spacing={1}>
@@ -1318,11 +1357,11 @@ export default function RetailerProfilePage() {
                         variant="contained"
                         size="small"
                         startIcon={<Mail size={13} />}
-                        sx={{ bgcolor: brandPrimary, fontWeight: 700, fontSize: "0.75rem", "&:hover": { bgcolor: brandHover } }}
+                        sx={{ bgcolor: `var(--brand-primary, ${brandPrimary})`, color: "#FFFFFF", border: "1px solid rgba(255,255,255,0.35)", fontWeight: 700, fontSize: "0.75rem", "&:hover": { bgcolor: `var(--brand-secondary, ${brandHover})` } }}
                       >
                         Email
                       </Button>
-                      <IconButton size="small" onClick={() => handleCopy(profile.company?.support_email || defaultSupportEmail, "Support Email")} sx={{ color: "#94A3B8" }}>
+                      <IconButton size="small" onClick={() => handleCopy(profile.company?.support_email || defaultSupportEmail, "Support Email")} sx={{ color: "rgba(255, 255, 255, 0.85)" }}>
                         <Copy size={15} />
                       </IconButton>
                     </Stack>
@@ -1331,22 +1370,22 @@ export default function RetailerProfilePage() {
 
                 {/* WhatsApp Support Desk */}
                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Box sx={{ p: 2.2, bgcolor: "rgba(255, 255, 255, 0.05)", borderRadius: 2.5, border: "1px solid rgba(255, 255, 255, 0.1)" }}>
+                  <Box sx={{ p: 2.2, bgcolor: "rgba(15, 23, 42, 0.34)", backdropFilter: "blur(8px)", borderRadius: 2.5, border: "1px solid rgba(255, 255, 255, 0.2)" }}>
                     <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
                       <MessageSquare size={18} color="#4ADE80" />
-                      <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+                      <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.78)", fontWeight: 700, textTransform: "uppercase" }}>
                         WhatsApp Helpdesk
                       </Typography>
                     </Stack>
                     <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: 800 }}>
                       {profile.company?.whatsapp_number || "+91 70139 14767"}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", mb: 1.5 }}>
+                    <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.72)", display: "block", mb: 1.5 }}>
                       Instant Merchant Chat
                     </Typography>
                     <Stack direction="row" spacing={1}>
                       <Button
-                        href={`https://wa.me/917013914767?text=${encodeURIComponent(`Hello ${brandDisplayName} Support, I need assistance with my Retailer Account.`)}`}
+                        href={`https://wa.me/${(profile.company?.whatsapp_number || "917013914767").replace(/\D/g, "")}?text=${encodeURIComponent(`Hello ${resolvedCompanyBrand} Support, I need assistance with my Retailer Account.`)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         variant="contained"
@@ -1356,7 +1395,7 @@ export default function RetailerProfilePage() {
                       >
                         WhatsApp
                       </Button>
-                      <IconButton size="small" onClick={() => handleCopy(profile.company?.whatsapp_number || "+91 70139 14767", "WhatsApp Number")} sx={{ color: "#94A3B8" }}>
+                      <IconButton size="small" onClick={() => handleCopy(profile.company?.whatsapp_number || "+91 70139 14767", "WhatsApp Number")} sx={{ color: "rgba(255, 255, 255, 0.85)" }}>
                         <Copy size={15} />
                       </IconButton>
                     </Stack>
@@ -1365,56 +1404,62 @@ export default function RetailerProfilePage() {
 
                 {/* Operating Hours */}
                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Box sx={{ p: 2.2, bgcolor: "rgba(255, 255, 255, 0.05)", borderRadius: 2.5, border: "1px solid rgba(255, 255, 255, 0.1)" }}>
+                  <Box sx={{ p: 2.2, bgcolor: "rgba(15, 23, 42, 0.34)", backdropFilter: "blur(8px)", borderRadius: 2.5, border: "1px solid rgba(255, 255, 255, 0.2)" }}>
                     <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-                      <Clock size={18} color="#FBBF24" />
-                      <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+                      <Clock size={18} color="#FDE047" />
+                      <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.78)", fontWeight: 700, textTransform: "uppercase" }}>
                         Operating Hours
                       </Typography>
                     </Stack>
                     <Typography variant="body2" sx={{ color: "#FFFFFF", fontWeight: 700, mt: 0.5 }}>
-                      {profile.company?.support_hours || "Mon - Sat | 09:00 AM - 07:00 PM"}
+                      {profile.company?.operating_hours || profile.company?.support_hours || "Mon - Sat | 09:00 AM - 07:00 PM"}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", mt: 0.5 }}>
+                    <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.72)", display: "block", mt: 0.5 }}>
                       Sunday: Automated Ticketing
                     </Typography>
                   </Box>
                 </Grid>
               </Grid>
 
-              <Divider sx={{ my: 2.5, borderColor: "rgba(255, 255, 255, 0.12)" }} />
+              <Divider sx={{ my: 2.5, borderColor: "rgba(255, 255, 255, 0.22)" }} />
 
               {/* Corporate Metadata & Office Address */}
               <Grid container spacing={2}>
                 <Grid size={{ xs: 12, md: 7 }}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase", display: "block", mb: 0.5 }}>
+                  <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.78)", fontWeight: 700, textTransform: "uppercase", display: "block", mb: 0.5 }}>
                     Registered Corporate Headquarters
                   </Typography>
-                  <Typography variant="body2" sx={{ color: "#F8FAFC", fontWeight: 500 }}>
-                    {profile.company?.headquarters || defaultHeadquarters}
+                  <Typography variant="body2" sx={{ color: "#FFFFFF", fontWeight: 500 }}>
+                    {profile.company?.registered_office_address || profile.company?.headquarters || defaultHeadquarters}
                   </Typography>
                 </Grid>
                 <Grid size={{ xs: 12, md: 5 }}>
                   <Stack direction="row" spacing={3} justifyContent={{ xs: "flex-start", md: "flex-end" }} alignItems="center">
                     <Box>
-                      <Typography variant="caption" sx={{ color: "#94A3B8", display: "block" }}>
+                      <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.78)", display: "block" }}>
                         Corporate Entity Status
                       </Typography>
-                      <Typography variant="caption" sx={{ color: "#F8FAFC", fontWeight: 700, fontFamily: "monospace" }}>
-                        {profile.company?.cin && profile.company?.cin !== "—" && profile.company?.cin !== "â€”" ? profile.company.cin : (isSmsPay ? "Regulated Merchant Entity" : isPay2Pay ? "Corporate FinTech Entity" : "U72900TN2024PTC168920")}
+                      <Typography variant="caption" sx={{ color: "#FFFFFF", fontWeight: 700, fontFamily: "monospace" }}>
+                        {profile.company?.cin_number || profile.company?.cin || profile.company?.operating_status || "ACTIVE & REGULATED"}
                       </Typography>
                     </Box>
                     <Box>
-                      <Typography variant="caption" sx={{ color: "#94A3B8", display: "block" }}>
+                      <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.78)", display: "block" }}>
                         Grievance Email
                       </Typography>
-                      <Typography variant="caption" sx={{ color: "#38BDF8", fontWeight: 700 }}>
-                        {profile.company?.grievance_email || defaultGrievanceEmail}
+                      <Typography
+                        component="a"
+                        href={`mailto:${profile.company?.grievance_escalation_email || profile.company?.grievance_email || defaultGrievanceEmail}`}
+                        variant="caption"
+                        sx={{ color: "#FFFFFF", fontWeight: 700, textDecoration: "underline" }}
+                      >
+                        {profile.company?.grievance_escalation_email || profile.company?.grievance_email || defaultGrievanceEmail}
                       </Typography>
                     </Box>
                   </Stack>
                 </Grid>
               </Grid>
+              </Box>
             </Paper>
           </Grid>
         </Grid>
@@ -2464,7 +2509,7 @@ export default function RetailerProfilePage() {
               </Typography>
               <Stack spacing={3} alignItems="center">
                 <Avatar
-                  src={!avatarError && profile.photo.photo_url ? profile.photo.photo_url : undefined}
+                  src={!avatarError && resolvedProfilePhoto ? resolvedProfilePhoto : undefined}
                   slotProps={{
                     img: {
                       onError: () => setAvatarError(true),
@@ -3530,7 +3575,7 @@ function DataRow({
               fontWeight: 600,
               wordBreak: "break-all",
               textDecoration: "none",
-              "&:hover": { textDecoration: "underline", color: "#2563EB" },
+              "&:hover": { textDecoration: "underline", color: "var(--brand-primary, #0F3B7D)" },
             }}
           >
             {displayVal}
@@ -3638,13 +3683,13 @@ const inputStyle = {
       borderColor: "#94A3B8",
     },
     "&.Mui-focused fieldset": {
-      borderColor: "#0F172A",
+      borderColor: "var(--brand-primary, #0F3B7D)",
     },
   },
   "& .MuiInputLabel-root": {
     color: "#64748B",
     "&.Mui-focused": {
-      color: "#0F172A",
+      color: "var(--brand-primary, #0F3B7D)",
     },
   },
   "& .MuiFormHelperText-root": {
