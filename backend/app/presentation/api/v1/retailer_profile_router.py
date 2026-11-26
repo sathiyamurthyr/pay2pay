@@ -936,12 +936,12 @@ async def get_retailer_profile(
         "last_pin_changed_at": draft_data.get("last_pin_changed_at")
     }
 
-    # 11. Build Dynamic PHOTO Reference
+    # 11. Build Dynamic PHOTO Reference (prefer user's explicit uploaded photo over KYC Aadhaar/shop snapshot)
     photo_raw_url = None
-    if aadhaar_record and aadhaar_record.photo_url:
-        photo_raw_url = aadhaar_record.photo_url
-    elif draft_data.get("photo_url") or draft_data.get("avatar_url"):
+    if draft_data.get("photo_url") or draft_data.get("avatar_url"):
         photo_raw_url = draft_data.get("photo_url") or draft_data.get("avatar_url")
+    elif aadhaar_record and aadhaar_record.photo_url:
+        photo_raw_url = aadhaar_record.photo_url
     elif addr_record and addr_record.shop_photo_url:
         photo_raw_url = addr_record.shop_photo_url
 
@@ -1603,56 +1603,91 @@ async def upload_photo(
     session_company_ref_id = ctx.session_company_ref_id
     ret_model = ctx.ret_model
 
-    # Upload to Backblaze B2
-    file_url = ""
-    b2_path = ""
-    try:
-        res = await BackblazeStorageService.upload_document(
-            file_bytes=file_bytes,
-            original_filename=file.filename,
-            entity_type="RET",
-            content_type=content_type
-        )
-        file_url = res.get("url") or res.get("download_url") or res.get("file_url") or ""
-        b2_path = res.get("path") or res.get("file_path") or res.get("file_id") or ""
-    except Exception as b2_err:
-        logger.warning(f"Backblaze B2 upload fallback to local storage: {b2_err}")
-        import os
-        from pathlib import Path
-        uploads_dir = Path("uploads/profiles")
-        uploads_dir.mkdir(parents=True, exist_ok=True)
-        ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
-        unique_name = f"ret_{int(datetime.now().timestamp())}.{ext}"
-        local_path = uploads_dir / unique_name
-        with open(local_path, "wb") as f:
-            f.write(file_bytes)
-        file_url = f"/uploads/profiles/{unique_name}"
-        b2_path = f"local/profiles/{unique_name}"
+    # Save directly to persistent local uploads volume (/uploads/profiles/ proxied by Nginx)
+    # so slow/unreachable external object storage never blocks the worker into a 502 timeout.
+    from pathlib import Path
+    uploads_dir = Path("uploads/profiles")
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    raw_ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+    ext_map = {"image/jpeg": "jpg", "image/jpg": "jpg", "image/png": "png", "image/webp": "webp"}
+    ext = raw_ext if raw_ext in {"jpg", "jpeg", "png", "webp"} else ext_map.get(content_type.lower(), "jpg")
+    unique_name = f"ret_{uuid.uuid4().hex[:12]}.{ext}"
+    local_path = uploads_dir / unique_name
+    local_path.write_bytes(file_bytes)
+    file_url = f"/uploads/profiles/{unique_name}"
+    storage_path = f"local/profiles/{unique_name}"
 
-    # Persist reference in PostgreSQL
-    draft = None
+    # Persist reference in PostgreSQL (matching get_retailer_profile draft resolution order)
+    verif = None
     if target_ident or clean_mobile:
+        v_conds = []
+        if target_ident:
+            v_conds.append(RetailerVerificationModel.retailer_id == str(target_ident))
+            v_conds.append(RetailerVerificationModel.registration_id == str(target_ident))
+        if clean_mobile and len(clean_mobile) == 10:
+            v_conds.append(RetailerVerificationModel.mobile_number.like(f"%{clean_mobile}"))
+        if v_conds:
+            v_stmt = select(RetailerVerificationModel).where(or_(*v_conds)).order_by(desc(RetailerVerificationModel.created_date))
+            verif = (await db.execute(v_stmt)).scalars().first()
+
+    draft = None
+    if verif and verif.registration_id:
+        draft = (await db.execute(
+            select(RegistrationDraftModel).where(RegistrationDraftModel.registration_id == verif.registration_id)
+        )).scalars().first()
+
+    if not draft and (target_ident or clean_mobile):
         conds = []
         if target_ident:
             conds.append(RegistrationDraftModel.registration_id == str(target_ident))
-        if clean_mobile:
+        if clean_mobile and len(clean_mobile) == 10:
             conds.append(RegistrationDraftModel.mobile_number.like(f"%{clean_mobile}"))
-        draft_stmt = select(RegistrationDraftModel).where(or_(*conds)).order_by(desc(RegistrationDraftModel.last_activity_at))
-        draft = (await db.execute(draft_stmt)).scalars().first()
+        if conds:
+            draft_stmt = select(RegistrationDraftModel).where(or_(*conds)).order_by(desc(RegistrationDraftModel.last_activity_at))
+            draft = (await db.execute(draft_stmt)).scalars().first()
 
+    now_utc = datetime.now(timezone.utc)
     if draft:
-        from sqlalchemy.orm.attributes import flag_modified
         cdata = dict(draft.draft_data or {})
         cdata["photo_url"] = file_url
-        cdata["photo_b2_path"] = b2_path
+        cdata["photo_b2_path"] = storage_path
         cdata["avatar_url"] = file_url
         draft.draft_data = cdata
-        draft.last_activity_at = datetime.now(timezone.utc)
+        draft.last_activity_at = now_utc
         flag_modified(draft, "draft_data")
         await db.commit()
+    else:
+        reg_key = str(
+            (verif.registration_id if verif and verif.registration_id else None)
+            or target_ident
+            or (ret_model.retailer_code if ret_model else f"REG-{uuid.uuid4().hex[:10].upper()}")
+        )[:100]
+        mob_key = str(clean_mobile if (clean_mobile and len(clean_mobile) >= 10) else f"u{uuid.uuid4().hex[:12]}")[:20]
+        tenant_uuid = (
+            ret_model.tenant_id
+            if (ret_model and getattr(ret_model, "tenant_id", None))
+            else uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8")
+        )
+        draft = RegistrationDraftModel(
+            registration_id=reg_key,
+            mobile_number=mob_key,
+            email=session_email,
+            tenant_id=tenant_uuid,
+            company_id=(ret_model.company_id if ret_model else None),
+            status="KYC_APPROVED",
+            draft_data={"photo_url": file_url, "photo_b2_path": storage_path, "avatar_url": file_url},
+            last_activity_at=now_utc,
+        )
+        db.add(draft)
+        await db.commit()
 
-    if target_ident and str(target_ident).startswith("REG-"):
-        a_row = (await db.execute(select(RegistrationAadhaarModel).where(RegistrationAadhaarModel.registration_id == str(target_ident)).order_by(desc(RegistrationAadhaarModel.created_date)))).scalars().first()
+    aadhaar_reg_id = (draft.registration_id if draft else None) or (str(target_ident) if target_ident else None)
+    if aadhaar_reg_id:
+        a_row = (await db.execute(
+            select(RegistrationAadhaarModel)
+            .where(RegistrationAadhaarModel.registration_id == str(aadhaar_reg_id))
+            .order_by(desc(RegistrationAadhaarModel.created_date))
+        )).scalars().first()
         if a_row:
             a_row.photo_url = file_url
             await db.commit()
@@ -1664,9 +1699,9 @@ async def upload_photo(
             tenant_id=uuid.uuid4(),
             action="UPLOAD",
             resource_type="RETAILER_PHOTO",
-            resource_id=str(target_ident),
+            resource_id=str(target_ident or aadhaar_reg_id or "retailer"),
             actor_email=session_email or "retailer@pay2pay.in",
-            details={"b2_path": b2_path, "file_url": file_url}
+            details={"storage_path": storage_path, "file_url": file_url}
         )
     except Exception as e:
         logger.warning(f"Audit log notice: {e}")
@@ -1675,7 +1710,7 @@ async def upload_photo(
         "success": True,
         "message": "Profile photo uploaded and persisted successfully.",
         "photo_url": file_url,
-        "b2_path": b2_path
+        "b2_path": storage_path
     }
 
 

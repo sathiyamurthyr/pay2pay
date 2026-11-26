@@ -603,6 +603,7 @@ export default function RetailerProfilePage() {
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
 
     try {
@@ -611,7 +612,8 @@ export default function RetailerProfilePage() {
       fd.append("file", file);
       const res = await retailerApi.uploadProfilePhoto(fd);
       if (res?.photo_url) {
-        setToast({ open: true, message: "Profile photo uploaded and persisted in Backblaze B2 & Database successfully!", severity: "success" });
+        setAvatarError(false);
+        setToast({ open: true, message: "Profile photo updated successfully.", severity: "success" });
         await fetchProfile();
       }
     } catch (err: any) {
@@ -2470,12 +2472,12 @@ export default function RetailerProfilePage() {
                   startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Upload size={18} />}
                   sx={{ bgcolor: brandPrimary, fontWeight: 700, borderRadius: 2.5, px: 3, "&:hover": { bgcolor: brandHover } }}
                 >
-                  {saving ? "Uploading to B2..." : "Upload / Change Photo"}
+                  {saving ? "Uploading..." : "Upload / Change Photo"}
                   <input type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={handlePhotoUpload} />
                 </Button>
 
                 <Typography variant="caption" sx={{ color: "#625B60", textAlign: "center" }}>
-                  PNG, JPG, or WEBP (Max 5 MB). Stored securely on Backblaze B2 Object Storage.
+                  PNG, JPG, or WEBP (Max 5 MB). Stored securely in persistent profile storage.
                 </Typography>
               </Stack>
             </Paper>

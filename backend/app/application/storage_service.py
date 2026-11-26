@@ -13,8 +13,10 @@ File path conventions:
   topup_slips/{year}/{month}/{day}/{slip_id}_{filename}     → Topup Payment Slips
   announcements/{year}/{month}/{day}/{uuid}_{filename}      → Announcement banners
 """
+import asyncio
 import io
 import re
+import time
 import uuid
 import mimetypes
 from datetime import datetime, timezone
@@ -110,11 +112,12 @@ class BackblazeStorageService:
     _api: Optional[object] = None
     _bucket: Optional[object] = None
     _b2_failed: bool = False
+    _b2_failed_until: float = 0.0
 
     @classmethod
     def _get_api(cls) -> Tuple[Optional[object], Optional[object]]:
         """Initialize B2 API and bucket safely."""
-        if cls._b2_failed:
+        if cls._b2_failed or (cls._b2_failed_until and time.time() < cls._b2_failed_until):
             return None, None
 
         if not B2_AVAILABLE:
@@ -197,16 +200,48 @@ class BackblazeStorageService:
         return cls.get_b2_download_url(file_path)
 
     @classmethod
+    def _upload_document_sync(
+        cls,
+        file_bytes: bytes,
+        b2_path: str,
+        original_filename: str,
+        entity_type: str,
+        content_type: str,
+    ) -> dict:
+        api_obj, bucket = cls._get_api()
+        if not (api_obj and bucket):
+            raise RuntimeError("Backblaze B2 Cloud Storage is currently unavailable.")
+
+        file_info = bucket.upload_bytes(
+            data_bytes=file_bytes,
+            file_name=b2_path,
+            content_type=content_type,
+        )
+        file_id = getattr(file_info, "id_", None)
+        b2_url = cls.get_b2_download_url(b2_path)
+        return {
+            "url": b2_url,
+            "b2_url": b2_url,
+            "path": b2_path,
+            "filename": _sanitize_filename(original_filename),
+            "entity_type": entity_type.upper(),
+            "size_bytes": len(file_bytes),
+            "file_id": file_id,
+            "storage": "BACKBLAZE_B2",
+        }
+
+    @classmethod
     async def upload_document(
         cls,
         file_bytes: bytes,
         original_filename: str,
         entity_type: str,
         content_type: Optional[str] = None,
+        timeout_seconds: float = 5.0,
     ) -> dict:
         """
-        Upload a KYC or compliance document directly to Backblaze B2.
-        Returns the permanent Backblaze B2 authorized URL and metadata.
+        Upload a KYC or compliance document to Backblaze B2 using a worker thread
+        with a strict timeout so an unreachable B2 endpoint never blocks the event loop.
         """
         if len(file_bytes) > MAX_FILE_SIZE_BYTES:
             raise ValueError(
@@ -219,35 +254,24 @@ class BackblazeStorageService:
             content_type = "application/pdf"
 
         b2_path = _build_b2_path(entity_type, original_filename)
-        api_obj, bucket = cls._get_api()
-        file_id = None
-
-        if api_obj and bucket:
-            try:
-                file_info = bucket.upload_bytes(
-                    data_bytes=file_bytes,
-                    file_name=b2_path,
-                    content_type=content_type,
-                )
-                file_id = getattr(file_info, "id_", None)
-            except Exception as err:
-                print(f"[StorageService Error] B2 Upload failed: {err}")
-                raise RuntimeError(f"Cloud storage upload failed: {err}")
-        else:
-            raise RuntimeError("Backblaze B2 Cloud Storage is currently unavailable.")
-
-        b2_url = cls.get_b2_download_url(b2_path)
-
-        return {
-            "url": b2_url,
-            "b2_url": b2_url,
-            "path": b2_path,
-            "filename": _sanitize_filename(original_filename),
-            "entity_type": entity_type.upper(),
-            "size_bytes": len(file_bytes),
-            "file_id": file_id,
-            "storage": "BACKBLAZE_B2",
-        }
+        try:
+            return await asyncio.wait_for(
+                asyncio.to_thread(
+                    cls._upload_document_sync,
+                    file_bytes,
+                    b2_path,
+                    original_filename,
+                    entity_type,
+                    content_type,
+                ),
+                timeout=timeout_seconds,
+            )
+        except Exception as err:
+            cls._b2_failed_until = time.time() + 300.0
+            cls._api = None
+            cls._bucket = None
+            print(f"[StorageService Error] B2 Upload failed/timed out: {err}")
+            raise RuntimeError(f"Cloud storage upload failed: {err}")
 
     @classmethod
     def upload_file(
