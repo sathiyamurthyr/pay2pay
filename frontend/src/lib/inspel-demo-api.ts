@@ -1,3 +1,13 @@
+import {
+  ActiveCryptoSession,
+  EncryptedResponseEnvelope,
+  createEphemeralSession,
+  decryptResponseWithSession,
+  encryptBodyWithSession,
+  fetchServerPublicKey,
+  getDomainAppId,
+} from "./api-payload-crypto";
+
 export interface DemoProduct {
   product_id: string;
   code: string;
@@ -158,8 +168,59 @@ async function demoFetch<T>(path: string, init: RequestInit = {}, auth = false):
     }
     headers["Authorization"] = `Bearer ${token}`;
   }
+
+  let session: ActiveCryptoSession | null = null;
+  let finalBody = init.body;
+  const method = (init.method || "GET").toUpperCase();
+
+  if (typeof window !== "undefined" && window.crypto?.subtle) {
+    try {
+      const serverKeyInfo = await fetchServerPublicKey();
+      if (serverKeyInfo) {
+        session = await createEphemeralSession(serverKeyInfo);
+        const domainAppId = getDomainAppId();
+        const activeAppId =
+          domainAppId !== "PLATFORM"
+            ? domainAppId
+            : (serverKeyInfo.app_id || domainAppId).toUpperCase();
+
+        headers["x-sathus-encrypted-key"] = session.encryptedKeyB64;
+        headers["x-sathus-nonce"] = session.nonce;
+        headers["x-sathus-timestamp"] = String(session.timestamp);
+        headers["x-sathus-app-id"] = activeAppId;
+        headers["x-sathus-version"] = "1.0";
+        headers["x-sathus-encrypt-response"] = "1";
+
+        if (["POST", "PUT", "PATCH"].includes(method) && typeof init.body === "string" && init.body.length > 0) {
+          let rawPayload: unknown = init.body;
+          try {
+            rawPayload = JSON.parse(init.body);
+          } catch {
+            rawPayload = init.body;
+          }
+          const { iv, ciphertext, tag } = await encryptBodyWithSession(session, activeAppId, rawPayload);
+          finalBody = JSON.stringify({
+            version: "1.0",
+            app_id: activeAppId,
+            key_id: serverKeyInfo.key_id || `${activeAppId.toLowerCase()}-v1-prod`,
+            encrypted_key: session.encryptedKeyB64,
+            iv,
+            ciphertext,
+            tag,
+            timestamp: session.timestamp,
+            nonce: session.nonce,
+          });
+        }
+      }
+    } catch (cryptoErr) {
+      console.warn("[InspelDemoAPI] Payload encryption setup failed:", cryptoErr);
+      session = null;
+    }
+  }
+
   const res = await fetch(`${getApiBase()}${path}`, {
     ...init,
+    body: finalBody,
     headers,
     cache: "no-store",
   });
@@ -170,6 +231,28 @@ async function demoFetch<T>(path: string, init: RequestInit = {}, auth = false):
   } catch {
     parsed = { detail: text || "Unexpected server response" };
   }
+
+  if (
+    session &&
+    parsed &&
+    typeof parsed === "object" &&
+    typeof parsed.ciphertext === "string" &&
+    typeof parsed.iv === "string"
+  ) {
+    try {
+      const decrypted = await decryptResponseWithSession(
+        session,
+        parsed as unknown as EncryptedResponseEnvelope
+      );
+      parsed =
+        typeof decrypted === "object" && decrypted !== null
+          ? (decrypted as Record<string, unknown>)
+          : { detail: String(decrypted) };
+    } catch (decryptErr) {
+      console.error("[InspelDemoAPI] Response decryption failed:", decryptErr);
+    }
+  }
+
   if (!res.ok) {
     if (res.status === 401 && auth) {
       clearDemoSession();
