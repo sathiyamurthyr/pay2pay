@@ -1442,27 +1442,28 @@ async def verify_email_update_otp(
 
     # (a) Update auth_users
     try:
-        user_uuid = None
-        try:
-            if session_user_id:
-                user_uuid = uuid.UUID(str(session_user_id))
-        except Exception:
+        async with db.begin_nested():
             user_uuid = None
-        if user_uuid:
-            await db.execute(update(AuthUserModel).where(AuthUserModel.user_id == user_uuid).values(email=new_email))
-        if clean_mobile:
-            await db.execute(update(AuthUserModel).where(AuthUserModel.mobile_number.like(f"%{clean_mobile}")).values(email=new_email))
+            try:
+                if session_user_id:
+                    user_uuid = uuid.UUID(str(session_user_id))
+            except Exception:
+                user_uuid = None
+            if user_uuid:
+                await db.execute(update(AuthUserModel).where(AuthUserModel.user_id == user_uuid).values(email=new_email))
+            if clean_mobile:
+                await db.execute(update(AuthUserModel).where(AuthUserModel.mobile_number.like(f"%{clean_mobile}")).values(email=new_email))
     except Exception as e_auth:
         logger.warning(f"Could not update auth_users email: {e_auth}")
 
     # (b) Update retailer_verifications
     try:
-        if v_rec:
-            v_rec.email = new_email
-        elif clean_mobile:
-            await db.execute(update(RetailerVerificationModel).where(RetailerVerificationModel.mobile_number.like(f"%{clean_mobile}")).values(email=new_email))
+        async with db.begin_nested():
+            if v_rec:
+                v_rec.email = new_email
+            elif clean_mobile:
+                await db.execute(update(RetailerVerificationModel).where(RetailerVerificationModel.mobile_number.like(f"%{clean_mobile}")).values(email=new_email))
     except Exception as e_verif:
-        await db.rollback()
         logger.warning(f"Could not update retailer_verifications email: {e_verif}")
 
     # (c) Update registration_drafts
@@ -1476,26 +1477,28 @@ async def verify_email_update_otp(
     # (d) Update retailer_contact
     if r_uuid:
         try:
-            await db.execute(update(RetailerContactModel).where(RetailerContactModel.retailer_id == r_uuid).values(email=new_email))
+            async with db.begin_nested():
+                await db.execute(update(RetailerContactModel).where(RetailerContactModel.retailer_id == r_uuid).values(email=new_email))
         except Exception as e_rc:
             logger.warning(f"Could not update retailer_contact email: {e_rc}")
 
     # (e) Log Audit Trail
     try:
-        await AuditLogger.log_action(
-            db=db,
-            tenant_id=uuid.uuid4(),
-            action="UPDATE_EMAIL_VERIFIED",
-            resource_type="RETAILER_PROFILE",
-            resource_id=str(target_ident or clean_mobile),
-            actor_email=new_email,
-            details={
-                "previous_email": old_email,
-                "updated_email": new_email,
-                "verified_via": "EMAIL_OTP",
-                "verified_at": datetime.now(timezone.utc).isoformat()
-            }
-        )
+        async with db.begin_nested():
+            await AuditLogger.log_action(
+                db=db,
+                tenant_id=DEFAULT_TENANT_ID,
+                action="UPDATE_EMAIL_VERIFIED",
+                resource_type="RETAILER_PROFILE",
+                resource_id=str(target_ident or clean_mobile),
+                actor_email=new_email,
+                details={
+                    "previous_email": old_email,
+                    "updated_email": new_email,
+                    "verified_via": "EMAIL_OTP",
+                    "verified_at": datetime.now(timezone.utc).isoformat()
+                }
+            )
     except Exception as e_audit:
         logger.warning(f"Audit log notice: {e_audit}")
 
@@ -2209,22 +2212,24 @@ async def change_mpin(
             detail=f"Invalid WhatsApp OTP code. Changes were NOT saved. ({remaining} attempts remaining)"
         )
 
-    # 3. Lookup UserSecuritySettingsModel
+    # 3. Lookup UserSecuritySettingsModel strictly scoped to the authenticated user
     user_sec = None
     target_uid = None
-    if session_user_id:
+    candidate_uids = []
+    for cand in (session_user_id, r_uuid, getattr(ret_model, "public_id", None)):
+        if not cand:
+            continue
         try:
-            target_uid = uuid.UUID(str(session_user_id))
-            sec_stmt = select(UserSecuritySettingsModel).where(
-                UserSecuritySettingsModel.user_id == target_uid,
-                UserSecuritySettingsModel.portal == "RETAILER"
-            )
-            user_sec = (await db.execute(sec_stmt)).scalars().first()
+            parsed = cand if isinstance(cand, uuid.UUID) else uuid.UUID(str(cand))
+            if parsed not in candidate_uids:
+                candidate_uids.append(parsed)
         except Exception:
-            pass
+            continue
 
-    if not user_sec:
+    if candidate_uids:
+        target_uid = candidate_uids[0]
         sec_stmt = select(UserSecuritySettingsModel).where(
+            UserSecuritySettingsModel.user_id.in_(candidate_uids),
             UserSecuritySettingsModel.portal == "RETAILER"
         ).order_by(desc(UserSecuritySettingsModel.created_date))
         user_sec = (await db.execute(sec_stmt)).scalars().first()
@@ -2309,21 +2314,23 @@ async def change_mpin(
         ret_obj.mpin_locked = False
         ret_obj.updated_date = datetime.now(timezone.utc)
         try:
-            await db.execute(
-                text("SELECT public.sp_update_retailer_mpin(:rid, :nh, 'PROFILE_SECURITY')"),
-                {"rid": ret_obj.public_id, "nh": new_argon_hash}
-            )
+            async with db.begin_nested():
+                await db.execute(
+                    text("SELECT public.sp_update_retailer_mpin(:rid, :nh, 'PROFILE_SECURITY')"),
+                    {"rid": ret_obj.public_id, "nh": new_argon_hash}
+                )
         except Exception as sp_err:
-            logger.warning(f"Error executing sp_update_retailer_mpin: {sp_err}")
+            logger.warning(f"Error executing sp_update_retailer_mpin (safe fallback applied): {sp_err}")
     elif r_uuid or target_uid:
         eff_rid = r_uuid or target_uid
         try:
-            await db.execute(
-                text("SELECT public.sp_update_retailer_mpin(:rid, :nh, 'PROFILE_SECURITY')"),
-                {"rid": eff_rid, "nh": new_argon_hash}
-            )
+            async with db.begin_nested():
+                await db.execute(
+                    text("SELECT public.sp_update_retailer_mpin(:rid, :nh, 'PROFILE_SECURITY')"),
+                    {"rid": eff_rid, "nh": new_argon_hash}
+                )
         except Exception as sp_err:
-            logger.warning(f"Error executing sp_update_retailer_mpin: {sp_err}")
+            logger.warning(f"Error executing sp_update_retailer_mpin (safe fallback applied): {sp_err}")
 
     # 10. Update CustomerModel if present
     if cust:
