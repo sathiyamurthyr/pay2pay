@@ -41,6 +41,8 @@ logger = logging.getLogger("retailer_profile_router")
 
 router = APIRouter(prefix="/retailer/profile", tags=["Retailer Enterprise Profile"])
 
+DEFAULT_TENANT_ID = uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8")
+
 # MPIN Secret Salt for secure HMAC-SHA256 hashing
 MPIN_SECRET_SALT = "PAY2PAY_ENTERPRISE_MPIN_SALT_KEY_v1_2026"
 
@@ -434,8 +436,12 @@ async def resolve_retailer_context(request: Request, retailer_id: Optional[str],
     if not target_ident and not clean_mobile:
         target_ident = str(sub)
 
-    if target_ident and not clean_mobile:
-        rc_res = await db.execute(text("SELECT mobile FROM public.retailer_contact WHERE retailer_id::text = :tid"), {"tid": str(target_ident)})
+    if (ret_model or target_ident) and not clean_mobile:
+        contact_lookup_id = str(ret_model.public_id) if ret_model else str(target_ident)
+        rc_res = await db.execute(
+            text("SELECT mobile FROM public.retailer_contact WHERE retailer_id::text = :tid"),
+            {"tid": contact_lookup_id},
+        )
         rc_row = rc_res.mappings().first()
         if rc_row and rc_row.get("mobile"):
             clean_mobile = "".join(filter(str.isdigit, str(rc_row["mobile"])))[-10:]
@@ -1884,7 +1890,8 @@ async def send_security_whatsapp_otp(
     flag_modified(draft, "draft_data")
     await db.commit()
 
-    wa_res = await whatsapp_service.send_otp(clean_mobile, otp_code)
+    wa_company_ctx = session_company_ref_id if session_company_ref_id is not None else resolve_request_company_ref(request)
+    wa_res = await whatsapp_service.send_otp(clean_mobile, otp_code, company_context=wa_company_ctx)
     logger.info(f"Security WhatsApp OTP dispatched to {clean_mobile} for {action_type}: {wa_res}")
 
     masked = f"+91 ******{clean_mobile[-4:]}"
