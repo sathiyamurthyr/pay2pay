@@ -22,6 +22,7 @@ import app.infrastructure.db.upi_vendor_models  # UPI Vendor Configuration & Aud
 import app.infrastructure.db.crypto_models  # Retailer Encrypted Records & Envelope tables
 import app.infrastructure.db.company_profile_models  # Admin Company Profile Management tables
 import app.infrastructure.db.menu_favorite_models  # Dynamic Menu, Role-Menu & Reference-ID Favorites tables
+import app.infrastructure.db.demo_models  # INSPEL Vendor Demo Portal single unified `demo` table
 from app.presentation.api.v1 import beneficiary_verification
 from app.presentation.api.v1 import enterprise_payout_execution_router
 from app.presentation.api.v1 import payout_report_router
@@ -57,8 +58,10 @@ async def startup_db():
         try:
             from app.core.database import AsyncSessionLocal
             from app.application.menu_favorite_service import MenuFavoriteService
+            from app.application.demo_portal_service import DemoPortalService
             async with AsyncSessionLocal() as seed_db:
                 await asyncio.wait_for(MenuFavoriteService.ensure_seeded(seed_db), timeout=5.0)
+                await asyncio.wait_for(DemoPortalService.ensure_demo_vendor_seeded(seed_db), timeout=5.0)
         except Exception as seed_err:
             print(f"[STARTUP MENU SEED NOTICE] {seed_err}")
     except asyncio.TimeoutError:
@@ -569,6 +572,11 @@ app.include_router(unisus_pay_router.router, prefix="/v1")
 app.include_router(unisus_pay_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
 app.include_router(unisus_pay_router.router, prefix="/api")
 app.include_router(unisus_pay_router.router, prefix="")
+
+from app.presentation.api.v1 import demo_portal_router
+app.include_router(demo_portal_router.router, prefix=settings.API_V1_STR)
+app.include_router(demo_portal_router.router, prefix="/api")
+app.include_router(demo_portal_router.router, prefix="")
 
 @app.get("/health", tags=["Health"])
 @app.get(f"{settings.API_V1_STR}/health", tags=["Health"])

@@ -13,6 +13,21 @@ export async function generateMetadata(): Promise<Metadata> {
     const host = (forwardedHost || rawHost).toLowerCase();
     const port = host.includes(":") ? host.split(":")[1] : "";
 
+    if (host.startsWith("inspel.")) {
+      return {
+        title: {
+          default: "INSPEL TECHNOLOGIES SOLUTIONS | Product Sales & Payment Portal",
+          template: "%s | INSPEL TECHNOLOGIES SOLUTIONS",
+        },
+        description:
+          "Official Vendor Product Catalogue & BankMe Pay-in Demonstration Portal for INSPEL TECHNOLOGIES SOLUTIONS.",
+        icons: {
+          icon: [{ url: "/branding/inspel-favicon.svg", type: "image/svg+xml" }],
+          shortcut: "/branding/inspel-favicon.svg",
+        },
+      };
+    }
+
     if (host.includes("smspay") || port === "4002") {
       return {
         title: {

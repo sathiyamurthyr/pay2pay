@@ -108,8 +108,44 @@ function isTokenValid(token?: string | null): boolean {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = request.headers.get("host") || "";
+  const forwardedHost = request.headers.get("x-forwarded-host") || "";
+  const effectiveHost = (forwardedHost || host).toLowerCase();
   const portMatch = host.match(/:(\d+)$/);
   const incomingPort = portMatch ? portMatch[1] : request.nextUrl.port || "";
+
+  // Isolated routing for INSPEL Technologies Solutions Demo Portal (inspel.smspay.store)
+  if (effectiveHost.startsWith("inspel.")) {
+    if (
+      pathname.startsWith("/api/") ||
+      pathname.startsWith("/_next") ||
+      pathname.startsWith("/branding") ||
+      pathname === "/favicon.ico"
+    ) {
+      return NextResponse.next();
+    }
+    const demoRouteMap: Record<string, string> = {
+      "/": "/demo",
+      "/login": "/demo/login",
+      "/register": "/demo/register",
+      "/catalogue": "/demo/catalogue",
+      "/products": "/demo/catalogue",
+      "/checkout": "/demo/checkout",
+      "/payment-result": "/demo/payment-result",
+      "/dashboard": "/demo/dashboard",
+      "/contact": "/demo/contact",
+    };
+    if (demoRouteMap[pathname]) {
+      const url = request.nextUrl.clone();
+      url.pathname = demoRouteMap[pathname];
+      return NextResponse.rewrite(url);
+    }
+    if (pathname.startsWith("/demo")) {
+      return NextResponse.next();
+    }
+    const cleanHome = request.nextUrl.clone();
+    cleanHome.pathname = "/";
+    return NextResponse.redirect(cleanHome, 302);
+  }
 
   // ── Dedicated Port and Subdomain Portal Enforcement ──
   // Port 4003 or super-admin.* / superadmin.*: Super Admin Portal

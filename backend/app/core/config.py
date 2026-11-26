@@ -110,6 +110,8 @@ class Settings(BaseSettings):
         "https://api.smspay.store",
         "https://smspay.in",
         "https://login.smspay.in",
+        "https://inspel.smspay.store",
+        "http://inspel.smspay.store",
     ]
     
     # Session Inactivity Timeout (Minutes) - Closes session after 15m idle

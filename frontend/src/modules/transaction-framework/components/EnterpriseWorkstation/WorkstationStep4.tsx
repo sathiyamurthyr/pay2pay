@@ -559,7 +559,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           if (finResult.transactionId) {
             localStorage.setItem(`pay2pay_receipt_${finResult.transactionId}`, JSON.stringify(snapshot));
           }
-        } catch {}
+        } catch { }
       }
 
       setTimeout(() => {
@@ -641,7 +641,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
     try {
       const uStr = localStorage.getItem("user_info") || localStorage.getItem("pay2pay_user_data");
       if (uStr) savedUserInfo = JSON.parse(uStr);
-    } catch {}
+    } catch { }
   }
   const displayRetailerName = savedUserInfo?.full_name || savedUserInfo?.name || activeRetailer?.ownerName || activeRetailer?.name || "";
   const rawMobile = String(savedUserInfo?.mobile_number || savedUserInfo?.mobile || activeRetailer?.mobile || "");
@@ -1284,20 +1284,20 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                                 bgcolor: digit
                                   ? "var(--brand-surface, #EFF6FF)"
                                   : isFocusedBox
-                                  ? "var(--brand-surface, #EFF6FF)"
-                                  : "#F8FAFC",
+                                    ? "var(--brand-surface, #EFF6FF)"
+                                    : "#F8FAFC",
                                 border: errorMessage
                                   ? "2px solid #DC2626"
                                   : isFocusedBox
-                                  ? "2px solid var(--brand-primary, #0F3B7D)"
-                                  : digit
-                                  ? "2px solid var(--brand-border, #0F3B7D)"
-                                  : "1.5px solid #CBD5E1",
+                                    ? "2px solid var(--brand-primary, #0F3B7D)"
+                                    : digit
+                                      ? "2px solid var(--brand-border, #0F3B7D)"
+                                      : "1.5px solid #CBD5E1",
                                 boxShadow: errorMessage
                                   ? "0 0 0 3px rgba(220, 38, 38, 0.14)"
                                   : isFocusedBox
-                                  ? "0 0 0 3px var(--grid-search-focus-shadow, rgba(15, 59, 125, 0.14))"
-                                  : "none",
+                                    ? "0 0 0 3px var(--grid-search-focus-shadow, rgba(15, 59, 125, 0.14))"
+                                    : "none",
                                 transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
                                 display: "flex",
                                 alignItems: "center",
@@ -1395,13 +1395,13 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                             bgcolor: isClear
                               ? "#FEF2F2"
                               : isBack
-                              ? "var(--brand-surface, #EFF6FF)"
-                              : "#F8FAFC",
+                                ? "var(--brand-surface, #EFF6FF)"
+                                : "#F8FAFC",
                             border: isClear
                               ? "1px solid #FECACA"
                               : isBack
-                              ? "1px solid var(--brand-border, #CBD5E1)"
-                              : "1px solid #E2E8F0",
+                                ? "1px solid var(--brand-border, #CBD5E1)"
+                                : "1px solid #E2E8F0",
                             boxShadow: "0 2px 6px rgba(15, 23, 42, 0.04)",
                             color: isClear ? "#DC2626" : isBack ? "var(--brand-primary, #0F3B7D)" : "var(--text-primary, #0F172A)",
                             display: "flex",
