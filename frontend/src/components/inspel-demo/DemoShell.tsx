@@ -95,11 +95,13 @@ export default function DemoShell({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-40 bg-[#040E2B]/95 backdrop-blur-md border-b border-white/10 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           <Link href={resolveDemoPath("/")} className="flex items-center gap-3 shrink-0">
-            <img
-              src="/branding/inspel-logo-light.webp"
-              alt="INSPEL TECHNOLOGIES SOLUTIONS"
-              className="h-9 w-auto object-contain"
-            />
+            <span className="inline-flex items-center px-3 py-1.5 rounded-xl bg-white shadow-sm ring-1 ring-white/20">
+              <img
+                src="/branding/inspel-logo-light.webp"
+                alt="INSPEL TECHNOLOGIES SOLUTIONS"
+                className="h-7 w-auto object-contain"
+              />
+            </span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">
@@ -126,7 +128,7 @@ export default function DemoShell({ children }: { children: React.ReactNode }) {
               <>
                 <Link
                   href={resolveDemoPath("/dashboard")}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-xs font-medium text-blue-100 border border-white/10 transition-colors"
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-xs font-semibold text-white border border-white/25 transition-colors shadow-xs"
                 >
                   <UserCheck className="w-4 h-4 text-emerald-400" />
                   <span className="max-w-[140px] truncate">{vendor.name}</span>
@@ -134,7 +136,7 @@ export default function DemoShell({ children }: { children: React.ReactNode }) {
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-red-500/20 hover:text-red-200 text-blue-100 transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white border border-rose-400/30 shadow-xs transition-colors cursor-pointer"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   Logout
@@ -144,13 +146,13 @@ export default function DemoShell({ children }: { children: React.ReactNode }) {
               <>
                 <Link
                   href={resolveDemoPath("/login")}
-                  className="px-4 py-2 rounded-lg text-sm font-semibold text-white hover:bg-white/10 transition-colors"
+                  className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-white/15 hover:bg-white/25 border border-white/20 transition-colors"
                 >
                   Vendor Login
                 </Link>
                 <Link
                   href={resolveDemoPath("/register")}
-                  className="px-4 py-2 rounded-lg text-sm font-semibold bg-[#1A56DB] hover:bg-[#1648C8] text-white shadow-sm transition-colors"
+                  className="px-4 py-2 rounded-lg text-sm font-semibold bg-[#2563EB] hover:bg-[#1D4ED8] text-white shadow-sm ring-1 ring-white/20 transition-colors"
                 >
                   Register Vendor
                 </Link>
@@ -220,11 +222,13 @@ export default function DemoShell({ children }: { children: React.ReactNode }) {
       <footer className="bg-[#040E2B] text-blue-100 border-t border-white/10 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
-            <img
-              src="/branding/inspel-logo-light.webp"
-              alt="INSPEL TECHNOLOGIES SOLUTIONS"
-              className="h-9 w-auto object-contain mb-4"
-            />
+            <span className="inline-flex items-center px-3 py-1.5 rounded-xl bg-white shadow-sm mb-4">
+              <img
+                src="/branding/inspel-logo-light.webp"
+                alt="INSPEL TECHNOLOGIES SOLUTIONS"
+                className="h-8 w-auto object-contain"
+              />
+            </span>
             <p className="text-sm text-blue-200/80 leading-relaxed">
               INSPEL TECHNOLOGIES SOLUTIONS — Enterprise Payment & Collection Suite powered by official BankMe Pay-in infrastructure.
             </p>
