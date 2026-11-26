@@ -72,6 +72,37 @@ import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 import { useRetailerStore } from "@/stores/use-retailer-store";
 import { getPublicReceiptUrl } from "@/lib/receipt-security";
 
+export const formatToIstYmd = (dateObj: Date = new Date()): string => {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(dateObj);
+};
+
+export interface FilterOptionItem {
+  value: string;
+  label: string;
+}
+
+const DEFAULT_GATEWAY_OPTIONS: FilterOptionItem[] = [
+  { value: "G-1", label: "Gateway G-1" },
+  { value: "G-2", label: "Gateway G-2" },
+];
+
+const DEFAULT_METHOD_OPTIONS: FilterOptionItem[] = [
+  { value: "UPI", label: "UPI" },
+  { value: "QR", label: "QR" },
+  { value: "VISA", label: "Visa" },
+  { value: "MASTERCARD", label: "Mastercard" },
+  { value: "RUPAY", label: "RuPay" },
+  { value: "NETBANKING", label: "Net Banking" },
+  { value: "CARD", label: "Debit / Credit Card" },
+  { value: "WALLET", label: "Wallet" },
+  { value: "POS", label: "POS" },
+];
+
 export interface PayinReportSummary {
   total_transactions: number;
   total_volume: number;
@@ -194,6 +225,20 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
 }) => {
   const isAdmin = portalType === "admin";
   const branding = useCompanyBranding();
+  const brandPrimary =
+    branding?.primary_colour ||
+    (branding?.company_code === "NEAR4YOU"
+      ? "#A20A3A"
+      : branding?.company_code === "PAY2PAY"
+      ? "#2563EB"
+      : "#0F3B7D");
+  const brandSecondary =
+    branding?.secondary_colour ||
+    (branding?.company_code === "NEAR4YOU"
+      ? "#EDC11E"
+      : branding?.company_code === "PAY2PAY"
+      ? "#1E40AF"
+      : "#D4AF37");
   const { outlet } = useRetailerStore();
 
   // State: Authoritative Data
@@ -207,6 +252,8 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
     total_customer_payable: number;
     total_retailer_credit: number;
   } | null>(null);
+  const [gatewayOptions, setGatewayOptions] = useState<FilterOptionItem[]>(DEFAULT_GATEWAY_OPTIONS);
+  const [methodOptions, setMethodOptions] = useState<FilterOptionItem[]>(DEFAULT_METHOD_OPTIONS);
 
   // Requirement 7: Explicit Loading Behaviour (No auto-fetch on initial page load)
   const [hasLoaded, setHasLoaded] = useState<boolean>(false);
@@ -223,19 +270,14 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
   const [gatewayFilter, setGatewayFilter] = useState<string>("ALL");
   const [paymentModeFilter, setPaymentModeFilter] = useState<string>("ALL");
   const [activePreset, setActivePreset] = useState<string>("TODAY");
-  const [fromDate, setFromDate] = useState<string>(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  });
-  const [toDate, setToDate] = useState<string>(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  });
+  const [fromDate, setFromDate] = useState<string>(() => formatToIstYmd());
+  const [toDate, setToDate] = useState<string>(() => formatToIstYmd());
 
-  // Custom Date Dialog
+  // Custom Date Dialog & Inline Pickers
   const [customDateOpen, setCustomDateOpen] = useState<boolean>(false);
-  const [customFrom, setCustomFrom] = useState<string>(fromDate);
-  const [customTo, setCustomTo] = useState<string>(toDate);
+  const [customFrom, setCustomFrom] = useState<string>(() => formatToIstYmd());
+  const [customTo, setCustomTo] = useState<string>(() => formatToIstYmd());
+  const didMountSearchRef = useRef<boolean>(false);
 
   // Pagination & Layout Controls
   const [page, setPage] = useState<number>(0);
@@ -253,7 +295,6 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
   const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
 
   // Bottom Toolbar Filter Anchors
-  const [dateRangeAnchorEl, setDateRangeAnchorEl] = useState<null | HTMLElement>(null);
   const [tidAnchorEl, setTidAnchorEl] = useState<null | HTMLElement>(null);
   const [mobileAnchorEl, setMobileAnchorEl] = useState<null | HTMLElement>(null);
   const [gatewayAnchorEl, setGatewayAnchorEl] = useState<null | HTMLElement>(null);
@@ -285,6 +326,31 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
       navigator.clipboard.writeText(text);
       showToast(`${label} copied successfully!`);
     }
+  };
+
+  const getAuthHeaders = (): Record<string, string> => {
+    if (typeof window === "undefined") return {};
+    const cookieToken =
+      document.cookie
+        .split("; ")
+        .find(
+          (r) =>
+            r.startsWith("p2p_access_token=") ||
+            r.startsWith("pay2pay_access_token=") ||
+            r.startsWith("pay2pay_auth_token=") ||
+            r.startsWith("access_token=")
+        )
+        ?.split("=")[1] || "";
+    const token =
+      localStorage.getItem("p2p_access_token") ||
+      localStorage.getItem("pay2pay_access_token") ||
+      localStorage.getItem("p2p_admin_token") ||
+      localStorage.getItem("p2p_retailer_token") ||
+      localStorage.getItem("access_token") ||
+      cookieToken;
+    return token && token.trim().length > 10
+      ? { Authorization: `Bearer ${token.trim()}` }
+      : {};
   };
 
   const executeReportFetch = useCallback(async (
@@ -332,25 +398,10 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
       if (targetSortBy) q.append("sort_by", targetSortBy);
       if (targetSortDir) q.append("sort_dir", targetSortDir);
 
-      const token = typeof window !== "undefined" ? (
-        localStorage.getItem("p2p_access_token") ||
-        localStorage.getItem("pay2pay_access_token") ||
-        localStorage.getItem("p2p_admin_token") ||
-        localStorage.getItem("p2p_retailer_token") ||
-        localStorage.getItem("access_token") ||
-        document.cookie.split("; ").find(r => r.startsWith("p2p_access_token=") || r.startsWith("pay2pay_access_token="))?.split("=")[1] ||
-        ""
-      ) : "";
-
-      const headers: Record<string, string> = {};
-      if (token && token.trim().length > 10) {
-        headers["Authorization"] = `Bearer ${token.trim()}`;
-      }
-
       // Fetch Grid: single request returning both grid rows and calculated summary metrics
       const gridUrl = `/api/v1/payin/reports/grid?${q.toString()}`;
       const res = await fetch(gridUrl, {
-        headers,
+        headers: getAuthHeaders(),
         credentials: "include",
         cache: "no-store",
       });
@@ -368,6 +419,14 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
         setTotalRecords(total);
         if (data.footer_totals) {
           setFooterTotals(data.footer_totals);
+        }
+
+        const dynOptions = data.filter_options || data.data?.filter_options;
+        if (dynOptions?.gateways && Array.isArray(dynOptions.gateways) && dynOptions.gateways.length > 0) {
+          setGatewayOptions(dynOptions.gateways);
+        }
+        if (dynOptions?.methods && Array.isArray(dynOptions.methods) && dynOptions.methods.length > 0) {
+          setMethodOptions(dynOptions.methods);
         }
 
         const d = data.summary || data.data?.summary;
@@ -412,6 +471,19 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
     executeReportFetch(0, rowsPerPage);
   }, []);
 
+  // Debounced live search once mounted
+  useEffect(() => {
+    if (!didMountSearchRef.current) {
+      didMountSearchRef.current = true;
+      return;
+    }
+    const timer = setTimeout(() => {
+      setPage(0);
+      executeReportFetch(0, rowsPerPage, { search: globalSearch });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [globalSearch]);
+
   const handleSort = (field: string) => {
     const isAsc = sortBy === field && sortDir === "asc";
     const newDir: "asc" | "desc" = isAsc ? "desc" : "asc";
@@ -432,8 +504,7 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
   };
 
   const handleResetFilters = () => {
-    const dNow = new Date();
-    const today = `${dNow.getFullYear()}-${String(dNow.getMonth() + 1).padStart(2, "0")}-${String(dNow.getDate()).padStart(2, "0")}`;
+    const today = formatToIstYmd();
     setGlobalSearch("");
     setTidFilter("");
     setMobileFilter("");
@@ -443,6 +514,8 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
     setActivePreset("TODAY");
     setFromDate(today);
     setToDate(today);
+    setCustomFrom(today);
+    setCustomTo(today);
     setPage(0);
     executeReportFetch(0, rowsPerPage, {
       fromDate: today,
@@ -459,49 +532,89 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
 
   const handleDatePreset = (preset: string) => {
     setActivePreset(preset);
-    const dNow = new Date();
-    const today = `${dNow.getFullYear()}-${String(dNow.getMonth() + 1).padStart(2, "0")}-${String(dNow.getDate()).padStart(2, "0")}`;
-    setPage(0);
+    const today = formatToIstYmd();
+    let nextFrom = "";
+    let nextTo = "";
+
     if (preset === "ALL" || preset === "all") {
-      setFromDate("");
-      setToDate("");
+      nextFrom = "";
+      nextTo = "";
     } else if (preset === "TODAY" || preset === "today") {
-      setFromDate(today);
-      setToDate(today);
+      nextFrom = today;
+      nextTo = today;
     } else if (preset === "YESTERDAY" || preset === "yesterday") {
       const y = new Date();
       y.setDate(y.getDate() - 1);
-      const yStr = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, "0")}-${String(y.getDate()).padStart(2, "0")}`;
-      setFromDate(yStr);
-      setToDate(yStr);
+      const yStr = formatToIstYmd(y);
+      nextFrom = yStr;
+      nextTo = yStr;
     } else if (preset === "THIS_MONTH" || preset === "this_month") {
-      const startOfMonth = `${dNow.getFullYear()}-${String(dNow.getMonth() + 1).padStart(2, "0")}-01`;
-      setFromDate(startOfMonth);
-      setToDate(today);
+      nextFrom = `${today.slice(0, 7)}-01`;
+      nextTo = today;
     } else if (preset === "SEPTEMBER" || preset === "september" || preset === "SEP_2026") {
-      setFromDate("2026-09-01");
-      setToDate("2026-09-30");
+      nextFrom = "2026-09-01";
+      nextTo = "2026-09-30";
     } else if (preset === "7D" || preset === "7_DAYS") {
       const d = new Date();
       d.setDate(d.getDate() - 7);
-      setFromDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
-      setToDate(today);
+      nextFrom = formatToIstYmd(d);
+      nextTo = today;
     } else if (preset === "30D" || preset === "30_DAYS") {
       const d = new Date();
       d.setDate(d.getDate() - 30);
-      setFromDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
-      setToDate(today);
+      nextFrom = formatToIstYmd(d);
+      nextTo = today;
     } else if (preset === "60D") {
       const d = new Date();
       d.setDate(d.getDate() - 60);
-      setFromDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
-      setToDate(today);
+      nextFrom = formatToIstYmd(d);
+      nextTo = today;
     } else if (preset === "90D") {
       const d = new Date();
       d.setDate(d.getDate() - 90);
-      setFromDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
-      setToDate(today);
+      nextFrom = formatToIstYmd(d);
+      nextTo = today;
     }
+
+    setFromDate(nextFrom);
+    setToDate(nextTo);
+    setCustomFrom(nextFrom);
+    setCustomTo(nextTo);
+    setPage(0);
+    executeReportFetch(0, rowsPerPage, { fromDate: nextFrom, toDate: nextTo });
+  };
+
+  const handleApplyCustomDates = () => {
+    let f = customFrom?.trim() || "";
+    let t = customTo?.trim() || "";
+    const today = formatToIstYmd();
+
+    if (!f && !t) {
+      handleDatePreset("ALL");
+      setCustomDateOpen(false);
+      return;
+    }
+
+    if (!f && t) {
+      f = t;
+      setCustomFrom(t);
+    } else if (f && !t) {
+      t = today;
+      setCustomTo(today);
+    }
+
+    if (f > t) {
+      showToast("From Date cannot be later than To Date");
+      return;
+    }
+
+    setFromDate(f);
+    setToDate(t);
+    setActivePreset("CUSTOM");
+    setPage(0);
+    setCustomDateOpen(false);
+    executeReportFetch(0, rowsPerPage, { fromDate: f, toDate: t });
+    showToast("Custom date range applied");
   };
 
   const exportItemsToCsv = (itemsToExport: PayinReportItem[]) => {
@@ -582,14 +695,9 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
       if (gatewayFilter !== "ALL") q.append("gateway", gatewayFilter);
       if (paymentModeFilter !== "ALL") q.append("payment_mode", paymentModeFilter);
 
-      const token = typeof window !== "undefined" ? (
-        localStorage.getItem("p2p_access_token") ||
-        localStorage.getItem("pay2pay_access_token") ||
-        localStorage.getItem("access_token") || ""
-      ) : "";
-
       const res = await fetch(`/api/v1/payin/reports/export?${q.toString()}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: getAuthHeaders(),
+        credentials: "include",
       });
 
       if (!res.ok) {
@@ -639,32 +747,46 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
   };
 
   const formatDisplayDateRange = (from: string, to: string, preset: string) => {
-    if (preset === "TODAY") {
+    const today = formatToIstYmd();
+    if (preset === "TODAY" || (from === today && to === today)) {
       const d = new Date();
-      return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+      return `${d.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric" })} (Today)`;
     }
-    if (preset === "YESTERDAY") {
-      const d = new Date();
-      d.setDate(d.getDate() - 1);
-      return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+    const y = new Date();
+    y.setDate(y.getDate() - 1);
+    const yesterday = formatToIstYmd(y);
+    if (preset === "YESTERDAY" || (from === yesterday && to === yesterday)) {
+      return `${y.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric" })} (Yesterday)`;
     }
-    if (!from && !to) return "All Time";
-    return `${from || "Start"} to ${to || "Today"}`;
+    if (preset === "ALL" || (!from && !to)) {
+      return "All Time";
+    }
+    const formatStr = (s: string) => {
+      if (!s) return "";
+      try {
+        const parts = s.split("-");
+        if (parts.length === 3) {
+          const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+          return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+        }
+        return s;
+      } catch {
+        return s;
+      }
+    };
+    if (from === to && from) {
+      return formatStr(from);
+    }
+    return `${formatStr(from) || "Start"} – ${formatStr(to) || "Today"}`;
   };
 
   const openDetailsBreakdown = async (item: PayinReportItem) => {
     setSelectedTxn(item);
     setBreakdownModalOpen(true);
     try {
-      const token = typeof window !== "undefined" ? (
-        localStorage.getItem("p2p_access_token") ||
-        localStorage.getItem("pay2pay_access_token") ||
-        localStorage.getItem("p2p_admin_token") ||
-        localStorage.getItem("p2p_retailer_token") ||
-        localStorage.getItem("access_token") || ""
-      ) : "";
       const res = await fetch(`/api/v1/payin/reports/${encodeURIComponent(item.tid)}/details`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: getAuthHeaders(),
+        credentials: "include",
       });
       if (res.ok) {
         const json = await res.json();
@@ -977,7 +1099,180 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
         </Paper>
       </Box>
 
-      {/* ── 3. FILTER TOOLBAR (TOP CONTROLS: DATE RANGE, TID, MOBILE, GATEWAY, METHOD, STATUS, APPLY, RESET) ── */}
+      {/* ── 3. DATE RANGE FILTER BAR (MATCHING TRANSACTION REPORT) ── */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 1.5,
+          px: { xs: 1.5, sm: 2 },
+          borderRadius: "14px",
+          bgcolor: "#FFFFFF",
+          border: "1px solid #E2E8F0",
+          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
+          mb: 2,
+        }}
+      >
+        <Stack
+          direction={{ xs: "column", lg: "row" }}
+          alignItems={{ xs: "stretch", lg: "center" }}
+          justifyContent="space-between"
+          spacing={1.5}
+        >
+          {/* Presets */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.8,
+              overflowX: "auto",
+              scrollbarWidth: "thin",
+              scrollbarColor: "#CBD5E1 transparent",
+              "&::-webkit-scrollbar": { height: "4px" },
+              "&::-webkit-scrollbar-thumb": { bgcolor: "#CBD5E1", borderRadius: "4px" },
+              pb: { xs: 0.5, lg: 0 },
+            }}
+          >
+            <Stack direction="row" alignItems="center" spacing={0.6} sx={{ color: brandPrimary, mr: 0.8, flexShrink: 0 }}>
+              <CalendarMonthIcon sx={{ fontSize: 18 }} />
+              <Typography sx={{ fontSize: "11.5px", fontWeight: 800, color: "#0F172A", textTransform: "uppercase", letterSpacing: "0.6px" }}>
+                Date Range:
+              </Typography>
+            </Stack>
+
+            {[
+              { key: "ALL", label: "All" },
+              { key: "TODAY", label: "Today" },
+              { key: "YESTERDAY", label: "Yesterday" },
+              { key: "7_DAYS", label: "7 Days" },
+              { key: "30_DAYS", label: "30 Days" },
+              { key: "THIS_MONTH", label: "This Month" },
+              { key: "CUSTOM", label: "Custom Range" },
+            ].map((preset) => {
+              const isSelected = activePreset === preset.key || (preset.key === "7_DAYS" && activePreset === "7D") || (preset.key === "30_DAYS" && activePreset === "30D");
+              return (
+                <Box
+                  key={preset.key}
+                  onClick={() => {
+                    if (preset.key === "CUSTOM") {
+                      setCustomDateOpen(true);
+                    } else {
+                      handleDatePreset(preset.key);
+                    }
+                  }}
+                  sx={{
+                    px: 1.8,
+                    py: 0.6,
+                    borderRadius: "999px",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    fontSize: "12px",
+                    fontWeight: isSelected ? 700 : 600,
+                    color: isSelected ? "#FFFFFF" : "#475569",
+                    bgcolor: isSelected ? brandPrimary : "#F8FAFC",
+                    border: isSelected ? `1px solid ${brandPrimary}` : "1px solid #E2E8F0",
+                    boxShadow: isSelected ? `0 2px 8px ${brandPrimary}40` : "none",
+                    transition: "all 0.15s ease-in-out",
+                    flexShrink: 0,
+                    "&:hover": {
+                      bgcolor: isSelected ? brandPrimary : "#F1F5F9",
+                      color: isSelected ? "#FFFFFF" : "#0F172A",
+                      borderColor: isSelected ? brandPrimary : "#CBD5E1",
+                    },
+                  }}
+                >
+                  {preset.label}
+                </Box>
+              );
+            })}
+          </Box>
+
+          {/* Inline Custom Date Pickers (From / To / Apply) */}
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={1}
+            sx={{
+              flexShrink: 0,
+              flexWrap: "nowrap",
+              justifyContent: { xs: "space-between", sm: "flex-end" },
+              pt: { xs: 1, lg: 0 },
+              borderTop: { xs: "1px solid #E2E8F0", lg: "none" },
+            }}
+          >
+            <TextField
+              type="date"
+              size="small"
+              label="From Date"
+              value={customFrom}
+              onChange={(e) => setCustomFrom(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleApplyCustomDates(); }}
+              InputLabelProps={{ shrink: true, sx: { color: "#475569", fontSize: "11px", fontWeight: 700 } }}
+              inputProps={{ sx: { color: "#0F172A", fontSize: "12px", py: 0.5, px: 1, height: "18px" } }}
+              sx={{
+                width: { xs: "40%", sm: 145 },
+                bgcolor: "#F8FAFC",
+                borderRadius: "8px",
+                border: "1px solid #CBD5E1",
+                "& fieldset": { border: "none" },
+                "&:hover": { borderColor: "#94A3B8" },
+              }}
+            />
+            <TextField
+              type="date"
+              size="small"
+              label="To Date"
+              value={customTo}
+              onChange={(e) => setCustomTo(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleApplyCustomDates(); }}
+              InputLabelProps={{ shrink: true, sx: { color: "#475569", fontSize: "11px", fontWeight: 700 } }}
+              inputProps={{ sx: { color: "#0F172A", fontSize: "12px", py: 0.5, px: 1, height: "18px" } }}
+              sx={{
+                width: { xs: "40%", sm: 145 },
+                bgcolor: "#F8FAFC",
+                borderRadius: "8px",
+                border: "1px solid #CBD5E1",
+                "& fieldset": { border: "none" },
+                "&:hover": { borderColor: "#94A3B8" },
+              }}
+            />
+            <Button
+              size="small"
+              variant="contained"
+              onClick={handleApplyCustomDates}
+              sx={{
+                minWidth: "auto",
+                px: 1.8,
+                py: 0.6,
+                fontSize: "12px",
+                fontWeight: 700,
+                textTransform: "none",
+                borderRadius: "8px",
+                bgcolor: brandPrimary,
+                color: "#FFFFFF",
+                boxShadow: `0 2px 6px ${brandPrimary}40`,
+                "&:hover": {
+                  bgcolor: brandSecondary,
+                },
+              }}
+            >
+              Apply
+            </Button>
+          </Stack>
+        </Stack>
+
+        {/* Active Range Context Feedback */}
+        <Divider sx={{ my: 1, borderColor: "#E2E8F0" }} />
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ flexWrap: "wrap", gap: 1 }}>
+          <Typography sx={{ fontSize: "12px", color: "#64748B", fontWeight: 500 }}>
+            Showing records for <strong style={{ color: "#0F172A" }}>{formatDisplayDateRange(fromDate, toDate, activePreset)}</strong>
+          </Typography>
+          <Typography sx={{ fontSize: "11.5px", color: brandPrimary, fontWeight: 700 }}>
+            {hasLoaded ? totalRecords : 0} {(hasLoaded ? totalRecords : 0) === 1 ? "transaction" : "transactions"} found
+          </Typography>
+        </Stack>
+      </Paper>
+
+      {/* ── 3B. FILTER PILL TOOLBAR (TID, MOBILE, GATEWAY, METHOD, STATUS, APPLY, RESET) ── */}
       <Box
         sx={{
           mb: 2,
@@ -994,34 +1289,8 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
         }}
       >
         {/* Left Filter Buttons Group */}
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ flexWrap: "wrap" }}>
-          {/* 1. Date Range ⌄ */}
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={(e) => setDateRangeAnchorEl(e.currentTarget)}
-            startIcon={<CalendarMonthIcon sx={{ fontSize: 16, color: "#059669" }} />}
-            endIcon={<ArrowDropDownIcon sx={{ fontSize: 16 }} />}
-            sx={{
-              borderRadius: "20px",
-              height: 36,
-              px: 1.8,
-              fontSize: "12px",
-              fontWeight: 700,
-              textTransform: "none",
-              color: "#374151",
-              borderColor: activePreset !== "TODAY" ? "#059669" : "#D1D5DB",
-              bgcolor: activePreset !== "TODAY" ? "rgba(5, 150, 105, 0.05)" : "#FFFFFF",
-            }}
-          >
-            {activePreset === "TODAY"
-              ? "Date Range"
-              : activePreset === "CUSTOM"
-                ? `${fromDate || "Start"} - ${toDate || "End"}`
-                : activePreset}
-          </Button>
-
-          {/* 2. Transaction ID ⌄ */}
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ flexWrap: "wrap", gap: 0.8 }}>
+          {/* 1. Transaction ID ⌄ */}
           <Button
             size="small"
             variant="outlined"
@@ -1034,15 +1303,15 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
               fontSize: "12px",
               fontWeight: 700,
               textTransform: "none",
-              color: tidFilter ? "#059669" : "#374151",
-              borderColor: tidFilter ? "#059669" : "#D1D5DB",
-              bgcolor: tidFilter ? "rgba(5, 150, 105, 0.05)" : "#FFFFFF",
+              color: tidFilter ? brandPrimary : "#374151",
+              borderColor: tidFilter ? brandPrimary : "#D1D5DB",
+              bgcolor: tidFilter ? `${brandPrimary}10` : "#FFFFFF",
             }}
           >
-            {tidFilter ? `TID: ${tidFilter.slice(0, 12)}...` : "Transaction ID"}
+            {tidFilter ? `TID: ${tidFilter.slice(0, 12)}${tidFilter.length > 12 ? "..." : ""}` : "Transaction ID"}
           </Button>
 
-          {/* 3. Mobile Number ⌄ */}
+          {/* 2. Mobile Number ⌄ */}
           <Button
             size="small"
             variant="outlined"
@@ -1055,15 +1324,15 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
               fontSize: "12px",
               fontWeight: 700,
               textTransform: "none",
-              color: mobileFilter ? "#059669" : "#374151",
-              borderColor: mobileFilter ? "#059669" : "#D1D5DB",
-              bgcolor: mobileFilter ? "rgba(5, 150, 105, 0.05)" : "#FFFFFF",
+              color: mobileFilter ? brandPrimary : "#374151",
+              borderColor: mobileFilter ? brandPrimary : "#D1D5DB",
+              bgcolor: mobileFilter ? `${brandPrimary}10` : "#FFFFFF",
             }}
           >
             {mobileFilter ? `Mobile: ${mobileFilter}` : "Mobile Number"}
           </Button>
 
-          {/* 4. Gateway ⌄ */}
+          {/* 3. Gateway ⌄ */}
           <Button
             size="small"
             variant="outlined"
@@ -1076,15 +1345,15 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
               fontSize: "12px",
               fontWeight: 700,
               textTransform: "none",
-              color: gatewayFilter !== "ALL" ? "#059669" : "#374151",
-              borderColor: gatewayFilter !== "ALL" ? "#059669" : "#D1D5DB",
-              bgcolor: gatewayFilter !== "ALL" ? "rgba(5, 150, 105, 0.05)" : "#FFFFFF",
+              color: gatewayFilter !== "ALL" ? brandPrimary : "#374151",
+              borderColor: gatewayFilter !== "ALL" ? brandPrimary : "#D1D5DB",
+              bgcolor: gatewayFilter !== "ALL" ? `${brandPrimary}10` : "#FFFFFF",
             }}
           >
             {gatewayFilter !== "ALL" ? `Gateway: ${gatewayFilter}` : "Gateway"}
           </Button>
 
-          {/* 5. Method ⌄ */}
+          {/* 4. Method ⌄ */}
           <Button
             size="small"
             variant="outlined"
@@ -1097,15 +1366,15 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
               fontSize: "12px",
               fontWeight: 700,
               textTransform: "none",
-              color: paymentModeFilter !== "ALL" ? "#059669" : "#374151",
-              borderColor: paymentModeFilter !== "ALL" ? "#059669" : "#D1D5DB",
-              bgcolor: paymentModeFilter !== "ALL" ? "rgba(5, 150, 105, 0.05)" : "#FFFFFF",
+              color: paymentModeFilter !== "ALL" ? brandPrimary : "#374151",
+              borderColor: paymentModeFilter !== "ALL" ? brandPrimary : "#D1D5DB",
+              bgcolor: paymentModeFilter !== "ALL" ? `${brandPrimary}10` : "#FFFFFF",
             }}
           >
-            {paymentModeFilter !== "ALL" ? `Method: ${paymentModeFilter}` : "Method"}
+            {paymentModeFilter !== "ALL" ? `Method: ${methodOptions.find((m) => m.value === paymentModeFilter)?.label || paymentModeFilter}` : "Method"}
           </Button>
 
-          {/* 6. Status ⌄ */}
+          {/* 5. Status ⌄ */}
           <Button
             size="small"
             variant="outlined"
@@ -1118,36 +1387,15 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
               fontSize: "12px",
               fontWeight: 700,
               textTransform: "none",
-              color: statusFilter !== "ALL" ? "#059669" : "#374151",
-              borderColor: statusFilter !== "ALL" ? "#059669" : "#D1D5DB",
-              bgcolor: statusFilter !== "ALL" ? "rgba(5, 150, 105, 0.05)" : "#FFFFFF",
+              color: statusFilter !== "ALL" ? brandPrimary : "#374151",
+              borderColor: statusFilter !== "ALL" ? brandPrimary : "#D1D5DB",
+              bgcolor: statusFilter !== "ALL" ? `${brandPrimary}10` : "#FFFFFF",
             }}
           >
             {statusFilter !== "ALL" ? `Status: ${statusFilter}` : "Status"}
           </Button>
 
-          {/* 7. Apply */}
-          <Button
-            size="small"
-            variant="contained"
-            onClick={handleApplyFilters}
-            disabled={isLoading}
-            sx={{
-              borderRadius: "20px",
-              height: 36,
-              px: 2.5,
-              fontSize: "12.5px",
-              fontWeight: 800,
-              textTransform: "none",
-              bgcolor: "#059669",
-              color: "#FFFFFF",
-              "&:hover": { bgcolor: "#047857" },
-            }}
-          >
-            Apply
-          </Button>
-
-          {/* 8. Reset */}
+          {/* 6. Reset */}
           <Button
             size="small"
             variant="outlined"
@@ -1220,19 +1468,29 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
             size="small"
             placeholder="Search TID, Order ID, Mobile, Customer..."
             value={globalSearch}
-            onChange={(e) => setGlobalSearch(e.target.value)}
+            onChange={(e) => {
+              setGlobalSearch(e.target.value);
+              setPage(0);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter") handleApplyFilters();
             }}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchIcon sx={{ color: "#059669", fontSize: 18 }} />
+                  <SearchIcon sx={{ color: brandPrimary, fontSize: 18 }} />
                 </InputAdornment>
               ),
               endAdornment: globalSearch ? (
                 <InputAdornment position="end">
-                  <IconButton size="small" onClick={() => setGlobalSearch("")}>
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      setGlobalSearch("");
+                      setPage(0);
+                      executeReportFetch(0, rowsPerPage, { search: "" });
+                    }}
+                  >
                     <ClearIcon sx={{ fontSize: 16 }} />
                   </IconButton>
                 </InputAdornment>
@@ -2060,47 +2318,6 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
 
       {/* ── 6. POPUP MENUS FOR FILTER BUTTONS ── */}
 
-      {/* Date Range Menu */}
-      <Menu
-        anchorEl={dateRangeAnchorEl}
-        open={Boolean(dateRangeAnchorEl)}
-        onClose={() => setDateRangeAnchorEl(null)}
-        slotProps={{ paper: { sx: { borderRadius: "12px", width: 180, p: 0.5 } } }}
-      >
-        {[
-          { key: "TODAY", label: "Today" },
-          { key: "YESTERDAY", label: "Yesterday" },
-          { key: "THIS_MONTH", label: "This Month" },
-          { key: "SEPTEMBER", label: "September 2026" },
-          { key: "7D", label: "Last 7 Days" },
-          { key: "30D", label: "Last 30 Days" },
-          { key: "60D", label: "Last 60 Days" },
-          { key: "90D", label: "Last 90 Days" },
-          { key: "ALL", label: "All Time" },
-        ].map((p) => (
-          <MenuItem
-            key={p.key}
-            onClick={() => {
-              handleDatePreset(p.key);
-              setDateRangeAnchorEl(null);
-            }}
-            sx={{ fontSize: "12px", fontWeight: activePreset === p.key ? 800 : 500 }}
-          >
-            {p.label}
-          </MenuItem>
-        ))}
-        <Divider sx={{ my: 0.5 }} />
-        <MenuItem
-          onClick={() => {
-            setDateRangeAnchorEl(null);
-            setCustomDateOpen(true);
-          }}
-          sx={{ fontSize: "12px", fontWeight: activePreset === "CUSTOM" ? 800 : 600, color: "#059669" }}
-        >
-          Custom Date Range...
-        </MenuItem>
-      </Menu>
-
       {/* Transaction ID Popover */}
       <Popover
         anchorEl={tidAnchorEl}
@@ -2109,7 +2326,7 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
         anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
         slotProps={{ paper: { sx: { borderRadius: "12px", width: 280, p: 2, boxShadow: "0 8px 24px rgba(0,0,0,0.12)" } } }}
       >
-        <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#059669", mb: 1, textTransform: "uppercase" }}>
+        <Typography sx={{ fontSize: "12px", fontWeight: 800, color: brandPrimary, mb: 1, textTransform: "uppercase" }}>
           Filter by Transaction ID
         </Typography>
         <TextField
@@ -2118,6 +2335,13 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
           placeholder="e.g. BPAY2011261..."
           value={tidFilter}
           onChange={(e) => setTidFilter(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              setTidAnchorEl(null);
+              setPage(0);
+              executeReportFetch(0, rowsPerPage, { tid: tidFilter });
+            }
+          }}
           sx={{ mb: 1.5, "& input": { fontSize: "12px", fontFamily: "monospace" } }}
         />
         <Stack direction="row" spacing={1}>
@@ -2125,10 +2349,14 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
             fullWidth
             size="small"
             variant="contained"
-            onClick={() => setTidAnchorEl(null)}
-            sx={{ bgcolor: "#059669", color: "#FFFFFF", fontWeight: 700, textTransform: "none" }}
+            onClick={() => {
+              setTidAnchorEl(null);
+              setPage(0);
+              executeReportFetch(0, rowsPerPage, { tid: tidFilter });
+            }}
+            sx={{ bgcolor: brandPrimary, color: "#FFFFFF", fontWeight: 700, textTransform: "none", "&:hover": { bgcolor: brandSecondary } }}
           >
-            Set Filter
+            Apply Filter
           </Button>
           <Button
             fullWidth
@@ -2137,6 +2365,8 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
             onClick={() => {
               setTidFilter("");
               setTidAnchorEl(null);
+              setPage(0);
+              executeReportFetch(0, rowsPerPage, { tid: "" });
             }}
             sx={{ color: "#6B7280", borderColor: "#D1D5DB", textTransform: "none" }}
           >
@@ -2153,7 +2383,7 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
         anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
         slotProps={{ paper: { sx: { borderRadius: "12px", width: 280, p: 2, boxShadow: "0 8px 24px rgba(0,0,0,0.12)" } } }}
       >
-        <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#059669", mb: 1, textTransform: "uppercase" }}>
+        <Typography sx={{ fontSize: "12px", fontWeight: 800, color: brandPrimary, mb: 1, textTransform: "uppercase" }}>
           Filter by Customer Mobile
         </Typography>
         <TextField
@@ -2162,6 +2392,13 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
           placeholder="e.g. 9845678901"
           value={mobileFilter}
           onChange={(e) => setMobileFilter(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              setMobileAnchorEl(null);
+              setPage(0);
+              executeReportFetch(0, rowsPerPage, { mobile: mobileFilter });
+            }
+          }}
           sx={{ mb: 1.5, "& input": { fontSize: "12px", fontFamily: "monospace" } }}
         />
         <Stack direction="row" spacing={1}>
@@ -2169,10 +2406,14 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
             fullWidth
             size="small"
             variant="contained"
-            onClick={() => setMobileAnchorEl(null)}
-            sx={{ bgcolor: "#059669", color: "#FFFFFF", fontWeight: 700, textTransform: "none" }}
+            onClick={() => {
+              setMobileAnchorEl(null);
+              setPage(0);
+              executeReportFetch(0, rowsPerPage, { mobile: mobileFilter });
+            }}
+            sx={{ bgcolor: brandPrimary, color: "#FFFFFF", fontWeight: 700, textTransform: "none", "&:hover": { bgcolor: brandSecondary } }}
           >
-            Set Filter
+            Apply Filter
           </Button>
           <Button
             fullWidth
@@ -2181,6 +2422,8 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
             onClick={() => {
               setMobileFilter("");
               setMobileAnchorEl(null);
+              setPage(0);
+              executeReportFetch(0, rowsPerPage, { mobile: "" });
             }}
             sx={{ color: "#6B7280", borderColor: "#D1D5DB", textTransform: "none" }}
           >
@@ -2194,17 +2437,33 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
         anchorEl={gatewayAnchorEl}
         open={Boolean(gatewayAnchorEl)}
         onClose={() => setGatewayAnchorEl(null)}
-        slotProps={{ paper: { sx: { borderRadius: "12px", width: 170, p: 0.5 } } }}
+        slotProps={{ paper: { sx: { borderRadius: "12px", width: 185, p: 0.5 } } }}
       >
-        <MenuItem onClick={() => { setGatewayFilter("ALL"); setGatewayAnchorEl(null); }} sx={{ fontSize: "12px", fontWeight: gatewayFilter === "ALL" ? 800 : 500 }}>
+        <MenuItem
+          onClick={() => {
+            setGatewayFilter("ALL");
+            setGatewayAnchorEl(null);
+            setPage(0);
+            executeReportFetch(0, rowsPerPage, { gateway: "ALL" });
+          }}
+          sx={{ fontSize: "12px", fontWeight: gatewayFilter === "ALL" ? 800 : 500 }}
+        >
           All Gateways
         </MenuItem>
-        <MenuItem onClick={() => { setGatewayFilter("G-1"); setGatewayAnchorEl(null); }} sx={{ fontSize: "12px", fontWeight: gatewayFilter === "G-1" ? 800 : 500 }}>
-          Gateway G-1
-        </MenuItem>
-        <MenuItem onClick={() => { setGatewayFilter("G-2"); setGatewayAnchorEl(null); }} sx={{ fontSize: "12px", fontWeight: gatewayFilter === "G-2" ? 800 : 500 }}>
-          Gateway G-2
-        </MenuItem>
+        {gatewayOptions.map((gw) => (
+          <MenuItem
+            key={gw.value}
+            onClick={() => {
+              setGatewayFilter(gw.value);
+              setGatewayAnchorEl(null);
+              setPage(0);
+              executeReportFetch(0, rowsPerPage, { gateway: gw.value });
+            }}
+            sx={{ fontSize: "12px", fontWeight: gatewayFilter === gw.value ? 800 : 500 }}
+          >
+            {gw.label}
+          </MenuItem>
+        ))}
       </Menu>
 
       {/* Method Menu */}
@@ -2212,18 +2471,31 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
         anchorEl={methodAnchorEl}
         open={Boolean(methodAnchorEl)}
         onClose={() => setMethodAnchorEl(null)}
-        slotProps={{ paper: { sx: { borderRadius: "12px", width: 190, p: 0.5 } } }}
+        slotProps={{ paper: { sx: { borderRadius: "12px", width: 200, p: 0.5, maxHeight: 320 } } }}
       >
-        {["ALL", "UPI", "QR", "NETBANKING", "CARD", "POS"].map((m) => (
+        <MenuItem
+          onClick={() => {
+            setPaymentModeFilter("ALL");
+            setMethodAnchorEl(null);
+            setPage(0);
+            executeReportFetch(0, rowsPerPage, { paymentMode: "ALL" });
+          }}
+          sx={{ fontSize: "12px", fontWeight: paymentModeFilter === "ALL" ? 800 : 500 }}
+        >
+          All Methods
+        </MenuItem>
+        {methodOptions.map((m) => (
           <MenuItem
-            key={m}
+            key={m.value}
             onClick={() => {
-              setPaymentModeFilter(m);
+              setPaymentModeFilter(m.value);
               setMethodAnchorEl(null);
+              setPage(0);
+              executeReportFetch(0, rowsPerPage, { paymentMode: m.value });
             }}
-            sx={{ fontSize: "12px", fontWeight: paymentModeFilter === m ? 800 : 500 }}
+            sx={{ fontSize: "12px", fontWeight: paymentModeFilter === m.value ? 800 : 500 }}
           >
-            {m === "ALL" ? "All Methods" : m === "NETBANKING" ? "Net Banking" : m === "CARD" ? "Debit / Credit Card" : m}
+            {m.label}
           </MenuItem>
         ))}
       </Menu>
@@ -2247,6 +2519,8 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
             onClick={() => {
               setStatusFilter(s.key);
               setStatusAnchorEl(null);
+              setPage(0);
+              executeReportFetch(0, rowsPerPage, { status: s.key });
             }}
             sx={{ fontSize: "12px", fontWeight: statusFilter === s.key ? 800 : 500 }}
           >
@@ -2270,6 +2544,7 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
             InputLabelProps={{ shrink: true }}
             value={customFrom}
             onChange={(e) => setCustomFrom(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleApplyCustomDates(); }}
           />
           <TextField
             label="To Date"
@@ -2278,24 +2553,20 @@ export const RetailerPayinReport: React.FC<PayinReportProps> = ({
             InputLabelProps={{ shrink: true }}
             value={customTo}
             onChange={(e) => setCustomTo(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleApplyCustomDates(); }}
           />
         </DialogContent>
         <DialogActions sx={{ p: 2, pt: 0 }}>
           <Button onClick={() => setCustomDateOpen(false)} sx={{ textTransform: "none" }}>Cancel</Button>
           <Button
             variant="contained"
-            onClick={() => {
-              if (customFrom) setFromDate(customFrom);
-              if (customTo) setToDate(customTo);
-              setActivePreset("CUSTOM");
-              setCustomDateOpen(false);
-              setPage(0);
-            }}
+            onClick={handleApplyCustomDates}
             sx={{
-              bgcolor: "#059669",
+              bgcolor: brandPrimary,
               color: "#FFFFFF",
               textTransform: "none",
               fontWeight: 800,
+              "&:hover": { bgcolor: brandSecondary },
             }}
           >
             Apply Range

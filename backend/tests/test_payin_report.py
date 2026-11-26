@@ -404,3 +404,85 @@ async def test_export_payin_report_csv_admin(mock_auth):
     assert "G-1" in row
     assert "50000.00" in row
 
+
+def test_build_payin_filters_dynamic_parameters():
+    from app.presentation.api.v1.payin_report_router import _build_payin_filters
+
+    auth_ctx = {
+        "company_ref_id": 2,
+        "retailer_ref_id": 10928,
+        "user_ref_id": 10928,
+        "user_type_ref_id": 2,
+        "is_admin": False,
+        "is_super_admin": False,
+    }
+
+    # All-time preset (blank dates) omits date bounds while keeping tenant & user scope
+    where_all, params_all, start_all, end_all, comp_all = _build_payin_filters(
+        auth_ctx,
+        from_date="",
+        to_date="",
+        status="ALL",
+        gateway="ALL",
+        payment_mode="ALL",
+    )
+    assert start_all is None and end_all is None
+    assert comp_all == 2
+    assert "t.created_at" not in where_all
+    assert params_all["comp_ref"] == 2
+    assert params_all["eff_user_ref"] == 10928
+
+    # Full filter combination: custom date range, TID, formatted mobile, gateway G-3, card network, status, search
+    where_full, params_full, start_full, end_full, _ = _build_payin_filters(
+        auth_ctx,
+        from_date="2026-11-01",
+        to_date="2026-11-26",
+        tid="PIN-123",
+        mobile="+91 9025232475",
+        status="SUCCESS",
+        gateway="G-3",
+        payment_mode="VISA",
+        search="Sathya",
+    )
+    assert start_full is not None and end_full is not None
+    assert "t.created_at >= :start_dt" in where_full
+    assert "t.created_at <= :end_dt" in where_full
+    assert params_full["tid_val"] == "%PIN-123%"
+    assert params_full["mob_val"] == "%9025232475%"
+    assert params_full["gw_ref_id"] == 3
+    assert params_full["pm_net"] == "VISA"
+    assert params_full["s"] == "%Sathya%"
+    assert "UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED')" in where_full
+
+
+@pytest.mark.asyncio
+@patch("app.presentation.api.v1.payin_report_router.resolve_payin_auth_context", new_callable=AsyncMock)
+async def test_payin_filter_options_dynamic(mock_auth):
+    from app.presentation.api.v1.payin_report_router import get_payin_report_filter_options
+
+    mock_auth.return_value = {
+        "company_ref_id": 2,
+        "retailer_ref_id": 10928,
+        "user_ref_id": 10928,
+        "user_type_ref_id": 2,
+        "is_admin": False,
+        "is_super_admin": False,
+    }
+    req = MockRequest(headers={"host": "smspay.store"})
+    mock_db = AsyncMock()
+
+    vendors_res = MagicMock()
+    vendors_res.fetchall.return_value = [(1, "BANKME"), (3, "CUSTOMGW")]
+    dist_res = MagicMock()
+    dist_res.fetchall.return_value = [(3, "CUSTOMGW", "CORPORATE", "CREDIT_CARD")]
+    mock_db.execute.side_effect = [vendors_res, dist_res]
+
+    res = await get_payin_report_filter_options(request=req, company_ref_id=None, db=mock_db)
+    assert res["success"] is True
+    gw_values = {g["value"] for g in res["data"]["gateways"]}
+    method_values = {m["value"] for m in res["data"]["methods"]}
+    assert {"G-1", "G-2", "G-3"}.issubset(gw_values)
+    assert {"UPI", "VISA", "NETBANKING"}.issubset(method_values)
+    assert "CORPORATE_CARD" in method_values
+
+
