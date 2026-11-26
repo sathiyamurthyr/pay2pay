@@ -516,7 +516,7 @@ async def get_retailer_profile(
             if clean_mobile and len(clean_mobile) == 10:
                 draft_conds.append(RegistrationDraftModel.mobile_number.like(f"%{clean_mobile}"))
             if draft_conds:
-                draft_stmt = select(RegistrationDraftModel).where(or_(*draft_conds)).order_by(desc(RegistrationDraftModel.created_date))
+                draft_stmt = select(RegistrationDraftModel).where(or_(*draft_conds)).order_by(desc(RegistrationDraftModel.last_activity_at), desc(RegistrationDraftModel.created_date))
                 draft = (await db.execute(draft_stmt)).scalars().first()
     except Exception as e:
         logger.warning(f"Draft query error: {e}")
@@ -1768,17 +1768,22 @@ async def get_photo_image(
                 pass
 
     raw_url = None
+    draft_conds = []
     if reg_id:
+        draft_conds.append(RegistrationDraftModel.registration_id == reg_id)
+    if clean_mobile and len(clean_mobile) == 10:
+        draft_conds.append(RegistrationDraftModel.mobile_number.like(f"%{clean_mobile}"))
+    if draft_conds:
+        d_stmt = select(RegistrationDraftModel).where(or_(*draft_conds)).order_by(desc(RegistrationDraftModel.last_activity_at), desc(RegistrationDraftModel.created_date))
+        draft = (await db.execute(d_stmt)).scalars().first()
+        if draft and draft.draft_data:
+            raw_url = draft.draft_data.get("photo_url") or draft.draft_data.get("avatar_url")
+
+    if not raw_url and reg_id:
         a_stmt = select(RegistrationAadhaarModel).where(RegistrationAadhaarModel.registration_id == reg_id).order_by(desc(RegistrationAadhaarModel.created_date))
         aadhaar = (await db.execute(a_stmt)).scalars().first()
         if aadhaar and aadhaar.photo_url:
             raw_url = aadhaar.photo_url
-
-        if not raw_url:
-            d_stmt = select(RegistrationDraftModel).where(RegistrationDraftModel.registration_id == reg_id).order_by(desc(RegistrationDraftModel.created_date))
-            draft = (await db.execute(d_stmt)).scalars().first()
-            if draft and draft.draft_data:
-                raw_url = draft.draft_data.get("photo_url") or draft.draft_data.get("avatar_url")
 
     if not raw_url:
         raise HTTPException(status_code=404, detail="No profile photo registered for this retailer.")

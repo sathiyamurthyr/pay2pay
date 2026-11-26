@@ -460,9 +460,19 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
 
     window.addEventListener("p2p_wallet_refreshed", handleWalletRefreshed);
     window.addEventListener("p2p_wallet_refresh_error", handleRefreshError);
+    const handleProfileUpdated = (e: any) => {
+      const nextUrl = e?.detail?.photo_url;
+      if (nextUrl) {
+        setProfileDetails((prev) => ({ ...prev, photo_url: nextUrl }));
+      } else {
+        fetchProfileDetails();
+      }
+    };
+    window.addEventListener("p2p_profile_updated", handleProfileUpdated);
     return () => {
       window.removeEventListener("p2p_wallet_refreshed", handleWalletRefreshed);
       window.removeEventListener("p2p_wallet_refresh_error", handleRefreshError);
+      window.removeEventListener("p2p_profile_updated", handleProfileUpdated);
     };
   }, []);
 

@@ -351,6 +351,7 @@ export const retailerApi = {
       if (activeRetailerId) params.retailer_id = activeRetailerId;
 
       const res = await apiClient.patch("/retailer/profile/contact", data, { params });
+      retailerApi.invalidateProfileCache();
       return res.data;
     } catch (e) {
       console.error("Failed to update contact details:", e);
@@ -365,6 +366,7 @@ export const retailerApi = {
       if (activeRetailerId) params.retailer_id = activeRetailerId;
 
       const res = await apiClient.patch("/retailer/profile/address", data, { params });
+      retailerApi.invalidateProfileCache();
       return res.data;
     } catch (e) {
       console.error("Failed to update address details:", e);
@@ -377,6 +379,10 @@ export const retailerApi = {
       const res = await apiClient.post("/retailer/profile/photo", formData, {
         headers: { "Content-Type": "multipart/form-data" }
       });
+      retailerApi.invalidateProfileCache();
+      if (typeof window !== "undefined" && res.data?.photo_url) {
+        window.dispatchEvent(new CustomEvent("p2p_profile_updated", { detail: { photo_url: res.data.photo_url } }));
+      }
       return res.data;
     } catch (e) {
       console.error("Failed to upload profile photo:", e);
@@ -397,6 +403,7 @@ export const retailerApi = {
   changePassword: async (data: { current_password?: string; new_password: string; confirm_password: string; otp_code: string }) => {
     try {
       const res = await apiClient.post("/retailer/profile/security/password", data);
+      retailerApi.invalidateProfileCache();
       return res.data;
     } catch (e) {
       console.error("Failed to change password:", e);
@@ -407,6 +414,7 @@ export const retailerApi = {
   changeMpin: async (data: { current_pin?: string; new_pin: string; confirm_pin: string; otp_code: string }) => {
     try {
       const res = await apiClient.post("/retailer/profile/security/pin", data);
+      retailerApi.invalidateProfileCache();
       return res.data;
     } catch (e) {
       console.error("Failed to change mpin:", e);

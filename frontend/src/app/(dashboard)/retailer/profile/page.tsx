@@ -410,13 +410,14 @@ export default function RetailerProfilePage() {
       setEmailModalError(null);
       const res = await retailerApi.verifyEmailUpdateOtp(newEmail.trim().toLowerCase(), emailOtp.trim());
       if (res?.success) {
+        retailerApi.invalidateProfileCache();
         setToast({
           open: true,
           message: res.message || "Email address updated and verified successfully!",
           severity: "success",
         });
         setEmailModalOpen(false);
-        await fetchProfile();
+        await fetchProfile(true);
       } else {
         setEmailModalError(res?.message || "Invalid verification code. Email not updated.");
       }
@@ -524,12 +525,12 @@ export default function RetailerProfilePage() {
     pinForm.new_pin === pinForm.confirm_pin
   );
 
-  const fetchProfile = useCallback(async () => {
+  const fetchProfile = useCallback(async (forceRefresh = false) => {
     try {
       setLoading(true);
       setError(null);
       const [data, compRes] = await Promise.all([
-        retailerApi.getProfile(),
+        retailerApi.getProfile(forceRefresh),
         api.get("/api/v1/company-profile/current").catch(() => null),
       ]);
       const companyProfileData = compRes?.data?.data || null;
@@ -569,6 +570,10 @@ export default function RetailerProfilePage() {
     fetchProfile();
   }, [fetchProfile]);
 
+  useEffect(() => {
+    setAvatarError(false);
+  }, [profile?.photo?.photo_url]);
+
   const handleCopy = (text?: string | null, label?: string) => {
     if (!text) return;
     navigator.clipboard.writeText(text);
@@ -580,7 +585,7 @@ export default function RetailerProfilePage() {
       setSaving(true);
       await retailerApi.updateContact(contactForm);
       setToast({ open: true, message: "Contact details updated successfully!", severity: "success" });
-      await fetchProfile();
+      await fetchProfile(true);
     } catch (err: any) {
       setToast({ open: true, message: err?.message || "Unable to update contact details. Please try again.", severity: "error" });
     } finally {
@@ -593,7 +598,7 @@ export default function RetailerProfilePage() {
       setSaving(true);
       await retailerApi.updateAddress(addressForm);
       setToast({ open: true, message: "Registered address updated successfully!", severity: "success" });
-      await fetchProfile();
+      await fetchProfile(true);
     } catch (err: any) {
       setToast({ open: true, message: err?.message || "Unable to update address. Please try again.", severity: "error" });
     } finally {
@@ -612,9 +617,22 @@ export default function RetailerProfilePage() {
       fd.append("file", file);
       const res = await retailerApi.uploadProfilePhoto(fd);
       if (res?.photo_url) {
+        retailerApi.invalidateProfileCache();
         setAvatarError(false);
+        setProfile((prev: any) =>
+          prev
+            ? {
+                ...prev,
+                photo: {
+                  ...(prev.photo || {}),
+                  photo_url: res.photo_url,
+                  has_photo: true,
+                },
+              }
+            : prev
+        );
         setToast({ open: true, message: "Profile photo updated successfully.", severity: "success" });
-        await fetchProfile();
+        await fetchProfile(true);
       }
     } catch (err: any) {
       setToast({ open: true, message: err?.message || "Unable to upload photo. Please try again.", severity: "error" });
@@ -702,7 +720,7 @@ export default function RetailerProfilePage() {
         setToast({ open: true, message: res?.message || "Account password updated successfully!", severity: "success" });
         setPwdForm({ current_password: "", new_password: "", confirm_password: "" });
         setSecOtpModalOpen(false);
-        await fetchProfile();
+        await fetchProfile(true);
       } else {
         const res = await retailerApi.changeMpin({
           current_pin: pinForm.current_pin || undefined,
@@ -713,7 +731,7 @@ export default function RetailerProfilePage() {
         setToast({ open: true, message: res?.message || "Transaction MPIN updated successfully!", severity: "success" });
         setPinForm({ current_pin: "", new_pin: "", confirm_pin: "" });
         setSecOtpModalOpen(false);
-        await fetchProfile();
+        await fetchProfile(true);
       }
     } catch (err: any) {
       const msg = err?.response?.data?.detail || err?.response?.data?.message || err?.message || "Invalid WhatsApp OTP code. Changes were NOT saved to the database.";
@@ -753,7 +771,7 @@ export default function RetailerProfilePage() {
         <Alert severity="error" sx={{ mb: 3, borderRadius: 3 }}>
           {error || "Unable to load profile information."}
         </Alert>
-        <Button variant="contained" onClick={fetchProfile} startIcon={<RefreshCw size={18} />} sx={{ bgcolor: brandPrimary, "&:hover": { bgcolor: brandHover } }}>
+        <Button variant="contained" onClick={() => fetchProfile(true)} startIcon={<RefreshCw size={18} />} sx={{ bgcolor: brandPrimary, "&:hover": { bgcolor: brandHover } }}>
           Retry
         </Button>
       </Box>
