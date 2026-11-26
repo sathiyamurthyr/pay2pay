@@ -128,54 +128,46 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
     if (!isItemServiceEnabled(path)) {
       return;
     }
-    setFavorites((prev) => {
-      const updated = prev.includes(path) ? prev.filter((p) => p !== path) : [...prev, path];
-      try {
-        localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(updated));
-      } catch {}
-      return updated;
-    });
+    const prevFavs = favorites;
+    const updated = prevFavs.includes(path) ? prevFavs.filter((p) => p !== path) : [...prevFavs, path];
+    setFavorites(updated);
 
-    // Authoritative persistence to PostgreSQL DB via Stored Procedure sp_toggle_user_favorite_menu
-    // Backend resolves user identity from JWT Bearer token — no userRefId needed
+    // Authoritative persistence to PostgreSQL DB
+    // Backend resolves company_ref_id, retailer_ref_id, user_ref_id strictly from JWT
     retailerApi
       .toggleFavoriteMenu({
         menu_href: path,
         menu_label: label || path,
         menu_category: category || "General",
-        user_role: userRole || "RETAILER",
       })
       .then((res: any) => {
-        if (res && res.favorites && Array.isArray(res.favorites) && res.favorites.length > 0) {
+        if (res?.status === "SUCCESS" && Array.isArray(res.favorites)) {
           const dbHrefs = res.favorites.map((f: any) => f.menu_href || f.path).filter(Boolean);
-          if (dbHrefs.length > 0) {
-            setFavorites(dbHrefs);
-            try {
-              localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(dbHrefs));
-            } catch {}
-          }
+          setFavorites(dbHrefs);
+        } else {
+          setFavorites(prevFavs);
         }
       })
       .catch((err) => {
         console.warn("DB favorite toggle notice:", err);
+        setFavorites(prevFavs);
       });
   };
 
   useEffect(() => {
-    // Authoritative PostgreSQL fetch via Stored Procedure sp_get_user_favorite_menus
-    // Backend resolves user identity from JWT Bearer token — no userRefId needed
     retailerApi
       .getFavoriteMenus()
       .then((res: any) => {
-        if (res && res.favorites && Array.isArray(res.favorites)) {
+        if (res?.status === "SUCCESS" && Array.isArray(res.favorites)) {
           const dbHrefs = res.favorites.map((f: any) => f.menu_href || f.path).filter(Boolean);
-          setFavorites(dbHrefs); // Set even if empty — clears stale state
-          try {
-            localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(dbHrefs));
-          } catch {}
+          setFavorites(dbHrefs);
+        } else {
+          setFavorites([]);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setFavorites([]);
+      });
   }, [userRole]);
 
   // PORTAL SPECIFIC NAVIGATION CONFIGURATIONS

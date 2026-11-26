@@ -130,8 +130,8 @@ apiClient.interceptors.request.use(
           localStorage.getItem("pay2pay_user_data");
         if (userStr) {
           const u = JSON.parse(userStr);
-          const uRef = u.user_ref_id || u.retailer_ref_id || u.ref_id;
-          const uType = u.user_type_ref_id || 2;
+          const uRef = u.user_ref_id || u.admin_user_ref_id || u.retailer_ref_id || u.ref_id;
+          const uType = u.user_type_ref_id ?? (isAdminHost || isSuperAdminHost || path.startsWith("/admin") || path.startsWith("/super-admin") ? 1 : 2);
           if (uRef) config.headers["x-user-ref-id"] = String(uRef);
           if (uType) config.headers["x-user-type-ref-id"] = String(uType);
           // Inject retailer identity headers for cross-subdomain resolution

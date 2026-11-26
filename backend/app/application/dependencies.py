@@ -385,14 +385,20 @@ async def require_admin_user(
 ) -> AdminUserModel:
     """
     Strict server-side RBAC dependency. Enforces that only users with
-    authoritative administrative roles (PLATFORM_ADMIN, SUPER_ADMIN, ADMIN) can access
-    the protected administrative endpoint.
+    authoritative administrative / internal staff roles can access
+    protected administrative endpoints. Rejects retailers, distributors, and SDs.
     """
+    allowed_admin_roles = {
+        "PLATFORM_ADMIN", "SUPER_ADMIN", "ADMIN",
+        "OPERATIONS", "OPERATIONS_ADMIN", "FINANCE",
+        "COMPLIANCE", "COMPLIANCE_OFFICER", "AUDIT_VIEWER",
+        "SETTLEMENT_MGR", "REGIONAL_MANAGER", "CRM", "CRM_EXECUTIVE", "CRM_MANAGER",
+    }
     user_type = (getattr(current_user, "user_type", "") or "").upper()
-    is_admin = user_type in ("PLATFORM_ADMIN", "SUPER_ADMIN", "ADMIN")
+    is_admin = user_type in allowed_admin_roles
     if not is_admin:
         has_admin_role = any(
-            (ur.role and ur.role.code in ("PLATFORM_ADMIN", "SUPER_ADMIN", "ADMIN"))
+            (ur.role and str(ur.role.code).upper() in allowed_admin_roles)
             for ur in (getattr(current_user, "user_roles", []) or [])
         )
         if not has_admin_role:

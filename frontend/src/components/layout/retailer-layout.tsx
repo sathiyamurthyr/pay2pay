@@ -234,7 +234,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   const [universalSearchOpen, setUniversalSearchOpen] = useState(false);
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [menuSearchQuery, setMenuSearchQuery] = useState("");
-  const [favorites, setFavorites] = useState<string[]>([]);
+  const [dbMenus, setDbMenus] = useState<any[] | null>(null);
+  const [favorites, setFavorites] = useState<{ menu_ref_id?: number; menu_href: string; menu_label?: string }[]>([]);
   const [servicesStatus, setServicesStatus] = useState<Record<string, boolean>>({
     DMT: true,
     RECHARGE: true,
@@ -388,16 +389,12 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         return null;
       })()) || "";
 
-      const defaultCompanyName = isSmspay
-        ? "INSPEL TECHNOLOGIES SOLUTIONS PVT"
+      const defaultCompanyName = branding?.company_name || (isSmspay
+        ? "SMSPAY"
         : isNear4you
-        ? "SATHUS TECHNOLOGY PRIVATE LIMITED"
-        : (branding?.company_name || "SUPER REX PRODUCTS PRIVATE LIMITED");
-      let resolvedCompany = isSmspay
-        ? "INSPEL TECHNOLOGIES SOLUTIONS PVT"
-        : isNear4you
-        ? "SATHUS TECHNOLOGY PRIVATE LIMITED"
-        : (isPay2pay ? "SUPER REX PRODUCTS PRIVATE LIMITED" : (company.company_name || company.legal_name || defaultCompanyName));
+        ? "Near4You"
+        : "Pay2Pay");
+      const resolvedCompany = company.company_name || company.legal_name || branding?.company_name || defaultCompanyName;
 
       const resolvedOwner = personal.owner_name || (personal.first_name ? `${personal.first_name} ${personal.last_name || ""}`.trim() : personal.retailer_name) || fallbackOwner;
       const resolvedRetailer = personal.retailer_name || personal.store_name || fallbackOwner || "Retailer Store";
@@ -511,35 +508,55 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [isAuthenticatedSession, fetchServicesStatus]);
 
-  // ── DB-Backed User Favorites (PostgreSQL Stored Procedures & DB APIs) ──
-  // Backend resolves user identity from JWT Bearer token — no userRefId needed from frontend.
-  // Do NOT preload from localStorage: stale data from previous user session causes wrong favorites to appear after login.
-  useEffect(() => {
-    let isSubscribed = true;
-
-    const fetchDbFavorites = async () => {
-      try {
-        // Call without userRefId — backend authoritative identity resolution via JWT
-        const res = await retailerApi.getFavoriteMenus();
-        if (res && res.favorites && Array.isArray(res.favorites) && isSubscribed) {
-          const hrefs = res.favorites.map((f: any) => f.menu_href || f.path).filter(Boolean);
-          setFavorites(hrefs); // Set even if empty — clears stale state
-          try {
-            localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(hrefs));
-          } catch {}
+  // ── DB-Backed Dynamic Menus & User Favorites (Reference-ID DB APIs) ──
+  // Backend resolves company_ref_id, retailer_ref_id, user_ref_id strictly from JWT.
+  // Never trust localStorage on initial mount to prevent stale cross-user favorites.
+  const fetchDbMenusAndFavorites = useCallback(async () => {
+    try {
+      const availRes = await retailerApi.getAvailableMenus();
+      if (availRes?.status === "SUCCESS") {
+        if (Array.isArray(availRes.menus)) {
+          setDbMenus(availRes.menus);
         }
-      } catch (err) {
-        console.warn("Notice: DB favorites fetch notice:", err);
+        if (Array.isArray(availRes.favorites)) {
+          const normFavs = availRes.favorites
+            .map((f: any) => ({
+              menu_ref_id: f.menu_ref_id !== undefined ? Number(f.menu_ref_id) : undefined,
+              menu_href: f.menu_href || f.path || "",
+              menu_label: f.menu_label,
+            }))
+            .filter((f: any) => Boolean(f.menu_href));
+          setFavorites(normFavs);
+          return;
+        }
       }
-    };
-
-    if (isAuthenticatedSession) {
-      fetchDbFavorites();
+      const res = await retailerApi.getFavoriteMenus();
+      if (res && Array.isArray(res.favorites)) {
+        const normFavs = res.favorites
+          .map((f: any) => ({
+            menu_ref_id: f.menu_ref_id !== undefined ? Number(f.menu_ref_id) : undefined,
+            menu_href: f.menu_href || f.path || "",
+            menu_label: f.menu_label,
+          }))
+          .filter((f: any) => Boolean(f.menu_href));
+        setFavorites(normFavs);
+      }
+    } catch (err) {
+      console.warn("Notice: DB favorites fetch notice:", err);
     }
-    return () => {
-      isSubscribed = false;
-    };
-  }, [isAuthenticatedSession]);
+  }, []);
+
+  useEffect(() => {
+    if (isAuthenticatedSession) {
+      fetchDbMenusAndFavorites();
+    } else {
+      setFavorites([]);
+      setDbMenus(null);
+      try {
+        localStorage.removeItem("p2p_sidebar_favorites");
+      } catch {}
+    }
+  }, [isAuthenticatedSession, user?.public_id, fetchDbMenusAndFavorites]);
 
   // Global Lock Screen Keyboard Shortcut (Ctrl+L / Cmd+L)
   useEffect(() => {
@@ -600,41 +617,86 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     [servicesStatus, disabledSubmenus]
   );
 
-  const toggleFavorite = (path: string, e: React.MouseEvent, itemLabel?: string, itemCategory?: string) => {
+  const RETAILER_ICON_MAP: Record<string, any> = useMemo(() => ({
+    Dashboard: DashboardIcon,
+    Send: SendIcon,
+    CreditCard: CreditCardIcon,
+    Fingerprint: FingerprintIcon,
+    QrCode: QrCodeIcon,
+    Receipt: ReceiptIcon,
+    AddCard: AddCardIcon,
+    PhoneAndroid: PhoneAndroidIcon,
+    AccountBalanceWallet: AccountBalanceWalletIcon,
+    CloudUpload: CloudUploadIcon,
+    ReceiptLong: ReceiptLongIcon,
+    Person: PersonIcon,
+    Contacts: ContactsIcon,
+    Assessment: AssessmentIcon,
+    PointOfSale: PointOfSaleIcon,
+    Shield: ShieldIcon,
+    Logout: LogoutIcon,
+  }), []);
+
+  const isFavoriteItem = useCallback(
+    (path: string, menuRefId?: number) =>
+      favorites.some((f) =>
+        menuRefId !== undefined && f.menu_ref_id !== undefined
+          ? Number(f.menu_ref_id) === Number(menuRefId)
+          : f.menu_href === path
+      ),
+    [favorites]
+  );
+
+  const toggleFavorite = (
+    path: string,
+    e: React.MouseEvent,
+    itemLabel?: string,
+    itemCategory?: string,
+    menuRefId?: number
+  ) => {
     e.stopPropagation();
     e.preventDefault();
     if (!isItemEnabled({ path })) {
       return;
     }
-    const isCurrentlyFav = favorites.includes(path);
-    const updated = isCurrentlyFav ? favorites.filter((p) => p !== path) : [...favorites, path];
+    const prevFavorites = favorites;
+    const isCurrentlyFav = isFavoriteItem(path, menuRefId);
+    const updated = isCurrentlyFav
+      ? prevFavorites.filter((f) =>
+          menuRefId !== undefined && f.menu_ref_id !== undefined
+            ? Number(f.menu_ref_id) !== Number(menuRefId)
+            : f.menu_href !== path
+        )
+      : [...prevFavorites, { menu_ref_id: menuRefId, menu_href: path, menu_label: itemLabel || path }];
 
     // Optimistic UI state update
     setFavorites(updated);
-    try {
-      localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(updated));
-    } catch {}
 
-    // Asynchronously persist to PostgreSQL DB via Stored Procedure
-    // Backend resolves user identity from JWT — no userRefId needed from frontend
+    // Authoritative persistence to PostgreSQL DB (company_ref_id, retailer_ref_id, user_ref_id, menu_ref_id)
     retailerApi
       .toggleFavoriteMenu({
+        menu_ref_id: menuRefId,
         menu_href: path,
         menu_label: itemLabel || path,
         menu_category: itemCategory || "General",
-        user_role: "RETAILER",
       })
       .then((res: any) => {
-        if (res && res.favorites && Array.isArray(res.favorites)) {
-          const dbHrefs = res.favorites.map((f: any) => f.menu_href || f.path).filter(Boolean);
-          setFavorites(dbHrefs);
-          try {
-            localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(dbHrefs));
-          } catch {}
+        if (res && res.status === "SUCCESS" && Array.isArray(res.favorites)) {
+          const normFavs = res.favorites
+            .map((f: any) => ({
+              menu_ref_id: f.menu_ref_id !== undefined ? Number(f.menu_ref_id) : undefined,
+              menu_href: f.menu_href || f.path || "",
+              menu_label: f.menu_label,
+            }))
+            .filter((f: any) => Boolean(f.menu_href));
+          setFavorites(normFavs);
+        } else {
+          setFavorites(prevFavorites);
         }
       })
       .catch((err: any) => {
-        console.warn("Notice: DB favorite sync:", err);
+        console.warn("Notice: DB favorite sync rollback:", err);
+        setFavorites(prevFavorites);
       });
   };
 
@@ -652,7 +714,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const activeDrawerWidth = desktopCollapsed ? COLLAPSED_DRAWER_WIDTH : FULL_DRAWER_WIDTH;
 
-  const navCategories = useMemo(() => [
+  const fallbackCategories = useMemo(() => [
     {
       title: "MAIN",
       items: [{ label: "Dashboard", path: "/retailer/dashboard", icon: DashboardIcon }],
@@ -699,6 +761,34 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       ],
     },
   ], []);
+
+  const navCategories = useMemo(() => {
+    if (dbMenus && dbMenus.length > 0) {
+      const grouped = new Map<string, any[]>();
+      dbMenus.forEach((m) => {
+        const cat = m.menu_category || "GENERAL";
+        if (!grouped.has(cat)) grouped.set(cat, []);
+        grouped.get(cat)!.push({
+          menu_ref_id: m.menu_ref_id,
+          label: m.menu_label,
+          path: m.menu_href,
+          icon: (m.icon_name && RETAILER_ICON_MAP[m.icon_name]) || DashboardIcon,
+          serviceCode: m.service_code || undefined,
+          parentServiceCode: m.parent_service_code || undefined,
+          badge: m.badge_text || undefined,
+        });
+      });
+      if (!grouped.has("ACCOUNT")) {
+        grouped.set("ACCOUNT", []);
+      }
+      const acct = grouped.get("ACCOUNT")!;
+      if (!acct.some((x) => x.path === "/logout")) {
+        acct.push({ label: "Logout", path: "/logout", icon: LogoutIcon });
+      }
+      return Array.from(grouped.entries()).map(([title, items]) => ({ title, items }));
+    }
+    return fallbackCategories;
+  }, [dbMenus, RETAILER_ICON_MAP, fallbackCategories]);
 
   const visibleNavCategories = useMemo(() => {
     return navCategories
@@ -921,7 +1011,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         {/* ── 1. FAVORITES CATEGORY ── */}
         {!menuSearchQuery && (() => {
           const allItems = visibleNavCategories.flatMap((cat) => cat.items);
-          const favItems = allItems.filter((i) => favorites.includes(i.path));
+          const favItems = allItems.filter((i: any) => isFavoriteItem(i.path, i.menu_ref_id));
           if (favItems.length === 0) return null;
 
           return (
@@ -1012,7 +1102,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                             <IconButton
                               size="small"
                               className="fav-star"
-                              onClick={(e) => toggleFavorite(item.path, e)}
+                              onClick={(e) => toggleFavorite(item.path, e, item.label, "Favorites", (item as any).menu_ref_id)}
+                              title="Remove from Favorites"
                               sx={{ p: 0.3, color: "#F59E0B" }}
                             >
                               <StarIcon sx={{ fontSize: 16 }} />
@@ -1062,7 +1153,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 {cat.items.map((item) => {
                   const IconComponent = item.icon;
                   const isActive = pathname === item.path || (item.path !== "/retailer/dashboard" && item.path !== "/retailer-dashboard" && pathname?.startsWith(item.path));
-                  const isFav = favorites.includes(item.path);
+                  const isFav = isFavoriteItem(item.path, (item as any).menu_ref_id);
                   const itemLocked = isPathLocked(item.path);
 
                   return (
@@ -1170,7 +1261,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                               <IconButton
                                 size="small"
                                 className="fav-star"
-                                onClick={(e) => toggleFavorite(item.path, e, item.label, cat.title)}
+                                onClick={(e) => toggleFavorite(item.path, e, item.label, cat.title, (item as any).menu_ref_id)}
+                                title={isFav ? "Remove from Favorites" : "Add to Favorites"}
                                 sx={{
                                   p: 0.3,
                                   color: isFav ? "#F59E0B" : "#CBD5E1",

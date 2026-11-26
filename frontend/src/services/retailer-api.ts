@@ -1221,53 +1221,82 @@ export const retailerApi = {
     }
   },
 
-  // ─── FAVORITE MENUS (PostgreSQL Stored Procedures & DB APIs) ───────────────
+  // ─── FAVORITE MENUS & DYNAMIC PORTAL MENUS (Reference-ID DB APIs) ──────────
 
-  getFavoriteMenus: async (userRefId?: string) => {
+  getAvailableMenus: async () => {
     try {
-      // Backend derives user identity from Authorization Bearer token
-      const params: Record<string, string> = {};
-      if (userRefId) params.user_ref_id = userRefId;
-      const res = await apiClient.get("/favorites/menus", { params });
+      const res = await apiClient.get("/favorites/available-menus");
+      return res.data;
+    } catch (err: any) {
+      console.warn("Available menus fetch notice:", err);
+      return { status: "ERROR", menus: [], favorites: [] };
+    }
+  },
+
+  getFavoriteMenus: async () => {
+    try {
+      // Backend derives company_ref_id, retailer_ref_id, user_ref_id strictly from JWT
+      const res = await apiClient.get("/favorites/menus");
       return res.data;
     } catch (err: any) {
       console.warn("Favorites fetch notice:", err);
-      return { status: "SUCCESS", favorites: [] };
+      return { status: "ERROR", favorites: [] };
+    }
+  },
+
+  checkFavoriteMenu: async (params: { menu_ref_id?: number; menu_href?: string }) => {
+    try {
+      const res = await apiClient.get("/favorites/check", { params });
+      return res.data;
+    } catch (err: any) {
+      return { status: "ERROR", is_favorite: false };
     }
   },
 
   saveFavoriteMenu: async (payload: {
-    user_ref_id?: string;
-    menu_href: string;
-    menu_label: string;
+    menu_ref_id?: number;
+    menu_href?: string;
+    menu_label?: string;
     menu_category?: string;
     icon_name?: string;
     display_order?: number;
-    user_role?: string;
   }) => {
     try {
       const res = await apiClient.post("/favorites/menus", payload);
       return res.data;
     } catch (err: any) {
       console.error("Save favorite error:", err);
-      return { status: "ERROR", message: err.message };
+      return { status: "ERROR", message: err?.response?.data?.detail || err.message };
+    }
+  },
+
+  removeFavoriteMenu: async (payload: {
+    menu_ref_id?: number;
+    menu_href?: string;
+    menu_label?: string;
+  }) => {
+    try {
+      const res = await apiClient.post("/favorites/menus/remove", payload);
+      return res.data;
+    } catch (err: any) {
+      console.error("Remove favorite error:", err);
+      return { status: "ERROR", message: err?.response?.data?.detail || err.message };
     }
   },
 
   toggleFavoriteMenu: async (payload: {
-    user_ref_id?: string;
-    menu_href: string;
+    menu_ref_id?: number;
+    menu_href?: string;
     menu_label?: string;
     menu_category?: string;
     icon_name?: string;
-    user_role?: string;
   }) => {
     try {
       const res = await apiClient.post("/favorites/toggle", payload);
       return res.data;
     } catch (err: any) {
       console.error("Toggle favorite error:", err);
-      return { status: "ERROR", message: err.message };
+      return { status: "ERROR", message: err?.response?.data?.detail || err.message };
     }
   },
 };

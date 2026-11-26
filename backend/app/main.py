@@ -21,6 +21,7 @@ import app.infrastructure.db.session_security_models  # Session security & PIN a
 import app.infrastructure.db.upi_vendor_models  # UPI Vendor Configuration & Audit models
 import app.infrastructure.db.crypto_models  # Retailer Encrypted Records & Envelope tables
 import app.infrastructure.db.company_profile_models  # Admin Company Profile Management tables
+import app.infrastructure.db.menu_favorite_models  # Dynamic Menu, Role-Menu & Reference-ID Favorites tables
 from app.presentation.api.v1 import beneficiary_verification
 from app.presentation.api.v1 import enterprise_payout_execution_router
 from app.presentation.api.v1 import payout_report_router
@@ -53,6 +54,13 @@ async def startup_db():
             async with engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
         await asyncio.wait_for(_create_tables(), timeout=5.0)
+        try:
+            from app.core.database import AsyncSessionLocal
+            from app.application.menu_favorite_service import MenuFavoriteService
+            async with AsyncSessionLocal() as seed_db:
+                await asyncio.wait_for(MenuFavoriteService.ensure_seeded(seed_db), timeout=5.0)
+        except Exception as seed_err:
+            print(f"[STARTUP MENU SEED NOTICE] {seed_err}")
     except asyncio.TimeoutError:
         print("[STARTUP DB WARNING] Table creation timed out (DB may be locked) — continuing startup.")
     if getattr(settings, "AUTO_MAIL_DAILY_STATEMENT_ENABLED", False):

@@ -337,22 +337,29 @@ class AuthService:
         comp_ref_id = int(user_comp_ref) if user_comp_ref is not None else None
 
         if comp_ref_id is not None:
-            # Company Admin: strictly bound to authenticated company, no cross-company super admin privileges
-            roles = ["ADMIN"]
-            auth_role_name = "ADMIN"
+            # Company Admin / Staff: strictly bound to authenticated company, preserve specific RBAC roles
+            base_roles = [r.upper() for r in roles if r and r.upper() != "SUPER_ADMIN"]
+            roles = base_roles if base_roles else ["ADMIN"]
+            auth_role_name = roles[0]
         elif is_super:
             roles = ["SUPER_ADMIN", "ADMIN"]
             auth_role_name = "SUPER_ADMIN"
         else:
-            roles = ["ADMIN"]
-            auth_role_name = "ADMIN"
+            roles = [r.upper() for r in roles if r] or ["ADMIN"]
+            auth_role_name = roles[0]
 
+        admin_user_ref = int(getattr(user, "admin_user_ref_id", None) or user.id)
+        admin_tenant_ref = getattr(user, "tenant_ref_id", None) or 1
         access_token = create_access_token(
             subject=str(user.public_id),
             tenant_id=str(user.tenant_id),
             company_id=company_id_str,
             roles=roles,
             company_ref_id=comp_ref_id,
+            tenant_ref_id=admin_tenant_ref,
+            user_ref_id=admin_user_ref,
+            user_type_ref_id=1,
+            email=user.email,
             is_super_admin=is_super
         )
         refresh_token = create_refresh_token(
@@ -722,20 +729,46 @@ class UserService:
 
     @staticmethod
     async def get_menu_access(db: AsyncSession, current_user: AdminUserModel) -> Dict[str, Any]:
-        user_type = getattr(current_user, "user_type", "ADMIN") or "ADMIN"
-        role_codes = []
+        from app.application.menu_favorite_service import MenuFavoriteService, ResolvedFavoriteIdentity
+        user_type = (getattr(current_user, "user_type", "ADMIN") or "ADMIN").upper()
+        role_codes: List[str] = [user_type] if user_type else []
+        role_ref_id: Optional[int] = None
         if hasattr(current_user, "user_roles") and current_user.user_roles:
             for ur in current_user.user_roles:
                 if hasattr(ur, "role") and ur.role and hasattr(ur.role, "code"):
-                    role_codes.append(ur.role.code)
+                    role_codes.append(str(ur.role.code).upper())
+                    if role_ref_id is None:
+                        role_ref_id = getattr(ur.role, "id", None)
 
-        stmt = text("SELECT sp_get_user_menu_access(:user_type, :roles)")
-        res = await db.execute(stmt, {
+        comp_ref = getattr(current_user, "company_ref_id", None) or 1
+        user_ref = int(getattr(current_user, "admin_user_ref_id", None) or getattr(current_user, "id", None) or 1)
+        is_ret = "RETAILER" in role_codes or user_type == "RETAILER"
+        identity = ResolvedFavoriteIdentity(
+            company_ref_id=int(comp_ref),
+            user_ref_id=user_ref,
+            retailer_ref_id=user_ref if is_ret else None,
+            user_type_ref_id=2 if is_ret else 1,
+            role_ref_id=role_ref_id,
+            role_codes=list(dict.fromkeys(role_codes)),
+            is_admin=not is_ret,
+            is_super_admin=user_type == "SUPER_ADMIN" and getattr(current_user, "company_ref_id", None) is None,
+            actor_email=getattr(current_user, "email", None) or "user",
+        )
+        menus = await MenuFavoriteService.get_permitted_menus(db, identity)
+        cats_map: Dict[str, List[Dict[str, Any]]] = {}
+        for m in menus:
+            cats_map.setdefault(m.menu_category, []).append({
+                "menu_ref_id": m.menu_ref_id,
+                "menu_code": m.menu_code,
+                "label": m.menu_label,
+                "href": m.menu_href,
+                "icon": m.icon_name,
+                "badge": m.badge_text,
+            })
+        return {
             "user_type": user_type,
-            "roles": role_codes
-        })
-        menu_data = res.scalar() or {"user_type": user_type, "categories": []}
-        return menu_data
+            "categories": [{"category": k, "items": v} for k, v in cats_map.items()],
+        }
 
 
 

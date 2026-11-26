@@ -1577,8 +1577,15 @@ async def login_with_password(
                         detail=f"Access denied: Admin account does not belong to {portal_name} portal."
                     )
                 is_super = False
-                user_roles = ["ADMIN"]
-                auth_role_name = "ADMIN"
+                admin_ut = (getattr(admin_user, "user_type", None) or "").strip().upper()
+                db_role_codes = [
+                    str(ur.role.code).upper()
+                    for ur in (getattr(admin_user, "user_roles", None) or [])
+                    if getattr(ur, "role", None) and getattr(ur.role, "code", None)
+                ]
+                preserved_roles = [r for r in ([admin_ut] if admin_ut and admin_ut != "SUPER_ADMIN" else []) + db_role_codes if r and r != "SUPER_ADMIN"]
+                user_roles = list(dict.fromkeys(preserved_roles)) or ["ADMIN"]
+                auth_role_name = user_roles[0]
                 dash_url = "/admin/dashboard"
             else:
                 is_super = is_root_super
@@ -1617,6 +1624,7 @@ async def login_with_password(
         trust_d = int(payload.trust_days or 30)
 
         try:
+            admin_u_ref = int(getattr(admin_user, "admin_user_ref_id", None) or getattr(admin_user, "id", None) or 0) if (is_admin and admin_user) else None
             access_token = create_access_token(
                 subject=subject_id,
                 tenant_id=tenant_str,
@@ -1626,10 +1634,12 @@ async def login_with_password(
                 retailer_code=ret_code if not is_admin else None,
                 retailer_id=ret_public_id if not is_admin else None,
                 retailer_ref_id=ret_ref_id if (existing_retailer and not is_admin) else None,
+                user_ref_id=admin_u_ref if is_admin else ret_ref_id,
                 company_ref_id=comp_ref_id,
                 tenant_ref_id=ten_ref_id,
                 user_type_ref_id=1 if is_admin else 2,
                 mobile=clean_mobile,
+                email=(admin_user.email if is_admin and admin_user else None),
                 approve_status=approve_status,
                 active_status=active_status,
                 is_super_admin=is_super
