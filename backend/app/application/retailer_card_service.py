@@ -30,6 +30,7 @@ from app.application.menu_favorite_service import ResolvedFavoriteIdentity
 from app.core.config import settings
 from app.infrastructure.db.bank_master_models import BankMasterModel
 from app.infrastructure.db.models import CompanyModel, RetailerModel
+from app.infrastructure.db.payin_models import PayinCardTypeModel
 from app.infrastructure.db.retailer_card_models import (
     RetailerCardAuditLogModel,
     RetailerCreditCardModel,
@@ -42,7 +43,11 @@ IST_TZ = timezone(timedelta(hours=5, minutes=30))
 DUPLICATE_CARD_MESSAGE = "This credit card is already registered with your retailer account."
 
 CARD_TYPE_OPTIONS: List[Dict[str, Any]] = [
-    {"card_type_code": "CREDIT_CARD", "card_type_name": "Credit Card"},
+    {"card_type_ref_id": 1, "card_type_code": "VISA", "card_type_name": "Visa", "card_network": "VISA"},
+    {"card_type_ref_id": 2, "card_type_code": "MASTERCARD", "card_type_name": "MasterCard", "card_network": "MASTERCARD"},
+    {"card_type_ref_id": 3, "card_type_code": "RUPAY", "card_type_name": "RuPay", "card_network": "RUPAY"},
+    {"card_type_ref_id": 4, "card_type_code": "AMEX", "card_type_name": "AMEX / Diners", "card_network": "AMEX"},
+    {"card_type_ref_id": 5, "card_type_code": "CORP", "card_type_name": "Business / Corporate", "card_network": "CORP"},
 ]
 
 DEFAULT_CREDIT_CARD_BANKS: List[Dict[str, Any]] = [
@@ -315,7 +320,40 @@ class RetailerCardService:
 
     @classmethod
     async def get_metadata(cls, db: AsyncSession) -> Dict[str, Any]:
-        """Loads Card Type options (Credit Card) and supported Banks from bank_master."""
+        """Loads active Card Types from payin_card_types and supported Banks from bank_master."""
+        card_types: List[Dict[str, Any]] = []
+        try:
+            ct_rows = (
+                await db.execute(
+                    select(
+                        PayinCardTypeModel.payin_card_type_ref_id,
+                        PayinCardTypeModel.card_type_code,
+                        PayinCardTypeModel.card_type_name,
+                        PayinCardTypeModel.card_network,
+                    )
+                    .where(PayinCardTypeModel.is_enabled == True)
+                    .order_by(PayinCardTypeModel.payin_card_type_ref_id.asc())
+                )
+            ).all()
+            for ct in ct_rows:
+                card_types.append(
+                    {
+                        "card_type_ref_id": ct.payin_card_type_ref_id,
+                        "card_type_code": ct.card_type_code,
+                        "card_type_name": ct.card_type_name,
+                        "card_network": ct.card_network,
+                    }
+                )
+        except Exception as exc:
+            logger.debug(f"Fallback to default card types: {exc}")
+            try:
+                await db.rollback()
+            except Exception:
+                pass
+
+        if not card_types:
+            card_types = list(CARD_TYPE_OPTIONS)
+
         banks: List[Dict[str, Any]] = []
         try:
             bank_cols = (
@@ -366,7 +404,7 @@ class RetailerCardService:
 
         return {
             "status": "SUCCESS",
-            "card_types": list(CARD_TYPE_OPTIONS),
+            "card_types": card_types,
             "banks": banks,
         }
 
@@ -594,9 +632,31 @@ class RetailerCardService:
         gen_day = parse_day_of_month(bill_gen_day, "Bill Generation Date")
         due_day = parse_day_of_month(bill_due_day, "Bill Due Date")
 
-        clean_card_type = str(card_type or "Credit Card").strip()
-        if clean_card_type.upper() in ("CREDIT_CARD", "CREDIT CARD", "CREDIT"):
-            clean_card_type = "Credit Card"
+        clean_card_type = str(card_type or "Visa").strip()
+        resolved_ct_ref: Optional[int] = None
+        try:
+            ct_row = (
+                await db.execute(
+                    select(
+                        PayinCardTypeModel.payin_card_type_ref_id,
+                        PayinCardTypeModel.card_type_name,
+                    ).where(
+                        or_(
+                            PayinCardTypeModel.card_type_code.ilike(clean_card_type),
+                            PayinCardTypeModel.card_type_name.ilike(clean_card_type),
+                        ),
+                        PayinCardTypeModel.is_enabled == True,
+                    )
+                )
+            ).first()
+            if ct_row:
+                resolved_ct_ref = ct_row.payin_card_type_ref_id
+                clean_card_type = ct_row.card_type_name
+        except Exception:
+            try:
+                await db.rollback()
+            except Exception:
+                pass
 
         clean_bank = re.sub(r"\s+", " ", str(bank_name or "")).strip()
         if not clean_bank and not bank_id:
@@ -675,6 +735,7 @@ class RetailerCardService:
             deleted_row.masked_card_no = masked_card
             deleted_row.card_last4 = last4
             deleted_row.card_bin6 = bin6
+            deleted_row.card_type_ref_id = resolved_ct_ref
             deleted_row.card_type = clean_card_type
             deleted_row.bank_id = resolved_bank_id
             deleted_row.bank_name = clean_bank
@@ -700,6 +761,7 @@ class RetailerCardService:
                 masked_card_no=masked_card,
                 card_last4=last4,
                 card_bin6=bin6,
+                card_type_ref_id=resolved_ct_ref,
                 card_type=clean_card_type,
                 bank_id=resolved_bank_id,
                 bank_name=clean_bank,

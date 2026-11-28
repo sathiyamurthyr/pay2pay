@@ -1,8 +1,10 @@
 import apiClient from "@/lib/api";
 
 export interface RetailerCardTypeOption {
+  card_type_ref_id?: number | null;
   card_type_code: string;
   card_type_name: string;
+  card_network?: string;
 }
 
 export interface RetailerCardBankOption {

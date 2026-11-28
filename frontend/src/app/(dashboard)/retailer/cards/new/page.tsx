@@ -50,7 +50,11 @@ export default function AddNewRetailerCardPage() {
   const softGreenBorder = "#BBF7D0";
 
   const [cardTypes, setCardTypes] = useState<RetailerCardTypeOption[]>([
-    { card_type_code: "CREDIT_CARD", card_type_name: "Credit Card" },
+    { card_type_ref_id: 1, card_type_code: "VISA", card_type_name: "Visa" },
+    { card_type_ref_id: 2, card_type_code: "MASTERCARD", card_type_name: "MasterCard" },
+    { card_type_ref_id: 3, card_type_code: "RUPAY", card_type_name: "RuPay" },
+    { card_type_ref_id: 4, card_type_code: "AMEX", card_type_name: "AMEX / Diners" },
+    { card_type_ref_id: 5, card_type_code: "CORP", card_type_name: "Business / Corporate" },
   ]);
   const [banks, setBanks] = useState<RetailerCardBankOption[]>([]);
   const [metaLoading, setMetaLoading] = useState(true);
@@ -58,7 +62,7 @@ export default function AddNewRetailerCardPage() {
   const [cardName, setCardName] = useState("");
   const [mobileNo, setMobileNo] = useState("");
   const [cardNumber, setCardNumber] = useState("");
-  const [cardType, setCardType] = useState("Credit Card");
+  const [cardType, setCardType] = useState("Visa");
   const [selectedBank, setSelectedBank] = useState<RetailerCardBankOption | null>(null);
   const [billGenDay, setBillGenDay] = useState<number>(1);
   const [billDueDay, setBillDueDay] = useState<number>(15);
@@ -89,7 +93,7 @@ export default function AddNewRetailerCardPage() {
     setCardName("");
     setMobileNo("");
     setCardNumber("");
-    setCardType("Credit Card");
+    setCardType(cardTypes[0]?.card_type_name || "Visa");
     setSelectedBank(null);
     setBillGenDay(1);
     setBillDueDay(15);
