@@ -2,6 +2,42 @@
 
 import React from "react";
 import { Box, Stack, Typography } from "@mui/material";
+import type { CompanyBrandingData } from "@/lib/company-branding";
+
+export interface BrandThemeTokens {
+  primary: string;
+  dark: string;
+  secondary: string;
+  softBg: string;
+  softBorder: string;
+  shadow: string;
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const clean = hex.replace("#", "").trim();
+  if (clean.length === 6) {
+    const r = parseInt(clean.slice(0, 2), 16);
+    const g = parseInt(clean.slice(2, 4), 16);
+    const b = parseInt(clean.slice(4, 6), 16);
+    if (!Number.isNaN(r) && !Number.isNaN(g) && !Number.isNaN(b)) {
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+  }
+  return `rgba(162, 10, 58, ${alpha})`;
+}
+
+export function getBrandThemeTokens(branding?: CompanyBrandingData | null): BrandThemeTokens {
+  const primary = branding?.primary_colour || "#A20A3A";
+  const secondary = branding?.secondary_colour || "#EDC11E";
+  return {
+    primary,
+    dark: primary,
+    secondary,
+    softBg: hexToRgba(primary, 0.08),
+    softBorder: hexToRgba(primary, 0.28),
+    shadow: hexToRgba(primary, 0.24),
+  };
+}
 
 export interface BankVisualTheme {
   shortLabel: string;

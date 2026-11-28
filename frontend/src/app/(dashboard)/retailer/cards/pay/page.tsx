@@ -35,7 +35,8 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import LockIcon from "@mui/icons-material/Lock";
 import PaymentIcon from "@mui/icons-material/Payment";
 import ShieldIcon from "@mui/icons-material/Shield";
-import { BankLogoBadge, CardNetworkBadge } from "@/components/retailer/BankBrandBadge";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
+import { BankLogoBadge, CardNetworkBadge, getBrandThemeTokens } from "@/components/retailer/BankBrandBadge";
 import {
   CardPaymentConfirmResponse,
   CardPaymentItemInput,
@@ -55,10 +56,12 @@ function formatINR(amount: number): string {
 function CardPaymentConfirmationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const primaryGreen = "#16A34A";
-  const darkGreen = "#15803D";
-  const softGreenBg = "#ECFDF5";
-  const softGreenBorder = "#BBF7D0";
+  const branding = useCompanyBranding();
+  const brand = getBrandThemeTokens(branding);
+  const primaryGreen = brand.primary;
+  const darkGreen = brand.dark;
+  const softGreenBg = brand.softBg;
+  const softGreenBorder = brand.softBorder;
 
   const cardIds = useMemo(() => {
     const single = searchParams.get("card");
@@ -201,7 +204,7 @@ function CardPaymentConfirmationContent() {
           p: { xs: 2.5, md: 3 },
           mb: 3,
           borderRadius: "18px",
-          background: "linear-gradient(135deg, #FFFFFF 0%, #ECFDF5 100%)",
+          background: `linear-gradient(135deg, #FFFFFF 0%, ${softGreenBg} 100%)`,
           border: `1px solid ${softGreenBorder}`,
         }}
       >

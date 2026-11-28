@@ -25,7 +25,8 @@ import LockIcon from "@mui/icons-material/Lock";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import SaveIcon from "@mui/icons-material/Save";
 import ShieldIcon from "@mui/icons-material/Shield";
-import { BankLogoBadge, CardNetworkBadge, resolveBankTheme } from "@/components/retailer/BankBrandBadge";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
+import { BankLogoBadge, CardNetworkBadge, getBrandThemeTokens, resolveBankTheme } from "@/components/retailer/BankBrandBadge";
 import {
   RetailerCardBankOption,
   RetailerCardTypeOption,
@@ -45,10 +46,12 @@ const DAYS_OF_MONTH = Array.from({ length: 31 }, (_, i) => i + 1);
 
 export default function AddNewRetailerCardPage() {
   const router = useRouter();
-  const primaryGreen = "#16A34A";
-  const darkGreen = "#15803D";
-  const softGreenBg = "#ECFDF5";
-  const softGreenBorder = "#BBF7D0";
+  const branding = useCompanyBranding();
+  const brand = getBrandThemeTokens(branding);
+  const primaryGreen = brand.primary;
+  const darkGreen = brand.dark;
+  const softGreenBg = brand.softBg;
+  const softGreenBorder = brand.softBorder;
 
   const [cardTypes, setCardTypes] = useState<RetailerCardTypeOption[]>([
     { card_type_ref_id: 1, card_type_code: "VISA", card_type_name: "Visa" },

@@ -49,7 +49,7 @@ import WarningIcon from "@mui/icons-material/Warning";
 import ReceiptIcon from "@mui/icons-material/Receipt";
 import PaymentIcon from "@mui/icons-material/Payment";
 import { useCompanyBranding } from "@/hooks/useCompanyBranding";
-import { BankLogoBadge, CardNetworkBadge, resolveBankTheme } from "@/components/retailer/BankBrandBadge";
+import { BankLogoBadge, CardNetworkBadge, getBrandThemeTokens, resolveBankTheme } from "@/components/retailer/BankBrandBadge";
 import {
   RetailerCardsDashboardResponse,
   RetailerSavedCard,
@@ -69,10 +69,11 @@ const DAYS_OF_MONTH = Array.from({ length: 31 }, (_, i) => i + 1);
 
 export default function RetailerCreditCardManagementPage() {
   const branding = useCompanyBranding();
-  const primaryGreen = "#16A34A";
-  const darkGreen = "#15803D";
-  const softGreenBg = "#ECFDF5";
-  const softGreenBorder = "#BBF7D0";
+  const brand = getBrandThemeTokens(branding);
+  const primaryGreen = brand.primary;
+  const darkGreen = brand.dark;
+  const softGreenBg = brand.softBg;
+  const softGreenBorder = brand.softBorder;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -295,7 +296,7 @@ export default function RetailerCreditCardManagementPage() {
           p: { xs: 2.5, md: 3 },
           mb: 3,
           borderRadius: "18px",
-          background: "linear-gradient(135deg, #FFFFFF 0%, #ECFDF5 100%)",
+          background: `linear-gradient(135deg, #FFFFFF 0%, ${softGreenBg} 100%)`,
           border: `1px solid ${softGreenBorder}`,
           display: "flex",
           flexDirection: { xs: "column", sm: "row" },
