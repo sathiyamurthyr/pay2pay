@@ -14,6 +14,7 @@ import {
 } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import BoltRoundedIcon from "@mui/icons-material/BoltRounded";
 import QrCodeScannerRoundedIcon from "@mui/icons-material/QrCodeScannerRounded";
 import FingerprintRoundedIcon from "@mui/icons-material/FingerprintRounded";
 import CreditCardOffRoundedIcon from "@mui/icons-material/CreditCardOffRounded";
@@ -470,29 +471,56 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            px: 2.5,
-            py: 1.5,
+            px: 2,
+            py: 1.25,
           }}
         >
-          <Box>
-            <Typography
-              variant="subtitle1"
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+            <Box
               sx={{
-                fontWeight: 800,
-                fontSize: "17px",
-                letterSpacing: "-0.01em",
-                color: isDark ? "#F8FAFC" : "#0F172A",
-                lineHeight: 1.2,
+                width: 38,
+                height: 38,
+                borderRadius: "12px",
+                background: isDark
+                  ? "linear-gradient(135deg, rgba(124,58,237,0.3) 0%, rgba(37,99,235,0.3) 100%)"
+                  : "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(238,242,255,0.85) 100%)",
+                border: isDark ? "1px solid rgba(255,255,255,0.18)" : "1px solid rgba(255,255,255,0.95)",
+                boxShadow: isDark
+                  ? "0 4px 12px rgba(0,0,0,0.3)"
+                  : "0 4px 12px rgba(99,102,241,0.14), inset 0 1px 0 rgba(255,255,255,0.9)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
               }}
             >
-              Quick Actions
-            </Typography>
-            <Typography
-              variant="caption"
-              sx={{ color: isDark ? "#CBD5E1" : "#64748B", fontSize: "12px", fontWeight: 500 }}
+              <BoltRoundedIcon sx={{ fontSize: 22, color: "#6366F1" }} />
+            </Box>
+            <Box
+              sx={{
+                pl: 1.25,
+                borderLeft: isDark ? "1px solid rgba(255,255,255,0.14)" : "1px solid rgba(15,23,42,0.1)",
+              }}
             >
-              {favorites.length > 0 ? "Favorites first • Select a service" : "Select a service to get started"}
-            </Typography>
+              <Typography
+                variant="subtitle1"
+                sx={{
+                  fontWeight: 800,
+                  fontSize: "16px",
+                  letterSpacing: "-0.01em",
+                  color: isDark ? "#F8FAFC" : "#0F172A",
+                  lineHeight: 1.2,
+                }}
+              >
+                Quick Actions
+              </Typography>
+              <Typography
+                variant="caption"
+                sx={{ color: isDark ? "#CBD5E1" : "#64748B", fontSize: "11.5px", fontWeight: 500 }}
+              >
+                {favorites.length > 0 ? "Favorites first • Select a service" : "Select a service to get started"}
+              </Typography>
+            </Box>
           </Box>
           <ButtonBase
             type="button"
@@ -502,8 +530,8 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
             }}
             aria-label="Close Quick Actions"
             sx={{
-              width: 36,
-              height: 36,
+              width: 34,
+              height: 34,
               borderRadius: "50%",
               bgcolor: isDark ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.7)",
               backdropFilter: "blur(10px)",
@@ -525,17 +553,17 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
           </ButtonBase>
         </Box>
 
-        {/* Action Grid – 2 cols mobile, 4 cols tablet+ */}
+        {/* Action Grid – compact 4 columns (existing height) */}
         <Box
           sx={{
             position: "relative",
             zIndex: 1,
             display: "grid",
-            gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(4, 1fr)" },
-            gap: 1.5,
-            px: 2,
+            gridTemplateColumns: "repeat(4, 1fr)",
+            gap: 1,
+            px: 1.5,
             pt: 0.5,
-            pb: 9,
+            pb: 8,
           }}
         >
           {quickActions.map((action) => {
@@ -592,28 +620,28 @@ const QuickActionItem: React.FC<QuickActionItemProps> = ({
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
-      justifyContent: "center",
-      gap: 1,
-      px: 1.25,
-      py: 1.75,
-      borderRadius: "20px",
+      justifyContent: "flex-start",
+      gap: 0.65,
+      px: 0.5,
+      py: 1.1,
+      borderRadius: "18px",
       cursor: "pointer",
-      background: isDark ? "rgba(255, 255, 255, 0.06)" : "rgba(255, 255, 255, 0.58)",
+      background: isDark ? "rgba(255, 255, 255, 0.06)" : "rgba(255, 255, 255, 0.56)",
       backdropFilter: "blur(14px)",
       WebkitBackdropFilter: "blur(14px)",
       border: isDark ? "1px solid rgba(255, 255, 255, 0.12)" : "1px solid rgba(255, 255, 255, 0.78)",
       boxShadow: isDark
-        ? "0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08)"
-        : "0 4px 16px rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.85)",
+        ? "0 4px 14px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08)"
+        : "0 4px 14px rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.85)",
       transition: "transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s, background 0.2s, border-color 0.2s",
       "&:hover": {
-        transform: "translateY(-3px) scale(1.02)",
+        transform: "translateY(-2px) scale(1.02)",
         background: isDark ? "rgba(255, 255, 255, 0.11)" : "rgba(255, 255, 255, 0.82)",
         borderColor: alpha(color, 0.35),
-        boxShadow: `0 10px 24px ${alpha(color, 0.18)}, 0 0 16px ${alpha(color, 0.1)}`,
+        boxShadow: `0 8px 20px ${alpha(color, 0.18)}, 0 0 14px ${alpha(color, 0.1)}`,
       },
       "&:active": {
-        transform: "scale(0.96)",
+        transform: "scale(0.95)",
         background: isDark ? "rgba(255, 255, 255, 0.1)" : alpha(color, 0.08),
       },
       "& .MuiTouchRipple-ripple .MuiTouchRipple-child": {
@@ -625,31 +653,31 @@ const QuickActionItem: React.FC<QuickActionItemProps> = ({
     <Box
       sx={{
         position: "relative",
-        width: 52,
-        height: 52,
-        borderRadius: "16px",
+        width: 44,
+        height: 44,
+        borderRadius: "14px",
         background: gradient || bg,
         border: isDark ? `1px solid ${alpha(color, 0.35)}` : "1px solid rgba(255,255,255,0.85)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        boxShadow: `0 4px 14px ${alpha(color, 0.22)}, inset 0 1px 1px rgba(255,255,255,0.6)`,
+        boxShadow: `0 4px 12px ${alpha(color, 0.22)}, inset 0 1px 1px rgba(255,255,255,0.6)`,
         transition: "transform 0.2s, box-shadow 0.2s",
         ".MuiButtonBase-root:hover &": {
           transform: "scale(1.06)",
-          boxShadow: `0 6px 18px ${alpha(color, 0.32)}`,
+          boxShadow: `0 6px 16px ${alpha(color, 0.32)}`,
         },
       }}
     >
-      <Icon sx={{ fontSize: 26, color }} />
+      <Icon sx={{ fontSize: 22, color }} />
       {isFavorite && (
         <Box
           sx={{
             position: "absolute",
             top: -5,
             right: -5,
-            width: 18,
-            height: 18,
+            width: 16,
+            height: 16,
             borderRadius: "50%",
             bgcolor: "#F59E0B",
             border: "2px solid",
@@ -660,7 +688,7 @@ const QuickActionItem: React.FC<QuickActionItemProps> = ({
             boxShadow: "0 2px 6px rgba(245,158,11,0.45)",
           }}
         >
-          <StarRoundedIcon sx={{ fontSize: 11, color: "#FFFFFF" }} />
+          <StarRoundedIcon sx={{ fontSize: 10, color: "#FFFFFF" }} />
         </Box>
       )}
     </Box>
@@ -674,10 +702,10 @@ const QuickActionItem: React.FC<QuickActionItemProps> = ({
           WebkitLineClamp: 2,
           WebkitBoxOrient: "vertical",
           overflow: "hidden",
-          fontSize: "12.5px",
+          fontSize: "11px",
           fontWeight: 700,
           color: isDark ? "#F8FAFC" : "#0F172A",
-          lineHeight: 1.25,
+          lineHeight: 1.2,
         }}
       >
         {label}
@@ -686,11 +714,11 @@ const QuickActionItem: React.FC<QuickActionItemProps> = ({
         component="span"
         sx={{
           display: "block",
-          fontSize: "10.5px",
+          fontSize: "9.5px",
           fontWeight: 500,
           color: isDark ? "#94A3B8" : "#64748B",
-          lineHeight: 1.2,
-          mt: 0.25,
+          lineHeight: 1.15,
+          mt: 0.2,
         }}
       >
         {sublabel}
