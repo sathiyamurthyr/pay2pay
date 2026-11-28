@@ -67,6 +67,7 @@ export default function AddNewRetailerCardPage() {
   const [selectedBank, setSelectedBank] = useState<RetailerCardBankOption | null>(null);
   const [billGenDay, setBillGenDay] = useState<number>(1);
   const [billDueDay, setBillDueDay] = useState<number>(15);
+  const [billAmount, setBillAmount] = useState<string>("");
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,6 +99,7 @@ export default function AddNewRetailerCardPage() {
     setSelectedBank(null);
     setBillGenDay(1);
     setBillDueDay(15);
+    setBillAmount("");
     setError(null);
     setSuccessMsg(null);
     setFieldErrors({});
@@ -152,6 +154,7 @@ export default function AddNewRetailerCardPage() {
         bank_id: selectedBank.bank_id ?? null,
         bill_gen_day: billGenDay,
         bill_due_day: billDueDay,
+        bill_amount: billAmount.trim() ? Number(billAmount) : 0,
       });
       setSuccessMsg(res.message || "Credit card registered successfully. Redirecting...");
       setTimeout(() => {
@@ -383,6 +386,19 @@ export default function AddNewRetailerCardPage() {
                       </MenuItem>
                     ))}
                   </TextField>
+                </Grid>
+
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Current Bill Amount (₹)"
+                    placeholder="e.g. 25000"
+                    value={billAmount}
+                    onChange={(e) => setBillAmount(e.target.value)}
+                    helperText="Optional — can also be entered or updated during payment"
+                    inputProps={{ min: 0, step: "0.01" }}
+                  />
                 </Grid>
 
                 <Grid size={{ xs: 12 }} sx={{ pt: 1 }}>

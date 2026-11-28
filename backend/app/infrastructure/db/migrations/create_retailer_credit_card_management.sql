@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS public.retailer_credit_cards (
     bank_short_code VARCHAR(50) NULL,
     bill_gen_day INTEGER NOT NULL,
     bill_due_day INTEGER NOT NULL,
+    bill_amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
     last_paid_cycle VARCHAR(10) NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
@@ -55,3 +56,6 @@ CREATE TABLE IF NOT EXISTS public.retailer_card_audit_logs (
 
 CREATE INDEX IF NOT EXISTS ix_retailer_card_audit_scope
     ON public.retailer_card_audit_logs (company_ref_id, retailer_ref_id, created_at);
+
+ALTER TABLE public.retailer_credit_cards
+    ADD COLUMN IF NOT EXISTS bill_amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00;

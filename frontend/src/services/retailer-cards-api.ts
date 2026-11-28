@@ -30,7 +30,10 @@ export interface RetailerSavedCard {
   bank_short_code?: string | null;
   bill_gen_day: number;
   bill_due_day: number;
+  bill_amount: number;
   last_paid_cycle?: string | null;
+  is_paid_current_cycle: boolean;
+  payment_status: "PAID" | "UNPAID";
   status: string;
   created_at?: string | null;
   updated_at?: string | null;
@@ -83,6 +86,7 @@ export interface CreateRetailerCardPayload {
   bank_id?: number | null;
   bill_gen_day: number | string;
   bill_due_day: number | string;
+  bill_amount?: number;
 }
 
 export interface UpdateRetailerCardPayload {
@@ -92,6 +96,53 @@ export interface UpdateRetailerCardPayload {
   bank_id?: number | null;
   bill_gen_day?: number | string;
   bill_due_day?: number | string;
+  bill_amount?: number;
+}
+
+export interface CardPaymentItemInput {
+  card_ref_id: number;
+  bill_amount?: number;
+}
+
+export interface CardPaymentBreakdownItem {
+  card_ref_id: number;
+  card_name: string;
+  mobile_no: string;
+  bank_name: string;
+  bank_short_code?: string | null;
+  masked_card_no: string;
+  card_type: string;
+  bill_generation_date: string;
+  bill_due_date: string;
+  bill_status: string;
+  bill_amount: number;
+  service_charge: number;
+  charge_pct: number;
+  gst_rate_pct: number;
+  gst_amount: number;
+  other_charges: number;
+  total_payable: number;
+}
+
+export interface CardPaymentQuoteResponse {
+  status: string;
+  mode: "SINGLE" | "BULK";
+  items: CardPaymentBreakdownItem[];
+  summary: {
+    selected_cards_count: number;
+    total_bill_amount: number;
+    total_service_charges: number;
+    total_gst: number;
+    total_other_charges: number;
+    grand_total: number;
+  };
+}
+
+export interface CardPaymentConfirmResponse {
+  status: string;
+  provider_configured: boolean;
+  message: string;
+  quote: CardPaymentQuoteResponse;
 }
 
 export interface DashboardFilterParams {
@@ -146,6 +197,24 @@ export const retailerCardsApi = {
 
   deleteCard: async (refId: number): Promise<{ status: string; message: string }> => {
     const res = await apiClient.delete(`/retailer/cards/${refId}`);
+    return res.data;
+  },
+
+  quotePayments: async (items: CardPaymentItemInput[]): Promise<CardPaymentQuoteResponse> => {
+    const res = await apiClient.post("/retailer/cards/payment/quote", { items });
+    return res.data;
+  },
+
+  confirmPayments: async (
+    items: CardPaymentItemInput[],
+    confirmed: boolean,
+    mode: "SINGLE" | "BULK"
+  ): Promise<CardPaymentConfirmResponse> => {
+    const res = await apiClient.post("/retailer/cards/payment/confirm", {
+      items,
+      confirmed,
+      mode,
+    });
     return res.data;
   },
 };

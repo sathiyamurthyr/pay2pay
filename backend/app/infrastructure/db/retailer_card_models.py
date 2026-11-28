@@ -20,6 +20,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -86,9 +87,10 @@ class RetailerCreditCardModel(Base):
     bank_name: Mapped[str] = mapped_column(String(200), nullable=False)
     bank_short_code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
-    # Billing cycle days of month (1..31)
+    # Billing cycle days of month (1..31) & current bill amount
     bill_gen_day: Mapped[int] = mapped_column(Integer, nullable=False)
     bill_due_day: Mapped[int] = mapped_column(Integer, nullable=False)
+    bill_amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0.00)
     last_paid_cycle: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)  # e.g. "2026-11"
 
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="ACTIVE")

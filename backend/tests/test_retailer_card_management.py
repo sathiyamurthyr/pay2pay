@@ -284,3 +284,94 @@ async def test_http_routes_auth_fail_closed_and_ignore_spoofed_ids(card_db_sessi
                 assert body["card"]["company_ref_id"] == 2
     finally:
         app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_single_and_bulk_bill_payment_quote_and_confirm(card_db_session: AsyncSession):
+    ret_a = _make_identity(company_ref_id=2, retailer_ref_id=401, user_ref_id=401)
+    ret_b = _make_identity(company_ref_id=2, retailer_ref_id=402, user_ref_id=402)
+    today = date(2026, 11, 28)
+
+    c1 = await RetailerCardService.create_card(
+        card_db_session,
+        ret_a,
+        card_name="HDFC Card",
+        mobile_no="9876543210",
+        card_number="4111111111111111",
+        card_type="Visa",
+        bank_name="HDFC BANK",
+        bill_gen_day=10,
+        bill_due_day=28,
+        bill_amount=25000.00,
+        reference_date=today,
+    )
+    c2 = await RetailerCardService.create_card(
+        card_db_session,
+        ret_a,
+        card_name="ICICI Card",
+        mobile_no="9876543211",
+        card_number="5500000000000004",
+        card_type="MasterCard",
+        bank_name="ICICI BANK",
+        bill_gen_day=12,
+        bill_due_day=30,
+        bill_amount=15000.00,
+        reference_date=today,
+    )
+    id1 = c1["card"]["ref_id"]
+    id2 = c2["card"]["ref_id"]
+
+    # 1. Single card quote
+    single_q = await RetailerCardService.quote_bill_payments(
+        card_db_session, ret_a, [{"card_ref_id": id1}], reference_date=today
+    )
+    assert single_q["mode"] == "SINGLE"
+    assert single_q["summary"]["selected_cards_count"] == 1
+    assert single_q["summary"]["total_bill_amount"] == 25000.00
+    assert single_q["summary"]["grand_total"] > 25000.00
+
+    # 2. Bulk quote
+    bulk_q = await RetailerCardService.quote_bill_payments(
+        card_db_session,
+        ret_a,
+        [{"card_ref_id": id1}, {"card_ref_id": id2}],
+        reference_date=today,
+    )
+    assert bulk_q["mode"] == "BULK"
+    assert bulk_q["summary"]["selected_cards_count"] == 2
+    assert bulk_q["summary"]["total_bill_amount"] == 40000.00
+    assert bulk_q["summary"]["grand_total"] == round(
+        40000.00 + bulk_q["summary"]["total_service_charges"] + bulk_q["summary"]["total_gst"], 2
+    )
+
+    # 3. Unconfirmed payment must be rejected (400)
+    with pytest.raises(HTTPException) as unconf_exc:
+        await RetailerCardService.confirm_bill_payments(
+            card_db_session,
+            ret_a,
+            items=[{"card_ref_id": id1}],
+            confirmed=False,
+            mode="SINGLE",
+            reference_date=today,
+        )
+    assert unconf_exc.value.status_code == 400
+
+    # 4. Confirmed payment returns pending provider placeholder & logs audit
+    conf = await RetailerCardService.confirm_bill_payments(
+        card_db_session,
+        ret_a,
+        items=[{"card_ref_id": id1}, {"card_ref_id": id2}],
+        confirmed=True,
+        mode="BULK",
+        reference_date=today,
+    )
+    assert conf["status"] == "PENDING_PROVIDER"
+    assert conf["provider_configured"] is False
+    assert "pending" in conf["message"].lower()
+
+    # 5. Cross-retailer isolation on payment quote
+    with pytest.raises(HTTPException) as cross_exc:
+        await RetailerCardService.quote_bill_payments(
+            card_db_session, ret_b, [{"card_ref_id": id1}], reference_date=today
+        )
+    assert cross_exc.value.status_code == 404

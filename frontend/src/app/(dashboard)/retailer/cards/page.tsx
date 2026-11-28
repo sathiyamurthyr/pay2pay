@@ -8,12 +8,14 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   Grid,
   IconButton,
   InputAdornment,
@@ -45,6 +47,7 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import WarningIcon from "@mui/icons-material/Warning";
 import ReceiptIcon from "@mui/icons-material/Receipt";
+import PaymentIcon from "@mui/icons-material/Payment";
 import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 import { BankLogoBadge, CardNetworkBadge, resolveBankTheme } from "@/components/retailer/BankBrandBadge";
 import {
@@ -96,7 +99,10 @@ export default function RetailerCreditCardManagementPage() {
   const [editBankName, setEditBankName] = useState("");
   const [editGenDay, setEditGenDay] = useState<number>(1);
   const [editDueDay, setEditDueDay] = useState<number>(15);
+  const [editBillAmount, setEditBillAmount] = useState<string>("0");
   const [savingEdit, setSavingEdit] = useState(false);
+
+  const [selectedCardIds, setSelectedCardIds] = useState<number[]>([]);
 
   const [deleteTarget, setDeleteTarget] = useState<RetailerSavedCard | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -134,6 +140,7 @@ export default function RetailerCreditCardManagementPage() {
     setEditBankName(card.bank_name);
     setEditGenDay(card.bill_gen_day);
     setEditDueDay(card.bill_due_day);
+    setEditBillAmount(String(card.bill_amount || 0));
   };
 
   const handleSaveEdit = async () => {
@@ -154,6 +161,7 @@ export default function RetailerCreditCardManagementPage() {
         bank_name: editBankName.trim(),
         bill_gen_day: editGenDay,
         bill_due_day: editDueDay,
+        bill_amount: Number(editBillAmount || 0),
       });
       setSuccessMsg(`Updated card ${editTarget.masked_card_no}.`);
       setEditTarget(null);
@@ -208,6 +216,37 @@ export default function RetailerCreditCardManagementPage() {
         return dashboard.cards || [];
     }
   }, [dashboard, sectionTab]);
+
+  const unpaidVisibleIds = useMemo(
+    () => rowsToDisplay.filter((c) => !c.is_paid_current_cycle).map((c) => c.ref_id),
+    [rowsToDisplay]
+  );
+
+  const allUnpaidSelected =
+    unpaidVisibleIds.length > 0 && unpaidVisibleIds.every((id) => selectedCardIds.includes(id));
+
+  const toggleSelectAllUnpaid = (checked: boolean) => {
+    if (checked) {
+      setSelectedCardIds(Array.from(new Set([...selectedCardIds, ...unpaidVisibleIds])));
+    } else {
+      const visibleSet = new Set(unpaidVisibleIds);
+      setSelectedCardIds(selectedCardIds.filter((id) => !visibleSet.has(id)));
+    }
+  };
+
+  const toggleSelectCard = (cardRefId: number) => {
+    setSelectedCardIds((prev) =>
+      prev.includes(cardRefId) ? prev.filter((id) => id !== cardRefId) : [...prev, cardRefId]
+    );
+  };
+
+  const formatINR = (amt: number) =>
+    new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Number.isFinite(amt) ? amt : 0);
 
   const summary = dashboard?.summary || {
     total_cards: 0,
@@ -307,7 +346,43 @@ export default function RetailerCreditCardManagementPage() {
           </Box>
         </Stack>
 
-        <Stack direction="row" spacing={1.5} alignItems="center">
+        <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={allUnpaidSelected}
+                onChange={(e) => toggleSelectAllUnpaid(e.target.checked)}
+                disabled={unpaidVisibleIds.length === 0}
+                sx={{ color: primaryGreen, "&.Mui-checked": { color: primaryGreen } }}
+              />
+            }
+            label={
+              <Typography variant="body2" fontWeight={700} color="#0F172A">
+                Select All Unpaid Bills
+              </Typography>
+            }
+          />
+          {selectedCardIds.length > 0 && (
+            <Button
+              component={Link}
+              href={`/retailer/cards/pay?cards=${selectedCardIds.join(",")}`}
+              variant="contained"
+              startIcon={<PaymentIcon />}
+              sx={{
+                borderRadius: "12px",
+                textTransform: "none",
+                fontWeight: 800,
+                px: 2.2,
+                py: 1.05,
+                bgcolor: "#0F172A",
+                color: "#FFFFFF",
+                boxShadow: "0 8px 18px rgba(15, 23, 42, 0.25)",
+                "&:hover": { bgcolor: "#1E293B" },
+              }}
+            >
+              Pay Selected Bills ({selectedCardIds.length})
+            </Button>
+          )}
           <Button
             variant="outlined"
             onClick={loadDashboard}
@@ -645,15 +720,23 @@ export default function RetailerCreditCardManagementPage() {
               <Table size="medium">
                 <TableHead>
                   <TableRow sx={{ bgcolor: "#F8FAFC" }}>
+                    <TableCell padding="checkbox">
+                      <Checkbox
+                        checked={allUnpaidSelected}
+                        onChange={(e) => toggleSelectAllUnpaid(e.target.checked)}
+                        disabled={unpaidVisibleIds.length === 0}
+                        inputProps={{ "aria-label": "Select All Unpaid Bills" }}
+                        sx={{ color: primaryGreen, "&.Mui-checked": { color: primaryGreen } }}
+                      />
+                    </TableCell>
                     <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Cardholder Name</TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Mobile Number</TableCell>
                     <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Masked Card Number</TableCell>
                     <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Card Type</TableCell>
                     <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Bank Name</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Bill Amount</TableCell>
                     <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Bill Generation Date</TableCell>
                     <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Bill Due Date</TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Next Bill Gen Date</TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Status</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Payment Status</TableCell>
                     <TableCell align="right" sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Actions</TableCell>
                   </TableRow>
                 </TableHead>
@@ -671,13 +754,20 @@ export default function RetailerCreditCardManagementPage() {
                               : "inherit",
                       }}
                     >
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          checked={selectedCardIds.includes(card.ref_id)}
+                          onChange={() => toggleSelectCard(card.ref_id)}
+                          disabled={card.is_paid_current_cycle}
+                          inputProps={{ "aria-label": `Select ${card.masked_card_no}` }}
+                          sx={{ color: primaryGreen, "&.Mui-checked": { color: primaryGreen } }}
+                        />
+                      </TableCell>
                       <TableCell>
                         <Typography variant="body2" sx={{ fontWeight: 700, color: "#0F172A" }}>
                           {card.card_name}
                         </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#334155" }}>
+                        <Typography variant="caption" sx={{ fontFamily: "monospace", color: "#64748B" }}>
                           {card.mobile_no}
                         </Typography>
                       </TableCell>
@@ -726,6 +816,11 @@ export default function RetailerCreditCardManagementPage() {
                         </Stack>
                       </TableCell>
                       <TableCell>
+                        <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>
+                          {formatINR(card.bill_amount)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {ordinalDay(card.bill_gen_day)} monthly
                         </Typography>
@@ -742,15 +837,42 @@ export default function RetailerCreditCardManagementPage() {
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 600, color: "#0F172A" }}>
-                          {card.next_bill_generation_date}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: "#64748B" }}>
-                          {card.is_generated_today ? "Generated Today" : `In ${card.days_until_generation}d`}
-                        </Typography>
+                        <Stack spacing={0.5} alignItems="flex-start">
+                          {renderStatusChip(card)}
+                          <Chip
+                            size="small"
+                            label={card.payment_status}
+                            sx={{
+                              height: 18,
+                              fontSize: "10px",
+                              fontWeight: 800,
+                              bgcolor: card.is_paid_current_cycle ? softGreenBg : "#F1F5F9",
+                              color: card.is_paid_current_cycle ? darkGreen : "#475569",
+                            }}
+                          />
+                        </Stack>
                       </TableCell>
-                      <TableCell>{renderStatusChip(card)}</TableCell>
                       <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
+                        {!card.is_paid_current_cycle && (
+                          <Button
+                            component={Link}
+                            href={`/retailer/cards/pay?card=${card.ref_id}`}
+                            size="small"
+                            variant="contained"
+                            startIcon={<PaymentIcon sx={{ fontSize: 15 }} />}
+                            sx={{
+                              mr: 0.75,
+                              borderRadius: "8px",
+                              textTransform: "none",
+                              fontWeight: 800,
+                              fontSize: "12px",
+                              bgcolor: primaryGreen,
+                              "&:hover": { bgcolor: darkGreen },
+                            }}
+                          >
+                            Pay Now
+                          </Button>
+                        )}
                         <Tooltip title="View details">
                           <IconButton size="small" onClick={() => setViewTarget(card)} aria-label="View card">
                             <VisibilityIcon fontSize="small" sx={{ color: "#0284C7" }} />
@@ -958,6 +1080,14 @@ export default function RetailerCreditCardManagementPage() {
                 <MenuItem key={d} value={d}>{ordinalDay(d)} of month</MenuItem>
               ))}
             </TextField>
+            <TextField
+              fullWidth
+              type="number"
+              label="Current Bill Amount (₹)"
+              value={editBillAmount}
+              onChange={(e) => setEditBillAmount(e.target.value)}
+              inputProps={{ min: 0, step: "0.01" }}
+            />
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>

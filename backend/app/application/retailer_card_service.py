@@ -19,18 +19,20 @@ import logging
 import re
 import uuid
 from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import HTTPException, status
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.menu_favorite_service import ResolvedFavoriteIdentity
+from app.application.payin_mdr_service import PayInMdrService
 from app.core.config import settings
 from app.infrastructure.db.bank_master_models import BankMasterModel
 from app.infrastructure.db.models import CompanyModel, RetailerModel
-from app.infrastructure.db.payin_models import PayinCardTypeModel
+from app.infrastructure.db.payin_models import PayinCardTypeModel, PayinMdrCfgModel
 from app.infrastructure.db.retailer_card_models import (
     RetailerCardAuditLogModel,
     RetailerCreditCardModel,
@@ -280,7 +282,7 @@ class RetailerCardService:
     @classmethod
     async def ensure_tables_exist(cls, db: AsyncSession) -> None:
         try:
-            await db.execute(select(RetailerCreditCardModel.ref_id).limit(1))
+            await db.execute(select(RetailerCreditCardModel.ref_id, RetailerCreditCardModel.bill_amount).limit(1))
             await db.execute(select(RetailerCardAuditLogModel.ref_id).limit(1))
         except Exception:
             await db.rollback()
@@ -291,6 +293,12 @@ class RetailerCardService:
             await conn.run_sync(
                 lambda sync_conn: RetailerCardAuditLogModel.__table__.create(sync_conn, checkfirst=True)
             )
+            try:
+                await db.execute(
+                    text("ALTER TABLE public.retailer_credit_cards ADD COLUMN IF NOT EXISTS bill_amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00")
+                )
+            except Exception:
+                await db.rollback()
             await db.commit()
 
     @classmethod
@@ -422,6 +430,7 @@ class RetailerCardService:
             card_created_date=created_d,
             last_paid_cycle=row.last_paid_cycle,
         )
+        is_paid_current_cycle = row.last_paid_cycle == schedule["current_cycle_key"]
         return {
             "ref_id": row.ref_id,
             "public_id": str(row.public_id),
@@ -434,13 +443,17 @@ class RetailerCardService:
             "mobile_no": row.mobile_no,
             "masked_card_no": row.masked_card_no,
             "card_last4": row.card_last4,
+            "card_type_ref_id": row.card_type_ref_id,
             "card_type": row.card_type,
             "bank_id": row.bank_id,
             "bank_name": row.bank_name,
             "bank_short_code": row.bank_short_code,
             "bill_gen_day": row.bill_gen_day,
             "bill_due_day": row.bill_due_day,
+            "bill_amount": float(row.bill_amount or 0),
             "last_paid_cycle": row.last_paid_cycle,
+            "is_paid_current_cycle": is_paid_current_cycle,
+            "payment_status": "PAID" if is_paid_current_cycle else "UNPAID",
             "status": row.status,
             "created_at": row.created_at.isoformat() if row.created_at else None,
             "updated_at": row.updated_at.isoformat() if row.updated_at else None,
@@ -611,6 +624,7 @@ class RetailerCardService:
         bank_name: str,
         bill_gen_day: Any,
         bill_due_day: Any,
+        bill_amount: float = 0.0,
         bank_id: Optional[int] = None,
         reference_date: Optional[date] = None,
     ) -> Dict[str, Any]:
@@ -742,6 +756,7 @@ class RetailerCardService:
             deleted_row.bank_short_code = resolved_bank_short
             deleted_row.bill_gen_day = gen_day
             deleted_row.bill_due_day = due_day
+            deleted_row.bill_amount = max(0.0, round(float(bill_amount or 0), 2))
             deleted_row.last_paid_cycle = None
             deleted_row.status = "ACTIVE"
             deleted_row.is_active = True
@@ -768,6 +783,7 @@ class RetailerCardService:
                 bank_short_code=resolved_bank_short,
                 bill_gen_day=gen_day,
                 bill_due_day=due_day,
+                bill_amount=max(0.0, round(float(bill_amount or 0), 2)),
                 status="ACTIVE",
                 is_active=True,
                 is_deleted=False,
@@ -819,6 +835,7 @@ class RetailerCardService:
         bank_id: Optional[int] = None,
         bill_gen_day: Optional[Any] = None,
         bill_due_day: Optional[Any] = None,
+        bill_amount: Optional[float] = None,
         reference_date: Optional[date] = None,
     ) -> Dict[str, Any]:
         await cls.ensure_tables_exist(db)
@@ -854,6 +871,13 @@ class RetailerCardService:
             row.bill_gen_day = parse_day_of_month(bill_gen_day, "Bill Generation Date")
         if bill_due_day is not None:
             row.bill_due_day = parse_day_of_month(bill_due_day, "Bill Due Date")
+        if bill_amount is not None:
+            if float(bill_amount) < 0:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="Bill amount cannot be negative.",
+                )
+            row.bill_amount = round(float(bill_amount), 2)
 
         await cls._record_audit(
             db,
@@ -961,3 +985,254 @@ class RetailerCardService:
         )
         await db.commit()
         return {"status": "SUCCESS", "message": "Credit card removed."}
+
+    @classmethod
+    async def _resolve_charge_rule(
+        cls,
+        db: AsyncSession,
+        company_ref_id: int,
+        card_type_ref_id: Optional[int],
+        card_type: str,
+    ) -> Dict[str, Decimal]:
+        """
+        Resolves dynamic service charge & GST rates from payin_mdr_cfg (matching company_ref_id & card_type),
+        falling back to PayInMdrService.get_mdr_for_company when no specific rule is present.
+        """
+        try:
+            stmt = (
+                select(
+                    PayinMdrCfgModel.mdr_pct,
+                    PayinMdrCfgModel.mdr_fixed,
+                    PayinMdrCfgModel.tax_pct,
+                    PayinMdrCfgModel.min_mdr,
+                    PayinMdrCfgModel.max_mdr,
+                    PayinMdrCfgModel.payin_card_type_ref_id,
+                    PayinMdrCfgModel.card_network,
+                    PayinMdrCfgModel.priority,
+                )
+                .where(
+                    PayinMdrCfgModel.company_ref_id == company_ref_id,
+                    PayinMdrCfgModel.is_enabled == True,
+                )
+                .order_by(PayinMdrCfgModel.priority.desc(), PayinMdrCfgModel.payin_mdr_cfg_ref_id.desc())
+            )
+            rows = (await db.execute(stmt)).all()
+            if rows:
+                ct_upper = (card_type or "").strip().upper()
+                best = None
+                best_score = -1
+                for r in rows:
+                    score = int(r.priority or 0)
+                    if card_type_ref_id and r.payin_card_type_ref_id == card_type_ref_id:
+                        score += 50
+                    if r.card_network and r.card_network.upper() in ct_upper:
+                        score += 40
+                    if r.card_network == "UPI" and "UPI" not in ct_upper:
+                        continue
+                    if score > best_score:
+                        best_score = score
+                        best = r
+                if best:
+                    return {
+                        "mdr_pct": Decimal(str(best.mdr_pct or "0")),
+                        "mdr_fixed": Decimal(str(best.mdr_fixed or "0")),
+                        "tax_pct": Decimal(str(best.tax_pct or "0.1800")),
+                        "min_mdr": Decimal(str(best.min_mdr or "0")),
+                        "max_mdr": Decimal(str(best.max_mdr or "5000.00")),
+                    }
+        except Exception as exc:
+            logger.debug(f"MDR rule lookup fallback: {exc}")
+            try:
+                await db.rollback()
+            except Exception:
+                pass
+
+        try:
+            legacy = await PayInMdrService.get_mdr_for_company(db, company_ref_id)
+            return {
+                "mdr_pct": Decimal(str(legacy.get("mdr_pct", "0.0150"))),
+                "mdr_fixed": Decimal(str(legacy.get("mdr_fixed", "0.00"))),
+                "tax_pct": Decimal(str(legacy.get("tax_pct", "0.1800"))),
+                "min_mdr": Decimal(str(legacy.get("min_mdr", "0.00"))),
+                "max_mdr": Decimal(str(legacy.get("max_mdr", "5000.00"))),
+            }
+        except Exception:
+            try:
+                await db.rollback()
+            except Exception:
+                pass
+        return {
+            "mdr_pct": Decimal("0.0150"),
+            "mdr_fixed": Decimal("0.00"),
+            "tax_pct": Decimal("0.1800"),
+            "min_mdr": Decimal("0.00"),
+            "max_mdr": Decimal("5000.00"),
+        }
+
+    @classmethod
+    async def quote_bill_payments(
+        cls,
+        db: AsyncSession,
+        identity: ResolvedFavoriteIdentity,
+        items: List[Dict[str, Any]],
+        reference_date: Optional[date] = None,
+    ) -> Dict[str, Any]:
+        """Computes authoritative Single or Bulk credit card bill payment breakdown."""
+        await cls.ensure_tables_exist(db)
+        company_ref_id, retailer_ref_id = _require_retailer_scope(identity)
+        if not items:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Select at least one credit card bill to continue.",
+            )
+
+        ref_date = reference_date or _ist_today()
+        two_places = Decimal("0.01")
+        seen_ids = set()
+        card_quotes: List[Dict[str, Any]] = []
+
+        total_bill = Decimal("0.00")
+        total_service_charge = Decimal("0.00")
+        total_gst = Decimal("0.00")
+        total_other = Decimal("0.00")
+        grand_total = Decimal("0.00")
+
+        for item in items:
+            cid = int(item["card_ref_id"])
+            if cid in seen_ids:
+                continue
+            seen_ids.add(cid)
+
+            row = (
+                await db.execute(
+                    select(RetailerCreditCardModel).where(
+                        RetailerCreditCardModel.ref_id == cid,
+                        RetailerCreditCardModel.company_ref_id == company_ref_id,
+                        RetailerCreditCardModel.retailer_ref_id == retailer_ref_id,
+                        RetailerCreditCardModel.is_deleted == False,
+                        RetailerCreditCardModel.is_active == True,
+                    )
+                )
+            ).scalars().first()
+            if not row:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Credit card #{cid} not found for your retailer account.",
+                )
+
+            serialized = cls._serialize_card(row, reference_date=ref_date)
+            if serialized["is_paid_current_cycle"]:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Card {row.masked_card_no} is already marked paid for {serialized['current_cycle_key']}.",
+                )
+
+            override_amt = item.get("bill_amount")
+            raw_amt = Decimal(str(override_amt if override_amt is not None else (row.bill_amount or 0)))
+            bill_amt = raw_amt.quantize(two_places, rounding=ROUND_HALF_UP)
+            if bill_amt <= Decimal("0.00"):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=f"Please enter a valid bill amount (> ₹0) for {row.masked_card_no}.",
+                )
+
+            rule = await cls._resolve_charge_rule(
+                db, company_ref_id, serialized["card_type_ref_id"], serialized["card_type"]
+            )
+            raw_charge = (bill_amt * rule["mdr_pct"]) + rule["mdr_fixed"]
+            if raw_charge < rule["min_mdr"]:
+                raw_charge = rule["min_mdr"]
+            if rule["max_mdr"] > Decimal("0") and raw_charge > rule["max_mdr"]:
+                raw_charge = rule["max_mdr"]
+            service_charge = raw_charge.quantize(two_places, rounding=ROUND_HALF_UP)
+
+            gst_amount = (service_charge * rule["tax_pct"]).quantize(two_places, rounding=ROUND_HALF_UP)
+            other_charges = Decimal("0.00")
+            card_total = (bill_amt + service_charge + gst_amount + other_charges).quantize(
+                two_places, rounding=ROUND_HALF_UP
+            )
+
+            total_bill += bill_amt
+            total_service_charge += service_charge
+            total_gst += gst_amount
+            total_other += other_charges
+            grand_total += card_total
+
+            card_quotes.append(
+                {
+                    "card_ref_id": serialized["ref_id"],
+                    "card_name": serialized["card_name"],
+                    "mobile_no": serialized["mobile_no"],
+                    "bank_name": serialized["bank_name"],
+                    "bank_short_code": serialized["bank_short_code"],
+                    "masked_card_no": serialized["masked_card_no"],
+                    "card_type": serialized["card_type"],
+                    "bill_generation_date": serialized["bill_generation_date"],
+                    "bill_due_date": serialized["next_bill_due_date"],
+                    "bill_status": serialized["bill_status"],
+                    "bill_amount": float(bill_amt),
+                    "service_charge": float(service_charge),
+                    "charge_pct": float((rule["mdr_pct"] * Decimal("100")).quantize(two_places)),
+                    "gst_rate_pct": float((rule["tax_pct"] * Decimal("100")).quantize(two_places)),
+                    "gst_amount": float(gst_amount),
+                    "other_charges": float(other_charges),
+                    "total_payable": float(card_total),
+                }
+            )
+
+        return {
+            "status": "SUCCESS",
+            "mode": "BULK" if len(card_quotes) > 1 else "SINGLE",
+            "items": card_quotes,
+            "summary": {
+                "selected_cards_count": len(card_quotes),
+                "total_bill_amount": float(total_bill),
+                "total_service_charges": float(total_service_charge),
+                "total_gst": float(total_gst),
+                "total_other_charges": float(total_other),
+                "grand_total": float(grand_total),
+            },
+        }
+
+    @classmethod
+    async def confirm_bill_payments(
+        cls,
+        db: AsyncSession,
+        identity: ResolvedFavoriteIdentity,
+        *,
+        items: List[Dict[str, Any]],
+        confirmed: bool,
+        mode: str = "SINGLE",
+        reference_date: Optional[date] = None,
+    ) -> Dict[str, Any]:
+        if not confirmed:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Please confirm the total payable amount before proceeding.",
+            )
+
+        quote = await cls.quote_bill_payments(db, identity, items, reference_date=reference_date)
+        company_ref_id, retailer_ref_id = _require_retailer_scope(identity)
+        tenant_uuid = await _resolve_tenant_uuid(db, company_ref_id, retailer_ref_id)
+
+        await cls._record_audit(
+            db,
+            identity=identity,
+            tenant_id=tenant_uuid,
+            card_ref_id=quote["items"][0]["card_ref_id"] if len(quote["items"]) == 1 else None,
+            action="PAYMENT_PENDING_PROVIDER",
+            masked_card_no=", ".join(c["masked_card_no"] for c in quote["items"])[:32],
+            details={
+                "mode": mode,
+                "selected_cards_count": quote["summary"]["selected_cards_count"],
+                "grand_total": quote["summary"]["grand_total"],
+            },
+        )
+        await db.commit()
+
+        return {
+            "status": "PENDING_PROVIDER",
+            "provider_configured": False,
+            "message": "Payment gateway integration is pending. Please configure the payment provider.",
+            "quote": quote,
+        }

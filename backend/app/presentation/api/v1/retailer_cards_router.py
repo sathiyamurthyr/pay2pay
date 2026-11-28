@@ -11,7 +11,7 @@ Strictly scoped to the authenticated Retailer & Company/Tenant (never trusts cli
 - DELETE /retailer/cards/{card_ref_id}       -> Soft-delete card + audit log
 """
 
-from typing import Any, Optional, Union
+from typing import Any, List, Optional, Union
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,6 +36,7 @@ class CreateRetailerCardRequest(BaseModel):
     bank_id: Optional[int] = None
     bill_gen_day: Union[int, str] = Field(..., description="Day of month (1-31) or YYYY-MM-DD")
     bill_due_day: Union[int, str] = Field(..., description="Day of month (1-31) or YYYY-MM-DD")
+    bill_amount: float = Field(0.0, ge=0)
 
 
 class UpdateRetailerCardRequest(BaseModel):
@@ -45,6 +46,22 @@ class UpdateRetailerCardRequest(BaseModel):
     bank_id: Optional[int] = None
     bill_gen_day: Optional[Union[int, str]] = None
     bill_due_day: Optional[Union[int, str]] = None
+    bill_amount: Optional[float] = Field(None, ge=0)
+
+
+class CardPaymentItemRequest(BaseModel):
+    card_ref_id: int
+    bill_amount: Optional[float] = Field(None, ge=0)
+
+
+class CardPaymentQuoteRequest(BaseModel):
+    items: List[CardPaymentItemRequest] = Field(..., min_length=1)
+
+
+class CardPaymentConfirmRequest(BaseModel):
+    items: List[CardPaymentItemRequest] = Field(..., min_length=1)
+    confirmed: bool = False
+    mode: str = Field("SINGLE")
 
 
 @router.get("/metadata", summary="Get Card Types and Supported Banks")
@@ -125,6 +142,51 @@ async def create_retailer_card(
         bank_id=payload.bank_id,
         bill_gen_day=payload.bill_gen_day,
         bill_due_day=payload.bill_due_day,
+        bill_amount=payload.bill_amount,
+    )
+
+
+@router.post("/payment/quote", summary="Calculate Single or Bulk Credit Card Bill Payment Breakdown")
+async def quote_card_bill_payments(
+    payload: CardPaymentQuoteRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    token_payload: dict = Depends(get_current_token_payload),
+    current_user: Optional[Any] = Depends(get_optional_current_user),
+):
+    identity = await MenuFavoriteService.resolve_authenticated_identity(
+        db=db,
+        request=request,
+        token_payload=token_payload,
+        current_user=current_user,
+    )
+    return await RetailerCardService.quote_bill_payments(
+        db,
+        identity,
+        items=[item.model_dump() for item in payload.items],
+    )
+
+
+@router.post("/payment/confirm", summary="Confirm Single or Bulk Credit Card Bill Payment")
+async def confirm_card_bill_payments(
+    payload: CardPaymentConfirmRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    token_payload: dict = Depends(get_current_token_payload),
+    current_user: Optional[Any] = Depends(get_optional_current_user),
+):
+    identity = await MenuFavoriteService.resolve_authenticated_identity(
+        db=db,
+        request=request,
+        token_payload=token_payload,
+        current_user=current_user,
+    )
+    return await RetailerCardService.confirm_bill_payments(
+        db,
+        identity,
+        items=[item.model_dump() for item in payload.items],
+        confirmed=payload.confirmed,
+        mode=payload.mode,
     )
 
 
@@ -170,6 +232,51 @@ async def update_retailer_card(
         bank_id=payload.bank_id,
         bill_gen_day=payload.bill_gen_day,
         bill_due_day=payload.bill_due_day,
+        bill_amount=payload.bill_amount,
+    )
+
+
+@router.post("/payment/quote", summary="Calculate Single or Bulk Credit Card Bill Payment Breakdown")
+async def quote_card_bill_payments(
+    payload: CardPaymentQuoteRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    token_payload: dict = Depends(get_current_token_payload),
+    current_user: Optional[Any] = Depends(get_optional_current_user),
+):
+    identity = await MenuFavoriteService.resolve_authenticated_identity(
+        db=db,
+        request=request,
+        token_payload=token_payload,
+        current_user=current_user,
+    )
+    return await RetailerCardService.quote_bill_payments(
+        db,
+        identity,
+        items=[item.model_dump() for item in payload.items],
+    )
+
+
+@router.post("/payment/confirm", summary="Confirm Single or Bulk Credit Card Bill Payment")
+async def confirm_card_bill_payments(
+    payload: CardPaymentConfirmRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    token_payload: dict = Depends(get_current_token_payload),
+    current_user: Optional[Any] = Depends(get_optional_current_user),
+):
+    identity = await MenuFavoriteService.resolve_authenticated_identity(
+        db=db,
+        request=request,
+        token_payload=token_payload,
+        current_user=current_user,
+    )
+    return await RetailerCardService.confirm_bill_payments(
+        db,
+        identity,
+        items=[item.model_dump() for item in payload.items],
+        confirmed=payload.confirmed,
+        mode=payload.mode,
     )
 
 
