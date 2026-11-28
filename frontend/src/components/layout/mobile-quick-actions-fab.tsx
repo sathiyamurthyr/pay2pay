@@ -417,172 +417,193 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
           display: { xs: "block", md: "none" },
           zIndex: 1350,
           "& .MuiDrawer-paper": {
-            position: "relative",
-            borderTopLeftRadius: 28,
-            borderTopRightRadius: 28,
+            position: "fixed",
+            top: "auto",
+            bottom: bottomOffset + 24,
+            left: 12,
+            right: 12,
+            maxWidth: 440,
+            margin: "0 auto",
+            borderRadius: "28px",
             background: sheetBg,
             backdropFilter: "blur(24px) saturate(180%)",
             WebkitBackdropFilter: "blur(24px) saturate(180%)",
-            borderTop: isDark
-              ? "1px solid rgba(255, 255, 255, 0.16)"
-              : "1px solid rgba(255, 255, 255, 0.8)",
+            border: isDark
+              ? "1px solid rgba(255, 255, 255, 0.18)"
+              : "1px solid rgba(255, 255, 255, 0.85)",
             boxShadow: isDark
-              ? "0 -12px 48px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255,255,255,0.12)"
-              : "0 -12px 48px rgba(37, 99, 235, 0.12), 0 -4px 24px rgba(124, 58, 237, 0.08), inset 0 1px 0 rgba(255,255,255,0.9)",
-            overflowX: "hidden",
-            overflowY: "auto",
-            pb: "env(safe-area-inset-bottom, 12px)",
-            maxHeight: "86vh",
+              ? "0 16px 48px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255,255,255,0.14)"
+              : "0 18px 48px rgba(37, 99, 235, 0.16), 0 6px 24px rgba(124, 58, 237, 0.1), inset 0 1px 0 rgba(255,255,255,0.95)",
+            overflow: "hidden",
+            maxHeight: "76vh",
           },
         }}
       >
-        {/* Ambient Pastel Gradient Lighting */}
-        <Box
-          aria-hidden="true"
-          sx={{
-            position: "absolute",
-            inset: 0,
-            pointerEvents: "none",
-            overflow: "hidden",
-            zIndex: 0,
-            background: isDark
-              ? "radial-gradient(circle at 12% 18%, rgba(37,99,235,0.22) 0%, transparent 45%), radial-gradient(circle at 88% 12%, rgba(168,85,247,0.2) 0%, transparent 42%), radial-gradient(circle at 20% 85%, rgba(20,184,166,0.16) 0%, transparent 45%), radial-gradient(circle at 82% 80%, rgba(236,72,153,0.14) 0%, transparent 42%)"
-              : "radial-gradient(circle at 12% 18%, rgba(96,165,250,0.22) 0%, transparent 46%), radial-gradient(circle at 88% 12%, rgba(192,132,252,0.22) 0%, transparent 44%), radial-gradient(circle at 18% 85%, rgba(94,234,212,0.2) 0%, transparent 46%), radial-gradient(circle at 84% 82%, rgba(244,114,182,0.16) 0%, transparent 44%)",
-          }}
-        />
-
-        {/* Drag Handle */}
-        <Box sx={{ position: "relative", zIndex: 1, display: "flex", justifyContent: "center", pt: 1.5, pb: 0.5 }}>
+        <Box sx={{ position: "relative", overflow: "hidden" }}>
+          {/* Ambient Pastel Gradient Lighting */}
           <Box
+            aria-hidden="true"
             sx={{
-              width: 40,
-              height: 4,
-              borderRadius: 2,
-              bgcolor: pillBg,
+              position: "absolute",
+              inset: 0,
+              pointerEvents: "none",
+              overflow: "hidden",
+              zIndex: 0,
+              background: isDark
+                ? "radial-gradient(circle at 12% 18%, rgba(37,99,235,0.22) 0%, transparent 45%), radial-gradient(circle at 88% 12%, rgba(168,85,247,0.2) 0%, transparent 42%), radial-gradient(circle at 20% 85%, rgba(20,184,166,0.16) 0%, transparent 45%), radial-gradient(circle at 82% 80%, rgba(236,72,153,0.14) 0%, transparent 42%)"
+                : "radial-gradient(circle at 12% 18%, rgba(96,165,250,0.24) 0%, transparent 46%), radial-gradient(circle at 88% 12%, rgba(192,132,252,0.24) 0%, transparent 44%), radial-gradient(circle at 18% 85%, rgba(94,234,212,0.22) 0%, transparent 46%), radial-gradient(circle at 84% 82%, rgba(244,114,182,0.18) 0%, transparent 44%)",
             }}
           />
-        </Box>
 
-        {/* Header */}
-        <Box
-          sx={{
-            position: "relative",
-            zIndex: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            px: 2,
-            py: 1.25,
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+          {/* Drag Handle */}
+          <Box sx={{ position: "relative", zIndex: 1, display: "flex", justifyContent: "center", pt: 1.25, pb: 0.25 }}>
             <Box
               sx={{
-                width: 38,
-                height: 38,
-                borderRadius: "12px",
-                background: isDark
-                  ? "linear-gradient(135deg, rgba(124,58,237,0.3) 0%, rgba(37,99,235,0.3) 100%)"
-                  : "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(238,242,255,0.85) 100%)",
-                border: isDark ? "1px solid rgba(255,255,255,0.18)" : "1px solid rgba(255,255,255,0.95)",
-                boxShadow: isDark
-                  ? "0 4px 12px rgba(0,0,0,0.3)"
-                  : "0 4px 12px rgba(99,102,241,0.14), inset 0 1px 0 rgba(255,255,255,0.9)",
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                bgcolor: pillBg,
+              }}
+            />
+          </Box>
+
+          {/* Header */}
+          <Box
+            sx={{
+              position: "relative",
+              zIndex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              px: 2,
+              py: 1.25,
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+              <Box
+                sx={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: "12px",
+                  background: isDark
+                    ? "linear-gradient(135deg, rgba(124,58,237,0.3) 0%, rgba(37,99,235,0.3) 100%)"
+                    : "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(238,242,255,0.85) 100%)",
+                  border: isDark ? "1px solid rgba(255,255,255,0.18)" : "1px solid rgba(255,255,255,0.95)",
+                  boxShadow: isDark
+                    ? "0 4px 12px rgba(0,0,0,0.3)"
+                    : "0 4px 12px rgba(99,102,241,0.14), inset 0 1px 0 rgba(255,255,255,0.9)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <BoltRoundedIcon sx={{ fontSize: 22, color: "#6366F1" }} />
+              </Box>
+              <Box
+                sx={{
+                  pl: 1.25,
+                  borderLeft: isDark ? "1px solid rgba(255,255,255,0.14)" : "1px solid rgba(15,23,42,0.1)",
+                }}
+              >
+                <Typography
+                  variant="subtitle1"
+                  sx={{
+                    fontWeight: 800,
+                    fontSize: "16px",
+                    letterSpacing: "-0.01em",
+                    color: isDark ? "#F8FAFC" : "#0F172A",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  Quick Actions
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{ color: isDark ? "#CBD5E1" : "#64748B", fontSize: "11.5px", fontWeight: 500 }}
+                >
+                  {favorites.length > 0 ? "Favorites first • Select a service" : "Select a service to get started"}
+                </Typography>
+              </Box>
+            </Box>
+            <ButtonBase
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleClose();
+              }}
+              aria-label="Close Quick Actions"
+              sx={{
+                width: 34,
+                height: 34,
+                borderRadius: "50%",
+                bgcolor: isDark ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.7)",
+                backdropFilter: "blur(10px)",
+                WebkitBackdropFilter: "blur(10px)",
+                border: isDark ? "1px solid rgba(255,255,255,0.16)" : "1px solid rgba(255,255,255,0.9)",
+                boxShadow: "0 2px 8px rgba(15,23,42,0.06)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                flexShrink: 0,
+                transition: "background 0.18s, transform 0.18s",
+                "&:hover": {
+                  bgcolor: isDark ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.95)",
+                  transform: "scale(1.06)",
+                },
+                "&:active": { transform: "scale(0.94)" },
               }}
             >
-              <BoltRoundedIcon sx={{ fontSize: 22, color: "#6366F1" }} />
-            </Box>
-            <Box
-              sx={{
-                pl: 1.25,
-                borderLeft: isDark ? "1px solid rgba(255,255,255,0.14)" : "1px solid rgba(15,23,42,0.1)",
-              }}
-            >
-              <Typography
-                variant="subtitle1"
-                sx={{
-                  fontWeight: 800,
-                  fontSize: "16px",
-                  letterSpacing: "-0.01em",
-                  color: isDark ? "#F8FAFC" : "#0F172A",
-                  lineHeight: 1.2,
-                }}
-              >
-                Quick Actions
-              </Typography>
-              <Typography
-                variant="caption"
-                sx={{ color: isDark ? "#CBD5E1" : "#64748B", fontSize: "11.5px", fontWeight: 500 }}
-              >
-                {favorites.length > 0 ? "Favorites first • Select a service" : "Select a service to get started"}
-              </Typography>
-            </Box>
+              <CloseRoundedIcon sx={{ fontSize: 18, color: isDark ? "#E2E8F0" : "#475569" }} />
+            </ButtonBase>
           </Box>
-          <ButtonBase
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleClose();
-            }}
-            aria-label="Close Quick Actions"
+
+          {/* Action Grid – compact 4 columns */}
+          <Box
             sx={{
-              width: 34,
-              height: 34,
-              borderRadius: "50%",
-              bgcolor: isDark ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.7)",
-              backdropFilter: "blur(10px)",
-              WebkitBackdropFilter: "blur(10px)",
-              border: isDark ? "1px solid rgba(255,255,255,0.16)" : "1px solid rgba(255,255,255,0.9)",
-              boxShadow: "0 2px 8px rgba(15,23,42,0.06)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "background 0.18s, transform 0.18s",
-              "&:hover": {
-                bgcolor: isDark ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.95)",
-                transform: "scale(1.06)",
-              },
-              "&:active": { transform: "scale(0.94)" },
+              position: "relative",
+              zIndex: 1,
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: 1,
+              px: 1.5,
+              pt: 0.5,
+              pb: 1.75,
             }}
           >
-            <CloseRoundedIcon sx={{ fontSize: 18, color: isDark ? "#E2E8F0" : "#475569" }} />
-          </ButtonBase>
-        </Box>
+            {quickActions.map((action) => {
+              const Icon = action.icon;
+              return (
+                <QuickActionItem
+                  key={action.id}
+                  icon={Icon}
+                  label={action.label}
+                  sublabel={action.sublabel}
+                  color={action.color}
+                  bg={isDark ? action.darkBg : action.bg}
+                  gradient={isDark ? action.darkGradient : action.gradient}
+                  onClick={() => handleAction(action.href)}
+                  isDark={isDark}
+                  isFavorite={action.isFavorite}
+                />
+              );
+            })}
+          </Box>
 
-        {/* Action Grid – compact 4 columns (existing height) */}
-        <Box
-          sx={{
-            position: "relative",
-            zIndex: 1,
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gap: 1,
-            px: 1.5,
-            pt: 0.5,
-            pb: 8,
-          }}
-        >
-          {quickActions.map((action) => {
-            const Icon = action.icon;
-            return (
-              <QuickActionItem
-                key={action.id}
-                icon={Icon}
-                label={action.label}
-                sublabel={action.sublabel}
-                color={action.color}
-                bg={isDark ? action.darkBg : action.bg}
-                gradient={isDark ? action.darkGradient : action.gradient}
-                onClick={() => handleAction(action.href)}
-                isDark={isDark}
-                isFavorite={action.isFavorite}
-              />
-            );
-          })}
+          {/* Bottom glass accent line flanking the center close FAB */}
+          <Box
+            aria-hidden="true"
+            sx={{
+              position: "relative",
+              zIndex: 1,
+              height: "1px",
+              mx: 2.5,
+              mt: 0.5,
+              mb: 4,
+              background: isDark
+                ? "linear-gradient(90deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.28) 50%, rgba(255,255,255,0.06) 100%)"
+                : "linear-gradient(90deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.95) 50%, rgba(255,255,255,0.2) 100%)",
+            }}
+          />
         </Box>
       </SwipeableDrawer>
     </>
