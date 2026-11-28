@@ -254,7 +254,12 @@ export default function AddNewRetailerCardPage() {
                     value={mobileNo}
                     onChange={(e) => setMobileNo(sanitizeDigits(e.target.value).slice(0, 12))}
                     error={Boolean(fieldErrors.mobile_no)}
-                    helperText={fieldErrors.mobile_no || "10-digit mobile starting with 6-9"}
+                    helperText={
+                      fieldErrors.mobile_no ||
+                      `Count: ${normalizeIndianMobile(mobileNo).length} / 10 digits${
+                        isValidIndianMobile(mobileNo) ? " • Valid" : ""
+                      }`
+                    }
                   />
                 </Grid>
 
@@ -269,7 +274,13 @@ export default function AddNewRetailerCardPage() {
                     error={Boolean(fieldErrors.card_number)}
                     helperText={
                       fieldErrors.card_number ||
-                      "Validated with Luhn checksum; only masked number & secure fingerprint are stored."
+                      `Count: ${sanitizeDigits(cardNumber).length} / 16 digits (13-19 supported)${
+                        sanitizeDigits(cardNumber).length >= 13
+                          ? luhnCheck(cardNumber)
+                            ? " • Valid Luhn"
+                            : " • Invalid checksum"
+                          : ""
+                      }`
                     }
                     inputProps={{ inputMode: "numeric", autoComplete: "off" }}
                   />

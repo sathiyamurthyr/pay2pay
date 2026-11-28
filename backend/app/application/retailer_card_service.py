@@ -251,18 +251,21 @@ async def _resolve_tenant_uuid(
             await db.execute(
                 select(RetailerModel.tenant_id).where(RetailerModel.retailer_ref_id == retailer_ref_id)
             )
-        ).scalar_one_or_none()
+        ).scalars().first()
         if ret:
             return ret
         comp = (
             await db.execute(
                 select(CompanyModel.tenant_id).where(CompanyModel.company_ref_id == company_ref_id)
             )
-        ).scalar_one_or_none()
+        ).scalars().first()
         if comp:
             return comp
     except Exception:
-        pass
+        try:
+            await db.rollback()
+        except Exception:
+            pass
     return uuid.uuid5(uuid.NAMESPACE_DNS, f"sathus-company-{company_ref_id}")
 
 
@@ -315,9 +318,16 @@ class RetailerCardService:
         """Loads Card Type options (Credit Card) and supported Banks from bank_master."""
         banks: List[Dict[str, Any]] = []
         try:
+            bank_cols = (
+                BankMasterModel.bank_ifsc_ref_id,
+                BankMasterModel.bank_name,
+                BankMasterModel.short_code,
+                BankMasterModel.ifsc_prefix,
+                BankMasterModel.is_credit_card,
+            )
             bank_rows = (
                 await db.execute(
-                    select(BankMasterModel)
+                    select(*bank_cols)
                     .where(
                         BankMasterModel.status == 1,
                         BankMasterModel.is_credit_card == True,
@@ -325,16 +335,16 @@ class RetailerCardService:
                     .order_by(BankMasterModel.bank_name.asc())
                     .limit(300)
                 )
-            ).scalars().all()
+            ).all()
             if not bank_rows:
                 bank_rows = (
                     await db.execute(
-                        select(BankMasterModel)
+                        select(*bank_cols)
                         .where(BankMasterModel.status == 1)
                         .order_by(BankMasterModel.bank_name.asc())
                         .limit(300)
                     )
-                ).scalars().all()
+                ).all()
             for b in bank_rows:
                 banks.append(
                     {
@@ -346,6 +356,10 @@ class RetailerCardService:
                 )
         except Exception as exc:
             logger.debug(f"Fallback to default credit card banks: {exc}")
+            try:
+                await db.rollback()
+            except Exception:
+                pass
 
         if not banks:
             banks = list(DEFAULT_CREDIT_CARD_BANKS)
@@ -593,27 +607,36 @@ class RetailerCardService:
         resolved_bank_id = bank_id
         resolved_bank_short: Optional[str] = None
         try:
+            bank_cols = (
+                BankMasterModel.bank_ifsc_ref_id,
+                BankMasterModel.bank_name,
+                BankMasterModel.short_code,
+                BankMasterModel.ifsc_prefix,
+            )
             if bank_id:
                 b_row = (
                     await db.execute(
-                        select(BankMasterModel).where(BankMasterModel.bank_ifsc_ref_id == int(bank_id))
+                        select(*bank_cols).where(BankMasterModel.bank_ifsc_ref_id == int(bank_id))
                     )
-                ).scalars().first()
+                ).first()
             else:
                 b_row = (
                     await db.execute(
-                        select(BankMasterModel).where(
+                        select(*bank_cols).where(
                             BankMasterModel.bank_name.ilike(clean_bank),
                             BankMasterModel.status == 1,
                         )
                     )
-                ).scalars().first()
+                ).first()
             if b_row:
                 resolved_bank_id = b_row.bank_ifsc_ref_id
                 clean_bank = b_row.bank_name
                 resolved_bank_short = b_row.short_code or b_row.ifsc_prefix
         except Exception:
-            pass
+            try:
+                await db.rollback()
+            except Exception:
+                pass
 
         # Level 1 Duplicate Check: backend validation scoped to (company_ref_id, retailer_ref_id, card_fingerprint)
         existing = (
