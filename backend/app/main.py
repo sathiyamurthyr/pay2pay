@@ -22,6 +22,7 @@ import app.infrastructure.db.upi_vendor_models  # UPI Vendor Configuration & Aud
 import app.infrastructure.db.crypto_models  # Retailer Encrypted Records & Envelope tables
 import app.infrastructure.db.company_profile_models  # Admin Company Profile Management tables
 import app.infrastructure.db.menu_favorite_models  # Dynamic Menu, Role-Menu & Reference-ID Favorites tables
+import app.infrastructure.db.retailer_card_models  # Retailer Credit Card Management table
 import app.infrastructure.db.demo_models  # INSPEL Vendor Demo Portal single unified `demo` table
 from app.presentation.api.v1 import beneficiary_verification
 from app.presentation.api.v1 import enterprise_payout_execution_router
@@ -558,6 +559,13 @@ app.include_router(_sales_router.router, prefix="/v1")
 app.include_router(_sales_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
 app.include_router(_sales_router.router, prefix="/api")
 app.include_router(_sales_router.router, prefix="")
+
+from app.presentation.api.v1 import retailer_cards_router as _retailer_cards_router
+app.include_router(_retailer_cards_router.router, prefix=settings.API_V1_STR)
+app.include_router(_retailer_cards_router.router, prefix="/v1")
+app.include_router(_retailer_cards_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(_retailer_cards_router.router, prefix="/api")
+app.include_router(_retailer_cards_router.router, prefix="")
 
 from app.presentation.api.v1 import admin_sales_management_router as _admin_sales_management_router
 app.include_router(_admin_sales_management_router.router, prefix=settings.API_V1_STR)

@@ -734,6 +734,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       items: [
         { label: "DMT", path: "/retailer/dmt", icon: SendIcon, serviceCode: "DMT" },
         { label: "Card to Cash", path: "/retailer/card-to-cash", icon: CreditCardIcon, serviceCode: "POS_TOPUP" },
+        { label: "Card Management", path: "/retailer/cards", icon: CreditCardIcon },
         { label: "AEPS", path: "/retailer/aeps", icon: FingerprintIcon, serviceCode: "AEPS" },
         { label: "UPI", path: "/retailer/upi", icon: QrCodeIcon, serviceCode: "UPI" },
         { label: "BBPS", path: "/retailer/bbps", icon: ReceiptIcon, serviceCode: "BBPS" },

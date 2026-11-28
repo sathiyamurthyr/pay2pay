@@ -136,6 +136,7 @@ RETAILER_MENU_SEED: List[Dict[str, Any]] = [
     # PAYMENTS
     {"menu_code": "RET_DMT", "menu_label": "DMT", "menu_href": "/retailer/dmt", "menu_category": "PAYMENTS", "service_code": "DMT", "icon_name": "Send", "is_financial": True, "display_order": 10},
     {"menu_code": "RET_CARD_TO_CASH", "menu_label": "Card to Cash", "menu_href": "/retailer/card-to-cash", "menu_category": "PAYMENTS", "service_code": "POS_TOPUP", "icon_name": "CreditCard", "is_financial": True, "display_order": 11},
+    {"menu_code": "RET_CARD_MANAGEMENT", "menu_label": "Card Management", "menu_href": "/retailer/cards", "menu_category": "PAYMENTS", "icon_name": "CreditCard", "is_financial": False, "display_order": 12},
     {"menu_code": "RET_AEPS", "menu_label": "AEPS", "menu_href": "/retailer/aeps", "menu_category": "PAYMENTS", "service_code": "AEPS", "icon_name": "Fingerprint", "is_financial": True, "display_order": 12},
     {"menu_code": "RET_UPI", "menu_label": "UPI", "menu_href": "/retailer/upi", "menu_category": "PAYMENTS", "service_code": "UPI", "icon_name": "QrCode", "is_financial": True, "display_order": 13},
     {"menu_code": "RET_BBPS", "menu_label": "BBPS", "menu_href": "/retailer/bbps", "menu_category": "PAYMENTS", "service_code": "BBPS", "icon_name": "Receipt", "is_financial": True, "display_order": 14},
