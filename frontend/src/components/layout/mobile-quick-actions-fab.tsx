@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Fab,
@@ -17,22 +17,99 @@ import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import QrCodeScannerRoundedIcon from "@mui/icons-material/QrCodeScannerRounded";
 import FingerprintRoundedIcon from "@mui/icons-material/FingerprintRounded";
 import CreditCardOffRoundedIcon from "@mui/icons-material/CreditCardOffRounded";
+import CreditCardRoundedIcon from "@mui/icons-material/CreditCardRounded";
 import PhoneIphoneRoundedIcon from "@mui/icons-material/PhoneIphoneRounded";
 import ElectricBoltRoundedIcon from "@mui/icons-material/ElectricBoltRounded";
 import PointOfSaleRoundedIcon from "@mui/icons-material/PointOfSaleRounded";
-import QrCode2RoundedIcon from "@mui/icons-material/QrCode2Rounded";
+import AccountBalanceWalletRoundedIcon from "@mui/icons-material/AccountBalanceWalletRounded";
+import AddCardRoundedIcon from "@mui/icons-material/AddCardRounded";
+import SendRoundedIcon from "@mui/icons-material/SendRounded";
+import AssessmentRoundedIcon from "@mui/icons-material/AssessmentRounded";
+import ReceiptLongRoundedIcon from "@mui/icons-material/ReceiptLongRounded";
+import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
+import PeopleRoundedIcon from "@mui/icons-material/PeopleRounded";
+import StarRoundedIcon from "@mui/icons-material/StarRounded";
+import AppsRoundedIcon from "@mui/icons-material/AppsRounded";
 
-// ─── Quick Action Config ────────────────────────────────────────────────────────
-const QUICK_ACTIONS = [
+// ─── Quick Action Types & Catalog ───────────────────────────────────────────────
+export interface QuickActionConfig {
+  id: string;
+  label: string;
+  sublabel: string;
+  href: string;
+  icon: React.ElementType;
+  color: string;
+  bg: string;
+  darkBg: string;
+  isFavorite?: boolean;
+}
+
+export interface FavoriteMenuInput {
+  menu_ref_id?: number;
+  menu_href: string;
+  menu_label?: string;
+}
+
+const DEFAULT_QUICK_ACTIONS: QuickActionConfig[] = [
+  {
+    id: "payin",
+    label: "PayIn",
+    sublabel: "Add money",
+    href: "/retailer/payin",
+    icon: AddCardRoundedIcon,
+    color: "#2563EB",
+    bg: "#DBEAFE",
+    darkBg: "#1E3A8A",
+  },
+  {
+    id: "payout",
+    label: "Payout",
+    sublabel: "DMT transfer",
+    href: "/retailer/dmt",
+    icon: SendRoundedIcon,
+    color: "#7C3AED",
+    bg: "#EDE9FE",
+    darkBg: "#3B1F73",
+  },
+  {
+    id: "reports",
+    label: "Reports",
+    sublabel: "Transactions",
+    href: "/retailer/reports/transactions",
+    icon: AssessmentRoundedIcon,
+    color: "#0D9488",
+    bg: "#CCFBF1",
+    darkBg: "#134E4A",
+  },
+  {
+    id: "bbps",
+    label: "Bill Payment",
+    sublabel: "BBPS bills",
+    href: "/retailer/bbps",
+    icon: ElectricBoltRoundedIcon,
+    color: "#DC2626",
+    bg: "#FEE2E2",
+    darkBg: "#3D1414",
+  },
+  {
+    id: "cards",
+    label: "Card Mgmt",
+    sublabel: "Credit cards",
+    href: "/retailer/cards",
+    icon: CreditCardRoundedIcon,
+    color: "#D97706",
+    bg: "#FEF3C7",
+    darkBg: "#3D2E0A",
+  },
   {
     id: "upi",
     label: "UPI",
     sublabel: "Collect payment",
     href: "/retailer/upi",
     icon: QrCodeScannerRoundedIcon,
-    color: "#7C3AED",
-    bg: "#EDE9FE",
-    darkBg: "#3B1F73",
+    color: "#9333EA",
+    bg: "#F3E8FF",
+    darkBg: "#2E1245",
   },
   {
     id: "aeps",
@@ -45,7 +122,70 @@ const QUICK_ACTIONS = [
     darkBg: "#1A3D28",
   },
   {
-    id: "card-to-cash",
+    id: "recharge",
+    label: "Recharge",
+    sublabel: "Mobile & DTH",
+    href: "/retailer/recharge",
+    icon: PhoneIphoneRoundedIcon,
+    color: "#0284C7",
+    bg: "#E0F2FE",
+    darkBg: "#0C4A6E",
+  },
+];
+
+const MENU_CATALOG_BY_HREF: Record<string, Omit<QuickActionConfig, "id" | "isFavorite">> = {
+  "/retailer/dashboard": {
+    label: "Dashboard",
+    sublabel: "Overview",
+    href: "/retailer/dashboard",
+    icon: DashboardRoundedIcon,
+    color: "#2563EB",
+    bg: "#DBEAFE",
+    darkBg: "#1E3A8A",
+  },
+  "/retailer/payin": DEFAULT_QUICK_ACTIONS[0],
+  "/retailer/dmt": DEFAULT_QUICK_ACTIONS[1],
+  "/retailer/reports/transactions": DEFAULT_QUICK_ACTIONS[2],
+  "/retailer/reports": DEFAULT_QUICK_ACTIONS[2],
+  "/retailer/reports/payin-transactions": {
+    label: "PayIn Report",
+    sublabel: "PayIn history",
+    href: "/retailer/reports/payin-transactions",
+    icon: AssessmentRoundedIcon,
+    color: "#2563EB",
+    bg: "#DBEAFE",
+    darkBg: "#1E3A8A",
+  },
+  "/retailer/reports/payout-transactions": {
+    label: "Payout Report",
+    sublabel: "Payout history",
+    href: "/retailer/reports/payout-transactions",
+    icon: ReceiptLongRoundedIcon,
+    color: "#7C3AED",
+    bg: "#EDE9FE",
+    darkBg: "#3B1F73",
+  },
+  "/retailer/reports/gst": {
+    label: "GST Report",
+    sublabel: "Tax statements",
+    href: "/retailer/reports/gst",
+    icon: ReceiptLongRoundedIcon,
+    color: "#0D9488",
+    bg: "#CCFBF1",
+    darkBg: "#134E4A",
+  },
+  "/retailer/reports/settlement": {
+    label: "Settlement",
+    sublabel: "Settlements",
+    href: "/retailer/reports/settlement",
+    icon: PointOfSaleRoundedIcon,
+    color: "#0891B2",
+    bg: "#CFFAFE",
+    darkBg: "#0A2E36",
+  },
+  "/retailer/bbps": DEFAULT_QUICK_ACTIONS[3],
+  "/retailer/cards": DEFAULT_QUICK_ACTIONS[4],
+  "/retailer/card-to-cash": {
     label: "Card to Cash",
     sublabel: "Payout request",
     href: "/retailer/card-to-cash",
@@ -54,28 +194,10 @@ const QUICK_ACTIONS = [
     bg: "#FEF3C7",
     darkBg: "#3D2E0A",
   },
-  {
-    id: "recharge",
-    label: "Recharge",
-    sublabel: "Mobile & DTH",
-    href: "/retailer/recharge",
-    icon: PhoneIphoneRoundedIcon,
-    color: "#2563EB",
-    bg: "#EFF6FF",
-    darkBg: "#1A2E5A",
-  },
-  {
-    id: "bbps",
-    label: "BBPS",
-    sublabel: "Bill payment",
-    href: "/retailer/bbps",
-    icon: ElectricBoltRoundedIcon,
-    color: "#DC2626",
-    bg: "#FEE2E2",
-    darkBg: "#3D1414",
-  },
-  {
-    id: "pos",
+  "/retailer/upi": DEFAULT_QUICK_ACTIONS[5],
+  "/retailer/aeps": DEFAULT_QUICK_ACTIONS[6],
+  "/retailer/recharge": DEFAULT_QUICK_ACTIONS[7],
+  "/retailer/pos": {
     label: "Swipe Machine",
     sublabel: "POS terminal",
     href: "/retailer/pos",
@@ -84,27 +206,56 @@ const QUICK_ACTIONS = [
     bg: "#CFFAFE",
     darkBg: "#0A2E36",
   },
-  {
-    id: "qr-pay",
-    label: "QR Pay",
-    sublabel: "Scan & collect",
-    href: "/retailer/upi",
-    icon: QrCode2RoundedIcon,
-    color: "#9333EA",
-    bg: "#F3E8FF",
-    darkBg: "#2E1245",
+  "/retailer/wallet": {
+    label: "Wallet",
+    sublabel: "Balance & logs",
+    href: "/retailer/wallet",
+    icon: AccountBalanceWalletRoundedIcon,
+    color: "#16A34A",
+    bg: "#DCFCE7",
+    darkBg: "#1A3D28",
   },
-] as const;
+  "/retailer/wallet-topup": {
+    label: "Wallet Top-up",
+    sublabel: "Add funds",
+    href: "/retailer/wallet-topup",
+    icon: AddCardRoundedIcon,
+    color: "#2563EB",
+    bg: "#DBEAFE",
+    darkBg: "#1E3A8A",
+  },
+  "/retailer/wallet-ledger": {
+    label: "Wallet Ledger",
+    sublabel: "Passbook",
+    href: "/retailer/wallet-ledger",
+    icon: ReceiptLongRoundedIcon,
+    color: "#0D9488",
+    bg: "#CCFBF1",
+    darkBg: "#134E4A",
+  },
+  "/retailer/customers": {
+    label: "Customers",
+    sublabel: "Customer list",
+    href: "/retailer/customers",
+    icon: PeopleRoundedIcon,
+    color: "#4F46E5",
+    bg: "#E0E7FF",
+    darkBg: "#312E81",
+  },
+};
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 interface MobileQuickActionsFABProps {
   /** Bottom offset so FAB floats above the bottom nav bar (default: 36) */
   bottomOffset?: number;
+  /** User's favorited menus; shown first before default quick actions */
+  favorites?: FavoriteMenuInput[];
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
   bottomOffset = 36,
+  favorites = [],
 }) => {
   const router = useRouter();
   const theme = useTheme();
@@ -115,6 +266,51 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
   const handleOpen = useCallback(() => setOpen(true), []);
   const handleClose = useCallback(() => setOpen(false), []);
   const handleToggle = useCallback(() => setOpen((prev) => !prev), []);
+
+  const quickActions = useMemo<QuickActionConfig[]>(() => {
+    const seen = new Set<string>();
+    const favActions: QuickActionConfig[] = [];
+
+    for (const fav of favorites) {
+      const href = (fav.menu_href || "").trim();
+      if (!href || seen.has(href)) continue;
+      seen.add(href);
+
+      const known = MENU_CATALOG_BY_HREF[href];
+      if (known) {
+        favActions.push({
+          ...known,
+          id: `fav-${href}`,
+          label: fav.menu_label?.trim() || known.label,
+          isFavorite: true,
+        });
+      } else {
+        const fallbackLabel =
+          fav.menu_label?.trim() ||
+          href
+            .split("/")
+            .filter(Boolean)
+            .pop()
+            ?.replace(/-/g, " ")
+            .replace(/\b\w/g, (c) => c.toUpperCase()) ||
+          "Quick Link";
+        favActions.push({
+          id: `fav-${href}`,
+          label: fallbackLabel,
+          sublabel: "Favorite",
+          href,
+          icon: AppsRoundedIcon,
+          color: "#2563EB",
+          bg: "#DBEAFE",
+          darkBg: "#1E3A8A",
+          isFavorite: true,
+        });
+      }
+    }
+
+    const remainingDefaults = DEFAULT_QUICK_ACTIONS.filter((a) => !seen.has(a.href));
+    return [...favActions, ...remainingDefaults];
+  }, [favorites]);
 
   const handleAction = useCallback(
     (href: string) => {
@@ -231,7 +427,7 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
               variant="caption"
               sx={{ color: isDark ? "#94A3B8" : "#6B7280", fontSize: "12px" }}
             >
-              Select a service to get started
+              {favorites.length > 0 ? "Favorites first • Select a service" : "Select a service to get started"}
             </Typography>
           </Box>
           <ButtonBase
@@ -267,7 +463,7 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
             pb: 8,
           }}
         >
-          {QUICK_ACTIONS.map((action) => {
+          {quickActions.map((action) => {
             const Icon = action.icon;
             return (
               <QuickActionItem
@@ -279,6 +475,7 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
                 bg={isDark ? action.darkBg : action.bg}
                 onClick={() => handleAction(action.href)}
                 isDark={isDark}
+                isFavorite={action.isFavorite}
               />
             );
           })}
@@ -297,6 +494,7 @@ interface QuickActionItemProps {
   bg: string;
   onClick: () => void;
   isDark: boolean;
+  isFavorite?: boolean;
 }
 
 const QuickActionItem: React.FC<QuickActionItemProps> = ({
@@ -307,6 +505,7 @@ const QuickActionItem: React.FC<QuickActionItemProps> = ({
   bg,
   onClick,
   isDark,
+  isFavorite,
 }) => (
   <ButtonBase
     onClick={onClick}
@@ -328,6 +527,7 @@ const QuickActionItem: React.FC<QuickActionItemProps> = ({
     {/* Icon circle */}
     <Box
       sx={{
+        position: "relative",
         width: 52,
         height: 52,
         borderRadius: "16px",
@@ -344,19 +544,41 @@ const QuickActionItem: React.FC<QuickActionItemProps> = ({
       }}
     >
       <Icon sx={{ fontSize: 26, color }} />
+      {isFavorite && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: -4,
+            right: -4,
+            width: 18,
+            height: 18,
+            borderRadius: "50%",
+            bgcolor: "#F59E0B",
+            border: "2px solid",
+            borderColor: isDark ? "#1A1A2E" : "#FFFFFF",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <StarRoundedIcon sx={{ fontSize: 11, color: "#FFFFFF" }} />
+        </Box>
+      )}
     </Box>
 
     {/* Label */}
-    <Box sx={{ textAlign: "center" }}>
+    <Box sx={{ textAlign: "center", width: "100%", px: 0.25 }}>
       <Typography
         component="span"
         sx={{
-          display: "block",
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
           fontSize: "11px",
           fontWeight: 800,
           color: isDark ? "#F1F5F9" : "#0F172A",
           lineHeight: 1.2,
-          whiteSpace: "nowrap",
         }}
       >
         {label}

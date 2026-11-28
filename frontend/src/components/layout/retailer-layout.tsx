@@ -2382,7 +2382,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     />
 
     {/* ── Mobile FAB + Quick Actions Sheet (xs / sm only) ─────────────────── */}
-    <MobileQuickActionsFAB bottomOffset={36} />
+    <MobileQuickActionsFAB bottomOffset={36} favorites={favorites} />
 
     {/* ── Locked Feature Dialog Modal ────────────────────────────────────────── */}
     <Dialog
