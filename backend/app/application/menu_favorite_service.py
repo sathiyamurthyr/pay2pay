@@ -240,6 +240,17 @@ class ResolvedFavoriteIdentity:
     retailer_code: Optional[str] = None
 
 
+SERVICE_REF_ID_MAP: Dict[str, int] = {
+    "DMT": 1,
+    "RECHARGE": 2,
+    "AEPS": 3,
+    "BBPS": 4,
+    "POS_TOPUP": 5,
+    "UPI": 6,
+    "PAYIN": 7,
+}
+
+
 def _stable_numeric_id(value: str) -> int:
     """Deterministic positive 31-bit integer fallback when a mock/synthetic token has no DB int PK."""
     if not value:
@@ -257,6 +268,15 @@ class MenuFavoriteService:
     @classmethod
     async def ensure_seeded(cls, db: AsyncSession) -> None:
         """Idempotently create menu/favorite tables if missing and seed public.menu & role_menu_permission."""
+        if not cls._seeded_flag:
+            try:
+                dialect_name = db.bind.dialect.name if db.bind is not None else ""
+                if dialect_name == "postgresql":
+                    await db.execute(text("ALTER TABLE public.menu ADD COLUMN IF NOT EXISTS service_ref_id BIGINT"))
+                    await db.execute(text("ALTER TABLE public.favorite_menu ADD COLUMN IF NOT EXISTS service_ref_id BIGINT"))
+                    await db.commit()
+            except Exception:
+                await db.rollback()
         try:
             existing_menus = (await db.execute(select(MenuModel).where(MenuModel.is_deleted == False))).scalars().all()
         except Exception:
@@ -297,11 +317,13 @@ class MenuFavoriteService:
                 changed = True
 
         for entry in RETAILER_MENU_SEED:
+            svc_ref = SERVICE_REF_ID_MAP.get(entry.get("service_code") or entry.get("parent_service_code") or "")
             if entry["menu_code"] not in by_code:
                 m = MenuModel(
                     public_id=uuid.uuid4(),
                     user_type_ref_id=2,
                     portal_scope="RETAILER",
+                    service_ref_id=svc_ref,
                     is_active=True,
                     is_deleted=False,
                     **entry,
@@ -309,6 +331,11 @@ class MenuFavoriteService:
                 db.add(m)
                 by_code[entry["menu_code"]] = m
                 changed = True
+            else:
+                existing_m = by_code[entry["menu_code"]]
+                if existing_m.service_ref_id is None and svc_ref is not None:
+                    existing_m.service_ref_id = svc_ref
+                    changed = True
 
         if changed:
             await db.flush()
@@ -755,6 +782,15 @@ class MenuFavoriteService:
         return permitted
 
     @classmethod
+    def _service_ref_id_for_menu(cls, menu: MenuModel) -> Optional[int]:
+        if getattr(menu, "service_ref_id", None) is not None:
+            return int(menu.service_ref_id)
+        svc_code = cls._service_code_for_menu(menu)
+        if svc_code:
+            return SERVICE_REF_ID_MAP.get(svc_code.upper())
+        return None
+
+    @classmethod
     def _serialize_menu_favorite(
         cls,
         fav: FavoriteMenuModel,
@@ -777,6 +813,7 @@ class MenuFavoriteService:
             "icon_name": menu.icon_name,
             "badge_text": menu.badge_text,
             "service_code": menu.service_code or menu.parent_service_code,
+            "service_ref_id": fav.service_ref_id if fav.service_ref_id is not None else cls._service_ref_id_for_menu(menu),
             "is_financial": menu.is_financial,
             "display_order": fav.display_order,
             "is_active": fav.is_active,
@@ -801,7 +838,6 @@ class MenuFavoriteService:
                 FavoriteMenuModel.company_ref_id == identity.company_ref_id,
                 FavoriteMenuModel.user_type_ref_id == identity.user_type_ref_id,
                 FavoriteMenuModel.user_ref_id == identity.user_ref_id,
-                FavoriteMenuModel.retailer_ref_id == identity.retailer_ref_id,
                 FavoriteMenuModel.is_active == True,
                 FavoriteMenuModel.is_deleted == False,
             )
@@ -901,14 +937,17 @@ class MenuFavoriteService:
             FavoriteMenuModel.company_ref_id == identity.company_ref_id,
             FavoriteMenuModel.user_type_ref_id == identity.user_type_ref_id,
             FavoriteMenuModel.user_ref_id == identity.user_ref_id,
-            FavoriteMenuModel.retailer_ref_id == identity.retailer_ref_id,
             FavoriteMenuModel.menu_ref_id == menu.menu_ref_id,
         )
         existing = (await db.execute(stmt)).scalars().first()
+        svc_ref_id = cls._service_ref_id_for_menu(menu)
         if existing:
             existing.is_active = True
             existing.is_deleted = False
             existing.role_ref_id = identity.role_ref_id
+            existing.service_ref_id = svc_ref_id
+            if identity.retailer_ref_id is not None:
+                existing.retailer_ref_id = identity.retailer_ref_id
             if display_order is not None:
                 existing.display_order = int(display_order)
             existing.updated_by = identity.actor_email
@@ -922,6 +961,7 @@ class MenuFavoriteService:
                     user_type_ref_id=identity.user_type_ref_id,
                     role_ref_id=identity.role_ref_id,
                     menu_ref_id=menu.menu_ref_id,
+                    service_ref_id=svc_ref_id,
                     display_order=int(display_order or 0),
                     is_active=True,
                     is_deleted=False,
@@ -937,6 +977,7 @@ class MenuFavoriteService:
             "action": "ADDED",
             "message": f"Favorite menu '{menu.menu_label}' saved successfully",
             "menu_ref_id": menu.menu_ref_id,
+            "service_ref_id": svc_ref_id,
             "menu_href": menu.menu_href,
             "company_ref_id": identity.company_ref_id,
             "retailer_ref_id": identity.retailer_ref_id,
@@ -963,7 +1004,6 @@ class MenuFavoriteService:
             FavoriteMenuModel.company_ref_id == identity.company_ref_id,
             FavoriteMenuModel.user_type_ref_id == identity.user_type_ref_id,
             FavoriteMenuModel.user_ref_id == identity.user_ref_id,
-            FavoriteMenuModel.retailer_ref_id == identity.retailer_ref_id,
             FavoriteMenuModel.menu_ref_id == menu.menu_ref_id,
         )
         existing = (await db.execute(stmt)).scalars().first()
@@ -980,10 +1020,12 @@ class MenuFavoriteService:
             "action": "REMOVED",
             "message": f"Favorite menu '{menu.menu_label}' removed successfully",
             "menu_ref_id": menu.menu_ref_id,
+            "service_ref_id": cls._service_ref_id_for_menu(menu),
             "menu_href": menu.menu_href,
             "company_ref_id": identity.company_ref_id,
             "retailer_ref_id": identity.retailer_ref_id,
             "user_ref_id": identity.user_ref_id,
+            "user_type_ref_id": identity.user_type_ref_id,
             "favorites": favorites,
             "data": favorites,
         }
@@ -1004,7 +1046,6 @@ class MenuFavoriteService:
             FavoriteMenuModel.company_ref_id == identity.company_ref_id,
             FavoriteMenuModel.user_type_ref_id == identity.user_type_ref_id,
             FavoriteMenuModel.user_ref_id == identity.user_ref_id,
-            FavoriteMenuModel.retailer_ref_id == identity.retailer_ref_id,
             FavoriteMenuModel.menu_ref_id == target.menu_ref_id,
         )
         existing = (await db.execute(stmt)).scalars().first()
@@ -1028,7 +1069,6 @@ class MenuFavoriteService:
             FavoriteMenuModel.company_ref_id == identity.company_ref_id,
             FavoriteMenuModel.user_type_ref_id == identity.user_type_ref_id,
             FavoriteMenuModel.user_ref_id == identity.user_ref_id,
-            FavoriteMenuModel.retailer_ref_id == identity.retailer_ref_id,
             FavoriteMenuModel.menu_ref_id == menu.menu_ref_id,
             FavoriteMenuModel.is_active == True,
             FavoriteMenuModel.is_deleted == False,
@@ -1041,10 +1081,12 @@ class MenuFavoriteService:
             "is_favorite": is_fav,
             "is_permitted": menu.menu_ref_id in permitted,
             "menu_ref_id": menu.menu_ref_id,
+            "service_ref_id": cls._service_ref_id_for_menu(menu),
             "menu_href": menu.menu_href,
             "company_ref_id": identity.company_ref_id,
             "retailer_ref_id": identity.retailer_ref_id,
             "user_ref_id": identity.user_ref_id,
+            "user_type_ref_id": identity.user_type_ref_id,
         }
 
     @classmethod
@@ -1059,7 +1101,6 @@ class MenuFavoriteService:
             FavoriteMenuModel.company_ref_id == identity.company_ref_id,
             FavoriteMenuModel.user_type_ref_id == identity.user_type_ref_id,
             FavoriteMenuModel.user_ref_id == identity.user_ref_id,
-            FavoriteMenuModel.retailer_ref_id == identity.retailer_ref_id,
             FavoriteMenuModel.is_active == True,
             FavoriteMenuModel.is_deleted == False,
         )
@@ -1108,6 +1149,7 @@ class MenuFavoriteService:
                 "badge_text": m.badge_text,
                 "service_code": m.service_code,
                 "parent_service_code": m.parent_service_code,
+                "service_ref_id": cls._service_ref_id_for_menu(m),
                 "is_financial": m.is_financial,
                 "display_order": m.display_order,
                 "is_favorite": m.menu_ref_id in fav_ids,

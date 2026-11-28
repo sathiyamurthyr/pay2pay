@@ -57,6 +57,7 @@ class MenuModel(Base):
     )
     service_code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
     parent_service_code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    service_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     required_permission_code: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     icon_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     badge_text: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
@@ -156,6 +157,7 @@ class FavoriteMenuModel(Base):
     menu_ref_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("menu.menu_ref_id", ondelete="CASCADE"), nullable=False, index=True
     )
+    service_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     display_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, index=True)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
@@ -174,7 +176,6 @@ class FavoriteMenuModel(Base):
             "company_ref_id",
             "user_type_ref_id",
             "user_ref_id",
-            "retailer_ref_id",
             "is_active",
             "is_deleted",
         ),
@@ -183,7 +184,6 @@ class FavoriteMenuModel(Base):
             "company_ref_id",
             "user_type_ref_id",
             "user_ref_id",
-            text("COALESCE(retailer_ref_id, 0)"),
             "menu_ref_id",
             unique=True,
         ),
