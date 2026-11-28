@@ -729,14 +729,10 @@ export default function RetailerCreditCardManagementPage() {
                         sx={{ color: primaryGreen, "&.Mui-checked": { color: primaryGreen } }}
                       />
                     </TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Cardholder Name</TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Masked Card Number</TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Card Type</TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Bank Name</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Card</TableCell>
                     <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Bill Amount</TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Bill Generation Date</TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Bill Due Date</TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Payment Status</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Due Date</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Status</TableCell>
                     <TableCell align="right" sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Actions</TableCell>
                   </TableRow>
                 </TableHead>
@@ -764,54 +760,22 @@ export default function RetailerCreditCardManagementPage() {
                         />
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 700, color: "#0F172A" }}>
-                          {card.card_name}
-                        </Typography>
-                        <Typography variant="caption" sx={{ fontFamily: "monospace", color: "#64748B" }}>
-                          {card.mobile_no}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          size="small"
-                          label={card.masked_card_no}
-                          sx={{
-                            fontFamily: "monospace",
-                            fontWeight: 700,
-                            bgcolor: "#F1F5F9",
-                            color: "#0F172A",
-                            border: "1px solid #CBD5E1",
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Box
-                          sx={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            px: 1.25,
-                            py: 0.5,
-                            borderRadius: "999px",
-                            bgcolor: softGreenBg,
-                            color: darkGreen,
-                            border: `1px solid ${softGreenBorder}`,
-                          }}
-                        >
-                          <CardNetworkBadge cardType={card.card_type} />
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Stack direction="row" spacing={1.2} alignItems="center">
-                          <BankLogoBadge bankName={card.bank_name} shortCode={card.bank_short_code} size="sm" />
+                        <Stack direction="row" spacing={1.5} alignItems="center">
+                          <Tooltip title={card.bank_name}>
+                            <Box>
+                              <BankLogoBadge bankName={card.bank_name} shortCode={card.bank_short_code} size="md" />
+                            </Box>
+                          </Tooltip>
                           <Box>
-                            <Typography variant="body2" sx={{ fontWeight: 700, color: "#1E293B", lineHeight: 1.2 }}>
-                              {card.bank_name}
-                            </Typography>
-                            {card.bank_short_code && (
-                              <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>
-                                {card.bank_short_code}
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>
+                                {card.card_name}
                               </Typography>
-                            )}
+                              <CardNetworkBadge cardType={card.card_type} compact />
+                            </Stack>
+                            <Typography variant="caption" sx={{ fontFamily: "monospace", color: "#64748B", fontWeight: 700 }}>
+                              •••• {card.card_last4}
+                            </Typography>
                           </Box>
                         </Stack>
                       </TableCell>
@@ -821,35 +785,29 @@ export default function RetailerCreditCardManagementPage() {
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {ordinalDay(card.bill_gen_day)} monthly
+                        <Typography variant="body2" sx={{ fontWeight: 700, color: "#0F172A", whiteSpace: "nowrap" }}>
+                          {card.next_bill_due_date}
                         </Typography>
                         <Typography variant="caption" sx={{ color: "#64748B" }}>
-                          {card.bill_generation_date}
+                          Gen {ordinalDay(card.bill_gen_day)} • Due {ordinalDay(card.bill_due_day)}
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 700, color: "#0F172A" }}>
-                          {ordinalDay(card.bill_due_day)} monthly
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: "#64748B" }}>
-                          Next: {card.next_bill_due_date}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Stack spacing={0.5} alignItems="flex-start">
+                        <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap">
                           {renderStatusChip(card)}
-                          <Chip
-                            size="small"
-                            label={card.payment_status}
-                            sx={{
-                              height: 18,
-                              fontSize: "10px",
-                              fontWeight: 800,
-                              bgcolor: card.is_paid_current_cycle ? softGreenBg : "#F1F5F9",
-                              color: card.is_paid_current_cycle ? darkGreen : "#475569",
-                            }}
-                          />
+                          {card.is_paid_current_cycle && (
+                            <Chip
+                              size="small"
+                              label="PAID"
+                              sx={{
+                                height: 20,
+                                fontSize: "10px",
+                                fontWeight: 800,
+                                bgcolor: softGreenBg,
+                                color: darkGreen,
+                              }}
+                            />
+                          )}
                         </Stack>
                       </TableCell>
                       <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
