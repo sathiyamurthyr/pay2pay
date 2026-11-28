@@ -4,7 +4,6 @@ export const dynamic = "force-dynamic";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   Alert,
   Box,
@@ -18,16 +17,18 @@ import {
   Grid,
   IconButton,
   InputAdornment,
+  MenuItem,
   Paper,
   Stack,
   Tab,
-  Tabs,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
+  Tabs,
   TextField,
   Tooltip,
   Typography,
@@ -35,101 +36,219 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
-import EventAvailableIcon from "@mui/icons-material/EventAvailable";
-import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SearchIcon from "@mui/icons-material/Search";
 import DeleteIcon from "@mui/icons-material/Delete";
-import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
+import EditIcon from "@mui/icons-material/Edit";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import WarningIcon from "@mui/icons-material/Warning";
+import ReceiptIcon from "@mui/icons-material/Receipt";
 import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 import {
   RetailerCardsDashboardResponse,
   RetailerSavedCard,
   retailerCardsApi,
 } from "@/services/retailer-cards-api";
-import { ordinalDay } from "@/lib/card-validation";
+import { isValidIndianMobile, normalizeIndianMobile, ordinalDay, sanitizeDigits } from "@/lib/card-validation";
 
-type TabKey = "current" | "upcoming" | "all";
+type SectionTab =
+  | "all"
+  | "generated_today"
+  | "due_today"
+  | "upcoming_gen"
+  | "upcoming_due"
+  | "overdue";
 
-export default function RetailerCardManagementPage() {
-  const router = useRouter();
+const DAYS_OF_MONTH = Array.from({ length: 31 }, (_, i) => i + 1);
+
+export default function RetailerCreditCardManagementPage() {
   const branding = useCompanyBranding();
   const primaryGreen = "#16A34A";
   const darkGreen = "#15803D";
   const softGreenBg = "#ECFDF5";
   const softGreenBorder = "#BBF7D0";
-  const brandAccent = branding?.primary_colour || primaryGreen;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<TabKey>("current");
+
+  // Filters & pagination
+  const [sectionTab, setSectionTab] = useState<SectionTab>("all");
+  const [rangeFilter, setRangeFilter] = useState<string>("all");
+  const [fromDate, setFromDate] = useState<string>("");
+  const [toDate, setToDate] = useState<string>("");
+  const [bankFilter, setBankFilter] = useState<string>("ALL");
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [search, setSearch] = useState<string>("");
+  const [page, setPage] = useState<number>(0); // 0-indexed for MUI TablePagination
+  const [pageSize, setPageSize] = useState<number>(10);
+
   const [dashboard, setDashboard] = useState<RetailerCardsDashboardResponse | null>(null);
+
+  // Action dialogs
+  const [viewTarget, setViewTarget] = useState<RetailerSavedCard | null>(null);
+  const [editTarget, setEditTarget] = useState<RetailerSavedCard | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editMobile, setEditMobile] = useState("");
+  const [editBankName, setEditBankName] = useState("");
+  const [editGenDay, setEditGenDay] = useState<number>(1);
+  const [editDueDay, setEditDueDay] = useState<number>(15);
+  const [savingEdit, setSavingEdit] = useState(false);
+
   const [deleteTarget, setDeleteTarget] = useState<RetailerSavedCard | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const loadCards = useCallback(async (q?: string) => {
+  const loadDashboard = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await retailerCardsApi.getDashboard(q);
+      const data = await retailerCardsApi.getDashboard({
+        range_filter: rangeFilter,
+        from_date: rangeFilter === "custom" ? fromDate || undefined : undefined,
+        to_date: rangeFilter === "custom" ? toDate || undefined : undefined,
+        bank_name: bankFilter !== "ALL" ? bankFilter : undefined,
+        card_status: statusFilter !== "ALL" ? statusFilter : undefined,
+        search: search.trim() || undefined,
+        page: page + 1,
+        page_size: pageSize,
+      });
       setDashboard(data);
     } catch (err: any) {
-      const detail =
-        err?.response?.data?.detail ||
-        err?.message ||
-        "Unable to load credit cards right now.";
-      setError(String(detail));
+      setError(String(err?.response?.data?.detail || err?.message || "Unable to load Credit Card Management."));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [rangeFilter, fromDate, toDate, bankFilter, statusFilter, search, page, pageSize]);
 
   useEffect(() => {
-    loadCards();
-  }, [loadCards]);
+    loadDashboard();
+  }, [loadDashboard]);
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    loadCards(search);
+  const openEditModal = (card: RetailerSavedCard) => {
+    setEditTarget(card);
+    setEditName(card.card_name);
+    setEditMobile(card.mobile_no);
+    setEditBankName(card.bank_name);
+    setEditGenDay(card.bill_gen_day);
+    setEditDueDay(card.bill_due_day);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editTarget) return;
+    if (editName.trim().length < 2) {
+      setError("Cardholder Name must be at least 2 characters.");
+      return;
+    }
+    if (!isValidIndianMobile(editMobile)) {
+      setError("Please enter a valid 10-digit Indian mobile number.");
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      await retailerCardsApi.updateCard(editTarget.ref_id, {
+        card_name: editName.trim(),
+        mobile_no: normalizeIndianMobile(editMobile),
+        bank_name: editBankName.trim(),
+        bill_gen_day: editGenDay,
+        bill_due_day: editDueDay,
+      });
+      setSuccessMsg(`Updated card ${editTarget.masked_card_no}.`);
+      setEditTarget(null);
+      await loadDashboard();
+    } catch (err: any) {
+      setError(String(err?.response?.data?.detail || err?.message || "Failed to update credit card."));
+    } finally {
+      setSavingEdit(false);
+    }
   };
 
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      await retailerCardsApi.deleteCard(deleteTarget.card_ref_id);
-      setSuccessMsg(`Removed card ${deleteTarget.masked_card_number} (${deleteTarget.cardholder_name}).`);
+      await retailerCardsApi.deleteCard(deleteTarget.ref_id);
+      setSuccessMsg(`Deleted card ${deleteTarget.masked_card_no} (${deleteTarget.card_name}).`);
       setDeleteTarget(null);
-      await loadCards(search);
+      await loadDashboard();
     } catch (err: any) {
-      setError(err?.response?.data?.detail || err?.message || "Failed to remove credit card.");
+      setError(String(err?.response?.data?.detail || err?.message || "Failed to delete credit card."));
     } finally {
       setDeleting(false);
     }
   };
 
+  const handleMarkPaid = async (card: RetailerSavedCard) => {
+    try {
+      await retailerCardsApi.markCyclePaid(card.ref_id);
+      setSuccessMsg(`Marked current cycle bill paid for ${card.masked_card_no}.`);
+      setViewTarget(null);
+      await loadDashboard();
+    } catch (err: any) {
+      setError(String(err?.response?.data?.detail || err?.message || "Failed to update cycle payment status."));
+    }
+  };
+
   const rowsToDisplay: RetailerSavedCard[] = useMemo(() => {
     if (!dashboard) return [];
-    if (activeTab === "current") return dashboard.current_date_bills || [];
-    if (activeTab === "upcoming") return dashboard.upcoming_bills || [];
-    return dashboard.all_cards || [];
-  }, [dashboard, activeTab]);
+    switch (sectionTab) {
+      case "generated_today":
+        return dashboard.bills_generated_today || [];
+      case "due_today":
+        return dashboard.bills_due_today || [];
+      case "upcoming_gen":
+        return dashboard.upcoming_bill_generation || [];
+      case "upcoming_due":
+        return dashboard.upcoming_bill_due || [];
+      case "overdue":
+        return dashboard.overdue_bills || [];
+      default:
+        return dashboard.cards || [];
+    }
+  }, [dashboard, sectionTab]);
 
   const summary = dashboard?.summary || {
     total_cards: 0,
-    current_date_bills_count: 0,
-    upcoming_bills_count: 0,
-    due_next_7_days_count: 0,
-    banks_count: 0,
+    bills_generated_today_count: 0,
+    bills_due_today_count: 0,
+    upcoming_7_days_count: 0,
+    upcoming_30_days_count: 0,
+    overdue_bills_count: 0,
+  };
+
+  const renderStatusChip = (card: RetailerSavedCard) => {
+    // Red = Overdue, Orange = Due Today, Blue = Upcoming
+    if (card.bill_status === "OVERDUE") {
+      return (
+        <Chip
+          size="small"
+          label={card.status_label}
+          sx={{ fontWeight: 800, bgcolor: "#FEE2E2", color: "#B91C1C", border: "1px solid #FCA5A5" }}
+        />
+      );
+    }
+    if (card.bill_status === "DUE_TODAY") {
+      return (
+        <Chip
+          size="small"
+          label="Due Today"
+          sx={{ fontWeight: 800, bgcolor: "#FFEDD5", color: "#C2410C", border: "1px solid #FDBA74" }}
+        />
+      );
+    }
+    return (
+      <Chip
+        size="small"
+        label={card.status_label}
+        sx={{ fontWeight: 700, bgcolor: "#DBEAFE", color: "#1D4ED8", border: "1px solid #93C5FD" }}
+      />
+    );
   };
 
   return (
-    <Box sx={{ maxWidth: 1400, mx: "auto", pb: 5 }}>
-      {/* Header Banner — Green & White Fintech Theme with Domain Branding */}
+    <Box sx={{ maxWidth: 1460, mx: "auto", pb: 5 }}>
+      {/* Header Banner */}
       <Paper
         elevation={0}
         sx={{
@@ -162,9 +281,9 @@ export default function RetailerCardManagementPage() {
             <CreditCardIcon sx={{ fontSize: 28 }} />
           </Box>
           <Box>
-            <Stack direction="row" spacing={1} alignItems="center">
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
               <Typography variant="h5" sx={{ fontWeight: 800, color: "#0F172A", letterSpacing: "-0.02em" }}>
-                Card Management
+                Credit Card Management
               </Typography>
               {branding?.company_name && (
                 <Chip
@@ -181,31 +300,29 @@ export default function RetailerCardManagementPage() {
               )}
             </Stack>
             <Typography variant="body2" sx={{ color: "#475569", mt: 0.4 }}>
-              Track Current Date &amp; Upcoming Credit Card Bills and manage registered customer cards securely.
-              {dashboard?.reference_date ? ` (As of ${dashboard.reference_date})` : ""}
+              Track Bills Generated Today, Bills Due Today, Upcoming Cycles &amp; Overdue Credit Card Bills.
+              {dashboard?.reference_date ? ` Server Date (IST): ${dashboard.reference_date}` : ""}
             </Typography>
           </Box>
         </Stack>
 
         <Stack direction="row" spacing={1.5} alignItems="center">
-          <Tooltip title="Refresh bill lists">
-            <Button
-              variant="outlined"
-              onClick={() => loadCards(search)}
-              startIcon={<RefreshIcon />}
-              sx={{
-                borderRadius: "12px",
-                textTransform: "none",
-                fontWeight: 700,
-                borderColor: softGreenBorder,
-                color: darkGreen,
-                bgcolor: "#FFFFFF",
-                "&:hover": { bgcolor: softGreenBg, borderColor: primaryGreen },
-              }}
-            >
-              Refresh
-            </Button>
-          </Tooltip>
+          <Button
+            variant="outlined"
+            onClick={loadDashboard}
+            startIcon={<RefreshIcon />}
+            sx={{
+              borderRadius: "12px",
+              textTransform: "none",
+              fontWeight: 700,
+              borderColor: softGreenBorder,
+              color: darkGreen,
+              bgcolor: "#FFFFFF",
+              "&:hover": { bgcolor: softGreenBg, borderColor: primaryGreen },
+            }}
+          >
+            Refresh
+          </Button>
           <Button
             component={Link}
             href="/retailer/cards/new"
@@ -239,114 +356,87 @@ export default function RetailerCardManagementPage() {
         </Alert>
       )}
 
-      {/* KPI Summary Strip */}
-      <Grid container spacing={2.2} sx={{ mb: 3 }}>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 2.5,
-              borderRadius: "16px",
-              bgcolor: "#FFFFFF",
-              border: `1px solid ${summary.current_date_bills_count > 0 ? "#FCA5A5" : "#E2E8F0"}`,
-              boxShadow: "0 2px 10px rgba(15, 23, 42, 0.03)",
-            }}
-          >
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="caption" sx={{ fontWeight: 700, color: "#64748B", textTransform: "uppercase" }}>
-                Current Date Bills
+      {/* 6 Required Dashboard Summary Cards */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        {[
+          {
+            label: "Total Registered Cards",
+            value: summary.total_cards,
+            color: primaryGreen,
+            border: softGreenBorder,
+            icon: <CreditCardIcon sx={{ fontSize: 18, color: primaryGreen }} />,
+            tab: "all" as SectionTab,
+          },
+          {
+            label: "Bills Generated Today",
+            value: summary.bills_generated_today_count,
+            color: "#0F172A",
+            border: "#CBD5E1",
+            icon: <ReceiptIcon sx={{ fontSize: 18, color: "#0284C7" }} />,
+            tab: "generated_today" as SectionTab,
+          },
+          {
+            label: "Bills Due Today",
+            value: summary.bills_due_today_count,
+            color: "#C2410C",
+            border: summary.bills_due_today_count > 0 ? "#FDBA74" : "#E2E8F0",
+            icon: <CalendarTodayIcon sx={{ fontSize: 18, color: "#EA580C" }} />,
+            tab: "due_today" as SectionTab,
+          },
+          {
+            label: "Upcoming Bills (Next 7 Days)",
+            value: summary.upcoming_7_days_count,
+            color: "#1D4ED8",
+            border: "#BFDBFE",
+            icon: <AccessTimeIcon sx={{ fontSize: 18, color: "#2563EB" }} />,
+            tab: "upcoming_due" as SectionTab,
+          },
+          {
+            label: "Upcoming Bills (Next 30 Days)",
+            value: summary.upcoming_30_days_count,
+            color: "#1E40AF",
+            border: "#BFDBFE",
+            icon: <AccessTimeIcon sx={{ fontSize: 18, color: "#1D4ED8" }} />,
+            tab: "upcoming_due" as SectionTab,
+          },
+          {
+            label: "Overdue Bills",
+            value: summary.overdue_bills_count,
+            color: "#B91C1C",
+            border: summary.overdue_bills_count > 0 ? "#FCA5A5" : "#E2E8F0",
+            icon: <WarningIcon sx={{ fontSize: 18, color: "#DC2626" }} />,
+            tab: "overdue" as SectionTab,
+          },
+        ].map((kpi) => (
+          <Grid key={kpi.label} size={{ xs: 12, sm: 6, md: 4, lg: 2 }}>
+            <Paper
+              elevation={0}
+              onClick={() => setSectionTab(kpi.tab)}
+              sx={{
+                p: 2,
+                borderRadius: "14px",
+                bgcolor: "#FFFFFF",
+                border: `1px solid ${kpi.border}`,
+                cursor: "pointer",
+                transition: "transform 0.15s ease",
+                "&:hover": { transform: "translateY(-2px)" },
+              }}
+            >
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="caption" sx={{ fontWeight: 700, color: "#64748B", lineHeight: 1.2 }}>
+                  {kpi.label}
+                </Typography>
+                {kpi.icon}
+              </Stack>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: kpi.color, mt: 1 }}>
+                {kpi.value}
               </Typography>
-              <CalendarTodayIcon sx={{ fontSize: 18, color: summary.current_date_bills_count > 0 ? "#DC2626" : primaryGreen }} />
-            </Stack>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: "#0F172A", mt: 1 }}>
-              {summary.current_date_bills_count}
-            </Typography>
-            <Typography variant="caption" sx={{ color: summary.current_date_bills_count > 0 ? "#DC2626" : "#16A34A", fontWeight: 600 }}>
-              {summary.current_date_bills_count > 0 ? "Due today — action required" : "No bills due today"}
-            </Typography>
-          </Paper>
-        </Grid>
-
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 2.5,
-              borderRadius: "16px",
-              bgcolor: "#FFFFFF",
-              border: "1px solid #E2E8F0",
-              boxShadow: "0 2px 10px rgba(15, 23, 42, 0.03)",
-            }}
-          >
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="caption" sx={{ fontWeight: 700, color: "#64748B", textTransform: "uppercase" }}>
-                Upcoming Days Bills
-              </Typography>
-              <AccessTimeIcon sx={{ fontSize: 18, color: "#D97706" }} />
-            </Stack>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: "#0F172A", mt: 1 }}>
-              {summary.upcoming_bills_count}
-            </Typography>
-            <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>
-              {summary.due_next_7_days_count} due within next 7 days
-            </Typography>
-          </Paper>
-        </Grid>
-
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 2.5,
-              borderRadius: "16px",
-              bgcolor: "#FFFFFF",
-              border: `1px solid ${softGreenBorder}`,
-              boxShadow: "0 2px 10px rgba(15, 23, 42, 0.03)",
-            }}
-          >
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="caption" sx={{ fontWeight: 700, color: "#64748B", textTransform: "uppercase" }}>
-                Total Saved Cards
-              </Typography>
-              <EventAvailableIcon sx={{ fontSize: 18, color: primaryGreen }} />
-            </Stack>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: primaryGreen, mt: 1 }}>
-              {summary.total_cards}
-            </Typography>
-            <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>
-              Scoped to your retailer account
-            </Typography>
-          </Paper>
-        </Grid>
-
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 2.5,
-              borderRadius: "16px",
-              bgcolor: "#FFFFFF",
-              border: "1px solid #E2E8F0",
-              boxShadow: "0 2px 10px rgba(15, 23, 42, 0.03)",
-            }}
-          >
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="caption" sx={{ fontWeight: 700, color: "#64748B", textTransform: "uppercase" }}>
-                Issuing Banks
-              </Typography>
-              <AccountBalanceIcon sx={{ fontSize: 18, color: brandAccent }} />
-            </Stack>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: "#0F172A", mt: 1 }}>
-              {summary.banks_count}
-            </Typography>
-            <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>
-              Active credit card issuers
-            </Typography>
-          </Paper>
-        </Grid>
+            </Paper>
+          </Grid>
+        ))}
       </Grid>
 
-      {/* Main Bills & Saved Cards Panel */}
+      {/* Main Billing Sections & Filters Panel */}
       <Paper
         elevation={0}
         sx={{
@@ -357,123 +447,156 @@ export default function RetailerCardManagementPage() {
           boxShadow: "0 4px 16px rgba(15, 23, 42, 0.04)",
         }}
       >
-        <Box
-          sx={{
-            px: { xs: 2, md: 3 },
-            pt: 2,
-            pb: 1.5,
-            borderBottom: "1px solid #E2E8F0",
-            display: "flex",
-            flexDirection: { xs: "column", md: "row" },
-            alignItems: { xs: "stretch", md: "center" },
-            justifyContent: "space-between",
-            gap: 2,
-          }}
-        >
+        {/* Section Tabs */}
+        <Box sx={{ px: { xs: 2, md: 3 }, pt: 1.5, borderBottom: "1px solid #E2E8F0" }}>
           <Tabs
-            value={activeTab}
-            onChange={(_e, v: TabKey) => setActiveTab(v)}
+            value={sectionTab}
+            onChange={(_e, v: SectionTab) => {
+              setSectionTab(v);
+              setPage(0);
+            }}
+            variant="scrollable"
+            scrollButtons="auto"
             TabIndicatorProps={{ style: { backgroundColor: primaryGreen, height: 3 } }}
             sx={{
-              "& .MuiTab-root": {
-                textTransform: "none",
-                fontWeight: 700,
-                fontSize: "14px",
-                color: "#64748B",
-                minHeight: 44,
-              },
+              "& .MuiTab-root": { textTransform: "none", fontWeight: 700, fontSize: "13px", color: "#64748B" },
               "& .Mui-selected": { color: `${darkGreen} !important` },
             }}
           >
-            <Tab
-              value="current"
-              label={
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <span>Current Date Bills</span>
-                  <Chip
-                    size="small"
-                    label={summary.current_date_bills_count}
-                    sx={{
-                      height: 20,
-                      fontSize: "11px",
-                      fontWeight: 800,
-                      bgcolor: summary.current_date_bills_count > 0 ? "#FEE2E2" : softGreenBg,
-                      color: summary.current_date_bills_count > 0 ? "#B91C1C" : darkGreen,
-                    }}
-                  />
-                </Stack>
-              }
-            />
-            <Tab
-              value="upcoming"
-              label={
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <span>Upcoming Days Bills</span>
-                  <Chip
-                    size="small"
-                    label={summary.upcoming_bills_count}
-                    sx={{ height: 20, fontSize: "11px", fontWeight: 800, bgcolor: "#FEF3C7", color: "#B45309" }}
-                  />
-                </Stack>
-              }
-            />
-            <Tab
-              value="all"
-              label={
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <span>All Saved Cards</span>
-                  <Chip
-                    size="small"
-                    label={summary.total_cards}
-                    sx={{ height: 20, fontSize: "11px", fontWeight: 800, bgcolor: "#F1F5F9", color: "#334155" }}
-                  />
-                </Stack>
-              }
-            />
+            <Tab value="all" label={`All Registered Cards (${summary.total_cards})`} />
+            <Tab value="generated_today" label={`Bills Generated Today (${summary.bills_generated_today_count})`} />
+            <Tab value="due_today" label={`Bills Due Today (${summary.bills_due_today_count})`} />
+            <Tab value="upcoming_gen" label="Upcoming Bill Generation" />
+            <Tab value="upcoming_due" label="Upcoming Bill Due" />
+            <Tab value="overdue" label={`Overdue Bills (${summary.overdue_bills_count})`} />
           </Tabs>
+        </Box>
 
-          <Box component="form" onSubmit={handleSearchSubmit} sx={{ display: "flex", gap: 1 }}>
-            <TextField
-              size="small"
-              placeholder="Search name, mobile, bank, last 4..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              sx={{
-                minWidth: { xs: "100%", sm: 260 },
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: "10px",
-                  bgcolor: "#F8FAFC",
-                },
-              }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon sx={{ fontSize: 18, color: "#64748B" }} />
-                  </InputAdornment>
-                ),
-              }}
-            />
-            <Button
-              type="submit"
-              variant="outlined"
-              sx={{
-                borderRadius: "10px",
-                textTransform: "none",
-                fontWeight: 700,
-                borderColor: softGreenBorder,
-                color: darkGreen,
-              }}
-            >
-              Filter
-            </Button>
-          </Box>
+        {/* Dashboard Filters */}
+        <Box sx={{ px: { xs: 2, md: 3 }, py: 2, bgcolor: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}>
+          <Grid container spacing={1.5} alignItems="center">
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Search cardholder, mobile, last 4..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(0);
+                }}
+                sx={{ bgcolor: "#FFFFFF" }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ fontSize: 18, color: "#64748B" }} />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 6, sm: 3, md: 2 }}>
+              <TextField
+                select
+                fullWidth
+                size="small"
+                label="Date Range"
+                value={rangeFilter}
+                onChange={(e) => {
+                  setRangeFilter(e.target.value);
+                  setPage(0);
+                }}
+                sx={{ bgcolor: "#FFFFFF" }}
+              >
+                <MenuItem value="all">All Dates</MenuItem>
+                <MenuItem value="today">Today</MenuItem>
+                <MenuItem value="7d">Next 7 Days</MenuItem>
+                <MenuItem value="15d">Next 15 Days</MenuItem>
+                <MenuItem value="30d">Next 30 Days</MenuItem>
+                <MenuItem value="custom">Custom Date Range</MenuItem>
+              </TextField>
+            </Grid>
+
+            <Grid size={{ xs: 6, sm: 3, md: 2 }}>
+              <TextField
+                select
+                fullWidth
+                size="small"
+                label="Bank Name"
+                value={bankFilter}
+                onChange={(e) => {
+                  setBankFilter(e.target.value);
+                  setPage(0);
+                }}
+                sx={{ bgcolor: "#FFFFFF" }}
+              >
+                <MenuItem value="ALL">All Banks</MenuItem>
+                {(dashboard?.banks_in_use || []).map((bn) => (
+                  <MenuItem key={bn} value={bn}>
+                    {bn}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+
+            <Grid size={{ xs: 6, sm: 3, md: 2 }}>
+              <TextField
+                select
+                fullWidth
+                size="small"
+                label="Card Status"
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPage(0);
+                }}
+                sx={{ bgcolor: "#FFFFFF" }}
+              >
+                <MenuItem value="ALL">All Statuses</MenuItem>
+                <MenuItem value="DUE_TODAY">Due Today</MenuItem>
+                <MenuItem value="UPCOMING">Upcoming</MenuItem>
+                <MenuItem value="OVERDUE">Overdue</MenuItem>
+                <MenuItem value="GENERATED_TODAY">Generated Today</MenuItem>
+              </TextField>
+            </Grid>
+
+            {rangeFilter === "custom" && (
+              <>
+                <Grid size={{ xs: 6, sm: 3, md: 1.5 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="date"
+                    label="From"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    sx={{ bgcolor: "#FFFFFF" }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3, md: 1.5 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="date"
+                    label="To"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    sx={{ bgcolor: "#FFFFFF" }}
+                  />
+                </Grid>
+              </>
+            )}
+          </Grid>
         </Box>
 
         {loading ? (
           <Box sx={{ py: 8, display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5 }}>
             <CircularProgress sx={{ color: primaryGreen }} size={32} />
             <Typography variant="body2" sx={{ color: "#64748B" }}>
-              Loading credit card bills...
+              Loading credit card billing schedule...
             </Typography>
           </Box>
         ) : rowsToDisplay.length === 0 ? (
@@ -494,16 +617,10 @@ export default function RetailerCardManagementPage() {
               <CheckCircleIcon sx={{ fontSize: 30 }} />
             </Box>
             <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#0F172A" }}>
-              {activeTab === "current"
-                ? "No Credit Card Bills Due Today"
-                : activeTab === "upcoming"
-                ? "No Upcoming Credit Card Bills"
-                : "No Saved Credit Cards Found"}
+              No Credit Cards Match This View
             </Typography>
             <Typography variant="body2" sx={{ color: "#64748B", mt: 0.5, mb: 2.5 }}>
-              {summary.total_cards === 0
-                ? "Register a customer credit card to track bill generation and due dates."
-                : "Switch tabs or clear your search filter to view other registered cards."}
+              Register a credit card or adjust your date/bank/status filters.
             </Typography>
             <Button
               component={Link}
@@ -522,151 +639,275 @@ export default function RetailerCardManagementPage() {
             </Button>
           </Box>
         ) : (
-          <TableContainer>
-            <Table size="medium">
-              <TableHead>
-                <TableRow sx={{ bgcolor: "#F8FAFC" }}>
-                  <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Cardholder Name</TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Mobile Number</TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Masked Card Number</TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Card Type</TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Bank</TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Bill Generate Date</TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Bill Due Date</TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Status</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {rowsToDisplay.map((card) => (
-                  <TableRow key={card.card_ref_id} hover sx={{ "&:last-child td": { borderBottom: 0 } }}>
-                    <TableCell>
-                      <Typography variant="body2" sx={{ fontWeight: 700, color: "#0F172A" }}>
-                        {card.cardholder_name}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#334155" }}>
-                        {card.mobile_number}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        size="small"
-                        label={card.masked_card_number}
-                        sx={{
-                          fontFamily: "monospace",
-                          fontWeight: 700,
-                          bgcolor: "#F1F5F9",
-                          color: "#0F172A",
-                          border: "1px solid #CBD5E1",
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        size="small"
-                        label={card.card_type_name}
-                        sx={{
-                          fontWeight: 700,
-                          bgcolor: softGreenBg,
-                          color: darkGreen,
-                          border: `1px solid ${softGreenBorder}`,
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: "#1E293B" }}>
-                        {card.bank_name}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" sx={{ color: "#334155", fontWeight: 600 }}>
-                        {ordinalDay(card.bill_generate_day)} of month
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: "#64748B" }}>
-                        {card.cycle_generate_date}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" sx={{ color: "#0F172A", fontWeight: 700 }}>
-                        {ordinalDay(card.bill_due_day)} of month
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: "#64748B" }}>
-                        Next: {card.next_due_date}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      {card.is_due_today ? (
+          <>
+            <TableContainer>
+              <Table size="medium">
+                <TableHead>
+                  <TableRow sx={{ bgcolor: "#F8FAFC" }}>
+                    <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Cardholder Name</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Mobile Number</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Masked Card Number</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Card Type</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Bank Name</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Bill Generation Date</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Bill Due Date</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Next Bill Gen Date</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Status</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {rowsToDisplay.map((card) => (
+                    <TableRow
+                      key={card.ref_id}
+                      hover
+                      sx={{
+                        bgcolor:
+                          card.bill_status === "OVERDUE"
+                            ? "rgba(254, 226, 226, 0.35)"
+                            : card.bill_status === "DUE_TODAY"
+                            ? "rgba(255, 237, 213, 0.45)"
+                            : "inherit",
+                      }}
+                    >
+                      <TableCell>
+                        <Typography variant="body2" sx={{ fontWeight: 700, color: "#0F172A" }}>
+                          {card.card_name}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#334155" }}>
+                          {card.mobile_no}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
                         <Chip
                           size="small"
-                          label="Due Today"
+                          label={card.masked_card_no}
                           sx={{
-                            fontWeight: 800,
-                            bgcolor: "#FEE2E2",
-                            color: "#B91C1C",
-                            border: "1px solid #FCA5A5",
+                            fontFamily: "monospace",
+                            fontWeight: 700,
+                            bgcolor: "#F1F5F9",
+                            color: "#0F172A",
+                            border: "1px solid #CBD5E1",
                           }}
                         />
-                      ) : (
+                      </TableCell>
+                      <TableCell>
                         <Chip
                           size="small"
-                          label={card.status_label}
+                          label={card.card_type}
                           sx={{
                             fontWeight: 700,
-                            bgcolor: card.days_remaining <= 5 ? "#FEF3C7" : softGreenBg,
-                            color: card.days_remaining <= 5 ? "#B45309" : darkGreen,
-                            border: `1px solid ${card.days_remaining <= 5 ? "#FDE68A" : softGreenBorder}`,
-                          }}
-                        />
-                      )}
-                    </TableCell>
-                    <TableCell align="right">
-                      <Stack direction="row" spacing={1} justifyContent="flex-end">
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          startIcon={<ReceiptLongIcon sx={{ fontSize: 15 }} />}
-                          onClick={() => router.push("/retailer/bbps")}
-                          sx={{
-                            borderRadius: "8px",
-                            textTransform: "none",
-                            fontWeight: 700,
-                            fontSize: "12px",
-                            borderColor: softGreenBorder,
+                            bgcolor: softGreenBg,
                             color: darkGreen,
-                            "&:hover": { bgcolor: softGreenBg, borderColor: primaryGreen },
+                            border: `1px solid ${softGreenBorder}`,
                           }}
-                        >
-                          Pay Bill
-                        </Button>
-                        <Tooltip title="Remove card">
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: "#1E293B" }}>
+                          {card.bank_name}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {ordinalDay(card.bill_gen_day)} monthly
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: "#64748B" }}>
+                          {card.bill_generation_date}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ fontWeight: 700, color: "#0F172A" }}>
+                          {ordinalDay(card.bill_due_day)} monthly
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: "#64748B" }}>
+                          Next: {card.next_bill_due_date}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: "#0F172A" }}>
+                          {card.next_bill_generation_date}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: "#64748B" }}>
+                          {card.is_generated_today ? "Generated Today" : `In ${card.days_until_generation}d`}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>{renderStatusChip(card)}</TableCell>
+                      <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
+                        <Tooltip title="View details">
+                          <IconButton size="small" onClick={() => setViewTarget(card)} aria-label="View card">
+                            <VisibilityIcon fontSize="small" sx={{ color: "#0284C7" }} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Edit card">
+                          <IconButton size="small" onClick={() => openEditModal(card)} aria-label="Edit card">
+                            <EditIcon fontSize="small" sx={{ color: darkGreen }} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete card">
                           <IconButton
                             size="small"
                             color="error"
                             onClick={() => setDeleteTarget(card)}
-                            aria-label={`Remove ${card.masked_card_number}`}
+                            aria-label="Delete card"
                           >
                             <DeleteIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                      </Stack>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+
+            {sectionTab === "all" && (
+              <TablePagination
+                component="div"
+                count={dashboard?.total_filtered ?? rowsToDisplay.length}
+                page={page}
+                onPageChange={(_e, newPage) => setPage(newPage)}
+                rowsPerPage={pageSize}
+                onRowsPerPageChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(0);
+                }}
+                rowsPerPageOptions={[10, 20, 50]}
+              />
+            )}
+          </>
         )}
       </Paper>
 
+      {/* View Card Dialog */}
+      <Dialog open={Boolean(viewTarget)} onClose={() => setViewTarget(null)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 800 }}>Credit Card Details</DialogTitle>
+        <DialogContent dividers>
+          {viewTarget && (
+            <Stack spacing={1.5}>
+              <Stack direction="row" justifyContent="space-between">
+                <Typography variant="body2" color="text.secondary">Cardholder Name</Typography>
+                <Typography variant="body2" fontWeight={700}>{viewTarget.card_name}</Typography>
+              </Stack>
+              <Stack direction="row" justifyContent="space-between">
+                <Typography variant="body2" color="text.secondary">Mobile Number</Typography>
+                <Typography variant="body2" fontWeight={700}>{viewTarget.mobile_no}</Typography>
+              </Stack>
+              <Stack direction="row" justifyContent="space-between">
+                <Typography variant="body2" color="text.secondary">Masked Card Number</Typography>
+                <Typography variant="body2" fontWeight={700} fontFamily="monospace">{viewTarget.masked_card_no}</Typography>
+              </Stack>
+              <Stack direction="row" justifyContent="space-between">
+                <Typography variant="body2" color="text.secondary">Card Type</Typography>
+                <Typography variant="body2" fontWeight={700}>{viewTarget.card_type}</Typography>
+              </Stack>
+              <Stack direction="row" justifyContent="space-between">
+                <Typography variant="body2" color="text.secondary">Bank Name</Typography>
+                <Typography variant="body2" fontWeight={700}>{viewTarget.bank_name}</Typography>
+              </Stack>
+              <Stack direction="row" justifyContent="space-between">
+                <Typography variant="body2" color="text.secondary">Next Bill Generation Date</Typography>
+                <Typography variant="body2" fontWeight={700}>{viewTarget.next_bill_generation_date}</Typography>
+              </Stack>
+              <Stack direction="row" justifyContent="space-between">
+                <Typography variant="body2" color="text.secondary">Next Bill Due Date</Typography>
+                <Typography variant="body2" fontWeight={700}>{viewTarget.next_bill_due_date}</Typography>
+              </Stack>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="body2" color="text.secondary">Status</Typography>
+                {renderStatusChip(viewTarget)}
+              </Stack>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          {viewTarget && viewTarget.last_paid_cycle !== viewTarget.current_cycle_key && (
+            <Button
+              variant="outlined"
+              color="success"
+              onClick={() => handleMarkPaid(viewTarget)}
+              sx={{ textTransform: "none", fontWeight: 700 }}
+            >
+              Mark Current Cycle Paid
+            </Button>
+          )}
+          <Button onClick={() => setViewTarget(null)} variant="contained" sx={{ textTransform: "none", bgcolor: primaryGreen }}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Card Dialog */}
+      <Dialog open={Boolean(editTarget)} onClose={() => !savingEdit && setEditTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 800 }}>Edit Credit Card</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ pt: 0.5 }}>
+            <TextField
+              fullWidth
+              label="Cardholder Name"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+            />
+            <TextField
+              fullWidth
+              label="Mobile Number"
+              value={editMobile}
+              onChange={(e) => setEditMobile(sanitizeDigits(e.target.value).slice(0, 12))}
+            />
+            <TextField
+              fullWidth
+              label="Bank Name"
+              value={editBankName}
+              onChange={(e) => setEditBankName(e.target.value)}
+            />
+            <TextField
+              select
+              fullWidth
+              label="Bill Generation Date"
+              value={editGenDay}
+              onChange={(e) => setEditGenDay(Number(e.target.value))}
+            >
+              {DAYS_OF_MONTH.map((d) => (
+                <MenuItem key={d} value={d}>{ordinalDay(d)} of month</MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              select
+              fullWidth
+              label="Bill Due Date"
+              value={editDueDay}
+              onChange={(e) => setEditDueDay(Number(e.target.value))}
+            >
+              {DAYS_OF_MONTH.map((d) => (
+                <MenuItem key={d} value={d}>{ordinalDay(d)} of month</MenuItem>
+              ))}
+            </TextField>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setEditTarget(null)} disabled={savingEdit} sx={{ textTransform: "none" }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSaveEdit}
+            disabled={savingEdit}
+            sx={{ textTransform: "none", fontWeight: 700, bgcolor: primaryGreen, "&:hover": { bgcolor: darkGreen } }}
+          >
+            {savingEdit ? "Saving..." : "Save Changes"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Delete Confirmation Dialog */}
       <Dialog open={Boolean(deleteTarget)} onClose={() => !deleting && setDeleteTarget(null)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800 }}>Remove Saved Credit Card?</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 800 }}>Delete Credit Card?</DialogTitle>
         <DialogContent>
           <Typography variant="body2" sx={{ color: "#475569" }}>
-            Are you sure you want to remove{" "}
-            <strong>{deleteTarget?.masked_card_number}</strong> ({deleteTarget?.cardholder_name}) from your Card Management list?
+            Are you sure you want to delete{" "}
+            <strong>{deleteTarget?.masked_card_no}</strong> ({deleteTarget?.card_name})? This action is recorded in the audit log.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -680,7 +921,7 @@ export default function RetailerCardManagementPage() {
             disabled={deleting}
             sx={{ textTransform: "none", fontWeight: 700 }}
           >
-            {deleting ? "Removing..." : "Remove Card"}
+            {deleting ? "Deleting..." : "Delete Card"}
           </Button>
         </DialogActions>
       </Dialog>

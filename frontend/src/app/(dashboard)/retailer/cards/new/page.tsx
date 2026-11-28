@@ -22,6 +22,7 @@ import {
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
 import LockIcon from "@mui/icons-material/Lock";
+import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import SaveIcon from "@mui/icons-material/Save";
 import ShieldIcon from "@mui/icons-material/Shield";
 import {
@@ -48,20 +49,23 @@ export default function AddNewRetailerCardPage() {
   const softGreenBg = "#ECFDF5";
   const softGreenBorder = "#BBF7D0";
 
-  const [cardTypes, setCardTypes] = useState<RetailerCardTypeOption[]>([]);
+  const [cardTypes, setCardTypes] = useState<RetailerCardTypeOption[]>([
+    { card_type_code: "CREDIT_CARD", card_type_name: "Credit Card" },
+  ]);
   const [banks, setBanks] = useState<RetailerCardBankOption[]>([]);
   const [metaLoading, setMetaLoading] = useState(true);
 
-  const [cardholderName, setCardholderName] = useState("");
-  const [mobileNumber, setMobileNumber] = useState("");
+  const [cardName, setCardName] = useState("");
+  const [mobileNo, setMobileNo] = useState("");
   const [cardNumber, setCardNumber] = useState("");
-  const [selectedCardType, setSelectedCardType] = useState<RetailerCardTypeOption | null>(null);
+  const [cardType, setCardType] = useState("Credit Card");
   const [selectedBank, setSelectedBank] = useState<RetailerCardBankOption | null>(null);
-  const [billGenerateDay, setBillGenerateDay] = useState<number>(1);
+  const [billGenDay, setBillGenDay] = useState<number>(1);
   const [billDueDay, setBillDueDay] = useState<number>(15);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -69,32 +73,38 @@ export default function AddNewRetailerCardPage() {
     retailerCardsApi
       .getMetadata()
       .then((res) => {
-        setCardTypes(res.card_types || []);
-        setBanks(res.banks || []);
         if (res.card_types?.length) {
-          setSelectedCardType(res.card_types[0]);
+          setCardTypes(res.card_types);
+          setCardType(res.card_types[0].card_type_name);
         }
+        setBanks(res.banks || []);
       })
-      .catch(() => {
-        setCardTypes([
-          { card_type_code: "VISA", card_type_name: "Visa" },
-          { card_type_code: "MASTERCARD", card_type_name: "Mastercard" },
-          { card_type_code: "RUPAY", card_type_name: "RuPay" },
-          { card_type_code: "AMEX", card_type_name: "American Express" },
-        ]);
-      })
+      .catch(() => {})
       .finally(() => setMetaLoading(false));
   }, []);
 
   const maskedPreview = useMemo(() => maskCardPreview(cardNumber), [cardNumber]);
 
+  const handleReset = () => {
+    setCardName("");
+    setMobileNo("");
+    setCardNumber("");
+    setCardType("Credit Card");
+    setSelectedBank(null);
+    setBillGenDay(1);
+    setBillDueDay(15);
+    setError(null);
+    setSuccessMsg(null);
+    setFieldErrors({});
+  };
+
   const validateForm = (): boolean => {
     const errs: Record<string, string> = {};
-    if (cardholderName.trim().length < 2) {
-      errs.cardholder_name = "Enter a valid cardholder name (minimum 2 characters).";
+    if (cardName.trim().length < 2) {
+      errs.card_name = "Enter a valid cardholder name (minimum 2 characters).";
     }
-    if (!isValidIndianMobile(mobileNumber)) {
-      errs.mobile_number = "Enter a valid 10-digit Indian mobile number (starting with 6-9).";
+    if (!isValidIndianMobile(mobileNo)) {
+      errs.mobile_no = "Enter a valid 10-digit Indian mobile number (starting with 6-9).";
     }
     const digits = sanitizeDigits(cardNumber);
     if (digits.length < 13 || digits.length > 19) {
@@ -102,17 +112,17 @@ export default function AddNewRetailerCardPage() {
     } else if (!luhnCheck(digits)) {
       errs.card_number = "Invalid card number (Luhn checksum failed).";
     }
-    if (!selectedCardType) {
-      errs.card_type = "Select a card type.";
+    if (!cardType.trim()) {
+      errs.card_type = "Select a Card Type.";
     }
     if (!selectedBank?.bank_name) {
-      errs.bank_name = "Select an issuing bank.";
+      errs.bank_name = "Select a Bank Name.";
     }
-    if (billGenerateDay < 1 || billGenerateDay > 31) {
-      errs.bill_generate_date = "Select a valid Bill Generate Date (1-31).";
+    if (billGenDay < 1 || billGenDay > 31) {
+      errs.bill_gen_day = "Select a valid Bill Generation Date (1-31).";
     }
     if (billDueDay < 1 || billDueDay > 31) {
-      errs.bill_due_date = "Select a valid Bill Due Date (1-31).";
+      errs.bill_due_day = "Select a valid Bill Due Date (1-31).";
     }
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
@@ -121,25 +131,28 @@ export default function AddNewRetailerCardPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!validateForm() || !selectedCardType || !selectedBank) {
+    setSuccessMsg(null);
+    if (!validateForm() || !selectedBank) {
       return;
     }
 
     setSubmitting(true);
     try {
-      await retailerCardsApi.createCard({
-        cardholder_name: cardholderName.trim(),
-        mobile_number: normalizeIndianMobile(mobileNumber),
+      const res = await retailerCardsApi.createCard({
+        card_name: cardName.trim(),
+        mobile_no: normalizeIndianMobile(mobileNo),
         card_number: sanitizeDigits(cardNumber),
-        card_type: selectedCardType.card_type_code,
-        card_type_ref_id: selectedCardType.card_type_ref_id ?? null,
+        card_type: cardType,
         bank_name: selectedBank.bank_name,
-        bank_ifsc_ref_id: selectedBank.bank_ifsc_ref_id ?? null,
-        bill_generate_date: billGenerateDay,
-        bill_due_date: billDueDay,
+        bank_id: selectedBank.bank_id ?? null,
+        bill_gen_day: billGenDay,
+        bill_due_day: billDueDay,
       });
-      router.push("/retailer/cards");
-      router.refresh();
+      setSuccessMsg(res.message || "Credit card registered successfully. Redirecting...");
+      setTimeout(() => {
+        router.push("/retailer/cards");
+        router.refresh();
+      }, 600);
     } catch (err: any) {
       const detail =
         err?.response?.data?.detail ||
@@ -152,7 +165,7 @@ export default function AddNewRetailerCardPage() {
   };
 
   return (
-    <Box sx={{ maxWidth: 1100, mx: "auto", pb: 6 }}>
+    <Box sx={{ maxWidth: 1120, mx: "auto", pb: 6 }}>
       <Box sx={{ mb: 2.5 }}>
         <Button
           component={Link}
@@ -165,7 +178,7 @@ export default function AddNewRetailerCardPage() {
             "&:hover": { bgcolor: softGreenBg },
           }}
         >
-          Back to Card Management
+          Back to Credit Card Management
         </Button>
       </Box>
 
@@ -201,7 +214,7 @@ export default function AddNewRetailerCardPage() {
                   Add New Credit Card
                 </Typography>
                 <Typography variant="caption" sx={{ color: "#64748B" }}>
-                  Register a credit card for automated Current Date &amp; Upcoming Bill tracking.
+                  Register a credit card to track bill generation and due dates.
                 </Typography>
               </Box>
             </Stack>
@@ -209,6 +222,11 @@ export default function AddNewRetailerCardPage() {
             {error && (
               <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2.5, borderRadius: "12px" }}>
                 {error}
+              </Alert>
+            )}
+            {successMsg && (
+              <Alert severity="success" sx={{ mb: 2.5, borderRadius: "12px" }}>
+                {successMsg}
               </Alert>
             )}
 
@@ -220,10 +238,10 @@ export default function AddNewRetailerCardPage() {
                     required
                     label="Cardholder Name"
                     placeholder="e.g. Rajesh Kumar"
-                    value={cardholderName}
-                    onChange={(e) => setCardholderName(e.target.value)}
-                    error={Boolean(fieldErrors.cardholder_name)}
-                    helperText={fieldErrors.cardholder_name}
+                    value={cardName}
+                    onChange={(e) => setCardName(e.target.value)}
+                    error={Boolean(fieldErrors.card_name)}
+                    helperText={fieldErrors.card_name}
                   />
                 </Grid>
 
@@ -233,10 +251,10 @@ export default function AddNewRetailerCardPage() {
                     required
                     label="Mobile Number"
                     placeholder="10-digit Indian mobile"
-                    value={mobileNumber}
-                    onChange={(e) => setMobileNumber(sanitizeDigits(e.target.value).slice(0, 12))}
-                    error={Boolean(fieldErrors.mobile_number)}
-                    helperText={fieldErrors.mobile_number || "10-digit mobile starting with 6-9"}
+                    value={mobileNo}
+                    onChange={(e) => setMobileNo(sanitizeDigits(e.target.value).slice(0, 12))}
+                    error={Boolean(fieldErrors.mobile_no)}
+                    helperText={fieldErrors.mobile_no || "10-digit mobile starting with 6-9"}
                   />
                 </Grid>
 
@@ -251,7 +269,7 @@ export default function AddNewRetailerCardPage() {
                     error={Boolean(fieldErrors.card_number)}
                     helperText={
                       fieldErrors.card_number ||
-                      "Validated with Luhn checksum and stored securely as masked + one-way hash."
+                      "Validated with Luhn checksum; only masked number & secure fingerprint are stored."
                     }
                     inputProps={{ inputMode: "numeric", autoComplete: "off" }}
                   />
@@ -263,17 +281,13 @@ export default function AddNewRetailerCardPage() {
                     fullWidth
                     required
                     label="Card Type"
-                    value={selectedCardType?.card_type_code || ""}
-                    onChange={(e) => {
-                      const found = cardTypes.find((c) => c.card_type_code === e.target.value) || null;
-                      setSelectedCardType(found);
-                    }}
+                    value={cardType}
+                    onChange={(e) => setCardType(e.target.value)}
                     error={Boolean(fieldErrors.card_type)}
                     helperText={fieldErrors.card_type}
-                    disabled={metaLoading && cardTypes.length === 0}
                   >
                     {cardTypes.map((ct) => (
-                      <MenuItem key={ct.card_type_code} value={ct.card_type_code}>
+                      <MenuItem key={ct.card_type_code} value={ct.card_type_name}>
                         {ct.card_type_name}
                       </MenuItem>
                     ))}
@@ -288,13 +302,13 @@ export default function AddNewRetailerCardPage() {
                     onChange={(_e, val) => setSelectedBank(val)}
                     getOptionLabel={(opt) => opt.bank_name || ""}
                     isOptionEqualToValue={(opt, val) =>
-                      opt.bank_name === val.bank_name && opt.bank_ifsc_ref_id === val.bank_ifsc_ref_id
+                      opt.bank_name === val.bank_name && opt.bank_id === val.bank_id
                     }
                     renderInput={(params) => (
                       <TextField
                         {...params}
                         required
-                        label="Issuing Bank"
+                        label="Bank Name"
                         placeholder="Search bank name..."
                         error={Boolean(fieldErrors.bank_name)}
                         helperText={fieldErrors.bank_name}
@@ -308,11 +322,11 @@ export default function AddNewRetailerCardPage() {
                     select
                     fullWidth
                     required
-                    label="Bill Generate Date (Day of Month)"
-                    value={billGenerateDay}
-                    onChange={(e) => setBillGenerateDay(Number(e.target.value))}
-                    error={Boolean(fieldErrors.bill_generate_date)}
-                    helperText={fieldErrors.bill_generate_date || `Statement generates on ${ordinalDay(billGenerateDay)} monthly`}
+                    label="Bill Generation Date (Day of Month)"
+                    value={billGenDay}
+                    onChange={(e) => setBillGenDay(Number(e.target.value))}
+                    error={Boolean(fieldErrors.bill_gen_day)}
+                    helperText={fieldErrors.bill_gen_day || `Generates on ${ordinalDay(billGenDay)} monthly`}
                   >
                     {DAYS_OF_MONTH.map((d) => (
                       <MenuItem key={d} value={d}>
@@ -330,8 +344,8 @@ export default function AddNewRetailerCardPage() {
                     label="Bill Due Date (Day of Month)"
                     value={billDueDay}
                     onChange={(e) => setBillDueDay(Number(e.target.value))}
-                    error={Boolean(fieldErrors.bill_due_date)}
-                    helperText={fieldErrors.bill_due_date || `Payment due on ${ordinalDay(billDueDay)} monthly`}
+                    error={Boolean(fieldErrors.bill_due_day)}
+                    helperText={fieldErrors.bill_due_day || `Due on ${ordinalDay(billDueDay)} monthly`}
                   >
                     {DAYS_OF_MONTH.map((d) => (
                       <MenuItem key={d} value={d}>
@@ -342,7 +356,23 @@ export default function AddNewRetailerCardPage() {
                 </Grid>
 
                 <Grid size={{ xs: 12 }} sx={{ pt: 1 }}>
-                  <Stack direction="row" spacing={1.5} justifyContent="flex-end">
+                  <Stack direction="row" spacing={1.5} justifyContent="flex-end" flexWrap="wrap">
+                    <Button
+                      type="button"
+                      variant="outlined"
+                      onClick={handleReset}
+                      disabled={submitting}
+                      startIcon={<RestartAltIcon />}
+                      sx={{
+                        borderRadius: "10px",
+                        textTransform: "none",
+                        fontWeight: 700,
+                        borderColor: "#CBD5E1",
+                        color: "#334155",
+                      }}
+                    >
+                      Reset
+                    </Button>
                     <Button
                       component={Link}
                       href="/retailer/cards"
@@ -372,7 +402,7 @@ export default function AddNewRetailerCardPage() {
                         "&:hover": { bgcolor: darkGreen },
                       }}
                     >
-                      {submitting ? "Saving Card..." : "Save Credit Card"}
+                      {submitting ? "Saving Card..." : "Save Card"}
                     </Button>
                   </Stack>
                 </Grid>
@@ -381,7 +411,7 @@ export default function AddNewRetailerCardPage() {
           </Paper>
         </Grid>
 
-        {/* Live Masked Card Preview & Security Summary */}
+        {/* Live Masked Card Preview */}
         <Grid size={{ xs: 12, md: 5 }}>
           <Stack spacing={2.5}>
             <Paper
@@ -400,7 +430,7 @@ export default function AddNewRetailerCardPage() {
                 </Typography>
                 <Chip
                   size="small"
-                  label={selectedCardType?.card_type_name || "CARD"}
+                  label={cardType || "Credit Card"}
                   sx={{ bgcolor: "rgba(255,255,255,0.16)", color: "#FFFFFF", fontWeight: 800 }}
                 />
               </Stack>
@@ -418,7 +448,7 @@ export default function AddNewRetailerCardPage() {
                     CARDHOLDER
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                    {cardholderName.trim() ? cardholderName.trim().toUpperCase() : "CARDHOLDER NAME"}
+                    {cardName.trim() ? cardName.trim().toUpperCase() : "CARDHOLDER NAME"}
                   </Typography>
                 </Box>
                 <Box sx={{ textAlign: "right" }}>
@@ -426,7 +456,7 @@ export default function AddNewRetailerCardPage() {
                     BILL CYCLE
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 700, color: "#86EFAC" }}>
-                    Gen {ordinalDay(billGenerateDay)} • Due {ordinalDay(billDueDay)}
+                    Gen {ordinalDay(billGenDay)} • Due {ordinalDay(billDueDay)}
                   </Typography>
                 </Box>
               </Stack>
@@ -448,15 +478,15 @@ export default function AddNewRetailerCardPage() {
                     Duplicate &amp; Security Protection
                   </Typography>
                   <Typography variant="body2" sx={{ color: "#166534", mt: 0.5, fontSize: "13px" }}>
-                    Duplicate cards are automatically blocked for your retailer account. Full card numbers are never
-                    exposed in dashboard tables, logs, or URLs.
+                    Duplicate cards are blocked using a secure fingerprint scoped to your retailer account.
+                    Raw card numbers and CVV are never stored or logged.
                   </Typography>
                 </Box>
               </Stack>
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1.5, color: darkGreen }}>
                 <LockIcon sx={{ fontSize: 15 }} />
                 <Typography variant="caption" sx={{ fontWeight: 700 }}>
-                  Scoped strictly to your authenticated Retailer &amp; Company session
+                  All card create, update &amp; delete actions are audit logged
                 </Typography>
               </Stack>
             </Paper>

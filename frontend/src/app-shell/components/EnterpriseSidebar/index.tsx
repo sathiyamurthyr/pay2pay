@@ -178,7 +178,7 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
         { label: "Dashboard", path: "/retailer/dashboard", icon: DashboardIcon },
         { label: "PayIn & Wallet Top-Up", path: "/retailer/wallet-topup", icon: CreditCardIcon, financial: true, badge: "Instant" },
         { label: "Money Transfer (DMT)", path: "/retailer/dmt", icon: SendIcon, financial: true },
-        { label: "Card Management", path: "/retailer/cards", icon: CreditCardIcon },
+        { label: "Credit Card Management", path: "/retailer/cards", icon: CreditCardIcon },
         { label: "POS Settlement", path: "/retailer/settlements", icon: ReceiptIcon, financial: true },
         { label: "Wallet Overview", path: "/retailer/wallet", icon: AccountBalanceIcon, financial: true },
       ],
