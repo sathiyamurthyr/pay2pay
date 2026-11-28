@@ -341,9 +341,9 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
   );
 
   const sheetBg = isDark
-    ? "linear-gradient(160deg, rgba(17, 24, 39, 0.84) 0%, rgba(24, 24, 48, 0.88) 100%)"
-    : "linear-gradient(160deg, rgba(255, 255, 255, 0.82) 0%, rgba(248, 250, 255, 0.78) 50%, rgba(245, 243, 255, 0.82) 100%)";
-  const pillBg = isDark ? "rgba(255,255,255,0.14)" : "rgba(148,163,184,0.35)";
+    ? "linear-gradient(155deg, rgba(17, 24, 39, 0.72) 0%, rgba(30, 27, 75, 0.68) 100%)"
+    : "linear-gradient(155deg, rgba(255, 255, 255, 0.52) 0%, rgba(238, 245, 255, 0.44) 50%, rgba(246, 238, 255, 0.5) 100%)";
+  const pillBg = isDark ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.88)";
 
   return (
     <>
@@ -406,9 +406,9 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
           slotProps: {
             backdrop: {
               sx: {
-                bgcolor: isDark ? "rgba(2, 6, 23, 0.55)" : "rgba(15, 23, 42, 0.24)",
-                backdropFilter: "blur(8px)",
-                WebkitBackdropFilter: "blur(8px)",
+                bgcolor: isDark ? "rgba(2, 6, 23, 0.5)" : "rgba(15, 23, 42, 0.14)",
+                backdropFilter: "blur(10px)",
+                WebkitBackdropFilter: "blur(10px)",
               },
             },
           },
@@ -426,14 +426,14 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
             margin: "0 auto",
             borderRadius: "28px",
             background: sheetBg,
-            backdropFilter: "blur(24px) saturate(180%)",
-            WebkitBackdropFilter: "blur(24px) saturate(180%)",
+            backdropFilter: "blur(28px) saturate(190%)",
+            WebkitBackdropFilter: "blur(28px) saturate(190%)",
             border: isDark
               ? "1px solid rgba(255, 255, 255, 0.18)"
-              : "1px solid rgba(255, 255, 255, 0.85)",
+              : "1.5px solid rgba(255, 255, 255, 0.82)",
             boxShadow: isDark
-              ? "0 16px 48px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255,255,255,0.14)"
-              : "0 18px 48px rgba(37, 99, 235, 0.16), 0 6px 24px rgba(124, 58, 237, 0.1), inset 0 1px 0 rgba(255,255,255,0.95)",
+              ? "0 20px 56px rgba(0, 0, 0, 0.55), inset 0 1px 1px rgba(255,255,255,0.16)"
+              : "0 20px 56px rgba(37, 99, 235, 0.18), 0 8px 28px rgba(124, 58, 237, 0.12), inset 0 1px 2px rgba(255,255,255,0.95)",
             overflow: "hidden",
             maxHeight: "76vh",
           },
@@ -450,8 +450,8 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
               overflow: "hidden",
               zIndex: 0,
               background: isDark
-                ? "radial-gradient(circle at 12% 18%, rgba(37,99,235,0.22) 0%, transparent 45%), radial-gradient(circle at 88% 12%, rgba(168,85,247,0.2) 0%, transparent 42%), radial-gradient(circle at 20% 85%, rgba(20,184,166,0.16) 0%, transparent 45%), radial-gradient(circle at 82% 80%, rgba(236,72,153,0.14) 0%, transparent 42%)"
-                : "radial-gradient(circle at 12% 18%, rgba(96,165,250,0.24) 0%, transparent 46%), radial-gradient(circle at 88% 12%, rgba(192,132,252,0.24) 0%, transparent 44%), radial-gradient(circle at 18% 85%, rgba(94,234,212,0.22) 0%, transparent 46%), radial-gradient(circle at 84% 82%, rgba(244,114,182,0.18) 0%, transparent 44%)",
+                ? "radial-gradient(circle at 12% 18%, rgba(37,99,235,0.28) 0%, transparent 45%), radial-gradient(circle at 88% 12%, rgba(168,85,247,0.25) 0%, transparent 42%), radial-gradient(circle at 20% 85%, rgba(20,184,166,0.22) 0%, transparent 45%), radial-gradient(circle at 82% 80%, rgba(236,72,153,0.18) 0%, transparent 42%)"
+                : "radial-gradient(circle at 10% 15%, rgba(96,165,250,0.34) 0%, transparent 48%), radial-gradient(circle at 90% 14%, rgba(192,132,252,0.34) 0%, transparent 46%), radial-gradient(circle at 16% 86%, rgba(94,234,212,0.3) 0%, transparent 48%), radial-gradient(circle at 86% 84%, rgba(244,114,182,0.26) 0%, transparent 46%)",
             }}
           />
 
@@ -642,35 +642,35 @@ const QuickActionItem: React.FC<QuickActionItemProps> = ({
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "flex-start",
-      gap: 0.65,
-      px: 0.5,
-      py: 1.1,
+      gap: 0.7,
+      px: 0.35,
+      py: 1.15,
       borderRadius: "18px",
       cursor: "pointer",
-      background: isDark ? "rgba(255, 255, 255, 0.06)" : "rgba(255, 255, 255, 0.56)",
-      backdropFilter: "blur(14px)",
-      WebkitBackdropFilter: "blur(14px)",
-      border: isDark ? "1px solid rgba(255, 255, 255, 0.12)" : "1px solid rgba(255, 255, 255, 0.78)",
+      background: isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(255, 255, 255, 0.38)",
+      backdropFilter: "blur(16px)",
+      WebkitBackdropFilter: "blur(16px)",
+      border: isDark ? "1px solid rgba(255, 255, 255, 0.14)" : "1px solid rgba(255, 255, 255, 0.72)",
       boxShadow: isDark
-        ? "0 4px 14px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08)"
-        : "0 4px 14px rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.85)",
+        ? "0 4px 16px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.1)"
+        : "0 4px 16px rgba(15, 23, 42, 0.05), inset 0 1px 1px rgba(255, 255, 255, 0.85)",
       transition: "transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s, background 0.2s, border-color 0.2s",
       "&:hover": {
         transform: "translateY(-2px) scale(1.02)",
-        background: isDark ? "rgba(255, 255, 255, 0.11)" : "rgba(255, 255, 255, 0.82)",
-        borderColor: alpha(color, 0.35),
-        boxShadow: `0 8px 20px ${alpha(color, 0.18)}, 0 0 14px ${alpha(color, 0.1)}`,
+        background: isDark ? "rgba(255, 255, 255, 0.14)" : "rgba(255, 255, 255, 0.68)",
+        borderColor: alpha(color, 0.42),
+        boxShadow: `0 8px 22px ${alpha(color, 0.22)}, 0 0 16px ${alpha(color, 0.14)}`,
       },
       "&:active": {
         transform: "scale(0.95)",
-        background: isDark ? "rgba(255, 255, 255, 0.1)" : alpha(color, 0.08),
+        background: isDark ? "rgba(255, 255, 255, 0.12)" : alpha(color, 0.1),
       },
       "& .MuiTouchRipple-ripple .MuiTouchRipple-child": {
         backgroundColor: alpha(color, 0.18),
       },
     }}
   >
-    {/* Pastel Gradient Icon Container */}
+    {/* Pastel Gradient Icon Container with Ambient Glow */}
     <Box
       sx={{
         position: "relative",
@@ -678,15 +678,15 @@ const QuickActionItem: React.FC<QuickActionItemProps> = ({
         height: 44,
         borderRadius: "14px",
         background: gradient || bg,
-        border: isDark ? `1px solid ${alpha(color, 0.35)}` : "1px solid rgba(255,255,255,0.85)",
+        border: isDark ? `1px solid ${alpha(color, 0.38)}` : "1px solid rgba(255,255,255,0.9)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        boxShadow: `0 4px 12px ${alpha(color, 0.22)}, inset 0 1px 1px rgba(255,255,255,0.6)`,
+        boxShadow: `0 6px 18px ${alpha(color, 0.34)}, inset 0 2px 3px rgba(255,255,255,0.75)`,
         transition: "transform 0.2s, box-shadow 0.2s",
         ".MuiButtonBase-root:hover &": {
-          transform: "scale(1.06)",
-          boxShadow: `0 6px 16px ${alpha(color, 0.32)}`,
+          transform: "scale(1.07)",
+          boxShadow: `0 8px 22px ${alpha(color, 0.44)}, inset 0 2px 3px rgba(255,255,255,0.85)`,
         },
       }}
     >
@@ -715,18 +715,18 @@ const QuickActionItem: React.FC<QuickActionItemProps> = ({
     </Box>
 
     {/* Label */}
-    <Box sx={{ textAlign: "center", width: "100%", px: 0.25 }}>
+    <Box sx={{ textAlign: "center", width: "100%", px: 0.15 }}>
       <Typography
         component="span"
         sx={{
           display: "-webkit-box",
-          WebkitLineClamp: 2,
+          WebkitLineClamp: 1,
           WebkitBoxOrient: "vertical",
           overflow: "hidden",
-          fontSize: "11px",
+          fontSize: "10.5px",
           fontWeight: 700,
           color: isDark ? "#F8FAFC" : "#0F172A",
-          lineHeight: 1.2,
+          lineHeight: 1.25,
         }}
       >
         {label}
@@ -735,11 +735,14 @@ const QuickActionItem: React.FC<QuickActionItemProps> = ({
         component="span"
         sx={{
           display: "block",
-          fontSize: "9.5px",
+          fontSize: "9px",
           fontWeight: 500,
           color: isDark ? "#94A3B8" : "#64748B",
           lineHeight: 1.15,
           mt: 0.2,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
         }}
       >
         {sublabel}
