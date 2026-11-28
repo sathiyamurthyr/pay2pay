@@ -114,6 +114,7 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
 
   const handleOpen = useCallback(() => setOpen(true), []);
   const handleClose = useCallback(() => setOpen(false), []);
+  const handleToggle = useCallback(() => setOpen((prev) => !prev), []);
 
   const handleAction = useCallback(
     (href: string) => {
@@ -132,8 +133,8 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
       {/* ── Center-Docked FAB ─────────────────────────────────────────────── */}
       <Fab
         id="mobile-quick-actions-fab"
-        aria-label="Quick Actions"
-        onClick={handleOpen}
+        aria-label={open ? "Close Quick Actions" : "Quick Actions"}
+        onClick={handleToggle}
         sx={{
           position: "fixed",
           bottom: bottomOffset,
@@ -220,7 +221,7 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
               sx={{
                 fontWeight: 800,
                 fontSize: "16px",
-                color: isDark ? "#F1F5F9" : "#FAF8F9",
+                color: isDark ? "#F1F5F9" : "#0F172A",
                 lineHeight: 1.2,
               }}
             >
@@ -234,7 +235,11 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
             </Typography>
           </Box>
           <ButtonBase
-            onClick={handleClose}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleClose();
+            }}
             aria-label="Close Quick Actions"
             sx={{
               width: 36,
@@ -259,8 +264,7 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
             gridTemplateColumns: "repeat(4, 1fr)",
             gap: 0,
             px: 1.5,
-            pb: 2.5,
-            // Last row: 3 items centred  → override with flex on overflow
+            pb: 8,
           }}
         >
           {QUICK_ACTIONS.map((action) => {
@@ -350,7 +354,7 @@ const QuickActionItem: React.FC<QuickActionItemProps> = ({
           display: "block",
           fontSize: "11px",
           fontWeight: 800,
-          color: isDark ? "#F1F5F9" : "#FAF8F9",
+          color: isDark ? "#F1F5F9" : "#0F172A",
           lineHeight: 1.2,
           whiteSpace: "nowrap",
         }}
