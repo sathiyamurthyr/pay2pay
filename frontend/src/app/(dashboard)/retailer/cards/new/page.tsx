@@ -25,6 +25,7 @@ import LockIcon from "@mui/icons-material/Lock";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import SaveIcon from "@mui/icons-material/Save";
 import ShieldIcon from "@mui/icons-material/Shield";
+import { BankLogoBadge, CardNetworkBadge, resolveBankTheme } from "@/components/retailer/BankBrandBadge";
 import {
   RetailerCardBankOption,
   RetailerCardTypeOption,
@@ -303,7 +304,7 @@ export default function AddNewRetailerCardPage() {
                   >
                     {cardTypes.map((ct) => (
                       <MenuItem key={ct.card_type_code} value={ct.card_type_name}>
-                        {ct.card_type_name}
+                        <CardNetworkBadge cardType={ct.card_type_name} />
                       </MenuItem>
                     ))}
                   </TextField>
@@ -319,6 +320,20 @@ export default function AddNewRetailerCardPage() {
                     isOptionEqualToValue={(opt, val) =>
                       opt.bank_name === val.bank_name && opt.bank_id === val.bank_id
                     }
+                    renderOption={(props, opt) => {
+                      const { key, ...rest } = props;
+                      return (
+                        <Box component="li" key={key} {...rest} sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+                          <BankLogoBadge bankName={opt.bank_name} shortCode={opt.short_code} size="sm" />
+                          <Box>
+                            <Typography variant="body2" fontWeight={700}>{opt.bank_name}</Typography>
+                            {opt.short_code && (
+                              <Typography variant="caption" color="text.secondary">{opt.short_code}</Typography>
+                            )}
+                          </Box>
+                        </Box>
+                      );
+                    }}
                     renderInput={(params) => (
                       <TextField
                         {...params}
@@ -434,21 +449,29 @@ export default function AddNewRetailerCardPage() {
               sx={{
                 p: 3,
                 borderRadius: "20px",
-                background: "linear-gradient(135deg, #0F172A 0%, #14532D 100%)",
+                background: resolveBankTheme(selectedBank?.bank_name, selectedBank?.short_code).cardGradient,
                 color: "#FFFFFF",
-                boxShadow: "0 14px 32px rgba(20, 83, 45, 0.24)",
+                boxShadow: "0 14px 32px rgba(15, 23, 42, 0.24)",
               }}
             >
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#BBF7D0" }}>
-                  {selectedBank?.bank_name || "ISSUING BANK"}
-                </Typography>
-                <Chip
-                  size="small"
-                  label={cardType || "Credit Card"}
-                  sx={{ bgcolor: "rgba(255,255,255,0.16)", color: "#FFFFFF", fontWeight: 800 }}
-                />
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2.5 }}>
+                <Stack direction="row" spacing={1.25} alignItems="center">
+                  <BankLogoBadge bankName={selectedBank?.bank_name} shortCode={selectedBank?.short_code} size="md" />
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#FFFFFF" }}>
+                    {selectedBank?.bank_name || "ISSUING BANK"}
+                  </Typography>
+                </Stack>
+                <Box sx={{ bgcolor: "rgba(255,255,255,0.92)", px: 1.1, py: 0.45, borderRadius: "8px", color: "#0F172A" }}>
+                  <CardNetworkBadge cardType={cardType} />
+                </Box>
               </Stack>
+
+              <Box sx={{ mb: 2 }}>
+                <svg width="36" height="26" viewBox="0 0 36 26" aria-hidden="true">
+                  <rect x="1" y="1" width="34" height="24" rx="5" fill="#FDE68A" stroke="#F59E0B" strokeWidth="1.5" />
+                  <path d="M12 1 V25 M24 1 V25 M1 13 H35" stroke="#B45309" strokeWidth="1" opacity="0.6" />
+                </svg>
+              </Box>
 
               <Typography
                 variant="h6"

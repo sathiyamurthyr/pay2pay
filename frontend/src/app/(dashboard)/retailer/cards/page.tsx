@@ -46,6 +46,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import WarningIcon from "@mui/icons-material/Warning";
 import ReceiptIcon from "@mui/icons-material/Receipt";
 import { useCompanyBranding } from "@/hooks/useCompanyBranding";
+import { BankLogoBadge, CardNetworkBadge, resolveBankTheme } from "@/components/retailer/BankBrandBadge";
 import {
   RetailerCardsDashboardResponse,
   RetailerSavedCard,
@@ -666,8 +667,8 @@ export default function RetailerCreditCardManagementPage() {
                           card.bill_status === "OVERDUE"
                             ? "rgba(254, 226, 226, 0.35)"
                             : card.bill_status === "DUE_TODAY"
-                            ? "rgba(255, 237, 213, 0.45)"
-                            : "inherit",
+                              ? "rgba(255, 237, 213, 0.45)"
+                              : "inherit",
                       }}
                     >
                       <TableCell>
@@ -694,21 +695,35 @@ export default function RetailerCreditCardManagementPage() {
                         />
                       </TableCell>
                       <TableCell>
-                        <Chip
-                          size="small"
-                          label={card.card_type}
+                        <Box
                           sx={{
-                            fontWeight: 700,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            px: 1.25,
+                            py: 0.5,
+                            borderRadius: "999px",
                             bgcolor: softGreenBg,
                             color: darkGreen,
                             border: `1px solid ${softGreenBorder}`,
                           }}
-                        />
+                        >
+                          <CardNetworkBadge cardType={card.card_type} />
+                        </Box>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 600, color: "#1E293B" }}>
-                          {card.bank_name}
-                        </Typography>
+                        <Stack direction="row" spacing={1.2} alignItems="center">
+                          <BankLogoBadge bankName={card.bank_name} shortCode={card.bank_short_code} size="sm" />
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 700, color: "#1E293B", lineHeight: 1.2 }}>
+                              {card.bank_name}
+                            </Typography>
+                            {card.bank_short_code && (
+                              <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>
+                                {card.bank_short_code}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Stack>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
@@ -781,44 +796,103 @@ export default function RetailerCreditCardManagementPage() {
         )}
       </Paper>
 
-      {/* View Card Dialog */}
+      {/* View Card Dialog — Realistic Virtual Credit Card + Billing Timeline */}
       <Dialog open={Boolean(viewTarget)} onClose={() => setViewTarget(null)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800 }}>Credit Card Details</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 800 }}>Credit Card &amp; Billing Overview</DialogTitle>
         <DialogContent dividers>
           {viewTarget && (
-            <Stack spacing={1.5}>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography variant="body2" color="text.secondary">Cardholder Name</Typography>
-                <Typography variant="body2" fontWeight={700}>{viewTarget.card_name}</Typography>
-              </Stack>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography variant="body2" color="text.secondary">Mobile Number</Typography>
-                <Typography variant="body2" fontWeight={700}>{viewTarget.mobile_no}</Typography>
-              </Stack>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography variant="body2" color="text.secondary">Masked Card Number</Typography>
-                <Typography variant="body2" fontWeight={700} fontFamily="monospace">{viewTarget.masked_card_no}</Typography>
-              </Stack>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography variant="body2" color="text.secondary">Card Type</Typography>
-                <Typography variant="body2" fontWeight={700}>{viewTarget.card_type}</Typography>
-              </Stack>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography variant="body2" color="text.secondary">Bank Name</Typography>
-                <Typography variant="body2" fontWeight={700}>{viewTarget.bank_name}</Typography>
-              </Stack>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography variant="body2" color="text.secondary">Next Bill Generation Date</Typography>
-                <Typography variant="body2" fontWeight={700}>{viewTarget.next_bill_generation_date}</Typography>
-              </Stack>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography variant="body2" color="text.secondary">Next Bill Due Date</Typography>
-                <Typography variant="body2" fontWeight={700}>{viewTarget.next_bill_due_date}</Typography>
-              </Stack>
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="body2" color="text.secondary">Status</Typography>
-                {renderStatusChip(viewTarget)}
-              </Stack>
+            <Stack spacing={2.5}>
+              <Box
+                sx={{
+                  p: 3,
+                  borderRadius: "18px",
+                  background: resolveBankTheme(viewTarget.bank_name, viewTarget.bank_short_code).cardGradient,
+                  color: "#FFFFFF",
+                  boxShadow: "0 14px 30px rgba(15, 23, 42, 0.22)",
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+              >
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2.5 }}>
+                  <Stack direction="row" spacing={1.25} alignItems="center">
+                    <BankLogoBadge bankName={viewTarget.bank_name} shortCode={viewTarget.bank_short_code} size="md" />
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#FFFFFF" }}>
+                        {viewTarget.bank_name}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.75)" }}>
+                        {viewTarget.card_type}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                  {renderStatusChip(viewTarget)}
+                </Stack>
+
+                <Box sx={{ mb: 2 }}>
+                  <svg width="36" height="26" viewBox="0 0 36 26" aria-hidden="true">
+                    <rect x="1" y="1" width="34" height="24" rx="5" fill="#FDE68A" stroke="#F59E0B" strokeWidth="1.5" />
+                    <path d="M12 1 V25 M24 1 V25 M1 13 H35" stroke="#B45309" strokeWidth="1" opacity="0.6" />
+                  </svg>
+                </Box>
+
+                <Typography variant="h6" sx={{ fontFamily: "monospace", fontWeight: 800, letterSpacing: "0.14em", mb: 2.5 }}>
+                  {viewTarget.masked_card_no}
+                </Typography>
+
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-end">
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.7)", display: "block" }}>
+                      CARDHOLDER
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 800 }}>
+                      {viewTarget.card_name.toUpperCase()}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.8)", fontFamily: "monospace" }}>
+                      +91 {viewTarget.mobile_no}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ bgcolor: "rgba(255,255,255,0.92)", px: 1.2, py: 0.6, borderRadius: "8px", color: "#0F172A" }}>
+                    <CardNetworkBadge cardType={viewTarget.card_type} />
+                  </Box>
+                </Stack>
+              </Box>
+
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 6 }}>
+                  <Paper elevation={0} sx={{ p: 1.5, borderRadius: "12px", bgcolor: "#F8FAFC", border: "1px solid #E2E8F0" }}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={700}>Bill Generation Date</Typography>
+                    <Typography variant="body2" fontWeight={800} sx={{ mt: 0.3 }}>
+                      {ordinalDay(viewTarget.bill_gen_day)} monthly ({viewTarget.bill_generation_date})
+                    </Typography>
+                  </Paper>
+                </Grid>
+                <Grid size={{ xs: 6 }}>
+                  <Paper elevation={0} sx={{ p: 1.5, borderRadius: "12px", bgcolor: "#F8FAFC", border: "1px solid #E2E8F0" }}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={700}>Next Bill Generation</Typography>
+                    <Typography variant="body2" fontWeight={800} sx={{ mt: 0.3 }}>
+                      {viewTarget.next_bill_generation_date}
+                    </Typography>
+                  </Paper>
+                </Grid>
+                <Grid size={{ xs: 6 }}>
+                  <Paper elevation={0} sx={{ p: 1.5, borderRadius: "12px", bgcolor: "#F8FAFC", border: "1px solid #E2E8F0" }}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={700}>Bill Due Date</Typography>
+                    <Typography variant="body2" fontWeight={800} sx={{ mt: 0.3 }}>
+                      {ordinalDay(viewTarget.bill_due_day)} monthly ({viewTarget.next_bill_due_date})
+                    </Typography>
+                  </Paper>
+                </Grid>
+                <Grid size={{ xs: 6 }}>
+                  <Paper elevation={0} sx={{ p: 1.5, borderRadius: "12px", bgcolor: softGreenBg, border: `1px solid ${softGreenBorder}` }}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={700}>Cycle Payment</Typography>
+                    <Typography variant="body2" fontWeight={800} color={darkGreen} sx={{ mt: 0.3 }}>
+                      {viewTarget.last_paid_cycle === viewTarget.current_cycle_key
+                        ? `Paid (${viewTarget.current_cycle_key})`
+                        : viewTarget.status_label}
+                    </Typography>
+                  </Paper>
+                </Grid>
+              </Grid>
             </Stack>
           )}
         </DialogContent>
