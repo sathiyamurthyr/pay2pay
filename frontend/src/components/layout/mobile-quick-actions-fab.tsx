@@ -41,6 +41,8 @@ export interface QuickActionConfig {
   color: string;
   bg: string;
   darkBg: string;
+  gradient?: string;
+  darkGradient?: string;
   isFavorite?: boolean;
 }
 
@@ -60,6 +62,8 @@ const DEFAULT_QUICK_ACTIONS: QuickActionConfig[] = [
     color: "#2563EB",
     bg: "#DBEAFE",
     darkBg: "#1E3A8A",
+    gradient: "linear-gradient(135deg, rgba(219,234,254,0.95) 0%, rgba(191,219,254,0.8) 100%)",
+    darkGradient: "linear-gradient(135deg, rgba(37,99,235,0.32) 0%, rgba(30,58,138,0.45) 100%)",
   },
   {
     id: "payout",
@@ -70,6 +74,8 @@ const DEFAULT_QUICK_ACTIONS: QuickActionConfig[] = [
     color: "#7C3AED",
     bg: "#EDE9FE",
     darkBg: "#3B1F73",
+    gradient: "linear-gradient(135deg, rgba(237,233,254,0.95) 0%, rgba(221,214,254,0.8) 100%)",
+    darkGradient: "linear-gradient(135deg, rgba(124,58,237,0.32) 0%, rgba(59,31,115,0.45) 100%)",
   },
   {
     id: "reports",
@@ -80,6 +86,8 @@ const DEFAULT_QUICK_ACTIONS: QuickActionConfig[] = [
     color: "#0D9488",
     bg: "#CCFBF1",
     darkBg: "#134E4A",
+    gradient: "linear-gradient(135deg, rgba(204,251,241,0.95) 0%, rgba(153,246,228,0.8) 100%)",
+    darkGradient: "linear-gradient(135deg, rgba(13,148,136,0.32) 0%, rgba(19,78,74,0.45) 100%)",
   },
   {
     id: "bbps",
@@ -90,6 +98,8 @@ const DEFAULT_QUICK_ACTIONS: QuickActionConfig[] = [
     color: "#DC2626",
     bg: "#FEE2E2",
     darkBg: "#3D1414",
+    gradient: "linear-gradient(135deg, rgba(254,226,226,0.95) 0%, rgba(254,202,202,0.8) 100%)",
+    darkGradient: "linear-gradient(135deg, rgba(220,38,38,0.32) 0%, rgba(61,20,20,0.45) 100%)",
   },
   {
     id: "cards",
@@ -100,6 +110,8 @@ const DEFAULT_QUICK_ACTIONS: QuickActionConfig[] = [
     color: "#D97706",
     bg: "#FEF3C7",
     darkBg: "#3D2E0A",
+    gradient: "linear-gradient(135deg, rgba(254,243,199,0.95) 0%, rgba(253,230,138,0.8) 100%)",
+    darkGradient: "linear-gradient(135deg, rgba(217,119,6,0.32) 0%, rgba(61,46,10,0.45) 100%)",
   },
   {
     id: "upi",
@@ -110,6 +122,8 @@ const DEFAULT_QUICK_ACTIONS: QuickActionConfig[] = [
     color: "#9333EA",
     bg: "#F3E8FF",
     darkBg: "#2E1245",
+    gradient: "linear-gradient(135deg, rgba(243,232,255,0.95) 0%, rgba(233,213,255,0.8) 100%)",
+    darkGradient: "linear-gradient(135deg, rgba(147,51,234,0.32) 0%, rgba(46,18,69,0.45) 100%)",
   },
   {
     id: "aeps",
@@ -120,6 +134,8 @@ const DEFAULT_QUICK_ACTIONS: QuickActionConfig[] = [
     color: "#16A34A",
     bg: "#DCFCE7",
     darkBg: "#1A3D28",
+    gradient: "linear-gradient(135deg, rgba(220,252,231,0.95) 0%, rgba(187,247,208,0.8) 100%)",
+    darkGradient: "linear-gradient(135deg, rgba(22,163,74,0.32) 0%, rgba(26,61,40,0.45) 100%)",
   },
   {
     id: "recharge",
@@ -130,6 +146,8 @@ const DEFAULT_QUICK_ACTIONS: QuickActionConfig[] = [
     color: "#0284C7",
     bg: "#E0F2FE",
     darkBg: "#0C4A6E",
+    gradient: "linear-gradient(135deg, rgba(224,242,254,0.95) 0%, rgba(186,230,253,0.8) 100%)",
+    darkGradient: "linear-gradient(135deg, rgba(2,132,199,0.32) 0%, rgba(12,74,110,0.45) 100%)",
   },
 ];
 
@@ -321,8 +339,10 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
     [router]
   );
 
-  const sheetBg = isDark ? "#1A1A2E" : "#FFFFFF";
-  const pillBg = isDark ? "rgba(255,255,255,0.08)" : "#F1F5F9";
+  const sheetBg = isDark
+    ? "linear-gradient(160deg, rgba(17, 24, 39, 0.84) 0%, rgba(24, 24, 48, 0.88) 100%)"
+    : "linear-gradient(160deg, rgba(255, 255, 255, 0.82) 0%, rgba(248, 250, 255, 0.78) 50%, rgba(245, 243, 255, 0.82) 100%)";
+  const pillBg = isDark ? "rgba(255,255,255,0.14)" : "rgba(148,163,184,0.35)";
 
   return (
     <>
@@ -340,14 +360,18 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
           display: { xs: "flex", md: "none" },
           width: 56,
           height: 56,
-          background: "linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)",
-          boxShadow: "0 6px 20px rgba(37,99,235,0.5), 0 2px 8px rgba(0,0,0,0.2)",
-          border: "3px solid white",
-          transition: "transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s",
+          background: open
+            ? "linear-gradient(135deg, #7C3AED 0%, #2563EB 100%)"
+            : "linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)",
+          boxShadow: open
+            ? "0 8px 28px rgba(124,58,237,0.55), 0 0 18px rgba(37,99,235,0.4)"
+            : "0 6px 20px rgba(37,99,235,0.5), 0 2px 8px rgba(0,0,0,0.2)",
+          border: "2.5px solid rgba(255,255,255,0.9)",
+          transition: "transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s, background 0.22s",
           "&:hover": {
-            background: "linear-gradient(135deg, #1D4ED8 0%, #6D28D9 100%)",
+            background: "linear-gradient(135deg, #6D28D9 0%, #1D4ED8 100%)",
             transform: "translateX(-50%) scale(1.08)",
-            boxShadow: "0 8px 28px rgba(37,99,235,0.55), 0 3px 12px rgba(0,0,0,0.25)",
+            boxShadow: "0 10px 30px rgba(124,58,237,0.6), 0 3px 12px rgba(37,99,235,0.35)",
           },
           "&:active": {
             transform: "translateX(-50%) scale(0.94)",
@@ -367,7 +391,7 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
         </Box>
       </Fab>
 
-      {/* ── Quick Actions Bottom Sheet ────────────────────────────────────── */}
+      {/* ── Quick Actions Bottom Sheet (Glassmorphism) ────────────────────── */}
       <SwipeableDrawer
         anchor="bottom"
         open={open}
@@ -375,25 +399,62 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
         onClose={handleClose}
         disableSwipeToOpen
         swipeAreaWidth={32}
-        ModalProps={{ keepMounted: true }}
+        transitionDuration={{ enter: 280, exit: 220 }}
+        ModalProps={{
+          keepMounted: true,
+          slotProps: {
+            backdrop: {
+              sx: {
+                bgcolor: isDark ? "rgba(2, 6, 23, 0.55)" : "rgba(15, 23, 42, 0.24)",
+                backdropFilter: "blur(8px)",
+                WebkitBackdropFilter: "blur(8px)",
+              },
+            },
+          },
+        }}
         sx={{
           display: { xs: "block", md: "none" },
           zIndex: 1350,
           "& .MuiDrawer-paper": {
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-            bgcolor: sheetBg,
-            overflow: "hidden",
+            position: "relative",
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            background: sheetBg,
+            backdropFilter: "blur(24px) saturate(180%)",
+            WebkitBackdropFilter: "blur(24px) saturate(180%)",
+            borderTop: isDark
+              ? "1px solid rgba(255, 255, 255, 0.16)"
+              : "1px solid rgba(255, 255, 255, 0.8)",
+            boxShadow: isDark
+              ? "0 -12px 48px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255,255,255,0.12)"
+              : "0 -12px 48px rgba(37, 99, 235, 0.12), 0 -4px 24px rgba(124, 58, 237, 0.08), inset 0 1px 0 rgba(255,255,255,0.9)",
+            overflowX: "hidden",
+            overflowY: "auto",
             pb: "env(safe-area-inset-bottom, 12px)",
-            maxHeight: "85vh",
+            maxHeight: "86vh",
           },
         }}
       >
+        {/* Ambient Pastel Gradient Lighting */}
+        <Box
+          aria-hidden="true"
+          sx={{
+            position: "absolute",
+            inset: 0,
+            pointerEvents: "none",
+            overflow: "hidden",
+            zIndex: 0,
+            background: isDark
+              ? "radial-gradient(circle at 12% 18%, rgba(37,99,235,0.22) 0%, transparent 45%), radial-gradient(circle at 88% 12%, rgba(168,85,247,0.2) 0%, transparent 42%), radial-gradient(circle at 20% 85%, rgba(20,184,166,0.16) 0%, transparent 45%), radial-gradient(circle at 82% 80%, rgba(236,72,153,0.14) 0%, transparent 42%)"
+              : "radial-gradient(circle at 12% 18%, rgba(96,165,250,0.22) 0%, transparent 46%), radial-gradient(circle at 88% 12%, rgba(192,132,252,0.22) 0%, transparent 44%), radial-gradient(circle at 18% 85%, rgba(94,234,212,0.2) 0%, transparent 46%), radial-gradient(circle at 84% 82%, rgba(244,114,182,0.16) 0%, transparent 44%)",
+          }}
+        />
+
         {/* Drag Handle */}
-        <Box sx={{ display: "flex", justifyContent: "center", pt: 1.5, pb: 0.5 }}>
+        <Box sx={{ position: "relative", zIndex: 1, display: "flex", justifyContent: "center", pt: 1.5, pb: 0.5 }}>
           <Box
             sx={{
-              width: 36,
+              width: 40,
               height: 4,
               borderRadius: 2,
               bgcolor: pillBg,
@@ -404,6 +465,8 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
         {/* Header */}
         <Box
           sx={{
+            position: "relative",
+            zIndex: 1,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -416,8 +479,9 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
               variant="subtitle1"
               sx={{
                 fontWeight: 800,
-                fontSize: "16px",
-                color: isDark ? "#F1F5F9" : "#0F172A",
+                fontSize: "17px",
+                letterSpacing: "-0.01em",
+                color: isDark ? "#F8FAFC" : "#0F172A",
                 lineHeight: 1.2,
               }}
             >
@@ -425,7 +489,7 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
             </Typography>
             <Typography
               variant="caption"
-              sx={{ color: isDark ? "#94A3B8" : "#6B7280", fontSize: "12px" }}
+              sx={{ color: isDark ? "#CBD5E1" : "#64748B", fontSize: "12px", fontWeight: 500 }}
             >
               {favorites.length > 0 ? "Favorites first • Select a service" : "Select a service to get started"}
             </Typography>
@@ -441,26 +505,37 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
               width: 36,
               height: 36,
               borderRadius: "50%",
-              bgcolor: pillBg,
+              bgcolor: isDark ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.7)",
+              backdropFilter: "blur(10px)",
+              WebkitBackdropFilter: "blur(10px)",
+              border: isDark ? "1px solid rgba(255,255,255,0.16)" : "1px solid rgba(255,255,255,0.9)",
+              boxShadow: "0 2px 8px rgba(15,23,42,0.06)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              transition: "background 0.15s",
-              "&:hover": { bgcolor: isDark ? "rgba(255,255,255,0.14)" : "#E2E8F0" },
+              transition: "background 0.18s, transform 0.18s",
+              "&:hover": {
+                bgcolor: isDark ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.95)",
+                transform: "scale(1.06)",
+              },
+              "&:active": { transform: "scale(0.94)" },
             }}
           >
-            <CloseRoundedIcon sx={{ fontSize: 18, color: isDark ? "#94A3B8" : "#6B7280" }} />
+            <CloseRoundedIcon sx={{ fontSize: 18, color: isDark ? "#E2E8F0" : "#475569" }} />
           </ButtonBase>
         </Box>
 
-        {/* Action Grid – 4 columns */}
+        {/* Action Grid – 2 cols mobile, 4 cols tablet+ */}
         <Box
           sx={{
+            position: "relative",
+            zIndex: 1,
             display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gap: 0,
-            px: 1.5,
-            pb: 8,
+            gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(4, 1fr)" },
+            gap: 1.5,
+            px: 2,
+            pt: 0.5,
+            pb: 9,
           }}
         >
           {quickActions.map((action) => {
@@ -473,6 +548,7 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
                 sublabel={action.sublabel}
                 color={action.color}
                 bg={isDark ? action.darkBg : action.bg}
+                gradient={isDark ? action.darkGradient : action.gradient}
                 onClick={() => handleAction(action.href)}
                 isDark={isDark}
                 isFavorite={action.isFavorite}
@@ -485,13 +561,14 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
   );
 };
 
-// ─── Individual Quick Action Tile ───────────────────────────────────────────────
+// ─── Individual Quick Action Card (Glassmorphism) ───────────────────────────────
 interface QuickActionItemProps {
   icon: React.ElementType;
   label: string;
   sublabel: string;
   color: string;
   bg: string;
+  gradient?: string;
   onClick: () => void;
   isDark: boolean;
   isFavorite?: boolean;
@@ -503,6 +580,7 @@ const QuickActionItem: React.FC<QuickActionItemProps> = ({
   sublabel,
   color,
   bg,
+  gradient,
   onClick,
   isDark,
   isFavorite,
@@ -514,32 +592,52 @@ const QuickActionItem: React.FC<QuickActionItemProps> = ({
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
-      gap: 0.75,
-      p: 1.25,
-      borderRadius: 3,
-      transition: "background 0.15s, transform 0.15s",
-      "&:active": { transform: "scale(0.94)", bgcolor: isDark ? "rgba(255,255,255,0.06)" : alpha(color, 0.06) },
+      justifyContent: "center",
+      gap: 1,
+      px: 1.25,
+      py: 1.75,
+      borderRadius: "20px",
+      cursor: "pointer",
+      background: isDark ? "rgba(255, 255, 255, 0.06)" : "rgba(255, 255, 255, 0.58)",
+      backdropFilter: "blur(14px)",
+      WebkitBackdropFilter: "blur(14px)",
+      border: isDark ? "1px solid rgba(255, 255, 255, 0.12)" : "1px solid rgba(255, 255, 255, 0.78)",
+      boxShadow: isDark
+        ? "0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08)"
+        : "0 4px 16px rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.85)",
+      transition: "transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s, background 0.2s, border-color 0.2s",
+      "&:hover": {
+        transform: "translateY(-3px) scale(1.02)",
+        background: isDark ? "rgba(255, 255, 255, 0.11)" : "rgba(255, 255, 255, 0.82)",
+        borderColor: alpha(color, 0.35),
+        boxShadow: `0 10px 24px ${alpha(color, 0.18)}, 0 0 16px ${alpha(color, 0.1)}`,
+      },
+      "&:active": {
+        transform: "scale(0.96)",
+        background: isDark ? "rgba(255, 255, 255, 0.1)" : alpha(color, 0.08),
+      },
       "& .MuiTouchRipple-ripple .MuiTouchRipple-child": {
-        backgroundColor: alpha(color, 0.15),
+        backgroundColor: alpha(color, 0.18),
       },
     }}
   >
-    {/* Icon circle */}
+    {/* Pastel Gradient Icon Container */}
     <Box
       sx={{
         position: "relative",
         width: 52,
         height: 52,
         borderRadius: "16px",
-        bgcolor: bg,
+        background: gradient || bg,
+        border: isDark ? `1px solid ${alpha(color, 0.35)}` : "1px solid rgba(255,255,255,0.85)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        boxShadow: `0 2px 8px ${alpha(color, 0.2)}`,
-        transition: "transform 0.15s, box-shadow 0.15s",
+        boxShadow: `0 4px 14px ${alpha(color, 0.22)}, inset 0 1px 1px rgba(255,255,255,0.6)`,
+        transition: "transform 0.2s, box-shadow 0.2s",
         ".MuiButtonBase-root:hover &": {
-          transform: "translateY(-2px)",
-          boxShadow: `0 4px 14px ${alpha(color, 0.3)}`,
+          transform: "scale(1.06)",
+          boxShadow: `0 6px 18px ${alpha(color, 0.32)}`,
         },
       }}
     >
@@ -548,8 +646,8 @@ const QuickActionItem: React.FC<QuickActionItemProps> = ({
         <Box
           sx={{
             position: "absolute",
-            top: -4,
-            right: -4,
+            top: -5,
+            right: -5,
             width: 18,
             height: 18,
             borderRadius: "50%",
@@ -559,6 +657,7 @@ const QuickActionItem: React.FC<QuickActionItemProps> = ({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            boxShadow: "0 2px 6px rgba(245,158,11,0.45)",
           }}
         >
           <StarRoundedIcon sx={{ fontSize: 11, color: "#FFFFFF" }} />
@@ -575,10 +674,10 @@ const QuickActionItem: React.FC<QuickActionItemProps> = ({
           WebkitLineClamp: 2,
           WebkitBoxOrient: "vertical",
           overflow: "hidden",
-          fontSize: "11px",
-          fontWeight: 800,
-          color: isDark ? "#F1F5F9" : "#0F172A",
-          lineHeight: 1.2,
+          fontSize: "12.5px",
+          fontWeight: 700,
+          color: isDark ? "#F8FAFC" : "#0F172A",
+          lineHeight: 1.25,
         }}
       >
         {label}
@@ -587,9 +686,9 @@ const QuickActionItem: React.FC<QuickActionItemProps> = ({
         component="span"
         sx={{
           display: "block",
-          fontSize: "9.5px",
+          fontSize: "10.5px",
           fontWeight: 500,
-          color: isDark ? "#94A3B8" : "#6B7280",
+          color: isDark ? "#94A3B8" : "#64748B",
           lineHeight: 1.2,
           mt: 0.25,
         }}
