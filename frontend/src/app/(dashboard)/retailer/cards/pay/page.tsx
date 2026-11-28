@@ -186,11 +186,12 @@ function CardPaymentConfirmationContent() {
   }
 
   return (
-    <Box sx={{ maxWidth: 1180, mx: "auto", pb: 6 }}>
-      <Box sx={{ mb: 2.5 }}>
+    <Box sx={{ maxWidth: 1180, mx: "auto", pb: 1, overflow: "hidden" }}>
+      <Box sx={{ mb: 1.25 }}>
         <Button
           component={Link}
           href="/retailer/cards"
+          size="small"
           startIcon={<ArrowBackIcon />}
           sx={{ textTransform: "none", fontWeight: 700, color: darkGreen, "&:hover": { bgcolor: softGreenBg } }}
         >
@@ -201,9 +202,9 @@ function CardPaymentConfirmationContent() {
       <Paper
         elevation={0}
         sx={{
-          p: { xs: 2.5, md: 3 },
-          mb: 3,
-          borderRadius: "18px",
+          p: { xs: 1.5, md: 2 },
+          mb: 1.5,
+          borderRadius: "16px",
           background: `linear-gradient(135deg, #FFFFFF 0%, ${softGreenBg} 100%)`,
           border: `1px solid ${softGreenBorder}`,
         }}
@@ -355,7 +356,7 @@ function CardPaymentConfirmationContent() {
                 <Typography variant="subtitle1" fontWeight={800} sx={{ mb: 1.5, color: "#0F172A" }}>
                   Payment Breakdown
                 </Typography>
-                <TableContainer>
+                <TableContainer sx={{ scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}>
                   <Table size="small">
                     <TableBody>
                       <TableRow>
@@ -433,7 +434,7 @@ function CardPaymentConfirmationContent() {
                     {recalculating ? "Recalculating..." : "Recalculate Totals"}
                   </Button>
                 </Box>
-                <TableContainer>
+                <TableContainer sx={{ scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}>
                   <Table size="small">
                     <TableHead>
                       <TableRow sx={{ bgcolor: "#F8FAFC" }}>

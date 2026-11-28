@@ -176,11 +176,12 @@ export default function AddNewRetailerCardPage() {
   };
 
   return (
-    <Box sx={{ maxWidth: 1120, mx: "auto", pb: 6 }}>
-      <Box sx={{ mb: 2.5 }}>
+    <Box sx={{ maxWidth: 1120, mx: "auto", pb: 1, overflow: "hidden" }}>
+      <Box sx={{ mb: 1.25 }}>
         <Button
           component={Link}
           href="/retailer/cards"
+          size="small"
           startIcon={<ArrowBackIcon />}
           sx={{
             textTransform: "none",
@@ -193,19 +194,19 @@ export default function AddNewRetailerCardPage() {
         </Button>
       </Box>
 
-      <Grid container spacing={3}>
+      <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 7 }}>
           <Paper
             elevation={0}
             sx={{
-              p: { xs: 2.5, md: 3.5 },
-              borderRadius: "18px",
+              p: { xs: 2, md: 2.5 },
+              borderRadius: "16px",
               bgcolor: "#FFFFFF",
               border: `1px solid ${softGreenBorder}`,
               boxShadow: "0 4px 20px rgba(15, 23, 42, 0.04)",
             }}
           >
-            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2.5 }}>
+            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
               <Box
                 sx={{
                   width: 44,

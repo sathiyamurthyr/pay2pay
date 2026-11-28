@@ -288,42 +288,42 @@ export default function RetailerCreditCardManagementPage() {
   };
 
   return (
-    <Box sx={{ maxWidth: 1460, mx: "auto", pb: 5 }}>
+    <Box sx={{ maxWidth: 1460, mx: "auto", pb: 1, overflow: "hidden" }}>
       {/* Header Banner */}
       <Paper
         elevation={0}
         sx={{
-          p: { xs: 2.5, md: 3 },
-          mb: 3,
-          borderRadius: "18px",
+          p: { xs: 1.5, md: 2 },
+          mb: 1.5,
+          borderRadius: "16px",
           background: `linear-gradient(135deg, #FFFFFF 0%, ${softGreenBg} 100%)`,
           border: `1px solid ${softGreenBorder}`,
           display: "flex",
           flexDirection: { xs: "column", sm: "row" },
           alignItems: { xs: "flex-start", sm: "center" },
           justifyContent: "space-between",
-          gap: 2,
+          gap: 1.5,
         }}
       >
-        <Stack direction="row" spacing={2} alignItems="center">
+        <Stack direction="row" spacing={1.5} alignItems="center">
           <Box
             sx={{
-              width: 52,
-              height: 52,
-              borderRadius: "14px",
+              width: 42,
+              height: 42,
+              borderRadius: "12px",
               bgcolor: primaryGreen,
               color: "#FFFFFF",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              boxShadow: "0 8px 20px rgba(22, 163, 74, 0.22)",
+              boxShadow: "0 6px 14px rgba(15, 23, 42, 0.16)",
             }}
           >
-            <CreditCardIcon sx={{ fontSize: 28 }} />
+            <CreditCardIcon sx={{ fontSize: 22 }} />
           </Box>
           <Box>
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-              <Typography variant="h5" sx={{ fontWeight: 800, color: "#0F172A", letterSpacing: "-0.02em" }}>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: "#0F172A", letterSpacing: "-0.02em" }}>
                 Credit Card Management
               </Typography>
               {branding?.company_name && (
@@ -331,18 +331,19 @@ export default function RetailerCreditCardManagementPage() {
                   size="small"
                   label={branding.company_name}
                   sx={{
+                    height: 20,
                     bgcolor: softGreenBg,
                     color: darkGreen,
                     border: `1px solid ${softGreenBorder}`,
                     fontWeight: 700,
-                    fontSize: "11px",
+                    fontSize: "10px",
                   }}
                 />
               )}
             </Stack>
-            <Typography variant="body2" sx={{ color: "#475569", mt: 0.4 }}>
-              Track Bills Generated Today, Bills Due Today, Upcoming Cycles &amp; Overdue Credit Card Bills.
-              {dashboard?.reference_date ? ` Server Date (IST): ${dashboard.reference_date}` : ""}
+            <Typography variant="caption" sx={{ color: "#475569", display: "block" }}>
+              Track Bills Generated Today, Due Today, Upcoming Cycles &amp; Overdue Bills
+              {dashboard?.reference_date ? ` • IST: ${dashboard.reference_date}` : ""}
             </Typography>
           </Box>
         </Stack>
@@ -434,14 +435,14 @@ export default function RetailerCreditCardManagementPage() {
       )}
 
       {/* 6 Required Dashboard Summary Cards */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      <Grid container spacing={1.5} sx={{ mb: 1.5 }}>
         {[
           {
             label: "Total Registered Cards",
             value: summary.total_cards,
             color: primaryGreen,
             border: softGreenBorder,
-            icon: <CreditCardIcon sx={{ fontSize: 18, color: primaryGreen }} />,
+            icon: <CreditCardIcon sx={{ fontSize: 16, color: primaryGreen }} />,
             tab: "all" as SectionTab,
           },
           {
@@ -449,7 +450,7 @@ export default function RetailerCreditCardManagementPage() {
             value: summary.bills_generated_today_count,
             color: "#0F172A",
             border: "#CBD5E1",
-            icon: <ReceiptIcon sx={{ fontSize: 18, color: "#0284C7" }} />,
+            icon: <ReceiptIcon sx={{ fontSize: 16, color: "#0284C7" }} />,
             tab: "generated_today" as SectionTab,
           },
           {
@@ -457,23 +458,23 @@ export default function RetailerCreditCardManagementPage() {
             value: summary.bills_due_today_count,
             color: "#C2410C",
             border: summary.bills_due_today_count > 0 ? "#FDBA74" : "#E2E8F0",
-            icon: <CalendarTodayIcon sx={{ fontSize: 18, color: "#EA580C" }} />,
+            icon: <CalendarTodayIcon sx={{ fontSize: 16, color: "#EA580C" }} />,
             tab: "due_today" as SectionTab,
           },
           {
-            label: "Upcoming Bills (Next 7 Days)",
+            label: "Upcoming (Next 7 Days)",
             value: summary.upcoming_7_days_count,
             color: "#1D4ED8",
             border: "#BFDBFE",
-            icon: <AccessTimeIcon sx={{ fontSize: 18, color: "#2563EB" }} />,
+            icon: <AccessTimeIcon sx={{ fontSize: 16, color: "#2563EB" }} />,
             tab: "upcoming_due" as SectionTab,
           },
           {
-            label: "Upcoming Bills (Next 30 Days)",
+            label: "Upcoming (Next 30 Days)",
             value: summary.upcoming_30_days_count,
             color: "#1E40AF",
             border: "#BFDBFE",
-            icon: <AccessTimeIcon sx={{ fontSize: 18, color: "#1D4ED8" }} />,
+            icon: <AccessTimeIcon sx={{ fontSize: 16, color: "#1D4ED8" }} />,
             tab: "upcoming_due" as SectionTab,
           },
           {
@@ -481,31 +482,31 @@ export default function RetailerCreditCardManagementPage() {
             value: summary.overdue_bills_count,
             color: "#B91C1C",
             border: summary.overdue_bills_count > 0 ? "#FCA5A5" : "#E2E8F0",
-            icon: <WarningIcon sx={{ fontSize: 18, color: "#DC2626" }} />,
+            icon: <WarningIcon sx={{ fontSize: 16, color: "#DC2626" }} />,
             tab: "overdue" as SectionTab,
           },
         ].map((kpi) => (
-          <Grid key={kpi.label} size={{ xs: 12, sm: 6, md: 4, lg: 2 }}>
+          <Grid key={kpi.label} size={{ xs: 6, sm: 4, md: 2 }}>
             <Paper
               elevation={0}
               onClick={() => setSectionTab(kpi.tab)}
               sx={{
-                p: 2,
-                borderRadius: "14px",
+                p: 1.35,
+                borderRadius: "12px",
                 bgcolor: "#FFFFFF",
                 border: `1px solid ${kpi.border}`,
                 cursor: "pointer",
                 transition: "transform 0.15s ease",
-                "&:hover": { transform: "translateY(-2px)" },
+                "&:hover": { transform: "translateY(-1px)" },
               }}
             >
               <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="caption" sx={{ fontWeight: 700, color: "#64748B", lineHeight: 1.2 }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: "#64748B", lineHeight: 1.15, fontSize: "11px" }}>
                   {kpi.label}
                 </Typography>
                 {kpi.icon}
               </Stack>
-              <Typography variant="h4" sx={{ fontWeight: 800, color: kpi.color, mt: 1 }}>
+              <Typography variant="h5" sx={{ fontWeight: 800, color: kpi.color, mt: 0.4 }}>
                 {kpi.value}
               </Typography>
             </Paper>
@@ -525,7 +526,7 @@ export default function RetailerCreditCardManagementPage() {
         }}
       >
         {/* Section Tabs */}
-        <Box sx={{ px: { xs: 2, md: 3 }, pt: 1.5, borderBottom: "1px solid #E2E8F0" }}>
+        <Box sx={{ px: { xs: 1.5, md: 2.5 }, pt: 0.5, borderBottom: "1px solid #E2E8F0" }}>
           <Tabs
             value={sectionTab}
             onChange={(_e, v: SectionTab) => {
@@ -533,10 +534,11 @@ export default function RetailerCreditCardManagementPage() {
               setPage(0);
             }}
             variant="scrollable"
-            scrollButtons="auto"
+            scrollButtons={false}
             TabIndicatorProps={{ style: { backgroundColor: primaryGreen, height: 3 } }}
             sx={{
-              "& .MuiTab-root": { textTransform: "none", fontWeight: 700, fontSize: "13px", color: "#64748B" },
+              minHeight: 38,
+              "& .MuiTab-root": { textTransform: "none", fontWeight: 700, fontSize: "12.5px", color: "#64748B", minHeight: 38, py: 0.5 },
               "& .Mui-selected": { color: `${darkGreen} !important` },
             }}
           >
@@ -550,7 +552,7 @@ export default function RetailerCreditCardManagementPage() {
         </Box>
 
         {/* Dashboard Filters */}
-        <Box sx={{ px: { xs: 2, md: 3 }, py: 2, bgcolor: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}>
+        <Box sx={{ px: { xs: 1.5, md: 2.5 }, py: 1.25, bgcolor: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}>
           <Grid container spacing={1.5} alignItems="center">
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <TextField
@@ -717,8 +719,8 @@ export default function RetailerCreditCardManagementPage() {
           </Box>
         ) : (
           <>
-            <TableContainer>
-              <Table size="medium">
+            <TableContainer sx={{ scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}>
+              <Table size="small">
                 <TableHead>
                   <TableRow sx={{ bgcolor: "#F8FAFC" }}>
                     <TableCell padding="checkbox">
