@@ -24,10 +24,11 @@ router = APIRouter(prefix="/retailers", tags=["Retailer Management (EPIC-004)"])
 @router.get("/hierarchy-options")
 async def get_retailer_hierarchy_options(
     tenant_id: uuid.UUID = Depends(get_current_tenant_id),
-    current_user: AdminUserModel = Depends(get_current_user),
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
-    return await RetailerManagementService.get_hierarchy_options(db, tenant_id)
+    comp_ref = ctx.company_ref_id if not ctx.is_super_admin else None
+    return await RetailerManagementService.get_hierarchy_options(db, tenant_id, company_ref_id=comp_ref)
 
 
 class ValidateDuplicateRequest(BaseModel):
@@ -251,10 +252,11 @@ async def list_retailers(
 @router.get("/dashboard/metrics", response_model=RetailerDashboardMetricsResponse)
 async def get_retailer_dashboard_metrics(
     tenant_id: uuid.UUID = Depends(get_current_tenant_id),
-    current_user: AdminUserModel = Depends(get_current_user),
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
-    return await RetailerManagementService.get_dashboard_metrics(db, tenant_id)
+    comp_ref = ctx.company_ref_id if not ctx.is_super_admin else None
+    return await RetailerManagementService.get_dashboard_metrics(db, tenant_id, company_ref_id=comp_ref)
 
 
 @router.get("/{retailer_id}", response_model=RetailerDetailsResponse)

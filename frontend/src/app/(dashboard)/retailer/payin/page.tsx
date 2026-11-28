@@ -43,6 +43,7 @@ import { useWalletSync } from "@/context/WalletSyncProvider";
 import { SectionHeader } from "@/components/shared";
 import { CONFIGURED_GATEWAYS, getCustomerGateway, maskGatewayName, GatewayConfigItem } from "@/lib/gateway-config";
 import { useCompanyBranding } from "@/hooks/useCompanyBranding";
+import { ServiceDownMaintenance } from "@/components/common/ServiceDownMaintenance";
 import "./payin.css";
 
 // ─── INDIAN CURRENCY IN WORDS CONVERTER ───
@@ -198,10 +199,12 @@ export default function RetailerPayinPage() {
   const [activeTxn, setActiveTxn] = useState<ActiveTransaction | null>(null);
 
   // Form State
-  const [gateways, setGateways] = useState<GatewayOption[]>(CONFIGURED_GATEWAYS);
-  const [selectedGatewayId, setSelectedGatewayId] = useState<string>("gateway-g1");
-  const selectedGateway = useMemo(() => {
-    return gateways.find((g) => g.id === selectedGatewayId) || gateways[0] || CONFIGURED_GATEWAYS[0];
+  const [gateways, setGateways] = useState<GatewayOption[]>([]);
+  const [isLoadingGateways, setIsLoadingGateways] = useState<boolean>(true);
+  const [isServiceDown, setIsServiceDown] = useState<boolean>(false);
+  const [selectedGatewayId, setSelectedGatewayId] = useState<string>("");
+  const selectedGateway: GatewayOption | null = useMemo(() => {
+    return gateways.find((g) => g.id === selectedGatewayId) || gateways[0] || null;
   }, [gateways, selectedGatewayId]);
 
   // Supported Card Schemes with Admin-Configured MDR (Display Only)
@@ -264,74 +267,96 @@ export default function RetailerPayinPage() {
   };
 
   // Fetch Admin-configured card schemes MDR rates & active policy for the authenticated company
-  useEffect(() => {
-    let isCancelled = false;
-    async function fetchCompanyPayinConfig() {
-      setIsLoadingSchemes(true);
+  const fetchCompanyPayinConfig = useCallback(async () => {
+    setIsLoadingGateways(true);
+    setIsLoadingSchemes(true);
+    try {
+      // 0. Fetch Dynamic Gateways configured by Admin (strict company isolation)
+      let activeVendorCode: string | undefined = selectedGateway?.vendorCode;
       try {
-        // 0. Fetch Dynamic Gateways configured by Admin
-        try {
-          const gwRes = await apiClient.get("/api/v1/payin/gateways");
-          if (!isCancelled && gwRes.data && gwRes.data.success && Array.isArray(gwRes.data.gateways) && gwRes.data.gateways.length > 0) {
-            const dynamicList: GatewayOption[] = gwRes.data.gateways.map((g: any, index: number) => ({
-              id: g.id || `gateway-${(g.code || 'g1').toLowerCase().replace(/[^a-z0-9]/g, '')}`,
-              code: g.code || `G-${index + 1}`,
-              name: g.name || `Gateway G-${index + 1}`,
-              subtitle: g.description || (index === 0 ? "Primary Payment Gateway" : "Secondary Payment Gateway"),
-              vendorCode: g.vendorCode || g.code || `G-${index + 1}`,
-              internalProviderRef: g.internalVendorCode || (index === 0 ? "BANKME" : "EXISTING"),
-              badge: "Active",
-              badgeColor: "#10B981",
-              iconText: g.code || `G-${index + 1}`,
-              isActive: g.is_active ?? true,
-              isRecommended: index === 0,
-              supportedMethods: g.supported_methods || ["CREDIT_CARD", "DEBIT_CARD", "UPI", "NET_BANKING"]
-            }));
-            setGateways(dynamicList);
-            if (!dynamicList.some(g => g.id === selectedGatewayId) && dynamicList.length > 0) {
-              setSelectedGatewayId(dynamicList[0].id);
-            }
-          }
-        } catch (gwErr) {
-          console.warn("Could not load dynamic gateways, falling back to default:", gwErr);
+        const gwRes = await apiClient.get("/api/v1/payin/gateways");
+        const gwData = gwRes.data;
+        if (!gwData || gwData.service_down || !Array.isArray(gwData.gateways) || gwData.gateways.length === 0) {
+          setGateways([]);
+          setSelectedGatewayId("");
+          setIsServiceDown(true);
+          setCardSchemes([]);
+          return;
         }
 
-        // 1. Fetch Company PayIn Options (Authoritative Admin Policy)
-        try {
-          const optRes = await apiClient.get("/api/v1/payin/options");
-          if (!isCancelled && optRes.data) {
-            const polCode = optRes.data.customer_payable_policy || "WITH_MDR";
-            const polName = optRes.data.policy_display_name || (polCode === "WITH_MDR" ? "Customer Pays MDR Charges" : "Retailer Bears MDR Charges");
-            const polTreat = optRes.data.mdr_treatment || (polCode === "WITH_MDR" ? "COLLECT_ADDITIONALLY" : "DEDUCT_FROM_TOPUP");
-            setActivePolicy({
-              policy: polCode,
-              displayName: polName,
-              mdrTreatment: polTreat
-            });
-            if (Array.isArray(optRes.data.card_schemes) && optRes.data.card_schemes.length > 0) {
-              setCardSchemes(optRes.data.card_schemes);
-            }
-          }
-        } catch (optErr) {
-          console.warn("Could not load PayIn options:", optErr);
+        const dynamicList: GatewayOption[] = gwData.gateways.map((g: any, index: number) => ({
+          id: g.id || `gateway-${(g.code || "g1").toLowerCase().replace(/[^a-z0-9]/g, "")}`,
+          code: g.code || `G-${index + 1}`,
+          name: g.name || `Gateway G-${index + 1}`,
+          subtitle: g.description || (index === 0 ? "Primary Payment Gateway" : "Secondary Payment Gateway"),
+          vendorCode: g.vendorCode || g.code || `G-${index + 1}`,
+          internalProviderRef: g.internalVendorCode || "",
+          badge: "Active",
+          badgeColor: "#10B981",
+          iconText: g.code || `G-${index + 1}`,
+          isActive: g.is_active ?? true,
+          isRecommended: index === 0,
+          supportedMethods: g.supported_methods || ["CREDIT_CARD", "DEBIT_CARD", "UPI", "NET_BANKING"]
+        }));
+        setIsServiceDown(false);
+        setGateways(dynamicList);
+        const chosen = dynamicList.find((g) => g.id === selectedGatewayId) || dynamicList[0];
+        if (chosen && chosen.id !== selectedGatewayId) {
+          setSelectedGatewayId(chosen.id);
         }
+        activeVendorCode = chosen?.vendorCode;
+      } catch (gwErr: any) {
+        console.warn("Could not load dynamic gateways — marking PayIn service down:", gwErr);
+        setGateways([]);
+        setSelectedGatewayId("");
+        setIsServiceDown(true);
+        setCardSchemes([]);
+        return;
+      }
 
-        // 2. Fetch specific Gateway Card Schemes
-        const res = await apiClient.get(`/api/v1/payin/card-schemes?vendor_code=${encodeURIComponent(selectedGateway.vendorCode)}`);
-        if (!isCancelled && Array.isArray(res.data)) {
+      // 1. Fetch Company PayIn Options (Authoritative Admin Policy)
+      try {
+        const optRes = await apiClient.get("/api/v1/payin/options");
+        if (optRes.data) {
+          const polCode = optRes.data.customer_payable_policy || "WITH_MDR";
+          const polName = optRes.data.policy_display_name || (polCode === "WITH_MDR" ? "Customer Pays MDR Charges" : "Retailer Bears MDR Charges");
+          const polTreat = optRes.data.mdr_treatment || (polCode === "WITH_MDR" ? "COLLECT_ADDITIONALLY" : "DEDUCT_FROM_TOPUP");
+          setActivePolicy({
+            policy: polCode,
+            displayName: polName,
+            mdrTreatment: polTreat
+          });
+          if (Array.isArray(optRes.data.card_schemes) && optRes.data.card_schemes.length > 0) {
+            setCardSchemes(optRes.data.card_schemes);
+          }
+        }
+      } catch (optErr: any) {
+        console.warn("Could not load PayIn options:", optErr);
+        if (optErr?.response?.status === 503) {
+          setIsServiceDown(true);
+          setGateways([]);
+          return;
+        }
+      }
+
+      // 2. Fetch specific Gateway Card Schemes
+      if (activeVendorCode) {
+        const res = await apiClient.get(`/api/v1/payin/card-schemes?vendor_code=${encodeURIComponent(activeVendorCode)}`);
+        if (Array.isArray(res.data)) {
           setCardSchemes(res.data);
         }
-      } catch (err) {
-        console.error("Failed to load Admin card schemes MDR:", err);
-      } finally {
-        if (!isCancelled) setIsLoadingSchemes(false);
       }
+    } catch (err) {
+      console.error("Failed to load Admin card schemes MDR:", err);
+    } finally {
+      setIsLoadingGateways(false);
+      setIsLoadingSchemes(false);
     }
+  }, [selectedGatewayId, selectedGateway?.vendorCode]);
+
+  useEffect(() => {
     fetchCompanyPayinConfig();
-    return () => {
-      isCancelled = true;
-    };
-  }, [selectedGateway.vendorCode]);
+  }, [fetchCompanyPayinConfig]);
 
   // Mobile Validation
   const cleanMobile = customerMobile.trim();
@@ -363,7 +388,7 @@ export default function RetailerPayinPage() {
   useEffect(() => {
     let isCancelled = false;
 
-    if (!isAmountValid || numericAmount < 100) {
+    if (!isAmountValid || numericAmount < 100 || !selectedGateway?.vendorCode || isServiceDown) {
       setMdrPreview(null);
       setMdrError(null);
       return;
@@ -387,10 +412,16 @@ export default function RetailerPayinPage() {
       } catch (err: any) {
         if (!isCancelled) {
           console.error("MDR Preview calculation failed:", err);
+          if (err?.response?.status === 503) {
+            setIsServiceDown(true);
+            setGateways([]);
+            return;
+          }
           const detail =
+            err.response?.data?.detail?.message ||
             err.response?.data?.detail ||
             "No active MDR configuration found for this payment gateway. Please contact administrator.";
-          setMdrError(detail);
+          setMdrError(typeof detail === "string" ? detail : "PayIn service is unavailable.");
           setMdrPreview(null);
         }
       } finally {
@@ -404,7 +435,7 @@ export default function RetailerPayinPage() {
       isCancelled = true;
       clearTimeout(timer);
     };
-  }, [numericAmount, isAmountValid, selectedGateway.vendorCode, selectedCardNetwork]);
+  }, [numericAmount, isAmountValid, selectedGateway?.vendorCode, selectedCardNetwork, isServiceDown]);
 
   // Financial Calculations derived from backend MDR preview or baseline fallback
   const calculations = useMemo(() => {
@@ -747,7 +778,7 @@ export default function RetailerPayinPage() {
 
   // ── INITIATE PAYMENT WORKFLOW ──
   const handleContinueToPayment = async () => {
-    if (!isMobileValid || !isAmountValid || !acceptedTerms || isInitiating || !!mdrError) {
+    if (!isMobileValid || !isAmountValid || !acceptedTerms || isInitiating || !!mdrError || isServiceDown || !selectedGateway) {
       return;
     }
 
@@ -765,14 +796,14 @@ export default function RetailerPayinPage() {
       // 2. Call backend PayIn initiation API (Authoritative Admin Configuration)
       const reqPayload = {
         amount: calculations.topupAmount,
-        customer_name: "Sathus Retailer 3",
+        customer_name: cleanMobile || "Retailer Partner",
         customer_mobile: cleanMobile,
         reference_id: uniqueRef,
         payment_mode: "CARD",
         payment_mode_code: "CARD",
         vendor_code: selectedGateway.vendorCode,
         card_network: selectedCardNetwork || undefined,
-        note: "SMSPAY Retailer PayIn Top-Up"
+        note: `${branding.display_name || branding.company_code || "Retailer"} PayIn Top-Up`
       };
 
       const res = await apiClient.post("/api/v1/payin/collect", reqPayload);
@@ -812,7 +843,7 @@ export default function RetailerPayinPage() {
       const newTxnRecord: ActiveTransaction = {
         tid: generatedTid,
         paymentUrl: finalPaymentUrl,
-        gateway: selectedGateway.name,
+        gateway: selectedGateway?.name || "Payment Gateway",
         customerMobile: cleanMobile,
         cardType: "Card Payment (Provider Identified)",
         cardNetwork: "AUTO",
@@ -1209,7 +1240,7 @@ export default function RetailerPayinPage() {
                   </div>
                   <div>
                     <h3 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
-                      A new tab has been opened for your payment with {maskGatewayName(activeTxn?.gateway || selectedGateway.name)}.
+                      A new tab has been opened for your payment with {maskGatewayName(activeTxn?.gateway || selectedGateway?.name || "Payment Gateway")}.
                     </h3>
                     <p className="text-[11px] text-slate-500 font-medium">
                       Complete the payment in that tab. You can check the status here anytime.
@@ -1274,7 +1305,7 @@ export default function RetailerPayinPage() {
                       <span className="w-6 h-4 rounded bg-blue-600 text-white font-black text-[9px] flex items-center justify-center">
                         {maskGatewayName(activeTxn.gateway).includes("G-2") ? "G-2" : "G-1"}
                       </span>
-                      <span className="font-bold text-slate-900 text-xs sm:text-sm">{maskGatewayName(activeTxn.gateway || selectedGateway.name)}</span>
+                      <span className="font-bold text-slate-900 text-xs sm:text-sm">{maskGatewayName(activeTxn.gateway || selectedGateway?.name || "Payment Gateway")}</span>
                     </div>
                   </div>
 
@@ -1749,7 +1780,7 @@ export default function RetailerPayinPage() {
                     <span className="w-3.5 h-3.5 rounded bg-blue-600 text-white font-black text-[8px] flex items-center justify-center flex-shrink-0">
                       G
                     </span>
-                    <span className="truncate">{activeTxn?.gateway || selectedGateway.name} - Secure Payment</span>
+                    <span className="truncate">{activeTxn?.gateway || selectedGateway?.name || "Payment Gateway"} - Secure Payment</span>
                     <span className="text-slate-400 text-xs ml-1">×</span>
                   </div>
 
@@ -1778,7 +1809,7 @@ export default function RetailerPayinPage() {
                       <span className="w-5 h-5 rounded bg-blue-600 text-white font-black text-xs flex items-center justify-center">
                         G
                       </span>
-                      <span className="text-xs font-black text-slate-900">{activeTxn?.gateway || selectedGateway.name}</span>
+                      <span className="text-xs font-black text-slate-900">{activeTxn?.gateway || selectedGateway?.name || "Payment Gateway"}</span>
                     </div>
                     <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                       <Lock className="w-2.5 h-2.5 text-emerald-600" />
@@ -1849,7 +1880,7 @@ export default function RetailerPayinPage() {
               {/* Label below window */}
               <div className="pt-2.5 flex justify-center">
                 <span className="px-3.5 py-1 rounded-full border border-red-300 bg-red-50 text-red-600 font-bold text-xs shadow-xs">
-                  New Tab ({activeTxn?.gateway || selectedGateway.name})
+                  New Tab ({activeTxn?.gateway || selectedGateway?.name || "Payment Gateway"})
                 </span>
               </div>
             </div>
@@ -1861,6 +1892,13 @@ export default function RetailerPayinPage() {
       </div>
       </div>
     );
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // RENDER: SERVICE DOWN / NO PAYIN API CONFIGURED FOR COMPANY
+  // ═════════════════════════════════════════════════════════════════════════
+  if (isServiceDown || (!isLoadingGateways && gateways.length === 0)) {
+    return <ServiceDownMaintenance service="PayIn" onRetry={fetchCompanyPayinConfig} />;
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -2136,7 +2174,7 @@ export default function RetailerPayinPage() {
               {isLoadingSchemes ? (
                 <div className="p-8 rounded-xl border border-slate-200 bg-white/60 flex items-center justify-center space-x-2 text-slate-500 text-xs">
                   <span className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-                  <span>Loading applicable card schemes for {selectedGateway.name}...</span>
+                  <span>Loading applicable card schemes for {selectedGateway?.name || "Payment Gateway"}...</span>
                 </div>
               ) : cardSchemes.length === 0 ? (
                 <div className="p-8 rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 text-center flex flex-col items-center justify-center">
@@ -2145,7 +2183,7 @@ export default function RetailerPayinPage() {
                   </div>
                   <p className="text-sm font-bold text-slate-700">No Active Card Schemes Available</p>
                   <p className="text-xs text-slate-500 max-w-sm mt-1">
-                    No card categories are currently enabled for {selectedGateway.name}. Please select a different payment gateway or payment method.
+                    No card categories are currently enabled for {selectedGateway?.name || "Payment Gateway"}. Please select a different payment gateway or payment method.
                   </p>
                 </div>
               ) : (
@@ -2279,7 +2317,7 @@ export default function RetailerPayinPage() {
                       <Layers className="payin-summary__row-icon" />
                       <span>Payment Gateway</span>
                     </span>
-                    <span className="payin-summary__row-value">{selectedGateway.name}</span>
+                    <span className="payin-summary__row-value">{selectedGateway?.name || "Payment Gateway"}</span>
                   </div>
                   <div className="payin-summary__row">
                     <span className="payin-summary__row-label">

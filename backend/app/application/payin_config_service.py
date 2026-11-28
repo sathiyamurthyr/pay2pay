@@ -9,6 +9,8 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 from sqlalchemy import text, select, and_, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import HTTPException, status
+from app.core.config import settings
 from app.infrastructure.db.payin_models import (
     PayinCompanyCfgModel, PayinVendorModel, PayinCompanyVendorModel,
     PayinServiceTypeModel, PayinPaymentModeModel, PayinCardTypeModel,
@@ -28,6 +30,32 @@ class PayInConfigService:
     """
     Service handling PayIn configuration retrieval, validation, and administrative management.
     """
+
+    @classmethod
+    def is_vendor_operational_for_company(
+        cls,
+        company_ref_id: int,
+        vendor_code: Optional[str],
+        merchant_id: Optional[str] = None,
+    ) -> bool:
+        """
+        Strict company API isolation: verifies that the given vendor has a live,
+        authorized API integration and credentials belonging specifically to company_ref_id.
+        Never permits another company (e.g. Near4You=1, Pay2Pay=47) to use SMSPay's BankMe API.
+        """
+        v_code = (vendor_code or "").strip().upper()
+        if int(company_ref_id) == 2 and v_code == "BANKME":
+            has_key = bool(
+                getattr(settings, "SMSPAY_PAYIN_KEY", None)
+                or getattr(settings, "BANKME_PAYIN_API_KEY_ID", None)
+            )
+            has_secret = bool(
+                getattr(settings, "SMSPAY_PAYIN_AUTHKEY", None)
+                or getattr(settings, "BANKME_PAYIN_API_SECRET", None)
+                or getattr(settings, "BANKME_PAYIN_API_KEY", None)
+            )
+            return has_key and has_secret
+        return False
 
     @classmethod
     async def get_retailer_payin_options(
@@ -52,8 +80,8 @@ class PayInConfigService:
         if comp_cfg and not comp_cfg.payin_enabled:
             raise DomainException("PayIn services are currently disabled for your organization.")
 
-        # Get Company Name
-        c_name = "SMSPAY" if company_ref_id == 2 else ("Near4You" if company_ref_id == 1 else "Pay2Pay")
+        # Get Company Name strictly from public.company
+        c_name = ""
         name_stmt = text("SELECT company_name FROM public.company WHERE company_ref_id = :c_ref LIMIT 1;")
         name_res = await db.execute(name_stmt, {"c_ref": company_ref_id})
         comp_row = name_res.fetchone()
@@ -122,7 +150,8 @@ class PayInConfigService:
                 cv.status,
                 cv.is_enabled,
                 COALESCE(cv.min_amount, 10.00) AS min_amount,
-                COALESCE(cv.max_amount, 500000.00) AS max_amount
+                COALESCE(cv.max_amount, 500000.00) AS max_amount,
+                cv.merchant_id
             FROM public.payin_company_vendors cv
             JOIN public.payin_vendors v ON cv.payin_vendor_ref_id = v.payin_vendor_ref_id
             WHERE cv.company_ref_id = :c_ref 
@@ -139,6 +168,9 @@ class PayInConfigService:
         for r in raw_vendors:
             v_ref_id = r[0]
             raw_vcode = r[1]
+            m_id = r[13] if len(r) > 13 else None
+            if not is_admin and not cls.is_vendor_operational_for_company(company_ref_id, raw_vcode, m_id):
+                continue
             raw_vname = r[2]
             raw_pname = r[3]
             is_def = r[4]
@@ -196,8 +228,8 @@ class PayInConfigService:
         if not is_admin:
             vendors.sort(key=lambda x: (x.display_order or 1, x.gateway_code or x.vendor_code))
 
-        # 6. Configured Card Schemes with Admin MDR
-        card_schemes = await cls.get_card_schemes_mdr(db=db, company_ref_id=company_ref_id)
+        # 6. Configured Card Schemes with Admin MDR (only if company has operational vendors)
+        card_schemes = await cls.get_card_schemes_mdr(db=db, company_ref_id=company_ref_id) if vendors else []
 
         active_policy = comp_cfg.customer_payable_policy if comp_cfg and comp_cfg.customer_payable_policy else "WITH_MDR"
         policy_name = "Customer Pays MDR Charges" if active_policy == "WITH_MDR" else "Retailer Bears MDR Charges"
@@ -365,14 +397,12 @@ class PayInConfigService:
         requested_vendor_code: Optional[str] = None
     ) -> PayinVendorModel:
         """
-        Resolves the authoritative vendor for the authenticated company.
-        SMSPay (company_ref_id = 2) always defaults to BANKME unless explicitly remapped.
+        Resolves the authoritative, operational vendor configured specifically for the authenticated company.
+        Strict company API isolation: never falls back to another company's API/vendor or global vendor.
         """
         if requested_vendor_code and requested_vendor_code.strip():
             req_code = requested_vendor_code.strip().upper()
-            internal_code = GatewayMaskingService.resolve_internal_vendor(req_code)
 
-            # Check if this company vendor mapping exists and whether it is inactive
             check_stmt = select(PayinCompanyVendorModel, PayinVendorModel).join(
                 PayinVendorModel,
                 PayinCompanyVendorModel.payin_vendor_ref_id == PayinVendorModel.payin_vendor_ref_id
@@ -380,7 +410,6 @@ class PayInConfigService:
                 PayinCompanyVendorModel.company_ref_id == company_ref_id,
                 or_(
                     func.upper(PayinCompanyVendorModel.gateway_code) == req_code,
-                    func.upper(PayinVendorModel.vendor_code) == internal_code,
                     func.upper(PayinVendorModel.vendor_code) == req_code
                 )
             )
@@ -388,29 +417,27 @@ class PayInConfigService:
             cv_row = check_res.first()
             if cv_row:
                 cv_obj, v_obj = cv_row
-                if v_obj.vendor_status != "ACTIVE":
-                    raise DomainException(f"Selected payment vendor '{v_obj.vendor_name}' is currently inactive or disabled.")
-                if not cv_obj.is_enabled or cv_obj.status == "INACTIVE":
-                    raise DomainException(f"Selected payment gateway '{cv_obj.retailer_display_name or req_code}' is currently inactive or disabled.")
-                return v_obj
-            else:
-                # Requested vendor not mapped to this company. Check if vendor exists globally
-                v_global_stmt = select(PayinVendorModel).where(
-                    or_(
-                        func.upper(PayinVendorModel.vendor_code) == internal_code,
-                        func.upper(PayinVendorModel.vendor_code) == req_code
+                if v_obj.vendor_status != "ACTIVE" or not cv_obj.is_enabled or cv_obj.status == "INACTIVE":
+                    raise HTTPException(
+                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                        detail={
+                            "code": "SERVICE_DOWN",
+                            "message": f"PayIn service is down: Gateway '{cv_obj.retailer_display_name or req_code}' is currently inactive."
+                        }
                     )
-                )
-                v_global = (await db.execute(v_global_stmt)).scalars().first()
-                if v_global:
-                    if v_global.vendor_status != "ACTIVE":
-                        raise DomainException(f"Selected payment vendor '{v_global.vendor_name}' is currently inactive or disabled.")
-                    raise DomainException(f"Selected payment vendor '{v_global.vendor_name}' is not configured or enabled for your company.")
-                raise DomainException(f"Invalid or unrecognized payment gateway '{requested_vendor_code}'.")
+                if not cls.is_vendor_operational_for_company(company_ref_id, v_obj.vendor_code, cv_obj.merchant_id):
+                    raise HTTPException(
+                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                        detail={
+                            "code": "SERVICE_DOWN",
+                            "message": "PayIn service is down: No active PayIn API is configured for your company."
+                        }
+                    )
+                return v_obj
 
-        # Fallback to default active vendor for company
-        stmt_def = select(PayinVendorModel).join(
-            PayinCompanyVendorModel,
+        # Strict company-scoped default active vendor lookup (NO cross-company fallback)
+        stmt_def = select(PayinCompanyVendorModel, PayinVendorModel).join(
+            PayinVendorModel,
             PayinCompanyVendorModel.payin_vendor_ref_id == PayinVendorModel.payin_vendor_ref_id
         ).where(
             PayinCompanyVendorModel.company_ref_id == company_ref_id,
@@ -423,30 +450,17 @@ class PayInConfigService:
             PayinCompanyVendorModel.vendor_priority.asc()
         )
         res_def = await db.execute(stmt_def)
-        vendor_def = res_def.scalars().first()
-        if vendor_def:
-            return vendor_def
+        for cv_obj, v_obj in res_def.all():
+            if cls.is_vendor_operational_for_company(company_ref_id, v_obj.vendor_code, cv_obj.merchant_id):
+                return v_obj
 
-        # Absolute default for SMSPay (company_ref_id=2)
-        if company_ref_id == 2:
-            stmt_bankme = select(PayinVendorModel).where(
-                PayinVendorModel.vendor_code == "BANKME",
-                PayinVendorModel.vendor_status == "ACTIVE"
-            )
-            v_bme = (await db.execute(stmt_bankme)).scalars().first()
-            if v_bme:
-                return v_bme
-        else:
-            # Fallback for all other companies to EXISTING provider
-            stmt_existing = select(PayinVendorModel).where(
-                PayinVendorModel.vendor_code == "EXISTING",
-                PayinVendorModel.vendor_status == "ACTIVE"
-            )
-            v_ext = (await db.execute(stmt_existing)).scalars().first()
-            if v_ext:
-                return v_ext
-
-        raise DomainException(f"No active payment vendor configured for Company Ref ID {company_ref_id}.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "code": "SERVICE_DOWN",
+                "message": "PayIn service is down: No active PayIn API is configured for your company."
+            }
+        )
 
     @classmethod
     async def log_admin_audit(

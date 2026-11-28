@@ -29,10 +29,10 @@ export const CompanyHeader: React.FC<CompanyHeaderProps> = ({
   sx = {}
 }) => {
   const branding = useCompanyBranding();
-  const logoUrl = propLogoUrl || branding.logo_url || "/branding/logo.svg";
+  const logoUrl = propLogoUrl || branding.logo_url || "";
   const companyName = propCompanyName || branding.company_name || branding.display_name || "Enterprise";
-  const legalName = propLegalName || branding.legal_name || "Enterprise Technologies Pvt. Ltd.";
-  const brandPrimary = branding.primary_colour || "#2563EB";
+  const legalName = propLegalName || branding.legal_name || companyName;
+  const brandPrimary = branding.primary_colour || "#1E293B";
 
   const [imgError, setImgError] = useState(false);
 

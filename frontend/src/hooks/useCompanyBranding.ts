@@ -1,23 +1,20 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import { COMPANY_PRESETS, resolveBrandingByHost } from "@/lib/company-branding";
+import type { CompanyBrandingData } from "@/lib/company-branding";
 
-export interface CompanyBrandingData {
-  company_id?: string | null;
-  company_ref_id?: number;
-  tenant_ref_id?: number;
-  company_code: string;
-  company_name: string;
-  legal_name: string;
-  display_name: string;
-  short_name?: string;
-  logo_url: string;
-  favicon_url?: string;
-  primary_colour?: string;
-  secondary_colour?: string;
-  website?: string;
-  domains?: string[];
-}
+export { COMPANY_PRESETS, resolveBrandingByHost };
+export type { CompanyBrandingData };
+
+export const CompanyBrandingHostContext = createContext<string>("");
+
+export const CompanyBrandingProvider: React.FC<{ initialHost?: string; children: React.ReactNode }> = ({
+  initialHost = "",
+  children,
+}) => {
+  return React.createElement(CompanyBrandingHostContext.Provider, { value: initialHost }, children);
+};
 
 export type BrandingStatus = "RESOLVED" | "LOADING" | "DOMAIN_ERROR" | "COMPANY_ERROR" | "BRANDING_ERROR";
 
@@ -29,137 +26,36 @@ export interface BrandingError {
   domain?: string;
 }
 
-export const COMPANY_PRESETS: Record<string, CompanyBrandingData> = {
-  NEAR4YOU: {
-    company_ref_id: 1,
-    tenant_ref_id: 1,
-    company_code: "NEAR4YOU",
-    company_name: "SATHUS TECHNOLOGY PRIVATE LIMITED",
-    legal_name: "SATHUS TECHNOLOGY PRIVATE LIMITED",
-    display_name: "Near4You",
-    short_name: "N4U",
-    logo_url: "/branding/logo.svg",
-    favicon_url: "/branding/near4you-favicon.png",
-    primary_colour: "#A20A3A",
-    secondary_colour: "#EDC11E",
-    website: "https://near4you.store",
-    domains: ["near4you.store", "login.near4you.store", "admin.near4you.store", "receipt.near4you.store", "near4you.in", "admin.near4you.in", "receipt.near4you.in"],
-  },
-  PAY2PAY: {
-    company_ref_id: 47,
-    tenant_ref_id: 1,
-    company_code: "PAY2PAY",
-    company_name: "SUPER REX PRODUCTS PRIVATE LIMITED",
-    legal_name: "SUPER REX PRODUCTS PRIVATE LIMITED",
-    display_name: "Pay2Pay",
-    short_name: "P2P",
-    logo_url: "/branding/pay2pay-logo.png",
-    favicon_url: "/branding/pay2pay-favicon.png",
-    primary_colour: "#2563EB",
-    secondary_colour: "#1E40AF",
-    website: "https://pay2pay.in",
-    domains: ["pay2pay.in", "login.pay2pay.in", "admin.pay2pay.in", "receipt.pay2pay.in", "pay2pay.com", "admin.pay2pay.com"],
-  },
-  SMSPAY: {
-    company_ref_id: 2,
-    tenant_ref_id: 1,
-    company_code: "SMSPAY",
-    company_name: "INSPEL TECHNOLOGIES SOLUTIONS PVT",
-    legal_name: "INSPEL TECHNOLOGIES SOLUTIONS PVT",
-    display_name: "SMSPAY",
-    short_name: "SMSP",
-    logo_url: "/branding/smspay-logo.svg",
-    favicon_url: "/branding/smspay-favicon-32x32.png",
-    primary_colour: "#0F3B7D",
-    secondary_colour: "#D4AF37",
-    website: "https://smspay.store",
-    domains: ["smspay.store", "login.smspay.store", "admin.smspay.store", "receipt.smspay.store", "smspay.in", "login.smspay.in", "admin.smspay.in", "receipt.smspay.in"],
-  },
-};
-
 /**
  * Resolves application identity strictly using the verified canonical hostname and port.
- * Never allows stale localStorage or other domain contexts to leak branding across domains.
+ * Works on both SSR (using CompanyBrandingProvider initialHost) and browser.
  * Returns null if the domain is unmapped/unknown to prevent silent cross-company fallback.
  */
-export function getInitialBrandingByHostname(): CompanyBrandingData | null {
-  if (typeof window === "undefined") {
-    return COMPANY_PRESETS.PAY2PAY;
+export function getInitialBrandingByHostname(ssrHost?: string): CompanyBrandingData | null {
+  if (typeof window !== "undefined") {
+    return resolveBrandingByHost(window.location.host, window.location.search);
   }
-
-  const host = window.location.hostname.toLowerCase();
-  const port = window.location.port;
-
-  // 1. Explicit Query Parameter check for simulated / testing contexts
-  try {
-    const searchParams = new URLSearchParams(window.location.search);
-    const domainParam = (searchParams.get("domain") || searchParams.get("host") || "").toLowerCase();
-    const companyParam = (searchParams.get("company") || "").toLowerCase();
-
-    if (domainParam === "unknown.com" || companyParam === "unknown" || companyParam === "invalid") {
-      return null;
-    }
-    if (domainParam.includes("pay2pay") || companyParam.includes("pay2pay")) return COMPANY_PRESETS.PAY2PAY;
-    if (domainParam.includes("near4you") || companyParam.includes("near4you")) return COMPANY_PRESETS.NEAR4YOU;
-    if (domainParam.includes("smspay") || companyParam.includes("smspay")) return COMPANY_PRESETS.SMSPAY;
-  } catch {}
-
-  // 2. Production Canonical Domains (Highest Authority - Strict Domain Isolation)
-  if (
-    host.includes("pay2pay") ||
-    host.endsWith("pay2pay.in") ||
-    host.endsWith("pay2pay.com")
-  ) {
-    return COMPANY_PRESETS.PAY2PAY;
+  if (ssrHost) {
+    return resolveBrandingByHost(ssrHost);
   }
-  if (
-    host.includes("near4you") ||
-    host.endsWith("near4you.store") ||
-    host.endsWith("near4you.in")
-  ) {
-    return COMPANY_PRESETS.NEAR4YOU;
-  }
-  if (
-    host.includes("smspay") ||
-    host.endsWith("smspay.store") ||
-    host.endsWith("smspay.in")
-  ) {
-    return COMPANY_PRESETS.SMSPAY;
-  }
-
-  // 3. Localhost Dedicated Port Resolution
-  if (host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0") {
-    if (port === "3000" || port === "4003") {
-      return COMPANY_PRESETS.PAY2PAY;
-    }
-    if (port === "4001") {
-      return COMPANY_PRESETS.NEAR4YOU;
-    }
-    if (port === "4002") {
-      return COMPANY_PRESETS.SMSPAY;
-    }
-    // Generic local dev default on base port
-    return COMPANY_PRESETS.PAY2PAY;
-  }
-
-  // 4. Any other unmapped public host: FAIL CLOSED!
   return null;
 }
 
 export function useCompanyBranding() {
-  const initial = getInitialBrandingByHostname();
+  const ssrHost = useContext(CompanyBrandingHostContext);
+  const initial = getInitialBrandingByHostname(ssrHost);
   const [branding, setBranding] = useState<CompanyBrandingData | null>(initial);
   const [status, setStatus] = useState<BrandingStatus>(initial ? "RESOLVED" : "DOMAIN_ERROR");
   const [error, setError] = useState<BrandingError | null>(
     initial
       ? null
       : {
-          code: "UNMAPPED_DOMAIN",
-          message: `Application Identity Configuration Error: Hostname '${typeof window !== "undefined" ? window.location.hostname : ""}' is not mapped to any registered company identity.`,
-          domain: typeof window !== "undefined" ? window.location.hostname : "",
-          isRetryable: true,
-          correlationId: `cid-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
-        }
+        code: "UNMAPPED_DOMAIN",
+        message: `Application Identity Configuration Error: Hostname '${typeof window !== "undefined" ? window.location.hostname : ssrHost}' is not mapped to any registered company identity.`,
+        domain: typeof window !== "undefined" ? window.location.hostname : ssrHost,
+        isRetryable: true,
+        correlationId: `cid-init-dom`
+      }
   );
   const [isLoading, setIsLoading] = useState<boolean>(!initial);
   const isFetchingRef = useRef<boolean>(false);
@@ -176,7 +72,7 @@ export function useCompanyBranding() {
         sessionStorage.removeItem("p2p_cached_branding_host");
       }
       sessionStorage.setItem("p2p_last_hostname", curHost);
-    } catch {}
+    } catch { }
   }, []);
 
   const fetchBranding = useCallback(async (isRetry = false) => {
@@ -220,20 +116,20 @@ export function useCompanyBranding() {
               applyBrandingTokens(cachedData);
               return;
             }
-          } catch {}
+          } catch { }
         }
       }
 
       const token =
         typeof window !== "undefined"
           ? localStorage.getItem("p2p_admin_token") ||
-            localStorage.getItem("p2p_super_admin_token") ||
-            localStorage.getItem("p2p_retailer_token") ||
-            localStorage.getItem("p2p_access_token") ||
-            localStorage.getItem("accessToken") ||
-            localStorage.getItem("token") ||
-            localStorage.getItem("auth_token") ||
-            localStorage.getItem("pay2pay_access_token")
+          localStorage.getItem("p2p_super_admin_token") ||
+          localStorage.getItem("p2p_retailer_token") ||
+          localStorage.getItem("p2p_access_token") ||
+          localStorage.getItem("accessToken") ||
+          localStorage.getItem("token") ||
+          localStorage.getItem("auth_token") ||
+          localStorage.getItem("pay2pay_access_token")
           : null;
 
       const headers: Record<string, string> = {};
@@ -242,17 +138,10 @@ export function useCompanyBranding() {
       }
 
       const queryParams = new URLSearchParams();
-      if (canonical.company_code === "PAY2PAY") {
-        queryParams.set("domain", "pay2pay.in");
-        queryParams.set("company", "PAY2PAY");
-      } else if (canonical.company_code === "NEAR4YOU") {
-        queryParams.set("domain", "near4you.store");
-        queryParams.set("company", "NEAR4YOU");
-      } else if (canonical.company_code === "SMSPAY") {
-        queryParams.set("domain", "smspay.store");
-        queryParams.set("company", "SMSPAY");
-      } else if (host && host !== "localhost" && host !== "127.0.0.1") {
+      if (host && host !== "localhost" && host !== "127.0.0.1" && host !== "0.0.0.0") {
         queryParams.set("domain", host);
+      } else if (canonical.company_code) {
+        queryParams.set("company", canonical.company_code);
       }
 
       const endpoint = `/api/v1/companies/branding?${queryParams.toString()}`;
@@ -272,48 +161,16 @@ export function useCompanyBranding() {
           const data: CompanyBrandingData = json.data;
 
           // Cross-domain brand safety validation
-          if (canonical.company_code && data.company_code && data.company_code !== canonical.company_code) {
-            if (data.company_code === "SUPERREX" && ["SMSPAY", "PAY2PAY", "NEAR4YOU"].includes(canonical.company_code)) {
-              data.company_code = canonical.company_code;
-            } else {
-              throw new Error(`Cross-domain brand mismatch: Expected ${canonical.company_code}, received ${data.company_code}`);
-            }
-          }
-
-          if (canonical.company_code === "NEAR4YOU" || data.company_code === "NEAR4YOU" || (data.company_name && data.company_name.replace(/\s+/g, "").toUpperCase() === "NEAR4YOU")) {
-            data.display_name = "Near4You";
-            data.company_name = "SATHUS TECHNOLOGY PRIVATE LIMITED";
-            data.legal_name = "SATHUS TECHNOLOGY PRIVATE LIMITED";
-            data.logo_url = "/branding/logo.svg";
-            data.favicon_url = "/branding/near4you-favicon.png";
-            data.primary_colour = "#A20A3A";
-            data.secondary_colour = "#EDC11E";
-          }
-          if (canonical.company_code === "PAY2PAY" || data.company_code === "PAY2PAY" || (data.company_name && data.company_name.replace(/\s+/g, "").toUpperCase() === "PAY2PAY")) {
-            data.display_name = "Pay2Pay";
-            data.company_name = "SUPER REX PRODUCTS PRIVATE LIMITED";
-            data.legal_name = "SUPER REX PRODUCTS PRIVATE LIMITED";
-            data.logo_url = "/branding/pay2pay-logo.png";
-            data.favicon_url = "/branding/pay2pay-favicon.png";
-            data.primary_colour = "#2563EB";
-            data.secondary_colour = "#1E40AF";
-          }
-          if (canonical.company_code === "SMSPAY" || data.company_code === "SMSPAY" || (data.company_name && data.company_name.replace(/\s+/g, "").toUpperCase() === "SMSPAY")) {
-            data.display_name = "SMSPAY";
-            data.company_name = "INSPEL TECHNOLOGIES SOLUTIONS PVT";
-            data.legal_name = "INSPEL TECHNOLOGIES SOLUTIONS PVT";
-            data.logo_url = "/branding/smspay-logo.svg";
-            data.favicon_url = "/branding/smspay-favicon-32x32.png";
-            data.primary_colour = "#0F3B7D";
-            data.secondary_colour = "#D4AF37";
+          if (canonical?.company_code && data.company_code && data.company_code !== canonical.company_code) {
+            throw new Error(`Cross-domain brand mismatch: Expected ${canonical.company_code}, received ${data.company_code}`);
           }
 
           setBranding(data);
           setStatus("RESOLVED");
           setError(null);
 
-          // Store in tenant-scoped session cache
-          if (typeof window !== "undefined") {
+          // Store in company-scoped session cache
+          if (typeof window !== "undefined" && data.company_code) {
             sessionStorage.setItem(`p2p_cached_branding_${data.company_code}`, JSON.stringify(data));
           }
 
@@ -386,6 +243,14 @@ export function useCompanyBranding() {
   }, [fetchBranding]);
 
   return {
+    company_code: branding?.company_code || "",
+    company_name: branding?.company_name || "",
+    legal_name: branding?.legal_name || "",
+    display_name: branding?.display_name || "",
+    logo_url: branding?.logo_url || "",
+    favicon_url: branding?.favicon_url || "",
+    primary_colour: branding?.primary_colour || "",
+    secondary_colour: branding?.secondary_colour || "",
     ...branding,
     branding,
     status,
@@ -407,17 +272,47 @@ function applyBrandingTokens(data: CompanyBrandingData) {
 
   if (data.primary_colour) {
     root.style.setProperty("--brand-primary", data.primary_colour);
+    root.style.setProperty("--brand-surface", `${data.primary_colour}12`);
+    root.style.setProperty("--brand-border", `${data.primary_colour}40`);
     root.style.setProperty("--accent", data.primary_colour);
+    root.style.setProperty("--info", data.primary_colour);
+    root.style.setProperty("--ent-primary", data.primary_colour);
+    root.style.setProperty("--ent-primary-text", data.primary_colour);
+    root.style.setProperty("--ent-primary-light", `${data.primary_colour}14`);
+    root.style.setProperty("--ent-sidebar-active", data.primary_colour);
+    root.style.setProperty("--ent-sidebar-active-bg", `${data.primary_colour}14`);
+    root.style.setProperty("--ent-sidebar-category", data.primary_colour);
+    root.style.setProperty("--ent-info", data.primary_colour);
+    root.style.setProperty("--ent-info-text", data.primary_colour);
+    root.style.setProperty("--ent-purple-text", data.primary_colour);
+    root.style.setProperty("--p2p-primary-color", data.primary_colour);
+    root.style.setProperty("--grid-primary", data.primary_colour);
+    root.style.setProperty("--grid-search-focus-border", data.primary_colour);
+    root.style.setProperty("--grid-search-focus-shadow", `${data.primary_colour}28`);
   }
   if (data.secondary_colour) {
     root.style.setProperty("--brand-secondary", data.secondary_colour);
+    root.style.setProperty("--accent-hover", data.secondary_colour);
     root.style.setProperty("--accent-gold", data.secondary_colour);
+    root.style.setProperty("--accent-orange", data.secondary_colour);
+    root.style.setProperty("--ent-primary-hover", data.secondary_colour);
+    root.style.setProperty("--grid-primary-hover", data.secondary_colour);
+  }
+  if (data.primary_colour && data.secondary_colour) {
+    const richGrad = `linear-gradient(135deg, ${data.primary_colour} 0%, ${data.secondary_colour} 100%)`;
+    root.style.setProperty("--brand-gradient", richGrad);
+    root.style.setProperty("--gradient-rich", richGrad);
+    root.style.setProperty("--gradient-rich-h", `linear-gradient(to right, ${data.primary_colour} 0%, ${data.secondary_colour} 100%)`);
   }
 
   root.style.setProperty("--text-primary", isNear4You ? "#292329" : "#0F172A");
   root.style.setProperty("--text-secondary", isNear4You ? "#625B60" : "#334155");
   root.style.setProperty("--border", isNear4You ? "#E8E2E5" : "#E2E8F0");
   root.setAttribute("data-company", data.company_code);
+
+  try {
+    window.dispatchEvent(new CustomEvent("p2p_branding_updated", { detail: data }));
+  } catch {}
 
   if (data.display_name && !document.title.includes(data.display_name)) {
     document.title = `${data.display_name} - FinTech Platform`;
@@ -462,8 +357,8 @@ function applyBrandingTokens(data: CompanyBrandingData) {
     const appleUrl = data.company_code === "SMSPAY"
       ? "/branding/smspay-icon-192.png"
       : data.company_code === "PAY2PAY"
-      ? "/branding/pay2pay-icon-192.png"
-      : "/branding/near4you-favicon.png";
+        ? "/branding/pay2pay-icon-192.png"
+        : "/branding/near4you-favicon.png";
     if (appleIcon) {
       appleIcon.href = appleUrl;
     }

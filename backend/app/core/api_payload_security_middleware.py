@@ -20,8 +20,8 @@ logger = logging.getLogger("api_payload_security")
 
 # Constants
 PROTOCOL_VERSION = "1.0"
-DEFAULT_APP_ID = "SMSPAY"
-DEFAULT_KEY_ID = "smspay-v1-prod"
+DEFAULT_APP_ID = "PLATFORM"
+DEFAULT_KEY_ID = "platform-v1-prod"
 REQUEST_INFO = b"sathus:crypto:request:v1"
 RESPONSE_INFO = b"sathus:crypto:response:v1"
 
@@ -96,14 +96,52 @@ def init_or_load_rsa_keypair() -> Tuple[str, str]:
     return _SERVER_PRIVATE_KEY_PEM, _SERVER_PUBLIC_KEY_PEM
 
 
-def get_server_public_key() -> Dict[str, str]:
+def resolve_app_id_from_request(request: Optional[Request] = None, explicit_app_id: Optional[str] = None) -> str:
     """
-    Public key retrieval payload for frontend key negotiation.
+    Dynamically resolves the application identifier based on:
+    1. Authoritative Host / X-Forwarded-Host / Origin / Referer domain inspection:
+       - near4you.store, *.near4you.store -> NEAR4YOU
+       - smspay.store, *.smspay.store -> SMSPAY
+       - pay2pay.in, *.pay2pay.in -> PAY2PAY
+    2. Explicit valid app_id or x-sathus-app-id header (only when host is localhost/internal)
     """
+    if request:
+        forwarded = (request.headers.get("x-forwarded-host") or "").split(",")[0].strip().lower()
+        host = (request.headers.get("host") or "").split(",")[0].strip().lower()
+        origin = (request.headers.get("origin") or "").lower()
+        referer = (request.headers.get("referer") or "").lower()
+
+        # Authoritative HTTP Host / X-Forwarded-Host always takes precedence
+        for candidate in (forwarded, host, origin, referer):
+            if not candidate:
+                continue
+            if "near4you" in candidate:
+                return "NEAR4YOU"
+            if "smspay" in candidate:
+                return "SMSPAY"
+            if "pay2pay" in candidate:
+                return "PAY2PAY"
+
+        hdr_app = request.headers.get("x-sathus-app-id")
+        if hdr_app and str(hdr_app).strip().upper() in ("NEAR4YOU", "SMSPAY", "PAY2PAY"):
+            return str(hdr_app).strip().upper()
+
+    if explicit_app_id and str(explicit_app_id).strip().upper() in ("NEAR4YOU", "SMSPAY", "PAY2PAY"):
+        return str(explicit_app_id).strip().upper()
+
+    return DEFAULT_APP_ID
+
+
+def get_server_public_key(request: Optional[Request] = None) -> Dict[str, str]:
+    """
+    Public key retrieval payload for frontend key negotiation with dynamic domain-scoped app_id.
+    """
+    app_id = resolve_app_id_from_request(request)
+    key_id = f"{app_id.lower()}-v1-prod"
     _, pub_pem = init_or_load_rsa_keypair()
     return {
-        "app_id": DEFAULT_APP_ID,
-        "key_id": DEFAULT_KEY_ID,
+        "app_id": app_id,
+        "key_id": key_id,
         "version": PROTOCOL_VERSION,
         "public_key_pem": pub_pem,
     }
@@ -236,7 +274,7 @@ class ApiPayloadSecurityMiddleware(BaseHTTPMiddleware):
         encrypted_key_hdr = request.headers.get("x-sathus-encrypted-key")
         nonce_hdr = request.headers.get("x-sathus-nonce")
         timestamp_hdr = request.headers.get("x-sathus-timestamp")
-        app_id_hdr = request.headers.get("x-sathus-app-id", self.app_id)
+        app_id_hdr = request.headers.get("x-sathus-app-id")
         encrypt_response_hdr = request.headers.get("x-sathus-encrypt-response")
 
         body_envelope = None
@@ -263,7 +301,16 @@ class ApiPayloadSecurityMiddleware(BaseHTTPMiddleware):
             encrypted_key_b64 = encrypted_key_hdr or (body_envelope.get("encrypted_key") if body_envelope else None)
             nonce = nonce_hdr or (body_envelope.get("nonce") if body_envelope else None) or uuid.uuid4().hex
             timestamp = int(timestamp_hdr) if timestamp_hdr else (body_envelope.get("timestamp") if body_envelope else int(time.time()))
-            app_id = app_id_hdr or (body_envelope.get("app_id") if body_envelope else self.app_id)
+            # Derive authoritative domain-scoped app_id; never allow stale client header to override domain
+            inferred_app_id = resolve_app_id_from_request(request)
+            if inferred_app_id in ("NEAR4YOU", "SMSPAY", "PAY2PAY"):
+                app_id = inferred_app_id
+            else:
+                app_id_candidate = app_id_hdr or (body_envelope.get("app_id") if body_envelope else None)
+                if app_id_candidate and str(app_id_candidate).strip().upper() in ("NEAR4YOU", "SMSPAY", "PAY2PAY"):
+                    app_id = str(app_id_candidate).strip().upper()
+                else:
+                    app_id = inferred_app_id
 
             if not encrypted_key_b64:
                 return JSONResponse(

@@ -187,6 +187,7 @@ class EnterpriseApiLoggingMiddleware(BaseHTTPMiddleware):
             or path.startswith("/api-logs")
             or path.startswith("/api/v1/session/audit")
             or path.startswith("/api/v1/bpm/approvals")
+            or path.startswith("/api/v1/demo")
             or path.startswith("/uploads")
             or path.startswith("/static")
         ):

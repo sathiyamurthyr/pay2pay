@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from "react";
 import { ThemeProvider as MuiThemeProvider, createTheme, Theme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
-import { getInitialBrandingByHostname, type CompanyBrandingData } from "@/hooks/useCompanyBranding";
+import { CompanyBrandingHostContext, getInitialBrandingByHostname, type CompanyBrandingData } from "@/hooks/useCompanyBranding";
 
 export type ThemeMode = "AUTO" | "LIGHT" | "DARK";
 export type EffectiveTheme = "light" | "dark";
@@ -82,8 +82,8 @@ export const applyThemeTokensToDOM = (
   const isPay2Pay = targetBranding.company_code === "PAY2PAY";
   const isSmsPay = targetBranding.company_code === "SMSPAY";
 
-  const primary = targetBranding.primary_colour || (isPay2Pay ? "#2563EB" : isSmsPay ? "#059669" : "#A20A3A");
-  const secondary = targetBranding.secondary_colour || (isPay2Pay ? "#1E40AF" : isSmsPay ? "#047857" : "#EDC11E");
+  const primary = targetBranding.primary_colour || (isPay2Pay ? "#2563EB" : isSmsPay ? "#0F3B7D" : "#A20A3A");
+  const secondary = targetBranding.secondary_colour || (isPay2Pay ? "#1E40AF" : isSmsPay ? "#D4AF37" : "#EDC11E");
 
   // Semantic CSS Tokens
   root.style.setProperty("--background-primary", "#FFFFFF");
@@ -98,9 +98,22 @@ export const applyThemeTokensToDOM = (
   root.style.setProperty("--brand-primary", primary);
   root.style.setProperty("--brand-secondary", secondary);
   root.style.setProperty("--accent", primary);
-  root.style.setProperty("--accent-hover", isPay2Pay ? "#1D4ED8" : isSmsPay ? "#047857" : "#85072F");
+  root.style.setProperty("--accent-hover", secondary);
   root.style.setProperty("--accent-gold", secondary);
   root.style.setProperty("--accent-orange", secondary);
+  root.style.setProperty("--ent-primary", primary);
+  root.style.setProperty("--ent-primary-hover", secondary);
+  root.style.setProperty("--ent-primary-light", `${primary}14`);
+  root.style.setProperty("--ent-primary-text", primary);
+  root.style.setProperty("--ent-sidebar-active", primary);
+  root.style.setProperty("--ent-sidebar-active-bg", `${primary}14`);
+  root.style.setProperty("--ent-sidebar-category", primary);
+  root.style.setProperty("--ent-info", primary);
+  root.style.setProperty("--ent-info-text", primary);
+  root.style.setProperty("--ent-purple-text", primary);
+  root.style.setProperty("--p2p-primary-color", primary);
+  root.style.setProperty("--gradient-rich", `linear-gradient(135deg, ${primary} 0%, ${secondary} 100%)`);
+  root.style.setProperty("--gradient-rich-h", `linear-gradient(to right, ${primary} 0%, ${secondary} 100%)`);
   root.style.setProperty("--success", "#16A34A");
   root.style.setProperty("--warning", "#F59E0B");
   root.style.setProperty("--danger", "#DC2626");
@@ -119,28 +132,29 @@ export const applyThemeTokensToDOM = (
  */
 export const createMuiThemeForEffectiveTheme = (
   _effectiveTheme: EffectiveTheme = "light",
-  branding: CompanyBrandingData = getInitialBrandingByHostname()
+  branding: CompanyBrandingData | null = getInitialBrandingByHostname()
 ): Theme => {
-  const isNear4You = branding.company_code === "NEAR4YOU";
-  const isPay2Pay = branding.company_code === "PAY2PAY";
-  const isSmsPay = branding.company_code === "SMSPAY";
+  const code = branding?.company_code || "";
+  const isNear4You = code === "NEAR4YOU";
+  const isPay2Pay = code === "PAY2PAY";
+  const isSmsPay = code === "SMSPAY";
 
-  const primary = branding.primary_colour || (isPay2Pay ? "#2563EB" : isSmsPay ? "#059669" : "#A20A3A");
-  const secondary = branding.secondary_colour || (isPay2Pay ? "#1E40AF" : isSmsPay ? "#047857" : "#EDC11E");
+  const primary = branding?.primary_colour || (isNear4You ? "#A20A3A" : isSmsPay ? "#0F3B7D" : "#2563EB");
+  const secondary = branding?.secondary_colour || (isNear4You ? "#EDC11E" : isSmsPay ? "#D4AF37" : "#1E40AF");
 
   return createTheme({
     palette: {
       mode: "light",
       primary: {
         main: primary,
-        dark: isPay2Pay ? "#1D4ED8" : isSmsPay ? "#047857" : "#85072F",
-        light: isPay2Pay ? "#EFF6FF" : isSmsPay ? "#ECFDF5" : "#FFF0F4",
+        dark: isPay2Pay ? "#1D4ED8" : isSmsPay ? "#0A2A5A" : "#85072F",
+        light: `${primary}14`,
         contrastText: "#FFFFFF",
       },
       secondary: {
         main: secondary,
-        dark: isPay2Pay ? "#1E3A8A" : isSmsPay ? "#065F46" : "#D4A915",
-        light: isPay2Pay ? "#DBEAFE" : isSmsPay ? "#D1FAE5" : "#FFF3C4",
+        dark: isPay2Pay ? "#1E3A8A" : isSmsPay ? "#B59328" : "#D4A915",
+        light: `${secondary}20`,
         contrastText: isNear4You ? "#292329" : "#FFFFFF",
       },
       success: {
@@ -215,18 +229,33 @@ const getStoredThemeMode = (): ThemeMode => {
 };
 
 export const CustomThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const ssrHost = useContext(CompanyBrandingHostContext);
   const [themeMode, setThemeModeState] = useState<ThemeMode>(() => getStoredThemeMode());
   const [timezone, setTimezoneState] = useState<string>(DEFAULT_TIMEZONE);
   const [effectiveTheme, setEffectiveTheme] = useState<EffectiveTheme>(() =>
     resolveEffectiveTheme(getStoredThemeMode(), DEFAULT_TIMEZONE)
   );
-  const [branding, setBranding] = useState<CompanyBrandingData>(() => getInitialBrandingByHostname());
+  const [branding, setBranding] = useState<CompanyBrandingData | null>(() => getInitialBrandingByHostname(ssrHost));
 
   // Sync DOM tokens synchronously on mount and when effectiveTheme updates
   useEffect(() => {
-    const current = getInitialBrandingByHostname();
-    setBranding(current);
+    const current = getInitialBrandingByHostname(ssrHost);
+    setBranding((prev) => (prev?.company_code === current?.company_code && prev?.primary_colour ? prev : current));
     applyThemeTokensToDOM(effectiveTheme, current);
+  }, [effectiveTheme, ssrHost]);
+
+  // Listen for dynamic /companies/branding API updates so DB color changes apply live
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleBrandingUpdated = (e: Event) => {
+      const detail = (e as CustomEvent<CompanyBrandingData>).detail;
+      if (detail?.company_code) {
+        setBranding(detail);
+        applyThemeTokensToDOM(effectiveTheme, detail);
+      }
+    };
+    window.addEventListener("p2p_branding_updated", handleBrandingUpdated);
+    return () => window.removeEventListener("p2p_branding_updated", handleBrandingUpdated);
   }, [effectiveTheme]);
 
   // Recalculate effective theme whenever mode or timezone changes

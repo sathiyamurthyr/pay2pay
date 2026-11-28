@@ -7,6 +7,7 @@ Enables Super Admin dynamic company registration, branding, and domain configura
 
 import uuid
 import json
+import logging
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field
@@ -18,6 +19,7 @@ from app.core.database import get_db
 from app.core.security import decode_access_token
 from app.application.dependencies import get_optional_company_context, CompanyContext
 
+logger = logging.getLogger("company_branding_router")
 router = APIRouter(prefix="/companies", tags=["Company Branding & Multi-Company"])
 
 
@@ -63,47 +65,40 @@ def extract_clean_domain(domain_str: str) -> str:
 
 
 async def resolve_company_ref_by_domain(db: AsyncSession, domain_str: str) -> Optional[int]:
-    """Resolves company_ref_id matching the given domain/hostname."""
+    """Resolves company_ref_id matching the given domain/hostname strictly from public.company & public.company_configuration."""
     clean_dom = extract_clean_domain(domain_str)
     if not clean_dom:
         return None
-    
-    # Canonical brand identity mappings
-    if "pay2pay" in clean_dom:
-        return 47
-    elif "near4you" in clean_dom:
-        return 1
-    elif "smspay" in clean_dom:
-        return 2
-
-    dom_part = clean_dom
-    for sub in ["login.", "admin.", "retailer.", "superadmin.", "super-admin.", "sales.", "receipt.", "www.", "api.", "app."]:
-        if dom_part.startswith(sub):
-            dom_part = dom_part[len(sub):]
-    code_guess = dom_part.split(".")[0].upper()
 
     stmt = text("""
-        SELECT c.company_ref_id
+        SELECT c.company_ref_id, c.website, cc.config_value AS configured_domains
         FROM public.company c
-        LEFT JOIN public.company_configuration cc ON (cc.company_id = c.public_id AND cc.config_key = 'domains')
+        LEFT JOIN public.company_configuration cc
+            ON (cc.company_id = c.public_id AND cc.config_key = 'domains' AND cc.is_deleted = false)
         WHERE c.is_active = true AND c.is_deleted = false
-          AND (
-              c.website ILIKE :part
-              OR cc.config_value::text ILIKE :exact
-              OR cc.config_value::text ILIKE :part
-              OR c.company_code ILIKE :code
-          )
-        ORDER BY c.id ASC
-        LIMIT 1;
+        ORDER BY c.company_ref_id ASC;
     """)
-    res = await db.execute(stmt, {
-        "part": f"%{dom_part}%",
-        "exact": f"%{clean_dom}%",
-        "code": f"%{code_guess}%"
-    })
-    row = res.fetchone()
-    if row:
-        return row[0]
+    res = await db.execute(stmt)
+    for row in res.fetchall():
+        m = row._mapping
+        candidates = []
+        cfg = m.get("configured_domains")
+        if isinstance(cfg, list):
+            candidates.extend(cfg)
+        elif isinstance(cfg, str):
+            try:
+                parsed = json.loads(cfg)
+                if isinstance(parsed, list):
+                    candidates.extend(parsed)
+            except Exception:
+                pass
+        if m.get("website"):
+            candidates.append(m["website"])
+
+        for dom in candidates:
+            d = extract_clean_domain(str(dom or ""))
+            if d and (clean_dom == d or clean_dom.endswith(f".{d}")):
+                return int(m["company_ref_id"])
     return None
 
 
@@ -112,77 +107,18 @@ def resolve_brand_metadata(
     host_hint: Optional[str],
     db_row: Dict[str, Any]
 ) -> Dict[str, Any]:
-    c_code = (code_hint or db_row.get("company_code") or "").upper().strip()
-    h_hint = (host_hint or "").lower().strip()
-
-    if "near4you" in h_hint or ":4001" in h_hint or "NEAR4YOU" in c_code:
-        is_near4you = True
-        is_smspay = False
-        is_pay2pay = False
-    elif "smspay" in h_hint or ":4002" in h_hint or "SMSPAY" in c_code:
-        is_smspay = True
-        is_near4you = False
-        is_pay2pay = False
-    elif "pay2pay" in h_hint or ":3000" in h_hint or ":4003" in h_hint or "PAY2PAY" in c_code:
-        is_pay2pay = True
-        is_smspay = False
-        is_near4you = False
-    else:
-        is_smspay = False
-        is_near4you = False
-        is_pay2pay = False
-
-    if is_smspay:
-        resolved_code = "SMSPAY"
-        resolved_display = "SMSPAY"
-        resolved_name = "INSPEL TECHNOLOGIES SOLUTIONS PVT"
-        resolved_legal = "INSPEL TECHNOLOGIES SOLUTIONS PVT"
-        resolved_logo = "/branding/smspay-logo.svg"
-        resolved_favicon = "/branding/smspay-favicon-32x32.png"
-        resolved_primary = "#0F3B7D"
-        resolved_secondary = "#D4AF37"
-    elif is_pay2pay:
-        resolved_code = "PAY2PAY"
-        resolved_display = "Pay2Pay"
-        resolved_name = "SUPER REX PRODUCTS PRIVATE LIMITED"
-        resolved_legal = "SUPER REX PRODUCTS PRIVATE LIMITED"
-        resolved_logo = "/branding/pay2pay-logo.png"
-        resolved_favicon = "/branding/pay2pay-favicon.png"
-        resolved_primary = "#2563EB"
-        resolved_secondary = "#1E40AF"
-    elif is_near4you:
-        resolved_code = "NEAR4YOU"
-        resolved_display = "Near4You"
-        resolved_name = "SATHUS TECHNOLOGY PRIVATE LIMITED"
-        resolved_legal = "SATHUS TECHNOLOGY PRIVATE LIMITED"
-        resolved_logo = "/branding/logo.svg"
-        resolved_favicon = "/branding/near4you-favicon.png"
-        resolved_primary = "#A20A3A"
-        resolved_secondary = "#EDC11E"
-    else:
-        # Default fallback
-        resolved_code = db_row.get("company_code") or "PAY2PAY"
-        resolved_display = db_row.get("display_name") or db_row.get("company_name") or "Pay2Pay"
-        resolved_name = db_row.get("company_name") or "SUPER REX PRODUCTS PRIVATE LIMITED"
-        resolved_legal = db_row.get("legal_name") or "SUPER REX PRODUCTS PRIVATE LIMITED"
-        resolved_logo = db_row.get("logo_url") or "/branding/pay2pay-logo.png"
-        resolved_favicon = db_row.get("favicon_url") or "/branding/pay2pay-favicon.png"
-        resolved_primary = db_row.get("primary_colour") or "#2563EB"
-        resolved_secondary = db_row.get("secondary_colour") or "#1E40AF"
-
-    # Allow custom db override if present and strictly safe from cross-tenant pollution
-    db_logo = db_row.get("logo_url")
-    if db_logo:
-        if is_near4you and ("logo.svg" in db_logo or "near4you" in db_logo):
-            resolved_logo = db_logo
-        elif is_smspay and "smspay" in db_logo:
-            resolved_logo = db_logo
-        elif is_pay2pay and "pay2pay" in db_logo:
-            resolved_logo = db_logo
-
-    db_fav = db_row.get("favicon_url")
-    if db_fav and db_fav not in ["/favicon.ico", "/branding/favicon.png", "/branding/smspay-mark.svg"]:
-        resolved_favicon = db_fav
+    """
+    Returns branding metadata strictly from database (`public.company` + `public.company_branding`).
+    Never overrides database legal/company names with hardcoded names or falls back to another company.
+    """
+    resolved_code = (db_row.get("company_code") or code_hint or "").upper().strip()
+    resolved_name = db_row.get("company_name") or db_row.get("legal_name") or resolved_code
+    resolved_legal = db_row.get("legal_name") or resolved_name
+    resolved_display = db_row.get("display_name") or resolved_name
+    resolved_logo = db_row.get("logo_url") or "/branding/logo.svg"
+    resolved_favicon = db_row.get("favicon_url") or "/branding/favicon.png"
+    resolved_primary = db_row.get("primary_colour") or "#2563EB"
+    resolved_secondary = db_row.get("secondary_colour") or "#1E40AF"
 
     return {
         "company_code": resolved_code,
@@ -217,20 +153,24 @@ async def get_authenticated_company_branding(
     company_id_uuid = None
     retailer_ref_id = None
 
-    # 1. Resolve by explicit domain/company query parameter or hostname first (Domain-driven dynamic branding)
-    target_domain = company or domain or request.query_params.get("company") or request.query_params.get("domain")
+    # 1. Resolve authoritatively from incoming HTTP hostname first (never let ?company= or ?domain= spoof production host)
     host_header = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
     clean_h = extract_clean_domain(host_header)
     port_h = host_header.split(":")[1] if ":" in host_header else ""
-    if not target_domain:
-        if clean_h and clean_h not in ["localhost", "127.0.0.1", "0.0.0.0"]:
-            target_domain = clean_h
-        elif port_h == "4002":
-            target_domain = "smspay.store"
-        elif port_h == "4001":
-            target_domain = "near4you.store"
-        elif port_h in ["3000", "4003"]:
-            target_domain = "pay2pay.in"
+    is_local_host = not clean_h or clean_h in ["localhost", "127.0.0.1", "0.0.0.0"]
+
+    target_domain = None
+    if not is_local_host:
+        target_domain = clean_h
+    else:
+        target_domain = domain or request.query_params.get("domain")
+        if not target_domain:
+            if port_h == "4002":
+                target_domain = "smspay.store"
+            elif port_h == "4001":
+                target_domain = "near4you.store"
+            elif port_h in ["3000", "4003"]:
+                target_domain = "pay2pay.in"
 
     domain_was_specified = bool(target_domain and target_domain.lower() not in ["localhost", "127.0.0.1", "0.0.0.0"])
 
@@ -248,6 +188,25 @@ async def get_authenticated_company_branding(
                     "code": "UNMAPPED_DOMAIN",
                     "message": f"Domain '{target_domain}' is not mapped to any registered company identity.",
                     "domain": target_domain,
+                    "correlation_id": corr_id
+                }
+            )
+    elif is_local_host and (company or request.query_params.get("company")):
+        company_param = (company or request.query_params.get("company") or "").strip().upper()
+        c_row = (await db.execute(
+            text("SELECT company_ref_id FROM public.company WHERE UPPER(company_code) = :cc AND is_active = true AND is_deleted = false LIMIT 1;"),
+            {"cc": company_param}
+        )).fetchone()
+        if c_row:
+            company_ref_id = int(c_row[0])
+        else:
+            corr_id = str(uuid.uuid4())
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "code": "UNMAPPED_DOMAIN",
+                    "message": f"Company '{company_param}' is not mapped to any registered company identity.",
+                    "domain": company_param,
                     "correlation_id": corr_id
                 }
             )
@@ -390,11 +349,10 @@ async def get_authenticated_company_branding(
         except Exception:
             domains_list = []
 
-    brand_hint = (company or "").upper().strip()
-    host_hint = domain or target_domain or clean_h or host_header or ""
+    host_hint = target_domain or clean_h or host_header or ""
 
     brand_meta = resolve_brand_metadata(
-        code_hint=brand_hint or d.get("company_code"),
+        code_hint=d.get("company_code"),
         host_hint=host_hint,
         db_row=d
     )
@@ -427,8 +385,14 @@ async def resolve_by_domain(
     """Explicit domain resolution endpoint for clients and middleware."""
     resolved_ref = await resolve_company_ref_by_domain(db, domain)
     if not resolved_ref:
-        # Fallback to Near4You
-        resolved_ref = 1
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "UNMAPPED_DOMAIN",
+                "message": f"Domain '{domain}' is not mapped to any registered company identity.",
+                "domain": domain,
+            }
+        )
 
     res = await db.execute(text("""
         SELECT 

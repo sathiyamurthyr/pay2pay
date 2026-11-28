@@ -56,8 +56,9 @@ STORAGE_BASE_DIR = os.path.join(os.getcwd(), "storage", "statements")
 
 class BankStatementCanvas(canvas.Canvas):
     """Two-pass canvas for dynamic total page count and professional bank footer."""
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, footer_text: str = "Enterprise FinTech Platform", **kwargs):
         super().__init__(*args, **kwargs)
+        self._footer_text = footer_text
         self._saved_page_states = []
 
     def showPage(self):
@@ -87,7 +88,7 @@ class BankStatementCanvas(canvas.Canvas):
         # Footer text
         self.setFont("Helvetica", 7.5)
         self.setFillColor(colors.HexColor("#64748B"))
-        self.drawString(32, 28, "SUPER REX PRODUCTS PRIVATE LIMITED | Pay2Pay Enterprise FinTech Platform")
+        self.drawString(32, 28, self._footer_text)
         self.drawRightString(563, 28, f"Page {self._pageNumber} of {page_count}  |  Confidential")
         self.restoreState()
 
@@ -362,14 +363,16 @@ class DailyAccountStatementService:
             except Exception as e:
                 logger.warning(f"Could not load statement logo image from {logo_path}: {e}")
 
+        stmt_brand_title = str(data.get("display_name") or data.get("company_code") or "ENTERPRISE").upper()
+        stmt_legal_name = str(data.get("company_name") or data.get("legal_name") or "")
         if logo_img:
             header_data = [
                 [
                     logo_img,
                     [
-                        Paragraph("<b>PAY2PAY</b>", title_style),
+                        Paragraph(f"<b>{stmt_brand_title}</b>", title_style),
                         Spacer(1, 2),
-                        Paragraph("SUPER REX PRODUCTS PRIVATE LIMITED", sub_title_style)
+                        Paragraph(stmt_legal_name, sub_title_style)
                     ],
                     [
                         Paragraph("<b>ACCOUNT STATEMENT</b>", badge_style),
@@ -389,11 +392,11 @@ class DailyAccountStatementService:
         else:
             header_data = [
                 [
-                    Paragraph("<b>PAY2PAY</b>", title_style),
+                    Paragraph(f"<b>{stmt_brand_title}</b>", title_style),
                     Paragraph("<b>ACCOUNT STATEMENT</b>", badge_style)
                 ],
                 [
-                    Paragraph("SUPER REX PRODUCTS PRIVATE LIMITED", sub_title_style),
+                    Paragraph(stmt_legal_name, sub_title_style),
                     Paragraph(f"Ref: <b>{data.get('statement_number', 'STMT-001')}</b>", ref_style)
                 ]
             ]
@@ -412,7 +415,7 @@ class DailyAccountStatementService:
         is_admin = data.get("statement_type") == "ADMIN"
         holder_title = "Company Name:" if is_admin else "Account Holder:"
         if is_admin:
-            holder_name = data.get("company_name", "SUPER REX PRODUCTS PRIVATE LIMITED")
+            holder_name = data.get("company_name") or stmt_legal_name
         else:
             s_name = (data.get("store_name") or "").strip()
             o_name = (data.get("owner_name") or "").strip()
@@ -441,7 +444,7 @@ class DailyAccountStatementService:
             ],
             [
                 Paragraph("Registered Entity:", normal_label),
-                Paragraph("SUPER REX PRODUCTS PRIVATE LIMITED", normal_val),
+                Paragraph(stmt_legal_name or holder_name, normal_val),
                 Paragraph("Reconciliation:", normal_label),
                 Paragraph(f"<font color='{recon_color}'><b>● {recon_status}</b></font>", normal_val)
             ]
@@ -605,7 +608,13 @@ class DailyAccountStatementService:
         tx_table.setStyle(TableStyle(t_style))
         story.append(tx_table)
 
-        doc.build(story, canvasmaker=BankStatementCanvas)
+        footer_company = str(data.get("company_name") or "").strip()
+        footer_brand = str(data.get("display_name") or "").strip()
+        footer_text = " | ".join(p for p in [footer_company, footer_brand] if p) or "Enterprise FinTech Platform"
+        doc.build(
+            story,
+            canvasmaker=lambda *args, **kwargs: BankStatementCanvas(*args, footer_text=footer_text, **kwargs)
+        )
         return buffer.getvalue()
 
     @classmethod

@@ -74,6 +74,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { retailerApi } from "@/services/retailer-api";
+import api from "@/lib/api";
 import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 export interface KycDocument {
@@ -253,76 +254,76 @@ interface ProfileResponse {
     last_updated?: string | null;
   };
   company?: {
+    company_ref_id?: number | null;
+    company_code?: string | null;
+    logo_url?: string | null;
     company_name?: string | null;
+    company_legal_name?: string | null;
+    legal_name?: string | null;
     brand_name?: string | null;
+    operating_partner_info?: string | null;
+    corporate_portal_url?: string | null;
+    regulatory_status_badge?: string | null;
+    entity_badge?: string | null;
     cin?: string | null;
+    cin_number?: string | null;
     gstin?: string | null;
+    business_entity_type?: string | null;
+    industry_sector?: string | null;
+    operating_status?: string | null;
     support_email?: string | null;
     support_phone?: string | null;
+    support_helpline?: string | null;
     direct_phone?: string | null;
+    direct_operations_line?: string | null;
     whatsapp_number?: string | null;
     grievance_email?: string | null;
+    grievance_escalation_email?: string | null;
     nodal_officer?: string | null;
+    grievance_officer_name?: string | null;
+    grievance_officer_designation?: string | null;
     support_hours?: string | null;
+    operating_hours?: string | null;
     headquarters?: string | null;
+    registered_office_address?: string | null;
     helpdesk_url?: string | null;
     website_url?: string | null;
+    official_website_url?: string | null;
+    tat_level_1?: string | null;
+    tat_level_2?: string | null;
+    resolution_tat?: string | null;
   } | null;
 }
 
 export default function RetailerProfilePage() {
   const branding = useCompanyBranding();
-  const currentHost = typeof window !== "undefined" ? window.location.hostname.toLowerCase() : "";
-  const isSmsPay =
-    branding?.company_code === "SMSPAY" ||
-    currentHost.includes("smspay");
-  const isNear4You =
-    branding?.company_code === "NEAR4YOU" ||
-    currentHost.includes("near4you");
-  const isPay2Pay =
-    branding?.company_code === "PAY2PAY" ||
-    currentHost.includes("pay2pay") ||
-    (!isSmsPay && !isNear4You);
+  const isSmsPay = branding?.company_code === "SMSPAY";
+  const isNear4You = branding?.company_code === "NEAR4YOU";
+  const isPay2Pay = branding?.company_code === "PAY2PAY";
 
-  const brandDisplayName = branding?.display_name || (isSmsPay ? "SMSPAY" : isNear4You ? "Near4You" : "Pay2Pay");
-  const brandCompanyName = branding?.company_name || (isSmsPay ? "INSPEL TECHNOLOGIES SOLUTIONS PVT" : isNear4You ? "SATHUS TECHNOLOGY PRIVATE LIMITED" : "SUPER REX PRODUCTS PRIVATE LIMITED");
-  const brandPrimary = branding?.primary_colour || (isSmsPay ? "#059669" : isNear4You ? "#A20A3A" : "#2563EB");
-  const brandSecondary = branding?.secondary_colour || (isSmsPay ? "#047857" : isNear4You ? "#EDC11E" : "#1E40AF");
-  const brandLight = isSmsPay ? "#ECFDF5" : isNear4You ? "#FFF1F2" : "#EFF6FF";
-  const brandHover = isSmsPay ? "#047857" : isNear4You ? "#88082D" : "#1D4ED8";
-  const brandBorder = isSmsPay ? "rgba(5, 150, 105, 0.25)" : isNear4You ? "rgba(162, 10, 58, 0.25)" : "rgba(37, 99, 235, 0.25)";
-  const brandLogo =
-    branding?.logo_url ||
-    (isSmsPay
-      ? "/branding/smspay-logo.svg"
-      : isNear4You
-      ? "/branding/logo.svg"
-      : "/branding/pay2pay-logo.png");
+  const brandDisplayName = branding?.display_name || branding?.company_name || "";
+  const brandCompanyName = branding?.company_name || branding?.legal_name || "";
+  const brandPrimary =
+    branding?.primary_colour ||
+    (isNear4You ? "#A20A3A" : isPay2Pay ? "#2563EB" : "#0F3B7D");
+  const brandSecondary =
+    branding?.secondary_colour ||
+    (isNear4You ? "#EDC11E" : isPay2Pay ? "#1E40AF" : "#D4AF37");
+  const brandLight = `${brandPrimary}12`;
+  const brandHover = brandSecondary;
+  const brandBorder = `${brandPrimary}40`;
+  const brandLogo = branding?.logo_url || "";
   const brandMark =
-    isSmsPay
-      ? "/branding/smspay-mark.svg"
+    branding?.favicon_url ||
+    (isSmsPay
+      ? "/branding/smspay-favicon-32x32.png"
       : isNear4You
-      ? "/branding/near4you-favicon-32x32.png"
-      : "/branding/pay2pay-favicon-32x32.png";
-
-  const defaultSupportEmail = isSmsPay
-    ? "support@smspay.store"
-    : isPay2Pay
-    ? "support@pay2pay.in"
-    : "support@near4you.store";
-  const defaultGrievanceEmail = isSmsPay
-    ? "grievance@smspay.store"
-    : isPay2Pay
-    ? "grievance@pay2pay.in"
-    : "grievance@near4you.store";
-  const defaultWebsiteUrl = branding?.website || (isSmsPay ? "https://smspay.store" : isPay2Pay ? "https://pay2pay.in" : "https://near4you.store");
-  const defaultHeadquarters = isSmsPay
-    ? "INSPEL TECHNOLOGIES SOLUTIONS PVT, Corporate Operations Desk, India"
-    : isPay2Pay
-    ? "SUPER REX PRODUCTS PRIVATE LIMITED, Registered Office, India"
-    : "SATHUS TECHNOLOGY PRIVATE LIMITED, Corporate Office, India";
+      ? "/branding/near4you-favicon.png"
+      : "/branding/pay2pay-favicon.png");
+  const defaultWebsiteUrl = branding?.website || "";
   const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [avatarError, setAvatarError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -419,13 +420,14 @@ export default function RetailerProfilePage() {
       setEmailModalError(null);
       const res = await retailerApi.verifyEmailUpdateOtp(newEmail.trim().toLowerCase(), emailOtp.trim());
       if (res?.success) {
+        retailerApi.invalidateProfileCache();
         setToast({
           open: true,
           message: res.message || "Email address updated and verified successfully!",
           severity: "success",
         });
         setEmailModalOpen(false);
-        await fetchProfile();
+        await fetchProfile(true);
       } else {
         setEmailModalError(res?.message || "Invalid verification code. Email not updated.");
       }
@@ -533,13 +535,21 @@ export default function RetailerProfilePage() {
     pinForm.new_pin === pinForm.confirm_pin
   );
 
-  const fetchProfile = useCallback(async () => {
+  const fetchProfile = useCallback(async (forceRefresh = false) => {
     try {
       setLoading(true);
       setError(null);
-      const data = await retailerApi.getProfile();
+      const [data, compRes] = await Promise.all([
+        retailerApi.getProfile(forceRefresh),
+        api.get("/api/v1/company-profile/current").catch(() => null),
+      ]);
+      const companyProfileData = compRes?.data?.data || null;
       if (data) {
-        setProfile(data);
+        setAvatarError(false);
+        const mergedProfile = companyProfileData
+          ? { ...data, company: { ...(data.company || {}), ...companyProfileData } }
+          : data;
+        setProfile(mergedProfile);
         setContactForm({
           alternate_mobile: data.contact?.alternate_mobile || "",
           whatsapp_number: data.contact?.whatsapp_number || "",
@@ -570,6 +580,10 @@ export default function RetailerProfilePage() {
     fetchProfile();
   }, [fetchProfile]);
 
+  useEffect(() => {
+    setAvatarError(false);
+  }, [profile?.photo?.photo_url]);
+
   const handleCopy = (text?: string | null, label?: string) => {
     if (!text) return;
     navigator.clipboard.writeText(text);
@@ -581,7 +595,7 @@ export default function RetailerProfilePage() {
       setSaving(true);
       await retailerApi.updateContact(contactForm);
       setToast({ open: true, message: "Contact details updated successfully!", severity: "success" });
-      await fetchProfile();
+      await fetchProfile(true);
     } catch (err: any) {
       setToast({ open: true, message: err?.message || "Unable to update contact details. Please try again.", severity: "error" });
     } finally {
@@ -594,7 +608,7 @@ export default function RetailerProfilePage() {
       setSaving(true);
       await retailerApi.updateAddress(addressForm);
       setToast({ open: true, message: "Registered address updated successfully!", severity: "success" });
-      await fetchProfile();
+      await fetchProfile(true);
     } catch (err: any) {
       setToast({ open: true, message: err?.message || "Unable to update address. Please try again.", severity: "error" });
     } finally {
@@ -604,6 +618,7 @@ export default function RetailerProfilePage() {
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
 
     try {
@@ -612,8 +627,22 @@ export default function RetailerProfilePage() {
       fd.append("file", file);
       const res = await retailerApi.uploadProfilePhoto(fd);
       if (res?.photo_url) {
-        setToast({ open: true, message: "Profile photo uploaded and persisted in Backblaze B2 & Database successfully!", severity: "success" });
-        await fetchProfile();
+        retailerApi.invalidateProfileCache();
+        setAvatarError(false);
+        setProfile((prev: any) =>
+          prev
+            ? {
+                ...prev,
+                photo: {
+                  ...(prev.photo || {}),
+                  photo_url: res.photo_url,
+                  has_photo: true,
+                },
+              }
+            : prev
+        );
+        setToast({ open: true, message: "Profile photo updated successfully.", severity: "success" });
+        await fetchProfile(true);
       }
     } catch (err: any) {
       setToast({ open: true, message: err?.message || "Unable to upload photo. Please try again.", severity: "error" });
@@ -701,7 +730,7 @@ export default function RetailerProfilePage() {
         setToast({ open: true, message: res?.message || "Account password updated successfully!", severity: "success" });
         setPwdForm({ current_password: "", new_password: "", confirm_password: "" });
         setSecOtpModalOpen(false);
-        await fetchProfile();
+        await fetchProfile(true);
       } else {
         const res = await retailerApi.changeMpin({
           current_pin: pinForm.current_pin || undefined,
@@ -712,7 +741,7 @@ export default function RetailerProfilePage() {
         setToast({ open: true, message: res?.message || "Transaction MPIN updated successfully!", severity: "success" });
         setPinForm({ current_pin: "", new_pin: "", confirm_pin: "" });
         setSecOtpModalOpen(false);
-        await fetchProfile();
+        await fetchProfile(true);
       }
     } catch (err: any) {
       const msg = err?.response?.data?.detail || err?.response?.data?.message || err?.message || "Invalid WhatsApp OTP code. Changes were NOT saved to the database.";
@@ -738,7 +767,7 @@ export default function RetailerProfilePage() {
   if (loading) {
     return (
       <Box sx={{ minHeight: "75vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2 }}>
-        <CircularProgress size={48} sx={{ color: "#3B82F6" }} />
+        <CircularProgress size={48} sx={{ color: brandPrimary }} />
         <Typography variant="body1" sx={{ color: "#625B60", fontWeight: 600 }}>
           Loading profile...
         </Typography>
@@ -752,63 +781,87 @@ export default function RetailerProfilePage() {
         <Alert severity="error" sx={{ mb: 3, borderRadius: 3 }}>
           {error || "Unable to load profile information."}
         </Alert>
-        <Button variant="contained" onClick={fetchProfile} startIcon={<RefreshCw size={18} />} sx={{ bgcolor: brandPrimary, "&:hover": { bgcolor: brandHover } }}>
+        <Button variant="contained" onClick={() => fetchProfile(true)} startIcon={<RefreshCw size={18} />} sx={{ bgcolor: brandPrimary, "&:hover": { bgcolor: brandHover } }}>
           Retry
         </Button>
       </Box>
     );
   }
 
+  const normalizeAssetUrl = (u?: string | null) => {
+    if (!u || typeof u !== "string") return "";
+    const trimmed = u.trim();
+    if (!trimmed) return "";
+    if (trimmed.startsWith("uploads/")) return `/${trimmed}`;
+    return trimmed;
+  };
+  const resolvedCompanyLogo = normalizeAssetUrl(profile.company?.logo_url) || normalizeAssetUrl(brandLogo) || brandMark;
+  const resolvedCompanyBrand = profile.company?.brand_name || brandDisplayName;
+  const resolvedCompanyLegal = profile.company?.company_legal_name || profile.company?.company_name || brandCompanyName;
+  const resolvedCompanyWebsite = profile.company?.official_website_url || profile.company?.website_url || defaultWebsiteUrl;
+  const siteHostClean = resolvedCompanyWebsite ? resolvedCompanyWebsite.replace(/^https?:\/\//, "").replace(/\/.*$/, "") : "";
+  const defaultSupportEmail = profile.company?.support_email || (siteHostClean ? `support@${siteHostClean}` : "");
+  const defaultGrievanceEmail = profile.company?.grievance_escalation_email || profile.company?.grievance_email || (siteHostClean ? `grievance@${siteHostClean}` : "");
+  const defaultHeadquarters = profile.company?.registered_office_address || profile.company?.headquarters || (resolvedCompanyLegal ? `${resolvedCompanyLegal}, India` : "");
+  const resolvedProfilePhoto = normalizeAssetUrl(profile.photo?.photo_url);
+
   return (
     <Box sx={{ maxWidth: 1400, mx: "auto", pb: 8 }}>
-      {/* ── 1. MOTIONSITES.AI CINEMATIC PROFILE HERO ── */}
+      {/* ── 1. DOMAIN-BRANDED ENTERPRISE PROFILE HERO ── */}
       <motion.div
         initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
         className="relative mb-6 overflow-hidden rounded-3xl border shadow-xl transition-all duration-300"
         style={{
-          background: "linear-gradient(135deg, #0B0F19 0%, #111827 50%, #0F172A 100%)",
-          borderColor: brandBorder,
-          boxShadow: `0 20px 40px -15px rgba(0, 0, 0, 0.5), 0 0 30px -10px ${brandPrimary}25`,
+          background: `var(--brand-gradient, linear-gradient(115deg, var(--brand-primary, ${brandPrimary}) 0%, var(--brand-primary, ${brandPrimary}) 60%, var(--brand-secondary, ${brandSecondary}) 100%))`,
+          borderColor: `var(--brand-border, ${brandBorder})`,
+          boxShadow: `0 18px 36px -14px ${brandPrimary}55`,
         }}
       >
-        {/* Specular Ambient Light Overlay */}
+        {/* Crisp readability depth overlay */}
         <div
-          className="absolute inset-0 pointer-events-none opacity-40"
+          className="absolute inset-0 pointer-events-none"
           style={{
-            background: `radial-gradient(circle at 85% 15%, ${brandPrimary}35 0%, transparent 60%), radial-gradient(circle at 15% 85%, ${brandSecondary}25 0%, transparent 50%)`,
+            background: "linear-gradient(120deg, rgba(15, 23, 42, 0.28) 0%, rgba(15, 23, 42, 0.16) 55%, rgba(15, 23, 42, 0.32) 100%)",
           }}
         />
         <div
           className="absolute inset-x-0 top-0 h-[2px] pointer-events-none"
           style={{
-            background: `linear-gradient(90deg, transparent, ${brandPrimary}, transparent)`,
+            background: `linear-gradient(90deg, transparent, #FFFFFF88, transparent)`,
           }}
         />
 
         <div className="relative z-10 p-5 sm:p-7 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
           {/* Left: Avatar + Retailer Identity Details */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 w-full lg:w-auto">
-            {/* Motion Animated Avatar */}
+            {/* Animated Profile Avatar */}
             <div className="relative group shrink-0">
               <div
-                className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl p-1 shadow-2xl transition-transform duration-300 group-hover:scale-105"
+                className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl p-1 shadow-2xl transition-transform duration-300 group-hover:scale-105 bg-white/25 backdrop-blur-sm"
                 style={{
-                  background: `linear-gradient(135deg, ${brandPrimary} 0%, ${brandSecondary} 100%)`,
-                  boxShadow: `0 8px 24px ${brandPrimary}40`,
+                  border: "1.5px solid rgba(255, 255, 255, 0.55)",
                 }}
               >
-                <div className="w-full h-full rounded-[14px] overflow-hidden bg-slate-900 flex items-center justify-center border border-white/20 relative">
-                  {profile.photo?.photo_url ? (
+                <div
+                  className="w-full h-full rounded-[14px] overflow-hidden flex items-center justify-center relative"
+                  style={{ backgroundColor: "rgba(15, 23, 42, 0.65)" }}
+                >
+                  {resolvedProfilePhoto && !avatarError ? (
                     <img
-                      src={profile.photo.photo_url}
+                      src={resolvedProfilePhoto}
                       alt={profile.personal.owner_name || profile.personal.retailer_name || "Profile"}
                       className="w-full h-full object-cover"
+                      onError={() => setAvatarError(true)}
                     />
                   ) : (
-                    <span className="text-2xl sm:text-3xl font-black text-white">
-                      {profile.personal.owner_name ? String(profile.personal.owner_name).charAt(0).toUpperCase() : (profile.personal.retailer_name ? String(profile.personal.retailer_name).charAt(0).toUpperCase() : "R")}
+                    <span className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                      {profile.personal.owner_name
+                        ? String(profile.personal.owner_name).charAt(0).toUpperCase()
+                        : profile.personal.retailer_name
+                        ? String(profile.personal.retailer_name).charAt(0).toUpperCase()
+                        : "R"}
                     </span>
                   )}
                   {/* Photo Upload Overlay Button on Hover */}
@@ -831,8 +884,8 @@ export default function RetailerProfilePage() {
               </div>
               {/* Online / Active Terminal Pulse Indicator */}
               <div
-                className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-slate-900 flex items-center justify-center shadow-lg"
-                style={{ backgroundColor: "#10B981" }}
+                className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center shadow-lg"
+                style={{ backgroundColor: "#16A34A" }}
                 title="Active Retailer Terminal"
               >
                 <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
@@ -842,35 +895,31 @@ export default function RetailerProfilePage() {
             {/* Retailer Name, Store & Badges */}
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white drop-shadow-xs flex items-center gap-2">
                   <span>{profile.personal.owner_name || profile.personal.retailer_name || "Retailer Partner"}</span>
                 </h1>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-950/60 text-emerald-200 border border-emerald-400/40 shadow-sm">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Verified Retailer</span>
                 </span>
                 <span
-                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider shadow-sm bg-white/[0.08] border border-white/20"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider shadow-sm bg-slate-950/45 border border-white/25 text-white"
                 >
-                  <img
-                    src={brandLogo}
-                    alt={brandDisplayName}
-                    className="w-4 h-4 object-contain rounded"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src = brandMark;
-                    }}
-                  />
-                  <span
-                    style={{
-                      color: brandPrimary === "#059669" ? "#34D399" : brandPrimary === "#A20A3A" ? "#FCA5A5" : "#93C5FD",
-                    }}
-                  >
-                    {brandDisplayName} Network
+                  <span className="w-4 h-4 rounded bg-white p-0.5 flex items-center justify-center shrink-0">
+                    <img
+                      src={resolvedCompanyLogo}
+                      alt={resolvedCompanyBrand}
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = brandMark;
+                      }}
+                    />
                   </span>
+                  <span>{resolvedCompanyBrand} Network</span>
                 </span>
               </div>
 
-              <p className="text-xs sm:text-sm text-slate-300 font-medium">
+              <p className="text-xs sm:text-sm text-white/90 font-medium">
                 {profile.personal.store_name ? `${profile.personal.store_name} · ` : ""}{profile.personal.store_type || "Retailer Business"} · {profile.personal.business_category || "FinTech & Banking Correspondent"}
               </p>
 
@@ -880,32 +929,32 @@ export default function RetailerProfilePage() {
                 <button
                   type="button"
                   onClick={() => handleCopy(profile.personal.retailer_id, "Retailer ID")}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/[0.07] hover:bg-white/[0.12] border border-white/15 text-slate-200 text-xs font-mono font-bold transition-all active:scale-95 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-950/40 hover:bg-slate-950/55 border border-white/25 text-white text-xs font-mono font-bold transition-all active:scale-95 cursor-pointer"
                   title="Click to copy Retailer ID"
                 >
-                  <span className="text-slate-400 font-sans font-normal">ID:</span>
-                  <span className="text-amber-300">{profile.personal.retailer_id || "SMSP-RET"}</span>
-                  <Copy className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-white/75 font-sans font-normal">ID:</span>
+                  <span className="text-amber-200">{profile.personal.retailer_id || "RET"}</span>
+                  <Copy className="w-3.5 h-3.5 text-white/75" />
                 </button>
 
                 {/* Phone Pill */}
                 {profile.contact?.mobile_raw && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/[0.05] border border-white/10 text-slate-300 text-xs font-mono">
-                    <Phone className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-950/35 border border-white/20 text-white text-xs font-mono">
+                    <Phone className="w-3.5 h-3.5 text-white/80" />
                     <span>{profile.contact.mobile_raw}</span>
                   </span>
                 )}
 
                 {/* Email Pill */}
                 {profile.contact?.email_raw && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/[0.05] border border-white/10 text-slate-300 text-xs">
-                    <Mail className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-950/35 border border-white/20 text-white text-xs">
+                    <Mail className="w-3.5 h-3.5 text-white/80" />
                     <span className="truncate max-w-[180px] sm:max-w-none">{profile.contact.email_raw}</span>
                   </span>
                 )}
 
                 {/* Account Status Badge */}
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-bold">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-950/55 border border-emerald-400/40 text-emerald-200 text-[11px] font-bold">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   <span>{profile.personal.status || "ACTIVE"}</span>
                 </span>
@@ -913,12 +962,12 @@ export default function RetailerProfilePage() {
             </div>
           </div>
 
-          {/* Middle: Dedicated Motionsites Brand Badge Card */}
-          <div className="hidden xl:flex items-center gap-3.5 px-4 py-2.5 rounded-2xl bg-white/[0.07] backdrop-blur-md border border-white/15 shadow-inner">
+          {/* Middle: Dedicated Enterprise Brand Badge Card */}
+          <div className="hidden xl:flex items-center gap-3.5 px-4 py-2.5 rounded-2xl bg-slate-950/40 backdrop-blur-md border border-white/25 shadow-inner">
             <div className="w-12 h-12 rounded-xl bg-white p-1.5 flex items-center justify-center shrink-0 shadow-md">
               <img
-                src={brandLogo}
-                alt={brandDisplayName}
+                src={resolvedCompanyLogo}
+                alt={resolvedCompanyBrand}
                 className="w-full h-full object-contain"
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).src = brandMark;
@@ -927,46 +976,45 @@ export default function RetailerProfilePage() {
             </div>
             <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="text-sm font-black text-white tracking-tight">{brandDisplayName}</span>
-                <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                <span className="text-sm font-black text-white tracking-tight">{resolvedCompanyBrand}</span>
+                <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-500/25 text-emerald-200 border border-emerald-400/40">
                   Official
                 </span>
               </div>
-              <span className="text-[11px] font-semibold text-slate-300 truncate max-w-[200px]">
-                {profile.company?.company_name || brandCompanyName}
+              <span className="text-[11px] font-semibold text-white/90 truncate max-w-[200px]">
+                {resolvedCompanyLegal}
               </span>
-              <span className="text-[10px] text-slate-400 font-mono">
-                {defaultWebsiteUrl.replace("https://", "")}
-              </span>
+              {resolvedCompanyWebsite && (
+                <span className="text-[10px] text-white/75 font-mono">
+                  {resolvedCompanyWebsite.replace(/^https?:\/\//, "")}
+                </span>
+              )}
             </div>
           </div>
 
           {/* Right: Quick Action Navigation Shortcuts */}
-          <div className="flex flex-wrap lg:flex-col items-stretch gap-2.5 w-full lg:w-auto shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 lg:border-l border-white/10 lg:pl-6">
+          <div className="flex flex-wrap lg:flex-col items-stretch gap-2.5 w-full lg:w-auto shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 lg:border-l border-white/20 lg:pl-6">
             <button
               type="button"
               onClick={() => setActiveTab(1)}
-              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-200 bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 transition-all active:scale-95 cursor-pointer"
+              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-950/35 hover:bg-slate-950/55 border border-white/25 transition-all active:scale-95 cursor-pointer"
             >
-              <Phone className="w-3.5 h-3.5 text-slate-400" />
+              <Phone className="w-3.5 h-3.5 text-white/85" />
               <span>Edit Contact</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab(5)}
-              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-200 bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 transition-all active:scale-95 cursor-pointer"
+              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-950/35 hover:bg-slate-950/55 border border-white/25 transition-all active:scale-95 cursor-pointer"
             >
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-300" />
               <span>Security & MPIN</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab(9)}
-              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all shadow-md active:scale-95 cursor-pointer"
-              style={{
-                background: `linear-gradient(135deg, ${brandPrimary} 0%, ${brandSecondary} 100%)`,
-                boxShadow: `0 4px 12px ${brandPrimary}35`,
-              }}
+              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold bg-white hover:bg-white/90 transition-all shadow-md active:scale-95 cursor-pointer"
+              style={{ color: brandPrimary }}
             >
               <Building className="w-3.5 h-3.5" />
               <span>Corporate Desk</span>
@@ -1137,8 +1185,8 @@ export default function RetailerProfilePage() {
                         onClick={handleOpenEmailModal}
                         startIcon={<Mail size={13} />}
                         sx={{
-                          borderColor: "rgba(59, 130, 246, 0.4)",
-                          color: "#60A5FA",
+                          borderColor: brandBorder,
+                          color: brandPrimary,
                           fontSize: "0.75rem",
                           fontWeight: 700,
                           py: 0.3,
@@ -1146,8 +1194,8 @@ export default function RetailerProfilePage() {
                           borderRadius: 1.5,
                           textTransform: "none",
                           "&:hover": {
-                            borderColor: "#3B82F6",
-                            bgcolor: "rgba(59, 130, 246, 0.1)",
+                            borderColor: brandPrimary,
+                            bgcolor: brandLight,
                           },
                         }}
                       >
@@ -1203,68 +1251,85 @@ export default function RetailerProfilePage() {
               elevation={0}
               sx={{
                 ...cardStyle,
-                background: "linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.92) 100%)",
-                border: `1px solid ${brandBorder}`,
-                boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)",
+                position: "relative",
+                overflow: "hidden",
+                background: `var(--brand-gradient, linear-gradient(125deg, var(--brand-primary, ${brandPrimary}) 0%, var(--brand-primary, ${brandPrimary}) 62%, var(--brand-secondary, ${brandSecondary}) 100%))`,
+                border: `1.5px solid var(--brand-border, ${brandBorder})`,
+                boxShadow: `0 16px 36px -14px ${brandPrimary}55`,
               }}
             >
+              <Box
+                sx={{
+                  position: "absolute",
+                  inset: 0,
+                  pointerEvents: "none",
+                  background: "linear-gradient(135deg, rgba(15, 23, 42, 0.34) 0%, rgba(15, 23, 42, 0.22) 60%, rgba(15, 23, 42, 0.38) 100%)",
+                }}
+              />
+              <Box sx={{ position: "relative", zIndex: 1 }}>
               <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", sm: "center" }} sx={{ mb: 3 }} spacing={2}>
                 <Box>
                   <Stack direction="row" alignItems="center" spacing={2}>
-                    <Box sx={{ width: 48, height: 48, p: 0.75, bgcolor: "#FFFFFF", borderRadius: 2.5, border: "1px solid rgba(255, 255, 255, 0.25)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(0,0,0,0.2)", flexShrink: 0 }}>
+                    <Box sx={{ width: 52, height: 52, p: 0.75, bgcolor: "#FFFFFF", borderRadius: 2.5, border: "1.5px solid rgba(255, 255, 255, 0.45)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px rgba(0,0,0,0.22)", flexShrink: 0 }}>
                       <img
-                        src={brandLogo}
-                        alt={brandDisplayName}
+                        src={resolvedCompanyLogo}
+                        alt={resolvedCompanyBrand}
                         style={{ width: "100%", height: "100%", objectFit: "contain" }}
-                        onError={(e) => { (e.currentTarget as HTMLImageElement).src = brandMark; }}
+                        onError={(e) => {
+                          const img = e.currentTarget as HTMLImageElement;
+                          if (!img.dataset.fallbackApplied) {
+                            img.dataset.fallbackApplied = "1";
+                            img.src = brandMark;
+                          }
+                        }}
                       />
                     </Box>
                     <Box>
                       <Typography variant="h6" sx={{ fontWeight: 800, color: "#FFFFFF", letterSpacing: "-0.01em" }}>
-                        {profile.company?.company_name || brandCompanyName}
+                        {resolvedCompanyLegal}
                       </Typography>
-                      <Typography variant="caption" sx={{ color: "#94A3B8", display: "block" }}>
-                        {brandDisplayName} Corporate Headquarters & Official Merchant Support Helpdesk
+                      <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.85)", display: "block", fontWeight: 500 }}>
+                        {resolvedCompanyBrand} Corporate Headquarters & Official Merchant Support Helpdesk
                       </Typography>
                     </Box>
                   </Stack>
                 </Box>
 
                 <Chip
-                  icon={<ShieldCheck size={14} color="#22C55E" />}
-                  label="NPCI / RBI Authorized FinTech"
+                  icon={<ShieldCheck size={14} color="#4ADE80" />}
+                  label={profile.company?.regulatory_status_badge || "NPCI / RBI Authorized FinTech"}
                   size="small"
-                  sx={{ bgcolor: "rgba(34, 197, 94, 0.15)", color: "#4ADE80", fontWeight: 700, border: "1px solid rgba(34, 197, 94, 0.3)" }}
+                  sx={{ bgcolor: "rgba(15, 23, 42, 0.45)", color: "#86EFAC", fontWeight: 700, border: "1px solid rgba(74, 222, 128, 0.4)" }}
                 />
               </Stack>
 
               <Grid container spacing={2.5}>
                 {/* Toll Free Helpline */}
                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Box sx={{ p: 2.2, bgcolor: "rgba(255, 255, 255, 0.05)", borderRadius: 2.5, border: "1px solid rgba(255, 255, 255, 0.1)" }}>
+                  <Box sx={{ p: 2.2, bgcolor: "rgba(15, 23, 42, 0.34)", backdropFilter: "blur(8px)", borderRadius: 2.5, border: "1px solid rgba(255, 255, 255, 0.2)" }}>
                     <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-                      <Headphones size={18} color="#38BDF8" />
-                      <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+                      <Headphones size={18} color="#FFFFFF" />
+                      <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.78)", fontWeight: 700, textTransform: "uppercase" }}>
                         Support Helpline
                       </Typography>
                     </Stack>
                     <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: 800 }}>
-                      {profile.company?.support_phone || "1800 292 982"}
+                      {profile.company?.support_helpline || profile.company?.support_phone || "1800 292 982"}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", mb: 1.5 }}>
+                    <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.72)", display: "block", mb: 1.5 }}>
                       Toll-Free & Direct Line
                     </Typography>
                     <Stack direction="row" spacing={1}>
                       <Button
-                        href={`tel:${profile.company?.support_phone || "1800292982"}`}
+                        href={`tel:${(profile.company?.support_helpline || profile.company?.support_phone || "1800292982").replace(/\s+/g, "")}`}
                         variant="contained"
                         size="small"
                         startIcon={<PhoneCall size={13} />}
-                        sx={{ bgcolor: "#0284C7", fontWeight: 700, fontSize: "0.75rem", "&:hover": { bgcolor: "#0369A1" } }}
+                        sx={{ bgcolor: "#FFFFFF", color: `var(--brand-primary, ${brandPrimary})`, fontWeight: 800, fontSize: "0.75rem", "&:hover": { bgcolor: "rgba(255, 255, 255, 0.9)" } }}
                       >
                         Call
                       </Button>
-                      <IconButton size="small" onClick={() => handleCopy(profile.company?.support_phone || "1800 292 982", "Support Phone")} sx={{ color: "#94A3B8" }}>
+                      <IconButton size="small" onClick={() => handleCopy(profile.company?.support_helpline || profile.company?.support_phone || "1800 292 982", "Support Phone")} sx={{ color: "rgba(255, 255, 255, 0.85)" }}>
                         <Copy size={15} />
                       </IconButton>
                     </Stack>
@@ -1273,17 +1338,17 @@ export default function RetailerProfilePage() {
 
                 {/* Official Support Email */}
                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Box sx={{ p: 2.2, bgcolor: "rgba(255, 255, 255, 0.05)", borderRadius: 2.5, border: "1px solid rgba(255, 255, 255, 0.1)" }}>
+                  <Box sx={{ p: 2.2, bgcolor: "rgba(15, 23, 42, 0.34)", backdropFilter: "blur(8px)", borderRadius: 2.5, border: "1px solid rgba(255, 255, 255, 0.2)" }}>
                     <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-                      <Mail size={18} color="#60A5FA" />
-                      <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+                      <Mail size={18} color="#FFFFFF" />
+                      <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.78)", fontWeight: 700, textTransform: "uppercase" }}>
                         Support Desk Email
                       </Typography>
                     </Stack>
-                    <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: 800 }}>
+                    <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: 800, wordBreak: "break-word" }}>
                       {profile.company?.support_email || defaultSupportEmail}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", mb: 1.5 }}>
+                    <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.72)", display: "block", mb: 1.5 }}>
                       24/7 Ticketing Response
                     </Typography>
                     <Stack direction="row" spacing={1}>
@@ -1292,11 +1357,11 @@ export default function RetailerProfilePage() {
                         variant="contained"
                         size="small"
                         startIcon={<Mail size={13} />}
-                        sx={{ bgcolor: brandPrimary, fontWeight: 700, fontSize: "0.75rem", "&:hover": { bgcolor: brandHover } }}
+                        sx={{ bgcolor: `var(--brand-primary, ${brandPrimary})`, color: "#FFFFFF", border: "1px solid rgba(255,255,255,0.35)", fontWeight: 700, fontSize: "0.75rem", "&:hover": { bgcolor: `var(--brand-secondary, ${brandHover})` } }}
                       >
                         Email
                       </Button>
-                      <IconButton size="small" onClick={() => handleCopy(profile.company?.support_email || defaultSupportEmail, "Support Email")} sx={{ color: "#94A3B8" }}>
+                      <IconButton size="small" onClick={() => handleCopy(profile.company?.support_email || defaultSupportEmail, "Support Email")} sx={{ color: "rgba(255, 255, 255, 0.85)" }}>
                         <Copy size={15} />
                       </IconButton>
                     </Stack>
@@ -1305,22 +1370,22 @@ export default function RetailerProfilePage() {
 
                 {/* WhatsApp Support Desk */}
                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Box sx={{ p: 2.2, bgcolor: "rgba(255, 255, 255, 0.05)", borderRadius: 2.5, border: "1px solid rgba(255, 255, 255, 0.1)" }}>
+                  <Box sx={{ p: 2.2, bgcolor: "rgba(15, 23, 42, 0.34)", backdropFilter: "blur(8px)", borderRadius: 2.5, border: "1px solid rgba(255, 255, 255, 0.2)" }}>
                     <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
                       <MessageSquare size={18} color="#4ADE80" />
-                      <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+                      <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.78)", fontWeight: 700, textTransform: "uppercase" }}>
                         WhatsApp Helpdesk
                       </Typography>
                     </Stack>
                     <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: 800 }}>
                       {profile.company?.whatsapp_number || "+91 70139 14767"}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", mb: 1.5 }}>
+                    <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.72)", display: "block", mb: 1.5 }}>
                       Instant Merchant Chat
                     </Typography>
                     <Stack direction="row" spacing={1}>
                       <Button
-                        href={`https://wa.me/917013914767?text=${encodeURIComponent(`Hello ${brandDisplayName} Support, I need assistance with my Retailer Account.`)}`}
+                        href={`https://wa.me/${(profile.company?.whatsapp_number || "917013914767").replace(/\D/g, "")}?text=${encodeURIComponent(`Hello ${resolvedCompanyBrand} Support, I need assistance with my Retailer Account.`)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         variant="contained"
@@ -1330,7 +1395,7 @@ export default function RetailerProfilePage() {
                       >
                         WhatsApp
                       </Button>
-                      <IconButton size="small" onClick={() => handleCopy(profile.company?.whatsapp_number || "+91 70139 14767", "WhatsApp Number")} sx={{ color: "#94A3B8" }}>
+                      <IconButton size="small" onClick={() => handleCopy(profile.company?.whatsapp_number || "+91 70139 14767", "WhatsApp Number")} sx={{ color: "rgba(255, 255, 255, 0.85)" }}>
                         <Copy size={15} />
                       </IconButton>
                     </Stack>
@@ -1339,56 +1404,62 @@ export default function RetailerProfilePage() {
 
                 {/* Operating Hours */}
                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Box sx={{ p: 2.2, bgcolor: "rgba(255, 255, 255, 0.05)", borderRadius: 2.5, border: "1px solid rgba(255, 255, 255, 0.1)" }}>
+                  <Box sx={{ p: 2.2, bgcolor: "rgba(15, 23, 42, 0.34)", backdropFilter: "blur(8px)", borderRadius: 2.5, border: "1px solid rgba(255, 255, 255, 0.2)" }}>
                     <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-                      <Clock size={18} color="#FBBF24" />
-                      <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
+                      <Clock size={18} color="#FDE047" />
+                      <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.78)", fontWeight: 700, textTransform: "uppercase" }}>
                         Operating Hours
                       </Typography>
                     </Stack>
                     <Typography variant="body2" sx={{ color: "#FFFFFF", fontWeight: 700, mt: 0.5 }}>
-                      {profile.company?.support_hours || "Mon - Sat | 09:00 AM - 07:00 PM"}
+                      {profile.company?.operating_hours || profile.company?.support_hours || "Mon - Sat | 09:00 AM - 07:00 PM"}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", mt: 0.5 }}>
+                    <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.72)", display: "block", mt: 0.5 }}>
                       Sunday: Automated Ticketing
                     </Typography>
                   </Box>
                 </Grid>
               </Grid>
 
-              <Divider sx={{ my: 2.5, borderColor: "rgba(255, 255, 255, 0.12)" }} />
+              <Divider sx={{ my: 2.5, borderColor: "rgba(255, 255, 255, 0.22)" }} />
 
               {/* Corporate Metadata & Office Address */}
               <Grid container spacing={2}>
                 <Grid size={{ xs: 12, md: 7 }}>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase", display: "block", mb: 0.5 }}>
+                  <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.78)", fontWeight: 700, textTransform: "uppercase", display: "block", mb: 0.5 }}>
                     Registered Corporate Headquarters
                   </Typography>
-                  <Typography variant="body2" sx={{ color: "#F8FAFC", fontWeight: 500 }}>
-                    {profile.company?.headquarters || defaultHeadquarters}
+                  <Typography variant="body2" sx={{ color: "#FFFFFF", fontWeight: 500 }}>
+                    {profile.company?.registered_office_address || profile.company?.headquarters || defaultHeadquarters}
                   </Typography>
                 </Grid>
                 <Grid size={{ xs: 12, md: 5 }}>
                   <Stack direction="row" spacing={3} justifyContent={{ xs: "flex-start", md: "flex-end" }} alignItems="center">
                     <Box>
-                      <Typography variant="caption" sx={{ color: "#94A3B8", display: "block" }}>
+                      <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.78)", display: "block" }}>
                         Corporate Entity Status
                       </Typography>
-                      <Typography variant="caption" sx={{ color: "#F8FAFC", fontWeight: 700, fontFamily: "monospace" }}>
-                        {profile.company?.cin && profile.company?.cin !== "—" && profile.company?.cin !== "â€”" ? profile.company.cin : (isSmsPay ? "Regulated Merchant Entity" : isPay2Pay ? "Corporate FinTech Entity" : "U72900TN2024PTC168920")}
+                      <Typography variant="caption" sx={{ color: "#FFFFFF", fontWeight: 700, fontFamily: "monospace" }}>
+                        {profile.company?.cin_number || profile.company?.cin || profile.company?.operating_status || "ACTIVE & REGULATED"}
                       </Typography>
                     </Box>
                     <Box>
-                      <Typography variant="caption" sx={{ color: "#94A3B8", display: "block" }}>
+                      <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.78)", display: "block" }}>
                         Grievance Email
                       </Typography>
-                      <Typography variant="caption" sx={{ color: "#38BDF8", fontWeight: 700 }}>
-                        {profile.company?.grievance_email || defaultGrievanceEmail}
+                      <Typography
+                        component="a"
+                        href={`mailto:${profile.company?.grievance_escalation_email || profile.company?.grievance_email || defaultGrievanceEmail}`}
+                        variant="caption"
+                        sx={{ color: "#FFFFFF", fontWeight: 700, textDecoration: "underline" }}
+                      >
+                        {profile.company?.grievance_escalation_email || profile.company?.grievance_email || defaultGrievanceEmail}
                       </Typography>
                     </Box>
                   </Stack>
                 </Grid>
               </Grid>
+              </Box>
             </Paper>
           </Grid>
         </Grid>
@@ -1422,8 +1493,8 @@ export default function RetailerProfilePage() {
                 COMMUNICATION ADDRESS
               </Typography>
               {profile.address.same_as_permanent ? (
-                <Box sx={{ p: 3, textAlign: "center", bgcolor: "rgba(255, 255, 255, 0.02)", borderRadius: 2.5, border: "1px dashed rgba(255, 255, 255, 0.15)" }}>
-                  <ShieldCheck size={36} color="#3B82F6" style={{ margin: "0 auto 8px" }} />
+                <Box sx={{ p: 3, textAlign: "center", bgcolor: "rgba(255, 255, 255, 0.02)", borderRadius: 2.5, border: `1px dashed ${brandBorder}` }}>
+                  <ShieldCheck size={36} color={brandPrimary} style={{ margin: "0 auto 8px" }} />
                   <Typography variant="body1" sx={{ color: "#292329", fontWeight: 700 }}>
                     Same as Permanent Address
                   </Typography>
@@ -2438,7 +2509,12 @@ export default function RetailerProfilePage() {
               </Typography>
               <Stack spacing={3} alignItems="center">
                 <Avatar
-                  src={profile.photo.photo_url || ""}
+                  src={!avatarError && resolvedProfilePhoto ? resolvedProfilePhoto : undefined}
+                  slotProps={{
+                    img: {
+                      onError: () => setAvatarError(true),
+                    },
+                  }}
                   sx={{
                     width: 140,
                     height: 140,
@@ -2449,7 +2525,7 @@ export default function RetailerProfilePage() {
                     boxShadow: `0 10px 25px ${brandPrimary}40`,
                   }}
                 >
-                  {profile.personal.retailer_name?.charAt(0) || "R"}
+                  {(profile.personal.owner_name || profile.personal.retailer_name || "R").charAt(0).toUpperCase()}
                 </Avatar>
 
                 <Button
@@ -2459,12 +2535,12 @@ export default function RetailerProfilePage() {
                   startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Upload size={18} />}
                   sx={{ bgcolor: brandPrimary, fontWeight: 700, borderRadius: 2.5, px: 3, "&:hover": { bgcolor: brandHover } }}
                 >
-                  {saving ? "Uploading to B2..." : "Upload / Change Photo"}
+                  {saving ? "Uploading..." : "Upload / Change Photo"}
                   <input type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={handlePhotoUpload} />
                 </Button>
 
                 <Typography variant="caption" sx={{ color: "#625B60", textAlign: "center" }}>
-                  PNG, JPG, or WEBP (Max 5 MB). Stored securely on Backblaze B2 Object Storage.
+                  PNG, JPG, or WEBP (Max 5 MB). Stored securely in persistent profile storage.
                 </Typography>
               </Stack>
             </Paper>
@@ -2638,9 +2714,45 @@ export default function RetailerProfilePage() {
       )}
 
       {/* 10. COMPANY TAB */}
-      {activeTab === 9 && (
+      {activeTab === 9 && (() => {
+        const comp = profile.company || {};
+        const compLogo = comp.logo_url || brandLogo;
+        const compLegal = comp.company_legal_name || comp.legal_name || comp.company_name || brandCompanyName;
+        const compBrand = comp.brand_name || brandDisplayName;
+        const compPartnerInfo = comp.operating_partner_info || (compBrand ? `Official Operating Partner & Enterprise FinTech Network: ${compBrand}` : "");
+        const compPortalUrl = comp.corporate_portal_url || comp.official_website_url || comp.website_url || defaultWebsiteUrl;
+        const compRegBadge = comp.regulatory_status_badge || "RBI / NPCI Authorized";
+        const compEntityBadge = comp.entity_badge || "Registered Corporate";
+        const compCin = comp.cin_number || comp.cin;
+        const compGstin = comp.gstin;
+        const compEntityType = comp.business_entity_type;
+        const compSector = comp.industry_sector;
+        const compStatus = comp.operating_status;
+        const compHelpline = comp.support_helpline || comp.support_phone;
+        const compEmail = comp.support_email;
+        const compWhatsapp = comp.whatsapp_number;
+        const compWhatsappDigits = compWhatsapp ? compWhatsapp.replace(/\D/g, "") : "";
+        const compHours = comp.operating_hours || comp.support_hours;
+        const compDirectPhone = comp.direct_operations_line || comp.direct_phone;
+        const compHq = comp.registered_office_address || comp.headquarters;
+        const compWebsite = comp.official_website_url || comp.website_url || defaultWebsiteUrl;
+        const compOfficer =
+          comp.nodal_officer ||
+          (comp.grievance_officer_name && comp.grievance_officer_designation
+            ? `${comp.grievance_officer_name} (${comp.grievance_officer_designation})`
+            : comp.grievance_officer_name || comp.grievance_officer_designation);
+        const compGrievanceEmail = comp.grievance_escalation_email || comp.grievance_email;
+        const compTat =
+          comp.resolution_tat ||
+          [comp.tat_level_1, comp.tat_level_2].filter(Boolean).join(" | ") ||
+          null;
+
+        const hasHelpdesk = Boolean(compHelpline || compEmail || compWhatsapp || compHours || compDirectPhone);
+        const hasHqOrGrievance = Boolean(compHq || compWebsite || compOfficer || compGrievanceEmail || compTat);
+
+        return (
         <Grid container spacing={3}>
-          {/* Motionsites Corporate Brand Showcase Hero Banner */}
+          {/* Company Branding & Header Card */}
           <Grid size={{ xs: 12 }}>
             <Paper
               elevation={0}
@@ -2678,8 +2790,8 @@ export default function RetailerProfilePage() {
                   >
                     <Box
                       component="img"
-                      src={brandLogo}
-                      alt={brandDisplayName}
+                      src={compLogo}
+                      alt={compBrand}
                       onError={(e: any) => {
                         e.currentTarget.onerror = null;
                         e.currentTarget.src = brandMark;
@@ -2694,175 +2806,243 @@ export default function RetailerProfilePage() {
                   <Box>
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5, flexWrap: "wrap", gap: 1 }}>
                       <Typography variant="h5" sx={{ fontWeight: 900, color: "#0F172A", letterSpacing: "-0.02em" }}>
-                        {profile.company?.company_name || brandCompanyName}
+                        {compLegal}
                       </Typography>
-                      <Chip
-                        icon={<ShieldCheck size={14} color="#16A34A" />}
-                        label="RBI / NPCI Authorized"
-                        size="small"
-                        sx={verifiedBadgeStyle}
-                      />
+                      {compRegBadge && (
+                        <Chip
+                          icon={<ShieldCheck size={14} color="#16A34A" />}
+                          label={compRegBadge}
+                          size="small"
+                          sx={verifiedBadgeStyle}
+                        />
+                      )}
                     </Stack>
-                    <Typography variant="body2" sx={{ color: "#64748B", fontWeight: 500 }}>
-                      Official Operating Partner & Enterprise FinTech Network:{" "}
-                      <strong style={{ color: brandPrimary }}>{profile.company?.brand_name || `${brandDisplayName} Enterprise Network`}</strong>
-                    </Typography>
+                    {(compPartnerInfo || compBrand) && (
+                      <Typography variant="body2" sx={{ color: "#64748B", fontWeight: 500 }}>
+                        {compPartnerInfo}
+                        {compPartnerInfo && compBrand && !compPartnerInfo.toLowerCase().includes(compBrand.toLowerCase()) ? ": " : ""}
+                        {compBrand && !compPartnerInfo.toLowerCase().includes(compBrand.toLowerCase()) && (
+                          <strong style={{ color: brandPrimary }}>{compBrand}</strong>
+                        )}
+                      </Typography>
+                    )}
                   </Box>
                 </Stack>
 
-                <Button
-                  href={profile.company?.website_url || defaultWebsiteUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  variant="outlined"
-                  endIcon={<ExternalLink size={15} />}
-                  sx={{
-                    borderColor: brandBorder,
-                    color: brandPrimary,
-                    fontWeight: 700,
-                    borderRadius: 2.5,
-                    px: 2.5,
-                    py: 1,
-                    textTransform: "none",
-                    "&:hover": { borderColor: brandPrimary, bgcolor: brandLight },
-                  }}
-                >
-                  Visit Corporate Portal
-                </Button>
+                {compPortalUrl && (
+                  <Button
+                    href={compPortalUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    variant="outlined"
+                    endIcon={<ExternalLink size={15} />}
+                    sx={{
+                      borderColor: brandBorder,
+                      color: brandPrimary,
+                      fontWeight: 700,
+                      borderRadius: 2.5,
+                      px: 2.5,
+                      py: 1,
+                      textTransform: "none",
+                      flexShrink: 0,
+                      "&:hover": { borderColor: brandPrimary, bgcolor: brandLight },
+                    }}
+                  >
+                    Visit Corporate Portal
+                  </Button>
+                )}
               </Stack>
             </Paper>
           </Grid>
 
           {/* Corporate Entity Profile */}
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Paper elevation={0} sx={cardStyle}>
+          <Grid size={{ xs: 12, md: hasHelpdesk ? 6 : 12 }}>
+            <Paper elevation={0} sx={{ ...cardStyle, height: "100%" }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
                 <Typography variant="h6" sx={cardTitleStyle}>
                   Corporate Entity Profile
                 </Typography>
-                <Chip
-                  icon={<ShieldCheck size={13} color="#22C55E" />}
-                  label="Registered Corporate"
-                  size="small"
-                  sx={verifiedBadgeStyle}
-                />
+                {compEntityBadge && (
+                  <Chip
+                    icon={<ShieldCheck size={13} color="#22C55E" />}
+                    label={compEntityBadge}
+                    size="small"
+                    sx={verifiedBadgeStyle}
+                  />
+                )}
               </Stack>
               <Stack spacing={1.5}>
-                <DataRow label="Company Legal Name" value={profile.company?.company_name || brandCompanyName} />
-                <DataRow label="Brand / Network" value={profile.company?.brand_name || `${brandDisplayName} Enterprise Network`} />
-                <DataRow
-                  label="Corporate Identity Number (CIN)"
-                  value={profile.company?.cin || "—"}
-                  onCopy={profile.company?.cin ? () => handleCopy(profile.company?.cin, "CIN") : undefined}
-                />
-                <DataRow
-                  label="GSTIN"
-                  value={profile.company?.gstin || "—"}
-                  onCopy={profile.company?.gstin ? () => handleCopy(profile.company?.gstin, "GSTIN") : undefined}
-                />
-                <DataRow label="Business Entity Type" value="Private Limited Company" />
-                <DataRow label="Industry Sector" value="FinTech, Payments & Banking Correspondent Network" />
-                <DataRow label="Operating Status" value="ACTIVE & REGULATED" isStatus />
+                {compLegal && (
+                  <DataRow
+                    label="Company Legal Name"
+                    value={compLegal}
+                    onCopy={() => handleCopy(compLegal, "Company Legal Name")}
+                  />
+                )}
+                {compBrand && <DataRow label="Brand / Network" value={compBrand} />}
+                {compCin && (
+                  <DataRow
+                    label="Corporate Identity Number (CIN)"
+                    value={compCin}
+                    onCopy={() => handleCopy(compCin, "CIN")}
+                  />
+                )}
+                {compGstin && (
+                  <DataRow
+                    label="GSTIN"
+                    value={compGstin}
+                    onCopy={() => handleCopy(compGstin, "GSTIN")}
+                  />
+                )}
+                {compEntityType && <DataRow label="Business Entity Type" value={compEntityType} />}
+                {compSector && <DataRow label="Industry Sector" value={compSector} />}
+                {compStatus && <DataRow label="Operating Status" value={compStatus} isStatus />}
               </Stack>
             </Paper>
           </Grid>
 
-          {/* Central Helpdesk & Support Channels */}
+          {/* Merchant Helpdesk & Support Channels */}
+          {hasHelpdesk && (
           <Grid size={{ xs: 12, md: 6 }}>
-            <Paper elevation={0} sx={cardStyle}>
+            <Paper elevation={0} sx={{ ...cardStyle, height: "100%" }}>
               <Typography variant="h6" sx={cardTitleStyle}>
                 Merchant Helpdesk & Support Channels
               </Typography>
               <Stack spacing={1.5}>
-                <DataRow
-                  label="Toll-Free Support Helpline"
-                  value={profile.company?.support_phone || "1800 292 982"}
-                  onCopy={() => handleCopy(profile.company?.support_phone || "1800 292 982", "Support Phone")}
-                  action={
-                    <Button
-                      href={`tel:${profile.company?.support_phone || "1800292982"}`}
-                      variant="contained"
-                      size="small"
-                      startIcon={<PhoneCall size={13} />}
-                      sx={{ bgcolor: brandPrimary, fontWeight: 700, fontSize: "0.75rem", "&:hover": { bgcolor: brandHover } }}
-                    >
-                      Call Helpline
-                    </Button>
-                  }
-                />
-                <DataRow
-                  label="Official Support Email"
-                  value={profile.company?.support_email || defaultSupportEmail}
-                  onCopy={() => handleCopy(profile.company?.support_email || defaultSupportEmail, "Support Email")}
-                  action={
-                    <Button
-                      href={`mailto:${profile.company?.support_email || defaultSupportEmail}?subject=Retailer%20Support%20Enquiry`}
-                      variant="outlined"
-                      size="small"
-                      startIcon={<Mail size={13} />}
-                      sx={{ color: brandPrimary, borderColor: brandBorder, fontWeight: 700, fontSize: "0.75rem", "&:hover": { borderColor: brandPrimary } }}
-                    >
-                      Email Us
-                    </Button>
-                  }
-                />
-                <DataRow
-                  label="WhatsApp Business Desk"
-                  value={profile.company?.whatsapp_number || "+91 70139 14767"}
-                  onCopy={() => handleCopy(profile.company?.whatsapp_number || "+91 70139 14767", "WhatsApp Number")}
-                  action={
-                    <Button
-                      href={`https://wa.me/917013914767?text=${encodeURIComponent(`Hello ${brandDisplayName} Support, I need assistance with my Retailer Account.`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      variant="contained"
-                      size="small"
-                      startIcon={<MessageSquare size={13} />}
-                      sx={{ bgcolor: "#16A34A", fontWeight: 700, fontSize: "0.75rem", "&:hover": { bgcolor: "#15803D" } }}
-                    >
-                      WhatsApp
-                    </Button>
-                  }
-                />
-                <DataRow label="Operating Hours" value={profile.company?.support_hours || "Monday - Saturday | 09:00 AM - 07:00 PM IST"} />
-                <DataRow label="Direct Operations Line" value={profile.company?.direct_phone || "—"} />
+                {compHelpline && (
+                  <DataRow
+                    label="Toll-Free Support Helpline"
+                    value={compHelpline}
+                    href={`tel:${compHelpline.replace(/\s+/g, "")}`}
+                    onCopy={() => handleCopy(compHelpline, "Support Helpline")}
+                    action={
+                      <Button
+                        href={`tel:${compHelpline.replace(/\s+/g, "")}`}
+                        variant="contained"
+                        size="small"
+                        startIcon={<PhoneCall size={13} />}
+                        sx={{ bgcolor: brandPrimary, fontWeight: 700, fontSize: "0.75rem", "&:hover": { bgcolor: brandHover } }}
+                      >
+                        Call Helpline
+                      </Button>
+                    }
+                  />
+                )}
+                {compEmail && (
+                  <DataRow
+                    label="Official Support Email"
+                    value={compEmail}
+                    href={`mailto:${compEmail}?subject=Retailer%20Support%20Enquiry`}
+                    onCopy={() => handleCopy(compEmail, "Support Email")}
+                    action={
+                      <Button
+                        href={`mailto:${compEmail}?subject=Retailer%20Support%20Enquiry`}
+                        variant="outlined"
+                        size="small"
+                        startIcon={<Mail size={13} />}
+                        sx={{ color: brandPrimary, borderColor: brandBorder, fontWeight: 700, fontSize: "0.75rem", "&:hover": { borderColor: brandPrimary } }}
+                      >
+                        Email Us
+                      </Button>
+                    }
+                  />
+                )}
+                {compWhatsapp && (
+                  <DataRow
+                    label="WhatsApp Business Desk"
+                    value={compWhatsapp}
+                    href={`tel:${compWhatsapp.replace(/\s+/g, "")}`}
+                    onCopy={() => handleCopy(compWhatsapp, "WhatsApp Number")}
+                    action={
+                      compWhatsappDigits ? (
+                        <Button
+                          href={`https://wa.me/${compWhatsappDigits}?text=${encodeURIComponent(`Hello ${compBrand} Support, I need assistance with my Retailer Account.`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          variant="contained"
+                          size="small"
+                          startIcon={<MessageSquare size={13} />}
+                          sx={{ bgcolor: "#16A34A", fontWeight: 700, fontSize: "0.75rem", "&:hover": { bgcolor: "#15803D" } }}
+                        >
+                          WhatsApp
+                        </Button>
+                      ) : undefined
+                    }
+                  />
+                )}
+                {compHours && <DataRow label="Operating Hours" value={compHours} />}
+                {compDirectPhone && (
+                  <DataRow
+                    label="Direct Operations Line"
+                    value={compDirectPhone}
+                    href={`tel:${compDirectPhone.replace(/\s+/g, "")}`}
+                    onCopy={() => handleCopy(compDirectPhone, "Direct Operations Line")}
+                  />
+                )}
               </Stack>
             </Paper>
           </Grid>
+          )}
 
           {/* Registered Headquarters & Grievance Redressal */}
+          {hasHqOrGrievance && (
           <Grid size={{ xs: 12 }}>
             <Paper elevation={0} sx={cardStyle}>
               <Typography variant="h6" sx={cardTitleStyle}>
                 Registered Headquarters & Grievance Redressal
               </Typography>
               <Grid container spacing={3}>
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <Stack spacing={1.5}>
-                    <DataRow
-                      label="Corporate Registered Office Address"
-                      value={profile.company?.headquarters || defaultHeadquarters}
-                      onCopy={() => handleCopy(profile.company?.headquarters || defaultHeadquarters, "Office Address")}
-                    />
-                    <DataRow label="Official Website Portal" value={profile.company?.website_url || defaultWebsiteUrl} />
-                  </Stack>
-                </Grid>
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <Stack spacing={1.5}>
-                    <DataRow label="Grievance Redressal Officer" value={profile.company?.nodal_officer || `Grievance Redressal Officer, ${brandDisplayName}`} />
-                    <DataRow
-                      label="Grievance Escalation Email"
-                      value={profile.company?.grievance_email || defaultGrievanceEmail}
-                      onCopy={() => handleCopy(profile.company?.grievance_email || defaultGrievanceEmail, "Grievance Email")}
-                    />
-                    <DataRow label="Resolution Turnaround Time" value="Level 1: 24h | Grievance Escalation: 48-72h" />
-                  </Stack>
-                </Grid>
+                {(compHq || compWebsite) && (
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Stack spacing={1.5}>
+                      {compHq && (
+                        <DataRow
+                          label="Corporate Registered Office Address"
+                          value={compHq}
+                          onCopy={() => handleCopy(compHq, "Office Address")}
+                        />
+                      )}
+                      {compWebsite && (
+                        <DataRow
+                          label="Official Website Portal"
+                          value={compWebsite}
+                          href={compWebsite}
+                          external
+                          onCopy={() => handleCopy(compWebsite, "Website URL")}
+                        />
+                      )}
+                    </Stack>
+                  </Grid>
+                )}
+                {(compOfficer || compGrievanceEmail || compTat) && (
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Stack spacing={1.5}>
+                      {compOfficer && (
+                        <DataRow
+                          label="Grievance Redressal Officer"
+                          value={compOfficer}
+                          onCopy={() => handleCopy(compOfficer, "Grievance Officer")}
+                        />
+                      )}
+                      {compGrievanceEmail && (
+                        <DataRow
+                          label="Grievance Escalation Email"
+                          value={compGrievanceEmail}
+                          href={`mailto:${compGrievanceEmail}?subject=Grievance%20Escalation`}
+                          onCopy={() => handleCopy(compGrievanceEmail, "Grievance Email")}
+                        />
+                      )}
+                      {compTat && <DataRow label="Resolution Turnaround Time" value={compTat} />}
+                    </Stack>
+                  </Grid>
+                )}
               </Grid>
             </Paper>
           </Grid>
+          )}
         </Grid>
-      )}
+        );
+      })()}
         </motion.div>
       </AnimatePresence>
 
@@ -3356,12 +3536,16 @@ function DataRow({
   onCopy,
   isStatus,
   action,
+  href,
+  external,
 }: {
   label: string;
   value?: string | number | null;
   onCopy?: () => void;
   isStatus?: boolean;
   action?: React.ReactNode;
+  href?: string | null;
+  external?: boolean;
 }) {
   const displayVal = value !== null && value !== undefined && value !== "" ? String(value) : "—";
   const [copied, setCopied] = useState(false);
@@ -3379,34 +3563,54 @@ function DataRow({
       <Typography variant="caption" sx={labelStyle}>
         {label}
       </Typography>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 0.4 }}>
-        <Typography
-          variant="body1"
-          sx={{
-            color: isStatus ? "#10B981" : "#0F172A",
-            fontWeight: isStatus ? 700 : 600,
-            wordBreak: "break-all",
-          }}
-        >
-          {displayVal}
-        </Typography>
-        {onCopy && displayVal !== "—" && (
-          <Tooltip title={copied ? "Copied to clipboard!" : "Copy to clipboard"}>
-            <IconButton
-              size="small"
-              onClick={handleCopyClick}
-              sx={{
-                color: copied ? "#10B981" : "#64748B",
-                ml: 1,
-                transition: "all 0.2s",
-                "&:hover": { color: "#0F172A", bgcolor: "rgba(0,0,0,0.04)" },
-              }}
-            >
-              {copied ? <Check size={15} /> : <Copy size={15} />}
-            </IconButton>
-          </Tooltip>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 0.4, gap: 1 }}>
+        {href && displayVal !== "—" ? (
+          <Typography
+            component="a"
+            href={href}
+            {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+            variant="body1"
+            sx={{
+              color: "#0F172A",
+              fontWeight: 600,
+              wordBreak: "break-all",
+              textDecoration: "none",
+              "&:hover": { textDecoration: "underline", color: "var(--brand-primary, #0F3B7D)" },
+            }}
+          >
+            {displayVal}
+          </Typography>
+        ) : (
+          <Typography
+            variant="body1"
+            sx={{
+              color: isStatus ? "#10B981" : "#0F172A",
+              fontWeight: isStatus ? 700 : 600,
+              wordBreak: "break-all",
+            }}
+          >
+            {displayVal}
+          </Typography>
         )}
-        {action && <Box sx={{ ml: 1 }}>{action}</Box>}
+        <Stack direction="row" alignItems="center" sx={{ flexShrink: 0 }}>
+          {onCopy && displayVal !== "—" && (
+            <Tooltip title={copied ? "Copied to clipboard!" : "Copy to clipboard"}>
+              <IconButton
+                size="small"
+                onClick={handleCopyClick}
+                sx={{
+                  color: copied ? "#10B981" : "#64748B",
+                  ml: 0.5,
+                  transition: "all 0.2s",
+                  "&:hover": { color: "#0F172A", bgcolor: "rgba(0,0,0,0.04)" },
+                }}
+              >
+                {copied ? <Check size={15} /> : <Copy size={15} />}
+              </IconButton>
+            </Tooltip>
+          )}
+          {action && <Box sx={{ ml: 1 }}>{action}</Box>}
+        </Stack>
       </Stack>
     </Box>
   );
@@ -3479,13 +3683,13 @@ const inputStyle = {
       borderColor: "#94A3B8",
     },
     "&.Mui-focused fieldset": {
-      borderColor: "#0F172A",
+      borderColor: "var(--brand-primary, #0F3B7D)",
     },
   },
   "& .MuiInputLabel-root": {
     color: "#64748B",
     "&.Mui-focused": {
-      color: "#0F172A",
+      color: "var(--brand-primary, #0F3B7D)",
     },
   },
   "& .MuiFormHelperText-root": {

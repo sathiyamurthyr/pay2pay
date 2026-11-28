@@ -124,20 +124,22 @@ class BankMePayInClient:
     """Official BankMe PayIn HTTP Client implementation."""
 
     @classmethod
-    def get_credentials(cls) -> Tuple[str, str, str, str]:
+    def get_credentials(cls, company_ref_id: Optional[int] = 2) -> Tuple[str, str, str, str]:
         """
         Resolves active BankMe API Key ID, Secret, Webhook Secret, and Base URL.
-        Conforms with https://bankme.co.in/developers.html
+        Strictly scoped to SMSPay (company_ref_id == 2).
         """
+        if company_ref_id is not None and int(company_ref_id) != 2:
+            raise ValueError(f"BankMe PayIn API is not authorized for company_ref_id={company_ref_id}")
         key_id = (
             getattr(settings, "SMSPAY_PAYIN_KEY", None)
             or getattr(settings, "BANKME_PAYIN_API_KEY_ID", None)
-            or "pk_8bcb535627250637"
+            or ""
         )
         secret = (
             getattr(settings, "SMSPAY_PAYIN_AUTHKEY", None)
             or getattr(settings, "BANKME_PAYIN_API_SECRET", None)
-            or getattr(settings, "BANKME_PAYIN_API_KEY", "sk_70c79e7ddb7b9f1adda195b0d9f9e6bd3e2343d7c99e9df7")
+            or getattr(settings, "BANKME_PAYIN_API_KEY", "")
         )
         webhook_secret = getattr(settings, "BANKME_PAYIN_WEBHOOK_SECRET", secret)
         base_url = (getattr(settings, "BANKME_PAYIN_BASE_URL", "https://api.bankme.co.in") or "https://api.bankme.co.in").rstrip("/")
@@ -168,7 +170,15 @@ class BankMePayInClient:
         Returns BankMe orderId, hosted paymentUrl, and status.
         Audit logs every outbound request and inbound response to payin_api_logs.
         """
-        key_id, secret, _, base_url = cls.get_credentials()
+        key_id, secret, _, base_url = cls.get_credentials(company_ref_id=company_ref_id)
+        if not key_id or not secret:
+            return {
+                "success": False,
+                "status": "FAILED",
+                "message": "PayIn service is down: API credentials not configured.",
+                "error_code": "SERVICE_DOWN",
+                "raw_response": {"error": "Missing credentials"}
+            }
         endpoint = f"{base_url}/v1/payin/orders"
 
         # Sanitize Indian 10-digit mobile number per BankMe specification
@@ -370,7 +380,15 @@ class BankMePayInClient:
         BankMe official status endpoint fetches by merchant referenceId (our TID).
         Audit logs the status check request/response to payin_api_logs.
         """
-        key_id, secret, _, base_url = cls.get_credentials()
+        key_id, secret, _, base_url = cls.get_credentials(company_ref_id=company_ref_id)
+        if not key_id or not secret:
+            return {
+                "success": False,
+                "status": "FAILED",
+                "message": "PayIn service is down: API credentials not configured.",
+                "error_code": "SERVICE_DOWN",
+                "raw_response": {"error": "Missing credentials"}
+            }
         lookup_ref = tid or reference_id
         endpoint = f"{base_url}/v1/payin/orders/{lookup_ref}"
 

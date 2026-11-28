@@ -135,15 +135,24 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         pathname.startsWith("/retailer/payin/callback") ||
         pathname.startsWith("/retailer/payin/checkout");
       if (!isAuthPage) {
-        // Double check cookies before redirecting to avoid false positives on reload
+        // Double check cookies and localStorage before redirecting to avoid false positives on reload
         const cks = typeof document !== "undefined" ? document.cookie : "";
+        const lsHasToken = typeof localStorage !== "undefined" && Boolean(
+          localStorage.getItem("p2p_retailer_token") ||
+          localStorage.getItem("p2p_access_token") ||
+          localStorage.getItem("pay2pay_access_token") ||
+          localStorage.getItem("token")
+        );
         if (
+          !lsHasToken &&
+          !cks.includes("p2p_retailer_token=") &&
           !cks.includes("p2p_access_token=") &&
           !cks.includes("pay2pay_access_token=") &&
           !cks.includes("pay2pay_auth_token=") &&
+          !cks.includes("p2p_token=") &&
           !cks.includes("access_token=")
         ) {
-          window.location.replace(`/retailer/login?redirect=${encodeURIComponent(pathname)}`);
+          router.replace(`/retailer/login?redirect=${encodeURIComponent(pathname)}`);
         }
       }
     } else {
@@ -190,17 +199,11 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   const appSubtitle = `${appName} Operations`;
   const appLogo = branding?.logo_url || (isPay2Pay ? "/branding/pay2pay-logo.png" : isNear4You ? "/branding/logo.svg" : "/branding/smspay-logo.svg");
 
-  const brandPrimary = branding?.primary_colour || (isPay2Pay ? "#2563EB" : isNear4You ? "#A20A3A" : "#059669");
-  const brandSecondary = branding?.secondary_colour || (isPay2Pay ? "#1E40AF" : isNear4You ? "#85072F" : "#047857");
-  const brandLight = isPay2Pay ? "#EFF6FF" : isNear4You ? "#FFF0F4" : "#ECFDF5";
+  const brandPrimary = branding?.primary_colour || (isPay2Pay ? "#2563EB" : isNear4You ? "#A20A3A" : "#0F3B7D");
+  const brandSecondary = branding?.secondary_colour || (isPay2Pay ? "#1E40AF" : isNear4You ? "#EDC11E" : "#D4AF37");
+  const brandLight = `${brandPrimary}12`;
 
-  const headerGradient = isPay2Pay
-    ? "linear-gradient(110deg, #0F172A 0%, #2563EB 60%, #38BDF8 100%)"
-    : isNear4You
-    ? "linear-gradient(110deg, #6B0525 0%, #A20A3A 60%, #EDC11E 100%)"
-    : isSmsPay
-    ? "linear-gradient(110deg, #102A43 0%, #1D4ED8 65%, #0D9488 100%)"
-    : `linear-gradient(110deg, ${brandSecondary} 0%, ${brandPrimary} 65%, #0D9488 100%)`;
+  const headerGradient = `linear-gradient(110deg, ${brandPrimary} 0%, ${brandPrimary} 55%, ${brandSecondary} 100%)`;
 
   const [lockedModalItem, setLockedModalItem] = useState<{ label: string; path: string } | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -231,7 +234,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   const [universalSearchOpen, setUniversalSearchOpen] = useState(false);
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [menuSearchQuery, setMenuSearchQuery] = useState("");
-  const [favorites, setFavorites] = useState<string[]>([]);
+  const [dbMenus, setDbMenus] = useState<any[] | null>(null);
+  const [favorites, setFavorites] = useState<{ menu_ref_id?: number; menu_href: string; menu_label?: string }[]>([]);
   const [servicesStatus, setServicesStatus] = useState<Record<string, boolean>>({
     DMT: true,
     RECHARGE: true,
@@ -300,22 +304,35 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const [refreshErrorToast, setRefreshErrorToast] = useState<string | null>(null);
 
-  // Restore last known wallet balance strictly scoped to active retailer
+  // Restore last known wallet balance strictly scoped to active retailer / domain after hydration
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
+        const host = window.location.hostname.toLowerCase();
+        const port = window.location.port;
+        const domainScope = host.includes("smspay") || port === "4002"
+          ? "smspay"
+          : host.includes("near4you") || port === "4001"
+          ? "near4you"
+          : host.includes("pay2pay") || port === "3000" || port === "4003"
+          ? "pay2pay"
+          : "default";
         const activeCode = localStorage.getItem("p2p_active_retailer_code");
-        if (activeCode) {
-          const savedBal = localStorage.getItem(`p2p_cached_wallet_balance_${activeCode}`);
-          const savedAvail = localStorage.getItem(`p2p_cached_available_balance_${activeCode}`);
-          if (savedBal && !isNaN(Number(savedBal))) {
-            const bal = Number(savedBal);
-            const avail = savedAvail && !isNaN(Number(savedAvail)) ? Number(savedAvail) : bal;
-            useRetailerStore.getState().updateWallet({
-              mainBalance: bal,
-              availableBalance: avail,
-            });
-          }
+        const savedBal =
+          (activeCode && (localStorage.getItem(`p2p_cached_wallet_balance_${activeCode}`) || sessionStorage.getItem(`p2p_cached_wallet_balance_${activeCode}`))) ||
+          localStorage.getItem(`p2p_cached_wallet_balance_${domainScope}`) ||
+          sessionStorage.getItem(`p2p_cached_wallet_balance_${domainScope}`);
+        const savedAvail =
+          (activeCode && (localStorage.getItem(`p2p_cached_available_balance_${activeCode}`) || sessionStorage.getItem(`p2p_cached_available_balance_${activeCode}`))) ||
+          localStorage.getItem(`p2p_cached_available_balance_${domainScope}`) ||
+          sessionStorage.getItem(`p2p_cached_available_balance_${domainScope}`);
+        if (savedBal && !isNaN(Number(savedBal))) {
+          const bal = Number(savedBal);
+          const avail = savedAvail && !isNaN(Number(savedAvail)) ? Number(savedAvail) : bal;
+          useRetailerStore.getState().updateWallet({
+            mainBalance: bal,
+            availableBalance: avail,
+          });
         }
       } catch {}
     }
@@ -372,16 +389,12 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         return null;
       })()) || "";
 
-      const defaultCompanyName = isSmspay
-        ? "INSPEL TECHNOLOGIES SOLUTIONS PVT"
+      const defaultCompanyName = branding?.company_name || (isSmspay
+        ? "SMSPAY"
         : isNear4you
-        ? "SATHUS TECHNOLOGY PRIVATE LIMITED"
-        : (branding?.company_name || "SUPER REX PRODUCTS PRIVATE LIMITED");
-      let resolvedCompany = isSmspay
-        ? "INSPEL TECHNOLOGIES SOLUTIONS PVT"
-        : isNear4you
-        ? "SATHUS TECHNOLOGY PRIVATE LIMITED"
-        : (isPay2pay ? "SUPER REX PRODUCTS PRIVATE LIMITED" : (company.company_name || company.legal_name || defaultCompanyName));
+        ? "Near4You"
+        : "Pay2Pay");
+      const resolvedCompany = company.company_name || company.legal_name || branding?.company_name || defaultCompanyName;
 
       const resolvedOwner = personal.owner_name || (personal.first_name ? `${personal.first_name} ${personal.last_name || ""}`.trim() : personal.retailer_name) || fallbackOwner;
       const resolvedRetailer = personal.retailer_name || personal.store_name || fallbackOwner || "Retailer Store";
@@ -421,7 +434,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     hasInitializedRef.current = true;
     fetchProfileDetails();
     // Authoritative balance sync on mount so header and popup immediately show live wallet balance
-    useRetailerStore.getState().syncBalance?.();
+    useRetailerStore.getState().syncBalance?.(true);
   }, []);
 
   // Synchronize profile and notification if manual wallet refresh occurs
@@ -447,9 +460,19 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
 
     window.addEventListener("p2p_wallet_refreshed", handleWalletRefreshed);
     window.addEventListener("p2p_wallet_refresh_error", handleRefreshError);
+    const handleProfileUpdated = (e: any) => {
+      const nextUrl = e?.detail?.photo_url;
+      if (nextUrl) {
+        setProfileDetails((prev) => ({ ...prev, photo_url: nextUrl }));
+      } else {
+        fetchProfileDetails();
+      }
+    };
+    window.addEventListener("p2p_profile_updated", handleProfileUpdated);
     return () => {
       window.removeEventListener("p2p_wallet_refreshed", handleWalletRefreshed);
       window.removeEventListener("p2p_wallet_refresh_error", handleRefreshError);
+      window.removeEventListener("p2p_profile_updated", handleProfileUpdated);
     };
   }, []);
 
@@ -495,35 +518,55 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [isAuthenticatedSession, fetchServicesStatus]);
 
-  // ── DB-Backed User Favorites (PostgreSQL Stored Procedures & DB APIs) ──
-  // Backend resolves user identity from JWT Bearer token — no userRefId needed from frontend.
-  // Do NOT preload from localStorage: stale data from previous user session causes wrong favorites to appear after login.
-  useEffect(() => {
-    let isSubscribed = true;
-
-    const fetchDbFavorites = async () => {
-      try {
-        // Call without userRefId — backend authoritative identity resolution via JWT
-        const res = await retailerApi.getFavoriteMenus();
-        if (res && res.favorites && Array.isArray(res.favorites) && isSubscribed) {
-          const hrefs = res.favorites.map((f: any) => f.menu_href || f.path).filter(Boolean);
-          setFavorites(hrefs); // Set even if empty — clears stale state
-          try {
-            localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(hrefs));
-          } catch {}
+  // ── DB-Backed Dynamic Menus & User Favorites (Reference-ID DB APIs) ──
+  // Backend resolves company_ref_id, retailer_ref_id, user_ref_id strictly from JWT.
+  // Never trust localStorage on initial mount to prevent stale cross-user favorites.
+  const fetchDbMenusAndFavorites = useCallback(async () => {
+    try {
+      const availRes = await retailerApi.getAvailableMenus();
+      if (availRes?.status === "SUCCESS") {
+        if (Array.isArray(availRes.menus)) {
+          setDbMenus(availRes.menus);
         }
-      } catch (err) {
-        console.warn("Notice: DB favorites fetch notice:", err);
+        if (Array.isArray(availRes.favorites)) {
+          const normFavs = availRes.favorites
+            .map((f: any) => ({
+              menu_ref_id: f.menu_ref_id !== undefined ? Number(f.menu_ref_id) : undefined,
+              menu_href: f.menu_href || f.path || "",
+              menu_label: f.menu_label,
+            }))
+            .filter((f: any) => Boolean(f.menu_href));
+          setFavorites(normFavs);
+          return;
+        }
       }
-    };
-
-    if (isAuthenticatedSession) {
-      fetchDbFavorites();
+      const res = await retailerApi.getFavoriteMenus();
+      if (res && Array.isArray(res.favorites)) {
+        const normFavs = res.favorites
+          .map((f: any) => ({
+            menu_ref_id: f.menu_ref_id !== undefined ? Number(f.menu_ref_id) : undefined,
+            menu_href: f.menu_href || f.path || "",
+            menu_label: f.menu_label,
+          }))
+          .filter((f: any) => Boolean(f.menu_href));
+        setFavorites(normFavs);
+      }
+    } catch (err) {
+      console.warn("Notice: DB favorites fetch notice:", err);
     }
-    return () => {
-      isSubscribed = false;
-    };
-  }, [isAuthenticatedSession]);
+  }, []);
+
+  useEffect(() => {
+    if (isAuthenticatedSession) {
+      fetchDbMenusAndFavorites();
+    } else {
+      setFavorites([]);
+      setDbMenus(null);
+      try {
+        localStorage.removeItem("p2p_sidebar_favorites");
+      } catch {}
+    }
+  }, [isAuthenticatedSession, user?.public_id, fetchDbMenusAndFavorites]);
 
   // Global Lock Screen Keyboard Shortcut (Ctrl+L / Cmd+L)
   useEffect(() => {
@@ -584,41 +627,86 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     [servicesStatus, disabledSubmenus]
   );
 
-  const toggleFavorite = (path: string, e: React.MouseEvent, itemLabel?: string, itemCategory?: string) => {
+  const RETAILER_ICON_MAP: Record<string, any> = useMemo(() => ({
+    Dashboard: DashboardIcon,
+    Send: SendIcon,
+    CreditCard: CreditCardIcon,
+    Fingerprint: FingerprintIcon,
+    QrCode: QrCodeIcon,
+    Receipt: ReceiptIcon,
+    AddCard: AddCardIcon,
+    PhoneAndroid: PhoneAndroidIcon,
+    AccountBalanceWallet: AccountBalanceWalletIcon,
+    CloudUpload: CloudUploadIcon,
+    ReceiptLong: ReceiptLongIcon,
+    Person: PersonIcon,
+    Contacts: ContactsIcon,
+    Assessment: AssessmentIcon,
+    PointOfSale: PointOfSaleIcon,
+    Shield: ShieldIcon,
+    Logout: LogoutIcon,
+  }), []);
+
+  const isFavoriteItem = useCallback(
+    (path: string, menuRefId?: number) =>
+      favorites.some((f) =>
+        menuRefId !== undefined && f.menu_ref_id !== undefined
+          ? Number(f.menu_ref_id) === Number(menuRefId)
+          : f.menu_href === path
+      ),
+    [favorites]
+  );
+
+  const toggleFavorite = (
+    path: string,
+    e: React.MouseEvent,
+    itemLabel?: string,
+    itemCategory?: string,
+    menuRefId?: number
+  ) => {
     e.stopPropagation();
     e.preventDefault();
     if (!isItemEnabled({ path })) {
       return;
     }
-    const isCurrentlyFav = favorites.includes(path);
-    const updated = isCurrentlyFav ? favorites.filter((p) => p !== path) : [...favorites, path];
+    const prevFavorites = favorites;
+    const isCurrentlyFav = isFavoriteItem(path, menuRefId);
+    const updated = isCurrentlyFav
+      ? prevFavorites.filter((f) =>
+          menuRefId !== undefined && f.menu_ref_id !== undefined
+            ? Number(f.menu_ref_id) !== Number(menuRefId)
+            : f.menu_href !== path
+        )
+      : [...prevFavorites, { menu_ref_id: menuRefId, menu_href: path, menu_label: itemLabel || path }];
 
     // Optimistic UI state update
     setFavorites(updated);
-    try {
-      localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(updated));
-    } catch {}
 
-    // Asynchronously persist to PostgreSQL DB via Stored Procedure
-    // Backend resolves user identity from JWT — no userRefId needed from frontend
+    // Authoritative persistence to PostgreSQL DB (company_ref_id, retailer_ref_id, user_ref_id, menu_ref_id)
     retailerApi
       .toggleFavoriteMenu({
+        menu_ref_id: menuRefId,
         menu_href: path,
         menu_label: itemLabel || path,
         menu_category: itemCategory || "General",
-        user_role: "RETAILER",
       })
       .then((res: any) => {
-        if (res && res.favorites && Array.isArray(res.favorites)) {
-          const dbHrefs = res.favorites.map((f: any) => f.menu_href || f.path).filter(Boolean);
-          setFavorites(dbHrefs);
-          try {
-            localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(dbHrefs));
-          } catch {}
+        if (res && res.status === "SUCCESS" && Array.isArray(res.favorites)) {
+          const normFavs = res.favorites
+            .map((f: any) => ({
+              menu_ref_id: f.menu_ref_id !== undefined ? Number(f.menu_ref_id) : undefined,
+              menu_href: f.menu_href || f.path || "",
+              menu_label: f.menu_label,
+            }))
+            .filter((f: any) => Boolean(f.menu_href));
+          setFavorites(normFavs);
+        } else {
+          setFavorites(prevFavorites);
         }
       })
       .catch((err: any) => {
-        console.warn("Notice: DB favorite sync:", err);
+        console.warn("Notice: DB favorite sync rollback:", err);
+        setFavorites(prevFavorites);
       });
   };
 
@@ -636,7 +724,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const activeDrawerWidth = desktopCollapsed ? COLLAPSED_DRAWER_WIDTH : FULL_DRAWER_WIDTH;
 
-  const navCategories = useMemo(() => [
+  const fallbackCategories = useMemo(() => [
     {
       title: "MAIN",
       items: [{ label: "Dashboard", path: "/retailer/dashboard", icon: DashboardIcon }],
@@ -646,6 +734,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       items: [
         { label: "DMT", path: "/retailer/dmt", icon: SendIcon, serviceCode: "DMT" },
         { label: "Card to Cash", path: "/retailer/card-to-cash", icon: CreditCardIcon, serviceCode: "POS_TOPUP" },
+        { label: "Card Management", path: "/retailer/cards", icon: CreditCardIcon },
         { label: "AEPS", path: "/retailer/aeps", icon: FingerprintIcon, serviceCode: "AEPS" },
         { label: "UPI", path: "/retailer/upi", icon: QrCodeIcon, serviceCode: "UPI" },
         { label: "BBPS", path: "/retailer/bbps", icon: ReceiptIcon, serviceCode: "BBPS" },
@@ -683,6 +772,34 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       ],
     },
   ], []);
+
+  const navCategories = useMemo(() => {
+    if (dbMenus && dbMenus.length > 0) {
+      const grouped = new Map<string, any[]>();
+      dbMenus.forEach((m) => {
+        const cat = m.menu_category || "GENERAL";
+        if (!grouped.has(cat)) grouped.set(cat, []);
+        grouped.get(cat)!.push({
+          menu_ref_id: m.menu_ref_id,
+          label: m.menu_label,
+          path: m.menu_href,
+          icon: (m.icon_name && RETAILER_ICON_MAP[m.icon_name]) || DashboardIcon,
+          serviceCode: m.service_code || undefined,
+          parentServiceCode: m.parent_service_code || undefined,
+          badge: m.badge_text || undefined,
+        });
+      });
+      if (!grouped.has("ACCOUNT")) {
+        grouped.set("ACCOUNT", []);
+      }
+      const acct = grouped.get("ACCOUNT")!;
+      if (!acct.some((x) => x.path === "/logout")) {
+        acct.push({ label: "Logout", path: "/logout", icon: LogoutIcon });
+      }
+      return Array.from(grouped.entries()).map(([title, items]) => ({ title, items }));
+    }
+    return fallbackCategories;
+  }, [dbMenus, RETAILER_ICON_MAP, fallbackCategories]);
 
   const visibleNavCategories = useMemo(() => {
     return navCategories
@@ -905,7 +1022,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         {/* ── 1. FAVORITES CATEGORY ── */}
         {!menuSearchQuery && (() => {
           const allItems = visibleNavCategories.flatMap((cat) => cat.items);
-          const favItems = allItems.filter((i) => favorites.includes(i.path));
+          const favItems = allItems.filter((i: any) => isFavoriteItem(i.path, i.menu_ref_id));
           if (favItems.length === 0) return null;
 
           return (
@@ -996,7 +1113,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                             <IconButton
                               size="small"
                               className="fav-star"
-                              onClick={(e) => toggleFavorite(item.path, e)}
+                              onClick={(e) => toggleFavorite(item.path, e, item.label, "Favorites", (item as any).menu_ref_id)}
+                              title="Remove from Favorites"
                               sx={{ p: 0.3, color: "#F59E0B" }}
                             >
                               <StarIcon sx={{ fontSize: 16 }} />
@@ -1046,7 +1164,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 {cat.items.map((item) => {
                   const IconComponent = item.icon;
                   const isActive = pathname === item.path || (item.path !== "/retailer/dashboard" && item.path !== "/retailer-dashboard" && pathname?.startsWith(item.path));
-                  const isFav = favorites.includes(item.path);
+                  const isFav = isFavoriteItem(item.path, (item as any).menu_ref_id);
                   const itemLocked = isPathLocked(item.path);
 
                   return (
@@ -1154,7 +1272,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                               <IconButton
                                 size="small"
                                 className="fav-star"
-                                onClick={(e) => toggleFavorite(item.path, e, item.label, cat.title)}
+                                onClick={(e) => toggleFavorite(item.path, e, item.label, cat.title, (item as any).menu_ref_id)}
+                                title={isFav ? "Remove from Favorites" : "Add to Favorites"}
                                 sx={{
                                   p: 0.3,
                                   color: isFav ? "#F59E0B" : "#CBD5E1",
@@ -1344,8 +1463,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             sx={{
               width: 40,
               height: 40,
-              border: "3px solid #FFF0F4",
-              borderTopColor: "#A20A3A",
+              border: `3px solid ${brandLight}`,
+              borderTopColor: brandPrimary,
               borderRadius: "50%",
               animation: "spin 0.8s linear infinite",
               "@keyframes spin": {
@@ -1411,9 +1530,9 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 size="small"
                 sx={{
                   p: { xs: 0.5, sm: 0.75 },
-                  color: isSmsPay ? "#FFFFFF" : brandPrimary,
+                  color: isFinancialApp ? "#FFFFFF" : brandPrimary,
                   "&:hover": {
-                    backgroundColor: isSmsPay ? "rgba(255, 255, 255, 0.15)" : brandLight,
+                    backgroundColor: isFinancialApp ? "rgba(255, 255, 255, 0.15)" : brandLight,
                   },
                 }}
               >
@@ -1497,7 +1616,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 transition: "all 0.2s ease",
                 "&:hover": {
                   backgroundColor: isFinancialApp ? "rgba(255, 255, 255, 0.20)" : "#FFFFFF",
-                  borderColor: isFinancialApp ? "#38BDF8" : brandPrimary,
+                  borderColor: isFinancialApp ? "rgba(255, 255, 255, 0.7)" : brandPrimary,
                 },
               }}
             >
@@ -1555,12 +1674,12 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   px: 1.5,
                   height: 32,
                   display: { xs: "none", lg: "inline-flex" },
-                  backgroundColor: soundboxEnabled ? "#059669" : "#64748B",
+                  backgroundColor: soundboxEnabled ? brandPrimary : "#64748B",
                   color: "#FFFFFF",
-                  border: "none",
-                  boxShadow: soundboxEnabled ? "0 2px 4px rgba(5, 150, 105, 0.2)" : "none",
+                  border: "1.5px solid rgba(255, 255, 255, 0.5)",
+                  boxShadow: soundboxEnabled ? "0 2px 6px rgba(15, 23, 42, 0.25)" : "none",
                   "&:hover": {
-                    backgroundColor: soundboxEnabled ? "#047857" : "#475569",
+                    backgroundColor: soundboxEnabled ? brandSecondary : "#475569",
                     boxShadow: "none",
                   },
                 }}
@@ -1576,8 +1695,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 px: { xs: 0.8, sm: 1.4 },
                 py: 0.3,
                 borderRadius: "20px",
-                bgcolor: isFinancialApp ? "rgba(255, 255, 255, 0.15)" : "#ECFDF5",
-                border: isFinancialApp ? "1px solid rgba(255, 255, 255, 0.25)" : "1px solid #A7F3D0",
+                bgcolor: isFinancialApp ? "rgba(255, 255, 255, 0.15)" : brandLight,
+                border: isFinancialApp ? "1px solid rgba(255, 255, 255, 0.28)" : `1px solid ${brandPrimary}33`,
                 backdropFilter: "none",
                 display: "flex",
                 alignItems: "center",
@@ -1587,8 +1706,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 boxShadow: "0 1px 3px rgba(0, 0, 0, 0.04)",
                 transition: "all 0.25s ease",
                 "&:hover": {
-                  bgcolor: isFinancialApp ? "rgba(255, 255, 255, 0.22)" : "#D1FAE5",
-                  borderColor: isFinancialApp ? "#38BDF8" : "#059669",
+                  bgcolor: isFinancialApp ? "rgba(255, 255, 255, 0.22)" : brandLight,
+                  borderColor: isFinancialApp ? "#FFFFFF" : brandPrimary,
                 },
               }}
             >
@@ -1611,23 +1730,22 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                       width: { xs: 22, sm: 24 },
                       height: { xs: 22, sm: 24 },
                       borderRadius: "50%",
-                      bgcolor: isFinancialApp ? "rgba(255, 255, 255, 0.2)" : "rgba(5, 150, 105, 0.12)",
-                      border: isFinancialApp ? "1px solid rgba(255, 255, 255, 0.3)" : "1px solid rgba(5, 150, 105, 0.25)",
+                      bgcolor: isFinancialApp ? "rgba(255, 255, 255, 0.2)" : `${brandPrimary}1F`,
+                      border: isFinancialApp ? "1px solid rgba(255, 255, 255, 0.3)" : `1px solid ${brandPrimary}40`,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       flexShrink: 0,
                     }}
                   >
-                    <AccountBalanceWalletIcon sx={{ color: isFinancialApp ? "#FFFFFF" : "#059669", fontSize: { xs: 12, sm: 14 } }} />
+                    <AccountBalanceWalletIcon sx={{ color: isFinancialApp ? "#FFFFFF" : brandPrimary, fontSize: { xs: 12, sm: 14 } }} />
                   </Box>
 
                   <Typography
                     variant="subtitle1"
-                    suppressHydrationWarning
                     sx={{
                       fontWeight: 800,
-                      color: isFinancialApp ? "#FFFFFF" : "#059669",
+                      color: isFinancialApp ? "#FFFFFF" : brandPrimary,
                       fontSize: { xs: "12px", sm: "14px" },
                       lineHeight: 1.1,
                       letterSpacing: "-0.2px",
@@ -1638,7 +1756,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                     ₹{(wallet?.mainBalance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Typography>
 
-                  <KeyboardArrowDownIcon sx={{ color: isFinancialApp ? "rgba(255, 255, 255, 0.7)" : "#059669", fontSize: 16 }} />
+                  <KeyboardArrowDownIcon sx={{ color: isFinancialApp ? "rgba(255, 255, 255, 0.8)" : brandPrimary, fontSize: 16 }} />
                 </Box>
               </Tooltip>
 
@@ -1647,15 +1765,15 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   size="small"
                   onClick={(e) => {
                     e.stopPropagation();
-                    syncBalance();
+                    syncBalance(true);
                   }}
                   disabled={isSyncing}
                   sx={{
                     p: 0.2,
-                    color: isFinancialApp ? "#A7F3D0" : "#059669",
+                    color: isFinancialApp ? "#FFFFFF" : brandPrimary,
                     borderRadius: "50%",
                     "&:hover": {
-                      bgcolor: isFinancialApp ? "rgba(255, 255, 255, 0.2)" : "rgba(5, 150, 105, 0.15)",
+                      bgcolor: isFinancialApp ? "rgba(255, 255, 255, 0.2)" : `${brandPrimary}24`,
                     },
                   }}
                 >
@@ -1678,9 +1796,11 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   onClick={(e) => setKpiThemeAnchor(e.currentTarget)}
                   size="small"
                   sx={{
-                    p: 0.75,
-                    color: isSmsPay ? "rgba(255, 255, 255, 0.85)" : "#64748B",
-                    "&:hover": { color: "#FFFFFF", bgcolor: isSmsPay ? "rgba(255, 255, 255, 0.15)" : "#F1F5F9" },
+                    p: 0.7,
+                    color: isFinancialApp ? "#FFFFFF" : "#64748B",
+                    bgcolor: isFinancialApp ? "rgba(15, 23, 42, 0.22)" : "transparent",
+                    border: isFinancialApp ? "1px solid rgba(255, 255, 255, 0.25)" : "none",
+                    "&:hover": { color: "#FFFFFF", bgcolor: isFinancialApp ? "rgba(15, 23, 42, 0.36)" : brandPrimary },
                   }}
                 >
                   <PaletteIcon sx={{ fontSize: 20 }} />
@@ -1736,10 +1856,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                       alignItems: "center",
                       justifyContent: "space-between",
                       bgcolor: isSelected
-                        ? "#FFF0F4"
+                        ? brandLight
                         : "transparent",
                       color: isSelected
-                        ? "#A20A3A"
+                        ? brandPrimary
                         : "#292329",
                       "&:hover": {
                         bgcolor: "#FAF8F9",
@@ -1766,11 +1886,13 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   onClick={lockSession}
                   size="small"
                   sx={{
-                    color: isSmsPay ? "rgba(255, 255, 255, 0.85)" : effectiveTheme === "dark" ? "#94A3B8" : "#64748B",
-                    p: 0.75,
+                    color: isFinancialApp ? "#FFFFFF" : effectiveTheme === "dark" ? "#94A3B8" : "#64748B",
+                    bgcolor: isFinancialApp ? "rgba(15, 23, 42, 0.22)" : "transparent",
+                    border: isFinancialApp ? "1px solid rgba(255, 255, 255, 0.25)" : "none",
+                    p: 0.7,
                     "&:hover": {
-                      color: "#F59E0B",
-                      backgroundColor: isSmsPay ? "rgba(255, 255, 255, 0.15)" : effectiveTheme === "dark" ? "rgba(245, 158, 11, 0.15)" : "rgba(245, 158, 11, 0.1)",
+                      color: "#FFFFFF",
+                      backgroundColor: isFinancialApp ? "rgba(15, 23, 42, 0.36)" : "rgba(245, 158, 11, 0.12)",
                     },
                   }}
                 >
@@ -1785,14 +1907,14 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 <Avatar
                   src={profileDetails.photo_url || outlet.avatar || undefined}
                   sx={{
-                    bgcolor: "#059669",
+                    bgcolor: brandPrimary,
                     color: "#FFFFFF",
                     width: { xs: 30, sm: 34 },
                     height: { xs: 30, sm: 34 },
                     fontWeight: 800,
                     fontSize: { xs: "0.75rem", sm: "0.85rem" },
                     border: "2px solid #FFFFFF",
-                    boxShadow: "0 2px 6px rgba(5, 150, 105, 0.4)",
+                    boxShadow: `0 2px 6px ${brandPrimary}55`,
                   }}
                 >
                   {(profileDetails.owner_name || profileDetails.retailer_name || outlet.ownerName || outlet.name || "S").charAt(0).toUpperCase()}
@@ -1889,10 +2011,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   WALLET BALANCE
                 </Typography>
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <Typography variant="h5" suppressHydrationWarning sx={{ fontSize: "22px", fontWeight: 800, color: brandPrimary, fontFamily: "monospace", lineHeight: 1.1 }}>
+                  <Typography variant="h5" sx={{ fontSize: "22px", fontWeight: 800, color: brandPrimary, fontFamily: "monospace", lineHeight: 1.1 }}>
                     ₹{(wallet?.mainBalance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Typography>
-                  <IconButton size="small" onClick={() => syncBalance()} disabled={isSyncing} sx={{ p: 0.25 }}>
+                  <IconButton size="small" onClick={() => syncBalance(true)} disabled={isSyncing} sx={{ p: 0.25 }}>
                     <RefreshIcon sx={{ fontSize: 16, color: brandPrimary, animation: isSyncing ? "spin 1s linear infinite" : "none" }} />
                   </IconButton>
                 </Box>
@@ -2178,7 +2300,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   href="/register/submitted"
                   size="small"
                   variant="contained"
-                  sx={{ bgcolor: "#EDC11E", color: "#FFFFFF", fontWeight: 800, textTransform: "none", fontSize: "12px", "&:hover": { bgcolor: "#D4A915" } }}
+                  sx={{ bgcolor: brandSecondary, color: "#FFFFFF", fontWeight: 800, textTransform: "none", fontSize: "12px", "&:hover": { bgcolor: brandPrimary } }}
                 >
                   Check KYC Status
                 </Button>
@@ -2186,7 +2308,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   size="small"
                   variant="outlined"
                   onClick={() => openContactSupportModal()}
-                  sx={{ borderColor: "#E8E2E5", color: "#292329", fontWeight: 800, textTransform: "none", fontSize: "12px", "&:hover": { borderColor: "#A20A3A", bgcolor: "#FFF0F4" } }}
+                  sx={{ borderColor: "#E8E2E5", color: "#292329", fontWeight: 800, textTransform: "none", fontSize: "12px", "&:hover": { borderColor: brandPrimary, bgcolor: brandLight } }}
                 >
                   Contact Admin Support
                 </Button>
@@ -2243,7 +2365,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 </Typography>
               </Stack>
               <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-                <LockIcon sx={{ fontSize: 14, color: "#EDC11E" }} />
+                <LockIcon sx={{ fontSize: 14, color: brandSecondary }} />
                 <Typography variant="caption" sx={{ fontWeight: 700, color: "#292329", fontSize: "12px" }}>
                   NPCI & BBPS Certified
                 </Typography>
@@ -2282,7 +2404,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       }}
     >
       <Box sx={{ textCenter: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
-        <Box sx={{ w: 14, h: 14, p: 1.5, borderRadius: "50%", bgcolor: "#FFF8DC", border: "2px solid #FFF3C4", color: "#EDC11E", mb: 2, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Box sx={{ w: 14, h: 14, p: 1.5, borderRadius: "50%", bgcolor: brandLight, border: `2px solid ${brandSecondary}55`, color: brandSecondary, mb: 2, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <LockIcon sx={{ fontSize: 32 }} />
         </Box>
         <Typography variant="h6" sx={{ fontWeight: 900, color: "#292329", textAlign: "center" }}>
@@ -2299,7 +2421,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             onClick={() => setLockedModalItem(null)}
             variant="contained"
             fullWidth
-            sx={{ bgcolor: "#A20A3A", color: "#FFF", fontWeight: 800, borderRadius: "12px", height: 44, textTransform: "none", fontSize: "13px", "&:hover": { bgcolor: "#85072F" } }}
+            sx={{ bgcolor: brandPrimary, color: "#FFF", fontWeight: 800, borderRadius: "12px", height: 44, textTransform: "none", fontSize: "13px", "&:hover": { bgcolor: brandSecondary } }}
           >
             Check Application & KYC Status
           </Button>
@@ -2310,7 +2432,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             }}
             variant="outlined"
             fullWidth
-            sx={{ borderColor: "#E8E2E5", color: "#292329", fontWeight: 800, borderRadius: "12px", height: 44, textTransform: "none", fontSize: "13px", "&:hover": { borderColor: "#A20A3A", bgcolor: "#FFF0F4" } }}
+            sx={{ borderColor: "#E8E2E5", color: "#292329", fontWeight: 800, borderRadius: "12px", height: 44, textTransform: "none", fontSize: "13px", "&:hover": { borderColor: brandPrimary, bgcolor: brandLight } }}
           >
             Contact Admin Support
           </Button>

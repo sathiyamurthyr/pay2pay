@@ -426,8 +426,8 @@ const INITIAL_FORM: WizardFormData = {
 
 export default function CompanyListPage() {
   const { isRetailer, isAdmin } = useAuth();
-  const [companies, setCompanies] = useState<Company[]>(MOCK_COMPANIES);
-  const [loading, setLoading] = useState(false);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
@@ -454,30 +454,14 @@ export default function CompanyListPage() {
   const fetchCompanies = useCallback(async () => {
     setLoading(true);
     try {
-      // Check localStorage for persisted dev state first
-      if (typeof window !== "undefined") {
-        const saved = localStorage.getItem("pay2pay_companies_state");
-        if (saved) {
-          try {
-            const parsed = JSON.parse(saved);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setCompanies(parsed);
-              setLoading(false);
-              return;
-            }
-          } catch {
-            localStorage.removeItem("pay2pay_companies_state");
-          }
-        }
-      }
       const res = await api.get("/api/v1/companies?page=1&limit=50");
-      if (res.data?.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
+      if (res.data?.data && Array.isArray(res.data.data)) {
         setCompanies(res.data.data);
       } else {
-        setCompanies(MOCK_COMPANIES);
+        setCompanies([]);
       }
     } catch {
-      setCompanies(MOCK_COMPANIES);
+      setCompanies([]);
     } finally {
       setLoading(false);
     }

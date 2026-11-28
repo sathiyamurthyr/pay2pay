@@ -848,18 +848,19 @@ class ProgressiveOnboardingService:
 
         # Sync immediately into public.retailer table using Stored Procedure
         try:
-            from sqlalchemy import text
-            clean_m = re.sub(r"\D", "", str(draft.mobile_number))[-10:]
-            c_stmt = select(RetailerContactModel.retailer_id).where(
-                RetailerContactModel.mobile.in_([clean_m, f"91{clean_m}", f"+91{clean_m}"])
-            )
-            ret_uuid = (await db.execute(c_stmt)).scalars().first()
-            if ret_uuid:
-                await db.execute(
-                    text("SELECT public.sp_update_retailer_mpin(:rid, :nh, 'ONBOARDING_STEP5')"),
-                    {"rid": ret_uuid, "nh": draft_data["mpin_hash"]}
+            async with db.begin_nested():
+                from sqlalchemy import text
+                clean_m = re.sub(r"\D", "", str(draft.mobile_number))[-10:]
+                c_stmt = select(RetailerContactModel.retailer_id).where(
+                    RetailerContactModel.mobile.in_([clean_m, f"91{clean_m}", f"+91{clean_m}"])
                 )
-        except Exception as e:
+                ret_uuid = (await db.execute(c_stmt)).scalars().first()
+                if ret_uuid:
+                    await db.execute(
+                        text("SELECT public.sp_update_retailer_mpin(:rid, :nh, 'ONBOARDING_STEP5')"),
+                        {"rid": ret_uuid, "nh": draft_data["mpin_hash"]}
+                    )
+        except Exception:
             pass
 
         # Also sync AuthUserModel password_hash

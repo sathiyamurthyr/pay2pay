@@ -45,7 +45,7 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
   onEditCustomer,
   onViewCustomerProfile,
   onChangeCustomer,
-  darkTheme = true,
+  darkTheme = false,
 }) => {
   const storeCustomer = useTransactionMemoryStore((state) => state.selectedCustomer);
   const customer = propsCustomer || storeCustomer;
@@ -71,11 +71,10 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
         px: { xs: 1.5, md: 2 },
         mb: 2,
         borderRadius: "16px",
-        bgcolor: darkTheme ? "rgba(11, 15, 25, 0.88)" : "#F0F9FF",
-        backdropFilter: "blur(20px)",
+        bgcolor: darkTheme ? "rgba(11, 15, 25, 0.88)" : "var(--brand-surface, #EFF6FF)",
         border: darkTheme
-          ? "1px solid rgba(245, 158, 11, 0.25)"
-          : "1px solid #BAE6FD",
+          ? "1px solid var(--brand-border, rgba(15, 59, 125, 0.25))"
+          : "1px solid var(--brand-border, rgba(15, 59, 125, 0.25))",
         display: "flex",
         flexDirection: { xs: "column", md: "row" },
         alignItems: "center",
@@ -85,8 +84,8 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
         maxWidth: "100%",
         boxSizing: "border-box",
         boxShadow: darkTheme
-          ? "0 8px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(245, 158, 11, 0.08)"
-          : "0 2px 10px rgba(2, 132, 199, 0.08)",
+          ? "0 8px 30px rgba(0, 0, 0, 0.45)"
+          : "0 2px 10px rgba(15, 23, 42, 0.05)",
       }}
     >
       {/* ── DESKTOP SINGLE-LINE VIEW (md and up) ── */}
@@ -106,12 +105,12 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
           sx={{
             width: 38,
             height: 38,
-            background: "linear-gradient(135deg, #1E293B 0%, #FFFFFF 100%)",
-            color: "#FDE68A",
+            background: "var(--brand-gradient, linear-gradient(135deg, #0F3B7D 0%, #D4AF37 100%))",
+            color: "#FFFFFF",
             fontWeight: 900,
             fontSize: "14px",
-            border: darkTheme ? "2px solid #F59E0B" : "2px solid #0284C7",
-            boxShadow: darkTheme ? "0 0 10px rgba(245, 158, 11, 0.35)" : "0 2px 8px rgba(0,0,0,0.2)",
+            border: "2px solid #FFFFFF",
+            boxShadow: "0 2px 8px rgba(15, 23, 42, 0.14)",
             flexShrink: 0,
           }}
         >
@@ -135,10 +134,7 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
               fontSize: "15px",
               letterSpacing: "-0.2px",
               lineHeight: 1,
-              background: darkTheme ? "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)" : "none",
-              WebkitBackgroundClip: darkTheme ? "text" : "unset",
-              WebkitTextFillColor: darkTheme ? "transparent" : "inherit",
-              color: darkTheme ? "inherit" : "#FFFFFF",
+              color: darkTheme ? "#FFFFFF" : "var(--text-primary, #0F172A)",
               whiteSpace: "nowrap",
               flexShrink: 0,
             }}
@@ -147,42 +143,42 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
           </Typography>
 
           <Chip
-            icon={<ShieldIcon sx={{ "&&": { color: "#4ADE80", fontSize: 11 } }} />}
+            icon={<ShieldIcon sx={{ "&&": { color: "#16A34A", fontSize: 11 } }} />}
             label={`KYC: ${kycStatus}`}
             size="small"
             sx={{
               height: 20,
-              bgcolor: "rgba(34, 197, 94, 0.15)",
-              color: "#4ADE80",
+              bgcolor: "#DCFCE7",
+              color: "#166534",
               fontWeight: 800,
               fontSize: "9.5px",
-              border: "1px solid rgba(74, 222, 128, 0.4)",
+              border: "1px solid #86EFAC",
               flexShrink: 0,
             }}
           />
 
           <Chip
-            icon={<CheckCircleIcon sx={{ "&&": { color: "#38BDF8", fontSize: 11 } }} />}
+            icon={<CheckCircleIcon sx={{ "&&": { color: "var(--brand-primary, #0F3B7D)", fontSize: 11 } }} />}
             label="VERIFIED"
             size="small"
             sx={{
               height: 20,
-              bgcolor: "rgba(56, 189, 248, 0.15)",
-              color: "#38BDF8",
+              bgcolor: "#FFFFFF",
+              color: "var(--brand-primary, #0F3B7D)",
               fontWeight: 800,
               fontSize: "9.5px",
-              border: "1px solid rgba(56, 189, 248, 0.4)",
+              border: "1px solid var(--brand-border, rgba(15, 59, 125, 0.25))",
               flexShrink: 0,
             }}
           />
 
-          <Typography sx={{ color: "rgba(255, 255, 255, 0.35)", fontWeight: 800, mx: 0.25, userSelect: "none" }}>
+          <Typography sx={{ color: darkTheme ? "rgba(255, 255, 255, 0.35)" : "#94A3B8", fontWeight: 800, mx: 0.25, userSelect: "none" }}>
             ·
           </Typography>
 
           <Typography
             sx={{
-              color: darkTheme ? "rgba(255, 255, 255, 0.90)" : "#334155",
+              color: darkTheme ? "rgba(255, 255, 255, 0.90)" : "var(--text-secondary, #334155)",
               fontSize: "12.5px",
               fontWeight: 700,
               whiteSpace: "nowrap",
@@ -192,13 +188,13 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
             +91 {mobile}
           </Typography>
 
-          <Typography sx={{ color: "rgba(255, 255, 255, 0.35)", fontWeight: 800, mx: 0.25, userSelect: "none" }}>
+          <Typography sx={{ color: darkTheme ? "rgba(255, 255, 255, 0.35)" : "#94A3B8", fontWeight: 800, mx: 0.25, userSelect: "none" }}>
             ·
           </Typography>
 
           <Typography
             sx={{
-              color: darkTheme ? "rgba(255, 255, 255, 0.70)" : "#475569",
+              color: darkTheme ? "rgba(255, 255, 255, 0.70)" : "var(--text-muted, #64748B)",
               fontSize: "12px",
               fontWeight: 600,
               whiteSpace: "nowrap",
@@ -207,7 +203,7 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
             }}
           >
             Customer ID:{" "}
-            <span style={{ color: darkTheme ? "#FDE68A" : "#0284C7", fontFamily: "monospace", fontWeight: 800 }}>
+            <span style={{ color: darkTheme ? "#FDE68A" : "var(--brand-primary, #0F3B7D)", fontFamily: "monospace", fontWeight: 800 }}>
               {customerCode}
             </span>
           </Typography>
@@ -223,12 +219,12 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
             sx={{
               width: 38,
               height: 38,
-              background: "linear-gradient(135deg, #1E293B 0%, #FFFFFF 100%)",
-              color: "#FDE68A",
+              background: "var(--brand-gradient, linear-gradient(135deg, #0F3B7D 0%, #D4AF37 100%))",
+              color: "#FFFFFF",
               fontWeight: 900,
               fontSize: "14px",
-              border: darkTheme ? "2px solid #F59E0B" : "2px solid #0284C7",
-              boxShadow: darkTheme ? "0 0 10px rgba(245, 158, 11, 0.35)" : "0 2px 8px rgba(0,0,0,0.2)",
+              border: "2px solid #FFFFFF",
+              boxShadow: "0 2px 8px rgba(15, 23, 42, 0.14)",
               flexShrink: 0,
             }}
           >
@@ -242,51 +238,48 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
                   fontWeight: 900,
                   fontSize: "14.5px",
                   letterSpacing: "-0.2px",
-                  background: darkTheme ? "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)" : "none",
-                  WebkitBackgroundClip: darkTheme ? "text" : "unset",
-                  WebkitTextFillColor: darkTheme ? "transparent" : "inherit",
-                  color: darkTheme ? "inherit" : "#FFFFFF",
+                  color: darkTheme ? "#FFFFFF" : "var(--text-primary, #0F172A)",
                 }}
               >
                 {name}
               </Typography>
               <Chip
-                icon={<ShieldIcon sx={{ "&&": { color: "#4ADE80", fontSize: 10 } }} />}
+                icon={<ShieldIcon sx={{ "&&": { color: "#16A34A", fontSize: 10 } }} />}
                 label={`KYC: ${kycStatus}`}
                 size="small"
                 sx={{
                   height: 18,
-                  bgcolor: "rgba(34, 197, 94, 0.15)",
-                  color: "#4ADE80",
+                  bgcolor: "#DCFCE7",
+                  color: "#166534",
                   fontWeight: 800,
                   fontSize: "8.5px",
-                  border: "1px solid rgba(74, 222, 128, 0.4)",
+                  border: "1px solid #86EFAC",
                 }}
               />
               <Chip
-                icon={<CheckCircleIcon sx={{ "&&": { color: "#38BDF8", fontSize: 10 } }} />}
+                icon={<CheckCircleIcon sx={{ "&&": { color: "var(--brand-primary, #0F3B7D)", fontSize: 10 } }} />}
                 label="VERIFIED"
                 size="small"
                 sx={{
                   height: 18,
-                  bgcolor: "rgba(56, 189, 248, 0.15)",
-                  color: "#38BDF8",
+                  bgcolor: "#FFFFFF",
+                  color: "var(--brand-primary, #0F3B7D)",
                   fontWeight: 800,
                   fontSize: "8.5px",
-                  border: "1px solid rgba(56, 189, 248, 0.4)",
+                  border: "1px solid var(--brand-border, rgba(15, 59, 125, 0.25))",
                 }}
               />
             </Box>
             <Typography
               sx={{
-                color: darkTheme ? "rgba(255, 255, 255, 0.80)" : "#475569",
+                color: darkTheme ? "rgba(255, 255, 255, 0.80)" : "var(--text-muted, #64748B)",
                 fontSize: "11px",
                 mt: 0.25,
                 fontWeight: 600,
               }}
             >
               <strong>+91 {mobile}</strong> · ID:{" "}
-              <span style={{ color: darkTheme ? "#FDE68A" : "#0284C7", fontFamily: "monospace", fontWeight: 800 }}>
+              <span style={{ color: darkTheme ? "#FDE68A" : "var(--brand-primary, #0F3B7D)", fontFamily: "monospace", fontWeight: 800 }}>
                 {customerCode}
               </span>
             </Typography>
@@ -324,13 +317,14 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
                 fontSize: "11px",
                 fontWeight: 800,
                 whiteSpace: "nowrap",
-                color: darkTheme ? "#FDE68A" : "#0369A1",
-                borderColor: darkTheme ? "rgba(245, 158, 11, 0.35)" : "#BAE6FD",
-                bgcolor: darkTheme ? "rgba(245, 158, 11, 0.08)" : "#E0F2FE",
+                color: "var(--brand-primary, #0F3B7D)",
+                borderColor: "var(--brand-border, rgba(15, 59, 125, 0.25))",
+                bgcolor: "#FFFFFF",
                 textTransform: "none",
                 "&:hover": {
-                  bgcolor: darkTheme ? "rgba(245, 158, 11, 0.18)" : "#BAE6FD",
-                  borderColor: "#F59E0B",
+                  bgcolor: "var(--brand-primary, #0F3B7D)",
+                  color: "#FFFFFF",
+                  borderColor: "var(--brand-primary, #0F3B7D)",
                 },
               }}
             >
@@ -353,13 +347,14 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
                 fontSize: "11px",
                 fontWeight: 800,
                 whiteSpace: "nowrap",
-                color: darkTheme ? "#93C5FD" : "#0369A1",
-                borderColor: darkTheme ? "rgba(147, 197, 253, 0.4)" : "#BAE6FD",
-                bgcolor: darkTheme ? "rgba(37, 99, 235, 0.15)" : "#E0F2FE",
+                color: "var(--brand-primary, #0F3B7D)",
+                borderColor: "var(--brand-border, rgba(15, 59, 125, 0.25))",
+                bgcolor: "#FFFFFF",
                 textTransform: "none",
                 "&:hover": {
-                  bgcolor: darkTheme ? "rgba(37, 99, 235, 0.3)" : "#BAE6FD",
-                  borderColor: "#93C5FD",
+                  bgcolor: "var(--brand-primary, #0F3B7D)",
+                  color: "#FFFFFF",
+                  borderColor: "var(--brand-primary, #0F3B7D)",
                 },
               }}
             >
@@ -382,12 +377,12 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
                 fontSize: "11px",
                 fontWeight: 800,
                 whiteSpace: "nowrap",
-                color: darkTheme ? "#FCA5A5" : "#B91C1C",
-                borderColor: darkTheme ? "rgba(252, 165, 165, 0.4)" : "#FECACA",
-                bgcolor: darkTheme ? "rgba(239, 68, 68, 0.15)" : "#FEF2F2",
+                color: "#B91C1C",
+                borderColor: "#FECACA",
+                bgcolor: "#FEF2F2",
                 textTransform: "none",
                 "&:hover": {
-                  bgcolor: darkTheme ? "rgba(239, 68, 68, 0.3)" : "#FEE2E2",
+                  bgcolor: "#FEE2E2",
                   borderColor: "#FCA5A5",
                 },
               }}

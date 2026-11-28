@@ -38,17 +38,45 @@ async def get_current_token_payload(
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1].strip()
         else:
-            token = (
-                request.cookies.get("p2p_retailer_token")
-                or request.cookies.get("p2p_admin_token")
-                or request.cookies.get("p2p_super_admin_token")
-                or request.cookies.get("p2p_access_token")
-                or request.cookies.get("pay2pay_access_token")
-                or request.cookies.get("pay2pay_auth_token")
-                or request.cookies.get("access_token")
-                or request.cookies.get("token")
-                or request.cookies.get("p2p_token")
-            )
+            req_path = request.url.path.lower()
+            req_host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").lower()
+            is_admin_req = req_path.startswith("/admin") or req_path.startswith("/api/v1/admin") or "admin." in req_host
+            is_super_admin_req = req_path.startswith("/super-admin") or req_path.startswith("/api/v1/super-admin") or "super-admin." in req_host or "superadmin." in req_host
+
+            if is_super_admin_req:
+                token = (
+                    request.cookies.get("p2p_super_admin_token")
+                    or request.cookies.get("p2p_admin_token")
+                    or request.cookies.get("p2p_access_token")
+                    or request.cookies.get("pay2pay_access_token")
+                    or request.cookies.get("access_token")
+                    or request.cookies.get("token")
+                    or request.cookies.get("p2p_token")
+                )
+            elif is_admin_req:
+                token = (
+                    request.cookies.get("p2p_admin_token")
+                    or request.cookies.get("p2p_super_admin_token")
+                    or request.cookies.get("p2p_access_token")
+                    or request.cookies.get("pay2pay_access_token")
+                    or request.cookies.get("access_token")
+                    or request.cookies.get("token")
+                    or request.cookies.get("p2p_token")
+                )
+            else:
+                token = (
+                    request.cookies.get("p2p_admin_token")
+                    or request.cookies.get("p2p_super_admin_token")
+                    or request.cookies.get("p2p_retailer_token")
+                    or request.cookies.get("p2p_dist_token")
+                    or request.cookies.get("p2p_sd_token")
+                    or request.cookies.get("p2p_access_token")
+                    or request.cookies.get("pay2pay_access_token")
+                    or request.cookies.get("pay2pay_auth_token")
+                    or request.cookies.get("access_token")
+                    or request.cookies.get("token")
+                    or request.cookies.get("p2p_token")
+                )
 
     if not token:
         raise UnauthorizedException("Authentication credentials were not provided")
@@ -357,14 +385,20 @@ async def require_admin_user(
 ) -> AdminUserModel:
     """
     Strict server-side RBAC dependency. Enforces that only users with
-    authoritative administrative roles (PLATFORM_ADMIN, SUPER_ADMIN, ADMIN) can access
-    the protected administrative endpoint.
+    authoritative administrative / internal staff roles can access
+    protected administrative endpoints. Rejects retailers, distributors, and SDs.
     """
+    allowed_admin_roles = {
+        "PLATFORM_ADMIN", "SUPER_ADMIN", "ADMIN",
+        "OPERATIONS", "OPERATIONS_ADMIN", "FINANCE",
+        "COMPLIANCE", "COMPLIANCE_OFFICER", "AUDIT_VIEWER",
+        "SETTLEMENT_MGR", "REGIONAL_MANAGER", "CRM", "CRM_EXECUTIVE", "CRM_MANAGER",
+    }
     user_type = (getattr(current_user, "user_type", "") or "").upper()
-    is_admin = user_type in ("PLATFORM_ADMIN", "SUPER_ADMIN", "ADMIN")
+    is_admin = user_type in allowed_admin_roles
     if not is_admin:
         has_admin_role = any(
-            (ur.role and ur.role.code in ("PLATFORM_ADMIN", "SUPER_ADMIN", "ADMIN"))
+            (ur.role and str(ur.role.code).upper() in allowed_admin_roles)
             for ur in (getattr(current_user, "user_roles", []) or [])
         )
         if not has_admin_role:
@@ -471,13 +505,15 @@ class CompanyContext:
 
 
 async def get_company_context(
+    request: Request,
     payload: dict = Depends(get_current_token_payload),
     current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> CompanyContext:
     """
     FastAPI dependency that extracts and validates the multi-tenant company boundary
-    from the server-side authenticated user and JWT claims.
+    from the server-side authenticated user, JWT claims, and active domain context.
+    Enforces strict isolation: a company-scoped token cannot access another company's domain.
     """
     token_roles = [str(r).upper() for r in (payload.get("roles") or [])]
     user_roles = [ur.role.code.upper() for ur in getattr(current_user, "user_roles", []) or [] if ur.role]
@@ -507,16 +543,26 @@ async def get_company_context(
                 comp_ref = int(r_res)
 
     is_super = False
-    # A user is ONLY Super Admin if:
-    # 1. They have NO company_ref_id assigned (they do NOT belong to any specific company tenant), AND
-    # 2. They possess SUPER_ADMIN role or is the root platform 'admin' user.
+    # Platform Super Admin check (root superadmin portal / unbound super admin)
+    user_type_up = (getattr(current_user, "user_type", "") or "").upper()
     if comp_ref is None:
-        if "SUPER_ADMIN" in all_roles or "SUPERADMIN" in all_roles or current_user.username == "admin" or payload.get("is_super_admin") is True:
+        if "SUPER_ADMIN" in all_roles or "SUPERADMIN" in all_roles or user_type_up == "SUPER_ADMIN" or current_user.username == "admin" or payload.get("is_super_admin") is True:
             is_super = True
 
     if not is_super and comp_ref is None:
-        # Default fallback safety for non-superadmin users
-        comp_ref = 1
+        raise ForbiddenException("Company context could not be resolved for this user session.")
+
+    # Validate user's company against active request domain (fail closed on cross-domain token use)
+    if request is not None:
+        from app.core.domain_resolver import resolve_domain_context, extract_host
+        host = extract_host(request)
+        if host and host not in ("localhost", "127.0.0.1", "0.0.0.0", "backend", "near4you-retailer-backend", "testserver"):
+            domain_ctx = await resolve_domain_context(request, db)
+            is_super_portal = "superadmin." in host or "super-admin." in host
+            if not is_super and not is_super_portal and comp_ref != domain_ctx.cmp_ref_id:
+                raise ForbiddenException(
+                    f"Access denied: Authenticated company ({comp_ref}) does not match active domain company ({domain_ctx.company_code})."
+                )
 
     return CompanyContext(
         company_ref_id=comp_ref,
@@ -528,6 +574,7 @@ async def get_company_context(
 
 
 async def get_optional_company_context(
+    request: Request,
     payload: dict = Depends(get_optional_token_payload),
     user: Optional[AdminUserModel] = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db)
@@ -535,6 +582,6 @@ async def get_optional_company_context(
     if not payload or not user:
         return None
     try:
-        return await get_company_context(payload, user, db)
+        return await get_company_context(request, payload, user, db)
     except Exception:
         return None

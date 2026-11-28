@@ -383,16 +383,15 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
         overflowX: "hidden",
       }}
     >
-      {/* ── LEFT PANEL: BENEFICIARY CONSOLE (GLASSMORPHISM CARD) ── */}
+      {/* ── LEFT PANEL: BENEFICIARY CONSOLE ── */}
       <Paper
         elevation={0}
         sx={{
           p: { xs: 1.5, sm: 2.5 },
           borderRadius: { xs: "18px", sm: "22px" },
-          bgcolor: "rgba(11, 15, 25, 0.85)",
-          backdropFilter: "blur(24px)",
-          border: "1px solid rgba(245, 158, 11, 0.2)",
-          boxShadow: "0 20px 50px rgba(0, 0, 0, 0.6), 0 0 24px rgba(245, 158, 11, 0.06)",
+          bgcolor: "var(--surface, #FFFFFF)",
+          border: "1px solid var(--brand-border, #E2E8F0)",
+          boxShadow: "0 12px 32px rgba(15, 23, 42, 0.06)",
           display: "flex",
           flexDirection: "column",
           width: "100%",
@@ -402,16 +401,15 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           position: "relative",
         }}
       >
-        {/* Subtle top gold glow accent */}
+        {/* Dynamic Brand Accent Top Bar */}
         <Box
           sx={{
             position: "absolute",
             top: 0,
-            left: "15%",
-            right: "15%",
-            height: "1px",
-            background: "linear-gradient(90deg, transparent 0%, rgba(245, 158, 11, 0.6) 50%, transparent 100%)",
-            boxShadow: "0 0 10px rgba(245, 158, 11, 0.5)",
+            left: 0,
+            right: 0,
+            height: "3px",
+            background: "var(--brand-gradient, linear-gradient(135deg, #0F3B7D 0%, #D4AF37 100%))",
           }}
         />
 
@@ -444,9 +442,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 fontWeight: 900,
                 fontSize: { xs: "15px", sm: "17px" },
                 letterSpacing: "-0.2px",
-                background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
+                color: "var(--brand-primary, #0F3B7D)",
                 whiteSpace: "nowrap",
               }}
             >
@@ -462,9 +458,9 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 px: 0.5,
                 fontSize: "11px",
                 fontWeight: 800,
-                bgcolor: "rgba(245, 158, 11, 0.15)",
-                color: "#A20A3A",
-                border: "1px solid rgba(245, 158, 11, 0.35)",
+                bgcolor: "var(--brand-surface, #EFF6FF)",
+                color: "var(--brand-primary, #0F3B7D)",
+                border: "1px solid var(--brand-border, rgba(15, 59, 125, 0.25))",
               }}
             />
           </Stack>
@@ -475,8 +471,8 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
               sx={{
                 display: "inline-flex",
                 alignItems: "center",
-                bgcolor: "rgba(255, 255, 255, 0.05)",
-                border: "1px solid rgba(255, 255, 255, 0.10)",
+                bgcolor: "var(--background-secondary, #F8FAFC)",
+                border: "1px solid var(--border, #E2E8F0)",
                 borderRadius: "8px",
                 p: 0.3,
                 gap: 0.3,
@@ -497,11 +493,11 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                   fontSize: "11px",
                   fontWeight: 800,
                   textTransform: "none",
-                  bgcolor: viewMode === "paginated" ? "rgba(245, 158, 11, 0.22)" : "transparent",
-                  color: viewMode === "paginated" ? "#FDE68A" : "rgba(255, 255, 255, 0.65)",
-                  border: viewMode === "paginated" ? "1px solid rgba(245, 158, 11, 0.4)" : "1px solid transparent",
+                  bgcolor: viewMode === "paginated" ? "var(--brand-surface, #EFF6FF)" : "transparent",
+                  color: viewMode === "paginated" ? "var(--brand-primary, #0F3B7D)" : "var(--text-muted, #64748B)",
+                  border: viewMode === "paginated" ? "1px solid var(--brand-border, rgba(15, 59, 125, 0.25))" : "1px solid transparent",
                   "&:hover": {
-                    bgcolor: viewMode === "paginated" ? "rgba(245, 158, 11, 0.32)" : "rgba(255, 255, 255, 0.08)",
+                    bgcolor: "var(--brand-surface, #EFF6FF)",
                   },
                 }}
               >
@@ -522,11 +518,11 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                   fontSize: "11px",
                   fontWeight: 800,
                   textTransform: "none",
-                  bgcolor: viewMode === "scroll" ? "rgba(245, 158, 11, 0.22)" : "transparent",
-                  color: viewMode === "scroll" ? "#FDE68A" : "rgba(255, 255, 255, 0.65)",
-                  border: viewMode === "scroll" ? "1px solid rgba(245, 158, 11, 0.4)" : "1px solid transparent",
+                  bgcolor: viewMode === "scroll" ? "var(--brand-surface, #EFF6FF)" : "transparent",
+                  color: viewMode === "scroll" ? "var(--brand-primary, #0F3B7D)" : "var(--text-muted, #64748B)",
+                  border: viewMode === "scroll" ? "1px solid var(--brand-border, rgba(15, 59, 125, 0.25))" : "1px solid transparent",
                   "&:hover": {
-                    bgcolor: viewMode === "scroll" ? "rgba(245, 158, 11, 0.32)" : "rgba(255, 255, 255, 0.08)",
+                    bgcolor: "var(--brand-surface, #EFF6FF)",
                   },
                 }}
               >
@@ -545,15 +541,15 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 borderRadius: "10px",
                 fontWeight: 900,
                 fontSize: "12px",
-                background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%)",
+                background: "var(--brand-gradient, linear-gradient(135deg, #0F3B7D 0%, #D4AF37 100%))",
                 color: "#FFFFFF",
                 textTransform: "none",
                 whiteSpace: "nowrap",
-                boxShadow: "0 4px 14px rgba(245, 158, 11, 0.35)",
+                boxShadow: "0 4px 12px rgba(15, 23, 42, 0.14)",
                 transition: "all 0.2s ease-in-out",
                 "&:hover": {
-                  background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #B45309 100%)",
-                  boxShadow: "0 6px 18px rgba(245, 158, 11, 0.45)",
+                  filter: "brightness(1.06)",
+                  boxShadow: "0 6px 16px rgba(15, 23, 42, 0.2)",
                   transform: "translateY(-1px)",
                 },
               }}
@@ -585,15 +581,17 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
               input: {
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon sx={{ color: "#60A5FA", fontSize: 18 }} />
+                    <SearchIcon sx={{ color: "var(--brand-primary, #0F3B7D)", fontSize: 18 }} />
                   </InputAdornment>
                 ),
                 sx: {
                   height: 38,
                   borderRadius: "8px",
-                  bgcolor: "rgba(255, 255, 255, 0.05)",
-                  color: "#FFFFFF",
+                  bgcolor: "#FFFFFF",
+                  color: "var(--text-primary, #0F172A)",
                   fontSize: "12.5px",
+                  "& input": { color: "var(--text-primary, #0F172A)" },
+                  "& input::placeholder": { color: "#64748B", opacity: 1 },
                 },
               },
             }}
@@ -610,10 +608,10 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 height: 38,
                 fontSize: "12px",
                 fontWeight: 700,
-                color: "#FFFFFF",
-                bgcolor: "rgba(255, 255, 255, 0.08)",
+                color: "var(--text-primary, #0F172A)",
+                bgcolor: "var(--background-secondary, #F8FAFC)",
                 borderRadius: "8px",
-                ".MuiSelect-icon": { color: "#FFFFFF" },
+                ".MuiSelect-icon": { color: "var(--text-secondary, #334155)" },
               }}
             >
               <MenuItem value="all">All Beneficiaries</MenuItem>
@@ -630,10 +628,10 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 height: 38,
                 fontSize: "12px",
                 fontWeight: 700,
-                color: "#FFFFFF",
-                bgcolor: "rgba(255, 255, 255, 0.08)",
+                color: "var(--text-primary, #0F172A)",
+                bgcolor: "var(--background-secondary, #F8FAFC)",
                 borderRadius: "8px",
-                ".MuiSelect-icon": { color: "#FFFFFF" },
+                ".MuiSelect-icon": { color: "var(--text-secondary, #334155)" },
               }}
             >
               <MenuItem value="recent">Sort: Most Recent</MenuItem>
@@ -657,31 +655,30 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
             pb: 1,
             position: "relative",
             boxSizing: "border-box",
-            // Custom & Hidden Scrollbar - removes ugly default browser scrollbar
             scrollbarWidth: viewMode === "scroll" ? "thin" : "none",
-            scrollbarColor: viewMode === "scroll" ? "rgba(245, 158, 11, 0.45) rgba(0, 0, 0, 0.2)" : "transparent transparent",
+            scrollbarColor: viewMode === "scroll" ? "var(--brand-primary) #F1F5F9" : "transparent transparent",
             msOverflowStyle: "none",
             "&::-webkit-scrollbar": {
               display: viewMode === "scroll" ? "block" : "none",
               width: "5px",
             },
             "&::-webkit-scrollbar-track": {
-              background: "rgba(0, 0, 0, 0.2)",
+              background: "#F1F5F9",
               borderRadius: "8px",
             },
             "&::-webkit-scrollbar-thumb": {
-              background: "rgba(245, 158, 11, 0.35)",
+              background: "var(--brand-border, #CBD5E1)",
               borderRadius: "8px",
               "&:hover": {
-                background: "rgba(245, 158, 11, 0.65)",
+                background: "var(--brand-primary, #0F3B7D)",
               },
             },
           }}
         >
           {isLoading ? (
             <Box sx={{ p: 3, textAlign: "center" }}>
-              <CircularProgress size={28} sx={{ color: "#60A5FA", mb: 1.5 }} />
-              <Typography sx={{ color: "#93C5FD", fontWeight: 800, fontSize: "13px" }}>
+              <CircularProgress size={28} sx={{ color: "var(--brand-primary, #0F3B7D)", mb: 1.5 }} />
+              <Typography sx={{ color: "var(--brand-primary, #0F3B7D)", fontWeight: 800, fontSize: "13px" }}>
                 Loading verified beneficiaries from core banking...
               </Typography>
             </Box>
@@ -692,25 +689,24 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
               sx={{
                 p: { xs: 3, sm: 4 },
                 textAlign: "center",
-                bgcolor: "rgba(37, 99, 235, 0.06)",
+                bgcolor: "var(--brand-surface, #EFF6FF)",
                 borderRadius: "14px",
-                border: "2px dashed rgba(37, 99, 235, 0.35)",
+                border: "2px dashed var(--brand-border, rgba(15, 59, 125, 0.35))",
                 width: "100%",
                 boxSizing: "border-box",
                 cursor: "pointer",
                 transition: "all 0.2s ease-in-out",
                 "&:hover": {
-                  bgcolor: "rgba(37, 99, 235, 0.12)",
-                  borderColor: "#2563EB",
+                  borderColor: "var(--brand-primary, #0F3B7D)",
                 },
               }}
             >
-              <AccountBalanceIcon sx={{ fontSize: 44, color: "#60A5FA", mb: 1 }} />
-              <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "16px", mb: 0.5 }}>
+              <AccountBalanceIcon sx={{ fontSize: 44, color: "var(--brand-primary, #0F3B7D)", mb: 1 }} />
+              <Typography sx={{ fontWeight: 800, color: "var(--text-primary, #0F172A)", fontSize: "16px", mb: 0.5 }}>
                 {searchTerm ? "No matching beneficiaries found." : "No beneficiaries found"}
               </Typography>
               <Typography
-                sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "13px", mb: 2.5, maxWidth: 400, mx: "auto" }}
+                sx={{ color: "var(--text-muted, #64748B)", fontSize: "13px", mb: 2.5, maxWidth: 400, mx: "auto" }}
               >
                 {searchTerm
                   ? "Try searching with a different name, bank or account number."
@@ -729,7 +725,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                   borderRadius: "8px",
                   fontWeight: 800,
                   fontSize: "13px",
-                  bgcolor: "#2563EB",
+                  background: "var(--brand-gradient, linear-gradient(135deg, #0F3B7D 0%, #D4AF37 100%))",
                   color: "#FFFFFF",
                   textTransform: "none",
                 }}
@@ -749,7 +745,6 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                       selectedBeneficiary.accountNumber === b.accountNumber);
                   const isExpanded = expandedBeneficiaryId === b.id;
                   const rawAccount = b.accountNumber || b.maskedAccountNumber || "";
-                  const bAny = b as any;
 
                   return (
                     <Paper
@@ -759,9 +754,9 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                       sx={{
                         p: 1.5,
                         borderRadius: "14px",
-                        bgcolor: isSelected ? "rgba(245, 158, 11, 0.12)" : "rgba(255, 255, 255, 0.03)",
-                        border: isSelected ? "1.5px solid #F59E0B" : "1px solid rgba(255, 255, 255, 0.08)",
-                        boxShadow: isSelected ? "0 4px 20px rgba(245, 158, 11, 0.25)" : "none",
+                        bgcolor: isSelected ? "var(--brand-surface, #EFF6FF)" : "#FFFFFF",
+                        border: isSelected ? "1.5px solid var(--brand-primary, #0F3B7D)" : "1px solid var(--border, #E2E8F0)",
+                        boxShadow: isSelected ? "0 4px 14px rgba(15, 23, 42, 0.08)" : "none",
                         cursor: "pointer",
                         transition: "all 0.15s ease",
                       }}
@@ -773,12 +768,11 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                             sx={{
                               width: 34,
                               height: 34,
-                              bgcolor: isSelected ? "#F59E0B" : "rgba(255, 255, 255, 0.12)",
-                              color: isSelected ? "#FFFFFF" : "#FFFFFF",
+                              background: isSelected ? "var(--brand-gradient)" : "#E2E8F0",
+                              color: isSelected ? "#FFFFFF" : "var(--text-primary, #0F172A)",
                               fontWeight: 900,
                               fontSize: "12px",
                               flexShrink: 0,
-                              border: isSelected ? "1px solid #FEF08A" : "none",
                             }}
                           >
                             {(b.name || "B").slice(0, 2).toUpperCase()}
@@ -788,7 +782,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                               <Typography
                                 sx={{
                                   fontWeight: 900,
-                                  color: isSelected ? "#FDE68A" : "#FFFFFF",
+                                  color: isSelected ? "var(--brand-primary, #0F3B7D)" : "var(--text-primary, #0F172A)",
                                   fontSize: "14px",
                                   whiteSpace: "nowrap",
                                   overflow: "hidden",
@@ -804,26 +798,26 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                                 title={b.isFavorite ? "Remove from Favorites" : "Mark as Favorite"}
                               >
                                 {b.isFavorite ? (
-                                  <StarIcon sx={{ color: "#A20A3A", fontSize: 16 }} />
+                                  <StarIcon sx={{ color: "var(--brand-secondary, #D4AF37)", fontSize: 16 }} />
                                 ) : (
-                                  <StarBorderIcon sx={{ color: "rgba(255, 255, 255, 0.3)", fontSize: 16, "&:hover": { color: "#A20A3A" } }} />
+                                  <StarBorderIcon sx={{ color: "#94A3B8", fontSize: 16, "&:hover": { color: "var(--brand-primary, #0F3B7D)" } }} />
                                 )}
                               </IconButton>
                             </Box>
-                            <Typography sx={{ color: "#60A5FA", fontSize: "11.5px", fontWeight: 700 }}>
+                            <Typography sx={{ color: "var(--brand-primary, #0F3B7D)", fontSize: "11.5px", fontWeight: 700 }}>
                               {b.bankName}
                             </Typography>
                           </Box>
                         </Box>
 
                         <Chip
-                          icon={<CheckCircleIcon sx={{ "&&": { color: "#4ADE80", fontSize: 11 } }} />}
+                          icon={<CheckCircleIcon sx={{ "&&": { color: "#16A34A", fontSize: 11 } }} />}
                           label="Verified"
                           size="small"
                           sx={{
                             height: 20,
-                            bgcolor: "rgba(74, 222, 128, 0.12)",
-                            color: "#4ADE80",
+                            bgcolor: "#DCFCE7",
+                            color: "#166534",
                             fontWeight: 800,
                             fontSize: "9.5px",
                           }}
@@ -838,17 +832,18 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                           alignItems: "center",
                           p: 1,
                           borderRadius: "8px",
-                          bgcolor: "rgba(0, 0, 0, 0.25)",
+                          bgcolor: "var(--background-secondary, #F8FAFC)",
+                          border: "1px solid var(--border, #E2E8F0)",
                           mb: 1,
                         }}
                       >
                         <Box>
-                          <Typography sx={{ color: "#625B60", fontSize: "9.5px", fontWeight: 700 }}>
+                          <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "9.5px", fontWeight: 700 }}>
                             ACCOUNT NUMBER
                           </Typography>
                           <Typography
                             sx={{
-                              color: "#FFFFFF",
+                              color: "var(--text-primary, #0F172A)",
                               fontFamily: "monospace",
                               fontSize: "12.5px",
                               fontWeight: 800,
@@ -858,12 +853,12 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                           </Typography>
                         </Box>
                         <Box sx={{ textAlign: "right" }}>
-                          <Typography sx={{ color: "#625B60", fontSize: "9.5px", fontWeight: 700 }}>
+                          <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "9.5px", fontWeight: 700 }}>
                             MONTHLY REMAINING
                           </Typography>
                           <Typography
                             sx={{
-                              color: "#34D399",
+                              color: "#15803D",
                               fontFamily: "monospace",
                               fontSize: "12.5px",
                               fontWeight: 800,
@@ -888,7 +883,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                             )
                           }
                           sx={{
-                            color: isExpanded ? "#60A5FA" : "#94A3B8",
+                            color: isExpanded ? "var(--brand-primary, #0F3B7D)" : "var(--text-muted, #64748B)",
                             fontSize: "11px",
                             fontWeight: 700,
                             p: 0,
@@ -911,9 +906,9 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                             fontSize: "11px",
                             fontWeight: 800,
                             borderRadius: "6px",
-                            bgcolor: isSelected ? "#2563EB" : "transparent",
-                            borderColor: isSelected ? "#2563EB" : "rgba(255, 255, 255, 0.2)",
-                            color: isSelected ? "#FFFFFF" : "rgba(255, 255, 255, 0.8)",
+                            bgcolor: isSelected ? "var(--brand-primary, #0F3B7D)" : "transparent",
+                            borderColor: isSelected ? "var(--brand-primary, #0F3B7D)" : "#CBD5E1",
+                            color: isSelected ? "#FFFFFF" : "var(--text-secondary, #334155)",
                             textTransform: "none",
                           }}
                         >
@@ -927,33 +922,33 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                           sx={{
                             mt: 1.25,
                             pt: 1.25,
-                            borderTop: "1px dashed rgba(255, 255, 255, 0.12)",
+                            borderTop: "1px dashed #CBD5E1",
                             display: "grid",
                             gridTemplateColumns: "repeat(2, 1fr)",
                             gap: 1,
                           }}
                         >
                           <Box>
-                            <Typography sx={{ color: "#625B60", fontSize: "9.5px", fontWeight: 700 }}>IFSC</Typography>
-                            <Typography sx={{ color: "#93C5FD", fontFamily: "monospace", fontSize: "11.5px", fontWeight: 700 }}>
+                            <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "9.5px", fontWeight: 700 }}>IFSC</Typography>
+                            <Typography sx={{ color: "var(--brand-primary, #0F3B7D)", fontFamily: "monospace", fontSize: "11.5px", fontWeight: 700 }}>
                               {b.ifsc}
                             </Typography>
                           </Box>
                           <Box>
-                            <Typography sx={{ color: "#625B60", fontSize: "9.5px", fontWeight: 700 }}>Branch</Typography>
-                            <Typography sx={{ color: "#FFFFFF", fontSize: "11.5px", fontWeight: 600 }}>
+                            <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "9.5px", fontWeight: 700 }}>Branch</Typography>
+                            <Typography sx={{ color: "var(--text-primary, #0F172A)", fontSize: "11.5px", fontWeight: 600 }}>
                               {b.branchName || "Main Branch"}
                             </Typography>
                           </Box>
                           <Box>
-                            <Typography sx={{ color: "#625B60", fontSize: "9.5px", fontWeight: 700 }}>Daily Remaining</Typography>
-                            <Typography sx={{ color: "#34D399", fontSize: "11.5px", fontWeight: 700 }}>
+                            <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "9.5px", fontWeight: 700 }}>Daily Remaining</Typography>
+                            <Typography sx={{ color: "#15803D", fontSize: "11.5px", fontWeight: 700 }}>
                               ₹{(b.todayRemaining ?? 24990).toLocaleString()}
                             </Typography>
                           </Box>
                           <Box>
-                            <Typography sx={{ color: "#625B60", fontSize: "9.5px", fontWeight: 700 }}>Relationship</Typography>
-                            <Typography sx={{ color: "#A20A3A", fontSize: "11.5px", fontWeight: 700 }}>
+                            <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "9.5px", fontWeight: 700 }}>Relationship</Typography>
+                            <Typography sx={{ color: "var(--brand-primary, #0F3B7D)", fontSize: "11.5px", fontWeight: 700 }}>
                               {b.relationship || "Family"}
                             </Typography>
                           </Box>
@@ -991,28 +986,28 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                   component={Paper}
                   elevation={0}
                   sx={{
-                    bgcolor: "transparent",
+                    bgcolor: "#FFFFFF",
                     borderRadius: "10px",
-                    border: "1px solid #E8E2E5",
+                    border: "1px solid var(--border, #E2E8F0)",
                     overflow: "visible",
                   }}
                 >
                   <Table size="small" aria-label="beneficiary table" stickyHeader>
                     <TableHead>
-                      <TableRow sx={{ "& th": { bgcolor: "#131E38" } }}>
-                        <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1, pl: 2 }}>
+                      <TableRow sx={{ "& th": { bgcolor: "var(--brand-surface, #EFF6FF)", borderBottom: "1px solid var(--brand-border, #E2E8F0)" } }}>
+                        <TableCell sx={{ color: "var(--brand-primary, #0F3B7D)", fontSize: "11px", fontWeight: 800, py: 1, pl: 2 }}>
                           Beneficiary
                         </TableCell>
-                        <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1 }}>
+                        <TableCell sx={{ color: "var(--brand-primary, #0F3B7D)", fontSize: "11px", fontWeight: 800, py: 1 }}>
                           Bank Account
                         </TableCell>
-                        <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1 }}>
+                        <TableCell sx={{ color: "var(--brand-primary, #0F3B7D)", fontSize: "11px", fontWeight: 800, py: 1 }}>
                           Monthly Limit
                         </TableCell>
-                        <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1, textAlign: "center" }}>
+                        <TableCell sx={{ color: "var(--brand-primary, #0F3B7D)", fontSize: "11px", fontWeight: 800, py: 1, textAlign: "center" }}>
                           Verified
                         </TableCell>
-                        <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1, pr: 2, textAlign: "right" }}>
+                        <TableCell sx={{ color: "var(--brand-primary, #0F3B7D)", fontSize: "11px", fontWeight: 800, py: 1, pr: 2, textAlign: "right" }}>
                           Action
                         </TableCell>
                       </TableRow>
@@ -1027,7 +1022,6 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                             selectedBeneficiary.accountNumber === b.accountNumber);
                         const isExpanded = expandedBeneficiaryId === b.id;
                         const rawAccount = b.accountNumber || b.maskedAccountNumber || "";
-                        const bAny = b as any;
 
                         return (
                           <React.Fragment key={b.id}>
@@ -1037,24 +1031,24 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                                 cursor: "pointer",
                                 transition: "all 120ms ease",
                                 bgcolor: isSelected
-                                  ? "rgba(245, 158, 11, 0.14)"
+                                  ? "var(--brand-surface, #EFF6FF)"
                                   : isExpanded
-                                  ? "rgba(255, 255, 255, 0.04)"
-                                  : "transparent",
-                                borderLeft: isSelected ? "4px solid #F59E0B" : "4px solid transparent",
+                                  ? "#F8FAFC"
+                                  : "#FFFFFF",
+                                borderLeft: isSelected ? "4px solid var(--brand-primary, #0F3B7D)" : "4px solid transparent",
                                 "&:hover": {
-                                  bgcolor: isSelected ? "rgba(245, 158, 11, 0.20)" : "rgba(255, 255, 255, 0.05)",
+                                  bgcolor: "var(--brand-surface, #EFF6FF)",
                                 },
                               }}
                             >
-                              <TableCell sx={{ py: 1.25, pl: isSelected ? 1.5 : 2, borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                              <TableCell sx={{ py: 1.25, pl: isSelected ? 1.5 : 2, borderBottom: "1px solid #F1F5F9" }}>
                                 <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                                   <Avatar
                                     sx={{
                                       width: 28,
                                       height: 28,
-                                      bgcolor: isSelected ? "#F59E0B" : "rgba(255, 255, 255, 0.10)",
-                                      color: isSelected ? "#FFFFFF" : "#FFFFFF",
+                                      background: isSelected ? "var(--brand-gradient)" : "#E2E8F0",
+                                      color: isSelected ? "#FFFFFF" : "var(--text-primary, #0F172A)",
                                       fontWeight: 900,
                                       fontSize: "11px",
                                     }}
@@ -1063,54 +1057,54 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                                   </Avatar>
                                   <Box>
                                     <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-                                      <Typography sx={{ fontWeight: 800, color: isSelected ? "#FDE68A" : "#FFFFFF", fontSize: "13px", lineHeight: 1.2 }}>
+                                      <Typography sx={{ fontWeight: 800, color: isSelected ? "var(--brand-primary, #0F3B7D)" : "var(--text-primary, #0F172A)", fontSize: "13px", lineHeight: 1.2 }}>
                                         {b.name}
                                       </Typography>
                                       <IconButton
-                                size="small"
-                                onClick={(e) => handleToggleBeneficiaryFavorite(b.id, e)}
-                                sx={{ p: 0.25 }}
-                                title={b.isFavorite ? "Remove from Favorites" : "Mark as Favorite"}
-                              >
-                                {b.isFavorite ? (
-                                  <StarIcon sx={{ color: "#A20A3A", fontSize: 16 }} />
-                                ) : (
-                                  <StarBorderIcon sx={{ color: "rgba(255, 255, 255, 0.3)", fontSize: 16, "&:hover": { color: "#A20A3A" } }} />
-                                )}
-                              </IconButton>
+                                        size="small"
+                                        onClick={(e) => handleToggleBeneficiaryFavorite(b.id, e)}
+                                        sx={{ p: 0.25 }}
+                                        title={b.isFavorite ? "Remove from Favorites" : "Mark as Favorite"}
+                                      >
+                                        {b.isFavorite ? (
+                                          <StarIcon sx={{ color: "var(--brand-secondary, #D4AF37)", fontSize: 16 }} />
+                                        ) : (
+                                          <StarBorderIcon sx={{ color: "#94A3B8", fontSize: 16, "&:hover": { color: "var(--brand-primary, #0F3B7D)" } }} />
+                                        )}
+                                      </IconButton>
                                     </Stack>
                                   </Box>
                                 </Stack>
                               </TableCell>
 
-                              <TableCell sx={{ py: 1.25, borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
-                                <Typography sx={{ color: "#60A5FA", fontSize: "12.5px", fontWeight: 800, lineHeight: 1.2 }}>
+                              <TableCell sx={{ py: 1.25, borderBottom: "1px solid #F1F5F9" }}>
+                                <Typography sx={{ color: "var(--brand-primary, #0F3B7D)", fontSize: "12.5px", fontWeight: 800, lineHeight: 1.2 }}>
                                   {b.bankName}
                                 </Typography>
-                                <Typography sx={{ color: "rgba(255, 255, 255, 0.90)", fontFamily: "monospace", fontSize: "12px", fontWeight: 700 }}>
+                                <Typography sx={{ color: "var(--text-secondary, #334155)", fontFamily: "monospace", fontSize: "12px", fontWeight: 700 }}>
                                   {rawAccount}
                                 </Typography>
                               </TableCell>
 
-                              <TableCell sx={{ py: 1.25, borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
-                                <Typography sx={{ color: "#FFFFFF", fontWeight: 800, fontSize: "13px" }}>
+                              <TableCell sx={{ py: 1.25, borderBottom: "1px solid #F1F5F9" }}>
+                                <Typography sx={{ color: "var(--text-primary, #0F172A)", fontWeight: 800, fontSize: "13px" }}>
                                   ₹{(b.monthlyLimit ?? 200000).toLocaleString()}
                                 </Typography>
-                                <Typography sx={{ color: "#4ADE80", fontSize: "10.5px", fontWeight: 700 }}>
+                                <Typography sx={{ color: "#15803D", fontSize: "10.5px", fontWeight: 700 }}>
                                   ₹{(b.monthlyRemaining ?? 200000).toLocaleString()} rem
                                 </Typography>
                               </TableCell>
 
-                              <TableCell sx={{ py: 1.25, textAlign: "center", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                              <TableCell sx={{ py: 1.25, textAlign: "center", borderBottom: "1px solid #F1F5F9" }}>
                                 {b.isVerified !== false ? (
                                   <Chip
-                                    icon={<CheckCircleIcon sx={{ "&&": { color: "#4ADE80", fontSize: 13 } }} />}
+                                    icon={<CheckCircleIcon sx={{ "&&": { color: "#16A34A", fontSize: 13 } }} />}
                                     label="✓ Verified"
                                     size="small"
                                     sx={{
                                       height: 22,
-                                      bgcolor: "rgba(74, 222, 128, 0.12)",
-                                      color: "#4ADE80",
+                                      bgcolor: "#DCFCE7",
+                                      color: "#166534",
                                       fontWeight: 800,
                                       fontSize: "10.5px",
                                     }}
@@ -1121,8 +1115,8 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                                     size="small"
                                     sx={{
                                       height: 22,
-                                      bgcolor: "rgba(251, 191, 36, 0.12)",
-                                      color: "#A20A3A",
+                                      bgcolor: "#FEF3C7",
+                                      color: "#92400E",
                                       fontWeight: 800,
                                       fontSize: "10.5px",
                                     }}
@@ -1130,7 +1124,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                                 )}
                               </TableCell>
 
-                              <TableCell sx={{ py: 1.25, pr: 2, textAlign: "right", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                              <TableCell sx={{ py: 1.25, pr: 2, textAlign: "right", borderBottom: "1px solid #F1F5F9" }}>
                                 <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end", alignItems: "center" }}>
                                   <Button
                                     size="small"
@@ -1144,7 +1138,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                                       )
                                     }
                                     sx={{
-                                      color: isExpanded ? "#60A5FA" : "rgba(255, 255, 255, 0.75)",
+                                      color: isExpanded ? "var(--brand-primary, #0F3B7D)" : "var(--text-muted, #64748B)",
                                       fontSize: "11px",
                                       fontWeight: 700,
                                       textTransform: "none",
@@ -1168,12 +1162,13 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                                       fontSize: "10.5px",
                                       fontWeight: 900,
                                       borderRadius: "6px",
-                                      bgcolor: isSelected ? "#F59E0B" : "transparent",
-                                      borderColor: isSelected ? "#F59E0B" : "rgba(255, 255, 255, 0.2)",
-                                      color: isSelected ? "#FFFFFF" : "rgba(255, 255, 255, 0.8)",
+                                      bgcolor: isSelected ? "var(--brand-primary, #0F3B7D)" : "transparent",
+                                      borderColor: isSelected ? "var(--brand-primary, #0F3B7D)" : "#CBD5E1",
+                                      color: isSelected ? "#FFFFFF" : "var(--text-secondary, #334155)",
                                       textTransform: "none",
                                       "&:hover": {
-                                        bgcolor: isSelected ? "#D97706" : "rgba(245, 158, 11, 0.15)",
+                                        bgcolor: isSelected ? "var(--brand-primary, #0F3B7D)" : "var(--brand-surface, #EFF6FF)",
+                                        borderColor: "var(--brand-primary, #0F3B7D)",
                                       },
                                     }}
                                   >
@@ -1184,27 +1179,27 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                             </TableRow>
 
                             <TableRow>
-                              <TableCell colSpan={5} sx={{ p: 0, borderBottom: isExpanded ? "1px solid rgba(255, 255, 255, 0.10)" : "none" }}>
+                              <TableCell colSpan={5} sx={{ p: 0, borderBottom: isExpanded ? "1px solid #E2E8F0" : "none" }}>
                                 <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-                                  <Box sx={{ p: 2, bgcolor: "rgba(10, 17, 34, 0.95)", borderTop: "1px dashed rgba(255, 255, 255, 0.10)" }}>
-                                    <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", mb: 1.5 }}>
+                                  <Box sx={{ p: 2, bgcolor: "#F8FAFC", borderTop: "1px dashed #CBD5E1" }}>
+                                    <Typography sx={{ color: "var(--brand-primary, #0F3B7D)", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", mb: 1.5 }}>
                                       Beneficiary Details
                                     </Typography>
                                     <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1.5, mb: 2 }}>
                                       <Box>
-                                        <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Beneficiary Name</Typography>
-                                        <Typography sx={{ color: "#FFFFFF", fontWeight: 800, fontSize: "13px" }}>{b.name}</Typography>
+                                        <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "10.5px", fontWeight: 700 }}>Beneficiary Name</Typography>
+                                        <Typography sx={{ color: "var(--text-primary, #0F172A)", fontWeight: 800, fontSize: "13px" }}>{b.name}</Typography>
                                       </Box>
                                       <Box>
-                                        <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Bank</Typography>
-                                        <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "13px" }}>{b.bankName}</Typography>
+                                        <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "10.5px", fontWeight: 700 }}>Bank</Typography>
+                                        <Typography sx={{ color: "var(--brand-primary, #0F3B7D)", fontWeight: 800, fontSize: "13px" }}>{b.bankName}</Typography>
                                       </Box>
                                       <Box>
-                                        <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Account Number</Typography>
-                                        <Typography sx={{ color: "#FFFFFF", fontFamily: "monospace", fontWeight: 800, fontSize: "13px" }}>{rawAccount}</Typography>
+                                        <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "10.5px", fontWeight: 700 }}>Account Number</Typography>
+                                        <Typography sx={{ color: "var(--text-primary, #0F172A)", fontFamily: "monospace", fontWeight: 800, fontSize: "13px" }}>{rawAccount}</Typography>
                                       </Box>
                                     </Box>
-                                    <Divider sx={{ borderColor: "#E8E2E5", my: 1.5 }} />
+                                    <Divider sx={{ borderColor: "#E2E8F0", my: 1.5 }} />
                                     <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
                                       <Button
                                         size="small"
@@ -1244,7 +1239,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           sx={{
             mt: 1.5,
             pt: 1.25,
-            borderTop: "1px solid #E8E2E5",
+            borderTop: "1px solid var(--border, #E2E8F0)",
             display: "flex",
             flexDirection: { xs: "column", sm: "row" },
             justifyContent: "space-between",
@@ -1255,21 +1250,21 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
         >
           {/* Left: Showing Details & Rows Selector */}
           <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", flexWrap: "wrap", justifyContent: { xs: "space-between", sm: "flex-start" } }}>
-            <Typography sx={{ color: "rgba(255, 255, 255, 0.75)", fontSize: "12px", fontWeight: 700 }}>
+            <Typography sx={{ color: "var(--text-secondary, #334155)", fontSize: "12px", fontWeight: 700 }}>
               Showing{" "}
-              <strong style={{ color: "#FDE68A" }}>
+              <strong style={{ color: "var(--brand-primary, #0F3B7D)" }}>
                 {totalBeneficiariesCount === 0
                   ? 0
                   : viewMode === "scroll" || rowsPerPage === "all"
                   ? `1–${totalBeneficiariesCount}`
                   : `${startRecordIndex}–${endRecordIndex}`}
               </strong>{" "}
-              of <strong style={{ color: "#FFFFFF" }}>{totalBeneficiariesCount}</strong> beneficiaries
+              of <strong style={{ color: "var(--text-primary, #0F172A)" }}>{totalBeneficiariesCount}</strong> beneficiaries
             </Typography>
 
             {/* Rows Per Page Selector */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "11px", fontWeight: 700 }}>
+              <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "11px", fontWeight: 700 }}>
                 Rows:
               </Typography>
               <Select
@@ -1290,11 +1285,11 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                   height: 28,
                   fontSize: "11px",
                   fontWeight: 800,
-                  color: "#FDE68A",
-                  bgcolor: "rgba(255, 255, 255, 0.06)",
+                  color: "var(--brand-primary, #0F3B7D)",
+                  bgcolor: "var(--brand-surface, #EFF6FF)",
                   borderRadius: "6px",
                   "& .MuiSelect-select": { py: 0.25, px: 1, pr: "24px !important" },
-                  "& .MuiSelect-icon": { color: "#FDE68A", fontSize: 16 },
+                  "& .MuiSelect-icon": { color: "var(--brand-primary, #0F3B7D)", fontSize: 16 },
                 }}
               >
                 <MenuItem value={5}>5 / page</MenuItem>
@@ -1320,7 +1315,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 disabled={page <= 1}
                 onClick={() => setPage(1)}
                 sx={{
-                  color: page <= 1 ? "rgba(255, 255, 255, 0.2)" : "rgba(255, 255, 255, 0.8)",
+                  color: page <= 1 ? "#CBD5E1" : "var(--text-secondary, #334155)",
                   p: 0.5,
                   display: { xs: "none", sm: "inline-flex" },
                 }}
@@ -1343,8 +1338,8 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                   fontWeight: 800,
                   textTransform: "none",
                   borderRadius: "6px",
-                  color: page <= 1 ? "rgba(255, 255, 255, 0.25)" : "rgba(255, 255, 255, 0.85)",
-                  borderColor: "rgba(255, 255, 255, 0.15)",
+                  color: page <= 1 ? "#CBD5E1" : "var(--text-secondary, #334155)",
+                  borderColor: "#CBD5E1",
                 }}
               >
                 Prev
@@ -1361,7 +1356,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                   return (
                     <React.Fragment key={p}>
                       {showEllipsis && (
-                        <Typography sx={{ color: "rgba(255, 255, 255, 0.35)", fontSize: "11px", px: 0.25 }}>
+                        <Typography sx={{ color: "#94A3B8", fontSize: "11px", px: 0.25 }}>
                           …
                         </Typography>
                       )}
@@ -1375,11 +1370,11 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                           fontSize: "11px",
                           fontWeight: page === p ? 900 : 700,
                           borderRadius: "6px",
-                          bgcolor: page === p ? "rgba(245, 158, 11, 0.25)" : "transparent",
-                          color: page === p ? "#FDE68A" : "rgba(255, 255, 255, 0.75)",
-                          border: page === p ? "1px solid rgba(245, 158, 11, 0.55)" : "1px solid transparent",
+                          bgcolor: page === p ? "var(--brand-surface, #EFF6FF)" : "transparent",
+                          color: page === p ? "var(--brand-primary, #0F3B7D)" : "var(--text-secondary, #334155)",
+                          border: page === p ? "1px solid var(--brand-primary, #0F3B7D)" : "1px solid transparent",
                           "&:hover": {
-                            bgcolor: page === p ? "rgba(245, 158, 11, 0.35)" : "rgba(255, 255, 255, 0.08)",
+                            bgcolor: "var(--brand-surface, #EFF6FF)",
                           },
                         }}
                       >
@@ -1403,8 +1398,8 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                   fontWeight: 800,
                   textTransform: "none",
                   borderRadius: "6px",
-                  color: page >= totalPages ? "rgba(255, 255, 255, 0.25)" : "rgba(255, 255, 255, 0.85)",
-                  borderColor: "rgba(255, 255, 255, 0.15)",
+                  color: page >= totalPages ? "#CBD5E1" : "var(--text-secondary, #334155)",
+                  borderColor: "#CBD5E1",
                 }}
               >
                 Next
@@ -1415,7 +1410,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 disabled={page >= totalPages}
                 onClick={() => setPage(totalPages)}
                 sx={{
-                  color: page >= totalPages ? "rgba(255, 255, 255, 0.2)" : "rgba(255, 255, 255, 0.8)",
+                  color: page >= totalPages ? "#CBD5E1" : "var(--text-secondary, #334155)",
                   p: 0.5,
                   display: { xs: "none", sm: "inline-flex" },
                 }}
@@ -1441,7 +1436,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 height: 28,
                 fontSize: "11px",
                 fontWeight: 800,
-                color: "#60A5FA",
+                color: "var(--brand-primary, #0F3B7D)",
                 textTransform: "none",
                 alignSelf: { xs: "center", sm: "flex-end" },
               }}
@@ -1452,16 +1447,15 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
         </Box>
       </Paper>
 
-      {/* ── RIGHT PANEL (TRANSACTION MODE & TRANSFER AMOUNT - GLASSMORPHISM CARD) ── */}
+      {/* ── RIGHT PANEL (TRANSACTION MODE & TRANSFER AMOUNT) ── */}
       <Paper
         elevation={0}
         sx={{
           p: { xs: 2, sm: 2.75 },
           borderRadius: { xs: "18px", sm: "22px" },
-          bgcolor: "rgba(11, 15, 25, 0.85)",
-          backdropFilter: "blur(24px)",
-          border: "1px solid rgba(245, 158, 11, 0.2)",
-          boxShadow: "0 20px 50px rgba(0, 0, 0, 0.6), 0 0 24px rgba(245, 158, 11, 0.06)",
+          bgcolor: "var(--surface, #FFFFFF)",
+          border: "1px solid var(--brand-border, #E2E8F0)",
+          boxShadow: "0 12px 32px rgba(15, 23, 42, 0.06)",
           display: "flex",
           flexDirection: "column",
           width: "100%",
@@ -1471,16 +1465,15 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           position: "relative",
         }}
       >
-        {/* Subtle top gold glow accent */}
+        {/* Dynamic Brand Accent Top Bar */}
         <Box
           sx={{
             position: "absolute",
             top: 0,
-            left: "15%",
-            right: "15%",
-            height: "1px",
-            background: "linear-gradient(90deg, transparent 0%, rgba(245, 158, 11, 0.6) 50%, transparent 100%)",
-            boxShadow: "0 0 10px rgba(245, 158, 11, 0.5)",
+            left: 0,
+            right: 0,
+            height: "3px",
+            background: "var(--brand-gradient, linear-gradient(135deg, #0F3B7D 0%, #D4AF37 100%))",
           }}
         />
 
@@ -1493,9 +1486,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 fontSize: "11px",
                 textTransform: "uppercase",
                 letterSpacing: "0.08em",
-                background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
+                color: "var(--brand-primary, #0F3B7D)",
                 mb: 1,
               }}
             >
@@ -1507,10 +1498,10 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 display: "grid",
                 gridTemplateColumns: "repeat(4, 1fr)",
                 gap: 0.75,
-                bgcolor: "rgba(8, 11, 17, 0.85)",
+                bgcolor: "var(--background-secondary, #F8FAFC)",
                 p: 0.6,
                 borderRadius: "12px",
-                border: "1px solid rgba(245, 158, 11, 0.2)",
+                border: "1px solid var(--brand-border, #E2E8F0)",
               }}
             >
               {dbTransactionModes.map((m) => {
@@ -1526,18 +1517,18 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                       fontWeight: 900,
                       fontSize: { xs: "10.5px", sm: "11.5px" },
                       p: 0.5,
-                      color: isSelected ? "#FFFFFF" : "rgba(255, 255, 255, 0.75)",
+                      color: isSelected ? "#FFFFFF" : "var(--text-secondary, #334155)",
                       background: isSelected
-                        ? "linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%)"
+                        ? "var(--brand-gradient, linear-gradient(135deg, #0F3B7D 0%, #D4AF37 100%))"
                         : "transparent",
-                      boxShadow: isSelected ? "0 2px 10px rgba(245, 158, 11, 0.4)" : "none",
+                      boxShadow: isSelected ? "0 3px 10px rgba(15, 23, 42, 0.14)" : "none",
                       textTransform: "none",
                       transition: "all 0.15s ease",
                       "&:hover": {
                         background: isSelected
-                          ? "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #B45309 100%)"
-                          : "rgba(245, 158, 11, 0.08)",
-                        color: isSelected ? "#FFFFFF" : "#FDE68A",
+                          ? "var(--brand-gradient, linear-gradient(135deg, #0F3B7D 0%, #D4AF37 100%))"
+                          : "var(--brand-surface, #EFF6FF)",
+                        color: isSelected ? "#FFFFFF" : "var(--brand-primary, #0F3B7D)",
                       },
                     }}
                   >
@@ -1548,7 +1539,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
             </Box>
 
             {isModeDisabled && (
-              <Typography sx={{ color: "#EF4444", fontSize: "11px", fontWeight: 700, mt: 0.5 }}>
+              <Typography sx={{ color: "#DC2626", fontSize: "11px", fontWeight: 700, mt: 0.5 }}>
                 This transaction mode is currently unavailable.
               </Typography>
             )}
@@ -1572,7 +1563,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           {/* One-Click Enterprise Auto Correction Bar */}
           <SmartAutoCorrectionBar validationResult={pricingResult} onAutoFixAmount={onAmountChange} />
 
-          <Divider sx={{ borderColor: "#E8E2E5", my: 2 }} />
+          <Divider sx={{ borderColor: "var(--border, #E2E8F0)", my: 2 }} />
 
           {/* Financial Summary Table */}
           <Stack spacing={1.25}>
@@ -1582,31 +1573,29 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 fontSize: "11px",
                 textTransform: "uppercase",
                 letterSpacing: "0.08em",
-                background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
+                color: "var(--brand-primary, #0F3B7D)",
               }}
             >
               FINANCIAL SUMMARY ({selectedMode})
             </Typography>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "12.5px" }}>Transfer Amount</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13.5px" }}>
+              <Typography sx={{ color: "var(--text-secondary, #334155)", fontSize: "12.5px" }}>Transfer Amount</Typography>
+              <Typography sx={{ fontWeight: 800, color: "var(--text-primary, #0F172A)", fontSize: "13.5px" }}>
                 ₹{Number(amount || 0).toLocaleString()}
               </Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "#4ADE80", fontWeight: 700, fontSize: "12.5px" }}>Beneficiary Receives</Typography>
-              <Typography sx={{ fontWeight: 900, color: "#4ADE80", fontSize: "13.5px" }}>
+              <Typography sx={{ color: "#15803D", fontWeight: 700, fontSize: "12.5px" }}>Beneficiary Receives</Typography>
+              <Typography sx={{ fontWeight: 900, color: "#15803D", fontSize: "13.5px" }}>
                 ₹{Number(amount || 0).toLocaleString()}
               </Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "12.5px" }}>Convenience Fee</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "12.5px" }}>
+              <Typography sx={{ color: "var(--text-secondary, #334155)", fontSize: "12.5px" }}>Convenience Fee</Typography>
+              <Typography sx={{ fontWeight: 800, color: "var(--brand-primary, #0F3B7D)", fontSize: "12.5px" }}>
                 + ₹
                 {Number(fee || 0).toLocaleString(undefined, {
                   minimumFractionDigits: (fee || 0) % 1 !== 0 ? 2 : 0,
@@ -1616,10 +1605,10 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "12.5px" }}>
+              <Typography sx={{ color: "var(--text-secondary, #334155)", fontSize: "12.5px" }}>
                 GST ({pricingResult?.gstPercentage ?? 0}%)
               </Typography>
-              <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "12.5px" }}>
+              <Typography sx={{ fontWeight: 800, color: "var(--text-secondary, #334155)", fontSize: "12.5px" }}>
                 + ₹
                 {Number(gst || 0).toLocaleString(undefined, {
                   minimumFractionDigits: (gst || 0) % 1 !== 0 ? 2 : 0,
@@ -1628,15 +1617,13 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
               </Typography>
             </Stack>
 
-            <Stack direction="row" sx={{ justifyContent: "space-between", pt: 0.5, borderTop: "1px solid #E8E2E5" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.85)", fontWeight: 700, fontSize: "13px" }}>Total Debit from Wallet</Typography>
+            <Stack direction="row" sx={{ justifyContent: "space-between", pt: 0.75, borderTop: "1px solid var(--border, #E2E8F0)" }}>
+              <Typography sx={{ color: "var(--text-primary, #0F172A)", fontWeight: 700, fontSize: "13px" }}>Total Debit from Wallet</Typography>
               <Typography
                 sx={{
                   fontWeight: 900,
                   fontSize: "16px",
-                  background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
+                  color: "var(--brand-primary, #0F3B7D)",
                 }}
               >
                 ₹
@@ -1662,20 +1649,20 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
               borderRadius: "12px",
               fontWeight: 900,
               fontSize: "14.5px",
-              background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%)",
+              background: "var(--brand-gradient, linear-gradient(135deg, #0F3B7D 0%, #D4AF37 100%))",
               color: "#FFFFFF",
               textTransform: "none",
               letterSpacing: "-0.2px",
-              boxShadow: "0 6px 24px rgba(245, 158, 11, 0.45)",
+              boxShadow: "0 6px 20px rgba(15, 23, 42, 0.14)",
               transition: "all 0.2s ease-in-out",
               "&:hover": {
-                background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #B45309 100%)",
-                boxShadow: "0 8px 30px rgba(245, 158, 11, 0.6)",
+                filter: "brightness(1.06)",
+                boxShadow: "0 8px 24px rgba(15, 23, 42, 0.2)",
                 transform: "translateY(-1px)",
               },
               "&.Mui-disabled": {
-                background: "rgba(255, 255, 255, 0.08)",
-                color: "rgba(255, 255, 255, 0.35)",
+                background: "#E2E8F0",
+                color: "#94A3B8",
                 boxShadow: "none",
                 cursor: "not-allowed",
               },
@@ -1694,14 +1681,13 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
               borderRadius: "10px",
               fontWeight: 700,
               fontSize: "13px",
-              color: "rgba(255, 255, 255, 0.8)",
-              borderColor: "rgba(245, 158, 11, 0.25)",
-              bgcolor: "rgba(255, 255, 255, 0.02)",
+              color: "var(--brand-primary, #0F3B7D)",
+              borderColor: "var(--brand-border, #CBD5E1)",
+              bgcolor: "var(--brand-surface, #EFF6FF)",
               textTransform: "none",
               "&:hover": {
-                borderColor: "#F59E0B",
-                color: "#FDE68A",
-                bgcolor: "rgba(245, 158, 11, 0.08)",
+                borderColor: "var(--brand-primary, #0F3B7D)",
+                bgcolor: "#FFFFFF",
               },
             }}
           >

@@ -120,7 +120,7 @@ function AnnouncementThumbnail({
 }
 
 export default function AnnouncementsPage() {
-  const branding = useCompanyBranding();
+  const { branding } = useCompanyBranding();
   const companyName = branding?.display_name || branding?.company_name || "Enterprise";
 
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -341,6 +341,7 @@ export default function AnnouncementsPage() {
         header: form.header,
         message: form.body,
         body: form.body,
+        company_ref_id: branding?.company_ref_id,
         audience: form.audience === "ALL" ? "ALL_RETAILERS" : form.audience,
         priority: priorityNum,
         display_type: "MODAL",

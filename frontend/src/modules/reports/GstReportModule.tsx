@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { apiClient } from "@/lib/api";
 import {
   FileText,
   Download,
@@ -186,21 +187,16 @@ export const GstReportModule: React.FC<GstReportProps> = ({
   useEffect(() => {
     const loadFilters = async () => {
       try {
-        const res = await fetch("/api/v1/reports/gst/filters", {
-          headers: getAuthHeaders(),
-          credentials: "include"
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (json.data) {
-            if (json.data.financial_years) setFyOptions(json.data.financial_years);
-            if (json.data.months) setMonthOptions(json.data.months);
-            if (json.data.services) setServiceOptions(json.data.services);
-            if (json.data.statuses) setStatusOptions(json.data.statuses);
-            if (json.data.companies) setCompanyOptions(json.data.companies);
-            if (json.data.retailers) setRetailerOptions(json.data.retailers);
-            if (json.data.default_fy) setFinancialYear(json.data.default_fy);
-          }
+        const res = await apiClient.get("/reports/gst/filters");
+        const json = res.data;
+        if (json?.data) {
+          if (json.data.financial_years) setFyOptions(json.data.financial_years);
+          if (json.data.months) setMonthOptions(json.data.months);
+          if (json.data.services) setServiceOptions(json.data.services);
+          if (json.data.statuses) setStatusOptions(json.data.statuses);
+          if (json.data.companies) setCompanyOptions(json.data.companies);
+          if (json.data.retailers) setRetailerOptions(json.data.retailers);
+          if (json.data.default_fy) setFinancialYear(json.data.default_fy);
         }
       } catch (err) {
         console.error("Failed to load GST filters", err);
@@ -223,19 +219,13 @@ export const GstReportModule: React.FC<GstReportProps> = ({
       if (service && service !== "ALL") q.append("service", service);
       if (statusFilter && statusFilter !== "ALL") q.append("status", statusFilter);
 
-      const res = await fetch(`/api/v1/reports/gst/summary?${q.toString()}`, {
-        headers: getAuthHeaders(),
-        credentials: "include"
-      });
-
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data) {
-          setSummary(json.data.summary);
-          setServiceBreakdown(json.data.service_breakdown || []);
-          setRetailerBreakdown(json.data.retailer_breakdown || []);
-          setMetadata(json.data.metadata || {});
-        }
+      const res = await apiClient.get(`/reports/gst/summary?${q.toString()}`);
+      const json = res.data;
+      if (json?.data) {
+        setSummary(json.data.summary);
+        setServiceBreakdown(json.data.service_breakdown || []);
+        setRetailerBreakdown(json.data.retailer_breakdown || []);
+        setMetadata(json.data.metadata || {});
       }
     } catch (err) {
       console.error("Failed to fetch GST summary", err);
@@ -260,24 +250,18 @@ export const GstReportModule: React.FC<GstReportProps> = ({
       if (service && service !== "ALL") q.append("service", service);
       if (statusFilter && statusFilter !== "ALL") q.append("status", statusFilter);
 
-      const res = await fetch(`/api/v1/reports/gst/transactions?${q.toString()}`, {
-        headers: getAuthHeaders(),
-        credentials: "include"
-      });
+      const res = await apiClient.get(`/reports/gst/transactions?${q.toString()}`);
+      const json = res.data;
+      if (json?.data) {
+        const items: GstTransaction[] = json.data.items || [];
+        setTransactions(items);
+        setTotalRecords(json.data.pagination?.total || 0);
+        setTotalPages(json.data.pagination?.total_pages || 1);
+        setPage(targetPage);
 
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data) {
-          const items: GstTransaction[] = json.data.items || [];
-          setTransactions(items);
-          setTotalRecords(json.data.pagination?.total || 0);
-          setTotalPages(json.data.pagination?.total_pages || 1);
-          setPage(targetPage);
-
-          // Extract reversals for the reversals tab
-          const revs = items.filter(t => t.is_reversal);
-          setReversals(revs);
-        }
+        // Extract reversals for the reversals tab
+        const revs = items.filter(t => t.is_reversal);
+        setReversals(revs);
       }
     } catch (err) {
       console.error("Failed to fetch GST transactions", err);
@@ -322,17 +306,12 @@ export const GstReportModule: React.FC<GstReportProps> = ({
       if (service && service !== "ALL") q.append("service", service);
       if (statusFilter && statusFilter !== "ALL") q.append("status", statusFilter);
 
-      const endpoint = `/api/v1/reports/gst/export/${format}?${q.toString()}`;
-      const res = await fetch(endpoint, {
-        headers: getAuthHeaders(),
-        credentials: "include"
+      const endpoint = `/reports/gst/export/${format}?${q.toString()}`;
+      const res = await apiClient.get(endpoint, {
+        responseType: "blob",
       });
 
-      if (!res.ok) {
-        throw new Error(`Export failed with HTTP ${res.status}`);
-      }
-
-      const blob = await res.blob();
+      const blob = res.data;
       const ext = format === "excel" ? "xlsx" : format;
       const fyClean = (financialYear || "FY").replace(/[^a-zA-Z0-9]/g, "_");
       const mClean = (month || "ALL").replace(/[^a-zA-Z0-9]/g, "_");

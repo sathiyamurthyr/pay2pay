@@ -2,9 +2,18 @@ import { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from "axios"
 import { getApiBaseUrl } from "./api-config";
 
 const PROTOCOL_VERSION = "1.0";
-const DEFAULT_APP_ID = "SMSPAY";
+const DEFAULT_APP_ID = "PLATFORM";
 const REQUEST_INFO = new TextEncoder().encode("sathus:crypto:request:v1");
 const RESPONSE_INFO = new TextEncoder().encode("sathus:crypto:response:v1");
+
+export function getDomainAppId(): string {
+  if (typeof window === "undefined") return DEFAULT_APP_ID;
+  const host = window.location.hostname.toLowerCase();
+  if (host.includes("near4you")) return "NEAR4YOU";
+  if (host.includes("smspay")) return "SMSPAY";
+  if (host.includes("pay2pay")) return "PAY2PAY";
+  return DEFAULT_APP_ID;
+}
 
 export interface CachedServerPublicKey {
   app_id: string;
@@ -62,15 +71,17 @@ export async function fetchServerPublicKey(): Promise<CachedServerPublicKey | nu
     return null;
   }
 
-  if (memoryCachedPublicKey) {
+  const domainAppId = getDomainAppId();
+  if (memoryCachedPublicKey && memoryCachedPublicKey.app_id === domainAppId) {
     return memoryCachedPublicKey;
   }
 
+  const cacheKey = `p2p_api_sec_pub_key_${domainAppId}`;
   try {
-    const saved = sessionStorage.getItem("p2p_api_sec_pub_key");
+    const saved = sessionStorage.getItem(cacheKey);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (parsed.public_key_pem) {
+      if (parsed.public_key_pem && parsed.app_id === domainAppId) {
         memoryCachedPublicKey = parsed;
         return memoryCachedPublicKey;
       }
@@ -86,16 +97,19 @@ export async function fetchServerPublicKey(): Promise<CachedServerPublicKey | nu
       const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/security/public-key`, {
         method: "GET",
-        headers: { Accept: "application/json" },
+        headers: { Accept: "application/json", "x-sathus-app-id": domainAppId },
       });
       if (!res.ok) {
         return null;
       }
       const data: CachedServerPublicKey = await res.json();
       if (data && data.public_key_pem) {
+        if (!data.app_id) {
+          data.app_id = domainAppId;
+        }
         memoryCachedPublicKey = data;
         try {
-          sessionStorage.setItem("p2p_api_sec_pub_key", JSON.stringify(data));
+          sessionStorage.setItem(cacheKey, JSON.stringify(data));
         } catch {}
         return data;
       }
@@ -159,7 +173,8 @@ export async function createEphemeralSession(
   const encryptedKeyB64 = bytesToBase64(new Uint8Array(encryptedBuf));
 
   // 2. HKDF derive separate request and response AES-GCM keys
-  const salt = new TextEncoder().encode(serverKeyInfo.app_id || DEFAULT_APP_ID);
+  const targetAppId = (serverKeyInfo.app_id || getDomainAppId()).toUpperCase();
+  const salt = new TextEncoder().encode(targetAppId);
   const baseKey = await cryptoObj.subtle.importKey(
     "raw",
     masterKey as any,
@@ -265,7 +280,8 @@ export async function decryptResponseWithSession(
   const iv = base64ToBytes(envelope.iv);
   const ciphertextBytes = base64ToBytes(envelope.ciphertext);
 
-  const aadStr = `${envelope.app_id || DEFAULT_APP_ID}:${envelope.version || PROTOCOL_VERSION}:${envelope.timestamp}:${envelope.nonce}`;
+  const targetAppId = (envelope.app_id || getDomainAppId()).toUpperCase();
+  const aadStr = `${targetAppId}:${envelope.version || PROTOCOL_VERSION}:${envelope.timestamp}:${envelope.nonce}`;
   const aadBytes = new TextEncoder().encode(aadStr);
 
   const decryptedBuf = await cryptoObj.subtle.decrypt(
@@ -322,12 +338,15 @@ export function attachApiPayloadSecurity(axiosInstance: AxiosInstance): AxiosIns
       const session = await createEphemeralSession(serverKeyInfo);
       config._sathusSession = session;
 
+      const domainAppId = getDomainAppId();
+      const activeAppId = domainAppId !== DEFAULT_APP_ID ? domainAppId : (serverKeyInfo.app_id || domainAppId).toUpperCase();
+
       // Always inject standard encryption negotiation headers
       config.headers = config.headers || {};
       config.headers["x-sathus-encrypted-key"] = session.encryptedKeyB64;
       config.headers["x-sathus-nonce"] = session.nonce;
       config.headers["x-sathus-timestamp"] = String(session.timestamp);
-      config.headers["x-sathus-app-id"] = serverKeyInfo.app_id || DEFAULT_APP_ID;
+      config.headers["x-sathus-app-id"] = activeAppId;
       config.headers["x-sathus-version"] = PROTOCOL_VERSION;
       config.headers["x-sathus-encrypt-response"] = "1";
 
@@ -341,14 +360,14 @@ export function attachApiPayloadSecurity(axiosInstance: AxiosInstance): AxiosIns
       if (hasBody && !isFormData && !isBlob) {
         const { iv, ciphertext, tag } = await encryptBodyWithSession(
           session,
-          serverKeyInfo.app_id || DEFAULT_APP_ID,
+          activeAppId,
           config.data
         );
 
         config.data = {
           version: PROTOCOL_VERSION,
-          app_id: serverKeyInfo.app_id || DEFAULT_APP_ID,
-          key_id: serverKeyInfo.key_id,
+          app_id: activeAppId,
+          key_id: serverKeyInfo.key_id || `${activeAppId.toLowerCase()}-v1-prod`,
           encrypted_key: session.encryptedKeyB64,
           iv,
           ciphertext,

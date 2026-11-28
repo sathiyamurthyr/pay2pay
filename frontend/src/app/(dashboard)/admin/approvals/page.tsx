@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { apiClient } from "@/lib/api";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 import { CashfreePanVerifier } from "@/components/ui/cashfree-verifier";
 import {
   CheckCircle2,
@@ -45,6 +47,7 @@ import {
 const API_BASE_URL = typeof window !== "undefined" ? "/api/v1" : (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1");
 
 export default function AdminApprovalsPage() {
+  const branding = useCompanyBranding();
   const [activeTab, setActiveTab] = useState<"sd" | "dist" | "ret">("ret");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [search, setSearch] = useState<string>("");
@@ -81,9 +84,9 @@ export default function AdminApprovalsPage() {
 
       // Fetch live registrations from backend PostgreSQL database
       const [sdRes, distRes, verifRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/organization/super-distributors`).then(r => r.ok ? r.json() : { items: [] }).catch(() => ({ items: [] })),
-        fetch(`${API_BASE_URL}/organization/distributors`).then(r => r.ok ? r.json() : { items: [] }).catch(() => ({ items: [] })),
-        fetch(`${API_BASE_URL}/admin/verification/requests?status_tab=ALL&page_size=100`).then(r => r.ok ? r.json() : { items: [] }).catch(() => ({ items: [] })),
+        apiClient.get("/organization/super-distributors", { headers: { "x-skip-auth-redirect": "true" } }).then(r => r.data || { items: [] }).catch(() => ({ items: [] })),
+        apiClient.get("/organization/distributors", { headers: { "x-skip-auth-redirect": "true" } }).then(r => r.data || { items: [] }).catch(() => ({ items: [] })),
+        apiClient.get("/admin/verification/requests?status_tab=ALL&page_size=100", { headers: { "x-skip-auth-redirect": "true" } }).then(r => r.data || { items: [] }).catch(() => ({ items: [] })),
       ]);
 
       setSdList(sdRes.items || []);
@@ -111,20 +114,12 @@ export default function AdminApprovalsPage() {
     try {
       const verifId = selectedItem.verification_id || selectedItem.public_id;
 
-      const res = await fetch(`${API_BASE_URL}/admin/verification/requests/${verifId}/action`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: newStatus,
-          admin_id: "ADM-SYSTEM",
-          remarks: actionRemarks || `Verification status updated to ${newStatus} by Admin`,
-          admin_role: "COMPLIANCE_OFFICER"
-        }),
+      const res = await apiClient.post(`/admin/verification/requests/${verifId}/action`, {
+        action: newStatus,
+        admin_id: "ADM-SYSTEM",
+        remarks: actionRemarks || `Verification status updated to ${newStatus} by Admin`,
+        admin_role: "COMPLIANCE_OFFICER"
       });
-
-      if (!res.ok) {
-        throw new Error("Failed to update status in backend DB");
-      }
 
       const targetName = selectedItem.retailer_name || selectedItem.business_name || selectedItem.shop_name || "Partner";
 
@@ -137,7 +132,7 @@ export default function AdminApprovalsPage() {
 
       fetchData();
     } catch (err: any) {
-      showToast(err.message || "Failed to update status in database. Please check backend.");
+      showToast(err.response?.data?.detail || err.message || "Failed to update status in database. Please check backend.");
     } finally {
       setActionLoading(false);
     }
@@ -149,10 +144,11 @@ export default function AdminApprovalsPage() {
     const verifId = item.verification_id || item.public_id || item.registration_id || item.id;
     if (verifId) {
       try {
-        const res = await fetch(`${API_BASE_URL}/admin/verification/requests/${verifId}`);
-        if (res.ok) {
-          const detail = await res.json();
-          if (detail.status === "SUCCESS" && detail.media) {
+        const res = await apiClient.get(`/admin/verification/requests/${verifId}`, {
+          headers: { "x-skip-auth-redirect": "true" }
+        });
+        const detail = res.data;
+        if (detail?.status === "SUCCESS" && detail.media) {
             setSelectedItem((prev: any) => ({
               ...prev,
               ...detail.verification,
@@ -163,11 +159,10 @@ export default function AdminApprovalsPage() {
               bank_proof_url: detail.media.bank_proof_url,
               gst_proof_url: detail.media.gst_proof_url,
               shop_photo_url: detail.media.shop_photo_url,
-              video_url: detail.media.video_url || detail.media.raw_video_url || "/uploads/cmp/ret/2026/08/09/sathus_Ret_video.mp4",
+              video_url: detail.media.video_url || detail.media.raw_video_url || "",
               selfie_url: detail.media.selfie_url,
               script_text: detail.media.script_text,
             }));
-          }
         }
       } catch (err) {
         console.error("Error fetching verification details:", err);
@@ -777,7 +772,7 @@ export default function AdminApprovalsPage() {
                   onClick={() => {
                     setPreviewModalDoc({
                       label: "Video KYC Liveness Recording",
-                      url: selectedItem.video_url || "/uploads/cmp/ret/2026/08/09/sathus_Ret_video.mp4",
+                      url: selectedItem.video_url || "",
                       category: "Biometric Liveness Match",
                       isVideo: true,
                       docNumber: "MP4 Video Recording · 15s High Definition",
@@ -802,7 +797,6 @@ export default function AdminApprovalsPage() {
                     className="w-full max-h-[260px] object-contain bg-black rounded-2xl"
                   >
                     <source src={selectedItem.video_url || "/sample_video.mp4"} type="video/mp4" />
-                    <source src="/uploads/cmp/ret/2026/08/09/sathus_Ret_video.mp4" type="video/mp4" />
                     <source src="/sample_video.mp4" type="video/mp4" />
                     Your browser does not support HTML5 video playback.
                   </video>
@@ -833,7 +827,7 @@ export default function AdminApprovalsPage() {
                   <div className="p-2.5 rounded-xl bg-[#090D16]/90 border border-white/10">
                     <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Spoken Compliance Declaration</p>
                     <p className="text-[11px] text-slate-200 italic font-medium leading-relaxed">
-                      &quot;{selectedItem.script_text || `I confirm that I am registering as a Pay2Pay Retailer for ${selectedItem.shop_name || selectedItem.business_name || "Merchant Store"}.`}&quot;
+                      &quot;{selectedItem.script_text || `I confirm that I am registering as a ${branding.display_name || branding.company_name || "Authorized"} Retailer for ${selectedItem.shop_name || selectedItem.business_name || "Merchant Store"}.`}&quot;
                     </p>
                   </div>
                 </div>
@@ -848,7 +842,7 @@ export default function AdminApprovalsPage() {
                     <FileText className="w-4 h-4 text-[#2563EB]" /> Live KYC Verification Documents &amp; Media Previews
                   </h3>
                   <p className="text-[11px] text-[#64748B] font-medium mt-0.5">
-                    Storage: <span className="font-mono font-bold text-[#1E3A8A]">Backblaze B2 (sathus-pay2pay)</span> · Realtime signed document stream
+                    Storage: <span className="font-mono font-bold text-[#1E3A8A]">Encrypted Object Storage</span> · Realtime signed document stream
                   </p>
                 </div>
                 <span className="px-3 py-1 rounded-full bg-[#DCFCE7] text-[#15803D] text-[10px] font-black tracking-wider uppercase border border-[#BBF7D0] flex items-center gap-1.5 self-start sm:self-auto">
@@ -907,7 +901,7 @@ export default function AdminApprovalsPage() {
                     id: "video_proof",
                     label: "Video KYC Verification",
                     category: "Biometric Liveness Match",
-                    url: selectedItem.video_url || "/uploads/cmp/ret/2026/08/09/sathus_Ret_video.mp4",
+                    url: selectedItem.video_url || "",
                     type: "VIDEO",
                     isVideo: true,
                     docNumber: "MP4 Video Recording (100% Liveness)",
@@ -919,7 +913,7 @@ export default function AdminApprovalsPage() {
                     id: "shop_photo",
                     label: "Shop Exterior Photo",
                     category: "Storefront Geotagged",
-                    url: selectedItem.shop_photo_url || "https://cdn.pay2pay.in/shops/shop_front.jpg",
+                    url: selectedItem.shop_photo_url || "",
                     type: "SHOP_PHOTO",
                     docNumber: selectedItem.shop_name || selectedItem.business_name || "Store Front",
                     holderName: selectedItem.district || "Location Proof",
@@ -989,7 +983,6 @@ export default function AdminApprovalsPage() {
                               className="w-full h-full object-cover opacity-80"
                             >
                               <source src={doc.url || "/sample_video.mp4"} type="video/mp4" />
-                              <source src="/uploads/cmp/ret/2026/08/09/sathus_Ret_video.mp4" type="video/mp4" />
                               <source src="/sample_video.mp4" type="video/mp4" />
                             </video>
                             <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-2 group-hover:bg-black/20 transition-all">
@@ -1025,7 +1018,7 @@ export default function AdminApprovalsPage() {
                               <div className="flex items-center gap-1.5">
                                 <ShieldCheck className="w-4 h-4 text-[#60A5FA]" />
                                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-200">
-                                  {doc.type === "PAN" ? "Income Tax Dept" : doc.type.includes("AADHAAR") ? "Govt of India" : "Pay2Pay Verified"}
+                                  {doc.type === "PAN" ? "Income Tax Dept" : doc.type.includes("AADHAAR") ? "Govt of India" : `${branding.display_name || branding.company_name || "Platform"} Verified`}
                                 </span>
                               </div>
                               <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded">
@@ -1252,7 +1245,6 @@ export default function AdminApprovalsPage() {
                   className="max-h-[75vh] w-auto max-w-full rounded-2xl shadow-2xl border border-[#1E293B]"
                 >
                   <source src={previewModalDoc.url || "/sample_video.mp4"} type="video/mp4" />
-                  <source src="/uploads/cmp/ret/2026/08/09/sathus_Ret_video.mp4" type="video/mp4" />
                   <source src="/sample_video.mp4" type="video/mp4" />
                   Your browser does not support HTML5 video playback.
                 </video>

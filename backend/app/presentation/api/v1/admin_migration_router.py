@@ -14,9 +14,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import uuid
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.security import decode_access_token
-from app.infrastructure.db.models import AdminUserModel
+from app.core.domain_resolver import get_domain_context, DomainCompanyContext
+from app.application.dependencies import CompanyContext, get_company_context
+from app.infrastructure.db.models import AdminUserModel, UserRoleModel
 from app.application.account_migration_service import AccountMigrationService
 
 
@@ -66,9 +69,13 @@ async def require_admin_user(
     if user_sub:
         try:
             u_uuid = uuid.UUID(str(user_sub))
-            adm_stmt = select(AdminUserModel).where(
-                AdminUserModel.public_id == u_uuid,
-                AdminUserModel.is_deleted == False
+            adm_stmt = (
+                select(AdminUserModel)
+                .options(selectinload(AdminUserModel.user_roles).selectinload(UserRoleModel.role))
+                .where(
+                    AdminUserModel.public_id == u_uuid,
+                    AdminUserModel.is_deleted == False
+                )
             )
             current_user = (await db.execute(adm_stmt)).scalar_one_or_none()
         except Exception:
@@ -120,7 +127,7 @@ async def require_admin_user(
             current_user = AdminUserModel(
                 id=1,
                 username="admin_platform",
-                email="admin@pay2pay.in",
+                email="admin@platform.local",
                 user_type="PLATFORM_ADMIN",
                 status="ACTIVE"
             )
@@ -158,17 +165,21 @@ async def search_source_accounts_endpoint(
     migration_type: str = Query(..., description="RETAILER_TO_DISTRIBUTOR | DISTRIBUTOR_TO_SUPER_DISTRIBUTOR"),
     query: Optional[str] = Query(None, description="Search term (name, code, mobile, pan)"),
     limit: int = Query(50, ge=1, le=100),
+    ctx: CompanyContext = Depends(get_company_context),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Searches eligible source accounts (Retailers or Distributors) for migration.
     Returns read-only details and KYC indicators.
     """
+    comp_ref = domain_ctx.cmp_ref_id if not ctx.is_super_admin else None
     accounts = await AccountMigrationService.search_source_accounts(
         db=db,
         migration_type=migration_type,
         query=query,
-        limit=limit
+        limit=limit,
+        company_ref_id=comp_ref
     )
     return {
         "success": True,
@@ -185,13 +196,17 @@ async def search_source_accounts_endpoint(
 async def get_source_account_details_endpoint(
     migration_type: str = Query(..., description="RETAILER_TO_DISTRIBUTOR | DISTRIBUTOR_TO_SUPER_DISTRIBUTOR"),
     source_id: str = Query(..., description="Source code, UUID, or ref_id"),
+    ctx: CompanyContext = Depends(get_company_context),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     """Returns read-only source account overview and KYC reuse summary."""
+    comp_ref = domain_ctx.cmp_ref_id if not ctx.is_super_admin else None
     details = await AccountMigrationService.get_source_details(
         db=db,
         migration_type=migration_type,
-        source_id=source_id
+        source_id=source_id,
+        company_ref_id=comp_ref
     )
     return {
         "success": True,
@@ -226,6 +241,8 @@ async def validate_contacts_endpoint(
 async def execute_migration_endpoint(
     payload: ExecuteMigrationRequest,
     current_admin: AdminUserModel = Depends(require_admin_user),
+    ctx: CompanyContext = Depends(get_company_context),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -238,13 +255,15 @@ async def execute_migration_endpoint(
             detail="Admin confirmation acknowledgment is required before executing migration."
         )
 
+    comp_ref = domain_ctx.cmp_ref_id if not ctx.is_super_admin else None
     result = await AccountMigrationService.execute_migration(
         db=db,
         migration_type=payload.migration_type,
         source_identifier=payload.source_identifier,
         new_mobile=payload.new_mobile,
         new_email=payload.new_email,
-        admin_user=current_admin
+        admin_user=current_admin,
+        company_ref_id=comp_ref
     )
     return result
 
@@ -258,15 +277,19 @@ async def get_migration_history_endpoint(
     search: Optional[str] = Query(None, description="Search by ref_no, code, mobile, admin"),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
+    ctx: CompanyContext = Depends(get_company_context),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     """Returns read-only migration history and audit trail."""
+    comp_uuid = uuid.UUID(domain_ctx.company_id) if (not ctx.is_super_admin and domain_ctx.company_id) else None
     history = await AccountMigrationService.get_migration_history(
         db=db,
         migration_type=migration_type,
         status_filter=status,
         search=search,
         page=page,
-        limit=limit
+        limit=limit,
+        company_id=comp_uuid
     )
     return history

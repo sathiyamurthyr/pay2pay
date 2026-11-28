@@ -116,16 +116,16 @@ class AccountMigrationService:
         reg_id = None
 
         if need_enrichment:
+            ret_code = retailer.retailer_code
+            ret_pid = str(retailer.public_id)
             try:
-                ret_code = retailer.retailer_code
-                ret_ref = retailer.retailer_ref_id or retailer.id
-                v_stmt = select(text("""
+                v_stmt = text("""
                     SELECT registration_id, retailer_name, shop_name, pan_number, gst_number, state, district, mobile_number, email
                     FROM public.retailer_verifications
-                    WHERE retailer_id = :code OR retailer_ref_id = :ref
+                    WHERE retailer_id = :code OR retailer_id = :pid
                     ORDER BY id DESC LIMIT 1
-                """))
-                v_res = await db.execute(v_stmt, {"code": ret_code, "ref": ret_ref})
+                """)
+                v_res = await db.execute(v_stmt, {"code": ret_code, "pid": ret_pid})
                 v_row = v_res.mappings().first()
                 if v_row:
                     reg_id = v_row.get("registration_id")
@@ -146,22 +146,23 @@ class AccountMigrationService:
                     if not email_val and v_row.get("email"):
                         email_val = v_row["email"]
             except Exception as e:
-                logger.warning(f"Error checking retailer_verifications for {retailer.retailer_code}: {e}")
+                await db.rollback()
+                logger.warning(f"Error checking retailer_verifications for {ret_code}: {e}")
 
         # 3. If registration_id is available (or can be found from mobile / retailer_code), query registration_*
         if not reg_id and mobile_val:
             try:
                 clean_m = re.sub(r"\D", "", mobile_val)[-10:]
-                v_stmt2 = select(text("""
+                v_stmt2 = text("""
                     SELECT registration_id FROM public.retailer_verifications
                     WHERE mobile_number LIKE :mob ORDER BY id DESC LIMIT 1
-                """))
+                """)
                 v_res2 = await db.execute(v_stmt2, {"mob": f"%{clean_m}%"})
                 v_row2 = v_res2.mappings().first()
                 if v_row2:
                     reg_id = v_row2.get("registration_id")
             except Exception:
-                pass
+                await db.rollback()
 
         if reg_id:
             # Check registration_pan
@@ -174,7 +175,7 @@ class AccountMigrationService:
                         if not owner_val and p_row.get("pan_holder_name"):
                             owner_val = p_row["pan_holder_name"]
                 except Exception:
-                    pass
+                    await db.rollback()
 
             # Check registration_bank
             if not (bank_acc and ifsc_val):
@@ -187,7 +188,7 @@ class AccountMigrationService:
                         if not ifsc_val:
                             ifsc_val = b_row.get("ifsc")
                 except Exception:
-                    pass
+                    await db.rollback()
 
             # Check registration_address
             if not (state_val and city_val and address_val and pincode_val):
@@ -207,7 +208,7 @@ class AccountMigrationService:
                             if non_empty:
                                 address_val = ", ".join(non_empty)
                 except Exception:
-                    pass
+                    await db.rollback()
 
             # Check registration_shop
             if not business_val:
@@ -217,7 +218,7 @@ class AccountMigrationService:
                     if s_row and s_row.get("shop_name"):
                         business_val = s_row["shop_name"]
                 except Exception:
-                    pass
+                    await db.rollback()
 
             # Check registration_gst
             if not gst_val:
@@ -227,7 +228,7 @@ class AccountMigrationService:
                     if g_row and g_row.get("gst_number"):
                         gst_val = g_row["gst_number"]
                 except Exception:
-                    pass
+                    await db.rollback()
 
         # 4. Final defaults
         return {
@@ -239,7 +240,7 @@ class AccountMigrationService:
             "city": city_val or "Chennai",
             "address": address_val or "Registered Business Office",
             "pincode": pincode_val or "600001",
-            "business_name": business_val or "Pay2Pay Enterprise Store",
+            "business_name": business_val or "Enterprise Store",
             "owner_name": owner_val or "Business Partner",
             "mobile": mobile_val or "",
             "email": email_val or ""
@@ -278,6 +279,8 @@ class AccountMigrationService:
             )
 
         # 2. Check destination role table for uniqueness
+        has_mig_table = bool((await db.execute(text("SELECT to_regclass('public.account_migration_history')"))).scalar())
+
         if migration_type == "RETAILER_TO_DISTRIBUTOR":
             dist_stmt = select(DistributorModel).where(
                 or_(
@@ -324,7 +327,8 @@ class AccountMigrationService:
         db: AsyncSession,
         migration_type: str,
         query: Optional[str] = None,
-        limit: int = 20
+        limit: int = 20,
+        company_ref_id: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
         Searches existing source accounts eligible for migration.
@@ -333,6 +337,8 @@ class AccountMigrationService:
         results: List[Dict[str, Any]] = []
         limit = min(max(1, limit), 100)
         s_filter = f"%{query.strip()}%" if query and query.strip() else None
+
+        has_mig_table = bool((await db.execute(text("SELECT to_regclass('public.account_migration_history')"))).scalar())
 
         if migration_type == "RETAILER_TO_DISTRIBUTOR":
             stmt = select(RetailerModel).options(
@@ -353,6 +359,9 @@ class AccountMigrationService:
                 ~RetailerModel.owner_name.ilike("%Testing%"),
                 ~RetailerModel.owner_name.ilike("%-test%")
             )
+
+            if company_ref_id is not None:
+                stmt = stmt.where(RetailerModel.company_ref_id == company_ref_id)
 
             if s_filter:
                 stmt = stmt.where(
@@ -376,12 +385,14 @@ class AccountMigrationService:
                 r_ref = r.retailer_ref_id or r.id
 
                 # Check if already migrated
-                mig_stmt = select(AccountMigrationHistoryModel).where(
-                    AccountMigrationHistoryModel.source_account_ref_id == r_ref,
-                    AccountMigrationHistoryModel.migration_type == "RETAILER_TO_DISTRIBUTOR",
-                    AccountMigrationHistoryModel.status == "COMPLETED"
-                )
-                prev_mig = (await db.execute(mig_stmt)).scalars().first()
+                prev_mig = None
+                if has_mig_table:
+                    mig_stmt = select(AccountMigrationHistoryModel).where(
+                        AccountMigrationHistoryModel.source_account_ref_id == r_ref,
+                        AccountMigrationHistoryModel.migration_type == "RETAILER_TO_DISTRIBUTOR",
+                        AccountMigrationHistoryModel.status == "COMPLETED"
+                    )
+                    prev_mig = (await db.execute(mig_stmt)).scalars().first()
 
                 results.append({
                     "id": str(r.public_id),
@@ -417,6 +428,9 @@ class AccountMigrationService:
                 ~DistributorModel.owner_name.ilike("%Testing%")
             )
 
+            if company_ref_id is not None:
+                stmt = stmt.where(DistributorModel.company_ref_id == company_ref_id)
+
             if s_filter:
                 stmt = stmt.where(
                     or_(
@@ -437,12 +451,14 @@ class AccountMigrationService:
                 bal = float(d.wallet_balance or 0.0)
 
                 # Check if already migrated
-                mig_stmt = select(AccountMigrationHistoryModel).where(
-                    AccountMigrationHistoryModel.source_account_ref_id == d_ref,
-                    AccountMigrationHistoryModel.migration_type == "DISTRIBUTOR_TO_SUPER_DISTRIBUTOR",
-                    AccountMigrationHistoryModel.status == "COMPLETED"
-                )
-                prev_mig = (await db.execute(mig_stmt)).scalars().first()
+                prev_mig = None
+                if has_mig_table:
+                    mig_stmt = select(AccountMigrationHistoryModel).where(
+                        AccountMigrationHistoryModel.source_account_ref_id == d_ref,
+                        AccountMigrationHistoryModel.migration_type == "DISTRIBUTOR_TO_SUPER_DISTRIBUTOR",
+                        AccountMigrationHistoryModel.status == "COMPLETED"
+                    )
+                    prev_mig = (await db.execute(mig_stmt)).scalars().first()
 
                 results.append({
                     "id": str(d.public_id),
@@ -475,10 +491,11 @@ class AccountMigrationService:
         cls,
         db: AsyncSession,
         migration_type: str,
-        source_id: str
+        source_id: str,
+        company_ref_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """Fetches full read-only source account details for confirmation."""
-        results = await cls.search_source_accounts(db, migration_type, query=source_id, limit=5)
+        results = await cls.search_source_accounts(db, migration_type, query=source_id, limit=5, company_ref_id=company_ref_id)
         # Match by ID or Code
         matched = next(
             (r for r in results if r["id"] == source_id or r["code"] == source_id or str(r["account_ref_id"]) == str(source_id)),
@@ -509,7 +526,8 @@ class AccountMigrationService:
         source_identifier: str,
         new_mobile: str,
         new_email: str,
-        admin_user: AdminUserModel
+        admin_user: AdminUserModel,
+        company_ref_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Executes atomic migration of Retailer -> Distributor or Distributor -> Super Distributor.
@@ -533,6 +551,8 @@ class AccountMigrationService:
         clean_email = new_email.strip().lower()
 
         # 3. Resolve & lock source account
+        has_mig_table = bool((await db.execute(text("SELECT to_regclass('public.account_migration_history')"))).scalar())
+
         if migration_type == "RETAILER_TO_DISTRIBUTOR":
             # Search retailer
             try:
@@ -562,6 +582,11 @@ class AccountMigrationService:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Source Retailer '{source_identifier}' not found."
+                )
+            if company_ref_id is not None and retailer.company_ref_id != company_ref_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Source Retailer does not belong to the active company domain."
                 )
 
             source_ref_id = retailer.retailer_ref_id or retailer.id
@@ -797,6 +822,11 @@ class AccountMigrationService:
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Source Distributor '{source_identifier}' not found."
                 )
+            if company_ref_id is not None and distributor.company_ref_id != company_ref_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Source Distributor does not belong to the active company domain."
+                )
 
             source_ref_id = distributor.distributor_ref_id or distributor.id
             source_code = distributor.distributor_code or f"DIST-{distributor.mobile}"
@@ -972,7 +1002,8 @@ class AccountMigrationService:
         status_filter: Optional[str] = None,
         search: Optional[str] = None,
         page: int = 1,
-        limit: int = 20
+        limit: int = 20,
+        company_id: Optional[uuid.UUID] = None
     ) -> Dict[str, Any]:
         """Returns paginated migration history records for the admin portal."""
         page = max(1, page)
@@ -980,6 +1011,8 @@ class AccountMigrationService:
         offset = (page - 1) * limit
 
         conditions = []
+        if company_id is not None:
+            conditions.append(AccountMigrationHistoryModel.company_id == company_id)
         if migration_type:
             conditions.append(AccountMigrationHistoryModel.migration_type == migration_type)
         if status_filter:

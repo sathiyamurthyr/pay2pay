@@ -4,10 +4,15 @@ import React, { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { LogOut, Building, Search, Bell, Crown, Monitor } from "lucide-react";
 import { MultiDeviceSessionModal } from "@/components/auth/multi-device-session-modal";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 export const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
+  const { branding } = useCompanyBranding();
   const [showSessionModal, setShowSessionModal] = useState(false);
+
+  const primaryColor = branding?.primary_colour || "#2563EB";
+  const companyLabel = branding?.company_name || branding?.display_name || "Resolving Company…";
 
   const initials = user?.full_name
     ? user.full_name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
@@ -24,13 +29,13 @@ export const Navbar: React.FC = () => {
       />
 
       <header className="h-14 border-b border-[#E2E8F0] px-5 flex items-center justify-between sticky top-0 z-30 bg-white/90 backdrop-blur-md select-none shadow-xs">
-        {/* Left: Tenant Info */}
+        {/* Left: Authoritative Domain Company Info */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#F1F5F9] border border-[#E2E8F0]">
-            <Building className="w-3.5 h-3.5 text-[#2563EB]" />
-            <span className="text-[11px] font-medium text-[#475569]">Tenant:</span>
-            <span className="font-mono text-[12px] font-bold text-[#0F172A]">
-              {user?.tenant_id ? user.tenant_id.substring(0, 8) + "…" : "PLATFORM"}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#F1F5F9] border border-[#E2E8F0] max-w-[320px]">
+            <Building className="w-3.5 h-3.5 shrink-0" style={{ color: primaryColor }} />
+            <span className="text-[11px] font-medium text-[#475569] shrink-0">Company:</span>
+            <span className="text-[12px] font-bold text-[#0F172A] truncate" title={companyLabel}>
+              {companyLabel}
             </span>
           </div>
 
@@ -56,9 +61,18 @@ export const Navbar: React.FC = () => {
         {/* Right: Actions & Profile */}
         <div className="flex items-center gap-3">
           {/* Platform Admin Badge */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#BFDBFE] bg-[#EFF6FF] text-[#1E40AF]">
-            <Crown className="w-3.5 h-3.5 text-[#2563EB]" />
-            <span className="text-[11px] font-extrabold tracking-wide">Platform Admin</span>
+          <div
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border"
+            style={{
+              backgroundColor: `${primaryColor}12`,
+              borderColor: `${primaryColor}35`,
+              color: primaryColor,
+            }}
+          >
+            <Crown className="w-3.5 h-3.5" style={{ color: primaryColor }} />
+            <span className="text-[11px] font-extrabold tracking-wide">
+              {branding?.display_name ? `${branding.display_name} Admin` : "Admin Portal"}
+            </span>
           </div>
 
           {/* Active Sessions Monitor Button */}
@@ -89,14 +103,19 @@ export const Navbar: React.FC = () => {
 
           {/* User Profile */}
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center font-extrabold text-[13px] text-white shadow-2xs bg-[#2563EB]">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center font-extrabold text-[13px] text-white shadow-2xs"
+              style={{ backgroundColor: primaryColor }}
+            >
               {initials}
             </div>
             <div className="text-left hidden lg:block">
               <p className="text-[12px] font-extrabold text-[#0F172A] leading-tight">
-                {user?.full_name || user?.email || "Platform Admin"}
+                {user?.full_name || user?.email || "Admin"}
               </p>
-              <span className="text-[10px] font-bold text-[#2563EB]">PLATFORM ADMIN</span>
+              <span className="text-[10px] font-bold" style={{ color: primaryColor }}>
+                {user?.role === "SUPER_ADMIN" ? "SUPER ADMIN" : `${branding?.company_code || ""} ADMIN`.trim()}
+              </span>
             </div>
           </div>
 

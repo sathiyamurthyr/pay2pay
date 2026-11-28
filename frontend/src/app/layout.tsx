@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./(dashboard)/retailer/payin/payin.css";
 import Providers from "./providers";
+import { resolveBrandingByHost } from "@/lib/company-branding";
 
 export async function generateMetadata(): Promise<Metadata> {
   try {
@@ -11,6 +12,21 @@ export async function generateMetadata(): Promise<Metadata> {
     const rawHost = headersList.get("host") || "";
     const host = (forwardedHost || rawHost).toLowerCase();
     const port = host.includes(":") ? host.split(":")[1] : "";
+
+    if (host.startsWith("inspel.")) {
+      return {
+        title: {
+          default: "INSPEL TECHNOLOGIES SOLUTIONS | Product Sales & Payment Portal",
+          template: "%s | INSPEL TECHNOLOGIES SOLUTIONS",
+        },
+        description:
+          "Official Vendor Product Catalogue & BankMe Pay-in Demonstration Portal for INSPEL TECHNOLOGIES SOLUTIONS.",
+        icons: {
+          icon: [{ url: "/branding/inspel-favicon.svg", type: "image/svg+xml" }],
+          shortcut: "/branding/inspel-favicon.svg",
+        },
+      };
+    }
 
     if (host.includes("smspay") || port === "4002") {
       return {
@@ -72,7 +88,7 @@ export async function generateMetadata(): Promise<Metadata> {
       },
       manifest: "/site.webmanifest",
     };
-  } catch {}
+  } catch { }
 
   // Fallback default: Pay2Pay
   return {
@@ -101,13 +117,43 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  let ssrHost = "";
+  try {
+    const headersList = await headers();
+    ssrHost = (headersList.get("x-forwarded-host") || headersList.get("host") || "").trim();
+  } catch { }
+  const ssrBranding = resolveBrandingByHost(ssrHost);
+  const htmlStyle: React.CSSProperties = {
+    overflowX: "hidden",
+    maxWidth: "100vw",
+    ...(ssrBranding?.primary_colour
+      ? ({
+          "--brand-primary": ssrBranding.primary_colour,
+          "--brand-surface": `${ssrBranding.primary_colour}12`,
+          "--brand-border": `${ssrBranding.primary_colour}40`,
+          "--accent": ssrBranding.primary_colour,
+        } as React.CSSProperties)
+      : {}),
+    ...(ssrBranding?.secondary_colour
+      ? ({
+          "--brand-secondary": ssrBranding.secondary_colour,
+          "--accent-gold": ssrBranding.secondary_colour,
+        } as React.CSSProperties)
+      : {}),
+    ...(ssrBranding?.primary_colour && ssrBranding?.secondary_colour
+      ? ({
+          "--brand-gradient": `linear-gradient(135deg, ${ssrBranding.primary_colour} 0%, ${ssrBranding.secondary_colour} 100%)`,
+        } as React.CSSProperties)
+      : {}),
+  };
+
   return (
-    <html lang="en" className="light" suppressHydrationWarning style={{ overflowX: "hidden", maxWidth: "100vw" }}>
+    <html lang="en" className="light" data-company={ssrBranding?.company_code || ""} suppressHydrationWarning style={htmlStyle}>
       <body className="antialiased min-h-screen bg-[#FFFFFF] text-[var(--text-primary,#0F172A)]" suppressHydrationWarning style={{ overflowX: "hidden", maxWidth: "100vw" }}>
         <script
           id="form-input-sanitizer"
@@ -175,7 +221,7 @@ export default function RootLayout({
             `,
           }}
         />
-        <Providers>{children}</Providers>
+        <Providers initialHost={ssrHost}>{children}</Providers>
       </body>
     </html>
   );

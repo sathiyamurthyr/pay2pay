@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import decode_access_token
+from app.core.domain_resolver import resolve_domain_context
 from app.application.gst_reporting_service import GstReportingService
 
 router = APIRouter(prefix="/reports/gst", tags=["Enterprise GST Reports"])
@@ -20,12 +21,15 @@ async def resolve_gst_auth_context(request: Request, db: AsyncSession) -> Dict[s
     Extracts authenticated user context, roles, and enforces tenant scoping.
     Prevents cross-retailer and cross-company context leakage.
     """
+    domain_ctx = await resolve_domain_context(request, db)
     ctx: Dict[str, Any] = {
-        "company_ref_id": None,
+        "company_ref_id": domain_ctx.cmp_ref_id,
         "retailer_ref_id": None,
         "is_admin": False,
         "is_super_admin": False,
         "user_id": None,
+        "domain_ctx": domain_ctx,
+        "domain_cmp_ref_id": domain_ctx.cmp_ref_id,
     }
 
     token = None
@@ -43,16 +47,9 @@ async def resolve_gst_auth_context(request: Request, db: AsyncSession) -> Dict[s
         )
 
     if not token:
-        # Check if internal or dev fallback header is supplied
-        ret_hdr = request.headers.get("x-retailer-ref-id")
-        comp_hdr = request.headers.get("x-company-ref-id")
-        is_adm_hdr = request.headers.get("x-is-admin")
-        if ret_hdr and ret_hdr.isdigit():
-            ctx["retailer_ref_id"] = int(ret_hdr)
-        if comp_hdr and comp_hdr.isdigit():
-            ctx["company_ref_id"] = int(comp_hdr)
-        if is_adm_hdr and is_adm_hdr.lower() in ("true", "1"):
-            ctx["is_admin"] = True
+        # Unauthenticated calls cannot elevate to admin or cross-company via headers;
+        # lock strictly to active domain company context.
+        ctx["company_ref_id"] = domain_ctx.cmp_ref_id
         return ctx
 
     try:
@@ -82,8 +79,16 @@ async def resolve_gst_auth_context(request: Request, db: AsyncSession) -> Dict[s
         ctx["is_admin"] = is_adm
 
         raw_comp = payload.get("company_ref_id")
-        if raw_comp is not None and str(raw_comp).isdigit():
+        if is_super and raw_comp is not None and str(raw_comp).isdigit():
             ctx["company_ref_id"] = int(raw_comp)
+        elif not is_super:
+            if raw_comp is not None and str(raw_comp).isdigit() and int(raw_comp) != domain_ctx.cmp_ref_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Access denied: Authenticated company ({raw_comp}) does not match active domain company ({domain_ctx.company_code})."
+                )
+            # Strictly enforce active domain's company reference ID for standard admin and retailer
+            ctx["company_ref_id"] = domain_ctx.cmp_ref_id
 
         raw_ret = payload.get("retailer_ref_id") or payload.get("user_ref_id")
         if raw_ret is not None and str(raw_ret).isdigit():
@@ -104,6 +109,8 @@ async def resolve_gst_auth_context(request: Request, db: AsyncSession) -> Dict[s
                 if not ctx["company_ref_id"] and ret_row[1]:
                     ctx["company_ref_id"] = int(ret_row[1])
 
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"[GST Auth Warning] Failed to parse token: {e}")
 

@@ -20,6 +20,10 @@ import app.infrastructure.db.registration_models  # Registration Draft & KYC tab
 import app.infrastructure.db.session_security_models  # Session security & PIN authentication tables
 import app.infrastructure.db.upi_vendor_models  # UPI Vendor Configuration & Audit models
 import app.infrastructure.db.crypto_models  # Retailer Encrypted Records & Envelope tables
+import app.infrastructure.db.company_profile_models  # Admin Company Profile Management tables
+import app.infrastructure.db.menu_favorite_models  # Dynamic Menu, Role-Menu & Reference-ID Favorites tables
+import app.infrastructure.db.retailer_card_models  # Retailer Credit Card Management table
+import app.infrastructure.db.demo_models  # INSPEL Vendor Demo Portal single unified `demo` table
 from app.presentation.api.v1 import beneficiary_verification
 from app.presentation.api.v1 import enterprise_payout_execution_router
 from app.presentation.api.v1 import payout_report_router
@@ -52,6 +56,15 @@ async def startup_db():
             async with engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
         await asyncio.wait_for(_create_tables(), timeout=5.0)
+        try:
+            from app.core.database import AsyncSessionLocal
+            from app.application.menu_favorite_service import MenuFavoriteService
+            from app.application.demo_portal_service import DemoPortalService
+            async with AsyncSessionLocal() as seed_db:
+                await asyncio.wait_for(MenuFavoriteService.ensure_seeded(seed_db), timeout=5.0)
+                await asyncio.wait_for(DemoPortalService.ensure_demo_vendor_seeded(seed_db), timeout=5.0)
+        except Exception as seed_err:
+            print(f"[STARTUP MENU SEED NOTICE] {seed_err}")
     except asyncio.TimeoutError:
         print("[STARTUP DB WARNING] Table creation timed out (DB may be locked) — continuing startup.")
     if getattr(settings, "AUTO_MAIL_DAILY_STATEMENT_ENABLED", False):
@@ -138,10 +151,13 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(tenants.router, prefix=settings.API_V1_STR)
-from app.presentation.api.v1 import company_branding_router
+from app.presentation.api.v1 import company_branding_router, company_profile_router
 app.include_router(company_branding_router.router, prefix=settings.API_V1_STR)
 app.include_router(company_branding_router.router, prefix="/api")
 app.include_router(company_branding_router.router, prefix="")
+app.include_router(company_profile_router.router, prefix=settings.API_V1_STR)
+app.include_router(company_profile_router.router, prefix="/api")
+app.include_router(company_profile_router.router, prefix="")
 app.include_router(companies.router, prefix=settings.API_V1_STR)
 app.include_router(users.router, prefix=settings.API_V1_STR)
 app.include_router(roles.router, prefix=settings.API_V1_STR)
@@ -544,6 +560,13 @@ app.include_router(_sales_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
 app.include_router(_sales_router.router, prefix="/api")
 app.include_router(_sales_router.router, prefix="")
 
+from app.presentation.api.v1 import retailer_cards_router as _retailer_cards_router
+app.include_router(_retailer_cards_router.router, prefix=settings.API_V1_STR)
+app.include_router(_retailer_cards_router.router, prefix="/v1")
+app.include_router(_retailer_cards_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(_retailer_cards_router.router, prefix="/api")
+app.include_router(_retailer_cards_router.router, prefix="")
+
 from app.presentation.api.v1 import admin_sales_management_router as _admin_sales_management_router
 app.include_router(_admin_sales_management_router.router, prefix=settings.API_V1_STR)
 app.include_router(_admin_sales_management_router.router, prefix="/v1")
@@ -557,6 +580,11 @@ app.include_router(unisus_pay_router.router, prefix="/v1")
 app.include_router(unisus_pay_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
 app.include_router(unisus_pay_router.router, prefix="/api")
 app.include_router(unisus_pay_router.router, prefix="")
+
+from app.presentation.api.v1 import demo_portal_router
+app.include_router(demo_portal_router.router, prefix=settings.API_V1_STR)
+app.include_router(demo_portal_router.router, prefix="/api")
+app.include_router(demo_portal_router.router, prefix="")
 
 @app.get("/health", tags=["Health"])
 @app.get(f"{settings.API_V1_STR}/health", tags=["Health"])
@@ -574,7 +602,7 @@ async def health_check():
 @app.get("/api/v1/security/public-key", tags=["Security Handshake"])
 @app.get("/api/v1/public-key", tags=["Security Handshake"])
 @app.get("/security/public-key", tags=["Security Handshake"])
-def get_security_public_key_endpoint():
-    """Returns the RSA public key and application parameters for over-the-wire payload encryption."""
-    return get_server_public_key()
+def get_security_public_key_endpoint(request: Request):
+    """Returns the RSA public key and application parameters for over-the-wire payload encryption with domain-aware app_id."""
+    return get_server_public_key(request)
 

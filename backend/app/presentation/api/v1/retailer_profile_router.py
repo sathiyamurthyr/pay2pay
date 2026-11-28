@@ -41,6 +41,8 @@ logger = logging.getLogger("retailer_profile_router")
 
 router = APIRouter(prefix="/retailer/profile", tags=["Retailer Enterprise Profile"])
 
+DEFAULT_TENANT_ID = uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8")
+
 # MPIN Secret Salt for secure HMAC-SHA256 hashing
 MPIN_SECRET_SALT = "PAY2PAY_ENTERPRISE_MPIN_SALT_KEY_v1_2026"
 
@@ -434,8 +436,12 @@ async def resolve_retailer_context(request: Request, retailer_id: Optional[str],
     if not target_ident and not clean_mobile:
         target_ident = str(sub)
 
-    if target_ident and not clean_mobile:
-        rc_res = await db.execute(text("SELECT mobile FROM public.retailer_contact WHERE retailer_id::text = :tid"), {"tid": str(target_ident)})
+    if (ret_model or target_ident) and not clean_mobile:
+        contact_lookup_id = str(ret_model.public_id) if ret_model else str(target_ident)
+        rc_res = await db.execute(
+            text("SELECT mobile FROM public.retailer_contact WHERE retailer_id::text = :tid"),
+            {"tid": contact_lookup_id},
+        )
         rc_row = rc_res.mappings().first()
         if rc_row and rc_row.get("mobile"):
             clean_mobile = "".join(filter(str.isdigit, str(rc_row["mobile"])))[-10:]
@@ -510,7 +516,7 @@ async def get_retailer_profile(
             if clean_mobile and len(clean_mobile) == 10:
                 draft_conds.append(RegistrationDraftModel.mobile_number.like(f"%{clean_mobile}"))
             if draft_conds:
-                draft_stmt = select(RegistrationDraftModel).where(or_(*draft_conds)).order_by(desc(RegistrationDraftModel.created_date))
+                draft_stmt = select(RegistrationDraftModel).where(or_(*draft_conds)).order_by(desc(RegistrationDraftModel.last_activity_at), desc(RegistrationDraftModel.created_date))
                 draft = (await db.execute(draft_stmt)).scalars().first()
     except Exception as e:
         logger.warning(f"Draft query error: {e}")
@@ -936,17 +942,21 @@ async def get_retailer_profile(
         "last_pin_changed_at": draft_data.get("last_pin_changed_at")
     }
 
-    # 11. Build Dynamic PHOTO Reference
+    # 11. Build Dynamic PHOTO Reference (prefer user's explicit uploaded photo over KYC Aadhaar/shop snapshot)
     photo_raw_url = None
-    if aadhaar_record and aadhaar_record.photo_url:
-        photo_raw_url = aadhaar_record.photo_url
-    elif draft_data.get("photo_url") or draft_data.get("avatar_url"):
+    if draft_data.get("photo_url") or draft_data.get("avatar_url"):
         photo_raw_url = draft_data.get("photo_url") or draft_data.get("avatar_url")
+    elif aadhaar_record and aadhaar_record.photo_url:
+        photo_raw_url = aadhaar_record.photo_url
     elif addr_record and addr_record.shop_photo_url:
         photo_raw_url = addr_record.shop_photo_url
 
-    # Direct static file URL from database or proxy fallback
-    photo_display_url = photo_raw_url if (photo_raw_url and (photo_raw_url.startswith("/uploads/") or photo_raw_url.startswith("http://") or photo_raw_url.startswith("https://"))) else (f"/api/v1/retailer/profile/photo-image?retailer_id={reg_id}" if (photo_raw_url or reg_id) else None)
+    # Direct static file URL from database or proxy fallback (only when a stored photo exists)
+    photo_display_url = (
+        photo_raw_url
+        if (photo_raw_url and (photo_raw_url.startswith("/uploads/") or photo_raw_url.startswith("http://") or photo_raw_url.startswith("https://")))
+        else (f"/api/v1/retailer/profile/photo-image?retailer_id={reg_id}" if photo_raw_url and reg_id else None)
+    )
 
     photo_data = {
         "photo_url": photo_display_url,
@@ -965,22 +975,24 @@ async def get_retailer_profile(
 
     # 14. Build Dynamic COMPANY Contact & Support Info from authoritative CompanyModel & Domain Resolver
     expected_comp_ref = resolve_request_company_ref(request)
-    resolved_comp_ref = expected_comp_ref or (ret_model.company_ref_id if ret_model else None) or session_company_ref_id or 1
+    resolved_comp_ref = expected_comp_ref or (ret_model.company_ref_id if ret_model else None) or session_company_ref_id
     preset = get_company_preset(resolved_comp_ref) or {}
 
-    c_stmt = (
-        select(CompanyModel)
-        .where(CompanyModel.company_ref_id == resolved_comp_ref)
-        .options(selectinload(CompanyModel.contacts), selectinload(CompanyModel.addresses))
-    )
-    comp = (await db.execute(c_stmt)).scalars().first()
+    comp = None
+    if resolved_comp_ref:
+        c_stmt = (
+            select(CompanyModel)
+            .where(CompanyModel.company_ref_id == resolved_comp_ref)
+            .options(selectinload(CompanyModel.contacts), selectinload(CompanyModel.addresses))
+        )
+        comp = (await db.execute(c_stmt)).scalars().first()
 
     default_name = preset.get("company_name") or "Enterprise Network"
     default_brand = preset.get("display_name") or default_name
     default_legal = preset.get("legal_name") or default_name
-    default_website = preset.get("website") or "https://smspay.store"
+    default_website = preset.get("website") or ""
     site_clean = default_website.replace("https://", "").replace("http://", "").strip("/")
-    default_email = preset.get("support_email") or f"support@{site_clean}"
+    default_email = preset.get("support_email") or (f"support@{site_clean}" if site_clean else "")
     default_logo = preset.get("logo_url") or "/branding/logo.svg"
     supervisor_label = f"Zonal Head - {comp.display_name if (comp and comp.display_name) else default_brand} Enterprise Network"
 
@@ -1045,58 +1057,79 @@ async def get_retailer_profile(
             "last_updated": None
         }
 
-    default_hq = (
-        "INSPEL TECHNOLOGIES SOLUTIONS PVT, Corporate Operations Desk, India"
-        if resolved_comp_ref == 2
-        else (
-            "SUPER REX PRODUCTS PRIVATE LIMITED, Registered Office, India"
-            if resolved_comp_ref == 47
-            else "SATHUS TECHNOLOGY PRIVATE LIMITED, Corporate Office, India"
-        )
-    )
+    default_hq = f"{default_legal}, India"
 
-    if comp:
-        prim_contact = comp.contacts[0] if comp.contacts else None
-        prim_addr = comp.addresses[0] if comp.addresses else None
-        comp_site = comp.website or default_website
-        comp_site_clean = comp_site.replace("https://", "").replace("http://", "").strip("/")
-        company_data = {
-            "company_name": comp.company_name or comp.legal_name or default_name,
-            "brand_name": comp.display_name or comp.company_name or default_brand,
-            "legal_name": comp.legal_name or comp.company_name or default_legal,
-            "cin": comp.cin_number or None,
-            "gstin": comp.gst_number or None,
-            "support_email": (prim_contact.support_email if prim_contact else None) or (prim_contact.email if prim_contact else None) or default_email,
-            "support_phone": (prim_contact.support_phone if prim_contact else None) or (prim_contact.mobile if prim_contact else None) or "1800 292 982",
-            "direct_phone": (prim_contact.mobile if prim_contact else None) or "+91 44 4892 9820",
-            "whatsapp_number": (prim_contact.mobile if prim_contact else None) or "+91 70139 14767",
-            "grievance_email": (prim_contact.email if prim_contact else None) or f"grievance@{comp_site_clean}",
-            "nodal_officer": f"Grievance Redressal Officer, {comp.company_name or default_name}",
-            "support_hours": "Monday - Saturday | 09:00 AM - 07:00 PM IST",
-            "headquarters": f"{prim_addr.address}, {prim_addr.city}, {prim_addr.state} - {prim_addr.pincode}" if prim_addr else default_hq,
-            "helpdesk_url": comp_site if "/support" in comp_site else f"{comp_site.rstrip('/')}/support",
-            "website_url": comp_site,
-            "logo_url": default_logo
-        }
-    else:
-        company_data = {
-            "company_name": default_name,
-            "brand_name": default_brand,
-            "legal_name": default_legal,
-            "cin": None,
-            "gstin": None,
-            "support_email": default_email,
-            "support_phone": "1800 292 982",
-            "direct_phone": "—",
-            "whatsapp_number": "—",
-            "grievance_email": f"grievance@{site_clean}",
-            "nodal_officer": f"Grievance Redressal Officer, {default_name}",
-            "support_hours": "Monday - Saturday | 09:00 AM - 07:00 PM IST",
-            "headquarters": default_hq,
-            "helpdesk_url": f"{default_website.rstrip('/')}/support",
-            "website_url": default_website,
-            "logo_url": default_logo
-        }
+    company_data = None
+    if resolved_comp_ref:
+        try:
+            from app.presentation.api.v1.company_profile_router import get_company_profile_data
+            company_data = await get_company_profile_data(db, int(resolved_comp_ref))
+        except Exception as e_cp:
+            logger.warning(f"CompanyProfile lookup notice for ref {resolved_comp_ref}: {e_cp}")
+
+    if not company_data:
+        if comp:
+            prim_contact = comp.contacts[0] if comp.contacts else None
+            prim_addr = comp.addresses[0] if comp.addresses else None
+            comp_site = comp.website or default_website
+            comp_site_clean = comp_site.replace("https://", "").replace("http://", "").strip("/")
+            company_data = {
+                "company_ref_id": comp.company_ref_id,
+                "company_code": comp.company_code,
+                "company_name": comp.company_name or comp.legal_name or default_name,
+                "company_legal_name": comp.legal_name or comp.company_name or default_legal,
+                "brand_name": comp.display_name or comp.company_name or default_brand,
+                "legal_name": comp.legal_name or comp.company_name or default_legal,
+                "operating_partner_info": f"Official Operating Partner & Enterprise FinTech Network: {comp.display_name or comp.company_name or default_brand}",
+                "corporate_portal_url": comp_site,
+                "regulatory_status_badge": "RBI / NPCI Authorized",
+                "entity_badge": "Registered Corporate",
+                "business_entity_type": "Private Limited Company",
+                "industry_sector": comp.industry or "FinTech, Payments & Banking Correspondent Network",
+                "operating_status": "ACTIVE & REGULATED" if comp.is_active else comp.status,
+                "cin": comp.cin_number or None,
+                "cin_number": comp.cin_number or None,
+                "gstin": comp.gst_number or None,
+                "support_email": (prim_contact.support_email if prim_contact else None) or (prim_contact.email if prim_contact else None) or default_email,
+                "support_phone": (prim_contact.support_phone if prim_contact else None) or (prim_contact.mobile if prim_contact else None),
+                "support_helpline": (prim_contact.support_phone if prim_contact else None) or (prim_contact.mobile if prim_contact else None),
+                "direct_phone": (prim_contact.mobile if prim_contact else None),
+                "direct_operations_line": (prim_contact.mobile if prim_contact else None),
+                "whatsapp_number": (prim_contact.mobile if prim_contact else None),
+                "grievance_email": (prim_contact.email if prim_contact else None) or (f"grievance@{comp_site_clean}" if comp_site_clean else None),
+                "grievance_escalation_email": (prim_contact.email if prim_contact else None) or (f"grievance@{comp_site_clean}" if comp_site_clean else None),
+                "nodal_officer": f"Grievance Redressal Officer, {comp.company_name or default_name}",
+                "support_hours": None,
+                "operating_hours": None,
+                "headquarters": f"{prim_addr.address}, {prim_addr.city}, {prim_addr.state} - {prim_addr.pincode}" if prim_addr else default_hq,
+                "registered_office_address": f"{prim_addr.address}, {prim_addr.city}, {prim_addr.state} - {prim_addr.pincode}" if prim_addr else default_hq,
+                "helpdesk_url": comp_site if "/support" in comp_site else f"{comp_site.rstrip('/')}/support",
+                "website_url": comp_site,
+                "official_website_url": comp_site,
+                "logo_url": default_logo,
+            }
+        else:
+            company_data = {
+                "company_name": default_name,
+                "company_legal_name": default_legal,
+                "brand_name": default_brand,
+                "legal_name": default_legal,
+                "cin": None,
+                "gstin": None,
+                "support_email": default_email,
+                "support_phone": None,
+                "direct_phone": None,
+                "whatsapp_number": None,
+                "grievance_email": f"grievance@{site_clean}" if site_clean else None,
+                "nodal_officer": f"Grievance Redressal Officer, {default_name}",
+                "support_hours": None,
+                "headquarters": default_hq,
+                "helpdesk_url": f"{default_website.rstrip('/')}/support" if default_website else None,
+                "website_url": default_website,
+                "corporate_portal_url": default_website,
+                "official_website_url": default_website,
+                "logo_url": default_logo,
+            }
 
     return {
         "success": True,
@@ -1409,27 +1442,28 @@ async def verify_email_update_otp(
 
     # (a) Update auth_users
     try:
-        user_uuid = None
-        try:
-            if session_user_id:
-                user_uuid = uuid.UUID(str(session_user_id))
-        except Exception:
+        async with db.begin_nested():
             user_uuid = None
-        if user_uuid:
-            await db.execute(update(AuthUserModel).where(AuthUserModel.user_id == user_uuid).values(email=new_email))
-        if clean_mobile:
-            await db.execute(update(AuthUserModel).where(AuthUserModel.mobile_number.like(f"%{clean_mobile}")).values(email=new_email))
+            try:
+                if session_user_id:
+                    user_uuid = uuid.UUID(str(session_user_id))
+            except Exception:
+                user_uuid = None
+            if user_uuid:
+                await db.execute(update(AuthUserModel).where(AuthUserModel.user_id == user_uuid).values(email=new_email))
+            if clean_mobile:
+                await db.execute(update(AuthUserModel).where(AuthUserModel.mobile_number.like(f"%{clean_mobile}")).values(email=new_email))
     except Exception as e_auth:
         logger.warning(f"Could not update auth_users email: {e_auth}")
 
     # (b) Update retailer_verifications
     try:
-        if v_rec:
-            v_rec.email = new_email
-        elif clean_mobile:
-            await db.execute(update(RetailerVerificationModel).where(RetailerVerificationModel.mobile_number.like(f"%{clean_mobile}")).values(email=new_email))
+        async with db.begin_nested():
+            if v_rec:
+                v_rec.email = new_email
+            elif clean_mobile:
+                await db.execute(update(RetailerVerificationModel).where(RetailerVerificationModel.mobile_number.like(f"%{clean_mobile}")).values(email=new_email))
     except Exception as e_verif:
-        await db.rollback()
         logger.warning(f"Could not update retailer_verifications email: {e_verif}")
 
     # (c) Update registration_drafts
@@ -1443,26 +1477,28 @@ async def verify_email_update_otp(
     # (d) Update retailer_contact
     if r_uuid:
         try:
-            await db.execute(update(RetailerContactModel).where(RetailerContactModel.retailer_id == r_uuid).values(email=new_email))
+            async with db.begin_nested():
+                await db.execute(update(RetailerContactModel).where(RetailerContactModel.retailer_id == r_uuid).values(email=new_email))
         except Exception as e_rc:
             logger.warning(f"Could not update retailer_contact email: {e_rc}")
 
     # (e) Log Audit Trail
     try:
-        await AuditLogger.log_action(
-            db=db,
-            tenant_id=uuid.uuid4(),
-            action="UPDATE_EMAIL_VERIFIED",
-            resource_type="RETAILER_PROFILE",
-            resource_id=str(target_ident or clean_mobile),
-            actor_email=new_email,
-            details={
-                "previous_email": old_email,
-                "updated_email": new_email,
-                "verified_via": "EMAIL_OTP",
-                "verified_at": datetime.now(timezone.utc).isoformat()
-            }
-        )
+        async with db.begin_nested():
+            await AuditLogger.log_action(
+                db=db,
+                tenant_id=DEFAULT_TENANT_ID,
+                action="UPDATE_EMAIL_VERIFIED",
+                resource_type="RETAILER_PROFILE",
+                resource_id=str(target_ident or clean_mobile),
+                actor_email=new_email,
+                details={
+                    "previous_email": old_email,
+                    "updated_email": new_email,
+                    "verified_via": "EMAIL_OTP",
+                    "verified_at": datetime.now(timezone.utc).isoformat()
+                }
+            )
     except Exception as e_audit:
         logger.warning(f"Audit log notice: {e_audit}")
 
@@ -1576,56 +1612,91 @@ async def upload_photo(
     session_company_ref_id = ctx.session_company_ref_id
     ret_model = ctx.ret_model
 
-    # Upload to Backblaze B2
-    file_url = ""
-    b2_path = ""
-    try:
-        res = await BackblazeStorageService.upload_document(
-            file_bytes=file_bytes,
-            original_filename=file.filename,
-            entity_type="RET",
-            content_type=content_type
-        )
-        file_url = res.get("url") or res.get("download_url") or res.get("file_url") or ""
-        b2_path = res.get("path") or res.get("file_path") or res.get("file_id") or ""
-    except Exception as b2_err:
-        logger.warning(f"Backblaze B2 upload fallback to local storage: {b2_err}")
-        import os
-        from pathlib import Path
-        uploads_dir = Path("uploads/profiles")
-        uploads_dir.mkdir(parents=True, exist_ok=True)
-        ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
-        unique_name = f"ret_{int(datetime.now().timestamp())}.{ext}"
-        local_path = uploads_dir / unique_name
-        with open(local_path, "wb") as f:
-            f.write(file_bytes)
-        file_url = f"/uploads/profiles/{unique_name}"
-        b2_path = f"local/profiles/{unique_name}"
+    # Save directly to persistent local uploads volume (/uploads/profiles/ proxied by Nginx)
+    # so slow/unreachable external object storage never blocks the worker into a 502 timeout.
+    from pathlib import Path
+    uploads_dir = Path("uploads/profiles")
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    raw_ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+    ext_map = {"image/jpeg": "jpg", "image/jpg": "jpg", "image/png": "png", "image/webp": "webp"}
+    ext = raw_ext if raw_ext in {"jpg", "jpeg", "png", "webp"} else ext_map.get(content_type.lower(), "jpg")
+    unique_name = f"ret_{uuid.uuid4().hex[:12]}.{ext}"
+    local_path = uploads_dir / unique_name
+    local_path.write_bytes(file_bytes)
+    file_url = f"/uploads/profiles/{unique_name}"
+    storage_path = f"local/profiles/{unique_name}"
 
-    # Persist reference in PostgreSQL
-    draft = None
+    # Persist reference in PostgreSQL (matching get_retailer_profile draft resolution order)
+    verif = None
     if target_ident or clean_mobile:
+        v_conds = []
+        if target_ident:
+            v_conds.append(RetailerVerificationModel.retailer_id == str(target_ident))
+            v_conds.append(RetailerVerificationModel.registration_id == str(target_ident))
+        if clean_mobile and len(clean_mobile) == 10:
+            v_conds.append(RetailerVerificationModel.mobile_number.like(f"%{clean_mobile}"))
+        if v_conds:
+            v_stmt = select(RetailerVerificationModel).where(or_(*v_conds)).order_by(desc(RetailerVerificationModel.created_date))
+            verif = (await db.execute(v_stmt)).scalars().first()
+
+    draft = None
+    if verif and verif.registration_id:
+        draft = (await db.execute(
+            select(RegistrationDraftModel).where(RegistrationDraftModel.registration_id == verif.registration_id)
+        )).scalars().first()
+
+    if not draft and (target_ident or clean_mobile):
         conds = []
         if target_ident:
             conds.append(RegistrationDraftModel.registration_id == str(target_ident))
-        if clean_mobile:
+        if clean_mobile and len(clean_mobile) == 10:
             conds.append(RegistrationDraftModel.mobile_number.like(f"%{clean_mobile}"))
-        draft_stmt = select(RegistrationDraftModel).where(or_(*conds)).order_by(desc(RegistrationDraftModel.last_activity_at))
-        draft = (await db.execute(draft_stmt)).scalars().first()
+        if conds:
+            draft_stmt = select(RegistrationDraftModel).where(or_(*conds)).order_by(desc(RegistrationDraftModel.last_activity_at))
+            draft = (await db.execute(draft_stmt)).scalars().first()
 
+    now_utc = datetime.now(timezone.utc)
     if draft:
-        from sqlalchemy.orm.attributes import flag_modified
         cdata = dict(draft.draft_data or {})
         cdata["photo_url"] = file_url
-        cdata["photo_b2_path"] = b2_path
+        cdata["photo_b2_path"] = storage_path
         cdata["avatar_url"] = file_url
         draft.draft_data = cdata
-        draft.last_activity_at = datetime.now(timezone.utc)
+        draft.last_activity_at = now_utc
         flag_modified(draft, "draft_data")
         await db.commit()
+    else:
+        reg_key = str(
+            (verif.registration_id if verif and verif.registration_id else None)
+            or target_ident
+            or (ret_model.retailer_code if ret_model else f"REG-{uuid.uuid4().hex[:10].upper()}")
+        )[:100]
+        mob_key = str(clean_mobile if (clean_mobile and len(clean_mobile) >= 10) else f"u{uuid.uuid4().hex[:12]}")[:20]
+        tenant_uuid = (
+            ret_model.tenant_id
+            if (ret_model and getattr(ret_model, "tenant_id", None))
+            else uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8")
+        )
+        draft = RegistrationDraftModel(
+            registration_id=reg_key,
+            mobile_number=mob_key,
+            email=session_email,
+            tenant_id=tenant_uuid,
+            company_id=(ret_model.company_id if ret_model else None),
+            status="KYC_APPROVED",
+            draft_data={"photo_url": file_url, "photo_b2_path": storage_path, "avatar_url": file_url},
+            last_activity_at=now_utc,
+        )
+        db.add(draft)
+        await db.commit()
 
-    if target_ident and str(target_ident).startswith("REG-"):
-        a_row = (await db.execute(select(RegistrationAadhaarModel).where(RegistrationAadhaarModel.registration_id == str(target_ident)).order_by(desc(RegistrationAadhaarModel.created_date)))).scalars().first()
+    aadhaar_reg_id = (draft.registration_id if draft else None) or (str(target_ident) if target_ident else None)
+    if aadhaar_reg_id:
+        a_row = (await db.execute(
+            select(RegistrationAadhaarModel)
+            .where(RegistrationAadhaarModel.registration_id == str(aadhaar_reg_id))
+            .order_by(desc(RegistrationAadhaarModel.created_date))
+        )).scalars().first()
         if a_row:
             a_row.photo_url = file_url
             await db.commit()
@@ -1637,9 +1708,9 @@ async def upload_photo(
             tenant_id=uuid.uuid4(),
             action="UPLOAD",
             resource_type="RETAILER_PHOTO",
-            resource_id=str(target_ident),
+            resource_id=str(target_ident or aadhaar_reg_id or "retailer"),
             actor_email=session_email or "retailer@pay2pay.in",
-            details={"b2_path": b2_path, "file_url": file_url}
+            details={"storage_path": storage_path, "file_url": file_url}
         )
     except Exception as e:
         logger.warning(f"Audit log notice: {e}")
@@ -1648,7 +1719,7 @@ async def upload_photo(
         "success": True,
         "message": "Profile photo uploaded and persisted successfully.",
         "photo_url": file_url,
-        "b2_path": b2_path
+        "b2_path": storage_path
     }
 
 
@@ -1697,17 +1768,22 @@ async def get_photo_image(
                 pass
 
     raw_url = None
+    draft_conds = []
     if reg_id:
+        draft_conds.append(RegistrationDraftModel.registration_id == reg_id)
+    if clean_mobile and len(clean_mobile) == 10:
+        draft_conds.append(RegistrationDraftModel.mobile_number.like(f"%{clean_mobile}"))
+    if draft_conds:
+        d_stmt = select(RegistrationDraftModel).where(or_(*draft_conds)).order_by(desc(RegistrationDraftModel.last_activity_at), desc(RegistrationDraftModel.created_date))
+        draft = (await db.execute(d_stmt)).scalars().first()
+        if draft and draft.draft_data:
+            raw_url = draft.draft_data.get("photo_url") or draft.draft_data.get("avatar_url")
+
+    if not raw_url and reg_id:
         a_stmt = select(RegistrationAadhaarModel).where(RegistrationAadhaarModel.registration_id == reg_id).order_by(desc(RegistrationAadhaarModel.created_date))
         aadhaar = (await db.execute(a_stmt)).scalars().first()
         if aadhaar and aadhaar.photo_url:
             raw_url = aadhaar.photo_url
-
-        if not raw_url:
-            d_stmt = select(RegistrationDraftModel).where(RegistrationDraftModel.registration_id == reg_id).order_by(desc(RegistrationDraftModel.created_date))
-            draft = (await db.execute(d_stmt)).scalars().first()
-            if draft and draft.draft_data:
-                raw_url = draft.draft_data.get("photo_url") or draft.draft_data.get("avatar_url")
 
     if not raw_url:
         raise HTTPException(status_code=404, detail="No profile photo registered for this retailer.")
@@ -1822,7 +1898,8 @@ async def send_security_whatsapp_otp(
     flag_modified(draft, "draft_data")
     await db.commit()
 
-    wa_res = await whatsapp_service.send_otp(clean_mobile, otp_code)
+    wa_company_ctx = session_company_ref_id if session_company_ref_id is not None else resolve_request_company_ref(request)
+    wa_res = await whatsapp_service.send_otp(clean_mobile, otp_code, company_context=wa_company_ctx)
     logger.info(f"Security WhatsApp OTP dispatched to {clean_mobile} for {action_type}: {wa_res}")
 
     masked = f"+91 ******{clean_mobile[-4:]}"
@@ -2140,22 +2217,24 @@ async def change_mpin(
             detail=f"Invalid WhatsApp OTP code. Changes were NOT saved. ({remaining} attempts remaining)"
         )
 
-    # 3. Lookup UserSecuritySettingsModel
+    # 3. Lookup UserSecuritySettingsModel strictly scoped to the authenticated user
     user_sec = None
     target_uid = None
-    if session_user_id:
+    candidate_uids = []
+    for cand in (session_user_id, r_uuid, getattr(ret_model, "public_id", None)):
+        if not cand:
+            continue
         try:
-            target_uid = uuid.UUID(str(session_user_id))
-            sec_stmt = select(UserSecuritySettingsModel).where(
-                UserSecuritySettingsModel.user_id == target_uid,
-                UserSecuritySettingsModel.portal == "RETAILER"
-            )
-            user_sec = (await db.execute(sec_stmt)).scalars().first()
+            parsed = cand if isinstance(cand, uuid.UUID) else uuid.UUID(str(cand))
+            if parsed not in candidate_uids:
+                candidate_uids.append(parsed)
         except Exception:
-            pass
+            continue
 
-    if not user_sec:
+    if candidate_uids:
+        target_uid = candidate_uids[0]
         sec_stmt = select(UserSecuritySettingsModel).where(
+            UserSecuritySettingsModel.user_id.in_(candidate_uids),
             UserSecuritySettingsModel.portal == "RETAILER"
         ).order_by(desc(UserSecuritySettingsModel.created_date))
         user_sec = (await db.execute(sec_stmt)).scalars().first()
@@ -2240,21 +2319,23 @@ async def change_mpin(
         ret_obj.mpin_locked = False
         ret_obj.updated_date = datetime.now(timezone.utc)
         try:
-            await db.execute(
-                text("SELECT public.sp_update_retailer_mpin(:rid, :nh, 'PROFILE_SECURITY')"),
-                {"rid": ret_obj.public_id, "nh": new_argon_hash}
-            )
+            async with db.begin_nested():
+                await db.execute(
+                    text("SELECT public.sp_update_retailer_mpin(:rid, :nh, 'PROFILE_SECURITY')"),
+                    {"rid": ret_obj.public_id, "nh": new_argon_hash}
+                )
         except Exception as sp_err:
-            logger.warning(f"Error executing sp_update_retailer_mpin: {sp_err}")
+            logger.warning(f"Error executing sp_update_retailer_mpin (safe fallback applied): {sp_err}")
     elif r_uuid or target_uid:
         eff_rid = r_uuid or target_uid
         try:
-            await db.execute(
-                text("SELECT public.sp_update_retailer_mpin(:rid, :nh, 'PROFILE_SECURITY')"),
-                {"rid": eff_rid, "nh": new_argon_hash}
-            )
+            async with db.begin_nested():
+                await db.execute(
+                    text("SELECT public.sp_update_retailer_mpin(:rid, :nh, 'PROFILE_SECURITY')"),
+                    {"rid": eff_rid, "nh": new_argon_hash}
+                )
         except Exception as sp_err:
-            logger.warning(f"Error executing sp_update_retailer_mpin: {sp_err}")
+            logger.warning(f"Error executing sp_update_retailer_mpin (safe fallback applied): {sp_err}")
 
     # 10. Update CustomerModel if present
     if cust:

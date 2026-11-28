@@ -26,20 +26,20 @@ export const TransferSummary: React.FC<TransferSummaryProps> = ({
   const walletAfterTransfer = Math.max(0, currentWalletBalance - totalPayable);
 
   const kpis = [
-    { label: "TRANSFER AMOUNT", value: `₹${amount.toLocaleString()}`, color: "#FFFFFF", highlight: false },
-    { label: "CONVENIENCE FEE", value: `+ ₹${fee.toLocaleString()}`, color: "#60A5FA", highlight: false },
-    { label: "GST (18%)", value: `+ ₹${gst.toLocaleString()}`, color: "#93C5FD", highlight: false },
-    { label: "OPERATOR COMMISSION", value: `+ ₹${commission.toLocaleString()}`, color: "#4ADE80", highlight: true, bg: "rgba(34, 197, 94, 0.12)" },
-    { label: "NET WALLET DEBIT", value: `₹${totalPayable.toLocaleString()}`, color: "#3B82F6", highlight: true, bg: "rgba(37, 99, 235, 0.25)" },
-    { label: "WALLET AFTER TXN", value: `₹${walletAfterTransfer.toLocaleString()}`, color: "#A20A3A", highlight: false },
-    { label: "SETTLEMENT ETA", value: "1.2 Seconds", color: "#4ADE80", highlight: false },
-    { label: "DAILY REMAINING", value: `₹${dailyRemaining.toLocaleString()}`, color: "#60A5FA", highlight: false },
-    { label: "MONTHLY REMAINING", value: `₹${monthlyRemaining.toLocaleString()}`, color: "#34D399", highlight: false },
+    { label: "TRANSFER AMOUNT", value: `₹${amount.toLocaleString()}`, color: "#0F172A", highlight: false },
+    { label: "CONVENIENCE FEE", value: `+ ₹${fee.toLocaleString()}`, color: "var(--brand-primary, #0F3B7D)", highlight: false },
+    { label: "GST (18%)", value: `+ ₹${gst.toLocaleString()}`, color: "#334155", highlight: false },
+    { label: "OPERATOR COMMISSION", value: `+ ₹${commission.toLocaleString()}`, color: "#15803D", highlight: true, bg: "#F0FDF4" },
+    { label: "NET WALLET DEBIT", value: `₹${totalPayable.toLocaleString()}`, color: "var(--brand-primary, #0F3B7D)", highlight: true, bg: "var(--brand-surface, #EFF6FF)" },
+    { label: "WALLET AFTER TXN", value: `₹${walletAfterTransfer.toLocaleString()}`, color: "var(--brand-primary, #0F3B7D)", highlight: false },
+    { label: "SETTLEMENT ETA", value: "1.2 Seconds", color: "#15803D", highlight: false },
+    { label: "DAILY REMAINING", value: `₹${dailyRemaining.toLocaleString()}`, color: "var(--brand-primary, #0F3B7D)", highlight: false },
+    { label: "MONTHLY REMAINING", value: `₹${monthlyRemaining.toLocaleString()}`, color: "#15803D", highlight: false },
   ];
 
   return (
     <Box sx={{ width: "100%" }}>
-      <Typography sx={{ color: "rgba(255, 255, 255, 0.70)", fontWeight: 700, fontSize: "12px", letterSpacing: "0.08em", textTransform: "uppercase", mb: 1.5 }}>
+      <Typography sx={{ color: "var(--text-muted, #64748B)", fontWeight: 700, fontSize: "12px", letterSpacing: "0.08em", textTransform: "uppercase", mb: 1.5 }}>
         TRANSFER SUMMARY & FINANCIAL KPIS
       </Typography>
 
@@ -62,18 +62,17 @@ export const TransferSummary: React.FC<TransferSummaryProps> = ({
             sx={{
               p: 1.5,
               borderRadius: "12px",
-              bgcolor: kpi.bg || "rgba(255, 255, 255, 0.04)",
-              backdropFilter: "blur(12px)",
-              border: kpi.highlight ? "1px solid rgba(37, 99, 235, 0.4)" : "1px solid rgba(255, 255, 255, 0.08)",
-              boxShadow: kpi.highlight ? "0 4px 16px rgba(37, 99, 235, 0.25)" : "none",
+              bgcolor: kpi.bg || "#FFFFFF",
+              border: kpi.highlight ? "1px solid var(--brand-border, rgba(15, 59, 125, 0.25))" : "1px solid #E2E8F0",
+              boxShadow: kpi.highlight ? "0 4px 12px rgba(15, 23, 42, 0.05)" : "none",
               display: "flex",
               flexDirection: "column",
               justifyContent: "center",
               transition: "all 150ms ease",
-              "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)", transform: "translateY(-2px)" },
+              "&:hover": { bgcolor: "var(--brand-surface, #EFF6FF)", transform: "translateY(-2px)" },
             }}
           >
-            <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10px", fontWeight: 800, letterSpacing: "0.05em", mb: 0.5 }}>
+            <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "10px", fontWeight: 800, letterSpacing: "0.05em", mb: 0.5 }}>
               {kpi.label}
             </Typography>
             <Typography sx={{ fontWeight: 900, color: kpi.color, fontSize: "15px", lineHeight: 1.2 }}>

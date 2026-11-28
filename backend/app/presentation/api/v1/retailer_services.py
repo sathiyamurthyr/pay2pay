@@ -9,6 +9,7 @@ from app.core.database import get_db
 from app.infrastructure.db.models import RetailerModel, RetailerWalletModel
 from app.infrastructure.db.transaction_engine_models import TransactionLedgerEntryModel
 from app.presentation.api.v1.retailer_dashboard_router import resolve_retailer_context
+from app.core.company_resolver import resolve_request_company_ref, get_company_preset
 from app.application.wallet_balance_service import WalletBalanceAdjustmentService, WalletAdjustmentDTO
 import time
 import random
@@ -196,10 +197,15 @@ async def execute_aeps(req: AepsRequest):
     }
 
 @router.post("/upi/generate-qr")
-async def generate_upi_qr(req: UpiQrRequest):
-    ref = f"PAY2PAY{int(time.time())}"
-    vpa = "pay2pay.retailer@icici"
-    qr_string = f"upi://pay?pa={vpa}&pn=Pay2PayStore&am={req.amount}&tr={ref}&mc=5411&cu=INR"
+async def generate_upi_qr(req: UpiQrRequest, request: Request):
+    comp_ref = resolve_request_company_ref(request)
+    preset = get_company_preset(comp_ref) if comp_ref else {}
+    code = (preset.get("company_code") or "PLATFORM").upper()
+    brand_slug = code.lower()
+    brand_name = (preset.get("display_name") or code).replace(" ", "")
+    ref = f"{code}{int(time.time())}"
+    vpa = f"{brand_slug}.retailer@icici"
+    qr_string = f"upi://pay?pa={vpa}&pn={brand_name}Store&am={req.amount}&tr={ref}&mc=5411&cu=INR"
     return {
         "success": True,
         "qrCodeUrl": f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={qr_string}",

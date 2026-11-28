@@ -256,6 +256,17 @@ class AuthService:
                     subject=str(auth_user.user_id),
                     tenant_id=str(auth_user.tenant_id or "547aa7bb-a790-4fe2-bd5b-27214ed176c8")
                 )
+                try:
+                    from app.infrastructure.db.auth_models import UserSecuritySettingsModel
+                    sec_stmt = select(UserSecuritySettingsModel).where(UserSecuritySettingsModel.user_id == auth_user.user_id)
+                    sec_obj = (await db.execute(sec_stmt)).scalars().first()
+                    if sec_obj:
+                        sec_obj.locked_until = None
+                        sec_obj.failed_attempt_count = 0
+                        await db.commit()
+                except Exception:
+                    pass
+
                 return TokenResponse(
                     access_token=access_token,
                     refresh_token=refresh_token,
@@ -301,6 +312,18 @@ class AuthService:
         # Update last login time
         user.last_login_at = datetime.now(timezone.utc)
 
+        # Reset any user security settings lock on successful credential login
+        try:
+            from app.infrastructure.db.auth_models import UserSecuritySettingsModel
+            sec_stmt = select(UserSecuritySettingsModel).where(UserSecuritySettingsModel.user_id == user.public_id)
+            sec_obj = (await db.execute(sec_stmt)).scalars().first()
+            if sec_obj:
+                sec_obj.locked_until = None
+                sec_obj.failed_attempt_count = 0
+                await db.commit()
+        except Exception:
+            pass
+
         roles = [ur.role.code for ur in user.user_roles if ur.role]
         if not roles and user.user_type:
             roles = [user.user_type]
@@ -314,22 +337,29 @@ class AuthService:
         comp_ref_id = int(user_comp_ref) if user_comp_ref is not None else None
 
         if comp_ref_id is not None:
-            # Company Admin: strictly bound to authenticated company, no cross-company super admin privileges
-            roles = ["ADMIN"]
-            auth_role_name = "ADMIN"
+            # Company Admin / Staff: strictly bound to authenticated company, preserve specific RBAC roles
+            base_roles = [r.upper() for r in roles if r and r.upper() != "SUPER_ADMIN"]
+            roles = base_roles if base_roles else ["ADMIN"]
+            auth_role_name = roles[0]
         elif is_super:
             roles = ["SUPER_ADMIN", "ADMIN"]
             auth_role_name = "SUPER_ADMIN"
         else:
-            roles = ["ADMIN"]
-            auth_role_name = "ADMIN"
+            roles = [r.upper() for r in roles if r] or ["ADMIN"]
+            auth_role_name = roles[0]
 
+        admin_user_ref = int(getattr(user, "admin_user_ref_id", None) or user.id)
+        admin_tenant_ref = getattr(user, "tenant_ref_id", None) or 1
         access_token = create_access_token(
             subject=str(user.public_id),
             tenant_id=str(user.tenant_id),
             company_id=company_id_str,
             roles=roles,
             company_ref_id=comp_ref_id,
+            tenant_ref_id=admin_tenant_ref,
+            user_ref_id=admin_user_ref,
+            user_type_ref_id=1,
+            email=user.email,
             is_super_admin=is_super
         )
         refresh_token = create_refresh_token(
@@ -699,20 +729,46 @@ class UserService:
 
     @staticmethod
     async def get_menu_access(db: AsyncSession, current_user: AdminUserModel) -> Dict[str, Any]:
-        user_type = getattr(current_user, "user_type", "ADMIN") or "ADMIN"
-        role_codes = []
+        from app.application.menu_favorite_service import MenuFavoriteService, ResolvedFavoriteIdentity
+        user_type = (getattr(current_user, "user_type", "ADMIN") or "ADMIN").upper()
+        role_codes: List[str] = [user_type] if user_type else []
+        role_ref_id: Optional[int] = None
         if hasattr(current_user, "user_roles") and current_user.user_roles:
             for ur in current_user.user_roles:
                 if hasattr(ur, "role") and ur.role and hasattr(ur.role, "code"):
-                    role_codes.append(ur.role.code)
+                    role_codes.append(str(ur.role.code).upper())
+                    if role_ref_id is None:
+                        role_ref_id = getattr(ur.role, "id", None)
 
-        stmt = text("SELECT sp_get_user_menu_access(:user_type, :roles)")
-        res = await db.execute(stmt, {
+        comp_ref = getattr(current_user, "company_ref_id", None) or 1
+        user_ref = int(getattr(current_user, "admin_user_ref_id", None) or getattr(current_user, "id", None) or 1)
+        is_ret = "RETAILER" in role_codes or user_type == "RETAILER"
+        identity = ResolvedFavoriteIdentity(
+            company_ref_id=int(comp_ref),
+            user_ref_id=user_ref,
+            retailer_ref_id=user_ref if is_ret else None,
+            user_type_ref_id=2 if is_ret else 1,
+            role_ref_id=role_ref_id,
+            role_codes=list(dict.fromkeys(role_codes)),
+            is_admin=not is_ret,
+            is_super_admin=user_type == "SUPER_ADMIN" and getattr(current_user, "company_ref_id", None) is None,
+            actor_email=getattr(current_user, "email", None) or "user",
+        )
+        menus = await MenuFavoriteService.get_permitted_menus(db, identity)
+        cats_map: Dict[str, List[Dict[str, Any]]] = {}
+        for m in menus:
+            cats_map.setdefault(m.menu_category, []).append({
+                "menu_ref_id": m.menu_ref_id,
+                "menu_code": m.menu_code,
+                "label": m.menu_label,
+                "href": m.menu_href,
+                "icon": m.icon_name,
+                "badge": m.badge_text,
+            })
+        return {
             "user_type": user_type,
-            "roles": role_codes
-        })
-        menu_data = res.scalar() or {"user_type": user_type, "categories": []}
-        return menu_data
+            "categories": [{"category": k, "items": v} for k, v in cats_map.items()],
+        }
 
 
 
@@ -1952,12 +2008,19 @@ class OrganizationManagementService:
         status: Optional[str] = None,
         page: int = 1,
         page_size: int = 20,
-        is_platform_admin: bool = False
+        is_platform_admin: bool = False,
+        company_ref_id: Optional[int] = None,
+        company_id: Optional[uuid.UUID] = None,
     ) -> Tuple[List[SuperDistributorModel], int]:
         stmt = select(SuperDistributorModel).where(
             SuperDistributorModel.is_deleted == False
         )
-        if tenant_id and not is_platform_admin:
+        if company_ref_id is not None and not is_platform_admin:
+            if company_id is not None:
+                stmt = stmt.where(or_(SuperDistributorModel.company_ref_id == company_ref_id, SuperDistributorModel.company_id == company_id))
+            else:
+                stmt = stmt.where(SuperDistributorModel.company_ref_id == company_ref_id)
+        elif tenant_id and not is_platform_admin:
             stmt = stmt.where(SuperDistributorModel.tenant_id == tenant_id)
         if status:
             stmt = stmt.where(SuperDistributorModel.status == status.upper())
@@ -2164,12 +2227,19 @@ class OrganizationManagementService:
         status: Optional[str] = None,
         page: int = 1,
         page_size: int = 20,
-        is_platform_admin: bool = False
+        is_platform_admin: bool = False,
+        company_ref_id: Optional[int] = None,
+        company_id: Optional[uuid.UUID] = None,
     ) -> Tuple[List[DistributorModel], int]:
         stmt = select(DistributorModel).where(
             DistributorModel.is_deleted == False
         )
-        if tenant_id and not is_platform_admin:
+        if company_ref_id is not None and not is_platform_admin:
+            if company_id is not None:
+                stmt = stmt.where(or_(DistributorModel.company_ref_id == company_ref_id, DistributorModel.company_id == company_id))
+            else:
+                stmt = stmt.where(DistributorModel.company_ref_id == company_ref_id)
+        elif tenant_id and not is_platform_admin:
             stmt = stmt.where(DistributorModel.tenant_id == tenant_id)
         if status:
             stmt = stmt.where(DistributorModel.status == status.upper())
@@ -3671,20 +3741,30 @@ class RetailerManagementService:
         return retailer
 
     @staticmethod
-    async def get_dashboard_metrics(db: AsyncSession, tenant_id: uuid.UUID) -> RetailerDashboardMetricsResponse:
-        total_stmt = select(func.count(RetailerModel.id)).where(RetailerModel.tenant_id == tenant_id, RetailerModel.is_deleted == False)
+    async def get_dashboard_metrics(db: AsyncSession, tenant_id: uuid.UUID, company_ref_id: Optional[int] = None) -> RetailerDashboardMetricsResponse:
+        base_filters = [RetailerModel.is_deleted == False]
+        if company_ref_id is not None:
+            base_filters.append(RetailerModel.company_ref_id == company_ref_id)
+        else:
+            base_filters.append(RetailerModel.tenant_id == tenant_id)
+
+        total_stmt = select(func.count(RetailerModel.id)).where(*base_filters)
         total_retailers = (await db.execute(total_stmt)).scalar() or 0
 
-        active_stmt = select(func.count(RetailerModel.id)).where(RetailerModel.tenant_id == tenant_id, RetailerModel.status == "ACTIVE", RetailerModel.is_deleted == False)
+        active_stmt = select(func.count(RetailerModel.id)).where(*base_filters, RetailerModel.status == "ACTIVE")
         active_retailers = (await db.execute(active_stmt)).scalar() or 0
 
-        pending_stmt = select(func.count(RetailerModel.id)).where(RetailerModel.tenant_id == tenant_id, RetailerModel.status == "PENDING_APPROVAL", RetailerModel.is_deleted == False)
+        pending_stmt = select(func.count(RetailerModel.id)).where(*base_filters, RetailerModel.status == "PENDING_APPROVAL")
         pending_kyc = (await db.execute(pending_stmt)).scalar() or 0
 
-        suspended_stmt = select(func.count(RetailerModel.id)).where(RetailerModel.tenant_id == tenant_id, RetailerModel.status == "SUSPENDED", RetailerModel.is_deleted == False)
+        suspended_stmt = select(func.count(RetailerModel.id)).where(*base_filters, RetailerModel.status == "SUSPENDED")
         suspended_retailers = (await db.execute(suspended_stmt)).scalar() or 0
 
-        wallet_stmt = select(func.sum(RetailerWalletModel.wallet_balance)).where(RetailerWalletModel.tenant_id == tenant_id, RetailerWalletModel.is_deleted == False)
+        wallet_stmt = (
+            select(func.sum(RetailerWalletModel.wallet_balance))
+            .join(RetailerModel, RetailerWalletModel.retailer_id == RetailerModel.public_id)
+            .where(*base_filters, RetailerWalletModel.is_deleted == False)
+        )
         total_wallet_balance = (await db.execute(wallet_stmt)).scalar() or 0.0
 
         growth_chart = [
@@ -3722,22 +3802,32 @@ class RetailerManagementService:
         )
 
     @staticmethod
-    async def get_hierarchy_options(db: AsyncSession, tenant_id: uuid.UUID) -> Dict[str, Any]:
+    async def get_hierarchy_options(db: AsyncSession, tenant_id: uuid.UUID, company_ref_id: Optional[int] = None) -> Dict[str, Any]:
         """
-        Returns structured organization hierarchy options for retailer mapping:
-        Companies (Pay2Pay, DailyTrans, etc.) -> RMs -> SDs -> Distributors
+        Returns structured organization hierarchy options scoped to the active company.
         """
-        comp_stmt = select(CompanyModel).where(CompanyModel.is_deleted == False).order_by(CompanyModel.company_name.asc())
+        comp_stmt = select(CompanyModel).where(CompanyModel.is_deleted == False)
+        if company_ref_id is not None:
+            comp_stmt = comp_stmt.where(CompanyModel.company_ref_id == company_ref_id)
+        comp_stmt = comp_stmt.order_by(CompanyModel.company_name.asc())
         companies = (await db.execute(comp_stmt)).scalars().all()
 
-        rm_stmt = select(RegionalManagerModel).where(RegionalManagerModel.is_deleted == False).order_by(RegionalManagerModel.full_name.asc())
-        rms = (await db.execute(rm_stmt)).scalars().all()
+        target_company_ids = [c.public_id for c in companies]
 
-        sd_stmt = select(SuperDistributorModel).where(SuperDistributorModel.is_deleted == False).order_by(SuperDistributorModel.business_name.asc())
-        sds = (await db.execute(sd_stmt)).scalars().all()
+        rm_stmt = select(RegionalManagerModel).where(RegionalManagerModel.is_deleted == False)
+        if company_ref_id is not None and target_company_ids:
+            rm_stmt = rm_stmt.where(RegionalManagerModel.company_id.in_(target_company_ids))
+        rms = (await db.execute(rm_stmt.order_by(RegionalManagerModel.full_name.asc()))).scalars().all()
 
-        dist_stmt = select(DistributorModel).where(DistributorModel.is_deleted == False).order_by(DistributorModel.business_name.asc())
-        dists = (await db.execute(dist_stmt)).scalars().all()
+        sd_stmt = select(SuperDistributorModel).where(SuperDistributorModel.is_deleted == False)
+        if company_ref_id is not None:
+            sd_stmt = sd_stmt.where(or_(SuperDistributorModel.company_ref_id == company_ref_id, SuperDistributorModel.company_id.in_(target_company_ids)))
+        sds = (await db.execute(sd_stmt.order_by(SuperDistributorModel.business_name.asc()))).scalars().all()
+
+        dist_stmt = select(DistributorModel).where(DistributorModel.is_deleted == False)
+        if company_ref_id is not None:
+            dist_stmt = dist_stmt.where(or_(DistributorModel.company_ref_id == company_ref_id, DistributorModel.company_id.in_(target_company_ids)))
+        dists = (await db.execute(dist_stmt.order_by(DistributorModel.business_name.asc()))).scalars().all()
 
         comp_list = []
         for c in companies:
@@ -3749,7 +3839,7 @@ class RetailerManagementService:
                     "email": r.email,
                     "mobile": r.mobile
                 }
-                for r in rms if r.company_id == c.public_id or r.tenant_id == c.tenant_id
+                for r in rms if r.company_id == c.public_id
             ]
             c_sds = [
                 {
@@ -3761,7 +3851,7 @@ class RetailerManagementService:
                     "mobile": s.mobile,
                     "mapped_rm_id": str(s.mapped_rm_id) if s.mapped_rm_id else None
                 }
-                for s in sds if s.company_id == c.public_id or s.tenant_id == c.tenant_id
+                for s in sds if s.company_id == c.public_id or getattr(s, "company_ref_id", None) == c.company_ref_id
             ]
             c_dists = [
                 {
@@ -3773,7 +3863,7 @@ class RetailerManagementService:
                     "mobile": d.mobile,
                     "mapped_super_distributor_id": str(d.mapped_super_distributor_id) if d.mapped_super_distributor_id else None
                 }
-                for d in dists if d.company_id == c.public_id or d.tenant_id == c.tenant_id
+                for d in dists if d.company_id == c.public_id or getattr(d, "company_ref_id", None) == c.company_ref_id
             ]
             comp_list.append({
                 "public_id": str(c.public_id),

@@ -193,9 +193,11 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 }) => {
   const router = useRouter();
 
-  const normalizedRole: "RETAILER" | "SD" | "DIST" | "COMMON" =
+  const normalizedRole: "RETAILER" | "SD" | "DIST" | "ADMIN" | "COMMON" =
     portalRole === "COMMON"
       ? "COMMON"
+      : portalRole === "ADMIN"
+      ? "ADMIN"
       : portalRole === "RETAILER"
       ? "RETAILER"
       : portalRole === "SD" || portalRole === "SUPER_DISTRIBUTOR"
@@ -203,26 +205,31 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       : "DIST";
 
   const { display_name, company_name, legal_name, logo_url, primary_colour, secondary_colour } = useCompanyBranding();
-  const brandPrimary = primary_colour || "#A20A3A";
-  const brandSecondary = secondary_colour || "#EDC11E";
+  const brandPrimary = primary_colour || "#1E293B";
+  const brandSecondary = secondary_colour || "#334155";
+  const portalBrandLabel = display_name || company_name || "";
 
   const portalTitle =
-    normalizedRole === "COMMON"
-      ? `${display_name || "FinTech"} Unified Portal`
+    normalizedRole === "ADMIN"
+      ? `${portalBrandLabel ? portalBrandLabel + " " : ""}Admin Portal`
+      : normalizedRole === "COMMON"
+      ? `${portalBrandLabel ? portalBrandLabel + " " : ""}Unified Portal`
       : normalizedRole === "RETAILER"
-      ? `${display_name || "FinTech"} Retailer Portal`
+      ? `${portalBrandLabel ? portalBrandLabel + " " : ""}Retailer Portal`
       : normalizedRole === "SD"
-      ? `${display_name || "FinTech"} SD Portal`
-      : `${display_name || "FinTech"} Distributor Portal`;
+      ? `${portalBrandLabel ? portalBrandLabel + " " : ""}SD Portal`
+      : `${portalBrandLabel ? portalBrandLabel + " " : ""}Distributor Portal`;
 
   const portalSubtitle =
-    normalizedRole === "COMMON"
+    normalizedRole === "ADMIN"
+      ? `Sign in to ${company_name || portalBrandLabel || "Enterprise"} Administration & Control Center`
+      : normalizedRole === "COMMON"
       ? "Sign in to access your Retailer, Distributor, or Super Distributor Workspace"
       : normalizedRole === "RETAILER"
-      ? `Access your ${display_name || "FinTech"} Retailer Business Workstation`
+      ? `Access your ${portalBrandLabel || "Business"} Retailer Workstation`
       : normalizedRole === "SD"
-      ? `Access your ${display_name || "FinTech"} Super Distributor Workspace`
-      : `Access your ${display_name || "FinTech"} Distributor Workspace`;
+      ? `Access your ${portalBrandLabel || "Business"} Super Distributor Workspace`
+      : `Access your ${portalBrandLabel || "Business"} Distributor Workspace`;
 
   const portalRegisterUrl =
     normalizedRole === "COMMON" || normalizedRole === "RETAILER"
@@ -232,9 +239,9 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       : "/dist/onboarding";
 
   const portalDashboardUrl =
-    normalizedRole === "COMMON"
-      ? "/retailer/dashboard"
-      : normalizedRole === "RETAILER"
+    normalizedRole === "ADMIN"
+      ? "/admin/dashboard"
+      : normalizedRole === "COMMON" || normalizedRole === "RETAILER"
       ? "/retailer/dashboard"
       : normalizedRole === "SD"
       ? "/sd/dashboard"
@@ -318,8 +325,13 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
   const refreshCaptcha = () => fetchCaptcha();
 
   useEffect(() => {
-    // If arriving from logout, flush any client storage & cookies
-    if (typeof window !== "undefined" && window.location.search.includes("logout")) {
+    // If arriving from logout or session expiration, flush any client storage & cookies
+    if (
+      typeof window !== "undefined" &&
+      (window.location.search.includes("logout") ||
+       window.location.search.includes("session_expired") ||
+       window.location.search.includes("reason="))
+    ) {
       try {
         localStorage.clear();
         sessionStorage.clear();
@@ -495,9 +507,14 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       if (authoritativeRole === "SUPER_ADMIN" || currentPort === "4003") {
         document.cookie = `p2p_super_admin_token=${validToken}; path=/; SameSite=Lax${cookieDuration}`;
         document.cookie = `p2p_user_role_4003=SUPER_ADMIN; path=/; SameSite=Lax${cookieDuration}`;
+        // Ensure SUPER_ADMIN has full administrative authority across all /admin routes as well
+        document.cookie = `p2p_admin_token=${validToken}; path=/; SameSite=Lax${cookieDuration}`;
+        document.cookie = `p2p_user_role_4002=ADMIN; path=/; SameSite=Lax${cookieDuration}`;
         try {
           localStorage.setItem("p2p_super_admin_token", validToken);
           localStorage.setItem("p2p_super_admin_user", JSON.stringify(normalizedUser));
+          localStorage.setItem("p2p_admin_token", validToken);
+          localStorage.setItem("p2p_admin_user", JSON.stringify(normalizedUser));
         } catch {}
       }
 
@@ -879,11 +896,19 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         {/* ─── Mobile Top Header ─── */}
         <div className="lg:hidden flex items-center justify-between mb-4 pb-3 border-b border-[#E8E2E5]">
           <div className="flex items-center gap-3">
-            <img
-              src={logo_url || "/branding/logo.svg"}
-              alt={display_name || "FinTech"}
-              className="w-10 h-10 rounded-xl object-contain border border-[#E8E2E5] shadow-sm p-0.5 bg-white"
-            />
+            {logo_url ? (
+              <img
+                src={logo_url}
+                alt={display_name || "FinTech"}
+                className="w-10 h-10 rounded-xl object-contain border border-[#E8E2E5] shadow-sm p-0.5 bg-white"
+              />
+            ) : (
+              <div
+                className="w-10 h-10 rounded-xl border border-[#E8E2E5] shadow-sm p-0.5 bg-white flex items-center justify-center"
+              >
+                <Shield className="w-5 h-5" style={{ color: brandPrimary }} />
+              </div>
+            )}
             <div>
               <h1 className="text-sm font-black tracking-tight text-[#292329]">
                 {display_name || "FinTech"}
@@ -949,7 +974,10 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           style={{ padding: "clamp(1.25rem, 3vw, 2rem)" }}
         >
           {/* Top Specular Reflection Sheen */}
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#EDC11E]/30 to-transparent pointer-events-none" />
+          <div
+            className="absolute inset-x-0 top-0 h-px pointer-events-none"
+            style={{ background: `linear-gradient(to right, transparent, ${brandSecondary}4d, transparent)` }}
+          />
 
           {/* ── Card Header ── */}
           <div className="text-center mb-5">
@@ -958,12 +986,16 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
               <div
                 className="w-12 h-12 rounded-2xl p-0.5 shadow-md"
                 style={{
-                  background: `linear-gradient(135deg, ${primary_colour || "#A20A3A"}, ${secondary_colour || "#EDC11E"})`,
-                  boxShadow: `0 4px 12px ${primary_colour ? primary_colour + "33" : "rgba(162, 10, 58, 0.2)"}`,
+                  background: `linear-gradient(135deg, ${brandPrimary}, ${brandSecondary})`,
+                  boxShadow: `0 4px 12px ${brandPrimary}33`,
                 }}
               >
                 <div className="w-full h-full rounded-[14px] flex items-center justify-center p-1 bg-white">
-                  <img src={logo_url || "/branding/logo.svg"} alt={display_name || "FinTech"} className="w-full h-full object-contain" />
+                  {logo_url ? (
+                    <img src={logo_url} alt={display_name || "FinTech"} className="w-full h-full object-contain" />
+                  ) : (
+                    <Shield className="w-5 h-5" style={{ color: brandPrimary }} />
+                  )}
                 </div>
               </div>
             </div>
@@ -1576,21 +1608,23 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             </div>
           )}
 
-          {/* ── Register Link ── */}
-          <div className={`mt-5 pt-4 border-t flex items-center justify-between text-sm ${
-            darkMode ? "border-[#E8E2E5]" : "border-slate-200"
-          }`}>
-            <span className={`font-medium ${darkMode ? "text-[#625B60]" : "text-[#8A8288]"}`}>
-              New Partner?
-            </span>
-            <Link
-              href={portalRegisterUrl}
-              className="font-bold transition-colors hover:underline"
-              style={{ color: brandPrimary }}
-            >
-              {t.registerAccount}
-            </Link>
-          </div>
+          {/* ── Register Link (hidden for Admin Portal) ── */}
+          {normalizedRole !== "ADMIN" && (
+            <div className={`mt-5 pt-4 border-t flex items-center justify-between text-sm ${
+              darkMode ? "border-[#E8E2E5]" : "border-slate-200"
+            }`}>
+              <span className={`font-medium ${darkMode ? "text-[#625B60]" : "text-[#8A8288]"}`}>
+                New Partner?
+              </span>
+              <Link
+                href={portalRegisterUrl}
+                className="font-bold transition-colors hover:underline"
+                style={{ color: brandPrimary }}
+              >
+                {t.registerAccount}
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* ── Footer Links ── */}

@@ -38,28 +38,27 @@ export const SmartAutoCorrectionBar: React.FC<SmartAutoCorrectionBarProps> = ({
         p: 1.5,
         mt: 1,
         borderRadius: "10px",
-        bgcolor: "rgba(239, 68, 68, 0.12)",
-        backdropFilter: "blur(12px)",
-        border: "1px solid rgba(239, 68, 68, 0.4)",
+        bgcolor: "#FEF2F2",
+        border: "1px solid #FECACA",
         transition: "all 150ms ease",
       }}
     >
       <Stack spacing={1}>
         <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-          <ErrorIcon sx={{ color: "#EF4444", fontSize: 18 }} />
-          <Typography sx={{ fontWeight: 800, color: "#FF6B6B", fontSize: "12.5px" }}>
+          <ErrorIcon sx={{ color: "#DC2626", fontSize: 18 }} />
+          <Typography sx={{ fontWeight: 800, color: "#991B1B", fontSize: "12.5px" }}>
             ❌ {firstError.title}
           </Typography>
         </Stack>
 
-        <Typography sx={{ color: "rgba(255, 255, 255, 0.85)", fontSize: "11.5px", lineHeight: 1.3 }}>
+        <Typography sx={{ color: "#7F1D1D", fontSize: "11.5px", lineHeight: 1.3 }}>
           {isInsufficientWallet ? (
             <>
-              Required: <strong>₹{validationResult.totalPayable.toLocaleString()}</strong> · Shortfall: <strong style={{ color: "#EF4444" }}>₹{shortfall.toLocaleString()}</strong>
+              Required: <strong>₹{validationResult.totalPayable.toLocaleString()}</strong> · Shortfall: <strong style={{ color: "#DC2626" }}>₹{shortfall.toLocaleString()}</strong>
             </>
           ) : isLimitViolation ? (
             <>
-              Allowed: <strong>₹{maxAllowed.toLocaleString()}</strong> · Entered: <strong>₹{amount.toLocaleString()}</strong> · Difference: <strong style={{ color: "#EF4444" }}>₹{difference.toLocaleString()}</strong>
+              Allowed: <strong>₹{maxAllowed.toLocaleString()}</strong> · Entered: <strong>₹{amount.toLocaleString()}</strong> · Difference: <strong style={{ color: "#DC2626" }}>₹{difference.toLocaleString()}</strong>
             </>
           ) : (
             firstError.message
@@ -74,7 +73,7 @@ export const SmartAutoCorrectionBar: React.FC<SmartAutoCorrectionBarProps> = ({
               variant="contained"
               onClick={() => onAutoFixAmount(maxAllowed)}
               startIcon={<AutoFixHighIcon sx={{ fontSize: 14 }} />}
-              sx={{ height: 30, px: 1.25, fontSize: "11px", fontWeight: 800, bgcolor: "#2563EB" }}
+              sx={{ height: 30, px: 1.25, fontSize: "11px", fontWeight: 800, bgcolor: "var(--brand-primary, #0F3B7D)" }}
             >
               Use Maximum (₹{maxAllowed.toLocaleString()})
             </Button>
@@ -98,7 +97,7 @@ export const SmartAutoCorrectionBar: React.FC<SmartAutoCorrectionBarProps> = ({
             variant="outlined"
             startIcon={<CallSplitIcon sx={{ fontSize: 14 }} />}
             onClick={() => onAutoFixAmount(Math.floor(amount / 2))}
-            sx={{ height: 30, px: 1, fontSize: "11px", fontWeight: 700, color: "rgba(255, 255, 255, 0.8)", borderColor: "#E8E2E5" }}
+            sx={{ height: 30, px: 1, fontSize: "11px", fontWeight: 700, color: "var(--text-secondary, #334155)", borderColor: "#CBD5E1", bgcolor: "#FFFFFF" }}
           >
             Split Transaction
           </Button>
@@ -108,7 +107,7 @@ export const SmartAutoCorrectionBar: React.FC<SmartAutoCorrectionBarProps> = ({
             variant="outlined"
             startIcon={<EventIcon sx={{ fontSize: 14 }} />}
             onClick={() => onAutoFixAmount(maxAllowed)}
-            sx={{ height: 30, px: 1, fontSize: "11px", fontWeight: 700, color: "rgba(255, 255, 255, 0.8)", borderColor: "#E8E2E5" }}
+            sx={{ height: 30, px: 1, fontSize: "11px", fontWeight: 700, color: "var(--text-secondary, #334155)", borderColor: "#CBD5E1", bgcolor: "#FFFFFF" }}
           >
             Schedule Tomorrow
           </Button>

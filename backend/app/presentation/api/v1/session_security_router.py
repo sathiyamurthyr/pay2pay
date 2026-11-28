@@ -78,6 +78,17 @@ class SessionLockRequest(BaseModel):
     reason: Optional[str] = "Manual terminal lock"
 
 
+def _safe_audit_fields(req: Any) -> Dict[str, Any]:
+    if not req:
+        return {"device_info": None, "browser": None, "os_name": None, "ip_address": None}
+    return {
+        "device_info": str(req.device_info)[:500] if getattr(req, "device_info", None) else None,
+        "browser": str(req.browser)[:500] if getattr(req, "browser", None) else None,
+        "os_name": str(req.os_name)[:255] if getattr(req, "os_name", None) else None,
+        "ip_address": str(req.ip_address)[:45] if getattr(req, "ip_address", None) else None,
+    }
+
+
 # Helper function to resolve user security settings
 async def get_or_create_user_security_settings(
     db: AsyncSession,
@@ -137,6 +148,24 @@ async def lock_screen_session(
     Persists locked state directly to RetailerModel and UserSecuritySettingsModel,
     preventing any transaction or session operations until verified unlock.
     """
+    # For Admin and Super Admin roles, do not apply retailer point-of-sale PIN terminal locks
+    roles = [str(r).upper() for r in (payload.get("roles") or [])]
+    if payload.get("role"):
+        roles.append(str(payload.get("role")).upper())
+    is_admin = (
+        payload.get("is_super_admin") is True
+        or payload.get("user_type_ref_id") == 1
+        or any(r in ("ADMIN", "SUPER_ADMIN", "PLATFORM_ADMIN", "OPS_ADMIN", "FINANCE", "COMPANY_ADMIN", "COMPLIANCE_OFFICER") for r in roles)
+    )
+    if is_admin:
+        return {
+            "success": True,
+            "is_locked": False,
+            "status": "ACTIVE",
+            "mpin_locked": False,
+            "reason": None
+        }
+
     user_sub = str(payload.get("sub") or "").strip()
     retailer_claim = str(payload.get("retailer_id") or payload.get("retailer_code") or "").strip()
     tenant_sub = payload.get("tenant_id")
@@ -192,15 +221,16 @@ async def lock_screen_session(
     sec.updated_date = now_utc
 
     # Create Session Audit Log
+    safe_fields = _safe_audit_fields(req)
     audit = SessionAuditLogModel(
         public_id=uuid.uuid4(),
         retailer_id=effective_uid,
         tenant_id=tenant_id,
         event_type="SESSION_LOCKED",
-        device_info=req.device_info if req else None,
-        browser=req.browser if req else None,
-        os_name=req.os_name if req else None,
-        ip_address=req.ip_address if req else None,
+        device_info=safe_fields["device_info"],
+        browser=safe_fields["browser"],
+        os_name=safe_fields["os_name"],
+        ip_address=safe_fields["ip_address"],
         details=req.details if req else {"reason": (req.reason if req else "Manual terminal lock")}
     )
     db.add(audit)
@@ -224,6 +254,24 @@ async def get_session_lock_status(
     """
     Returns authoritative backend lock state. Prevents lock bypass on browser refresh.
     """
+    # For Admin and Super Admin roles, do not apply retailer point-of-sale PIN terminal locks
+    roles = [str(r).upper() for r in (payload.get("roles") or [])]
+    if payload.get("role"):
+        roles.append(str(payload.get("role")).upper())
+    is_admin = (
+        payload.get("is_super_admin") is True
+        or payload.get("user_type_ref_id") == 1
+        or any(r in ("ADMIN", "SUPER_ADMIN", "PLATFORM_ADMIN", "OPS_ADMIN", "FINANCE", "COMPANY_ADMIN", "COMPLIANCE_OFFICER") for r in roles)
+    )
+    if is_admin:
+        return {
+            "success": True,
+            "is_locked": False,
+            "status": "ACTIVE",
+            "mpin_locked": False,
+            "reason": None
+        }
+
     user_sub = str(payload.get("sub") or "").strip()
     retailer_claim = str(payload.get("retailer_id") or payload.get("retailer_code") or "").strip()
 
@@ -298,6 +346,24 @@ async def unlock_screen_session(
         )
 
     # 1. Resolve authenticated user context from token payload
+    # For Admin and Super Admin roles, do not apply retailer point-of-sale PIN terminal locks
+    roles = [str(r).upper() for r in (payload.get("roles") or [])]
+    if payload.get("role"):
+        roles.append(str(payload.get("role")).upper())
+    is_admin = (
+        payload.get("is_super_admin") is True
+        or payload.get("user_type_ref_id") == 1
+        or any(r in ("ADMIN", "SUPER_ADMIN", "PLATFORM_ADMIN", "OPS_ADMIN", "FINANCE", "COMPANY_ADMIN", "COMPLIANCE_OFFICER") for r in roles)
+    )
+    if is_admin:
+        return {
+            "success": True,
+            "is_locked": False,
+            "status": "ACTIVE",
+            "mpin_locked": False,
+            "reason": None
+        }
+
     user_sub = str(payload.get("sub") or "").strip()
     user_role = (payload.get("role") or "RETAILER").upper()
     mobile = payload.get("mobile_number") or payload.get("mobile") or payload.get("phone")
@@ -427,15 +493,16 @@ async def unlock_screen_session(
                 sec_obj.updated_date = now_utc
 
             # Session Audit Log
+            safe_fields = _safe_audit_fields(req)
             audit = SessionAuditLogModel(
                 public_id=uuid.uuid4(),
                 retailer_id=effective_uid or DEFAULT_TENANT_ID,
                 tenant_id=tenant_id,
                 event_type="UNLOCK_SUCCESS",
-                device_info=req.device_info,
-                browser=req.browser,
-                os_name=req.os_name,
-                ip_address=req.ip_address,
+                device_info=safe_fields["device_info"],
+                browser=safe_fields["browser"],
+                os_name=safe_fields["os_name"],
+                ip_address=safe_fields["ip_address"],
                 details={"method": "PIN"}
             )
             db.add(audit)
@@ -464,15 +531,16 @@ async def unlock_screen_session(
                 sec_obj.failed_attempt_count = (sec_obj.failed_attempt_count or 0) + 1
                 sec_obj.updated_date = now_utc
 
+            safe_fields = _safe_audit_fields(req)
             audit = SessionAuditLogModel(
                 public_id=uuid.uuid4(),
                 retailer_id=effective_uid or DEFAULT_TENANT_ID,
                 tenant_id=tenant_id,
                 event_type="UNLOCK_FAILED",
-                device_info=req.device_info,
-                browser=req.browser,
-                os_name=req.os_name,
-                ip_address=req.ip_address,
+                device_info=safe_fields["device_info"],
+                browser=safe_fields["browser"],
+                os_name=safe_fields["os_name"],
+                ip_address=safe_fields["ip_address"],
                 details={"reason": "Incorrect PIN"}
             )
             db.add(audit)
@@ -583,15 +651,16 @@ async def log_session_audit(
 
     tenant_id = uuid.UUID(payload.get("tenant_id", "00000000-0000-0000-0000-000000000001"))
 
+    safe_fields = _safe_audit_fields(req)
     audit = SessionAuditLogModel(
         public_id=uuid.uuid4(),
         retailer_id=user_id,
         tenant_id=tenant_id,
         event_type=req.event_type,
-        device_info=req.device_info,
-        browser=req.browser,
-        os_name=req.os_name,
-        ip_address=req.ip_address,
+        device_info=safe_fields["device_info"],
+        browser=safe_fields["browser"],
+        os_name=safe_fields["os_name"],
+        ip_address=safe_fields["ip_address"],
         details=req.details
     )
     db.add(audit)

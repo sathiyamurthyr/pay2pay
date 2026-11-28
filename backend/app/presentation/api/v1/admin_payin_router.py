@@ -231,17 +231,6 @@ async def list_company_configurations(
     rows = []
     for r in res.mappings().all():
         d = dict(r)
-        cid = d.get("company_ref_id")
-        if cid == 2:
-            d["company_name"] = "INSPEL TECHNOLOGIES SOLUTIONS PVT"
-            d["company_code"] = "SMSPAY"
-        elif cid == 47:
-            d["company_name"] = "SUPER REX PRODUCTS PRIVATE LIMITED"
-            d["company_code"] = "PAY2PAY"
-        elif cid == 1:
-            d["company_name"] = "SATHUS TECHNOLOGY PRIVATE LIMITED"
-            d["company_code"] = "NEAR4YOU"
-
         d["min_amount"] = float(d["min_amount"]) if d.get("min_amount") is not None else 10.0
         d["max_amount"] = float(d["max_amount"]) if d.get("max_amount") is not None else 500000.0
         d["daily_amt_limit"] = float(d["daily_amt_limit"]) if d.get("daily_amt_limit") is not None else 2000000.0
@@ -263,10 +252,12 @@ async def get_payin_policy(
     Strictly isolated by company scope and active domain.
     """
     domain_comp_ref = resolve_request_company_ref(request)
-    target_comp = company_ref_id or (ctx.company_ref_id if not ctx.is_super_admin else (domain_comp_ref or 2))
+    target_comp = company_ref_id or (ctx.company_ref_id if not ctx.is_super_admin else domain_comp_ref)
     if not ctx.is_super_admin:
         ctx.validate_access(target_comp)
-        target_comp = ctx.company_ref_id or domain_comp_ref or 2
+        target_comp = ctx.company_ref_id or domain_comp_ref
+    if not target_comp:
+        raise HTTPException(status_code=400, detail="Company reference ID could not be resolved.")
 
     comp_stmt = text("""
         SELECT c.company_ref_id, c.company_name, c.company_code,
@@ -287,15 +278,6 @@ async def get_payin_policy(
 
     c_name = row["company_name"]
     c_code = row["company_code"]
-    if target_comp == 2:
-        c_name = "INSPEL TECHNOLOGIES SOLUTIONS PVT"
-        c_code = "SMSPAY"
-    elif target_comp == 47:
-        c_name = "SUPER REX PRODUCTS PRIVATE LIMITED"
-        c_code = "PAY2PAY"
-    elif target_comp == 1:
-        c_name = "SATHUS TECHNOLOGY PRIVATE LIMITED"
-        c_code = "NEAR4YOU"
 
     return PayinPolicyResponse(
         success=True,
@@ -1061,19 +1043,15 @@ async def list_payment_gateways(
     domain_comp_ref = resolve_request_company_ref(request)
     effective_company_ref_id = ctx.company_ref_id
     if ctx.is_super_admin:
-        effective_company_ref_id = company_ref_id or domain_comp_ref or 2
+        effective_company_ref_id = company_ref_id or domain_comp_ref
+    if not effective_company_ref_id:
+        raise HTTPException(status_code=400, detail="Company reference ID could not be resolved.")
 
-    # Resolve company name
+    # Resolve company name strictly from public.company
     c_stmt = text("SELECT company_name FROM public.company WHERE company_ref_id = :cid")
     c_res = await db.execute(c_stmt, {"cid": effective_company_ref_id})
     c_row = c_res.fetchone()
     company_name = c_row[0] if c_row else f"Company {effective_company_ref_id}"
-    if effective_company_ref_id == 2:
-        company_name = "INSPEL TECHNOLOGIES SOLUTIONS PVT"
-    elif effective_company_ref_id == 47:
-        company_name = "SUPER REX PRODUCTS PRIVATE LIMITED"
-    elif effective_company_ref_id == 1:
-        company_name = "SATHUS TECHNOLOGY PRIVATE LIMITED"
 
     stmt = text("""
         SELECT 
@@ -1105,12 +1083,6 @@ async def list_payment_gateways(
     rows = []
     for r in res.mappings().all():
         r_cname = r["company_name"]
-        if r["company_ref_id"] == 2:
-            r_cname = "INSPEL TECHNOLOGIES SOLUTIONS PVT"
-        elif r["company_ref_id"] == 47:
-            r_cname = "SUPER REX PRODUCTS PRIVATE LIMITED"
-        elif r["company_ref_id"] == 1:
-            r_cname = "SATHUS TECHNOLOGY PRIVATE LIMITED"
 
         rows.append({
             "payin_company_vendor_ref_id": r["payin_company_vendor_ref_id"],

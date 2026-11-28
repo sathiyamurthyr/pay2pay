@@ -25,8 +25,8 @@ import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = false }) => {
   const shouldReduceMotion = useReducedMotion();
   const { display_name, logo_url, primary_colour, secondary_colour } = useCompanyBranding();
-  const brandPrimary = primary_colour || "#A20A3A";
-  const brandSecondary = secondary_colour || "#EDC11E";
+  const brandPrimary = primary_colour || "#1E293B";
+  const brandSecondary = secondary_colour || "#334155";
 
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -79,14 +79,18 @@ export const HeroSection: React.FC<{ darkMode?: boolean }> = ({ darkMode = false
             <div
               className="w-10 h-10 2xl:w-12 2xl:h-12 rounded-2xl p-0.5 shadow-md shrink-0"
               style={{
-                background: `linear-gradient(135deg, ${primary_colour || "#A20A3A"}, ${secondary_colour || "#EDC11E"})`,
-                boxShadow: `0 4px 12px ${primary_colour ? primary_colour + "33" : "rgba(162, 10, 58, 0.2)"}`,
+                background: `linear-gradient(135deg, ${brandPrimary}, ${brandSecondary})`,
+                boxShadow: `0 4px 12px ${brandPrimary}33`,
               }}
             >
               <div
                 className="w-full h-full rounded-[14px] flex items-center justify-center p-1 bg-white"
               >
-                <img src={logo_url || "/branding/logo.svg"} alt={display_name || "FinTech"} className="w-full h-full object-contain" />
+                {logo_url ? (
+                  <img src={logo_url} alt={display_name || "FinTech"} className="w-full h-full object-contain" />
+                ) : (
+                  <ShieldCheck className="w-5 h-5" style={{ color: brandPrimary }} />
+                )}
               </div>
             </div>
             <div>

@@ -453,7 +453,7 @@ export const RetailerPayoutReport: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `Near4You_Payout_Report_${new Date().toISOString().split("T")[0]}.csv`);
+    link.setAttribute("download", `${(branding.display_name || branding.company_code || "Company").replace(/\s+/g, "_")}_Payout_Report_${new Date().toISOString().split("T")[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -497,7 +497,7 @@ export const RetailerPayoutReport: React.FC = () => {
     const bankName = t.bank || t.bank_name || "N/A";
     const mode = t.mode || t.payment_mode || "IMPS";
 
-    const compLogo = branding.logo_url || "/branding/logo.svg";
+    const compLogo = branding.logo_url || "";
     const compName = branding.company_name || branding.legal_name || "";
     const compLegal = branding.legal_name || compName;
     const retailerShop = outlet?.name || "";
@@ -2564,8 +2564,8 @@ export const RetailerPayoutReport: React.FC = () => {
                   <Stack direction="row" alignItems="center" spacing={1.5}>
                     <Box
                       component="img"
-                      src={branding.logo_url || "/branding/logo.svg"}
-                      alt="Near4You Logo"
+                      src={branding.logo_url || ""}
+                      alt={branding.display_name || branding.company_name || "Company Logo"}
                       onError={(e: any) => {
                         e.currentTarget.style.display = "none";
                       }}
@@ -2584,7 +2584,7 @@ export const RetailerPayoutReport: React.FC = () => {
                         Payout Transaction Details
                       </Typography>
                       <Typography sx={{ fontSize: "12.5px", color: "rgba(255, 255, 255, 0.65)", mt: 0.4 }}>
-                        Retailer: <strong style={{ color: "#FDE68A" }}>{outlet?.name || outlet?.ownerName || selectedTxn.retailer || "Near4You Merchant"}</strong>
+                        Retailer: <strong style={{ color: "#FDE68A" }}>{outlet?.name || outlet?.ownerName || selectedTxn.retailer || `${branding.display_name || "Portal"} Merchant`}</strong>
                         {outlet?.code ? ` · ID: ${outlet.code}` : ""}
                       </Typography>
                     </Box>

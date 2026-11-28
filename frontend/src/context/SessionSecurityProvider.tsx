@@ -38,6 +38,8 @@ export const MAX_INACTIVITY_LOGOUT_MS = 15 * 60 * 1000;     // 15 Minutes Inacti
 export const AUTO_LOCK_IDLE_MS = 5 * 60 * 1000;             // 5 Minutes Idle Screen Lock
 export const WARNING_LEAD_MS = 60 * 1000;                   // 60 Seconds Inactivity Warning Window
 
+let globalLastSecurityRedirect = 0;
+
 const DEFAULT_SETTINGS: SecuritySettings = {
   auto_lock_enabled: true,
   idle_timeout_minutes: 5,
@@ -68,39 +70,43 @@ export const getAuthToken = (): string | null => {
 
     if (portTokenKey) {
       const specificLs = localStorage.getItem(portTokenKey);
-      if (specificLs && specificLs.trim() !== "") return specificLs.trim();
+      if (specificLs && specificLs.trim() !== "" && !isJwtExpired(specificLs)) return specificLs.trim();
 
       const cookies = document.cookie.split("; ");
       const specificCookie = cookies.find((row) => row.startsWith(`${portTokenKey}=`));
       if (specificCookie) {
         const val = specificCookie.split("=")[1]?.trim();
-        if (val) return val;
+        if (val && !isJwtExpired(val)) return val;
       }
     }
 
-    const lsToken =
-      localStorage.getItem("p2p_access_token") ||
-      localStorage.getItem("pay2pay_access_token") ||
-      localStorage.getItem("pay2pay_auth_token") ||
-      localStorage.getItem("p2p_sales_token") ||
-      localStorage.getItem("pay2pay_sales_token") ||
-      localStorage.getItem("access_token") ||
-      localStorage.getItem("token");
-    if (lsToken && lsToken.trim() !== "") return lsToken.trim();
+    // Comprehensive scan: find any valid non-expired token
+    const candidateKeys = [
+      "p2p_admin_token",
+      "p2p_retailer_token",
+      "p2p_super_admin_token",
+      "p2p_access_token",
+      "pay2pay_access_token",
+      "pay2pay_auth_token",
+      "p2p_sales_token",
+      "pay2pay_sales_token",
+      "access_token",
+      "token",
+      "p2p_token",
+    ];
 
     const cookies = document.cookie.split("; ");
-    for (const c of cookies) {
-      if (
-        c.startsWith("p2p_access_token=") ||
-        c.startsWith("pay2pay_access_token=") ||
-        c.startsWith("pay2pay_auth_token=") ||
-        c.startsWith("p2p_sales_token=") ||
-        c.startsWith("pay2pay_sales_token=") ||
-        c.startsWith("access_token=") ||
-        c.startsWith("token=")
-      ) {
-        const val = c.split("=")[1]?.trim();
-        if (val) return val;
+    for (const k of candidateKeys) {
+      const lsVal = localStorage.getItem(k)?.trim();
+      if (lsVal && lsVal.length > 10 && !isJwtExpired(lsVal)) {
+        return lsVal;
+      }
+      const cMatch = cookies.find((row) => row.startsWith(`${k}=`));
+      if (cMatch) {
+        const cVal = cMatch.split("=")[1]?.trim();
+        if (cVal && cVal.length > 10 && !isJwtExpired(cVal)) {
+          return cVal;
+        }
       }
     }
     return null;
@@ -228,6 +234,25 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
       sessionStorage.clear();
     } catch (e) {}
 
+    if (typeof window !== "undefined") {
+      const p = window.location.pathname.toLowerCase();
+      const s = window.location.search.toLowerCase();
+      if (
+        p.includes("/login") ||
+        p.includes("/register") ||
+        p.includes("/logout") ||
+        s.includes("reason=") ||
+        s.includes("logout")
+      ) {
+        return;
+      }
+      const now = Date.now();
+      if (now - globalLastSecurityRedirect < 15000) {
+        return;
+      }
+      globalLastSecurityRedirect = now;
+    }
+
     soundSystem.playWarningSound();
     logAuditEvent("SESSION_TERMINATED", { reason });
 
@@ -248,8 +273,8 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
   // Initialize & Check Lock Persistence on Mount (Prevents Bypass via Refresh / URL Navigate)
   useEffect(() => {
     if (typeof window !== "undefined") {
-      // On public login/auth pages or if user has no token, NEVER lock
-      if (isPublicAuthRoute() || !hasAuthToken()) {
+      // On public login/auth pages, NEVER lock and clear lock flags
+      if (isPublicAuthRoute()) {
         try {
           localStorage.removeItem("p2p_session_locked");
           localStorage.removeItem("p2p_session_locked_at");
@@ -259,9 +284,15 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
         return;
       }
 
-      // Check if JWT token is expired on mount
       const currentToken = getAuthToken();
-      if (currentToken && isJwtExpired(currentToken)) {
+      if (!currentToken) {
+        setSessionState("ACTIVE");
+        setLockedAt(null);
+        return;
+      }
+
+      // Check if JWT token is expired on mount
+      if (isJwtExpired(currentToken)) {
         terminateSessionAndRedirect("session_expired");
         return;
       }
@@ -298,6 +329,13 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
             try {
               localStorage.setItem("p2p_session_locked", "true");
               localStorage.setItem("p2p_session_locked_at", String(lockTime));
+            } catch (e) {}
+          } else if (res.data?.is_locked === false) {
+            setSessionState("ACTIVE");
+            setLockedAt(null);
+            try {
+              localStorage.removeItem("p2p_session_locked");
+              localStorage.removeItem("p2p_session_locked_at");
             } catch (e) {}
           }
         } catch (err) {

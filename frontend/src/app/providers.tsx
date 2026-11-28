@@ -7,8 +7,9 @@ import { WalletSyncProvider } from "@/context/WalletSyncProvider";
 import { ContactSupportModalProvider } from "@/context/ContactSupportModalContext";
 import { CustomThemeProvider } from "@/context/ThemeContext";
 import { SessionSecurityProvider } from "@/context/SessionSecurityProvider";
+import { CompanyBrandingProvider } from "@/hooks/useCompanyBranding";
 
-export default function Providers({ children }: { children: React.ReactNode }) {
+export default function Providers({ children, initialHost = "" }: { children: React.ReactNode; initialHost?: string }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -23,18 +24,20 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <CustomThemeProvider>
-        <AuthProvider>
-          <WalletSyncProvider>
-            <ContactSupportModalProvider>
-              <SessionSecurityProvider>
-                {children}
-              </SessionSecurityProvider>
-            </ContactSupportModalProvider>
-          </WalletSyncProvider>
-        </AuthProvider>
-      </CustomThemeProvider>
-    </QueryClientProvider>
+    <CompanyBrandingProvider initialHost={initialHost}>
+      <QueryClientProvider client={queryClient}>
+        <CustomThemeProvider>
+          <AuthProvider>
+            <WalletSyncProvider>
+              <ContactSupportModalProvider>
+                <SessionSecurityProvider>
+                  {children}
+                </SessionSecurityProvider>
+              </ContactSupportModalProvider>
+            </WalletSyncProvider>
+          </AuthProvider>
+        </CustomThemeProvider>
+      </QueryClientProvider>
+    </CompanyBrandingProvider>
   );
 }

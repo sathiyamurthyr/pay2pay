@@ -252,9 +252,14 @@ async def resolve_payin_auth_context(request: Optional[Request], db: Optional[As
         except Exception:
             pass
 
-    # Authoritative domain fallback if company not determined by token
+    # Authoritative domain validation & resolution
     domain_comp_ref = resolve_request_company_ref(request)
     if domain_comp_ref is not None:
+        if not ctx["is_super_admin"] and ctx["company_ref_id"] is not None and int(ctx["company_ref_id"]) != int(domain_comp_ref):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access Denied: Authenticated company ({ctx['company_ref_id']}) does not match active domain."
+            )
         if ctx["company_ref_id"] is None or not ctx["is_super_admin"]:
             ctx["company_ref_id"] = domain_comp_ref
 
@@ -321,29 +326,23 @@ async def resolve_payin_auth_context(request: Optional[Request], db: Optional[As
     return ctx
 
 
-@router.get("/summary", summary="Get Retailer/Admin PayIn Summary KPIs")
-async def get_payin_report_summary(
-    request: Request,
-    from_date: Optional[str] = Query(None),
-    to_date: Optional[str] = Query(None),
-    month: Optional[str] = Query(None),
-    company_ref_id: Optional[int] = Query(None),
-    retailer_ref_id: Optional[int] = Query(None),
-    status: Optional[str] = Query(None),
-    gateway: Optional[str] = Query(None),
-    payment_mode: Optional[str] = Query(None),
-    tid: Optional[str] = Query(None),
-    mobile: Optional[str] = Query(None),
-    mobile_number: Optional[str] = Query(None),
-    search: Optional[str] = Query(None),
-    portal: Optional[str] = Query(None),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Computes real-time KPI metrics strictly from public.payin_transactions.
-    Never touches Payout tables or applies debit/charges calculations.
-    """
-    auth_ctx = await resolve_payin_auth_context(request, db)
+def _build_payin_filters(
+    auth_ctx: Dict[str, Any],
+    *,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    month: Optional[str] = None,
+    company_ref_id: Optional[int] = None,
+    retailer_ref_id: Optional[int] = None,
+    status: Optional[str] = None,
+    gateway: Optional[str] = None,
+    payment_mode: Optional[str] = None,
+    tid: Optional[str] = None,
+    mobile: Optional[str] = None,
+    mobile_number: Optional[str] = None,
+    search: Optional[str] = None,
+) -> Tuple[str, Dict[str, Any], Optional[datetime], Optional[datetime], Optional[int]]:
+    """Build parameterized WHERE clause and metadata shared by summary, grid, and export."""
     company_ref_val = clean_int(company_ref_id)
     retailer_ref_val = clean_int(retailer_ref_id)
     status_str = clean_str(status)
@@ -389,17 +388,17 @@ async def get_payin_report_summary(
             else:
                 where_clauses.append("(t.user_ref_id = :eff_user_ref OR t.retailer_ref_id = :eff_user_ref)")
                 params["eff_user_ref"] = eff_user
-    else:
-        if effective_retailer is not None:
-            where_clauses.append("(t.user_ref_id = :ret_ref OR t.retailer_ref_id = :ret_ref)")
-            params["ret_ref"] = effective_retailer
+    elif effective_retailer is not None:
+        where_clauses.append("(t.user_ref_id = :ret_ref OR t.retailer_ref_id = :ret_ref)")
+        params["ret_ref"] = effective_retailer
 
     if tid_str:
-        where_clauses.append("t.tid ILIKE :tid_val")
+        where_clauses.append("(t.tid ILIKE :tid_val OR t.merchant_ref_id ILIKE :tid_val OR t.provider_ref_id ILIKE :tid_val)")
         params["tid_val"] = f"%{tid_str}%"
 
     if mobile_str:
-        mob_clean = mobile_str[-10:] if len(mobile_str) >= 10 else mobile_str
+        digits_only = re.sub(r"\D", "", mobile_str)
+        mob_clean = digits_only[-10:] if len(digits_only) >= 10 else (digits_only or mobile_str)
         where_clauses.append("t.cust_mobile ILIKE :mob_val")
         params["mob_val"] = f"%{mob_clean}%"
 
@@ -419,30 +418,37 @@ async def get_payin_report_summary(
 
     if gateway_str and gateway_str.upper() != "ALL":
         gw = gateway_str.upper()
+        gw_match = re.match(r"^G-(\d+)$", gw)
         if gw == "G-1":
             where_clauses.append("(t.payin_vendor_ref_id = 1 OR v.vendor_code ILIKE '%BANKME%')")
         elif gw == "G-2":
             where_clauses.append("(t.payin_vendor_ref_id = 2 OR v.vendor_code ILIKE '%EASEBUZZ%')")
+        elif gw_match:
+            where_clauses.append("t.payin_vendor_ref_id = :gw_ref_id")
+            params["gw_ref_id"] = int(gw_match.group(1))
         else:
             where_clauses.append("(v.vendor_code ILIKE :gw OR v.vendor_name ILIKE :gw)")
             params["gw"] = f"%{gw}%"
 
     if payment_mode_str and payment_mode_str.upper() != "ALL":
-        pm = payment_mode_str.upper()
-        if pm in ("UPI", "QR"):
-            where_clauses.append("(t.card_network = 'UPI' OR p.pay_mode_code IN ('UPI', 'UPI_INTENT', 'QR'))")
-        elif pm in ("CARD", "CREDIT_CARD", "DEBIT_CARD"):
-            where_clauses.append("(t.card_network IN ('VISA', 'MASTERCARD', 'RUPAY', 'AMEX', 'CORP') OR p.pay_mode_code IN ('CREDIT_CARD', 'DEBIT_CARD'))")
-        elif pm in ("VISA", "MASTERCARD", "RUPAY", "AMEX", "CORP"):
-            where_clauses.append("t.card_network = :pm")
-            params["pm"] = pm
+        pm = payment_mode_str.upper().replace(" ", "_")
+        if pm in ("UPI", "QR", "UPI_QR", "UPI_INTENT"):
+            where_clauses.append("(UPPER(COALESCE(t.card_network, '')) = 'UPI' OR UPPER(COALESCE(p.pay_mode_code, '')) IN ('UPI', 'UPI_INTENT', 'QR'))")
+        elif pm in ("CARD", "CREDIT_CARD", "DEBIT_CARD", "DEBIT_/_CREDIT_CARD"):
+            where_clauses.append("(UPPER(COALESCE(t.card_network, '')) IN ('VISA', 'MASTERCARD', 'RUPAY', 'AMEX', 'CORP') OR UPPER(COALESCE(p.pay_mode_code, '')) IN ('CREDIT_CARD', 'DEBIT_CARD', 'CARD'))")
+        elif pm in ("VISA", "MASTERCARD", "RUPAY", "AMEX", "CORP", "CORPORATE_CARD", "CORPORATE"):
+            norm_net = "CORP" if pm in ("CORP", "CORPORATE_CARD", "CORPORATE") else pm
+            where_clauses.append("UPPER(COALESCE(t.card_network, '')) = :pm_net")
+            params["pm_net"] = norm_net
         elif pm in ("NETBANKING", "NET_BANKING", "NB"):
-            where_clauses.append("p.pay_mode_code IN ('NET_BANKING', 'NETBANKING')")
+            where_clauses.append("UPPER(COALESCE(p.pay_mode_code, '')) IN ('NET_BANKING', 'NETBANKING', 'NB')")
         elif pm == "WALLET":
-            where_clauses.append("p.pay_mode_code = 'WALLET'")
+            where_clauses.append("UPPER(COALESCE(p.pay_mode_code, '')) = 'WALLET'")
+        elif pm in ("PENDING_CLASSIFICATION", "UNKNOWN"):
+            where_clauses.append("(COALESCE(t.card_network, '') = '' AND UPPER(COALESCE(p.pay_mode_code, '')) IN ('', 'UNKNOWN'))")
         else:
-            where_clauses.append("(t.card_network ILIKE :pm OR p.pay_mode_code ILIKE :pm OR p.pay_mode_name ILIKE :pm)")
-            params["pm"] = f"%{pm}%"
+            where_clauses.append("(COALESCE(t.card_network, '') ILIKE :pm OR COALESCE(p.pay_mode_code, '') ILIKE :pm OR COALESCE(p.pay_mode_name, '') ILIKE :pm)")
+            params["pm"] = f"%{payment_mode_str.strip()}%"
 
     if search_str:
         s = f"%{search_str}%"
@@ -450,12 +456,138 @@ async def get_payin_report_summary(
             t.tid ILIKE :s OR
             t.merchant_ref_id ILIKE :s OR
             t.provider_ref_id ILIKE :s OR
+            t.ledger_txn_id ILIKE :s OR
             t.cust_mobile ILIKE :s OR
             t.cust_name ILIKE :s
         )""")
         params["s"] = s
 
-    base_where = "WHERE " + " AND ".join(where_clauses)
+    return "WHERE " + " AND ".join(where_clauses), params, start_dt, end_dt, effective_comp
+
+
+async def _fetch_dynamic_filter_options(db: AsyncSession, auth_ctx: Dict[str, Any], effective_comp: Optional[int]) -> Dict[str, Any]:
+    """Fetch company/user-scoped gateway and method filter choices from live data + master tables."""
+    gw_seen: Dict[str, str] = {}
+    method_seen: Dict[str, str] = {}
+    scope_where = ["1=1"]
+    scope_params: Dict[str, Any] = {}
+    if effective_comp is not None:
+        scope_where.append("t.company_ref_id = :comp_ref")
+        scope_params["comp_ref"] = effective_comp
+    if not auth_ctx.get("is_admin"):
+        eff_user = auth_ctx.get("user_ref_id") or auth_ctx.get("retailer_ref_id")
+        if eff_user is not None:
+            scope_where.append("(t.user_ref_id = :eff_user_ref OR t.retailer_ref_id = :eff_user_ref)")
+            scope_params["eff_user_ref"] = eff_user
+
+    try:
+        v_res = await db.execute(text("SELECT payin_vendor_ref_id, vendor_code FROM public.payin_vendors WHERE is_active = TRUE ORDER BY payin_vendor_ref_id"))
+        for vr in v_res.fetchall():
+            lbl = map_gateway_label(int(vr[0]), vr[1])
+            gw_seen.setdefault(lbl, f"Gateway {lbl}")
+    except (Exception, StopIteration):
+        pass
+
+    try:
+        dist_sql = f"""
+            SELECT DISTINCT t.payin_vendor_ref_id, v.vendor_code, t.card_network, COALESCE(p.pay_mode_code, 'UPI') AS payment_mode
+            FROM public.payin_transactions t
+            LEFT JOIN public.payin_vendors v ON t.payin_vendor_ref_id = v.payin_vendor_ref_id
+            LEFT JOIN public.payin_payment_modes p ON t.pay_mode_ref_id = p.payin_payment_mode_ref_id
+            WHERE {' AND '.join(scope_where)}
+        """
+        d_res = await db.execute(text(dist_sql), scope_params)
+        for dr in d_res.fetchall():
+            if dr[0] is not None:
+                lbl = map_gateway_label(int(dr[0]), dr[1])
+                gw_seen.setdefault(lbl, f"Gateway {lbl}")
+            clean_m = PaymentMethodNormalizer.get_clean_method_display(card_network=dr[2], pay_mode_code=dr[3])
+            if clean_m and clean_m != "Pending Classification":
+                key = clean_m.upper().replace(" ", "_")
+                method_seen.setdefault(key, clean_m)
+    except (Exception, StopIteration):
+        pass
+
+    for default_gw in ("G-1", "G-2"):
+        gw_seen.setdefault(default_gw, f"Gateway {default_gw}")
+    for key, label in [
+        ("UPI", "UPI"),
+        ("QR", "QR"),
+        ("VISA", "Visa"),
+        ("MASTERCARD", "Mastercard"),
+        ("RUPAY", "RuPay"),
+        ("NETBANKING", "Net Banking"),
+        ("CARD", "Debit / Credit Card"),
+        ("WALLET", "Wallet"),
+        ("POS", "POS"),
+    ]:
+        method_seen.setdefault(key, label)
+
+    return {
+        "gateways": [{"value": k, "label": v} for k, v in gw_seen.items()],
+        "methods": [{"value": k, "label": v} for k, v in method_seen.items()],
+        "statuses": [
+            {"value": "SUCCESS", "label": "Success"},
+            {"value": "PENDING", "label": "Pending"},
+            {"value": "FAILED", "label": "Failed"},
+            {"value": "REVERSED", "label": "Reversed"},
+        ],
+    }
+
+
+@router.get("/filter-options", summary="Get Dynamic PayIn Report Filter Options")
+async def get_payin_report_filter_options(
+    request: Request,
+    company_ref_id: Optional[int] = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
+    auth_ctx = await resolve_payin_auth_context(request, db)
+    effective_comp = auth_ctx["company_ref_id"]
+    company_ref_val = clean_int(company_ref_id)
+    if auth_ctx["is_super_admin"] and company_ref_val is not None:
+        effective_comp = company_ref_val
+    options = await _fetch_dynamic_filter_options(db, auth_ctx, effective_comp)
+    return {"success": True, "data": options}
+
+
+@router.get("/summary", summary="Get Retailer/Admin PayIn Summary KPIs")
+async def get_payin_report_summary(
+    request: Request,
+    from_date: Optional[str] = Query(None),
+    to_date: Optional[str] = Query(None),
+    month: Optional[str] = Query(None),
+    company_ref_id: Optional[int] = Query(None),
+    retailer_ref_id: Optional[int] = Query(None),
+    status: Optional[str] = Query(None),
+    gateway: Optional[str] = Query(None),
+    payment_mode: Optional[str] = Query(None),
+    tid: Optional[str] = Query(None),
+    mobile: Optional[str] = Query(None),
+    mobile_number: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    portal: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Computes real-time KPI metrics strictly from public.payin_transactions.
+    Never touches Payout tables or applies debit/charges calculations.
+    """
+    auth_ctx = await resolve_payin_auth_context(request, db)
+    base_where, params, start_dt, end_dt, _ = _build_payin_filters(
+        auth_ctx,
+        from_date=from_date,
+        to_date=to_date,
+        month=month,
+        company_ref_id=company_ref_id,
+        retailer_ref_id=retailer_ref_id,
+        status=status,
+        gateway=gateway,
+        payment_mode=payment_mode,
+        tid=tid,
+        mobile=mobile,
+        mobile_number=mobile_number,
+        search=search,
+    )
 
     sql = f"""
     SELECT
@@ -545,121 +677,24 @@ async def get_payin_report_grid(
     Returns formatted items, source data mapping, pagination metadata, and footer totals.
     """
     auth_ctx = await resolve_payin_auth_context(request, db)
-    company_ref_val = clean_int(company_ref_id)
-    retailer_ref_val = clean_int(retailer_ref_id)
-    status_str = clean_str(status)
-    gateway_str = clean_str(gateway)
-    payment_mode_str = clean_str(payment_mode)
-    tid_str = clean_str(tid)
-    mobile_str = clean_str(mobile) or clean_str(mobile_number)
-    search_str = clean_str(search)
-
-    effective_comp = auth_ctx["company_ref_id"]
-    if auth_ctx["is_super_admin"] and company_ref_val is not None:
-        effective_comp = company_ref_val
-
-    effective_retailer = auth_ctx["retailer_ref_id"]
-    if auth_ctx["is_admin"] and retailer_ref_val is not None:
-        effective_retailer = retailer_ref_val
-
-    start_dt, end_dt = parse_date_range(from_date, to_date, month=month)
+    base_where, params, start_dt, end_dt, effective_comp = _build_payin_filters(
+        auth_ctx,
+        from_date=from_date,
+        to_date=to_date,
+        month=month,
+        company_ref_id=company_ref_id,
+        retailer_ref_id=retailer_ref_id,
+        status=status,
+        gateway=gateway,
+        payment_mode=payment_mode,
+        tid=tid,
+        mobile=mobile,
+        mobile_number=mobile_number,
+        search=search,
+    )
     p_num = clean_int(page) or 1
     l_num = clean_int(limit) or 10
     offset = (p_num - 1) * l_num
-
-    where_clauses = ["1=1"]
-    params: Dict[str, Any] = {}
-
-    if start_dt is not None:
-        where_clauses.append("t.created_at >= :start_dt")
-        params["start_dt"] = start_dt
-
-    if end_dt is not None:
-        where_clauses.append("t.created_at <= :end_dt")
-        params["end_dt"] = end_dt
-
-    if effective_comp is not None:
-        where_clauses.append("t.company_ref_id = :comp_ref")
-        params["comp_ref"] = effective_comp
-
-    if not auth_ctx["is_admin"]:
-        eff_user = auth_ctx.get("user_ref_id") or auth_ctx.get("retailer_ref_id")
-        eff_user_type = auth_ctx.get("user_type_ref_id")
-        if eff_user is not None:
-            if eff_user_type is not None:
-                where_clauses.append("((t.user_ref_id = :eff_user_ref AND t.user_type_ref_id = :eff_user_type_ref) OR (t.retailer_ref_id = :eff_user_ref))")
-                params["eff_user_ref"] = eff_user
-                params["eff_user_type_ref"] = eff_user_type
-            else:
-                where_clauses.append("(t.user_ref_id = :eff_user_ref OR t.retailer_ref_id = :eff_user_ref)")
-                params["eff_user_ref"] = eff_user
-    else:
-        if effective_retailer is not None:
-            where_clauses.append("(t.user_ref_id = :ret_ref OR t.retailer_ref_id = :ret_ref)")
-            params["ret_ref"] = effective_retailer
-
-    if tid_str:
-        where_clauses.append("t.tid ILIKE :tid_val")
-        params["tid_val"] = f"%{tid_str}%"
-
-    if mobile_str:
-        mob_clean = mobile_str[-10:] if len(mobile_str) >= 10 else mobile_str
-        where_clauses.append("t.cust_mobile ILIKE :mob_val")
-        params["mob_val"] = f"%{mob_clean}%"
-
-    if status_str and status_str.upper() != "ALL":
-        st = status_str.upper()
-        if st in ("SUCCESS", "COMPLETED", "SETTLED"):
-            where_clauses.append("UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED')")
-        elif st in ("PENDING", "INITIATED", "PROCESSING"):
-            where_clauses.append("UPPER(t.txn_status) IN ('PENDING', 'INITIATED', 'PROCESSING')")
-        elif st in ("FAILED", "REJECTED", "TIMEOUT", "FAILURE"):
-            where_clauses.append("UPPER(t.txn_status) IN ('FAILED', 'REJECTED', 'TIMEOUT', 'FAILURE')")
-        elif st in ("REVERSED", "REFUNDED"):
-            where_clauses.append("UPPER(t.txn_status) IN ('REVERSED', 'REFUNDED')")
-        else:
-            where_clauses.append("UPPER(t.txn_status) = :st")
-            params["st"] = st
-
-    if gateway_str and gateway_str.upper() != "ALL":
-        gw = gateway_str.upper()
-        if gw == "G-1":
-            where_clauses.append("(t.payin_vendor_ref_id = 1 OR v.vendor_code ILIKE '%BANKME%')")
-        elif gw == "G-2":
-            where_clauses.append("(t.payin_vendor_ref_id = 2 OR v.vendor_code ILIKE '%EASEBUZZ%')")
-        else:
-            where_clauses.append("(v.vendor_code ILIKE :gw OR v.vendor_name ILIKE :gw)")
-            params["gw"] = f"%{gw}%"
-
-    if payment_mode_str and payment_mode_str.upper() != "ALL":
-        pm = payment_mode_str.upper()
-        if pm in ("UPI", "QR"):
-            where_clauses.append("(t.card_network = 'UPI' OR p.pay_mode_code IN ('UPI', 'UPI_INTENT', 'QR'))")
-        elif pm in ("CARD", "CREDIT_CARD", "DEBIT_CARD"):
-            where_clauses.append("(t.card_network IN ('VISA', 'MASTERCARD', 'RUPAY', 'AMEX', 'CORP') OR p.pay_mode_code IN ('CREDIT_CARD', 'DEBIT_CARD'))")
-        elif pm in ("VISA", "MASTERCARD", "RUPAY", "AMEX", "CORP"):
-            where_clauses.append("t.card_network = :pm")
-            params["pm"] = pm
-        elif pm in ("NETBANKING", "NET_BANKING", "NB"):
-            where_clauses.append("p.pay_mode_code IN ('NET_BANKING', 'NETBANKING')")
-        elif pm == "WALLET":
-            where_clauses.append("p.pay_mode_code = 'WALLET'")
-        else:
-            where_clauses.append("(t.card_network ILIKE :pm OR p.pay_mode_code ILIKE :pm OR p.pay_mode_name ILIKE :pm)")
-            params["pm"] = f"%{pm}%"
-
-    if search_str:
-        s = f"%{search_str}%"
-        where_clauses.append("""(
-            t.tid ILIKE :s OR
-            t.merchant_ref_id ILIKE :s OR
-            t.provider_ref_id ILIKE :s OR
-            t.cust_mobile ILIKE :s OR
-            t.cust_name ILIKE :s
-        )""")
-        params["s"] = s
-
-    base_where = "WHERE " + " AND ".join(where_clauses)
 
     # 1. Total records, summary KPIs & footer totals count
     count_sql = f"""
@@ -869,8 +904,8 @@ async def get_payin_report_grid(
             "retailer_id": d.get("retailer_code") or str(d.get("retailer_ref_id") or d.get("user_ref_id")),
             "retailer_name": d.get("retailer_name") or "Retailer Partner",
             "company_id": str(d.get("company_ref_id")),
-            "company_name": d.get("company_name") or "SMSPAY",
-            "company_code": d.get("company_code") or "SMSPAY",
+            "company_name": d.get("company_name") or "",
+            "company_code": d.get("company_code") or "",
             "gateway": gw_label,
             "vendor_name": gw_label,  # Customer-facing labels G-1 / G-2 only
             "payment_mode": clean_method,
@@ -909,6 +944,7 @@ async def get_payin_report_grid(
         })
 
     total_pages = max(1, (total_records + l_num - 1) // l_num)
+    filter_options = await _fetch_dynamic_filter_options(db, auth_ctx, effective_comp)
 
     return {
         "success": True,
@@ -921,9 +957,11 @@ async def get_payin_report_grid(
                 "total_records": total_records,
                 "total_pages": total_pages
             },
-            "summary": summary_data
+            "summary": summary_data,
+            "filter_options": filter_options,
         },
         "summary": summary_data,
+        "filter_options": filter_options,
         "pagination": {
             "page": p_num,
             "limit": l_num,
@@ -1145,118 +1183,21 @@ async def export_payin_report(
     Streams filtered PayIn report CSV adhering to strict column specifications.
     """
     auth_ctx = await resolve_payin_auth_context(request, db)
-    company_ref_val = clean_int(company_ref_id)
-    retailer_ref_val = clean_int(retailer_ref_id)
-    status_str = clean_str(status)
-    gateway_str = clean_str(gateway)
-    payment_mode_str = clean_str(payment_mode)
-    tid_str = clean_str(tid)
-    mobile_str = clean_str(mobile) or clean_str(mobile_number)
-    search_str = clean_str(search)
-
-    effective_comp = auth_ctx["company_ref_id"]
-    if auth_ctx["is_super_admin"] and company_ref_val is not None:
-        effective_comp = company_ref_val
-
-    effective_retailer = auth_ctx["retailer_ref_id"]
-    if auth_ctx["is_admin"] and retailer_ref_val is not None:
-        effective_retailer = retailer_ref_val
-
-    start_dt, end_dt = parse_date_range(from_date, to_date, month=month)
-
-    where_clauses = ["1=1"]
-    params: Dict[str, Any] = {}
-
-    if start_dt is not None:
-        where_clauses.append("t.created_at >= :start_dt")
-        params["start_dt"] = start_dt
-
-    if end_dt is not None:
-        where_clauses.append("t.created_at <= :end_dt")
-        params["end_dt"] = end_dt
-
-    if effective_comp is not None:
-        where_clauses.append("t.company_ref_id = :comp_ref")
-        params["comp_ref"] = effective_comp
-
-    if not auth_ctx["is_admin"]:
-        eff_user = auth_ctx.get("user_ref_id") or auth_ctx.get("retailer_ref_id")
-        eff_user_type = auth_ctx.get("user_type_ref_id")
-        if eff_user is not None:
-            if eff_user_type is not None:
-                where_clauses.append("((t.user_ref_id = :eff_user_ref AND t.user_type_ref_id = :eff_user_type_ref) OR (t.retailer_ref_id = :eff_user_ref))")
-                params["eff_user_ref"] = eff_user
-                params["eff_user_type_ref"] = eff_user_type
-            else:
-                where_clauses.append("(t.user_ref_id = :eff_user_ref OR t.retailer_ref_id = :eff_user_ref)")
-                params["eff_user_ref"] = eff_user
-    else:
-        if effective_retailer is not None:
-            where_clauses.append("(t.user_ref_id = :ret_ref OR t.retailer_ref_id = :ret_ref)")
-            params["ret_ref"] = effective_retailer
-
-    if tid_str:
-        where_clauses.append("t.tid ILIKE :tid_val")
-        params["tid_val"] = f"%{tid_str}%"
-
-    if mobile_str:
-        mob_clean = mobile_str[-10:] if len(mobile_str) >= 10 else mobile_str
-        where_clauses.append("t.cust_mobile ILIKE :mob_val")
-        params["mob_val"] = f"%{mob_clean}%"
-
-    if status_str and status_str.upper() != "ALL":
-        st = status_str.upper()
-        if st in ("SUCCESS", "COMPLETED", "SETTLED"):
-            where_clauses.append("UPPER(t.txn_status) IN ('SUCCESS', 'COMPLETED', 'SETTLED')")
-        elif st in ("PENDING", "INITIATED", "PROCESSING"):
-            where_clauses.append("UPPER(t.txn_status) IN ('PENDING', 'INITIATED', 'PROCESSING')")
-        elif st in ("FAILED", "REJECTED", "TIMEOUT", "FAILURE"):
-            where_clauses.append("UPPER(t.txn_status) IN ('FAILED', 'REJECTED', 'TIMEOUT', 'FAILURE')")
-        elif st in ("REVERSED", "REFUNDED"):
-            where_clauses.append("UPPER(t.txn_status) IN ('REVERSED', 'REFUNDED')")
-        else:
-            where_clauses.append("UPPER(t.txn_status) = :st")
-            params["st"] = st
-
-    if gateway_str and gateway_str.upper() != "ALL":
-        gw = gateway_str.upper()
-        if gw == "G-1":
-            where_clauses.append("(t.payin_vendor_ref_id = 1 OR v.vendor_code ILIKE '%BANKME%')")
-        elif gw == "G-2":
-            where_clauses.append("(t.payin_vendor_ref_id = 2 OR v.vendor_code ILIKE '%EASEBUZZ%')")
-        else:
-            where_clauses.append("(v.vendor_code ILIKE :gw OR v.vendor_name ILIKE :gw)")
-            params["gw"] = f"%{gw}%"
-
-    if payment_mode_str and payment_mode_str.upper() != "ALL":
-        pm = payment_mode_str.upper()
-        if pm in ("UPI", "QR"):
-            where_clauses.append("(t.card_network = 'UPI' OR p.pay_mode_code IN ('UPI', 'UPI_INTENT', 'QR'))")
-        elif pm in ("CARD", "CREDIT_CARD", "DEBIT_CARD"):
-            where_clauses.append("(t.card_network IN ('VISA', 'MASTERCARD', 'RUPAY', 'AMEX', 'CORP') OR p.pay_mode_code IN ('CREDIT_CARD', 'DEBIT_CARD'))")
-        elif pm in ("VISA", "MASTERCARD", "RUPAY", "AMEX", "CORP"):
-            where_clauses.append("t.card_network = :pm")
-            params["pm"] = pm
-        elif pm in ("NETBANKING", "NET_BANKING", "NB"):
-            where_clauses.append("p.pay_mode_code IN ('NET_BANKING', 'NETBANKING')")
-        elif pm == "WALLET":
-            where_clauses.append("p.pay_mode_code = 'WALLET'")
-        else:
-            where_clauses.append("(t.card_network ILIKE :pm OR p.pay_mode_code ILIKE :pm OR p.pay_mode_name ILIKE :pm)")
-            params["pm"] = f"%{pm}%"
-
-    if search_str:
-        s = f"%{search_str}%"
-        where_clauses.append("""(
-            t.tid ILIKE :s OR
-            t.merchant_ref_id ILIKE :s OR
-            t.provider_ref_id ILIKE :s OR
-            t.cust_mobile ILIKE :s OR
-            t.cust_name ILIKE :s
-        )""")
-        params["s"] = s
-
-    base_where = "WHERE " + " AND ".join(where_clauses)
+    base_where, params, _, _, _ = _build_payin_filters(
+        auth_ctx,
+        from_date=from_date,
+        to_date=to_date,
+        month=month,
+        company_ref_id=company_ref_id,
+        retailer_ref_id=retailer_ref_id,
+        status=status,
+        gateway=gateway,
+        payment_mode=payment_mode,
+        tid=tid,
+        mobile=mobile,
+        mobile_number=mobile_number,
+        search=search,
+    )
 
     sql = f"""
     SELECT

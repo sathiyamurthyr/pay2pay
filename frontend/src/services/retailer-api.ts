@@ -1,208 +1,6 @@
-import axios from "axios";
-import { getApiBaseUrl } from "@/lib/api-config";
-import { attachApiPayloadSecurity } from "@/lib/api-payload-crypto";
+import { apiClient } from "@/lib/api";
 
-const API_BASE_URL = getApiBaseUrl();
-
-export const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
-apiClient.interceptors.request.use((config) => {
-  if (config.url && config.url.startsWith("/api/v1")) {
-    config.url = config.url.replace(/^\/api\/v1/, "");
-  }
-
-  if (typeof window !== "undefined") {
-    let token = "";
-    const cookies = document.cookie ? document.cookie.split("; ") : [];
-    const tokenCookie = cookies.find((row) =>
-      row.startsWith("p2p_access_token=") ||
-      row.startsWith("pay2pay_access_token=") ||
-      row.startsWith("pay2pay_auth_token=") ||
-      row.startsWith("p2p_sales_token=") ||
-      row.startsWith("pay2pay_sales_token=") ||
-      row.startsWith("access_token=") ||
-      row.startsWith("token=")
-    );
-    if (tokenCookie) {
-      token = tokenCookie.split("=")[1]?.trim() || "";
-    }
-    if (!token) {
-      try {
-        token =
-          localStorage.getItem("p2p_access_token") ||
-          localStorage.getItem("access_token") ||
-          localStorage.getItem("pay2pay_access_token") ||
-          localStorage.getItem("pay2pay_auth_token") ||
-          localStorage.getItem("retailer_token") ||
-          localStorage.getItem("token") ||
-          "";
-      } catch {}
-    }
-
-    if (token && token.trim().length > 10) {
-      config.headers.Authorization = `Bearer ${token.trim()}`;
-    }
-
-    const activeRetailerId = resolveActiveRetailerId();
-    if (activeRetailerId) {
-      if (!config.headers["x-retailer-code"]) {
-        config.headers["x-retailer-code"] = activeRetailerId;
-      }
-      if (!config.headers["x-retailer-id"]) {
-        config.headers["x-retailer-id"] = activeRetailerId;
-      }
-    }
-  }
-  return config;
-});
-
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      const url = String(error.config?.url || "");
-      const errorData = error.response?.data;
-      const errorDetail = String(
-        typeof errorData === "string"
-          ? errorData
-          : errorData?.detail || errorData?.message || ""
-      ).toLowerCase();
-
-      // Check if this error is explicitly a token/session expiry or missing auth
-      const isExplicitTokenExpiry =
-        errorDetail.includes("token has expired") ||
-        errorDetail.includes("token expired") ||
-        errorDetail.includes("jwt expired") ||
-        errorDetail.includes("invalid token") ||
-        errorDetail.includes("not authenticated") ||
-        errorDetail.includes("could not validate credentials") ||
-        errorDetail.includes("session expired") ||
-        errorDetail.includes("token_expired");
-
-      // Check if this is a transactional wrong-PIN/MPIN attempt inside a modal dialog
-      const isTransactionalPinError =
-        !isExplicitTokenExpiry &&
-        (url.includes("/mpin/verify") || url.includes("/verify-pin") || url.includes("/unlock")) &&
-        (errorDetail.includes("pin") || errorDetail.includes("mpin") || errorDetail.includes("wrong") || errorDetail.includes("incorrect"));
-
-      if (isTransactionalPinError) {
-        // User entered a wrong transaction MPIN: do NOT wipe session
-        return Promise.reject(error);
-      }
-
-      // Non-critical auxiliary endpoints that should NEVER log out the user or trigger redirect loops
-      const skipRedirect = Boolean(error.config?.headers?.["x-skip-auth-redirect"]);
-      const isAuxiliaryEndpoint =
-        skipRedirect ||
-        url.includes("/favorites") ||
-        url.includes("/admin/favorites") ||
-        url.includes("/branding") ||
-        url.includes("/notifications") ||
-        url.includes("/public-key") ||
-        url.includes("/soundbox");
-
-      if (isAuxiliaryEndpoint) {
-        return Promise.reject(error);
-      }
-
-      // For all other genuine session/token expiry 401s, clear cookies and session storage
-      if (typeof window !== "undefined") {
-        const isAuthPage =
-          window.location.pathname.includes("/login") ||
-          window.location.pathname.includes("/register");
-
-        if (!isAuthPage) {
-          // Prevent rapid redirect loops (debounce 10s)
-          const now = Date.now();
-          const lastRedirect = Number(window.sessionStorage?.getItem("p2p_last_401_redirect") || 0);
-          if (now - lastRedirect < 10000) {
-            return Promise.reject(error);
-          }
-          try {
-            window.sessionStorage?.setItem("p2p_last_401_redirect", String(now));
-          } catch {}
-
-          const cookieNames = [
-            "p2p_access_token",
-            "pay2pay_access_token",
-            "pay2pay_auth_token",
-            "p2p_sales_token",
-            "pay2pay_sales_token",
-            "p2p_admin_token",
-            "p2p_retailer_token",
-            "p2p_super_admin_token",
-            "p2p_sd_token",
-            "p2p_dist_token",
-            "p2p_token",
-            "pay2pay_token",
-            "p2p_user_role",
-            "pay2pay_user_role",
-            "p2p_user_type_ref_id",
-            "pay2pay_user_type_ref_id",
-            "p2p_session_locked",
-            "p2p_session_id",
-            "p2p_destination",
-            "token",
-            "access_token",
-          ];
-          cookieNames.forEach((name) => {
-            document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
-            try {
-              document.cookie = `${name}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
-            } catch {}
-          });
-          try {
-            const lsKeys = [
-              "p2p_access_token",
-              "pay2pay_access_token",
-              "pay2pay_auth_token",
-              "p2p_sales_token",
-              "pay2pay_sales_token",
-              "p2p_admin_token",
-              "p2p_retailer_token",
-              "p2p_super_admin_token",
-              "p2p_sd_token",
-              "p2p_dist_token",
-              "token",
-              "access_token",
-              "user_info",
-              "pay2pay_user_data",
-              "p2p_session_locked",
-              "p2p_session_locked_at",
-              "p2p_session_last_active",
-              "p2p_session_start_time"
-            ];
-            lsKeys.forEach((k) => localStorage.removeItem(k));
-            sessionStorage.clear();
-          } catch {}
-
-          const currentPath = window.location.pathname;
-          const host = window.location.hostname.toLowerCase();
-          const isAdminHost = host.startsWith("admin.") || host.includes("admin.smspay.store") || host.includes("admin.near4you.store") || host.includes("admin.pay2pay.in");
-          const isSuperAdminHost = window.location.port === "4003" || host.startsWith("super-admin.") || host.startsWith("superadmin.");
-
-          let loginPath = "/retailer/login";
-          if (isAdminHost || currentPath.startsWith("/admin")) loginPath = "/admin/login";
-          else if (isSuperAdminHost || currentPath.startsWith("/super-admin")) loginPath = "/super-admin/login";
-          else if (currentPath.startsWith("/sd")) loginPath = "/sd/login";
-          else if (currentPath.startsWith("/dist")) loginPath = "/dist/login";
-
-          window.location.replace(`${loginPath}?reason=session_expired&redirect=${encodeURIComponent(currentPath)}`);
-        }
-      }
-    }
-    return Promise.reject(error);
-  }
-);
-
-// Attach transparent End-to-End API Payload Encryption and Decryption
-attachApiPayloadSecurity(apiClient);
+export { apiClient };
 
 const dynamicBeneficiaryStore: Record<string, any[]> = {};
 
@@ -553,6 +351,7 @@ export const retailerApi = {
       if (activeRetailerId) params.retailer_id = activeRetailerId;
 
       const res = await apiClient.patch("/retailer/profile/contact", data, { params });
+      retailerApi.invalidateProfileCache();
       return res.data;
     } catch (e) {
       console.error("Failed to update contact details:", e);
@@ -567,6 +366,7 @@ export const retailerApi = {
       if (activeRetailerId) params.retailer_id = activeRetailerId;
 
       const res = await apiClient.patch("/retailer/profile/address", data, { params });
+      retailerApi.invalidateProfileCache();
       return res.data;
     } catch (e) {
       console.error("Failed to update address details:", e);
@@ -579,6 +379,10 @@ export const retailerApi = {
       const res = await apiClient.post("/retailer/profile/photo", formData, {
         headers: { "Content-Type": "multipart/form-data" }
       });
+      retailerApi.invalidateProfileCache();
+      if (typeof window !== "undefined" && res.data?.photo_url) {
+        window.dispatchEvent(new CustomEvent("p2p_profile_updated", { detail: { photo_url: res.data.photo_url } }));
+      }
       return res.data;
     } catch (e) {
       console.error("Failed to upload profile photo:", e);
@@ -599,6 +403,7 @@ export const retailerApi = {
   changePassword: async (data: { current_password?: string; new_password: string; confirm_password: string; otp_code: string }) => {
     try {
       const res = await apiClient.post("/retailer/profile/security/password", data);
+      retailerApi.invalidateProfileCache();
       return res.data;
     } catch (e) {
       console.error("Failed to change password:", e);
@@ -609,6 +414,7 @@ export const retailerApi = {
   changeMpin: async (data: { current_pin?: string; new_pin: string; confirm_pin: string; otp_code: string }) => {
     try {
       const res = await apiClient.post("/retailer/profile/security/pin", data);
+      retailerApi.invalidateProfileCache();
       return res.data;
     } catch (e) {
       console.error("Failed to change mpin:", e);
@@ -1423,53 +1229,82 @@ export const retailerApi = {
     }
   },
 
-  // ─── FAVORITE MENUS (PostgreSQL Stored Procedures & DB APIs) ───────────────
+  // ─── FAVORITE MENUS & DYNAMIC PORTAL MENUS (Reference-ID DB APIs) ──────────
 
-  getFavoriteMenus: async (userRefId?: string) => {
+  getAvailableMenus: async () => {
     try {
-      // Backend derives user identity from Authorization Bearer token
-      const params: Record<string, string> = {};
-      if (userRefId) params.user_ref_id = userRefId;
-      const res = await apiClient.get("/favorites/menus", { params });
+      const res = await apiClient.get("/favorites/available-menus");
+      return res.data;
+    } catch (err: any) {
+      console.warn("Available menus fetch notice:", err);
+      return { status: "ERROR", menus: [], favorites: [] };
+    }
+  },
+
+  getFavoriteMenus: async () => {
+    try {
+      // Backend derives company_ref_id, retailer_ref_id, user_ref_id strictly from JWT
+      const res = await apiClient.get("/favorites/menus");
       return res.data;
     } catch (err: any) {
       console.warn("Favorites fetch notice:", err);
-      return { status: "SUCCESS", favorites: [] };
+      return { status: "ERROR", favorites: [] };
+    }
+  },
+
+  checkFavoriteMenu: async (params: { menu_ref_id?: number; menu_href?: string }) => {
+    try {
+      const res = await apiClient.get("/favorites/check", { params });
+      return res.data;
+    } catch (err: any) {
+      return { status: "ERROR", is_favorite: false };
     }
   },
 
   saveFavoriteMenu: async (payload: {
-    user_ref_id?: string;
-    menu_href: string;
-    menu_label: string;
+    menu_ref_id?: number;
+    menu_href?: string;
+    menu_label?: string;
     menu_category?: string;
     icon_name?: string;
     display_order?: number;
-    user_role?: string;
   }) => {
     try {
       const res = await apiClient.post("/favorites/menus", payload);
       return res.data;
     } catch (err: any) {
       console.error("Save favorite error:", err);
-      return { status: "ERROR", message: err.message };
+      return { status: "ERROR", message: err?.response?.data?.detail || err.message };
+    }
+  },
+
+  removeFavoriteMenu: async (payload: {
+    menu_ref_id?: number;
+    menu_href?: string;
+    menu_label?: string;
+  }) => {
+    try {
+      const res = await apiClient.post("/favorites/menus/remove", payload);
+      return res.data;
+    } catch (err: any) {
+      console.error("Remove favorite error:", err);
+      return { status: "ERROR", message: err?.response?.data?.detail || err.message };
     }
   },
 
   toggleFavoriteMenu: async (payload: {
-    user_ref_id?: string;
-    menu_href: string;
+    menu_ref_id?: number;
+    menu_href?: string;
     menu_label?: string;
     menu_category?: string;
     icon_name?: string;
-    user_role?: string;
   }) => {
     try {
       const res = await apiClient.post("/favorites/toggle", payload);
       return res.data;
     } catch (err: any) {
       console.error("Toggle favorite error:", err);
-      return { status: "ERROR", message: err.message };
+      return { status: "ERROR", message: err?.response?.data?.detail || err.message };
     }
   },
 };

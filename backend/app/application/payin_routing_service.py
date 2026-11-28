@@ -34,23 +34,19 @@ class PayInRoutingService:
 
         Rules:
         - company_ref_id == 2 (SMSPay) -> BANKME
-        - company_ref_id != 2 (Near4You=1, Pay2Pay=47, etc.) -> EXISTING
-        - Missing or invalid company_ref_id -> Defaults safely to EXISTING
+        - Any other company without a configured live adapter must NOT route to another company's provider.
         """
         if authenticated_company_ref_id is None:
-            logger.warning("No authenticated company_ref_id provided. Defaulting to EXISTING provider.")
-            return PayInProvider.EXISTING
+            raise ValueError("Missing authenticated company_ref_id for PayIn routing.")
 
         try:
             ref_int = int(authenticated_company_ref_id)
         except (ValueError, TypeError):
-            logger.error("Invalid non-integer company_ref_id: %s. Defaulting to EXISTING provider.", authenticated_company_ref_id)
-            return PayInProvider.EXISTING
+            raise ValueError(f"Invalid company_ref_id: {authenticated_company_ref_id}")
 
         if ref_int == SMSPAY_COMPANY_REF_ID:
             logger.info("Routing to BANKME PayIn provider for SMSPay (company_ref_id=%d)", ref_int)
             return PayInProvider.BANKME
 
-        logger.info("Routing to EXISTING PayIn provider for company_ref_id=%d", ref_int)
-        return PayInProvider.EXISTING
+        raise ValueError(f"No live PayIn provider configured for company_ref_id={ref_int}")
 

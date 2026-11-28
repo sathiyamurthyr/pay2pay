@@ -2574,6 +2574,7 @@ class KnowledgeArticleModel(BaseEntity, EnterpriseBaseMixin):
 class AnnouncementModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "announcement"
 
+    company_ref_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
     announcement_code: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     content: Mapped[Text] = mapped_column(Text, nullable=False)
@@ -2596,6 +2597,7 @@ class AnnouncementModel(BaseEntity, EnterpriseBaseMixin):
 class AnnouncementImageModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "announcement_image"
 
+    company_ref_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
     announcement_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("announcement.public_id", ondelete="CASCADE"), nullable=False, index=True)
     b2_object_key: Mapped[str] = mapped_column(String(500), nullable=False)
     b2_bucket: Mapped[str] = mapped_column(String(100), nullable=False)

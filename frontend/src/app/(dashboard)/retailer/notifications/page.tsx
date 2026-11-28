@@ -48,6 +48,7 @@ import MarkEmailReadIcon from "@mui/icons-material/MarkEmailRead";
 
 import { useRetailerStore } from "@/stores/use-retailer-store";
 import { soundSystem } from "@/lib/audio-engine";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 export interface NotificationItem {
   id: string;
@@ -63,6 +64,7 @@ export interface NotificationItem {
 
 export default function NotificationsPage() {
   const router = useRouter();
+  const branding = useCompanyBranding();
   const { soundboxEnabled, toggleSoundbox } = useRetailerStore();
 
   // Tab State: 0 = Notifications Feed, 1 = Soundbox Settings
@@ -228,20 +230,21 @@ export default function NotificationsPage() {
     setIsPlayingTest(lang);
     soundSystem.playSuccessSound(volume);
 
+    const voiceBrand = branding.display_name || branding.company_name || "Platform";
     let phrase = "";
     switch (lang) {
       case "hi":
-        phrase = `Near4You par ${amount} rupaye praapt hue. Transaction safal raha.`;
+        phrase = `${voiceBrand} par ${amount} rupaye praapt hue. Transaction safal raha.`;
         break;
       case "ta":
-        phrase = `Near4You-il ${amount} roobai pera-pattathu. Vetrikaramaaga mudinthathu.`;
+        phrase = `${voiceBrand}-il ${amount} roobai pera-pattathu. Vetrikaramaaga mudinthathu.`;
         break;
       case "te":
-        phrase = `Near4You lo ${amount} roopayalu andindhi. Transaction vijayavanthamaindhi.`;
+        phrase = `${voiceBrand} lo ${amount} roopayalu andindhi. Transaction vijayavanthamaindhi.`;
         break;
       case "en":
       default:
-        phrase = `Received ${amount} Rupees on Near4You. Transaction Successful.`;
+        phrase = `Received ${amount} Rupees on ${voiceBrand}. Transaction Successful.`;
         break;
     }
 

@@ -408,22 +408,19 @@ class PayInService:
         db.add(payin_txn)
         await db.flush()
 
-        # 8. Route to Provider Adapter with support for G-1 / G-2 selection
-        resolved_vcode = GatewayMaskingService.resolve_internal_vendor(request_dto.vendor_code)
-        if resolved_vcode == "BANKME":
+        # 8. Route strictly via DB-verified company vendor (never allow cross-company API routing)
+        resolved_vcode = (vendor.vendor_code or "").strip().upper()
+        if resolved_vcode == "BANKME" and int(company_ref_id) == SMSPAY_COMPANY_REF_ID:
             adapter = BankMePayInAdapter()
             provider_code = "BANKME"
-        elif resolved_vcode == "EXISTING":
-            adapter = ExistingPayInAdapter()
-            provider_code = "EXISTING"
         else:
-            provider = PayInRoutingService.resolve_provider(company_ref_id)
-            if provider == PayInProvider.BANKME:
-                adapter = BankMePayInAdapter()
-                provider_code = "BANKME"
-            else:
-                adapter = ExistingPayInAdapter()
-                provider_code = "EXISTING"
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail={
+                    "code": "SERVICE_DOWN",
+                    "message": "PayIn service is down: No active PayIn API is configured for your company."
+                }
+            )
 
         # 9. Resolve Verified Dedicated Receipt Base URL & Bitly-Style Short URL
         req = auth_context.get("request")

@@ -1,191 +1,190 @@
-import json
-import uuid
-from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, Depends, Body, HTTPException, status
+from typing import Any, List, Optional
+from fastapi import APIRouter, Body, Depends, Query, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import text, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.dependencies import (
+    get_current_token_payload,
+    get_current_user,
+    require_admin_user,
+)
+from app.application.menu_favorite_service import MenuFavoriteService
 from app.core.database import get_db
-from app.application.dependencies import get_current_user, get_current_tenant_id
-from app.infrastructure.db.models import AdminUserModel, AdminFavoriteMenuModel
+from app.infrastructure.db.models import AdminUserModel
 
 router = APIRouter(prefix="/admin/favorites", tags=["Admin Favorite Navigation Menus"])
 
 
-class ToggleFavoriteRequest(BaseModel):
-    menu_href: str = Field(..., min_length=1, description="Unique route/href of the menu item (e.g., /machines)")
-    menu_label: Optional[str] = Field(None, description="Display label for the menu item")
-    menu_category: Optional[str] = Field(None, description="Category name (e.g., Administration)")
-    icon_name: Optional[str] = Field(None, description="Lucide icon name representation")
+class AdminFavoriteRequest(BaseModel):
+    menu_ref_id: Optional[int] = Field(None, description="Authoritative database menu_ref_id")
+    menu_href: Optional[str] = Field(None, description="Menu route href (fallback resolution)")
+    menu_label: Optional[str] = Field(None, description="Menu display label for disambiguation")
+    menu_category: Optional[str] = Field(None, description="Category grouping")
+    icon_name: Optional[str] = Field(None, description="Icon identifier")
+    display_order: Optional[int] = Field(None, description="Optional display sequence")
+
+
+class AdminReorderFavoritesRequest(BaseModel):
+    menu_ref_ids: Optional[List[int]] = Field(None, description="Ordered menu_ref_id list")
+    menu_hrefs: Optional[List[str]] = Field(None, description="Ordered menu_href list")
+
+
+async def _resolve_admin_identity(
+    request: Request,
+    db: AsyncSession,
+    token_payload: dict,
+    current_user: AdminUserModel,
+):
+    return await MenuFavoriteService.resolve_authenticated_identity(
+        db=db,
+        request=request,
+        token_payload=token_payload,
+        current_user=current_user,
+        portal_hint="ADMIN",
+    )
+
+
+@router.get("/permitted-menus")
+async def get_admin_permitted_menus(
+    request: Request,
+    token_payload: dict = Depends(get_current_token_payload),
+    current_user: AdminUserModel = Depends(require_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Returns authorized Admin portal menus from public.menu & role_menu_permission with favorite flags."""
+    identity = await _resolve_admin_identity(request, db, token_payload, current_user)
+    return await MenuFavoriteService.get_authorized_menus_payload(db, identity)
 
 
 @router.get("")
+@router.get("/menus")
 async def get_admin_favorites(
-    tenant_id: uuid.UUID = Depends(get_current_tenant_id),
-    current_user: AdminUserModel = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    request: Request,
+    token_payload: dict = Depends(get_current_token_payload),
+    current_user: AdminUserModel = Depends(require_admin_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    """
-    Returns the list of favorite navigation menus configured by the authenticated admin user.
-    Leverages PostgreSQL Stored Procedure sp_get_admin_favorite_menus with ORM fallback.
-    """
-    user_id = current_user.public_id
-
-    # 1. Execute Stored Procedure
-    try:
-        sp_query = text("SELECT public.sp_get_admin_favorite_menus(:tenant_id, :user_id);")
-        sp_result = await db.execute(sp_query, {"tenant_id": tenant_id, "user_id": user_id})
-        raw_json = sp_result.scalar()
-        if raw_json is not None:
-            if isinstance(raw_json, str):
-                parsed = json.loads(raw_json)
-            else:
-                parsed = raw_json
-            return parsed
-    except Exception as sp_err:
-        await db.rollback()
-        print(f"[FAVORITES ROUTER WARNING] SP execution error: {sp_err}. Falling back to ORM query.")
-
-    # 2. ORM Fallback
-    stmt = select(AdminFavoriteMenuModel).where(
-        AdminFavoriteMenuModel.tenant_id == tenant_id,
-        AdminFavoriteMenuModel.user_id == user_id,
-        AdminFavoriteMenuModel.is_active == True,
-        AdminFavoriteMenuModel.is_deleted == False
-    ).order_by(AdminFavoriteMenuModel.display_order.asc(), AdminFavoriteMenuModel.created_date.asc())
-
-    res = await db.execute(stmt)
-    records = res.scalars().all()
-
-    items = [
-        {
-            "public_id": str(r.public_id),
-            "menu_href": r.menu_href,
-            "menu_label": r.menu_label,
-            "menu_category": r.menu_category,
-            "icon_name": r.icon_name,
-            "display_order": r.display_order,
-            "created_date": r.created_date.isoformat() if r.created_date else None
-        }
-        for r in records
-    ]
-
+    """Returns favorite navigation menus strictly scoped to authenticated admin user, role, and company."""
+    identity = await _resolve_admin_identity(request, db, token_payload, current_user)
+    favorites = await MenuFavoriteService.list_favorites(db, identity)
     return {
+        "status": "SUCCESS",
         "success": True,
-        "favorites": items
+        "company_ref_id": identity.company_ref_id,
+        "user_ref_id": identity.user_ref_id,
+        "user_type_ref_id": identity.user_type_ref_id,
+        "role_ref_id": identity.role_ref_id,
+        "count": len(favorites),
+        "favorites": favorites,
+        "data": favorites,
     }
+
+
+@router.get("/check")
+async def check_admin_favorite_status(
+    request: Request,
+    menu_ref_id: Optional[int] = Query(None),
+    menu_href: Optional[str] = Query(None),
+    token_payload: dict = Depends(get_current_token_payload),
+    current_user: AdminUserModel = Depends(require_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Checks whether a specific menu is currently favorited and permitted for the authenticated admin."""
+    identity = await _resolve_admin_identity(request, db, token_payload, current_user)
+    return await MenuFavoriteService.check_favorite(
+        db, identity, menu_ref_id=menu_ref_id, menu_href=menu_href
+    )
+
+
+@router.post("")
+@router.post("/menus")
+@router.post("/save")
+async def add_admin_favorite(
+    request: Request,
+    payload: AdminFavoriteRequest = Body(...),
+    token_payload: dict = Depends(get_current_token_payload),
+    current_user: AdminUserModel = Depends(require_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Adds a permitted menu to the authenticated admin user's favorites (idempotent, duplicate-safe)."""
+    identity = await _resolve_admin_identity(request, db, token_payload, current_user)
+    return await MenuFavoriteService.add_favorite(
+        db,
+        identity,
+        menu_ref_id=payload.menu_ref_id,
+        menu_href=payload.menu_href,
+        menu_label=payload.menu_label,
+        display_order=payload.display_order,
+    )
 
 
 @router.post("/toggle")
+@router.post("/menus/toggle")
 async def toggle_admin_favorite(
-    payload: ToggleFavoriteRequest = Body(...),
-    tenant_id: uuid.UUID = Depends(get_current_tenant_id),
-    current_user: AdminUserModel = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    request: Request,
+    payload: AdminFavoriteRequest = Body(...),
+    token_payload: dict = Depends(get_current_token_payload),
+    current_user: AdminUserModel = Depends(require_admin_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    """
-    Toggles an admin navigation menu as favorite (adds if missing/inactive, removes if currently active).
-    Executes PostgreSQL Stored Procedure sp_toggle_admin_favorite_menu atomically.
-    """
-    user_id = current_user.public_id
-    actor_email = current_user.email or "admin@pay2pay.in"
+    """Atomically adds or removes a permitted menu favorite for the authenticated admin user."""
+    identity = await _resolve_admin_identity(request, db, token_payload, current_user)
+    return await MenuFavoriteService.toggle_favorite(
+        db,
+        identity,
+        menu_ref_id=payload.menu_ref_id,
+        menu_href=payload.menu_href,
+        menu_label=payload.menu_label,
+    )
 
-    # 1. Execute Stored Procedure
-    try:
-        sp_query = text(
-            "SELECT public.sp_toggle_admin_favorite_menu(:tenant_id, :user_id, :menu_href, :menu_label, :menu_category, :icon_name, :actor_email);"
-        )
-        sp_result = await db.execute(sp_query, {
-            "tenant_id": tenant_id,
-            "user_id": user_id,
-            "menu_href": payload.menu_href,
-            "menu_label": payload.menu_label,
-            "menu_category": payload.menu_category,
-            "icon_name": payload.icon_name,
-            "actor_email": actor_email
-        })
-        await db.commit()
-        raw_json = sp_result.scalar()
-        if raw_json is not None:
-            if isinstance(raw_json, str):
-                parsed = json.loads(raw_json)
-            else:
-                parsed = raw_json
-            return parsed
-    except Exception as sp_err:
-        await db.rollback()
-        print(f"[FAVORITES ROUTER WARNING] Toggle SP error: {sp_err}. Falling back to ORM toggle.")
 
-    # 2. ORM Fallback
-    stmt = select(AdminFavoriteMenuModel).where(
-        AdminFavoriteMenuModel.tenant_id == tenant_id,
-        AdminFavoriteMenuModel.user_id == user_id,
-        AdminFavoriteMenuModel.menu_href == payload.menu_href
-    ).order_by(AdminFavoriteMenuModel.created_date.desc())
+@router.post("/remove")
+@router.post("/menus/remove")
+async def remove_admin_favorite(
+    request: Request,
+    payload: AdminFavoriteRequest = Body(...),
+    token_payload: dict = Depends(get_current_token_payload),
+    current_user: AdminUserModel = Depends(require_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Removes a favorite menu item for the authenticated admin user."""
+    identity = await _resolve_admin_identity(request, db, token_payload, current_user)
+    return await MenuFavoriteService.remove_favorite(
+        db,
+        identity,
+        menu_ref_id=payload.menu_ref_id,
+        menu_href=payload.menu_href,
+        menu_label=payload.menu_label,
+    )
 
-    res = await db.execute(stmt)
-    existing = res.scalars().first()
 
-    action = "ADDED"
-    if existing:
-        if existing.is_active and not existing.is_deleted:
-            existing.is_active = False
-            existing.is_deleted = True
-            action = "REMOVED"
-        else:
-            existing.is_active = True
-            existing.is_deleted = False
-            if payload.menu_label:
-                existing.menu_label = payload.menu_label
-            if payload.menu_category:
-                existing.menu_category = payload.menu_category
-            if payload.icon_name:
-                existing.icon_name = payload.icon_name
-            action = "ADDED"
-    else:
-        new_fav = AdminFavoriteMenuModel(
-            public_id=uuid.uuid4(),
-            tenant_id=tenant_id,
-            user_id=user_id,
-            menu_href=payload.menu_href,
-            menu_label=payload.menu_label or payload.menu_href,
-            menu_category=payload.menu_category or "General",
-            icon_name=payload.icon_name,
-            display_order=0,
-            is_active=True,
-            is_deleted=False,
-            created_by=actor_email
-        )
-        db.add(new_fav)
+@router.delete("/{menu_ref_id}")
+@router.delete("/menus/{menu_ref_id}")
+async def delete_admin_favorite_by_id(
+    menu_ref_id: int,
+    request: Request,
+    token_payload: dict = Depends(get_current_token_payload),
+    current_user: AdminUserModel = Depends(require_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Deletes a favorite menu item by menu_ref_id for the authenticated admin user."""
+    identity = await _resolve_admin_identity(request, db, token_payload, current_user)
+    return await MenuFavoriteService.remove_favorite(db, identity, menu_ref_id=menu_ref_id)
 
-    await db.commit()
 
-    # Re-fetch active favorites
-    list_stmt = select(AdminFavoriteMenuModel).where(
-        AdminFavoriteMenuModel.tenant_id == tenant_id,
-        AdminFavoriteMenuModel.user_id == user_id,
-        AdminFavoriteMenuModel.is_active == True,
-        AdminFavoriteMenuModel.is_deleted == False
-    ).order_by(AdminFavoriteMenuModel.display_order.asc(), AdminFavoriteMenuModel.created_date.asc())
-    
-    list_res = await db.execute(list_stmt)
-    active_records = list_res.scalars().all()
-
-    return {
-        "success": True,
-        "action": action,
-        "menu_href": payload.menu_href,
-        "favorites": [
-            {
-                "public_id": str(r.public_id),
-                "menu_href": r.menu_href,
-                "menu_label": r.menu_label,
-                "menu_category": r.menu_category,
-                "icon_name": r.icon_name,
-                "display_order": r.display_order,
-                "created_date": r.created_date.isoformat() if r.created_date else None
-            }
-            for r in active_records
-        ]
-    }
+@router.post("/reorder")
+async def reorder_admin_favorites(
+    request: Request,
+    payload: AdminReorderFavoritesRequest = Body(...),
+    token_payload: dict = Depends(get_current_token_payload),
+    current_user: AdminUserModel = Depends(require_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Updates display order of the authenticated admin user's favorite menus."""
+    identity = await _resolve_admin_identity(request, db, token_payload, current_user)
+    return await MenuFavoriteService.reorder_favorites(
+        db,
+        identity,
+        menu_ref_ids=payload.menu_ref_ids,
+        menu_hrefs=payload.menu_hrefs,
+    )

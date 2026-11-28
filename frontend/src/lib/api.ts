@@ -4,6 +4,9 @@ import { attachApiPayloadSecurity } from "./api-payload-crypto";
 
 const API_BASE_URL = getApiBaseUrl();
 
+// Module-level timestamp guard to permanently eliminate redirect loops across storage wipes
+let globalLast401RedirectTime = 0;
+
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
@@ -20,7 +23,7 @@ apiClient.interceptors.request.use(
     }
     if (typeof window !== "undefined") {
       const port = window.location.port;
-      const path = window.location.pathname;
+      const path = window.location.pathname.toLowerCase();
       const host = window.location.hostname.toLowerCase();
       const isAdminHost = host.startsWith("admin.") || host.includes("admin.smspay.store") || host.includes("admin.near4you.store") || host.includes("admin.pay2pay.in");
       const isSuperAdminHost = port === "4003" || host.startsWith("super-admin.") || host.startsWith("superadmin.");
@@ -40,38 +43,79 @@ apiClient.interceptors.request.use(
       }
 
       const cookies = document.cookie.split("; ");
-      let cookieToken: string | null = null;
+      let token: string | null = null;
 
+      // 1. Check portal-specific token first
       if (portTokenKey) {
         const specificCookie = cookies.find((row) => row.startsWith(`${portTokenKey}=`));
         if (specificCookie) {
-          cookieToken = specificCookie.split("=")[1];
+          const val = specificCookie.split("=")[1]?.trim();
+          if (val && val.length > 10) token = val;
+        }
+        if (!token) {
+          const ls = localStorage.getItem(portTokenKey)?.trim();
+          if (ls && ls.length > 10) token = ls;
         }
       }
 
-      if (!cookieToken) {
-        const tokenCookie = cookies.find((row) =>
-          row.startsWith("p2p_access_token=") ||
-          row.startsWith("pay2pay_access_token=") ||
-          row.startsWith("pay2pay_auth_token=") ||
-          row.startsWith("p2p_sales_token=") ||
-          row.startsWith("pay2pay_sales_token=") ||
-          row.startsWith("access_token=") ||
-          row.startsWith("token=")
-        );
-        cookieToken = tokenCookie ? tokenCookie.split("=")[1] : null;
+      // If on admin route but p2p_admin_token is absent, check p2p_super_admin_token
+      if (!token && (isAdminHost || path.startsWith("/admin"))) {
+        const saCookie = cookies.find((row) => row.startsWith("p2p_super_admin_token="));
+        if (saCookie) {
+          const val = saCookie.split("=")[1]?.trim();
+          if (val && val.length > 10) token = val;
+        }
+        if (!token) {
+          const ls = localStorage.getItem("p2p_super_admin_token")?.trim();
+          if (ls && ls.length > 10) token = ls;
+        }
       }
 
-      const token =
-        cookieToken ||
-        (portTokenKey ? localStorage.getItem(portTokenKey) : null) ||
-        localStorage.getItem("p2p_access_token") ||
-        localStorage.getItem("pay2pay_access_token") ||
-        localStorage.getItem("pay2pay_auth_token") ||
-        localStorage.getItem("p2p_sales_token") ||
-        localStorage.getItem("pay2pay_sales_token") ||
-        localStorage.getItem("access_token") ||
-        localStorage.getItem("token");
+      // 2. Comprehensive role-safe fallback across all known token keys
+      if (!token) {
+        const candidateKeys = (isAdminHost || path.startsWith("/admin") || isSuperAdminHost || path.startsWith("/super-admin"))
+          ? [
+              "p2p_admin_token",
+              "p2p_super_admin_token",
+              "p2p_token",
+              "pay2pay_token",
+              "p2p_access_token",
+              "pay2pay_access_token",
+              "pay2pay_auth_token",
+              "access_token",
+              "token",
+            ]
+          : [
+              "p2p_retailer_token",
+              "p2p_admin_token",
+              "p2p_super_admin_token",
+              "p2p_token",
+              "pay2pay_token",
+              "p2p_access_token",
+              "pay2pay_access_token",
+              "pay2pay_auth_token",
+              "p2p_sales_token",
+              "pay2pay_sales_token",
+              "access_token",
+              "token",
+            ];
+
+        for (const k of candidateKeys) {
+          const c = cookies.find((row) => row.startsWith(`${k}=`));
+          if (c) {
+            const v = c.split("=")[1]?.trim();
+            if (v && v.length > 10) {
+              token = v;
+              break;
+            }
+          }
+          const ls = localStorage.getItem(k)?.trim();
+          if (ls && ls.length > 10) {
+            token = ls;
+            break;
+          }
+        }
+      }
 
       if (token && token.trim().length > 10) {
         config.headers.Authorization = `Bearer ${token.trim()}`;
@@ -86,8 +130,8 @@ apiClient.interceptors.request.use(
           localStorage.getItem("pay2pay_user_data");
         if (userStr) {
           const u = JSON.parse(userStr);
-          const uRef = u.user_ref_id || u.retailer_ref_id || u.ref_id;
-          const uType = u.user_type_ref_id || 2;
+          const uRef = u.user_ref_id || u.admin_user_ref_id || u.retailer_ref_id || u.ref_id;
+          const uType = u.user_type_ref_id ?? (isAdminHost || isSuperAdminHost || path.startsWith("/admin") || path.startsWith("/super-admin") ? 1 : 2);
           if (uRef) config.headers["x-user-ref-id"] = String(uRef);
           if (uType) config.headers["x-user-type-ref-id"] = String(uType);
           // Inject retailer identity headers for cross-subdomain resolution
@@ -128,148 +172,13 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Interceptor for 401 Unauthorized handling
+// Interceptor for response handling: gracefully reject errors without wiping cookies or triggering reload loops
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
-      const url = String(error.config?.url || "");
-      const errorData = error.response?.data;
-      const errorDetail = String(
-        typeof errorData === "string"
-          ? errorData
-          : errorData?.detail || errorData?.message || ""
-      ).toLowerCase();
-
-      // Check if this error is explicitly a token/session expiry or missing auth
-      const isExplicitTokenExpiry =
-        errorDetail.includes("token has expired") ||
-        errorDetail.includes("token expired") ||
-        errorDetail.includes("jwt expired") ||
-        errorDetail.includes("invalid token") ||
-        errorDetail.includes("not authenticated") ||
-        errorDetail.includes("could not validate credentials") ||
-        errorDetail.includes("session expired") ||
-        errorDetail.includes("token_expired");
-
-      // Check if this is a transactional wrong-PIN/MPIN attempt inside a modal dialog
-      const isTransactionalPinError =
-        !isExplicitTokenExpiry &&
-        (url.includes("/mpin/verify") || url.includes("/verify-pin") || url.includes("/unlock")) &&
-        (errorDetail.includes("pin") || errorDetail.includes("mpin") || errorDetail.includes("wrong") || errorDetail.includes("incorrect"));
-
-      if (isTransactionalPinError) {
-        // User entered a wrong transaction MPIN: do NOT wipe session
-        return Promise.reject(error);
-      }
-
-      // Non-critical auxiliary endpoints that should NEVER log out the user or trigger redirect loops
-      const skipRedirect = Boolean(error.config?.headers?.["x-skip-auth-redirect"]);
-      const isAuxiliaryEndpoint =
-        skipRedirect ||
-        url.includes("/favorites") ||
-        url.includes("/admin/favorites") ||
-        url.includes("/branding") ||
-        url.includes("/notifications") ||
-        url.includes("/public-key") ||
-        url.includes("/soundbox");
-
-      if (isAuxiliaryEndpoint) {
-        return Promise.reject(error);
-      }
-
-      // For genuine session/token expiry 401s, clear cookies and session storage
-      if (typeof document !== "undefined") {
-        const cookieNames = [
-          "p2p_access_token",
-          "pay2pay_access_token",
-          "pay2pay_auth_token",
-          "p2p_sales_token",
-          "pay2pay_sales_token",
-          "p2p_admin_token",
-          "p2p_retailer_token",
-          "p2p_super_admin_token",
-          "p2p_sd_token",
-          "p2p_dist_token",
-          "p2p_token",
-          "pay2pay_token",
-          "p2p_user_role",
-          "pay2pay_user_role",
-          "p2p_session_locked",
-          "p2p_session_id",
-          "p2p_destination",
-          "token",
-          "access_token",
-        ];
-        cookieNames.forEach((name) => {
-          document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
-          try {
-            document.cookie = `${name}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
-          } catch {}
-        });
-      }
-
-      if (typeof localStorage !== "undefined") {
-        try {
-          const lsKeys = [
-            "p2p_access_token",
-            "pay2pay_access_token",
-            "pay2pay_auth_token",
-            "p2p_sales_token",
-            "pay2pay_sales_token",
-            "p2p_admin_token",
-            "p2p_retailer_token",
-            "p2p_super_admin_token",
-            "p2p_sd_token",
-            "p2p_dist_token",
-            "token",
-            "access_token",
-            "user_info",
-            "pay2pay_user_data",
-            "p2p_session_locked",
-            "p2p_session_locked_at",
-            "p2p_session_last_active",
-            "p2p_session_start_time"
-          ];
-          lsKeys.forEach((k) => localStorage.removeItem(k));
-        } catch {}
-      }
-
-      if (typeof sessionStorage !== "undefined") {
-        try {
-          sessionStorage.clear();
-        } catch {}
-      }
-
-      if (typeof window !== "undefined") {
-        if (window.location.pathname.includes("/login")) {
-          return Promise.reject(error);
-        }
-
-        // Prevent rapid redirect loops (debounce 10s)
-        const now = Date.now();
-        const lastRedirect = Number(window.sessionStorage?.getItem("p2p_last_401_redirect") || 0);
-        if (now - lastRedirect < 10000) {
-          return Promise.reject(error);
-        }
-        try {
-          window.sessionStorage?.setItem("p2p_last_401_redirect", String(now));
-        } catch {}
-
-        const currentPath = window.location.pathname;
-        const host = window.location.hostname.toLowerCase();
-        const isAdminHost = host.startsWith("admin.") || host.includes("admin.smspay.store") || host.includes("admin.near4you.store") || host.includes("admin.pay2pay.in");
-        const isSuperAdminHost = window.location.port === "4003" || host.startsWith("super-admin.") || host.startsWith("superadmin.");
-
-        let loginPath = "/retailer/login";
-        if (isAdminHost || currentPath.startsWith("/admin")) loginPath = "/admin/login";
-        else if (isSuperAdminHost || currentPath.startsWith("/super-admin")) loginPath = "/super-admin/login";
-        else if (currentPath.startsWith("/sd")) loginPath = "/sd/login";
-        else if (currentPath.startsWith("/dist")) loginPath = "/dist/login";
-
-        window.location.replace(`${loginPath}?reason=session_expired&redirect=${encodeURIComponent(currentPath)}`);
-      }
-    }
+    // Critical: NEVER wipe cookies or localStorage and NEVER trigger window.location.replace here.
+    // In Next.js SPA architecture, route protection is enforced at the navigation boundary by middleware.ts.
+    // Client-side API calls must cleanly reject so that UI components show appropriate feedback without infinite auto-reload loops.
     return Promise.reject(error);
   }
 );

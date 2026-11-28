@@ -80,22 +80,20 @@ export const TransferAmountInput: React.FC<TransferAmountInputProps> = ({
             fontSize: "11px",
             letterSpacing: "0.08em",
             textTransform: "uppercase",
-            background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
+            color: "var(--brand-primary, #0F3B7D)",
           }}
         >
           TRANSFER AMOUNT
         </Typography>
 
         <Chip
-          icon={<KeyboardIcon sx={{ "&&": { fontSize: 13, color: "#A20A3A" } }} />}
+          icon={<KeyboardIcon sx={{ "&&": { fontSize: 13, color: "var(--brand-primary, #0F3B7D)" } }} />}
           label="Ctrl+Shift+A"
           size="small"
           sx={{
-            bgcolor: "rgba(245, 158, 11, 0.12)",
-            color: "#FDE68A",
-            border: "1px solid rgba(245, 158, 11, 0.25)",
+            bgcolor: "var(--brand-surface, #EFF6FF)",
+            color: "var(--brand-primary, #0F3B7D)",
+            border: "1px solid var(--brand-border, rgba(15, 59, 125, 0.25))",
             fontWeight: 800,
             fontSize: "10px",
             height: 22,
@@ -117,32 +115,31 @@ export const TransferAmountInput: React.FC<TransferAmountInputProps> = ({
           input: {
             startAdornment: (
               <InputAdornment position="start" sx={{ mr: 1 }}>
-                <Typography sx={{ color: "#F59E0B", fontWeight: 900, fontSize: "32px", textShadow: "0 0 10px rgba(245, 158, 11, 0.4)" }}>
+                <Typography sx={{ color: "var(--brand-primary, #0F3B7D)", fontWeight: 900, fontSize: "32px" }}>
                   ₹
                 </Typography>
               </InputAdornment>
             ),
             sx: {
-              height: 64, // Premium 64px height
-              fontSize: "36px", // Large white amount 36px - 40px
+              height: 64,
+              fontSize: "36px",
               fontWeight: 700,
-              color: "#FFFFFF",
+              color: "var(--text-primary, #0F172A)",
               borderRadius: "14px",
-              bgcolor: "rgba(8, 11, 17, 0.92)",
-              backdropFilter: "blur(12px)",
+              bgcolor: "#FFFFFF",
               px: 2,
               display: "flex",
               alignItems: "center",
-              "& fieldset": { borderColor: "rgba(245, 158, 11, 0.3)", borderWidth: "1px" },
-              "&:hover fieldset": { borderColor: "#F59E0B" },
+              "& fieldset": { borderColor: "#CBD5E1", borderWidth: "1.5px" },
+              "&:hover fieldset": { borderColor: "var(--brand-primary, #0F3B7D)" },
               "&.Mui-focused": {
-                boxShadow: "0 0 24px rgba(245, 158, 11, 0.4), inset 0 0 8px rgba(245, 158, 11, 0.1)",
+                boxShadow: "0 0 0 3px var(--grid-search-focus-shadow, rgba(15, 59, 125, 0.14))",
                 borderRadius: "14px",
               },
-              "&.Mui-focused fieldset": { borderColor: "#F59E0B", borderWidth: "2px" },
+              "&.Mui-focused fieldset": { borderColor: "var(--brand-primary, #0F3B7D)", borderWidth: "2px" },
               "& input": {
-                textAlign: "left", // Left Aligned
-                color: "#FFFFFF",
+                textAlign: "left",
+                color: "var(--text-primary, #0F172A)",
                 fontWeight: 700,
                 fontSize: "36px",
                 p: 0,

@@ -89,25 +89,24 @@ export const BankingProgressTimeline: React.FC<BankingProgressTimelineProps> = (
       sx={{
         width: "100%",
         borderRadius: { xs: "18px", sm: "22px" },
-        bgcolor: "rgba(10, 15, 29, 0.95)",
-        backdropFilter: "blur(24px)",
-        border: "1px solid rgba(251, 191, 36, 0.3)",
-        boxShadow: "0 20px 50px rgba(41, 35, 41, 0.08), 0 0 24px rgba(251, 191, 36, 0.1)",
+        bgcolor: "var(--surface, #FFFFFF)",
+        border: "1px solid var(--brand-border, #E2E8F0)",
+        boxShadow: "0 14px 36px rgba(15, 23, 42, 0.08)",
         p: { xs: 2, sm: 2.5 },
         boxSizing: "border-box",
         overflow: "hidden",
         position: "relative",
       }}
     >
-      {/* Top Gold Sheen Accent Line */}
+      {/* Top Brand Sheen Accent Line */}
       <Box
         sx={{
           position: "absolute",
           top: 0,
           left: 0,
           right: 0,
-          height: "2px",
-          background: "linear-gradient(90deg, transparent 0%, #FBBF24 50%, transparent 100%)",
+          height: "3px",
+          background: "var(--brand-gradient, linear-gradient(135deg, #0F3B7D 0%, #D4AF37 100%))",
         }}
       />
 
@@ -119,32 +118,30 @@ export const BankingProgressTimeline: React.FC<BankingProgressTimelineProps> = (
           alignItems: { xs: "flex-start", sm: "center" },
           pb: 1.5,
           mb: 1.5,
-          borderBottom: "1px solid #E8E2E5",
+          borderBottom: "1px solid var(--border, #E2E8F0)",
         }}
       >
         <Box>
           <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-            <ShieldIcon sx={{ color: "#A20A3A", fontSize: 20 }} />
+            <ShieldIcon sx={{ color: "var(--brand-primary, #0F3B7D)", fontSize: 20 }} />
             <Typography
               sx={{
                 fontWeight: 900,
                 fontSize: { xs: "14px", sm: "16.5px" },
-                background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
+                color: "var(--brand-primary, #0F3B7D)",
               }}
             >
               Real-Time Payout Execution Pipeline
             </Typography>
           </Stack>
-          <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "11.5px", mt: 0.25 }}>
-            Ref: <span style={{ color: "#FDE047", fontFamily: "monospace", fontWeight: 700 }}>{transactionRef || "TXN-INITIATING"}</span>
+          <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "11.5px", mt: 0.25 }}>
+            Ref: <span style={{ color: "var(--brand-primary, #0F3B7D)", fontFamily: "monospace", fontWeight: 700 }}>{transactionRef || "TXN-INITIATING"}</span>
           </Typography>
         </Box>
 
         {netDebit && netDebit > 0 && (
           <Box sx={{ textAlign: { xs: "left", sm: "right" } }}>
-            <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "10.5px", fontWeight: 700 }}>
+            <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: "10.5px", fontWeight: 700 }}>
               NET WALLET DEBIT
             </Typography>
             <Typography
@@ -152,9 +149,7 @@ export const BankingProgressTimeline: React.FC<BankingProgressTimelineProps> = (
                 fontWeight: 900,
                 fontSize: "17px",
                 fontFamily: "var(--font-geist-mono), monospace",
-                background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
+                color: "var(--brand-primary, #0F3B7D)",
               }}
             >
               ₹{netDebit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -170,12 +165,12 @@ export const BankingProgressTimeline: React.FC<BankingProgressTimelineProps> = (
           sx={{
             height: 6,
             borderRadius: 3,
-            bgcolor: "rgba(255, 255, 255, 0.08)",
+            bgcolor: "#E2E8F0",
             "& .MuiLinearProgress-bar": {
               borderRadius: 3,
               background: isReversing
                 ? "linear-gradient(90deg, #EF4444, #DC2626)"
-                : "linear-gradient(90deg, #10B981, #FBBF24)",
+                : "var(--brand-gradient, linear-gradient(90deg, #0F3B7D, #16A34A))",
             },
           }}
         />
@@ -188,7 +183,7 @@ export const BankingProgressTimeline: React.FC<BankingProgressTimelineProps> = (
           overflowY: "auto",
           pr: 1,
           "&::-webkit-scrollbar": { width: 4 },
-          "&::-webkit-scrollbar-thumb": { bgcolor: "rgba(255, 255, 255, 0.2)", borderRadius: 2 },
+          "&::-webkit-scrollbar-thumb": { bgcolor: "#CBD5E1", borderRadius: 2 },
         }}
       >
         <Stack spacing={1.5} sx={{ position: "relative" }}>
@@ -199,31 +194,31 @@ export const BankingProgressTimeline: React.FC<BankingProgressTimelineProps> = (
             const isFailed = step.status === "FAILED";
             const isWarning = step.status === "WARNING";
 
-            let nodeBg = "rgba(255, 255, 255, 0.03)";
-            let nodeBorder = "rgba(255, 255, 255, 0.08)";
-            let iconColor = "rgba(255, 255, 255, 0.3)";
-            let titleColor = "rgba(255, 255, 255, 0.4)";
+            let nodeBg = "#F8FAFC";
+            let nodeBorder = "#E2E8F0";
+            let iconColor = "#94A3B8";
+            let titleColor = "#475569";
 
             if (isCompleted) {
-              nodeBg = "rgba(34, 197, 94, 0.12)";
-              nodeBorder = "rgba(34, 197, 94, 0.35)";
-              iconColor = "#4ADE80";
-              titleColor = "#4ADE80";
+              nodeBg = "#F0FDF4";
+              nodeBorder = "#86EFAC";
+              iconColor = "#16A34A";
+              titleColor = "#166534";
             } else if (isProcessing) {
-              nodeBg = "rgba(251, 191, 36, 0.2)";
-              nodeBorder = "#FBBF24";
-              iconColor = "#FDE047";
-              titleColor = "#FFFFFF";
+              nodeBg = "var(--brand-surface, #EFF6FF)";
+              nodeBorder = "var(--brand-primary, #0F3B7D)";
+              iconColor = "var(--brand-primary, #0F3B7D)";
+              titleColor = "var(--brand-primary, #0F3B7D)";
             } else if (isFailed) {
-              nodeBg = "rgba(239, 68, 68, 0.2)";
-              nodeBorder = "#EF4444";
-              iconColor = "#EF4444";
-              titleColor = "#EF4444";
+              nodeBg = "#FEF2F2";
+              nodeBorder = "#FECACA";
+              iconColor = "#DC2626";
+              titleColor = "#991B1B";
             } else if (isWarning) {
-              nodeBg = "rgba(245, 158, 11, 0.2)";
-              nodeBorder = "#F59E0B";
-              iconColor = "#FBBF24";
-              titleColor = "#FBBF24";
+              nodeBg = "#FFFBEB";
+              nodeBorder = "#FDE68A";
+              iconColor = "#D97706";
+              titleColor = "#92400E";
             }
 
             return (
@@ -237,7 +232,7 @@ export const BankingProgressTimeline: React.FC<BankingProgressTimelineProps> = (
                   bgcolor: nodeBg,
                   border: `1px solid ${nodeBorder}`,
                   transition: "all 200ms ease-in-out",
-                  boxShadow: isActive ? `0 0 16px ${nodeBorder}` : "none",
+                  boxShadow: isActive ? "0 4px 12px rgba(15, 23, 42, 0.08)" : "none",
                 }}
               >
                 <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
@@ -246,7 +241,8 @@ export const BankingProgressTimeline: React.FC<BankingProgressTimelineProps> = (
                       width: 32,
                       height: 32,
                       borderRadius: "50%",
-                      bgcolor: "rgba(0, 0, 0, 0.3)",
+                      bgcolor: "#FFFFFF",
+                      border: `1px solid ${nodeBorder}`,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -466,27 +462,22 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
         width: { xs: "98vw", sm: "92vw", md: "90vw" },
         maxWidth: { xs: "100%", md: "1440px" },
         maxHeight: { xs: "96vh", md: "920px" },
-        bgcolor: "#FFFFFF",
-        backgroundImage: isSuccess
-          ? "radial-gradient(circle at 50% 10%, rgba(34, 197, 94, 0.15), transparent 65%)"
-          : "radial-gradient(circle at 50% 0%, rgba(251, 191, 36, 0.08), transparent 60%)",
+        bgcolor: "var(--background-secondary, #F8FAFC)",
         borderRadius: { xs: "20px", sm: "24px" },
-        border: isSuccess ? "1px solid rgba(251, 191, 36, 0.4)" : "1px solid rgba(251, 191, 36, 0.35)",
-        boxShadow: isSuccess
-          ? "0 25px 60px -10px rgba(0, 0, 0, 0.95), 0 0 50px rgba(251, 191, 36, 0.15), 0 0 35px rgba(34, 197, 94, 0.2)"
-          : "0 25px 60px -10px rgba(0, 0, 0, 0.95), 0 0 45px rgba(251, 191, 36, 0.15)",
+        border: "1px solid var(--brand-border, #E2E8F0)",
+        boxShadow: "0 25px 60px -10px rgba(15, 23, 42, 0.25)",
         display: "flex",
         flexDirection: "column",
         overflowY: "auto",
-        color: "#FFFFFF",
+        color: "var(--text-primary, #0F172A)",
         position: "relative",
-        pb: { xs: 12, sm: 8, md: 3 }, // Generous bottom padding to completely clear mobile nav & FAB
+        pb: { xs: 12, sm: 8, md: 3 },
         boxSizing: "border-box",
         "&::-webkit-scrollbar": { width: 6 },
-        "&::-webkit-scrollbar-thumb": { bgcolor: "rgba(251, 191, 36, 0.2)", borderRadius: 3 },
+        "&::-webkit-scrollbar-thumb": { bgcolor: "#CBD5E1", borderRadius: 3 },
       }}
     >
-      {/* Top Gold Sheen Bar */}
+      {/* Top Brand Sheen Bar */}
       <Box
         sx={{
           position: "sticky",
@@ -495,7 +486,7 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
           right: 0,
           height: "3px",
           zIndex: 20,
-          background: "linear-gradient(90deg, transparent 0%, #FBBF24 50%, transparent 100%)",
+          background: "var(--brand-gradient, linear-gradient(135deg, #0F3B7D 0%, #D4AF37 100%))",
         }}
       />
 
@@ -507,9 +498,8 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
           zIndex: 15,
           px: { xs: 2, sm: 3 },
           py: { xs: 1.5, sm: 2 },
-          bgcolor: "rgba(10, 15, 29, 0.95)",
-          backdropFilter: "blur(20px)",
-          borderBottom: "1px solid rgba(251, 191, 36, 0.2)",
+          bgcolor: "#FFFFFF",
+          borderBottom: "1px solid var(--border, #E2E8F0)",
           display: "flex",
           flexDirection: { xs: "column", sm: "row" },
           justifyContent: "space-between",
@@ -524,16 +514,15 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
               width: { xs: 40, sm: 46 },
               height: { xs: 40, sm: 46 },
               borderRadius: "12px",
-              bgcolor: "rgba(251, 191, 36, 0.15)",
-              border: "1px solid rgba(251, 191, 36, 0.4)",
+              bgcolor: "var(--brand-surface, #EFF6FF)",
+              border: "1px solid var(--brand-border, rgba(15, 59, 125, 0.25))",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               flexShrink: 0,
-              boxShadow: "0 0 15px rgba(251, 191, 36, 0.25)",
             }}
           >
-            <ShieldIcon sx={{ color: "#FDE047", fontSize: { xs: 22, sm: 26 } }} />
+            <ShieldIcon sx={{ color: "var(--brand-primary, #0F3B7D)", fontSize: { xs: 22, sm: 26 } }} />
           </Box>
           <Box sx={{ minWidth: 0, flex: 1 }}>
             <Typography
@@ -542,14 +531,12 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                 fontSize: { xs: "16px", sm: "19px" },
                 letterSpacing: "-0.3px",
                 lineHeight: 1.2,
-                background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
+                color: "var(--brand-primary, #0F3B7D)",
               }}
             >
               Secure Transaction Execution Center
             </Typography>
-            <Typography sx={{ color: "rgba(255, 255, 255, 0.75)", fontSize: { xs: "11px", sm: "12.5px" }, fontWeight: 600, mt: 0.25 }}>
+            <Typography sx={{ color: "var(--text-muted, #64748B)", fontSize: { xs: "11px", sm: "12.5px" }, fontWeight: 600, mt: 0.25 }}>
               Processing secure {transactionMode} transfer · Enterprise CBS Core
             </Typography>
           </Box>
@@ -564,27 +551,27 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
             justifyContent: "space-between",
             alignItems: "center",
             flexWrap: "wrap",
-            bgcolor: "rgba(255, 255, 255, 0.03)",
+            bgcolor: "#F8FAFC",
             p: 1,
             borderRadius: "10px",
-            border: "1px solid rgba(255, 255, 255, 0.06)",
+            border: "1px solid #E2E8F0",
           }}
         >
           {/* Column 1: Txn & Ref */}
           <Box sx={{ textAlign: "left" }}>
-            <Typography sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "9.5px", fontWeight: 800, letterSpacing: "0.05em" }}>TRANSACTION METADATA</Typography>
-            <Typography sx={{ color: "#FFFFFF", fontSize: "11.5px", fontWeight: 800 }}>
-              Txn: <span style={{ color: "#FDE047", fontFamily: "monospace" }}>{transactionId && transactionId !== "TXN-INITIATING" ? transactionId : "—"}</span>
+            <Typography sx={{ color: "#64748B", fontSize: "9.5px", fontWeight: 800, letterSpacing: "0.05em" }}>TRANSACTION METADATA</Typography>
+            <Typography sx={{ color: "#0F172A", fontSize: "11.5px", fontWeight: 800 }}>
+              Txn: <span style={{ color: "var(--brand-primary, #0F3B7D)", fontFamily: "monospace" }}>{transactionId && transactionId !== "TXN-INITIATING" ? transactionId : "—"}</span>
             </Typography>
-            <Typography sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "10.5px", fontFamily: "monospace" }}>
+            <Typography sx={{ color: "#475569", fontSize: "10.5px", fontFamily: "monospace" }}>
               Ref: {transactionRef && transactionRef !== "TXN-INITIATING" ? transactionRef : "—"}
             </Typography>
           </Box>
 
           {/* Column 2: Metrics & 100% Progress */}
           <Box sx={{ textAlign: "right", minWidth: { xs: 120, sm: 140 } }}>
-            <Typography sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "9.5px", fontWeight: 800, letterSpacing: "0.05em" }}>EXECUTION METRICS</Typography>
-            <Typography sx={{ color: isSuccess ? "#4ADE80" : "#FBBF24", fontSize: "11.5px", fontWeight: 800 }}>
+            <Typography sx={{ color: "#64748B", fontSize: "9.5px", fontWeight: 800, letterSpacing: "0.05em" }}>EXECUTION METRICS</Typography>
+            <Typography sx={{ color: isSuccess ? "#15803D" : "var(--brand-primary, #0F3B7D)", fontSize: "11.5px", fontWeight: 800 }}>
               Elapsed: {elapsedSeconds > 0 ? elapsedSeconds.toFixed(1) : isSuccess ? "2.4" : "4.2"}s
             </Typography>
             <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mt: 0.25, justifyContent: "flex-end" }}>
@@ -595,14 +582,13 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                   width: 60,
                   height: 5,
                   borderRadius: 3,
-                  bgcolor: "rgba(255, 255, 255, 0.1)",
+                  bgcolor: "#E2E8F0",
                   "& .MuiLinearProgress-bar": {
-                    bgcolor: isReversing ? "#EF4444" : isSuccess ? "#10B981" : "#FBBF24",
-                    backgroundImage: isSuccess ? "linear-gradient(90deg, #10B981, #4ADE80)" : "none",
+                    bgcolor: isReversing ? "#DC2626" : isSuccess ? "#16A34A" : "var(--brand-primary, #0F3B7D)",
                   },
                 }}
               />
-              <Typography sx={{ fontSize: "10.5px", fontWeight: 900, color: isSuccess ? "#4ADE80" : "#FBBF24" }}>
+              <Typography sx={{ fontSize: "10.5px", fontWeight: 900, color: isSuccess ? "#15803D" : "var(--brand-primary, #0F3B7D)" }}>
                 {progressPercent}%
               </Typography>
             </Stack>
@@ -629,9 +615,9 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
           <Paper
             elevation={0}
             sx={{
-              bgcolor: "rgba(13, 19, 33, 0.85)",
+              bgcolor: "#FFFFFF",
               borderRadius: "16px",
-              border: "1px solid rgba(251, 191, 36, 0.25)",
+              border: "1px solid var(--brand-border, #E2E8F0)",
               p: 2,
               display: "flex",
               flexDirection: "column",
@@ -640,7 +626,7 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
             }}
           >
             <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
-              <Typography sx={{ fontWeight: 900, fontSize: "12.5px", color: "#A20A3A", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+              <Typography sx={{ fontWeight: 900, fontSize: "12.5px", color: "var(--brand-primary, #0F3B7D)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
                 EXECUTION STEPS
               </Typography>
               <Chip
@@ -650,9 +636,9 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                   height: 20,
                   fontSize: "10px",
                   fontWeight: 900,
-                  bgcolor: "rgba(251, 191, 36, 0.15)",
-                  color: "#FDE047",
-                  border: "1px solid rgba(251, 191, 36, 0.3)",
+                  bgcolor: "var(--brand-surface, #EFF6FF)",
+                  color: "var(--brand-primary, #0F3B7D)",
+                  border: "1px solid var(--brand-border, #CBD5E1)",
                 }}
               />
             </Stack>
@@ -664,7 +650,7 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                 overflowY: "auto",
                 pr: 0.5,
                 "&::-webkit-scrollbar": { width: 4 },
-                "&::-webkit-scrollbar-thumb": { bgcolor: "rgba(255, 255, 255, 0.15)", borderRadius: 2 },
+                "&::-webkit-scrollbar-thumb": { bgcolor: "#CBD5E1", borderRadius: 2 },
               }}
             >
               <Stack spacing={1}>
@@ -674,31 +660,31 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                   const isFailed = step.status === "FAILED";
                   const isWarning = step.status === "WARNING";
 
-                  let nodeBg = "rgba(255, 255, 255, 0.02)";
-                  let nodeBorder = "rgba(255, 255, 255, 0.05)";
-                  let iconColor = "rgba(255, 255, 255, 0.25)";
-                  let titleColor = "rgba(255, 255, 255, 0.4)";
+                  let nodeBg = "#F8FAFC";
+                  let nodeBorder = "#E2E8F0";
+                  let iconColor = "#94A3B8";
+                  let titleColor = "#475569";
 
                   if (isCompleted) {
-                    nodeBg = "rgba(34, 197, 94, 0.1)";
-                    nodeBorder = "rgba(34, 197, 94, 0.3)";
-                    iconColor = "#4ADE80";
-                    titleColor = "#4ADE80";
+                    nodeBg = "#F0FDF4";
+                    nodeBorder = "#86EFAC";
+                    iconColor = "#16A34A";
+                    titleColor = "#166534";
                   } else if (isProcessing) {
-                    nodeBg = "rgba(251, 191, 36, 0.2)";
-                    nodeBorder = "#FBBF24";
-                    iconColor = "#FDE047";
-                    titleColor = "#FFFFFF";
+                    nodeBg = "var(--brand-surface, #EFF6FF)";
+                    nodeBorder = "var(--brand-primary, #0F3B7D)";
+                    iconColor = "var(--brand-primary, #0F3B7D)";
+                    titleColor = "var(--brand-primary, #0F3B7D)";
                   } else if (isFailed) {
-                    nodeBg = "rgba(239, 68, 68, 0.2)";
-                    nodeBorder = "#EF4444";
-                    iconColor = "#EF4444";
-                    titleColor = "#EF4444";
+                    nodeBg = "#FEF2F2";
+                    nodeBorder = "#FECACA";
+                    iconColor = "#DC2626";
+                    titleColor = "#991B1B";
                   } else if (isWarning) {
-                    nodeBg = "rgba(245, 158, 11, 0.2)";
-                    nodeBorder = "#F59E0B";
-                    iconColor = "#FBBF24";
-                    titleColor = "#FBBF24";
+                    nodeBg = "#FFFBEB";
+                    nodeBorder = "#FDE68A";
+                    iconColor = "#D97706";
+                    titleColor = "#92400E";
                   }
 
                   return (
@@ -729,7 +715,7 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                             {step.title}
                           </Typography>
                           {step.subTitle && (
-                            <Typography sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "9.5px", mt: 0.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            <Typography sx={{ color: "#64748B", fontSize: "9.5px", mt: 0.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                               {step.subTitle}
                             </Typography>
                           )}
@@ -743,38 +729,37 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
           </Paper>
         )}
 
-        {/* ── PANEL: PRIMARY SUCCESS / EXECUTION CARD (STRONGEST VISUAL SECTION) ── */}
+        {/* ── PANEL: PRIMARY SUCCESS / EXECUTION CARD ── */}
         <Paper
           elevation={0}
           sx={{
-            bgcolor: "rgba(13, 19, 33, 0.9)",
+            bgcolor: "#FFFFFF",
             borderRadius: "20px",
-            border: isSuccess ? "1px solid rgba(251, 191, 36, 0.35)" : "1px solid rgba(255, 255, 255, 0.08)",
+            border: "1px solid var(--brand-border, #E2E8F0)",
             p: { xs: 2.5, sm: 3.5 },
             display: "flex",
             flexDirection: "column",
-            boxShadow: isSuccess ? "0 10px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1)" : "none",
+            boxShadow: "0 10px 30px rgba(15, 23, 42, 0.06)",
           }}
         >
           {viewState === "SUCCESS_RECEIPT" ? (
-            /* ── TERMINAL SUCCESS SCREEN VIEW (LUXURY NEAR4YOU EXPERIENCE) ── */
+            /* ── TERMINAL SUCCESS SCREEN VIEW ── */
             <Box sx={{ textAlign: "center", width: "100%" }}>
-              {/* 16/16 CORE BANKING PIPELINES COMPLETED (COMPLETE VISUAL PROGRESS) */}
+              {/* 16/16 CORE BANKING PIPELINES COMPLETED */}
               <Paper
                 elevation={0}
                 sx={{
                   p: 1.5,
                   mb: 3,
                   borderRadius: "14px",
-                  bgcolor: "rgba(34, 197, 94, 0.08)",
-                  border: "1px solid rgba(74, 222, 128, 0.35)",
-                  boxShadow: "0 0 20px rgba(34, 197, 94, 0.15)",
+                  bgcolor: "#F0FDF4",
+                  border: "1px solid #86EFAC",
                 }}
               >
                 <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1 }}>
                   <Stack direction="row" spacing={0.75} sx={{ alignItems: "center" }}>
-                    <CheckCircleIcon sx={{ color: "#4ADE80", fontSize: 16 }} />
-                    <Typography sx={{ fontSize: "11.5px", fontWeight: 900, color: "#4ADE80", letterSpacing: "0.05em" }}>
+                    <CheckCircleIcon sx={{ color: "#16A34A", fontSize: 16 }} />
+                    <Typography sx={{ fontSize: "11.5px", fontWeight: 900, color: "#166534", letterSpacing: "0.05em" }}>
                       16/16 CORE BANKING PIPELINES COMPLETED
                     </Typography>
                   </Stack>
@@ -785,9 +770,9 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                       height: 20,
                       fontSize: "10px",
                       fontWeight: 900,
-                      bgcolor: "rgba(34, 197, 94, 0.25)",
-                      color: "#4ADE80",
-                      border: "1px solid rgba(74, 222, 128, 0.4)",
+                      bgcolor: "#DCFCE7",
+                      color: "#166534",
+                      border: "1px solid #86EFAC",
                     }}
                   />
                 </Stack>
@@ -796,7 +781,7 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                     width: "100%",
                     height: 8,
                     borderRadius: 4,
-                    bgcolor: "rgba(255, 255, 255, 0.08)",
+                    bgcolor: "#DCFCE7",
                     overflow: "hidden",
                   }}
                 >
@@ -805,30 +790,28 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                       width: "100%",
                       height: "100%",
                       borderRadius: 4,
-                      background: "linear-gradient(90deg, #10B981 0%, #FBBF24 50%, #4ADE80 100%)",
-                      boxShadow: "0 0 16px rgba(74, 222, 128, 0.8)",
+                      background: "linear-gradient(90deg, #16A34A 0%, #22C55E 100%)",
                     }}
                   />
                 </Box>
               </Paper>
 
-              {/* LARGE GLOWING SUCCESS ICON */}
+              {/* LARGE SUCCESS ICON */}
               <Box
                 sx={{
                   width: { xs: 68, sm: 76 },
                   height: { xs: 68, sm: 76 },
                   borderRadius: "50%",
-                  bgcolor: "rgba(34, 197, 94, 0.15)",
-                  border: "2px solid #4ADE80",
+                  bgcolor: "#DCFCE7",
+                  border: "2px solid #16A34A",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   mx: "auto",
                   mb: 2,
-                  boxShadow: "0 0 35px rgba(34, 197, 94, 0.45), inset 0 0 15px rgba(34, 197, 94, 0.25)",
                 }}
               >
-                <CheckCircleIcon sx={{ fontSize: { xs: 46, sm: 52 }, color: "#4ADE80" }} />
+                <CheckCircleIcon sx={{ fontSize: { xs: 46, sm: 52 }, color: "#16A34A" }} />
               </Box>
 
               {/* HEADING & DESCRIPTION */}
@@ -836,26 +819,25 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                 sx={{
                   fontWeight: 900,
                   fontSize: { xs: "22px", sm: "26px" },
-                  color: "#FFFFFF",
+                  color: "#0F172A",
                   letterSpacing: "-0.3px",
                   mb: 0.5,
                 }}
               >
                 Transaction Successful
               </Typography>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.75)", fontSize: { xs: "12.5px", sm: "14px" }, mb: 3 }}>
+              <Typography sx={{ color: "#64748B", fontSize: { xs: "12.5px", sm: "14px" }, mb: 3 }}>
                 Funds transferred successfully to beneficiary bank account.
               </Typography>
 
-              {/* ── TRANSFER AMOUNT CREDITED (PROMINENT GOLD-YELLOW GRADIENT) ── */}
+              {/* ── TRANSFER AMOUNT CREDITED ── */}
               <Paper
                 elevation={0}
                 sx={{
                   p: { xs: 2.25, sm: 3 },
                   borderRadius: "16px",
-                  bgcolor: "rgba(10, 15, 29, 0.9)",
-                  border: "1px solid rgba(251, 191, 36, 0.4)",
-                  boxShadow: "0 10px 30px rgba(41, 35, 41, 0.06), inset 0 0 20px rgba(251, 191, 36, 0.08)",
+                  bgcolor: "var(--brand-surface, #EFF6FF)",
+                  border: "1px solid var(--brand-border, #CBD5E1)",
                   mb: 2.5,
                   position: "relative",
                 }}
@@ -866,7 +848,7 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                     fontWeight: 900,
                     letterSpacing: "0.1em",
                     textTransform: "uppercase",
-                    color: "#A20A3A",
+                    color: "var(--brand-primary, #0F3B7D)",
                     mb: 0.5,
                   }}
                 >
@@ -880,10 +862,7 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                     my: 0.5,
                     fontFamily: "var(--font-geist-sans), sans-serif",
                     letterSpacing: "-0.5px",
-                    background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                    filter: "drop-shadow(0 2px 10px rgba(251, 191, 36, 0.3))",
+                    color: "var(--brand-primary, #0F3B7D)",
                   }}
                 >
                   ₹{amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -899,25 +878,25 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                     px: 1.5,
                     py: 0.6,
                     borderRadius: "8px",
-                    bgcolor: "rgba(255, 255, 255, 0.05)",
-                    border: "1px solid rgba(255, 255, 255, 0.12)",
+                    bgcolor: "#FFFFFF",
+                    border: "1px solid #CBD5E1",
                   }}
                 >
-                  <Typography sx={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.7)", fontWeight: 600 }}>
+                  <Typography sx={{ fontSize: "12px", color: "#475569", fontWeight: 600 }}>
                     Bank UTR:
                   </Typography>
-                  <Typography sx={{ fontSize: "12.5px", color: "#4ADE80", fontWeight: 900, fontFamily: "monospace" }}>
+                  <Typography sx={{ fontSize: "12.5px", color: "#15803D", fontWeight: 900, fontFamily: "monospace" }}>
                     {utr}
                   </Typography>
                   <Tooltip title={copiedUtr ? "Copied!" : "Copy UTR"}>
-                    <IconButton size="small" onClick={handleCopyUtr} sx={{ color: copiedUtr ? "#4ADE80" : "#94A3B8", p: 0.25 }}>
+                    <IconButton size="small" onClick={handleCopyUtr} sx={{ color: copiedUtr ? "#16A34A" : "#64748B", p: 0.25 }}>
                       {copiedUtr ? <DoneIcon sx={{ fontSize: 15 }} /> : <ContentCopyIcon sx={{ fontSize: 15 }} />}
                     </IconButton>
                   </Tooltip>
                 </Box>
               </Paper>
 
-              {/* ── CUSTOMER & BENEFICIARY (2 CLEAN GLASS CARDS) ── */}
+              {/* ── CUSTOMER & BENEFICIARY CARDS ── */}
               <Box
                 sx={{
                   display: "grid",
@@ -932,24 +911,24 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                   sx={{
                     p: 2,
                     borderRadius: "14px",
-                    bgcolor: "rgba(255, 255, 255, 0.03)",
-                    border: "1px solid rgba(251, 191, 36, 0.2)",
+                    bgcolor: "#F8FAFC",
+                    border: "1px solid #E2E8F0",
                     textAlign: "left",
                   }}
                 >
                   <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
-                    <Avatar sx={{ width: 28, height: 28, bgcolor: "rgba(251, 191, 36, 0.15)", color: "#FDE047" }}>
+                    <Avatar sx={{ width: 28, height: 28, bgcolor: "var(--brand-surface, #EFF6FF)", color: "var(--brand-primary, #0F3B7D)" }}>
                       <PersonIcon sx={{ fontSize: 16 }} />
                     </Avatar>
-                    <Typography sx={{ fontSize: "10.5px", color: "#A20A3A", fontWeight: 800, textTransform: "uppercase" }}>
+                    <Typography sx={{ fontSize: "10.5px", color: "var(--brand-primary, #0F3B7D)", fontWeight: 800, textTransform: "uppercase" }}>
                       CUSTOMER
                     </Typography>
                   </Stack>
-                  <Typography sx={{ fontSize: "14px", fontWeight: 900, color: "#FFFFFF" }}>
-                    {customer?.name || "Sathiya Murthy"}
+                  <Typography sx={{ fontSize: "14px", fontWeight: 900, color: "#0F172A" }}>
+                    {customer?.name || "Customer"}
                   </Typography>
-                  <Typography sx={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.7)", mt: 0.25, fontFamily: "monospace" }}>
-                    {customer?.mobile || "9176669426"}
+                  <Typography sx={{ fontSize: "12px", color: "#475569", mt: 0.25, fontFamily: "monospace" }}>
+                    {customer?.mobile || "—"}
                   </Typography>
                 </Paper>
 
@@ -959,34 +938,34 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                   sx={{
                     p: 2,
                     borderRadius: "14px",
-                    bgcolor: "rgba(255, 255, 255, 0.03)",
-                    border: "1px solid rgba(251, 191, 36, 0.2)",
+                    bgcolor: "#F8FAFC",
+                    border: "1px solid #E2E8F0",
                     textAlign: "left",
                   }}
                 >
                   <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
-                    <Avatar sx={{ width: 28, height: 28, bgcolor: "rgba(34, 197, 94, 0.15)", color: "#4ADE80" }}>
+                    <Avatar sx={{ width: 28, height: 28, bgcolor: "#DCFCE7", color: "#16A34A" }}>
                       <AccountBalanceIcon sx={{ fontSize: 16 }} />
                     </Avatar>
-                    <Typography sx={{ fontSize: "10.5px", color: "#4ADE80", fontWeight: 800, textTransform: "uppercase" }}>
+                    <Typography sx={{ fontSize: "10.5px", color: "#166534", fontWeight: 800, textTransform: "uppercase" }}>
                       BENEFICIARY
                     </Typography>
                   </Stack>
-                  <Typography sx={{ fontSize: "14px", fontWeight: 900, color: "#FFFFFF" }}>
-                    {beneficiary?.name || "Sathiya Murthy R"}
+                  <Typography sx={{ fontSize: "14px", fontWeight: 900, color: "#0F172A" }}>
+                    {beneficiary?.name || "Beneficiary"}
                   </Typography>
-                  <Typography sx={{ fontSize: "12px", color: "#93C5FD", fontWeight: 700, mt: 0.25 }}>
-                    {beneficiary?.bankName || "IDBI Bank"}
+                  <Typography sx={{ fontSize: "12px", color: "var(--brand-primary, #0F3B7D)", fontWeight: 700, mt: 0.25 }}>
+                    {beneficiary?.bankName || "Bank"}
                   </Typography>
                   {beneficiary?.accountNumber && (
-                    <Typography sx={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.6)", fontFamily: "monospace" }}>
+                    <Typography sx={{ fontSize: "11px", color: "#475569", fontFamily: "monospace" }}>
                       A/C: {beneficiary.accountNumber}
                     </Typography>
                   )}
                 </Paper>
               </Box>
 
-              {/* ── ACTION BUTTONS (EQUAL HEIGHT, SPACED, LUXURY FINISH) ── */}
+              {/* ── ACTION BUTTONS ── */}
               <Stack
                 direction={{ xs: "column", sm: "row" }}
                 spacing={1.5}
@@ -1004,19 +983,18 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                     onClick={onNewTransfer}
                     sx={{
                       height: 48,
-                      background: "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)",
+                      background: "var(--brand-gradient)",
                       color: "#FFFFFF",
                       fontWeight: 900,
                       borderRadius: "12px",
                       textTransform: "none",
                       fontSize: "14px",
                       flex: { xs: "none", sm: 1 },
-                      boxShadow: "0 4px 18px rgba(245, 158, 11, 0.4)",
+                      boxShadow: "0 4px 14px rgba(15, 23, 42, 0.14)",
                       transition: "all 0.2s ease-in-out",
                       "&:hover": {
-                        background: "linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%)",
+                        filter: "brightness(1.06)",
                         transform: "translateY(-1px)",
-                        boxShadow: "0 6px 22px rgba(245, 158, 11, 0.5)",
                       },
                       "&:active": {
                         transform: "translateY(1px)",
@@ -1035,19 +1013,18 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                     onClick={onShareReceipt}
                     sx={{
                       height: 48,
-                      color: "#93C5FD",
-                      borderColor: "rgba(59, 130, 246, 0.5)",
-                      bgcolor: "rgba(37, 99, 235, 0.15)",
+                      color: "var(--brand-primary, #0F3B7D)",
+                      borderColor: "var(--brand-border, #CBD5E1)",
+                      bgcolor: "var(--brand-surface, #EFF6FF)",
                       fontWeight: 800,
                       borderRadius: "12px",
                       textTransform: "none",
                       fontSize: "14px",
                       flex: { xs: "none", sm: 1 },
-                      backdropFilter: "blur(10px)",
                       "&:hover": {
-                        bgcolor: "rgba(37, 99, 235, 0.28)",
-                        borderColor: "#60A5FA",
-                        color: "#BFDBFE",
+                        bgcolor: "var(--brand-primary, #0F3B7D)",
+                        borderColor: "var(--brand-primary, #0F3B7D)",
+                        color: "#FFFFFF",
                       },
                     }}
                   >
@@ -1063,19 +1040,18 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                     onClick={onDashboard}
                     sx={{
                       height: 48,
-                      color: "#FFFFFF",
-                      borderColor: "rgba(251, 191, 36, 0.3)",
-                      bgcolor: "rgba(255, 255, 255, 0.04)",
+                      color: "#334155",
+                      borderColor: "#CBD5E1",
+                      bgcolor: "#F8FAFC",
                       borderRadius: "12px",
                       fontWeight: 800,
                       textTransform: "none",
                       fontSize: "14px",
                       flex: { xs: "none", sm: 1 },
-                      backdropFilter: "blur(10px)",
                       "&:hover": {
-                        bgcolor: "rgba(251, 191, 36, 0.12)",
-                        bordercolor: "#A20A3A",
-                        color: "#FEF08A",
+                        bgcolor: "#FFFFFF",
+                        borderColor: "var(--brand-primary, #0F3B7D)",
+                        color: "var(--brand-primary, #0F3B7D)",
                       },
                     }}
                   >
@@ -1090,8 +1066,8 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                 sx={{
                   p: 1.5,
                   borderRadius: "14px",
-                  bgcolor: "rgba(255, 255, 255, 0.02)",
-                  border: "1px solid #E8E2E5",
+                  bgcolor: "#F8FAFC",
+                  border: "1px solid #E2E8F0",
                   textAlign: "left",
                   mb: 2,
                 }}
@@ -1106,12 +1082,12 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                   }}
                 >
                   <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                    <CheckCircleIcon sx={{ color: "#4ADE80", fontSize: 16 }} />
-                    <Typography sx={{ fontWeight: 800, fontSize: "12px", color: "#4ADE80", letterSpacing: "0.04em" }}>
+                    <CheckCircleIcon sx={{ color: "#16A34A", fontSize: 16 }} />
+                    <Typography sx={{ fontWeight: 800, fontSize: "12px", color: "#166534", letterSpacing: "0.04em" }}>
                       LIVE PROCESSING STATUS · 8/8 BACKEND SERVICES SETTLED
                     </Typography>
                   </Stack>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, color: "#625B60" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, color: "#64748B" }}>
                     <Typography sx={{ fontSize: "11px", fontWeight: 700 }}>
                       {showLiveStatus ? "Hide" : "Details"}
                     </Typography>
@@ -1129,22 +1105,22 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                           sx={{
                             p: 0.85,
                             borderRadius: "8px",
-                            bgcolor: "rgba(34, 197, 94, 0.06)",
-                            border: "1px solid rgba(34, 197, 94, 0.2)",
+                            bgcolor: "#F0FDF4",
+                            border: "1px solid #BBF7D0",
                           }}
                         >
                           <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                            <CheckCircleIcon sx={{ color: "#4ADE80", fontSize: 14 }} />
+                            <CheckCircleIcon sx={{ color: "#16A34A", fontSize: 14 }} />
                             <Box sx={{ flex: 1, minWidth: 0 }}>
                               <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                                <Typography sx={{ fontWeight: 800, fontSize: "11px", color: "#4ADE80" }}>
+                                <Typography sx={{ fontWeight: 800, fontSize: "11px", color: "#166534" }}>
                                   {svc.name}
                                 </Typography>
-                                <Typography sx={{ fontSize: "9px", color: "rgba(255, 255, 255, 0.5)", fontFamily: "monospace" }}>
+                                <Typography sx={{ fontSize: "9px", color: "#64748B", fontFamily: "monospace" }}>
                                   {svc.time}
                                 </Typography>
                               </Stack>
-                              <Typography sx={{ fontSize: "9.5px", color: "rgba(255, 255, 255, 0.5)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              <Typography sx={{ fontSize: "9.5px", color: "#475569", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                                 {svc.desc}
                               </Typography>
                             </Box>
@@ -1165,28 +1141,28 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                   alignItems: "center",
                   p: 1.25,
                   borderRadius: "10px",
-                  bgcolor: "rgba(0, 0, 0, 0.3)",
-                  border: "1px solid rgba(251, 191, 36, 0.15)",
+                  bgcolor: "#F8FAFC",
+                  border: "1px solid #E2E8F0",
                 }}
               >
                 <Stack direction="row" spacing={0.75} sx={{ alignItems: "center" }}>
-                  <LockIcon sx={{ color: "#A20A3A", fontSize: 14 }} />
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "11px", fontWeight: 600 }}>
+                  <LockIcon sx={{ color: "var(--brand-primary, #0F3B7D)", fontSize: 14 }} />
+                  <Typography sx={{ color: "#475569", fontSize: "11px", fontWeight: 600 }}>
                     Security Lockout Active — Do not refresh or close browser window.
                   </Typography>
                 </Stack>
 
                 <Chip
-                  icon={<CheckCircleIcon sx={{ fontSize: "12px !important", color: "#4ADE80" }} />}
+                  icon={<CheckCircleIcon sx={{ fontSize: "12px !important", color: "#16A34A" }} />}
                   label="Receipt Ready ✓"
                   size="small"
                   sx={{
                     height: 20,
                     fontSize: "10px",
                     fontWeight: 900,
-                    bgcolor: "rgba(34, 197, 94, 0.2)",
-                    color: "#4ADE80",
-                    border: "1px solid rgba(74, 222, 128, 0.4)",
+                    bgcolor: "#DCFCE7",
+                    color: "#166534",
+                    border: "1px solid #86EFAC",
                   }}
                 />
               </Stack>
@@ -1194,30 +1170,30 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
           ) : viewState === "PENDING_RECEIPT" ? (
             /* ── TERMINAL PENDING SCREEN VIEW ── */
             <Box sx={{ textAlign: "center", my: "auto", width: "100%" }}>
-              <Box sx={{ width: 60, height: 60, borderRadius: "50%", bgcolor: "rgba(245, 158, 11, 0.15)", border: "2px solid #F59E0B", display: "flex", alignItems: "center", justifyContent: "center", mx: "auto", mb: 2 }}>
-                <WarningAmberIcon sx={{ fontSize: 40, color: "#A20A3A" }} />
+              <Box sx={{ width: 60, height: 60, borderRadius: "50%", bgcolor: "#FEF3C7", border: "2px solid #D97706", display: "flex", alignItems: "center", justifyContent: "center", mx: "auto", mb: 2 }}>
+                <WarningAmberIcon sx={{ fontSize: 40, color: "#D97706" }} />
               </Box>
 
-              <Typography sx={{ fontWeight: 900, fontSize: { xs: "20px", sm: "24px" }, color: "#A20A3A", mb: 0.5 }}>
+              <Typography sx={{ fontWeight: 900, fontSize: { xs: "20px", sm: "24px" }, color: "#92400E", mb: 0.5 }}>
                 Transaction Submitted Successfully
               </Typography>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.8)", fontSize: "13px", mb: 2.5 }}>
+              <Typography sx={{ color: "#64748B", fontSize: "13px", mb: 2.5 }}>
                 The receiving bank is processing your transfer. Auto background monitoring started.
               </Typography>
 
-              <Paper elevation={0} sx={{ p: 2, borderRadius: "14px", bgcolor: "rgba(245, 158, 11, 0.1)", border: "1px solid rgba(245, 158, 11, 0.3)", mb: 2.5 }}>
-                <Typography sx={{ fontSize: "10.5px", color: "#A20A3A", fontWeight: 800, textTransform: "uppercase" }}>CURRENT STATUS: PENDING</Typography>
-                <Typography sx={{ fontWeight: 900, fontSize: "28px", color: "#FFFFFF", my: 0.25 }}>
+              <Paper elevation={0} sx={{ p: 2, borderRadius: "14px", bgcolor: "#FFFBEB", border: "1px solid #FDE68A", mb: 2.5 }}>
+                <Typography sx={{ fontSize: "10.5px", color: "#92400E", fontWeight: 800, textTransform: "uppercase" }}>CURRENT STATUS: PENDING</Typography>
+                <Typography sx={{ fontWeight: 900, fontSize: "28px", color: "#0F172A", my: 0.25 }}>
                   ₹{amount.toLocaleString()}.00
                 </Typography>
-                <Typography sx={{ fontSize: "11.5px", color: "rgba(255, 255, 255, 0.7)" }}>
-                  Ref: <span style={{ fontFamily: "monospace", fontWeight: 700, color: "#60A5FA" }}>{transactionRef}</span>
+                <Typography sx={{ fontSize: "11.5px", color: "#475569" }}>
+                  Ref: <span style={{ fontFamily: "monospace", fontWeight: 700, color: "var(--brand-primary, #0F3B7D)" }}>{transactionRef}</span>
                 </Typography>
               </Paper>
 
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ justifyContent: "center", width: "100%" }}>
                 {onRetry && (
-                  <Button variant="contained" startIcon={<ReplayIcon />} onClick={onRetry} sx={{ height: 44, bgcolor: "#2563EB", fontWeight: 800, borderRadius: "10px", textTransform: "none" }}>
+                  <Button variant="contained" startIcon={<ReplayIcon />} onClick={onRetry} sx={{ height: 44, background: "var(--brand-gradient)", color: "#FFFFFF", fontWeight: 800, borderRadius: "10px", textTransform: "none" }}>
                     🔄 Try Again
                   </Button>
                 )}
@@ -1227,7 +1203,7 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                   </Button>
                 )}
                 {onDashboard && (
-                  <Button variant="outlined" startIcon={<DashboardIcon />} onClick={onDashboard} sx={{ height: 44, color: "#FFFFFF", borderColor: "rgba(255, 255, 255, 0.3)", borderRadius: "10px", fontWeight: 800, textTransform: "none" }}>
+                  <Button variant="outlined" startIcon={<DashboardIcon />} onClick={onDashboard} sx={{ height: 44, color: "var(--brand-primary, #0F3B7D)", borderColor: "var(--brand-border, #CBD5E1)", borderRadius: "10px", fontWeight: 800, textTransform: "none" }}>
                     🏠 Home / DMT Console
                   </Button>
                 )}
@@ -1236,37 +1212,37 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
           ) : viewState === "FAILURE_RECEIPT" ? (
             /* ── TERMINAL FAILURE SCREEN VIEW ── */
             <Box sx={{ textAlign: "center", my: "auto", width: "100%" }}>
-              <Box sx={{ width: 60, height: 60, borderRadius: "50%", bgcolor: "rgba(239, 68, 68, 0.15)", border: "2px solid #EF4444", display: "flex", alignItems: "center", justifyContent: "center", mx: "auto", mb: 2 }}>
-                <ErrorIcon sx={{ fontSize: 40, color: "#EF4444" }} />
+              <Box sx={{ width: 60, height: 60, borderRadius: "50%", bgcolor: "#FEE2E2", border: "2px solid #DC2626", display: "flex", alignItems: "center", justifyContent: "center", mx: "auto", mb: 2 }}>
+                <ErrorIcon sx={{ fontSize: 40, color: "#DC2626" }} />
               </Box>
 
-              <Typography sx={{ fontWeight: 900, fontSize: { xs: "20px", sm: "24px" }, color: "#EF4444", mb: 0.5 }}>
+              <Typography sx={{ fontWeight: 900, fontSize: { xs: "20px", sm: "24px" }, color: "#991B1B", mb: 0.5 }}>
                 Transaction Could Not Be Completed
               </Typography>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.75)", fontSize: "13px", mb: 2.5 }}>
+              <Typography sx={{ color: "#64748B", fontSize: "13px", mb: 2.5 }}>
                 {sanitizeCustomerErrorMessage(errorMessage)}
               </Typography>
 
-              <Paper elevation={0} sx={{ p: 2, borderRadius: "14px", bgcolor: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)", mb: 2.5 }}>
-                <Typography sx={{ fontSize: "10.5px", color: "#EF4444", fontWeight: 800, textTransform: "uppercase" }}>REVERSAL STATUS: REFUND COMPLETED</Typography>
-                <Typography sx={{ fontSize: "13px", color: "#4ADE80", fontWeight: 700, mt: 0.5 }}>
+              <Paper elevation={0} sx={{ p: 2, borderRadius: "14px", bgcolor: "#FEF2F2", border: "1px solid #FECACA", mb: 2.5 }}>
+                <Typography sx={{ fontSize: "10.5px", color: "#991B1B", fontWeight: 800, textTransform: "uppercase" }}>REVERSAL STATUS: REFUND COMPLETED</Typography>
+                <Typography sx={{ fontSize: "13px", color: "#15803D", fontWeight: 700, mt: 0.5 }}>
                   ✔ Retailer Wallet Restored: ₹{totalAmountPaid.toLocaleString()}
                 </Typography>
               </Paper>
 
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ justifyContent: "center", width: "100%" }}>
                 {onRetry && (
-                  <Button variant="contained" startIcon={<ReplayIcon />} onClick={onRetry} sx={{ height: 44, bgcolor: "#2563EB", fontWeight: 800, borderRadius: "10px", textTransform: "none" }}>
+                  <Button variant="contained" startIcon={<ReplayIcon />} onClick={onRetry} sx={{ height: 44, background: "var(--brand-gradient)", color: "#FFFFFF", fontWeight: 800, borderRadius: "10px", textTransform: "none" }}>
                     🔄 Try Again
                   </Button>
                 )}
                 {onNewTransfer && (
-                  <Button variant="outlined" startIcon={<AddIcon />} onClick={onNewTransfer} sx={{ height: 44, color: "#FFFFFF", borderColor: "rgba(255, 255, 255, 0.3)", borderRadius: "10px", fontWeight: 800, textTransform: "none" }}>
+                  <Button variant="outlined" startIcon={<AddIcon />} onClick={onNewTransfer} sx={{ height: 44, color: "var(--brand-primary, #0F3B7D)", borderColor: "var(--brand-border, #CBD5E1)", borderRadius: "10px", fontWeight: 800, textTransform: "none" }}>
                     + New Transfer
                   </Button>
                 )}
                 {onDashboard && (
-                  <Button variant="outlined" startIcon={<DashboardIcon />} onClick={onDashboard} sx={{ height: 44, color: "#FFFFFF", borderColor: "rgba(255, 255, 255, 0.3)", borderRadius: "10px", fontWeight: 800, textTransform: "none" }}>
+                  <Button variant="outlined" startIcon={<DashboardIcon />} onClick={onDashboard} sx={{ height: 44, color: "#334155", borderColor: "#CBD5E1", borderRadius: "10px", fontWeight: 800, textTransform: "none" }}>
                     🏠 Home / DMT Console
                   </Button>
                 )}
@@ -1280,90 +1256,90 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                 sx={{
                   p: 2,
                   borderRadius: "14px",
-                  bgcolor: "rgba(251, 191, 36, 0.1)",
-                  border: "1px solid rgba(251, 191, 36, 0.3)",
+                  bgcolor: "var(--brand-surface, #EFF6FF)",
+                  border: "1px solid var(--brand-border, #CBD5E1)",
                   textAlign: "center",
                   mb: 2,
                 }}
               >
-                <Typography sx={{ fontSize: "10.5px", color: "#A20A3A", fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                <Typography sx={{ fontSize: "10.5px", color: "var(--brand-primary, #0F3B7D)", fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase" }}>
                   TRANSFER AMOUNT (BENEFICIARY PAYOUT)
                 </Typography>
-                <Typography sx={{ fontWeight: 900, fontSize: { xs: "28px", sm: "34px" }, color: "#FFFFFF", my: 0.25 }}>
+                <Typography sx={{ fontWeight: 900, fontSize: { xs: "28px", sm: "34px" }, color: "#0F172A", my: 0.25 }}>
                   ₹{amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </Typography>
                 <Chip
                   label={`Mode: ${transactionMode}`}
                   size="small"
-                  sx={{ height: 20, fontSize: "10px", fontWeight: 800, bgcolor: "rgba(251, 191, 36, 0.2)", color: "#FDE047" }}
+                  sx={{ height: 20, fontSize: "10px", fontWeight: 800, bgcolor: "#FFFFFF", color: "var(--brand-primary, #0F3B7D)", border: "1px solid var(--brand-border, #CBD5E1)" }}
                 />
               </Paper>
 
               <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.25, mb: 2 }}>
-                <Paper elevation={0} sx={{ p: 1.25, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.03)", border: "1px solid #E8E2E5" }}>
+                <Paper elevation={0} sx={{ p: 1.25, borderRadius: "10px", bgcolor: "#F8FAFC", border: "1px solid #E2E8F0" }}>
                   <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 0.75 }}>
-                    <Avatar sx={{ width: 26, height: 26, bgcolor: "rgba(251, 191, 36, 0.2)", color: "#FDE047" }}>
+                    <Avatar sx={{ width: 26, height: 26, bgcolor: "var(--brand-surface, #EFF6FF)", color: "var(--brand-primary, #0F3B7D)" }}>
                       <PersonIcon sx={{ fontSize: 15 }} />
                     </Avatar>
                     <Box sx={{ minWidth: 0 }}>
-                      <Typography sx={{ fontSize: "9px", color: "#A20A3A", fontWeight: 800, textTransform: "uppercase" }}>CUSTOMER</Typography>
-                      <Typography sx={{ fontSize: "11.5px", fontWeight: 800, color: "#FFFFFF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      <Typography sx={{ fontSize: "9px", color: "var(--brand-primary, #0F3B7D)", fontWeight: 800, textTransform: "uppercase" }}>CUSTOMER</Typography>
+                      <Typography sx={{ fontSize: "11.5px", fontWeight: 800, color: "#0F172A", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {customer?.name || "Customer"}
                       </Typography>
                     </Box>
                   </Stack>
-                  <Typography sx={{ fontSize: "10.5px", color: "rgba(255, 255, 255, 0.65)" }}>
+                  <Typography sx={{ fontSize: "10.5px", color: "#64748B" }}>
                     Mob: {customer?.mobile || ""}
                   </Typography>
                 </Paper>
 
-                <Paper elevation={0} sx={{ p: 1.25, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.03)", border: "1px solid #E8E2E5" }}>
+                <Paper elevation={0} sx={{ p: 1.25, borderRadius: "10px", bgcolor: "#F8FAFC", border: "1px solid #E2E8F0" }}>
                   <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 0.75 }}>
-                    <Avatar sx={{ width: 26, height: 26, bgcolor: "rgba(34, 197, 94, 0.2)", color: "#4ADE80" }}>
+                    <Avatar sx={{ width: 26, height: 26, bgcolor: "#DCFCE7", color: "#16A34A" }}>
                       <AccountBalanceIcon sx={{ fontSize: 15 }} />
                     </Avatar>
                     <Box sx={{ minWidth: 0 }}>
-                      <Typography sx={{ fontSize: "9px", color: "#4ADE80", fontWeight: 800, textTransform: "uppercase" }}>BENEFICIARY</Typography>
-                      <Typography sx={{ fontSize: "11.5px", fontWeight: 800, color: "#FFFFFF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      <Typography sx={{ fontSize: "9px", color: "#166534", fontWeight: 800, textTransform: "uppercase" }}>BENEFICIARY</Typography>
+                      <Typography sx={{ fontSize: "11.5px", fontWeight: 800, color: "#0F172A", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {beneficiary?.name || "Beneficiary"}
                       </Typography>
                     </Box>
                   </Stack>
-                  <Typography sx={{ fontSize: "10.5px", color: "#93C5FD", fontWeight: 700 }}>
-                    {beneficiary?.bankName || "IDBI Bank"}
+                  <Typography sx={{ fontSize: "10.5px", color: "var(--brand-primary, #0F3B7D)", fontWeight: 700 }}>
+                    {beneficiary?.bankName || "Bank"}
                   </Typography>
-                  <Typography sx={{ fontSize: "10px", color: "#FFFFFF", fontFamily: "monospace", fontWeight: 700 }}>
+                  <Typography sx={{ fontSize: "10px", color: "#475569", fontFamily: "monospace", fontWeight: 700 }}>
                     Account: {beneficiary?.accountNumber || beneficiary?.maskedAccountNumber || "—"}
                   </Typography>
                 </Paper>
               </Box>
 
-              <Paper elevation={0} sx={{ p: 1.5, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.02)", border: "1px solid rgba(255, 255, 255, 0.06)", flex: 1 }}>
-                <Typography sx={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.5)", fontWeight: 800, textTransform: "uppercase", mb: 1 }}>
+              <Paper elevation={0} sx={{ p: 1.5, borderRadius: "10px", bgcolor: "#F8FAFC", border: "1px solid #E2E8F0", flex: 1 }}>
+                <Typography sx={{ fontSize: "10px", color: "#64748B", fontWeight: 800, textTransform: "uppercase", mb: 1 }}>
                   FINANCIAL & LIMIT ACCOUNTING
                 </Typography>
 
                 <Stack spacing={0.75}>
                   <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                    <Typography sx={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.6)" }}>Payout Amount</Typography>
-                    <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#FFFFFF" }}>₹{amount.toLocaleString()}.00</Typography>
+                    <Typography sx={{ fontSize: "11px", color: "#475569" }}>Payout Amount</Typography>
+                    <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#0F172A" }}>₹{amount.toLocaleString()}.00</Typography>
                   </Stack>
 
                   <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                    <Typography sx={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.6)" }}>Convenience Fee</Typography>
-                    <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#FFFFFF" }}>₹{charges.toFixed(2)}</Typography>
+                    <Typography sx={{ fontSize: "11px", color: "#475569" }}>Convenience Fee</Typography>
+                    <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#0F172A" }}>₹{charges.toFixed(2)}</Typography>
                   </Stack>
 
                   <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                    <Typography sx={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.6)" }}>GST (18%)</Typography>
-                    <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#FFFFFF" }}>₹{gst.toFixed(2)}</Typography>
+                    <Typography sx={{ fontSize: "11px", color: "#475569" }}>GST (18%)</Typography>
+                    <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#0F172A" }}>₹{gst.toFixed(2)}</Typography>
                   </Stack>
 
-                  <Divider sx={{ borderColor: "#E8E2E5", my: 0.5 }} />
+                  <Divider sx={{ borderColor: "#CBD5E1", my: 0.5 }} />
 
                   <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                    <Typography sx={{ fontSize: "11.5px", color: "#A20A3A", fontWeight: 800 }}>NET WALLET DEBIT</Typography>
-                    <Typography sx={{ fontSize: "12.5px", fontWeight: 900, color: "#FDE047" }}>₹{totalAmountPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Typography>
+                    <Typography sx={{ fontSize: "11.5px", color: "var(--brand-primary, #0F3B7D)", fontWeight: 800 }}>NET WALLET DEBIT</Typography>
+                    <Typography sx={{ fontSize: "12.5px", fontWeight: 900, color: "var(--brand-primary, #0F3B7D)" }}>₹{totalAmountPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Typography>
                   </Stack>
                 </Stack>
               </Paper>
@@ -1376,9 +1352,9 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
           <Paper
             elevation={0}
             sx={{
-              bgcolor: "rgba(13, 19, 33, 0.85)",
+              bgcolor: "#FFFFFF",
               borderRadius: "16px",
-              border: "1px solid rgba(251, 191, 36, 0.25)",
+              border: "1px solid var(--brand-border, #E2E8F0)",
               p: 2,
               display: "flex",
               flexDirection: "column",
@@ -1386,7 +1362,7 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
               overflow: "hidden",
             }}
           >
-            <Typography sx={{ fontWeight: 900, fontSize: "12.5px", color: "#A20A3A", letterSpacing: "0.08em", textTransform: "uppercase", mb: 1.25 }}>
+            <Typography sx={{ fontWeight: 900, fontSize: "12.5px", color: "var(--brand-primary, #0F3B7D)", letterSpacing: "0.08em", textTransform: "uppercase", mb: 1.25 }}>
               LIVE PROCESSING STATUS
             </Typography>
 
@@ -1396,7 +1372,7 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                 overflowY: "auto",
                 pr: 0.5,
                 "&::-webkit-scrollbar": { width: 4 },
-                "&::-webkit-scrollbar-thumb": { bgcolor: "rgba(255, 255, 255, 0.15)", borderRadius: 2 },
+                "&::-webkit-scrollbar-thumb": { bgcolor: "#CBD5E1", borderRadius: 2 },
               }}
             >
               <Stack spacing={1}>
@@ -1410,28 +1386,28 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                       sx={{
                         p: 1,
                         borderRadius: "8px",
-                        bgcolor: isDone ? "rgba(34, 197, 94, 0.08)" : isProc ? "rgba(251, 191, 36, 0.2)" : "rgba(255, 255, 255, 0.02)",
-                        border: isDone ? "1px solid rgba(34, 197, 94, 0.25)" : isProc ? "1px solid #FBBF24" : "1px solid rgba(255, 255, 255, 0.05)",
+                        bgcolor: isDone ? "#F0FDF4" : isProc ? "var(--brand-surface, #EFF6FF)" : "#F8FAFC",
+                        border: isDone ? "1px solid #86EFAC" : isProc ? "1px solid var(--brand-primary, #0F3B7D)" : "1px solid #E2E8F0",
                       }}
                     >
                       <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                         {isDone ? (
-                          <CheckCircleIcon sx={{ color: "#4ADE80", fontSize: 15 }} />
+                          <CheckCircleIcon sx={{ color: "#16A34A", fontSize: 15 }} />
                         ) : isProc ? (
-                          <SyncIcon sx={{ color: "#FDE047", fontSize: 15, animation: "spin 0.8s linear infinite" }} />
+                          <SyncIcon sx={{ color: "var(--brand-primary, #0F3B7D)", fontSize: 15, animation: "spin 0.8s linear infinite" }} />
                         ) : (
-                          <RadioButtonUncheckedIcon sx={{ color: "rgba(255, 255, 255, 0.2)", fontSize: 13 }} />
+                          <RadioButtonUncheckedIcon sx={{ color: "#94A3B8", fontSize: 13 }} />
                         )}
                         <Box sx={{ flex: 1, minWidth: 0 }}>
                           <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                            <Typography sx={{ fontWeight: 800, fontSize: "11px", color: isDone ? "#4ADE80" : isProc ? "#FFFFFF" : "rgba(255, 255, 255, 0.4)" }}>
+                            <Typography sx={{ fontWeight: 800, fontSize: "11px", color: isDone ? "#166534" : isProc ? "var(--brand-primary, #0F3B7D)" : "#475569" }}>
                               {svc.name}
                             </Typography>
-                            <Typography sx={{ fontSize: "9px", color: "rgba(255, 255, 255, 0.5)", fontFamily: "monospace" }}>
+                            <Typography sx={{ fontSize: "9px", color: "#64748B", fontFamily: "monospace" }}>
                               {svc.time}
                             </Typography>
                           </Stack>
-                          <Typography sx={{ fontSize: "9.5px", color: "rgba(255, 255, 255, 0.5)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          <Typography sx={{ fontSize: "9.5px", color: "#64748B", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                             {svc.desc}
                           </Typography>
                         </Box>

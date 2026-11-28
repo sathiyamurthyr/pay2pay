@@ -243,13 +243,25 @@ class GstReportingService:
         companies = []
         retailers = []
 
-        # If admin, fetch active companies and retailers
+        # If admin, fetch active companies and retailers strictly scoped to the domain company
         if auth_ctx.get("is_admin"):
-            c_res = await db.execute(text("""
-                SELECT company_ref_id, company_code, company_name, COALESCE(legal_name, company_name)
-                FROM public.company
-                ORDER BY company_ref_id ASC;
-            """))
+            domain_cmp = auth_ctx.get("domain_cmp_ref_id") or auth_ctx.get("company_ref_id")
+            is_super = auth_ctx.get("is_super_admin") is True
+
+            if is_super and not domain_cmp:
+                c_res = await db.execute(text("""
+                    SELECT company_ref_id, company_code, company_name, COALESCE(legal_name, company_name)
+                    FROM public.company
+                    ORDER BY company_ref_id ASC;
+                """))
+            else:
+                c_res = await db.execute(text("""
+                    SELECT company_ref_id, company_code, company_name, COALESCE(legal_name, company_name)
+                    FROM public.company
+                    WHERE company_ref_id = :comp_id
+                    ORDER BY company_ref_id ASC;
+                """), {"comp_id": domain_cmp})
+
             for r in c_res.fetchall():
                 companies.append({
                     "id": r[0],
@@ -257,13 +269,23 @@ class GstReportingService:
                     "name": r[3] or r[2]
                 })
 
-            r_res = await db.execute(text("""
-                SELECT r.retailer_ref_id, r.retailer_code, COALESCE(r.store_name, r.owner_name, r.retailer_code), r.company_ref_id
-                FROM public.retailer r
-                WHERE r.is_active = TRUE
-                ORDER BY r.retailer_ref_id ASC
-                LIMIT 200;
-            """))
+            if is_super and not domain_cmp:
+                r_res = await db.execute(text("""
+                    SELECT r.retailer_ref_id, r.retailer_code, COALESCE(r.store_name, r.owner_name, r.retailer_code), r.company_ref_id
+                    FROM public.retailer r
+                    WHERE r.is_active = TRUE
+                    ORDER BY r.retailer_ref_id ASC
+                    LIMIT 200;
+                """))
+            else:
+                r_res = await db.execute(text("""
+                    SELECT r.retailer_ref_id, r.retailer_code, COALESCE(r.store_name, r.owner_name, r.retailer_code), r.company_ref_id
+                    FROM public.retailer r
+                    WHERE r.is_active = TRUE AND r.company_ref_id = :comp_id
+                    ORDER BY r.retailer_ref_id ASC
+                    LIMIT 200;
+                """), {"comp_id": domain_cmp})
+
             for r in r_res.fetchall():
                 retailers.append({
                     "id": r[0],
@@ -322,11 +344,21 @@ class GstReportingService:
         status_filter = str(filters.get("status") or "ALL").upper().strip()
 
         # Strict security enforcement:
+        domain_cmp = auth_ctx.get("domain_cmp_ref_id") or auth_ctx.get("company_ref_id")
+        is_super = auth_ctx.get("is_super_admin") is True
         if not auth_ctx.get("is_admin"):
-            # Retailer is strictly locked to their own retailer_ref_id
+            # Retailer is strictly locked to their own retailer_ref_id and company_ref_id
             retailer_id = auth_ctx.get("retailer_ref_id")
-            if auth_ctx.get("company_ref_id"):
-                company_id = auth_ctx.get("company_ref_id")
+            if domain_cmp:
+                company_id = domain_cmp
+        elif not is_super:
+            # Company Admin is strictly locked to their active domain company even if filter sends ALL or another ID
+            if domain_cmp:
+                company_id = domain_cmp
+        elif not company_id or str(company_id) == "ALL":
+            # Super Admin on a specific company portal domain stays scoped to that domain unless explicitly querying across companies
+            if domain_cmp and auth_ctx.get("domain_ctx") and "superadmin" not in (auth_ctx["domain_ctx"].domain or "").lower():
+                company_id = domain_cmp
 
         params: Dict[str, Any] = {
             "start_dt": start_dt,
@@ -358,7 +390,7 @@ class GstReportingService:
                     COALESCE(r.retailer_code, 'SMSP-R' || pt.retailer_ref_id::text) AS retailer_code,
                     COALESCE(r.store_name, r.owner_name, 'Retailer ' || pt.retailer_ref_id::text) AS retailer_name,
                     pt.company_ref_id,
-                    COALESCE(c.company_name, 'Sathus Technologies Private Limited') AS company_name,
+                    COALESCE(c.legal_name, c.company_name, 'Company #' || pt.company_ref_id::text) AS company_name,
                     'PayIn' AS service_name,
                     '997159' AS sac_code,
                     pt.created_at AS txn_date,
@@ -409,7 +441,7 @@ class GstReportingService:
                     COALESCE(r.retailer_code, ept.retailer_id::text) AS retailer_code,
                     COALESCE(r.store_name, r.owner_name, 'Retailer ' || COALESCE(r.retailer_code, '')) AS retailer_name,
                     c.company_ref_id,
-                    COALESCE(c.company_name, 'Sathus Technologies Private Limited') AS company_name,
+                    COALESCE(c.legal_name, c.company_name, 'Company') AS company_name,
                     'PayOut' AS service_name,
                     '997159' AS sac_code,
                     ept.created_date AS txn_date,
@@ -460,7 +492,7 @@ class GstReportingService:
                     COALESCE(r.retailer_code, dmt.retailer_id::text) AS retailer_code,
                     COALESCE(r.store_name, r.owner_name, 'Retailer') AS retailer_name,
                     c.company_ref_id,
-                    COALESCE(c.company_name, 'Sathus Technologies Private Limited') AS company_name,
+                    COALESCE(c.legal_name, c.company_name, 'Company') AS company_name,
                     'DMT' AS service_name,
                     '997159' AS sac_code,
                     dmt.created_date AS txn_date,
@@ -511,7 +543,7 @@ class GstReportingService:
                     COALESCE(r.retailer_code, aeps.retailer_id::text) AS retailer_code,
                     COALESCE(r.store_name, r.owner_name, 'Retailer') AS retailer_name,
                     c.company_ref_id,
-                    COALESCE(c.company_name, 'Sathus Technologies Private Limited') AS company_name,
+                    COALESCE(c.legal_name, c.company_name, 'Company') AS company_name,
                     'AEPS' AS service_name,
                     '997159' AS sac_code,
                     aeps.created_date AS txn_date,
@@ -572,7 +604,7 @@ class GstReportingService:
                     COALESCE(r.retailer_code, t.retailer_name, 'Retailer ' || t.retailer_ref_id::text) AS retailer_code,
                     COALESCE(t.retailer_name, r.store_name, r.owner_name, 'Retailer') AS retailer_name,
                     t.company_ref_id,
-                    COALESCE(c.company_name, 'Sathus Technologies Private Limited') AS company_name,
+                    COALESCE(c.legal_name, c.company_name, 'Company') AS company_name,
                     CASE 
                         WHEN t.service_name = 'PAYIN_TOPUP' THEN 'Wallet Top-Up'
                         WHEN t.service_name = 'BBPS' THEN 'BBPS'
@@ -640,8 +672,8 @@ class GstReportingService:
                 "retailer_id": int(row.get("retailer_ref_id") or 0),
                 "retailer_code": str(row.get("retailer_code") or "N/A"),
                 "retailer_name": str(row.get("retailer_name") or "Retailer"),
-                "company_id": int(row.get("company_ref_id") or 1),
-                "company_name": str(row.get("company_name") or DEFAULT_COMPANY_LEGAL_NAME),
+                "company_id": int(row.get("company_ref_id") or 0),
+                "company_name": str(row.get("company_name") or ""),
                 "service_name": str(row.get("service_name")),
                 "sac_code": str(row.get("sac_code") or "997159"),
                 "transaction_date": dt_str,
@@ -771,12 +803,33 @@ class GstReportingService:
             diff = round_cur(total_gst - calc_sum)
             total_sgst = round_cur(total_sgst + diff)
 
+        # Look up authoritative company metadata from public.company (never fallback to another company)
+        effective_lookup_comp = company_id if (company_id and str(company_id) != "ALL") else (auth_ctx.get("domain_cmp_ref_id") or auth_ctx.get("company_ref_id"))
+        comp_name = "All Registered Companies"
+        comp_gstin = "N/A"
+        comp_state = DEFAULT_COMPANY_STATE
+        if effective_lookup_comp:
+            try:
+                comp_q = await db.execute(text("""
+                    SELECT COALESCE(legal_name, company_name), gst_number
+                    FROM public.company
+                    WHERE company_ref_id = :comp_ref OR public_id::text = :comp_id
+                    LIMIT 1;
+                """), {"comp_ref": int(effective_lookup_comp) if str(effective_lookup_comp).isdigit() else 0, "comp_id": str(effective_lookup_comp)})
+                c_row = comp_q.fetchone()
+                if c_row and c_row[0]:
+                    comp_name = c_row[0]
+                    if c_row[1]:
+                        comp_gstin = c_row[1]
+            except Exception:
+                pass
+
         summary = {
             "financial_year": fy_label,
             "period": month_label,
-            "company_name": DEFAULT_COMPANY_LEGAL_NAME,
-            "company_gstin": DEFAULT_COMPANY_GSTIN,
-            "company_state": DEFAULT_COMPANY_STATE,
+            "company_name": comp_name,
+            "company_gstin": comp_gstin,
+            "company_state": comp_state,
             "total_transactions": total_txns_count,
             "total_taxable_value": total_taxable_value,
             "total_cgst": total_cgst,
@@ -817,7 +870,8 @@ class GstReportingService:
 
         # Header Comments / Metadata
         summary = report_data.get("summary", {})
-        writer.writerow(["# SATHUS TECHNOLOGIES PRIVATE LIMITED - GST REPORT"])
+        company_title = str(summary.get("company_name") or "ENTERPRISE").upper()
+        writer.writerow([f"# {company_title} - GST REPORT"])
         writer.writerow(["# Financial Year:", summary.get("financial_year"), "Period:", summary.get("period")])
         writer.writerow(["# GSTIN:", summary.get("company_gstin"), "Generated At:", report_data.get("metadata", {}).get("generated_at")])
         writer.writerow([])
@@ -928,9 +982,12 @@ class GstReportingService:
         ws_sum = wb.create_sheet(title="GST Summary")
         ws_sum.views.sheetView[0].showGridLines = True
 
-        ws_sum["A1"] = DEFAULT_COMPANY_LEGAL_NAME.upper()
+        excel_company_name = str(summary.get("company_name") or "ENTERPRISE").upper()
+        excel_gstin = summary.get("company_gstin") or "N/A"
+        excel_state = summary.get("company_state") or DEFAULT_COMPANY_STATE
+        ws_sum["A1"] = excel_company_name
         ws_sum["A1"].font = title_font
-        ws_sum["A2"] = f"GSTIN: {DEFAULT_COMPANY_GSTIN}  |  State: {DEFAULT_COMPANY_STATE} (Code 33)"
+        ws_sum["A2"] = f"GSTIN: {excel_gstin}  |  State: {excel_state}"
         ws_sum["A2"].font = subtitle_font
         ws_sum["A3"] = f"Period: {summary.get('period')}  |  Financial Year: {summary.get('financial_year')}"
         ws_sum["A3"].font = subtitle_font
@@ -1239,15 +1296,18 @@ class GstReportingService:
         meta = report_data.get("metadata", {})
 
         # Header Table: Company Branding on Left, Document Title on Right
+        pdf_company_name = str(summary.get("company_name") or "ENTERPRISE")
+        pdf_gstin = summary.get("company_gstin") or "N/A"
+        pdf_state = summary.get("company_state") or DEFAULT_COMPANY_STATE
         header_table_data = [
             [
-                Paragraph(f"<b>{DEFAULT_COMPANY_LEGAL_NAME.upper()}</b>", title_style),
+                Paragraph(f"<b>{pdf_company_name.upper()}</b>", title_style),
                 Paragraph("<b>TAX INVOICE & SERVICE-WISE GST STATEMENT</b>", title_style)
             ],
             [
                 Paragraph(
-                    f"GSTIN: <b>{DEFAULT_COMPANY_GSTIN}</b> | State: {DEFAULT_COMPANY_STATE} (Code 33)<br/>"
-                    f"Registered Office: Chennai, Tamil Nadu, India",
+                    f"GSTIN: <b>{pdf_gstin}</b> | State: {pdf_state}<br/>"
+                    f"Registered Office: India",
                     subtitle_style
                 ),
                 Paragraph(
@@ -1389,7 +1449,7 @@ class GstReportingService:
             "2. GST on payment processing and fintech service charges is levied at standard rate of 18% under SAC 997159.<br/>"
             "3. Intra-State supplies within Tamil Nadu are charged to CGST (9%) and SGST (9%). Inter-State supplies are charged to IGST (18%).<br/>"
             "4. Failed and reversed transactions are strictly excluded from taxable turnover.<br/>"
-            "5. This is a computer-generated tax statement authenticated by Sathus Technologies Private Limited system logs."
+            f"5. This is a computer-generated tax statement authenticated by {pdf_company_name} system logs."
         )
         elements.append(Paragraph(declaration_text, subtitle_style))
         elements.append(Spacer(1, 10))

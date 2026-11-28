@@ -13,8 +13,15 @@ from app.core.database import get_db
 from app.infrastructure.db.enterprise_payout_models import (
     EnterprisePayoutTransactionModel, PayoutTransactionStatus
 )
-from app.infrastructure.db.models import TransactionLedgerModel
+from app.infrastructure.db.models import (
+    TransactionLedgerModel,
+    CompanyModel,
+    RetailerModel,
+    DistributorModel,
+    SuperDistributorModel,
+)
 from app.application.dependencies import CompanyContext, get_company_context
+from app.core.domain_resolver import get_domain_context, DomainCompanyContext, extract_host
 
 router = APIRouter(prefix="/admin/reports", tags=["Admin Enterprise Reports"])
 
@@ -984,6 +991,8 @@ async def get_transaction_ledger_summary(
     company_id: Optional[uuid.UUID] = Query(None),
     from_date: Optional[str] = Query(None),
     to_date: Optional[str] = Query(None),
+    ctx: CompanyContext = Depends(get_company_context),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     start_dt, end_dt = parse_date_range(from_date, to_date)
@@ -991,7 +1000,9 @@ async def get_transaction_ledger_summary(
         TransactionLedgerModel.created_date >= start_dt,
         TransactionLedgerModel.created_date <= end_dt
     ]
-    if tenant_id:
+    if not ctx.is_super_admin and domain_ctx.company_id:
+        filters.append(TransactionLedgerModel.company_id == uuid.UUID(domain_ctx.company_id))
+    elif tenant_id:
         filters.append(TransactionLedgerModel.tenant_id == tenant_id)
 
     stmt = select(
@@ -1031,6 +1042,8 @@ async def list_transaction_ledger_report(
     to_date: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=200),
+    ctx: CompanyContext = Depends(get_company_context),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     start_dt, end_dt = parse_date_range(from_date, to_date)
@@ -1039,7 +1052,9 @@ async def list_transaction_ledger_report(
         TransactionLedgerModel.created_date <= end_dt
     ]
 
-    if tenant_id:
+    if not ctx.is_super_admin and domain_ctx.company_id:
+        filters.append(TransactionLedgerModel.company_id == uuid.UUID(domain_ctx.company_id))
+    elif tenant_id:
         filters.append(TransactionLedgerModel.tenant_id == tenant_id)
     if transaction_id:
         filters.append(TransactionLedgerModel.transaction_number.ilike(f"%{transaction_id}%"))
@@ -1065,9 +1080,17 @@ async def list_transaction_ledger_report(
 
     rows = (await db.execute(stmt)).scalars().all()
 
+    comp_ids = {r.company_id for r in rows if getattr(r, "company_id", None)}
+    comp_map: Dict[uuid.UUID, str] = {}
+    if comp_ids:
+        comps = (await db.execute(select(CompanyModel).where(CompanyModel.public_id.in_(comp_ids)))).scalars().all()
+        comp_map = {c.public_id: (c.display_name or c.company_name or c.legal_name) for c in comps}
+    default_comp_label = domain_ctx.display_name or domain_ctx.company_name or "—"
+
     items = []
     for r in rows:
         c_dt = get_created_dt(r)
+        comp_label = comp_map.get(r.company_id, default_comp_label) if getattr(r, "company_id", None) else default_comp_label
         items.append({
             "id": str(r.public_id),
             "ledger_id": r.ledger_number,
@@ -1075,18 +1098,18 @@ async def list_transaction_ledger_report(
             "date": c_dt.strftime("%Y-%m-%d") if c_dt else None,
             "time": c_dt.strftime("%H:%M:%S") if c_dt else None,
             "tenant_id": str(r.tenant_id),
-            "company_id": "Default Company",
-            "sd_name": "Super Distributor Alpha",
-            "distributor_name": "Distributor Metro",
-            "retailer_name": "Sathiya Traders",
-            "service": "DMT Settlement",
+            "company_id": comp_label,
+            "sd_name": "—",
+            "distributor_name": "—",
+            "retailer_name": "—",
+            "service": r.ledger_type or "LEDGER",
             "ledger_type": r.ledger_type,
             "debit": float(r.debit),
             "credit": float(r.credit),
             "balance": float(r.balance),
-            "commission": 15.0,
-            "charges": 5.0,
-            "gst": 0.90,
+            "commission": 0.0,
+            "charges": 0.0,
+            "gst": 0.0,
             "reference": r.reference_number,
             "status": r.ledger_status,
             "created_at": safe_iso(c_dt),
@@ -1111,6 +1134,8 @@ async def export_transaction_ledger_csv(
     tenant_id: Optional[uuid.UUID] = Query(None),
     from_date: Optional[str] = Query(None),
     to_date: Optional[str] = Query(None),
+    ctx: CompanyContext = Depends(get_company_context),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     start_dt, end_dt = parse_date_range(from_date, to_date)
@@ -1118,11 +1143,20 @@ async def export_transaction_ledger_csv(
         TransactionLedgerModel.created_date >= start_dt,
         TransactionLedgerModel.created_date <= end_dt
     ]
-    if tenant_id:
+    if not ctx.is_super_admin and domain_ctx.company_id:
+        filters.append(TransactionLedgerModel.company_id == uuid.UUID(domain_ctx.company_id))
+    elif tenant_id:
         filters.append(TransactionLedgerModel.tenant_id == tenant_id)
 
     stmt = select(TransactionLedgerModel).where(and_(*filters)).order_by(desc(TransactionLedgerModel.created_date)).limit(5000)
     rows = (await db.execute(stmt)).scalars().all()
+
+    comp_ids = {r.company_id for r in rows if getattr(r, "company_id", None)}
+    comp_map: Dict[uuid.UUID, str] = {}
+    if comp_ids:
+        comps = (await db.execute(select(CompanyModel).where(CompanyModel.public_id.in_(comp_ids)))).scalars().all()
+        comp_map = {c.public_id: (c.display_name or c.company_name or c.legal_name) for c in comps}
+    default_comp_label = domain_ctx.display_name or domain_ctx.company_name or "—"
 
     output = io.StringIO()
     writer = csv.writer(output)
@@ -1133,12 +1167,13 @@ async def export_transaction_ledger_csv(
 
     for r in rows:
         c_dt = get_created_dt(r)
+        comp_label = comp_map.get(r.company_id, default_comp_label) if getattr(r, "company_id", None) else default_comp_label
         writer.writerow([
             r.ledger_number, r.transaction_number,
             c_dt.strftime("%Y-%m-%d") if c_dt else "",
             c_dt.strftime("%H:%M:%S") if c_dt else "",
-            str(r.tenant_id), "Default Company", "Super Distributor Alpha", "Distributor Metro",
-            "Sathiya Traders", "DMT Settlement", r.ledger_type, r.debit, r.credit, r.balance,
+            str(r.tenant_id), comp_label, "—", "—",
+            "—", r.ledger_type or "LEDGER", r.ledger_type, r.debit, r.credit, r.balance,
             r.reference_number, r.ledger_status
         ])
 
@@ -1156,6 +1191,8 @@ async def get_tax_report_summary(
     financial_year: Optional[str] = Query(None),
     tenant_id: Optional[uuid.UUID] = Query(None),
     company_id: Optional[uuid.UUID] = Query(None),
+    ctx: CompanyContext = Depends(get_company_context),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     start_dt, end_dt, fy_label = parse_financial_year(financial_year)
@@ -1164,10 +1201,13 @@ async def get_tax_report_summary(
         EnterprisePayoutTransactionModel.initiated_at >= start_dt,
         EnterprisePayoutTransactionModel.initiated_at <= end_dt
     ]
-    if tenant_id:
-        filters.append(EnterprisePayoutTransactionModel.tenant_id == tenant_id)
-    if company_id:
-        filters.append(EnterprisePayoutTransactionModel.company_id == company_id)
+    if not ctx.is_super_admin and domain_ctx.company_id:
+        filters.append(EnterprisePayoutTransactionModel.company_id == uuid.UUID(domain_ctx.company_id))
+    else:
+        if tenant_id:
+            filters.append(EnterprisePayoutTransactionModel.tenant_id == tenant_id)
+        if company_id:
+            filters.append(EnterprisePayoutTransactionModel.company_id == company_id)
 
     stmt = select(
         func.count(EnterprisePayoutTransactionModel.id).label("total_txns"),
@@ -1208,6 +1248,8 @@ async def list_tax_report(
     gst_number: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=200),
+    ctx: CompanyContext = Depends(get_company_context),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     start_dt, end_dt, fy_label = parse_financial_year(financial_year)
@@ -1216,10 +1258,13 @@ async def list_tax_report(
         EnterprisePayoutTransactionModel.initiated_at <= end_dt
     ]
 
-    if tenant_id:
-        filters.append(EnterprisePayoutTransactionModel.tenant_id == tenant_id)
-    if company_id:
-        filters.append(EnterprisePayoutTransactionModel.company_id == company_id)
+    if not ctx.is_super_admin and domain_ctx.company_id:
+        filters.append(EnterprisePayoutTransactionModel.company_id == uuid.UUID(domain_ctx.company_id))
+    else:
+        if tenant_id:
+            filters.append(EnterprisePayoutTransactionModel.tenant_id == tenant_id)
+        if company_id:
+            filters.append(EnterprisePayoutTransactionModel.company_id == company_id)
 
     count_stmt = select(func.count(EnterprisePayoutTransactionModel.id)).where(and_(*filters))
     total_records = (await db.execute(count_stmt)).scalar() or 0
@@ -1235,6 +1280,18 @@ async def list_tax_report(
 
     rows = (await db.execute(stmt)).scalars().all()
 
+    comp_ids = {r.company_id for r in rows if getattr(r, "company_id", None)}
+    ret_ids = {r.retailer_id for r in rows if getattr(r, "retailer_id", None)}
+    comp_map: Dict[uuid.UUID, CompanyModel] = {}
+    ret_map: Dict[uuid.UUID, RetailerModel] = {}
+    if comp_ids:
+        comps = (await db.execute(select(CompanyModel).where(CompanyModel.public_id.in_(comp_ids)))).scalars().all()
+        comp_map = {c.public_id: c for c in comps}
+    if ret_ids:
+        rets = (await db.execute(select(RetailerModel).where(RetailerModel.public_id.in_(ret_ids)))).scalars().all()
+        ret_map = {ret.public_id: ret for ret in rets}
+    default_comp_label = domain_ctx.display_name or domain_ctx.company_name or "—"
+
     items = []
     for r in rows:
         gst_amt = float(r.gst_amount)
@@ -1242,17 +1299,21 @@ async def list_tax_report(
         sgst = round(gst_amt / 2.0, 2)
         st_val = r.status.value if hasattr(r.status, "value") else str(r.status)
         init_dt = get_created_dt(r)
+        c_obj = comp_map.get(r.company_id) if getattr(r, "company_id", None) else None
+        ret_obj = ret_map.get(r.retailer_id) if getattr(r, "retailer_id", None) else None
+        comp_label = (c_obj.display_name or c_obj.company_name or c_obj.legal_name) if c_obj else default_comp_label
+        ret_label = (ret_obj.store_name or ret_obj.legal_name or ret_obj.owner_name) if ret_obj else str(r.retailer_id)
 
         items.append({
             "id": str(r.public_id),
             "transaction_id": r.transaction_number,
             "transaction_date": init_dt.strftime("%Y-%m-%d") if init_dt else None,
             "tenant_id": str(r.tenant_id),
-            "company_id": str(r.company_id or "Default Company"),
+            "company_id": comp_label,
             "entity_type": "RETAILER",
-            "entity_name": "Sathiya Traders",
-            "gst_number": "33ABCDE1234F1Z5",
-            "service": "DMT Payout",
+            "entity_name": ret_label,
+            "gst_number": (c_obj.gst_number if c_obj else None) or "—",
+            "service": f"Payout ({r.mode or 'IMPS'})",
             "taxable_amount": float(r.amount),
             "cgst": cgst,
             "sgst": sgst,
@@ -1283,6 +1344,8 @@ async def export_tax_report_csv(
     financial_year: Optional[str] = Query(None),
     tenant_id: Optional[uuid.UUID] = Query(None),
     company_id: Optional[uuid.UUID] = Query(None),
+    ctx: CompanyContext = Depends(get_company_context),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     start_dt, end_dt, fy_label = parse_financial_year(financial_year)
@@ -1290,11 +1353,28 @@ async def export_tax_report_csv(
         EnterprisePayoutTransactionModel.initiated_at >= start_dt,
         EnterprisePayoutTransactionModel.initiated_at <= end_dt
     ]
-    if tenant_id:
-        filters.append(EnterprisePayoutTransactionModel.tenant_id == tenant_id)
+    if not ctx.is_super_admin and domain_ctx.company_id:
+        filters.append(EnterprisePayoutTransactionModel.company_id == uuid.UUID(domain_ctx.company_id))
+    else:
+        if tenant_id:
+            filters.append(EnterprisePayoutTransactionModel.tenant_id == tenant_id)
+        if company_id:
+            filters.append(EnterprisePayoutTransactionModel.company_id == company_id)
 
     stmt = select(EnterprisePayoutTransactionModel).where(and_(*filters)).order_by(desc(EnterprisePayoutTransactionModel.initiated_at)).limit(5000)
     rows = (await db.execute(stmt)).scalars().all()
+
+    comp_ids = {r.company_id for r in rows if getattr(r, "company_id", None)}
+    ret_ids = {r.retailer_id for r in rows if getattr(r, "retailer_id", None)}
+    comp_map: Dict[uuid.UUID, CompanyModel] = {}
+    ret_map: Dict[uuid.UUID, RetailerModel] = {}
+    if comp_ids:
+        comps = (await db.execute(select(CompanyModel).where(CompanyModel.public_id.in_(comp_ids)))).scalars().all()
+        comp_map = {c.public_id: c for c in comps}
+    if ret_ids:
+        rets = (await db.execute(select(RetailerModel).where(RetailerModel.public_id.in_(ret_ids)))).scalars().all()
+        ret_map = {ret.public_id: ret for ret in rets}
+    default_comp_label = domain_ctx.display_name or domain_ctx.company_name or "—"
 
     output = io.StringIO()
     writer = csv.writer(output)
@@ -1307,10 +1387,15 @@ async def export_tax_report_csv(
         gst_amt = float(r.gst_amount)
         st_val = r.status.value if hasattr(r.status, "value") else str(r.status)
         init_dt = get_created_dt(r)
+        c_obj = comp_map.get(r.company_id) if getattr(r, "company_id", None) else None
+        ret_obj = ret_map.get(r.retailer_id) if getattr(r, "retailer_id", None) else None
+        comp_label = (c_obj.display_name or c_obj.company_name or c_obj.legal_name) if c_obj else default_comp_label
+        ret_label = (ret_obj.store_name or ret_obj.legal_name or ret_obj.owner_name) if ret_obj else str(r.retailer_id)
         writer.writerow([
             r.transaction_number, init_dt.strftime("%Y-%m-%d") if init_dt else "",
-            str(r.tenant_id), "Default Company", "RETAILER", "Sathiya Traders",
-            "33ABCDE1234F1Z5", "DMT Payout", r.amount, round(gst_amt / 2, 2), round(gst_amt / 2, 2), 0.0,
+            str(r.tenant_id), comp_label, "RETAILER", ret_label,
+            (c_obj.gst_number if c_obj else None) or "—", f"Payout ({r.mode or 'IMPS'})", r.amount,
+            round(gst_amt / 2, 2), round(gst_amt / 2, 2), 0.0,
             gst_amt, r.charges, f"INV-{r.transaction_number[-8:]}", st_val
         ])
 
@@ -1327,29 +1412,174 @@ async def export_tax_report_csv(
 async def get_daily_open_close_summary(
     business_date: Optional[str] = Query(None),
     tenant_id: Optional[uuid.UUID] = Query(None),
+    ctx: CompanyContext = Depends(get_company_context),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     b_date = business_date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    start_dt, end_dt = parse_date_range(b_date, b_date)
+    tx_filters = [
+        EnterprisePayoutTransactionModel.initiated_at >= start_dt,
+        EnterprisePayoutTransactionModel.initiated_at <= end_dt,
+    ]
+    if not ctx.is_super_admin and domain_ctx.company_id:
+        tx_filters.append(EnterprisePayoutTransactionModel.company_id == uuid.UUID(domain_ctx.company_id))
+    elif tenant_id:
+        tx_filters.append(EnterprisePayoutTransactionModel.tenant_id == tenant_id)
+
+    agg = (await db.execute(
+        select(
+            func.coalesce(func.sum(EnterprisePayoutTransactionModel.amount), 0.0),
+            func.coalesce(func.sum(EnterprisePayoutTransactionModel.charges), 0.0),
+            func.coalesce(func.sum(EnterprisePayoutTransactionModel.gst_amount), 0.0),
+            func.count(EnterprisePayoutTransactionModel.id),
+        ).where(and_(*tx_filters))
+    )).fetchone()
+    tot_payout = float(agg[0] or 0.0) if agg else 0.0
+    tot_charges = float(agg[1] or 0.0) if agg else 0.0
+    tot_gst = float(agg[2] or 0.0) if agg else 0.0
+    tot_cnt = int(agg[3] or 0) if agg else 0
 
     return {
         "status": "SUCCESS",
         "data": {
             "business_date": b_date,
-            "opening_balance": 15250000.00,
-            "total_credits": 4820000.00,
-            "total_debits": 3250000.00,
-            "total_payouts": 2980000.00,
-            "total_charges": 14500.00,
-            "total_gst": 2610.00,
-            "closing_balance": 16802890.00,
+            "opening_balance": 0.0,
+            "total_credits": 0.0,
+            "total_debits": tot_payout + tot_charges + tot_gst,
+            "total_payouts": tot_payout,
+            "total_charges": tot_charges,
+            "total_gst": tot_gst,
+            "closing_balance": 0.0,
             "reconciliation_summary": {
-                "matched_count": 48,
+                "matched_count": tot_cnt,
                 "mismatch_count": 0,
-                "pending_count": 2,
+                "pending_count": 0,
                 "reconciliation_status": "MATCHED"
             }
         }
     }
+
+
+async def _fetch_daily_open_close_entities(
+    db: AsyncSession,
+    b_date: str,
+    req_entity: str,
+    ctx: CompanyContext,
+    domain_ctx: DomainCompanyContext,
+) -> List[Dict[str, Any]]:
+    comp_ref = domain_ctx.cmp_ref_id if not ctx.is_super_admin else None
+    comp_label = domain_ctx.company_name or domain_ctx.display_name or "Company HQ"
+    items: List[Dict[str, Any]] = []
+
+    if req_entity in ("ALL", "SD"):
+        sd_q = select(SuperDistributorModel).where(SuperDistributorModel.is_deleted == False)
+        if comp_ref is not None:
+            sd_q = sd_q.where(SuperDistributorModel.company_ref_id == comp_ref)
+        for sd in (await db.execute(sd_q.limit(50))).scalars().all():
+            bal = float(getattr(sd, "wallet_balance", 0.0) or 0.0)
+            items.append({
+                "entity_id": sd.super_distributor_code or str(sd.public_id),
+                "entity_name": sd.business_name or sd.owner_name,
+                "entity_type": "SD",
+                "tenant_id": str(sd.tenant_id),
+                "company_id": comp_label,
+                "parent_entity": comp_label,
+                "business_date": b_date,
+                "opening_balance": bal,
+                "total_credits": 0.0,
+                "total_debits": 0.0,
+                "payouts": 0.0,
+                "charges": 0.0,
+                "gst": 0.0,
+                "adjustments": 0.0,
+                "closing_balance": bal,
+                "transaction_count": 0,
+                "successful_count": 0,
+                "failed_count": 0,
+                "pending_count": 0,
+                "reversed_count": 0,
+                "settlement_amount": 0.0,
+                "settled_amount": 0.0,
+                "pending_settlement": 0.0,
+                "expected_closing_balance": bal,
+                "actual_closing_balance": bal,
+                "difference": 0.0,
+                "reconciliation_status": "MATCHED",
+            })
+
+    if req_entity in ("ALL", "DIST"):
+        dist_q = select(DistributorModel).where(DistributorModel.is_deleted == False)
+        if comp_ref is not None:
+            dist_q = dist_q.where(DistributorModel.company_ref_id == comp_ref)
+        for d in (await db.execute(dist_q.limit(50))).scalars().all():
+            bal = float(getattr(d, "wallet_balance", 0.0) or 0.0)
+            items.append({
+                "entity_id": d.distributor_code or str(d.public_id),
+                "entity_name": d.business_name or d.owner_name,
+                "entity_type": "DIST",
+                "tenant_id": str(d.tenant_id),
+                "company_id": comp_label,
+                "parent_entity": f"SD-{d.super_distributor_ref_id}" if d.super_distributor_ref_id else comp_label,
+                "business_date": b_date,
+                "opening_balance": bal,
+                "total_credits": 0.0,
+                "total_debits": 0.0,
+                "payouts": 0.0,
+                "charges": 0.0,
+                "gst": 0.0,
+                "adjustments": 0.0,
+                "closing_balance": bal,
+                "transaction_count": 0,
+                "successful_count": 0,
+                "failed_count": 0,
+                "pending_count": 0,
+                "reversed_count": 0,
+                "settlement_amount": 0.0,
+                "settled_amount": 0.0,
+                "pending_settlement": 0.0,
+                "expected_closing_balance": bal,
+                "actual_closing_balance": bal,
+                "difference": 0.0,
+                "reconciliation_status": "MATCHED",
+            })
+
+    if req_entity in ("ALL", "RETAILER"):
+        ret_q = select(RetailerModel).where(RetailerModel.is_deleted == False)
+        if comp_ref is not None:
+            ret_q = ret_q.where(RetailerModel.company_ref_id == comp_ref)
+        for ret in (await db.execute(ret_q.limit(100))).scalars().all():
+            items.append({
+                "entity_id": ret.retailer_code or str(ret.public_id),
+                "entity_name": ret.store_name or ret.legal_name or ret.owner_name,
+                "entity_type": "RETAILER",
+                "tenant_id": str(ret.tenant_id),
+                "company_id": comp_label,
+                "parent_entity": f"DIST-{ret.distributor_ref_id}" if ret.distributor_ref_id else comp_label,
+                "business_date": b_date,
+                "opening_balance": 0.0,
+                "total_credits": 0.0,
+                "total_debits": 0.0,
+                "payouts": 0.0,
+                "charges": 0.0,
+                "gst": 0.0,
+                "adjustments": 0.0,
+                "closing_balance": 0.0,
+                "transaction_count": 0,
+                "successful_count": 0,
+                "failed_count": 0,
+                "pending_count": 0,
+                "reversed_count": 0,
+                "settlement_amount": 0.0,
+                "settled_amount": 0.0,
+                "pending_settlement": 0.0,
+                "expected_closing_balance": 0.0,
+                "actual_closing_balance": 0.0,
+                "difference": 0.0,
+                "reconciliation_status": "MATCHED",
+            })
+
+    return items
 
 
 @router.get("/daily-open-close")
@@ -1360,116 +1590,27 @@ async def list_daily_open_close_report(
     company_id: Optional[uuid.UUID] = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=200),
+    ctx: CompanyContext = Depends(get_company_context),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     b_date = business_date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     req_entity = entity_type.upper() if entity_type else "ALL"
-
-    mock_hierarchy = [
-        {
-            "entity_id": "SD-MASTER-01",
-            "entity_name": "Super Distributor Master Console",
-            "entity_type": "SD",
-            "tenant_id": str(tenant_id or "Default Tenant"),
-            "company_id": str(company_id or "Default Company"),
-            "parent_entity": "Pay2Pay HQ",
-            "business_date": b_date,
-            "opening_balance": 12500000.00,
-            "total_credits": 2500000.00,
-            "total_debits": 1800000.00,
-            "payouts": 1500000.00,
-            "charges": 8500.00,
-            "gst": 1530.00,
-            "adjustments": 0.0,
-            "closing_balance": 13189970.00,
-            "transaction_count": 340,
-            "successful_count": 332,
-            "failed_count": 6,
-            "pending_count": 2,
-            "reversed_count": 0,
-            "settlement_amount": 1500000.00,
-            "settled_amount": 1500000.00,
-            "pending_settlement": 0.0,
-            "expected_closing_balance": 13189970.00,
-            "actual_closing_balance": 13189970.00,
-            "difference": 0.0,
-            "reconciliation_status": "MATCHED"
-        },
-        {
-            "entity_id": "DIST-METRO-02",
-            "entity_name": "Metro Territory Distributor",
-            "entity_type": "DIST",
-            "tenant_id": str(tenant_id or "Default Tenant"),
-            "company_id": str(company_id or "Default Company"),
-            "parent_entity": "SD-MASTER-01",
-            "business_date": b_date,
-            "opening_balance": 2150000.00,
-            "total_credits": 1200000.00,
-            "total_debits": 950000.00,
-            "payouts": 890000.00,
-            "charges": 4200.00,
-            "gst": 756.00,
-            "adjustments": 0.0,
-            "closing_balance": 2395044.00,
-            "transaction_count": 185,
-            "successful_count": 182,
-            "failed_count": 3,
-            "pending_count": 0,
-            "reversed_count": 0,
-            "settlement_amount": 890000.00,
-            "settled_amount": 890000.00,
-            "pending_settlement": 0.0,
-            "expected_closing_balance": 2395044.00,
-            "actual_closing_balance": 2395044.00,
-            "difference": 0.0,
-            "reconciliation_status": "MATCHED"
-        },
-        {
-            "entity_id": "RET-0CFE2B",
-            "entity_name": "Sathiya Traders",
-            "entity_type": "RETAILER",
-            "tenant_id": str(tenant_id or "Default Tenant"),
-            "company_id": str(company_id or "Default Company"),
-            "parent_entity": "DIST-METRO-02",
-            "business_date": b_date,
-            "opening_balance": 600000.00,
-            "total_credits": 112000.00,
-            "total_debits": 500000.00,
-            "payouts": 500000.00,
-            "charges": 1800.00,
-            "gst": 324.00,
-            "adjustments": 0.0,
-            "closing_balance": 209876.00,
-            "transaction_count": 62,
-            "successful_count": 60,
-            "failed_count": 2,
-            "pending_count": 0,
-            "reversed_count": 0,
-            "settlement_amount": 500000.00,
-            "settled_amount": 500000.00,
-            "pending_settlement": 0.0,
-            "expected_closing_balance": 209876.00,
-            "actual_closing_balance": 209876.00,
-            "difference": 0.0,
-            "reconciliation_status": "MATCHED"
-        }
-    ]
-
-    filtered_items = [
-        item for item in mock_hierarchy
-        if req_entity == "ALL" or item["entity_type"] == req_entity
-    ]
+    all_items = await _fetch_daily_open_close_entities(db, b_date, req_entity, ctx, domain_ctx)
+    total = len(all_items)
+    offset = (page - 1) * limit
+    paged = all_items[offset:offset + limit]
 
     return {
         "status": "SUCCESS",
         "data": {
             "business_date": b_date,
-            "items": filtered_items,
+            "items": paged,
             "pagination": {
-                "total": len(filtered_items),
+                "total": total,
                 "page": page,
                 "limit": limit,
-                "total_pages": 1
+                "total_pages": max(1, (total + limit - 1) // limit)
             }
         }
     }
@@ -1480,9 +1621,13 @@ async def export_daily_open_close_csv(
     business_date: Optional[str] = Query(None),
     entity_type: Optional[str] = Query("ALL"),
     tenant_id: Optional[uuid.UUID] = Query(None),
+    ctx: CompanyContext = Depends(get_company_context),
+    domain_ctx: DomainCompanyContext = Depends(get_domain_context),
     db: AsyncSession = Depends(get_db)
 ):
     b_date = business_date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    req_entity = entity_type.upper() if entity_type else "ALL"
+    entities = await _fetch_daily_open_close_entities(db, b_date, req_entity, ctx, domain_ctx)
 
     output = io.StringIO()
     writer = csv.writer(output)
@@ -1492,14 +1637,13 @@ async def export_daily_open_close_csv(
         "Closing Balance", "Tx Count", "Expected Closing", "Actual Closing", "Difference", "Reconciliation Status"
     ])
 
-    rows = [
-        ["SD-MASTER-01", "Super Distributor Master Console", "SD", "Pay2Pay HQ", b_date, 12500000.0, 2500000.0, 1800000.0, 1500000.0, 8500.0, 1530.0, 13189970.0, 340, 13189970.0, 13189970.0, 0.0, "MATCHED"],
-        ["DIST-METRO-02", "Metro Territory Distributor", "DIST", "SD-MASTER-01", b_date, 2150000.0, 1200000.0, 950000.0, 890000.0, 4200.0, 756.0, 2395044.0, 185, 2395044.0, 2395044.0, 0.0, "MATCHED"],
-        ["RET-0CFE2B", "Sathiya Traders", "RETAILER", "DIST-METRO-02", b_date, 600000.0, 112000.0, 500000.0, 500000.0, 1800.0, 324.0, 209876.0, 62, 209876.0, 209876.0, 0.0, "MATCHED"]
-    ]
-
-    for r in rows:
-        writer.writerow(r)
+    for e in entities:
+        writer.writerow([
+            e["entity_id"], e["entity_name"], e["entity_type"], e["parent_entity"], e["business_date"],
+            e["opening_balance"], e["total_credits"], e["total_debits"], e["payouts"], e["charges"], e["gst"],
+            e["closing_balance"], e["transaction_count"], e["expected_closing_balance"], e["actual_closing_balance"],
+            e["difference"], e["reconciliation_status"]
+        ])
 
     output.seek(0)
     headers = {"Content-Disposition": f"attachment; filename=Daily_Open_Close_Report_{b_date}.csv"}
@@ -1734,6 +1878,7 @@ LEFT JOIN LATERAL (
     LIMIT 1
 ) cm ON TRUE
 WHERE (r.is_deleted IS NULL OR r.is_deleted = FALSE)
+  AND (CAST(:comp_ref AS BIGINT) IS NULL OR r.company_ref_id = CAST(:comp_ref AS BIGINT))
 ORDER BY r.id ASC;
 """
 
@@ -1741,23 +1886,19 @@ ORDER BY r.id ASC;
 @router.get("/retailer-details/export", summary="Export Retailer Full Master with Address and KYC Documents")
 @router.get("/retailers/export-csv", summary="Export Retailer Full Master with Address and KYC Documents")
 async def export_retailers_full_csv(
+    request: Request,
+    ctx: CompanyContext = Depends(get_company_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Exports full details of all retailers including:
-    - Business details (Code, Name, Category, Store Type, Status)
-    - Contact Details (Mobile, Alternate Mobile, Email, Support Email, Contact Person)
-    - Full Store Address (Street, Landmark, City, District, State, Pincode, Lat, Long)
-    - KYC & Identification (PAN, Aadhaar, GST, KYC Status, Rejection Reason)
-    - KYC Document URLs (PAN Card, Aadhaar Front, Aadhaar Back, Photo, Shop Proof, Bank Proof, Video KYC)
-    - Settlement Bank Details (Bank Name, Holder Name, Account No, IFSC, Branch, UPI ID, Status)
-    - Wallet & Limits (Balance, Limits, Frozen Status)
-    - Hierarchy (Distributor, Super Distributor, Company)
+    Exports full details of retailers scoped strictly to the authenticated company.
     """
-    res = await db.execute(text(RETAILER_FULL_EXPORT_SQL))
+    comp_ref = ctx.company_ref_id if not ctx.is_super_admin else None
+    res = await db.execute(text(RETAILER_FULL_EXPORT_SQL), {"comp_ref": comp_ref})
     rows = res.fetchall()
 
-    base_domain = "https://admin.pay2pay.in"
+    req_host = extract_host(request)
+    base_domain = f"https://{req_host}" if req_host else ""
 
     def format_url(val: Any) -> str:
         if not val or str(val).strip() in ("", "N/A", "null", "None"):

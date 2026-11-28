@@ -75,9 +75,12 @@ export const applyThemeToDocument = (_themeId: KpiTheme) => {
   if (typeof window === "undefined") return;
   const config = DEFAULT_WHITE_THEME;
   const root = document.documentElement;
+  const activePrimary =
+    getComputedStyle(root).getPropertyValue("--brand-primary").trim() ||
+    config.primaryColor;
   root.style.setProperty("--p2p-header-bg", config.headerBg);
   root.style.setProperty("--p2p-header-text", config.headerText);
-  root.style.setProperty("--p2p-primary-color", config.primaryColor);
+  root.style.setProperty("--p2p-primary-color", activePrimary);
   root.style.setProperty("--p2p-page-bg", config.pageBg);
   root.style.setProperty("--p2p-card-bg", config.cardBg);
   root.style.setProperty("--p2p-card-border", config.cardBorder);
@@ -126,35 +129,15 @@ export function getDomainScope(): string {
 }
 
 const getInitialWalletState = (): WalletState => {
-  let main = 0.00;
-  let avail = 0.00;
-  let comm = 0.00;
-  let margin = 0.00;
-  let settlement = 0.00;
-  if (typeof window !== "undefined") {
-    try {
-      const domain = getDomainScope();
-      const savedBal =
-        localStorage.getItem(`p2p_cached_wallet_balance_${domain}`) ||
-        sessionStorage.getItem(`p2p_cached_wallet_balance_${domain}`);
-      const savedAvail =
-        localStorage.getItem(`p2p_cached_available_balance_${domain}`) ||
-        sessionStorage.getItem(`p2p_cached_available_balance_${domain}`);
-      if (savedBal && !isNaN(Number(savedBal))) {
-        main = Number(savedBal);
-      }
-      if (savedAvail && !isNaN(Number(savedAvail))) {
-        avail = Number(savedAvail);
-      }
-    } catch {}
-  }
+  // Always return deterministic initial zeros so SSR HTML and initial client hydration match cleanly.
+  // Live/cached wallet balance is hydrated immediately in RetailerLayout's client useEffect.
   return {
-    mainBalance: main,
-    availableBalance: avail,
-    commissionBalance: comm,
-    todayMargin: margin,
+    mainBalance: 0.0,
+    availableBalance: 0.0,
+    commissionBalance: 0.0,
+    todayMargin: 0.0,
     todayTxnCount: 0,
-    todaySettlement: settlement,
+    todaySettlement: 0.0,
   };
 };
 

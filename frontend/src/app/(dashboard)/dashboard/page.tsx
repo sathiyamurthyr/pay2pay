@@ -184,47 +184,47 @@ export default function DynamicMasterDashboardPage() {
   // Timeframe for Charts
   const [timeframe, setTimeframe] = useState<string>("7D");
 
-  // State payloads with authoritative fallback baselines
+  // State payloads (strictly live DB-driven, no fake fallback baselines)
   const [summary, setSummary] = useState<SummaryData | null>({
     pos: {
-      total_pos_txns: 14279,
-      total_pos_volume: 169480850.45,
+      total_pos_txns: 0,
+      total_pos_volume: 0,
       total_mdr: 0,
-      active_terminals: 45,
+      active_terminals: 0,
       todays_pos_txns: 0,
       todays_pos_volume: 0,
     },
     pending: {
-      pending_count: 53,
-      total_pending_amount: 2415231.0,
-      pending_vendors_count: 1,
-      pending_retailers_count: 13,
+      pending_count: 0,
+      total_pending_amount: 0,
+      pending_vendors_count: 0,
+      pending_retailers_count: 0,
       services_breakdown: [],
     },
     hierarchy: {
-      total_retailers: 129,
-      total_distributors: 1,
-      total_super_distributors: 1,
-      total_pos_machines: 50,
+      total_retailers: 0,
+      total_distributors: 0,
+      total_super_distributors: 0,
+      total_pos_machines: 0,
     },
     wallet: {
-      total_wallet_liability: 1542000.0,
+      total_wallet_liability: 0,
       todays_payout_volume: 0,
     },
     system_health: {
       status: "OPERATIONAL",
-      latency_ms: 12,
-      success_rate_pct: 98.8,
+      latency_ms: 0,
+      success_rate_pct: 100,
     },
   });
 
   const [chartData, setChartData] = useState<ChartItem[]>([]);
   const [posItems, setPosItems] = useState<PosTransactionItem[]>([]);
-  const [posTotal, setPosTotal] = useState<number>(14279);
+  const [posTotal, setPosTotal] = useState<number>(0);
   const [pendingItems, setPendingItems] = useState<PendingTransactionItem[]>([]);
-  const [pendingTotal, setPendingTotal] = useState<number>(53);
+  const [pendingTotal, setPendingTotal] = useState<number>(0);
   const [hierarchyItems, setHierarchyItems] = useState<HierarchyScopeItem[]>([]);
-  const [hierarchyTotal, setHierarchyTotal] = useState<number>(129);
+  const [hierarchyTotal, setHierarchyTotal] = useState<number>(0);
 
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -439,9 +439,9 @@ export default function DynamicMasterDashboardPage() {
         <div className="flex items-center gap-2 mt-5 pt-4 border-t border-slate-200/80 overflow-x-auto pb-1 scrollbar-thin">
           {[
             { id: "overview", label: "Unified Overview", desc: "Command Center" },
-            { id: "pos", label: `POS & Card Volume (${posTotal > 0 ? fmtRawNumber(posTotal) : "14.2k"})`, desc: "view_sales_pos_transactions" },
-            { id: "pending", label: `Pending Operations (${pendingTotal > 0 ? pendingTotal : "53"})`, desc: "view_all_pending_transactions" },
-            { id: "hierarchy", label: `Sales Network (${hierarchyTotal > 0 ? hierarchyTotal : "129"})`, desc: "view_sales_hierarchy_scope" },
+            { id: "pos", label: `POS & Card Volume (${fmtRawNumber(posTotal)})`, desc: "view_sales_pos_transactions" },
+            { id: "pending", label: `Pending Operations (${pendingTotal})`, desc: "view_all_pending_transactions" },
+            { id: "hierarchy", label: `Sales Network (${hierarchyTotal})`, desc: "view_sales_hierarchy_scope" },
             { id: "merchant", label: "Retailer Workstation", desc: "Merchant Portal" },
           ].map((tab) => {
             const isActive = activeTab === tab.id;

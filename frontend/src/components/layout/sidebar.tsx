@@ -10,7 +10,7 @@ import {
   Sliders, UploadCloud, Cpu, BookOpen, Wallet, Scale, Send, BarChart3, Activity,
   Ticket, Landmark, GitMerge, CheckSquare, Bell, Zap, Fingerprint, Volume2, Music,
   Globe, Sparkles, Search, X, PanelLeftClose, PanelLeftOpen, AlertTriangle, Layers,
-  Megaphone, Terminal, Star, Pin, MessageSquare
+  Megaphone, Terminal, Star, Pin, MessageSquare, Briefcase
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth";
@@ -53,6 +53,8 @@ const playStarSound = (isAdded: boolean) => {
 };
 
 interface NavItem {
+  menu_ref_id?: number;
+  menu_code?: string;
   label: string;
   href: string;
   icon: React.ElementType;
@@ -66,6 +68,8 @@ interface NavCategory {
 }
 
 interface FavoriteItem {
+  favorite_ref_id?: number;
+  menu_ref_id?: number;
   public_id?: string;
   menu_href: string;
   menu_label: string;
@@ -73,6 +77,16 @@ interface FavoriteItem {
   icon_name?: string;
   display_order?: number;
 }
+
+const ADMIN_ICON_MAP: Record<string, React.ElementType> = {
+  LayoutDashboard, Building2, Users, UserPlus, ShieldCheck, Key,
+  ScrollText, Settings, UserCircle, CreditCard, Network,
+  ArrowLeftRight, Store, TrendingUp, Receipt, Code, Webhook, ShieldAlert, FileText,
+  Sliders, UploadCloud, Cpu, BookOpen, Wallet, Scale, Send, BarChart3, Activity,
+  Ticket, Landmark, GitMerge, CheckSquare, Bell, Zap, Fingerprint, Volume2, Music,
+  Globe, Sparkles, Search, AlertTriangle, Layers, Megaphone, Terminal, Star, Pin,
+  MessageSquare, Briefcase,
+};
 
 // ─── ADMIN PORTAL MENU STRUCTURE (Strict Governance & Administration) ───
 const ADMIN_NAV: NavCategory[] = [
@@ -86,6 +100,7 @@ const ADMIN_NAV: NavCategory[] = [
     category: "Administration",
     items: [
       { label: "Company", href: "/companies", icon: Building2 },
+      { label: "Company Profile", href: "/admin/company-profile", icon: Briefcase, badge: "Live" },
       { label: "Organization", href: "/organization", icon: Network },
       { label: "RM", href: "/organization/transfers", icon: UserCircle },
       { label: "Super Distributor", href: "/retailers", icon: Store },
@@ -193,43 +208,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
   const { user } = useAuth();
   const branding = useCompanyBranding();
 
-  // Dynamic Company Branding Resolution (SMSPAY, Near4You, Pay2Pay)
+  // Authoritative Dynamic Company Branding Resolution from public.company
   const brandInfo = useMemo(() => {
-    const raw = (branding.company_code || branding.company_name || branding.display_name || "").toUpperCase();
-    if (raw.includes("SMSPAY")) {
-      return {
-        name: "SMSPAY",
-        portal: "SMSPAY Portal",
-        logo: branding.logo_url || "/branding/smspay-logo.svg",
-        primary: branding.primary_colour || "#059669",
-        secondary: branding.secondary_colour || "#047857",
-      };
-    }
-    if (raw.includes("NEAR4YOU") || raw.includes("NEAR 4 YOU")) {
-      return {
-        name: "Near4You",
-        portal: "Near4You Portal",
-        logo: branding.logo_url || "/branding/logo.svg",
-        primary: branding.primary_colour || "#A20A3A",
-        secondary: branding.secondary_colour || "#EDC11E",
-      };
-    }
-    if (raw.includes("PAY2PAY")) {
-      return {
-        name: "Pay2Pay",
-        portal: "Pay2Pay Portal",
-        logo: branding.logo_url || "/branding/pay2pay-logo.png",
-        primary: branding.primary_colour || "#2563EB",
-        secondary: branding.secondary_colour || "#1E40AF",
-      };
-    }
-    const fallbackName = branding?.display_name || branding?.company_name || "FinTech";
+    const dispName = branding?.display_name || branding?.company_name || "Enterprise";
     return {
-      name: fallbackName,
-      portal: `${fallbackName} Portal`,
-      logo: branding?.logo_url || "/branding/logo.svg",
-      primary: branding?.primary_colour || "#2563EB",
-      secondary: branding?.secondary_colour || "#1E40AF",
+      name: dispName,
+      portal: branding?.company_name || `${dispName} Admin`,
+      logo: branding?.logo_url || "",
+      primary: branding?.primary_colour || "#1E293B",
+      secondary: branding?.secondary_colour || "#334155",
     };
   }, [branding]);
   const [isCollapsed, setIsCollapsed] = useState(alwaysExpanded ? false : true);
@@ -245,35 +232,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
     }
   }, [pathname, alwaysExpanded]);
 
-  // ── Database Favorites State ──
+  // ── Database Menus & Favorites State ──
+  const [permittedMenus, setPermittedMenus] = useState<any[] | null>(null);
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [loadingFavorites, setLoadingFavorites] = useState(false);
 
-  // Flat lookup dictionary of all nav items by href
-  const allItemsMap = useMemo(() => {
-    const map: Record<string, NavItem> = {};
-    ADMIN_NAV.forEach((cat) => {
-      cat.items.forEach((item) => {
-        if (!map[item.href]) {
-          map[item.href] = item;
-        }
-      });
-    });
-    return map;
-  }, []);
-
-  // Fetch user favorites from DB on mount or when user changes
+  // Fetch user permitted menus and favorites from DB on mount or when user changes
   const fetchFavorites = async () => {
     try {
       setLoadingFavorites(true);
-      const res = await api.get("/api/v1/admin/favorites", {
+      const res = await api.get("/api/v1/admin/favorites/permitted-menus", {
         headers: { "x-skip-auth-redirect": "true" },
       });
-      if (res.data?.favorites && Array.isArray(res.data.favorites)) {
+      if (Array.isArray(res.data?.menus)) {
+        setPermittedMenus(res.data.menus);
+      }
+      if (Array.isArray(res.data?.favorites)) {
         setFavorites(res.data.favorites);
+        return;
+      }
+      const favRes = await api.get("/api/v1/admin/favorites", {
+        headers: { "x-skip-auth-redirect": "true" },
+      });
+      if (Array.isArray(favRes.data?.favorites)) {
+        setFavorites(favRes.data.favorites);
       }
     } catch {
-      // Graceful fallback: do not interrupt admin navigation
       setFavorites([]);
     } finally {
       setLoadingFavorites(false);
@@ -283,24 +267,36 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
   useEffect(() => {
     if (user) {
       fetchFavorites();
+    } else {
+      setFavorites([]);
+      setPermittedMenus(null);
     }
-  }, [user]);
+  }, [user?.public_id, user?.email]);
+
+  const isSameNavFavorite = (fav: FavoriteItem, item: NavItem) => {
+    if (fav.menu_ref_id !== undefined && item.menu_ref_id !== undefined) {
+      return Number(fav.menu_ref_id) === Number(item.menu_ref_id);
+    }
+    return fav.menu_href === item.href && (!fav.menu_label || fav.menu_label === item.label);
+  };
 
   // Handle Toggle Favorite
   const handleToggleFavorite = async (item: NavItem, categoryName: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
-    const isFav = favorites.some((f) => f.menu_href === item.href);
+    const prevFavorites = favorites;
+    const isFav = prevFavorites.some((f) => isSameNavFavorite(f, item));
     playStarSound(!isFav);
 
     // Optimistic state update
     if (isFav) {
-      setFavorites((prev) => prev.filter((f) => f.menu_href !== item.href));
+      setFavorites((prev) => prev.filter((f) => !isSameNavFavorite(f, item)));
     } else {
       setFavorites((prev) => [
         ...prev,
         {
+          menu_ref_id: item.menu_ref_id,
           menu_href: item.href,
           menu_label: item.label,
           menu_category: categoryName,
@@ -311,6 +307,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
 
     try {
       const res = await api.post("/api/v1/admin/favorites/toggle", {
+        menu_ref_id: item.menu_ref_id,
         menu_href: item.href,
         menu_label: item.label,
         menu_category: categoryName,
@@ -321,103 +318,131 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
       }
     } catch (err) {
       console.error("Failed to toggle favorite in database", err);
-      // Rollback to server state
+      // Rollback cleanly to previous state / authoritative DB state
+      setFavorites(prevFavorites);
       fetchFavorites();
     }
   };
 
   const navigation = useMemo(() => {
-    const email = (user?.email || "").toLowerCase();
-    const roles = (user?.roles || []).map((r) => r.toLowerCase());
-    const uType = (user?.user_type || "").toLowerCase();
+    let baseNav: NavCategory[] = [];
 
-    const isCrm = email.includes("crm") || roles.includes("crm_executive") || roles.includes("crm_manager") || uType.includes("crm");
-    const isRm = email.includes("rm.") || email.startsWith("rm_") || roles.includes("regional_manager") || uType.includes("regional");
-    const isFinance = roles.includes("finance") || roles.includes("settlement_mgr") || uType.includes("finance");
-    const isCompliance = roles.includes("compliance") || uType.includes("compliance");
+    if (permittedMenus && permittedMenus.length > 0) {
+      const grouped = new Map<string, NavItem[]>();
+      permittedMenus.forEach((m) => {
+        const cat = m.menu_category || "General";
+        const IconComp = (m.icon_name && ADMIN_ICON_MAP[m.icon_name]) || LayoutDashboard;
+        if (!grouped.has(cat)) grouped.set(cat, []);
+        grouped.get(cat)!.push({
+          menu_ref_id: m.menu_ref_id,
+          menu_code: m.menu_code,
+          label: m.menu_label,
+          href: m.menu_href,
+          icon: IconComp,
+          badge: m.badge_text || undefined,
+        });
+      });
+      baseNav = Array.from(grouped.entries()).map(([category, items]) => ({ category, items }));
+    } else {
+      const email = (user?.email || "").toLowerCase();
+      const roles = (user?.roles || []).map((r) => r.toLowerCase());
+      const uType = (user?.user_type || "").toLowerCase();
 
-    let baseNav = ADMIN_NAV;
+      const isCrm = email.includes("crm") || roles.includes("crm_executive") || roles.includes("crm_manager") || uType.includes("crm");
+      const isRm = email.includes("rm.") || email.startsWith("rm_") || roles.includes("regional_manager") || uType.includes("regional");
+      const isFinance = roles.includes("finance") || roles.includes("settlement_mgr") || uType.includes("finance");
+      const isCompliance = roles.includes("compliance") || uType.includes("compliance");
 
-    if (isCrm) {
-      const allowedLabels: Record<string, string[]> = {
-        "Main": ["Dashboard"],
-        "Administration": ["Super Distributor", "Distributor", "Retailer", "POS Machine"],
-        "Configuration": ["Customer Policy", "Notifications", "Announcements"],
-        "Approvals": ["KYC & Onboarding"],
-        "Reports": ["Transaction Report", "Transaction Ledger", "PayIn Report", "Payout Report", "GST Report", "Settlement", "Wallet", "Retailers", "Machines", "Audit", "Reconciliation"],
-      };
+      baseNav = ADMIN_NAV;
 
-      baseNav = ADMIN_NAV.map((cat) => {
-        const allowed = allowedLabels[cat.category];
-        if (!allowed) return null;
-        const filteredItems = cat.items.filter((item) => allowed.includes(item.label));
-        return filteredItems.length > 0 ? { ...cat, items: filteredItems } : null;
-      }).filter(Boolean) as NavCategory[];
-    } else if (isRm) {
-      const allowedLabels: Record<string, string[]> = {
-        "Main": ["Dashboard"],
-        "Administration": ["Organization", "RM", "Super Distributor", "Distributor", "Retailer", "POS Machine"],
-        "Approvals": ["KYC & Onboarding"],
-        "Reports": ["Transaction Report", "Transaction Ledger", "PayIn Report", "Payout Report", "GST Report", "Retailers", "Machines"],
-      };
-
-      baseNav = ADMIN_NAV.map((cat) => {
-        const allowed = allowedLabels[cat.category];
-        if (!allowed) return null;
-        const filteredItems = cat.items.filter((item) => allowed.includes(item.label));
-        return filteredItems.length > 0 ? { ...cat, items: filteredItems } : null;
-      }).filter(Boolean) as NavCategory[];
-    } else if (isFinance) {
-      const allowedLabels: Record<string, string[]> = {
-        "Main": ["Dashboard"],
-        "Administration": ["Entity User", "Manual Top-up", "Topup Requests"],
-        "Configuration": ["Payout Switch", "Wallet", "Chart of Accounts", "Transactions", "Commission", "Charges"],
-        "Approvals": ["Topup Requests", "Settlement", "Wallet Adjustments"],
-        "Reports": ["Transaction Report", "Transaction Ledger", "PayIn Report", "Payout Report", "GST Report", "Settlement", "Wallet", "Reconciliation"],
-      };
-
-      baseNav = ADMIN_NAV.map((cat) => {
-        const allowed = allowedLabels[cat.category];
-        if (!allowed) return null;
-        const filteredItems = cat.items.filter((item) => allowed.includes(item.label));
-        return filteredItems.length > 0 ? { ...cat, items: filteredItems } : null;
-      }).filter(Boolean) as NavCategory[];
-    } else if (isCompliance) {
-      const allowedLabels: Record<string, string[]> = {
-        "Main": ["Dashboard"],
-        "Configuration": ["Customer Policy", "Beneficiary Policy", "Risk", "AML", "Security"],
-        "Approvals": ["KYC & Onboarding", "High Value"],
-        "Reports": ["Transaction Report", "Audit", "GST Report"],
-      };
-
-      baseNav = ADMIN_NAV.map((cat) => {
-        const allowed = allowedLabels[cat.category];
-        if (!allowed) return null;
-        const filteredItems = cat.items.filter((item) => allowed.includes(item.label));
-        return filteredItems.length > 0 ? { ...cat, items: filteredItems } : null;
-      }).filter(Boolean) as NavCategory[];
+      if (isCrm) {
+        const allowedLabels: Record<string, string[]> = {
+          "Main": ["Dashboard"],
+          "Administration": ["Super Distributor", "Distributor", "Retailer", "POS Machine"],
+          "Configuration": ["Customer Policy", "Notifications", "Announcements"],
+          "Approvals": ["KYC & Onboarding"],
+          "Reports": ["Transaction Report", "Transaction Ledger", "PayIn Report", "Payout Report", "GST Report", "Settlement", "Wallet", "Retailers", "Machines", "Audit", "Reconciliation"],
+        };
+        baseNav = ADMIN_NAV.map((cat) => {
+          const allowed = allowedLabels[cat.category];
+          if (!allowed) return null;
+          const filteredItems = cat.items.filter((item) => allowed.includes(item.label));
+          return filteredItems.length > 0 ? { ...cat, items: filteredItems } : null;
+        }).filter(Boolean) as NavCategory[];
+      } else if (isRm) {
+        const allowedLabels: Record<string, string[]> = {
+          "Main": ["Dashboard"],
+          "Administration": ["Organization", "RM", "Super Distributor", "Distributor", "Retailer", "POS Machine"],
+          "Approvals": ["KYC & Onboarding"],
+          "Reports": ["Transaction Report", "Transaction Ledger", "PayIn Report", "Payout Report", "GST Report", "Retailers", "Machines"],
+        };
+        baseNav = ADMIN_NAV.map((cat) => {
+          const allowed = allowedLabels[cat.category];
+          if (!allowed) return null;
+          const filteredItems = cat.items.filter((item) => allowed.includes(item.label));
+          return filteredItems.length > 0 ? { ...cat, items: filteredItems } : null;
+        }).filter(Boolean) as NavCategory[];
+      } else if (isFinance) {
+        const allowedLabels: Record<string, string[]> = {
+          "Main": ["Dashboard"],
+          "Administration": ["Entity User", "Manual Top-up", "Topup Requests"],
+          "Configuration": ["Payout Switch", "Wallet", "Chart of Accounts", "Transactions", "Commission", "Charges"],
+          "Approvals": ["Topup Requests", "Settlement", "Wallet Adjustments"],
+          "Reports": ["Transaction Report", "Transaction Ledger", "PayIn Report", "Payout Report", "GST Report", "Settlement", "Wallet", "Reconciliation"],
+        };
+        baseNav = ADMIN_NAV.map((cat) => {
+          const allowed = allowedLabels[cat.category];
+          if (!allowed) return null;
+          const filteredItems = cat.items.filter((item) => allowed.includes(item.label));
+          return filteredItems.length > 0 ? { ...cat, items: filteredItems } : null;
+        }).filter(Boolean) as NavCategory[];
+      } else if (isCompliance) {
+        const allowedLabels: Record<string, string[]> = {
+          "Main": ["Dashboard"],
+          "Configuration": ["Customer Policy", "Beneficiary Policy", "Risk", "AML", "Security"],
+          "Approvals": ["KYC & Onboarding", "High Value"],
+          "Reports": ["Transaction Report", "Audit", "GST Report"],
+        };
+        baseNav = ADMIN_NAV.map((cat) => {
+          const allowed = allowedLabels[cat.category];
+          if (!allowed) return null;
+          const filteredItems = cat.items.filter((item) => allowed.includes(item.label));
+          return filteredItems.length > 0 ? { ...cat, items: filteredItems } : null;
+        }).filter(Boolean) as NavCategory[];
+      }
     }
 
-    // Prepend Dynamic Favorites Category if any are saved in DB
+    const permittedFlat = baseNav.flatMap((c) => c.items);
+
+    // Prepend Dynamic Favorites Category filtered strictly to permitted items
     if (favorites.length > 0) {
-      const favCategory: NavCategory = {
-        category: "Favorites",
-        icon: Star,
-        items: favorites.map((fav) => {
-          const originalItem = allItemsMap[fav.menu_href];
-          return {
-            label: fav.menu_label || originalItem?.label || fav.menu_href,
-            href: fav.menu_href,
-            icon: originalItem?.icon || Star,
-            badge: originalItem?.badge,
-          };
-        }),
-      };
-      return [favCategory, ...baseNav];
+      const authorizedFavItems: NavItem[] = [];
+      for (const fav of favorites) {
+        const matched = permittedFlat.find((it) => isSameNavFavorite(fav, it));
+        if (!matched) continue;
+        authorizedFavItems.push({
+          menu_ref_id: fav.menu_ref_id ?? matched.menu_ref_id,
+          menu_code: matched.menu_code,
+          label: fav.menu_label || matched.label,
+          href: fav.menu_href || matched.href,
+          icon: matched.icon || Star,
+          badge: matched.badge,
+        });
+      }
+      if (authorizedFavItems.length > 0) {
+        return [
+          {
+            category: "Favorites",
+            icon: Star,
+            items: authorizedFavItems,
+          },
+          ...baseNav,
+        ];
+      }
     }
 
     return baseNav;
-  }, [user, favorites, allItemsMap]);
+  }, [user, favorites, permittedMenus]);
 
   const toggleCategory = (cat: string) => {
     setCollapsedCategories((prev) => ({ ...prev, [cat]: !prev[cat] }));
@@ -632,11 +657,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ alwaysExpanded = true }) => {
                         (item.href === "/dashboard" && (pathname === "/super-admin/dashboard" || pathname === "/admin/dashboard" || pathname === "/super-admin")) ||
                         (item.href !== "/" && pathname?.startsWith(`${item.href}/`));
 
-                      const isFavorited = favorites.some((f) => f.menu_href === item.href);
+                      const isFavorited = favorites.some((f) => isSameNavFavorite(f, item));
 
                       return (
                         <Link
-                          key={`${cat.category}-${item.label}-${item.href}`}
+                          key={`${cat.category}-${item.menu_ref_id || item.label}-${item.href}`}
                           href={item.href}
                           prefetch={false}
                           title={isCollapsed ? item.label : undefined}

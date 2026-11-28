@@ -74,11 +74,29 @@ async def retailer_payin_transactions_summary(
     request: Request,
     from_date: Optional[str] = Query(None),
     to_date: Optional[str] = Query(None),
+    month: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    status_filter: Optional[str] = Query(None),
+    gateway: Optional[str] = Query(None),
+    payment_mode: Optional[str] = Query(None),
+    tid: Optional[str] = Query(None),
+    mobile: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
     from app.presentation.api.v1.payin_report_router import get_payin_report_summary
     return await get_payin_report_summary(
-        request=request, from_date=from_date, to_date=to_date, db=db
+        request=request,
+        from_date=from_date,
+        to_date=to_date,
+        month=month,
+        status=status or status_filter,
+        gateway=gateway,
+        payment_mode=payment_mode,
+        tid=tid,
+        mobile=mobile,
+        search=search,
+        db=db,
     )
 
 
@@ -86,17 +104,38 @@ async def retailer_payin_transactions_summary(
 async def retailer_payin_transactions_list(
     request: Request,
     page: int = Query(1, ge=1),
-    limit: int = Query(15, ge=1, le=100),
+    limit: int = Query(15, ge=1, le=200),
     search: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
     status_filter: Optional[str] = Query(None),
+    gateway: Optional[str] = Query(None),
+    payment_mode: Optional[str] = Query(None),
+    tid: Optional[str] = Query(None),
+    mobile: Optional[str] = Query(None),
     from_date: Optional[str] = Query(None),
     to_date: Optional[str] = Query(None),
+    month: Optional[str] = Query(None),
+    sort_by: str = Query("created_at"),
+    sort_dir: str = Query("desc"),
     db: AsyncSession = Depends(get_db)
 ):
     from app.presentation.api.v1.payin_report_router import get_payin_report_grid
     return await get_payin_report_grid(
-        request=request, page=page, limit=limit, search=search, status=status_filter,
-        from_date=from_date, to_date=to_date, db=db
+        request=request,
+        page=page,
+        limit=limit,
+        search=search,
+        status=status or status_filter,
+        gateway=gateway,
+        payment_mode=payment_mode,
+        tid=tid,
+        mobile=mobile,
+        from_date=from_date,
+        to_date=to_date,
+        month=month,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        db=db,
     )
 
 
@@ -105,11 +144,29 @@ async def retailer_payin_transactions_export(
     request: Request,
     from_date: Optional[str] = Query(None),
     to_date: Optional[str] = Query(None),
+    month: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    status_filter: Optional[str] = Query(None),
+    gateway: Optional[str] = Query(None),
+    payment_mode: Optional[str] = Query(None),
+    tid: Optional[str] = Query(None),
+    mobile: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
     from app.presentation.api.v1.payin_report_router import export_payin_report
     return await export_payin_report(
-        request=request, from_date=from_date, to_date=to_date, db=db
+        request=request,
+        from_date=from_date,
+        to_date=to_date,
+        month=month,
+        status=status or status_filter,
+        gateway=gateway,
+        payment_mode=payment_mode,
+        tid=tid,
+        mobile=mobile,
+        search=search,
+        db=db,
     )
 
 @router.get("/retailer/reports/transaction-ledger/summary")
